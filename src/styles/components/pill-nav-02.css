@@ -1,0 +1,20 @@
+/* Pill navigation — part 2 of 4. See `pill-nav.css` for the family contract.
+
+   These rules sat in `legacy/02-select-and-print.css`, and this file is imported
+   at that position. */
+
+/* Selected states paint through box-shadow — a glow here, and `box-shadow: none`
+   in the pill nav so the glider owns the fill. Both outrank the shared
+   `:focus-visible` ring on specificity, so a focused *selected* chip lost its
+   focus ring entirely. Restate the ring wherever selection wins. */
+.pill-nav .clickable-chip.on-teal:focus-visible,
+.pill-nav .tab-btn.active:focus-visible,
+.pill-nav .nav-link.active:focus-visible {
+  outline: none; box-shadow: var(--ring);
+}
+
+/* In light mode the pill nav's glider paints --teal-soft too, so a count badge
+   inside the active pill was the same fill on the same fill (1:1) — the shape
+   vanished and the active tab read as a bare label. --card reads on either
+   glider, in both themes. */
+.pill-nav .clickable-chip.on-teal .tab-count { background: var(--card); }

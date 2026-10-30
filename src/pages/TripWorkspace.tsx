@@ -5,8 +5,10 @@
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
-import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, fetchSharedTrip } from '../store/store'
-import { PillNav } from '../components/PillNav'
+import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, readSharedTrip, useIdentityGeneration } from '../store/store'
+import { SegmentedTabs } from '../components/page/SegmentedTabs'
+import { StateBlock } from '../components/page/StateBlock'
+import { authNext } from '../lib/authNext'
 import { computeHealth, computeTotals, getAssumptions, isRoadMeasuredMode } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
 import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus, type TripRoadView } from '../lib/tripRoad'
@@ -15,22 +17,36 @@ import { routeParts } from '../lib/pageTitle'
 import { currentQuery, currentRoute, replaceRoute } from '../lib/router'
 import { scrollBehavior } from '../lib/motion'
 import { Avatar, toast } from '../components/ui'
+import { assignAvatarTones } from '../lib/avatarTone'
 import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
 import { ImpactPreviewPanel } from '../components/ImpactPreview'
 import { useSuggestionCache } from '../hooks/useSuggestionCache'
-import { useTablist } from '../hooks/useTablist'
 // Board also embeds TripMap (so it pulls the same lazy map chunk) — load the whole
 // view lazily so the Board tab never adds app-start cost either. TripMap itself
 // is lazily imported inside MapTab.
 const BoardView = React.lazy(() => import('../components/BoardView').then(m => ({ default: m.BoardView })))
 import { AiDrawer } from '../components/AiDrawer'
 import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
-import { useDestinationCover } from '../hooks/useDestinationCover'
-import { pickTripQueryCandidates } from '../lib/tripThumb'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
 import { MapTabSkeleton } from './trip/MapTabSkeleton'
+import { TripArtSprite } from '../components/trips/TripArt'
+import { CoverMedia } from '../components/CoverMedia'
+import { coverPlanFor } from '../lib/regionArt'
+import { sizedCoverUrl } from '../lib/tripThumb'
+import { regionFor } from '../lib/tripsPage'
+import type { MapTarget } from '../lib/mapTarget'
+import {
+  WORKSPACE_TABS,
+  foldWorkspaceHeader,
+  resolveMapFocus,
+  resolveTimelineFocus,
+  workspacePanelId,
+  workspaceTabId,
+  type TimelineFocusTarget,
+  type WorkspaceTabKey,
+} from '../lib/workspaceHeader'
 // #332 R4: the Map TAB is lazy, not just the renderer inside it. MapTab statically
 // imports the whole suggestion stack (geocode, engine, daySlots, tripDna,
 // storyArcs, slackPrompts…), so a static import here put all of it in the
@@ -103,19 +119,9 @@ export function workspacePreviewActions({ trip, pendingRef, baseRef, legCorrRef,
   return { applyChange, keepPending, removePending, stage }
 }
 
-type TabKey = 'overview' | 'timeline' | 'board' | 'map' | 'group' | 'budget' | 'share' | 'settings'
+type TabKey = WorkspaceTabKey
 
-const TABS: [TabKey, string][] = [
-  ['overview', 'Overview'],
-  ['board', 'Board'],
-  ['map', 'Map'],
-  ['timeline', 'Timeline'],
-  ['group', 'Group input'],
-  ['budget', 'Budget'],
-  ['share', 'Share'],
-  ['settings', 'Settings'],
-]
-const TAB_IDS = TABS.map(([k]) => k)
+const TABS = WORKSPACE_TABS
 
 /** Legacy tab slugs that now redirect to the merged Group input tab. */
 const LEGACY_TAB_SLUGS = ['suggestions', 'decisions']
@@ -136,22 +142,18 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const db = useDb()
   const me = currentUser(db)
   const trip = tripById(tripId)
-  // A cache miss is not final: hydration is membership-scoped and can come
-  // back partial (a failed trips read keeps last-known data but a first-load
-  // blip leaves the cache cold), and a direct link can land before hydration
-  // finishes. fetchSharedTrip reads the row directly (owner / member / public)
-  // and merges it into the cache — the commit re-renders this component. Only
-  // a null fetch (unreadable / trashed / bad id) is "Trip not found".
-  const [missedFetchFor, setMissedFetchFor] = useState<string | null>(null)
-  const fetchMissed = missedFetchFor === tripId
+  // A cache miss can precede hydration. Read the row before showing a result.
+  const identityGeneration = useIdentityGeneration()
+  const [readResult, setReadResult] = useState<{ tripId: string; identityGeneration: number; kind: 'failed' | 'unavailable' } | null>(null)
+  const readState = readResult?.tripId === tripId && readResult.identityGeneration === identityGeneration ? readResult.kind : null
   useEffect(() => {
-    if (trip || fetchMissed) return
+    if (trip || readState || !me) return
     let cancelled = false
-    void fetchSharedTrip(tripId).then(t => {
-      if (!cancelled && !t) setMissedFetchFor(tripId)
+    void readSharedTrip(tripId).then(result => {
+      if (!cancelled && (result.kind === 'failed' || result.kind === 'unavailable')) setReadResult({ tripId, identityGeneration, kind: result.kind })
     })
     return () => { cancelled = true }
-  }, [trip, fetchMissed, tripId])
+  }, [trip, readState, tripId, me, identityGeneration])
   const [tab, setTabState] = useState<TabKey>(() => sanitizeTab(initialTab))
   // Normalize a legacy slug in the URL once on mount so existing
   // /trip/<id>/suggestions|decisions links keep working but self-heal to `group`.
@@ -178,7 +180,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // #87: the tab bar had role="tab" + aria-selected but every tab stayed in
   // the tab order and arrows did nothing — now the shared roving-tabindex
   // primitive (Tab lands on the active tab only; arrows/Home/End move it).
-  const { refs: tabRefs, tabProps } = useTablist(TAB_IDS, tab, setTab)
   const [aiOpen, setAiOpen] = useState(false)
 
   const role = me && trip ? roleOf(trip, me.id) : null
@@ -200,11 +201,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const legCorrRef = useRef(legCorrections)
   legCorrRef.current = legCorrections
 
-  // Auto (Wikipedia) destination photo for the workspace header cover badge.
-  // Walk all candidates (last stop → earlier stops → start city) so a single
-  // "no photo" Wikipedia page doesn't leave the cover blank.
-  const tripCoverAuto = useDestinationCover(trip ? pickTripQueryCandidates(trip) : null)
-
   // Suggestion cache: persists across tab switches, invalidated by anchor changes.
   // #414: the day count prunes zombie halt keys — tail keys naming day indexes
   // the grid no longer has after a shrink. While the trip is still loading
@@ -218,7 +214,8 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // trips (it is not keyed by trip id), and a previous trip's hash compared
   // against this trip's cache would brand the matrix stale forever.
   const [mapInputs, setMapInputs] = useState<{ hash: string; scopeKm: number } | null>(null)
-  useEffect(() => { setMapInputs(null) }, [tripId])
+  const [mapTarget, setMapTarget] = useState<MapTarget | null>(null)
+  useEffect(() => { setMapInputs(null); setMapTarget(null) }, [tripId])
   // Stable identity so the Map's publish effect fires on hash/scope changes,
   // never on our re-renders (their ref guard makes inline safe too; this is
   // the calmer form — it cannot ping-pong even if that guard ever goes).
@@ -254,9 +251,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // workspace component is not keyed by trip id.
   const [timelineFocusDay, setTimelineFocusDay] = useState<number | null>(null)
   const [timelineFocusStop, setTimelineFocusStop] = useState<string | null>(null)
+  const [timelineFocusBlock, setTimelineFocusBlock] = useState<'trip-wide' | null>(null)
   const clearTimelineFocus = useCallback(() => {
     setTimelineFocusDay(null)
     setTimelineFocusStop(null)
+    setTimelineFocusBlock(null)
   }, [])
   // Deep link from the featured next step (?day=&stop=): a one-shot request,
   // armed only on a timeline address and validated against this trip before
@@ -279,6 +278,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     if (req.tripId !== trip.id) return
     if (!canFocusDay(focusDayRequest(req.dayIndex), trip)) return
     setTimelineFocusDay(req.dayIndex)
+    setTimelineFocusBlock(null)
     // The stop scrolls only when it really sits on that day. A name the day
     // does not hold falls back to the day focus alone.
     const stopId = req.stopId
@@ -302,6 +302,29 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // trips) reads as 'all', never as another trip's day. `setFocus` is also
   // the clear path: focusForDay(id, null) is the 'all' state.
   const sharedDay = trip ? dayFromFocus(focus, trip.id) : 'all'
+  const consumeMapTarget = useCallback(() => setMapTarget(null), [])
+  const headerExtraRef = useRef<HTMLDivElement | null>(null)
+  const [headerExtraInert, setHeaderExtraInert] = useState(false)
+  const headerFolded = foldWorkspaceHeader(tab)
+
+  useEffect(() => {
+    if (!headerFolded) {
+      // Inertness depends on the live focus location, which render cannot read.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHeaderExtraInert(false)
+      return
+    }
+    const extra = headerExtraRef.current
+    const active = document.activeElement
+    if (extra && active instanceof Node && extra.contains(active)) {
+      document.getElementById(workspaceTabId(tab))?.focus()
+    }
+    setHeaderExtraInert(true)
+  }, [headerFolded, tab])
+
+  useEffect(() => {
+    if (headerExtraRef.current) headerExtraRef.current.inert = headerExtraInert
+  }, [headerExtraInert])
 
   // #334 pitfall: this workspace outlives trips (it is not keyed by trip id),
   // so a pending preview must not survive a trip switch — Keep would write one
@@ -334,11 +357,34 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     }
   }
 
-  if ((!trip && fetchMissed) || !me) {
-    return <div className="container loading-block page-enter">Trip not found. <button className="btn btn-outline btn-sm" onClick={() => onNavigate('trips')}>Back to my trips</button></div>
+  function openTimeline(target?: TimelineFocusTarget) {
+    if (!trip) return
+    const next = resolveTimelineFocus(trip, target)
+    setTimelineFocusDay(next.dayIndex)
+    setTimelineFocusStop(next.stopId)
+    setTimelineFocusBlock(next.block)
+    if (next.dayIndex != null) setFocusedDay(next.dayIndex)
+    setTab('timeline')
+  }
+
+  function openMap(target?: MapTarget) {
+    if (!trip) return
+    const next = resolveMapFocus(trip, target)
+    setMapTarget(next.target)
+    if (next.dayIndex != null) setFocusedDay(next.dayIndex)
+    else setFocus(focusForDay(trip.id, null))
+    setTab('map')
+  }
+
+  if (!me) return <div className="container page-enter"><StateBlock kind="empty" titleLevel="h1" title="Sign in to open this trip" actions={<button className="btn btn-primary" onClick={() => onNavigate(`/auth?next=${encodeURIComponent(authNext(`/trip/${tripId}`))}`)}>Sign in</button>} /></div>
+  if (!trip && readState === 'failed') {
+    return <div className="container page-enter"><StateBlock kind="failed" titleLevel="h1" title="Could not open this trip" actions={<button className="btn btn-outline btn-sm" onClick={() => setReadResult(null)}>Try again</button>} /></div>
+  }
+  if (!trip && readState === 'unavailable') {
+    return <div className="container page-enter"><StateBlock kind="empty" titleLevel="h1" title="Trip not found" body="This trip may be deleted or private, or the link may be wrong." actions={<button className="btn btn-outline btn-sm" onClick={() => onNavigate('trips')}>Back to my trips</button>} /></div>
   }
   if (!trip) {
-    return <div className="container loading-block page-enter"><div className="spinner" />Loading trip…</div>
+    return <div className="container page-enter"><StateBlock kind="loading" titleLevel="h1" title="Loading trip" /></div>
   }
 
   const effective = pending?.proposed ?? trip
@@ -372,81 +418,125 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     toast(`Moved “${last.title}” to Day ${dayIndex + 2} — review and keep`)
   }
 
+  // The header's cover is the same plan every card draws: the traveller's
+  // upload, else the scene that fits the trip's own places, else their emoji.
+  const headerPlan = coverPlanFor({
+    // Sized on the way in, like every other cover surface, so a Wikimedia
+    // original stored before sizing existed is requested at 1200px here too.
+    userCover: trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : '',
+    fallbackEmoji: trip.coverEmoji,
+    region: regionFor(trip),
+    seed: trip.id,
+    placeCount: trip.destinations?.length ?? 0,
+    destinations: trip.destinations,
+    startLocation: trip.startLocation,
+  })
+  const members = trip.members ?? []
+  const viewingMemberIds = new Set(presenceRow.kind === 'peers'
+    ? presenceRow.peers.map(peer => peer.userId)
+    : [])
+
   return (
-    <div className={`container page-enter${tab === 'board' ? ' container--board' : ''}${tab === 'map' ? ' container--map' : ''}`} style={{ paddingTop: 22 }}>
-      {/* ---------- Header ---------- */}
-      <div className="trip-head-card">
-        <div className="row-between">
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <button className="trip-hero-back" onClick={() => onNavigate('trips')}>← All trips</button>
-            <h1 style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-              {(() => {
-                const cover = trip.coverImageUrl || tripCoverAuto
-                return cover
-                  ? <span className="trip-cover-badge" style={{ backgroundImage: `url("${cover}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} aria-hidden="true" />
-                  : <span className="trip-cover-badge trip-cover-badge--emoji" aria-hidden="true">{trip.coverEmoji}</span>
-              })()}
-              {trip.name}
-            </h1>
-            <p style={{ opacity: .9, marginTop: 6 }}>
-              {trip.startLocation} → {trip.destinations.join(' → ')} · {fmtDateRange(trip.startDate, trip.endDate)} · {trip.travellers} travellers · {cap(trip.transportMode)} · {cap(trip.travelStyle)}
-            </p>
-            <div className="member-stack" style={{ marginTop: 10 }}>
-              {(trip.members ?? []).map(m => <Avatar key={m.userId} user={userById(m.userId)} />)}
-              <span className="small" style={{ marginLeft: 8, opacity: .85 }}>
-                {(trip.members ?? []).length} member{(trip.members ?? []).length !== 1 ? 's' : ''}{role ? ` · you are ${role}` : ''}
-              </span>
-              {presenceRow.kind === 'peers' ? (
-                <span className="presence-stack" aria-label={`${presenceRow.peers.length} viewing now`}>
-                  {presenceRow.peers.map(p => (
-                    <span key={p.sessionKey} className="presence-peer" tabIndex={0}
-                      aria-label={`${p.name} is viewing this trip now`}>
-                      <Avatar user={{ profile: { name: p.name } }} />
-                      <span className="presence-dot" aria-hidden="true" />
-                      <span className="presence-tip" role="tooltip">{p.name} · viewing now</span>
-                    </span>
-                  ))}
-                </span>
-              ) : presenceRow.kind === 'solo' ? (
-                <span className="presence-stack" aria-label="Only you are viewing this trip right now">
-                  <span className="small presence-solo">Just you viewing</span>
-                </span>
-              ) : null}
-            </div>
+    <div className="container page-enter yf-workspace" data-wide={headerFolded ? 'true' : 'false'}>
+      <div className="yf-page" data-compact={headerFolded ? 'true' : 'false'}>
+        <TripArtSprite />
+        <header className="yf-trip-head">
+          <div className="yf-cover-media" aria-hidden="true">
+            <CoverMedia
+              plan={headerPlan}
+              ratio="16:9"
+              sizes="100vw"
+              eager
+              className="yf-cover-img"
+              emojiClassName="yf-cover-emoji"
+            />
+            {/* The veil sits INSIDE the media so the media's rounded clip owns it,
+                exactly as it owns the image. As a sibling it had to round itself,
+                and its own antialiased arc let the brighter band fill through as a
+                1px line along the cover's left perimeter. */}
+            <div className="yf-cover-veil" aria-hidden="true" />
           </div>
-          {editable && (
-            <button className="btn btn-saffron btn-sm" style={{ position: 'relative', zIndex: 1 }} onClick={() => setTab('share')}>Invite & share</button>
-          )}
-        </div>
+          <div className="yf-cover-content">
+            <div className="yf-cover-top">
+              <button type="button" className="yf-back" onClick={() => onNavigate('trips')}>← All trips</button>
+              {editable && (
+                <button type="button" className="btn btn-outline btn-sm yf-invite" onClick={() => setTab('share')}>Invite & share</button>
+              )}
+            </div>
+            <div className="yf-head-row">
+              <div className="yf-head-text">
+                <h1 className="yf-header-title yf-trip-title">{trip.name}</h1>
+                <div className="yf-fold">
+                  <div className="yf-fold-in">
+                    <p className="yf-head-meta yf-fade">
+                      {trip.startLocation} → {trip.destinations.join(' → ')} · {fmtDateRange(trip.startDate, trip.endDate)} · {trip.travellers} travellers · {cap(trip.transportMode)} · {cap(trip.travelStyle)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="yf-extra" ref={headerExtraRef}>
+              <div className="yf-fade">
+                <div className="yf-members" aria-label="Members">
+                  <span className="yf-avatars">
+                    {(() => {
+                      const tones = assignAvatarTones(members.map(member => member.userId))
+                      return members.map((member, index) => {
+                        const person = userById(member.userId)
+                        const name = person?.profile.name ?? 'Member'
+                        const viewing = viewingMemberIds.has(member.userId)
+                        const state = viewing ? 'viewing now' : 'member'
+                        return (
+                          <span key={member.userId} className="yf-member" tabIndex={0}
+                            aria-label={`${name}, ${state}`}>
+                            <Avatar user={person} tone={tones[index]} />
+                            {viewing && <span className="yf-member-dot" aria-hidden="true" />}
+                            <span className="yf-tip" role="tooltip">{name} · {state}</span>
+                          </span>
+                        )
+                      })
+                    })()}
+                  </span>
+                  <span className="yf-member-note">
+                    <b>{members.length} member{members.length === 1 ? '' : 's'}</b>{role ? ` · you are ${role}` : ''}
+                  </span>
+                  {presenceRow.kind === 'peers' ? (
+                    <span className="yf-viewing" aria-label={`${presenceRow.peers.length} viewing now`}>
+                      <i aria-hidden="true" />{presenceRow.peers.length} viewing now
+                    </span>
+                  ) : presenceRow.kind === 'solo' ? (
+                    <span className="yf-viewing" aria-label="Only you are viewing this trip right now">
+                      <i aria-hidden="true" />Just you viewing
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <SegmentedTabs className="tabbar yf-tabbar" semantics="tablist" label="Trip sections" value={tab} ink
+              onChange={key => { if (isTabKey(key)) setTab(key) }}
+              items={TABS.map(([key, label]) => ({
+                key,
+                label,
+                id: workspaceTabId(key),
+                controls: workspacePanelId(key),
+                count: key === 'group' ? db.suggestions.filter(s => s.tripId === trip.id && s.status === 'open').length
+                  + db.decisions.filter(d => d.tripId === trip.id && d.status === 'open').length : undefined,
+              }))} />
+          </div>
+        </header>
       </div>
 
-      {/* ---------- Tabs ---------- */}
-      <PillNav className="tabbar" role="tablist" aria-label="Trip sections" activeKey={tab}>
-        {TABS.map(([key, label], i) => {
-          const count = key === 'group'
-            ? db.suggestions.filter(s => s.tripId === trip.id && s.status === 'open').length
-              + db.decisions.filter(d => d.tripId === trip.id && d.status === 'open').length
-            : undefined
-          return (
-            <button key={key} ref={tabRefs(i)} role="tab" id={`tab-${key}`} data-pill-key={key} aria-selected={tab === key}
-              aria-controls={`panel-${key}`} {...tabProps(key, i)}
-              className={`tab-btn ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
-              {label}{count ? <span className="tab-count">{count}</span> : null}
-            </button>
-          )
-        })}
-      </PillNav>
-
-      <div className="tab-panel" key={tab} role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+      {TABS.map(([key]) => <div className="tab-panel" key={key} role="tabpanel" id={workspacePanelId(key)} aria-labelledby={workspaceTabId(key)} hidden={tab !== key}>
+      {tab === key && <>
       {/* The Overview matrix reads the SAME corridor halts and the SAME road
           measurement the Map tab does — taken from the suggestion cache, so it
           costs no fetch and the two surfaces cannot disagree about a day. */}
-      {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={() => setTab('timeline')} onOpenMap={() => setTab('map')} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} mapInputs={mapInputs} mapCache={suggestionCache.cache.map} />}
+      {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={openTimeline} onOpenMap={openMap} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} mapInputs={mapInputs} mapCache={suggestionCache.cache.map} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} onFocusConsumed={clearTimelineFocus} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} />}
       {tab === 'board' && (
-        <React.Suspense fallback={<div className="container loading-block"><div className="spinner" />Loading board…</div>}>
+        <React.Suspense fallback={<StateBlock kind="loading" size="compact" title="Loading board" />}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals} legCorrections={legCorrections} previewOpen={!!pending} road={road}
             onOpenOverview={() => setTab('overview')} onOpenTimeline={() => setTab('timeline')}
             dayFocus={sharedDay} onDayFocusChange={(day) => setFocus(focusForDay(trip!.id, day === 'all' ? null : day))} />
@@ -458,10 +548,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
             suggestionCache={suggestionCache} onInputsHash={publishMapInputs}
             crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)}
             decisions={db.decisions.filter(d => d.tripId === trip.id)} road={road}
-            onOpenTimeline={() => setTab('timeline')} onOpenBoard={() => setTab('board')}
-            onOpenDay={(dayIndex) => { setFocusedDay(dayIndex); setFocus(focusForDay(trip!.id, dayIndex)); setTimelineFocusDay(dayIndex); setTab('timeline') }}
+            onOpenTimeline={stopId => openTimeline({ stopId })} onOpenBoard={() => setTab('board')}
+            onOpenDay={dayIndex => openTimeline({ dayIndex })}
             onOpenGroupInput={() => setTab('group')} previewOpen={!!pending}
             dayFocus={sharedDay} legCorrections={legCorrections}
+            mapTarget={mapTarget} onMapTargetConsumed={consumeMapTarget}
             onDayFocusChange={(day) => { setFocus(focusForDay(trip!.id, day === 'all' ? null : day)); if (day !== 'all') setTimelineFocusDay(day) }} />
         </React.Suspense>
       )}
@@ -472,8 +563,8 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
            seeded from the trip at mount and never re-syncs, so without the key
            a quick trip-switch keeps the previous trip's draft visible until a
            reload (#213). */}
-      {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} legCorrections={legCorrections} onOpenDay={(dayIndex) => { setFocusedDay(dayIndex); setFocus(focusForDay(trip!.id, dayIndex)); setTimelineFocusDay(dayIndex); setTab('timeline') }} />}
-      </div>
+      {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} legCorrections={legCorrections} onOpenDay={dayIndex => openTimeline({ dayIndex })} />}
+      </>}</div>)}
 
       {/* The impact sheet is position:fixed, so it paints in the same place either
           way — but it renders AFTER the tab panel so that Tab from the row just

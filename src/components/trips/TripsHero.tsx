@@ -8,15 +8,14 @@
 // stay here, in the visual slot.
 //
 // Postcard art follows the same rule as every cover: the trip's own cover photo
-// wins, then the generated scene for its region, then the motif. The blank "your
-// next trip" postcard keeps its compass.
+// wins, then the generated scene for its own places, then the motif. The blank
+// "your next trip" postcard keeps its compass.
 import type { ReactNode } from 'react'
 import { Compass } from 'lucide-react'
-import { coverFor } from '../../lib/regionArt'
+import { coverPlanFor } from '../../lib/regionArt'
 import { sizedCoverUrl } from '../../lib/tripThumb'
 import type { HeroHeadline, HeroPostcard, HeroStat } from '../../lib/tripsPage'
-import { RegionArt } from '../RegionArt'
-import { TripArt } from './TripArt'
+import { CoverMedia } from '../CoverMedia'
 import { PageHero } from '../page/PageHero'
 import { NoteArrow } from '../page/NoteArrow'
 
@@ -64,22 +63,29 @@ export function TripsHero({ headline, lede, stats, postcards, note, primary, sec
               <circle cx="46" cy="150" r="4" />
             </svg>
             {postcards.map((card, index) => {
-              const choice = card.blank || card.coverImageUrl
+              const plan = card.blank
                 ? null
-                : coverFor({ region: card.region, seed: card.key, placeCount: card.placeCount, destinations: card.destinations })
+                : coverPlanFor({
+                  userCover: card.coverImageUrl ? sizedCoverUrl(card.coverImageUrl) : '',
+                  fallbackEmoji: card.coverEmoji,
+                  region: card.region,
+                  seed: card.key,
+                  placeCount: card.placeCount,
+                  destinations: card.destinations,
+                  startLocation: card.startLocation,
+                })
               return (
                 <figure className={`ex-postcard ex-pc-${index + 1}`} key={card.key}>
                   <div className="ex-postcard-art">
-                    {card.blank ? (
+                    {card.blank || !plan ? (
                       <div className="mt-pc-blank"><Compass size={26} aria-hidden /></div>
-                    ) : card.coverImageUrl ? (
-                      <img className="ex-cover-img" src={sizedCoverUrl(card.coverImageUrl)} alt="" loading="lazy" decoding="async" />
                     ) : (
-                      <RegionArt
-                        id={choice?.kind === 'generated' ? choice.id : null}
+                      <CoverMedia
+                        plan={plan}
                         ratio="4:3"
                         sizes={postcardSizes(postcards.length)}
-                        fallback={<TripArt region={card.region} />}
+                        className="ex-cover-img"
+                        emojiClassName="itin-cover-fallback"
                       />
                     )}
                   </div>

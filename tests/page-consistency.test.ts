@@ -7,9 +7,10 @@
 // selectors, and no .tsx file under src/ names a face. Both counts may only fall.
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const APP = 'src/App.tsx'
-const STYLES = 'src/styles.css'
+const STYLES_TEXT = readCssSource('src/styles.css')
 const PAGE_DIR = 'src/pages/'
 const baselineUrl = new URL('./page-consistency-baseline.json', import.meta.url)
 const updating = process.env.UPDATE_PAGE_CONSISTENCY_BASELINE === '1'
@@ -286,8 +287,8 @@ function snapshot(): Snapshot {
   return {
     routed,
     pageFiles,
-    cardProblems: cardHoverProblems(read(STYLES)),
-    fontScope: fontScopeProblems(read(STYLES)),
+    cardProblems: cardHoverProblems(STYLES_TEXT),
+    fontScope: fontScopeProblems(STYLES_TEXT),
     fontNames: faceNameFiles(),
   }
 }

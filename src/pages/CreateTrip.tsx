@@ -44,7 +44,7 @@ import { stashHandoff } from '../lib/createHandoff'
 import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
 import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
 import { radarLines } from '../lib/createRadar'
-import { fetchTripThumbUrl } from '../lib/tripThumb'
+import { fetchTripThumbUrl, sizedCoverUrl } from '../lib/tripThumb'
 import { Field, Chip, toast, Odometer, useMedia, FormErrorSummary, Modal } from '../components/ui'
 import { Select } from '../components/Select'
 import { DateRangeCalendar, fmtDay, isoDay } from '../components/DateRangeCalendar'
@@ -60,6 +60,8 @@ import { PageHeader } from '../components/page/PageHeader'
 import { Surface } from '../components/page/Surface'
 import { TripArt, TripArtSprite } from '../components/trips/TripArt'
 import { regionFor as artRegionFor } from '../lib/tripsPage'
+import { isChosenCoverEmoji, coverPlanFor } from '../lib/regionArt'
+import { CoverMedia } from '../components/CoverMedia'
 
 interface CommitDraft {
   title: string
@@ -118,25 +120,6 @@ const STYLE_COPY: Record<TravelStyle, string> = {
 }
 
 const EMOJIS = ['🧭', '🏔️', '🏖️', '🛕', '🚗', '🚂', '🌴', '🎒']
-
-/** Ticket cover scenery (shared with the mockup) — shown until a cover photo exists. */
-function TicketScenery() {
-  return (
-    <svg className="tk-scenery" viewBox="0 0 340 96" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs>
-        <linearGradient id="tk-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7FC9BC" /><stop offset="1" stopColor="#2E6B5E" />
-        </linearGradient>
-      </defs>
-      <rect width="340" height="96" fill="url(#tk-sky)" />
-      <path d="M0 70 L60 28 L110 70 Z" fill="#1C4A44" opacity=".8" />
-      <path d="M70 76 L150 18 L230 76 Z" fill="#163F3A" opacity=".9" />
-      <path d="M180 74 L250 32 L330 74 Z" fill="#1C4A44" opacity=".75" />
-      <ellipse cx="70" cy="92" rx="120" ry="24" fill="#123F49" />
-      <ellipse cx="290" cy="94" rx="130" ry="22" fill="#0E3540" />
-    </svg>
-  )
-}
 
 /** One money figure in the rough bill, rolled like the Plan Bench odometer so
  *  the numbers move when the plan changes instead of swapping silently.
@@ -875,7 +858,9 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
       travelStyle: f.travelStyle,
       stayStyle: f.stayStyle,
       fixedCommitments: commitments.filter(x => x.title.trim()),
-      coverEmoji: f.coverEmoji,
+      // The compass is the form's default marker, not a cover. Store it only when
+      // the traveller picked another emoji, so a plain trip keeps the artwork.
+      coverEmoji: isChosenCoverEmoji(f.coverEmoji) ? f.coverEmoji : '',
       coverImageUrl: f.coverImageUrl.trim() || undefined,
       // One departure answer for the whole trip; empty keeps the engine default.
       dayStartTime: validHM(f.dayStartTime),
@@ -969,6 +954,18 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
 
   const ticketTitle = f.name.trim() || 'Your next trip'
   const ticketRoute = `${f.startLocation.trim() || 'Start'} → ${outbound.length ? outbound.map(d => d.name.split(',')[0]).join(' → ') : '…'}`
+  // The ticket and the dock preview the same cover the created trip will show:
+  // the pasted image, else the artwork for this route, else the picked emoji.
+  const ticketCoverPlan = coverPlanFor({
+    // Sized on the way in, like every other cover surface.
+    userCover: f.coverImageUrl ? sizedCoverUrl(f.coverImageUrl) : '',
+    fallbackEmoji: f.coverEmoji,
+    region: artRegionFor({ destinations: outbound.map(d => d.name) }),
+    seed: f.name.trim() || ticketRoute,
+    placeCount: outbound.length,
+    destinations: outbound.map(d => d.name),
+    startLocation: f.startLocation,
+  })
   // Gate on the VALUE, not on the strings: garbage or inverted dates carry
   // strings but no span, and must say "Pick your dates" exactly like the dock.
   const dateLabel = bill.days > 0
@@ -1759,7 +1756,7 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
               </div>
             </Field>
             <Field label="Cover image (optional)"
-              hint="Leave blank to auto-use a popular photo of your destination, or paste your own image URL.">
+              hint="Leave blank for the artwork that fits your route, or paste your own image URL.">
               <div className="cover-picker-controls">
                 <button type="button" className="btn btn-outline btn-sm" disabled={busyCover}
                   onClick={async () => {
@@ -1873,10 +1870,13 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
               <span className="tk-kind">Trip ticket</span>
             </div>
             <div className="tk-cover">
-              {f.coverImageUrl.trim()
-                ? <img className="tk-scenery" src={f.coverImageUrl.trim()} alt="" />
-                : <TicketScenery />}
-              <span className="emoji-chip">{f.coverEmoji}</span>
+              <CoverMedia
+                plan={ticketCoverPlan}
+                ratio="340:96"
+                sizes="(min-width: 900px) 340px, 92vw"
+                className="tk-scenery"
+                emojiClassName="emoji-chip"
+              />
             </div>
             <div className="tk-body">
               <div className="tk-title">{ticketTitle}</div>
@@ -1977,7 +1977,15 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
       {/* ---- Mobile dock (≤900px): the CTA surface ---- */}
       {guided && <Modal open={ticketOpen} onClose={() => setTicketOpen(false)} title="Your trip ticket">{guidedTicket}</Modal>}
       <div className="trip-dock" role="region" aria-label="Trip ticket dock" hidden={guided}>
-        <div className="dock-thumb">{f.coverEmoji}</div>
+        <div className="dock-thumb">
+          <CoverMedia
+            plan={ticketCoverPlan}
+            ratio="1:1"
+            sizes="44px"
+            className="dock-thumb-img"
+            emojiClassName="dock-thumb-emoji"
+          />
+        </div>
         <div className="dock-meta">
           <b>{ticketTitle}</b>
           <span>

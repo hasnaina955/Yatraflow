@@ -1,0 +1,1614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>P2 and P12 combined mockup</title>
+<style>
+/* Tokens copied from src/styles.css (:root and [data-theme='dark']). No invented palette. */
+:root {
+  --yf-cream: #F8F7EF; --yf-mist: #ECF8F4; --yf-peach: #FFF2E8;
+  --yf-navy: #123F49; --yf-teal-600: #0D8D82; --yf-teal-100: #E5F4EE;
+  --yf-saffron-100: #FFF4E4; --yf-saffron: #F3AA3D; --yf-purple: #897ABB; --yf-amber: #E4AE43;
+  --card: #FFFFFF; --text: #0B2545; --text-2: #45566E; --text-3: #5A6A80;
+  --line: #E4DCCC; --yf-border: #DCE7E1;
+  --teal-deep: #0E7A72; --ink-teal: #0B6B63; --teal-soft: #E5F4EE;
+  --ok: #2E8B57; --ok-soft: #E3F2EA; --ink-green: #1F6B43;
+  --warn: #B47207; --warn-soft: #FBF1DD; --ink-amber: #8F5B06;
+  --danger: #C93B3B; --danger-soft: #F9E7E7; --ink-coral: #A82E2E; --info-soft: #E8EEF6;
+  --btn-accent: #F3AA3D; --btn-accent-fg: #0B2545;
+  --yf-nav-glass: rgba(255,255,255,.58); --yf-glass-border: rgba(255,255,255,.65);
+  --shadow-navy-rgb: 11, 37, 69;
+  --shadow-soft: 0 2px 6px rgba(var(--shadow-navy-rgb),.04), 0 16px 40px rgba(var(--shadow-navy-rgb),.10);
+  --shadow-card: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
+  --radius: 18px; --radius-sm: 12px; --radius-lg: 24px;
+  --ring: 0 0 0 3px var(--yf-teal-600);
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px; --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px; --space-9: 22px; --space-10: 24px;
+  --container-w: 1400px; --container-wide: 1720px;
+  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms;
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-glide: cubic-bezier(.3, .86, .48, 1);
+  --stagger-step: 60ms;
+  --atmos-mint: rgba(124,225,207,.20); --atmos-peach: rgba(255,179,107,.16);
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --yf-cream: #0C1420; --yf-mist: #0F1B2B; --yf-peach: #1A2030;
+  --yf-navy: #0F2A33; --yf-teal-600: #2BB8AC; --yf-teal-100: #12332F;
+  --yf-saffron-100: #3A2C15; --yf-saffron: #F5A94A; --yf-purple: #A99BD6; --yf-amber: #D99A2B;
+  --card: #16233A; --text: #ECF1F8; --text-2: #ADBCCF; --text-3: #8FA0B5;
+  --line: #27395A; --yf-border: #27395A;
+  --teal-deep: #35C9BC; --ink-teal: #35C9BC; --teal-soft: #12332F;
+  --ok: #52BE80; --ok-soft: #16301F; --ink-green: #52BE80;
+  --warn: #D99A2B; --warn-soft: #36290F; --ink-amber: #D99A2B;
+  --danger: #E06C6C; --danger-soft: #3A2020; --ink-coral: #E06C6C; --info-soft: #1B2B45;
+  --btn-accent: #F5A94A; --btn-accent-fg: #0C1420;
+  --yf-nav-glass: rgba(16,27,43,.58); --yf-glass-border: rgba(255,255,255,.14);
+  --shadow-card: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  --shadow-soft: 0 2px 8px rgba(0,0,0,.4), 0 18px 44px rgba(0,0,0,.5);
+  --atmos-mint: rgba(43,184,172,.10); --atmos-peach: rgba(245,169,74,.08);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
+body {
+  margin: 0; font-family: var(--font-body); color: var(--text); background: var(--yf-cream);
+  background-image:
+    radial-gradient(900px 420px at 8% -80px, var(--atmos-mint), transparent 70%),
+    radial-gradient(800px 380px at 96% -60px, var(--atmos-peach), transparent 70%);
+  background-repeat: no-repeat; font-size: 15px; line-height: 1.5;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+h1, h2, h3, p, ul, ol { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--ring); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---- Mockup chrome (not part of the product) ---- */
+.mock-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 20px; background: var(--card); border-bottom: 1px dashed var(--line); font-size: 12px; color: var(--text-2); }
+.mock-bar b { color: var(--text); }
+.mock-bar .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.mock-bar button { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-size: 12px; font-weight: 700; color: var(--text-2); }
+.mock-bar button[aria-pressed='true'] { background: var(--teal-soft); color: var(--ink-teal); border-color: var(--yf-teal-600); }
+.mock-note { margin: 0 0 var(--space-5); padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; font-size: 12px; color: var(--text-2); background: color-mix(in srgb, var(--card) 60%, transparent); }
+.app-nav-stub { display: flex; align-items: center; gap: 16px; min-height: 44px; padding: 0 20px; font-size: 13px; font-weight: 700; color: var(--text-3); }
+.app-nav-stub .brand { color: var(--ink-teal); font-weight: 800; font-size: 16px; }
+.mock-bar .readout { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+
+/* ---- Product: P2 container, header and tab bar (final P2 rules, one copy) ---- */
+/* ---- Product: container (existing rules, unchanged) ---- */
+.container { width: 100%; max-width: var(--container-w); margin: 0 auto; padding: 0 20px; }
+.container--board { max-width: var(--container-wide); }
+.container--map { max-width: var(--container-wide); }
+.container { padding-top: 22px; transition: max-width var(--motion-slow) var(--ease-glide); }
+body.guides .container { outline: 2px solid var(--yf-purple); outline-offset: -2px; position: relative; }
+body.guides .container::before {
+  content: attr(data-guide); position: absolute; right: 8px; top: 2px;
+  font-size: 11px; font-weight: 700; color: var(--yf-purple); background: var(--card); padding: 2px 8px; border-radius: 6px;
+}
+
+/* ---- Product: the new yf-page wrapper around header + tab bar only (R15) ---- */
+.yf-page { position: relative; }
+body.guides .yf-page { outline: 2px dashed var(--yf-teal-600); outline-offset: 4px; }
+body.guides .yf-page::before {
+  content: 'div.yf-page (header + tab bar only)'; position: absolute; left: 8px; top: -2px; transform: translateY(-100%);
+  font-size: 11px; font-weight: 700; color: var(--ink-teal); background: var(--card); padding: 2px 8px; border-radius: 6px; z-index: 2;
+}
+
+/* ---- Editorial header ----
+   Compact motion: one duration (--motion-slow), one curve (--ease-glide).
+   Height changes use grid-template-rows (1fr to 0fr, px to px). Everything else uses transform and opacity.
+   Layout boxes of the title, thumb and text column never change size, so text cannot reflow mid-motion. */
+.yf-trip-head {
+  --slot: 96px; --ty: 2px; --thumb-c: .4167; --shift: -56px; --title-c: .55; --pt: 22px; --pt-c: 12px; --meta-min: 52px;
+  position: relative; overflow: hidden; margin-bottom: 14px; padding: 0 24px;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--pt) auto auto 1fr var(--pt);
+  background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  transition: grid-template-rows var(--motion-slow) var(--ease-glide), background-color var(--motion-slow) var(--ease-out), border-color var(--motion-slow) var(--ease-out);
+}
+[data-compact='true'] .yf-trip-head { grid-template-rows: var(--pt-c) auto auto 0fr var(--pt-c); }
+.yf-trip-head::after { /* faint saffron paper circle, same idea as the old band */
+  content: ''; position: absolute; right: -70px; top: -90px; width: 240px; height: 240px; border-radius: 50%;
+  background: var(--yf-saffron-100); opacity: .9; pointer-events: none;
+}
+:root[data-theme='dark'] .yf-trip-head::after { opacity: .4; }
+.yf-trip-head > * { position: relative; z-index: 1; }
+.yf-back {
+  grid-row: 2; justify-self: start; display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 -10px -12px; padding: 0 12px;
+  border: 0; background: none; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-3);
+  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.yf-back:hover { color: var(--ink-teal); background: var(--teal-soft); }
+.yf-head-row { grid-row: 3; position: relative; display: grid; grid-template-columns: var(--slot) minmax(0, 1fr) auto; column-gap: 18px; align-items: start; }
+.yf-thumb-slot { position: relative; height: 0; width: var(--slot); }
+.yf-thumb {
+  position: absolute; left: 0; top: 0; width: var(--slot); height: var(--slot); border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--yf-border); background: var(--yf-mist);
+  transform-origin: 0 0; transform: none;
+  transition: transform var(--motion-slow) var(--ease-glide);
+}
+.yf-thumb svg { display: block; width: 100%; height: 100%; }
+[data-compact='true'] .yf-thumb { transform: translateY(var(--ty)) scale(var(--thumb-c)); }
+.yf-head-text { min-width: 0; transition: transform var(--motion-slow) var(--ease-glide); }
+[data-compact='true'] .yf-head-text { transform: translateX(var(--shift)); }
+.yf-head-title {
+  margin: 0; min-height: 44px; display: flex; align-items: center; white-space: nowrap;
+  font-family: var(--font-serif); font-weight: 600; color: var(--text);
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.015em;
+  transform-origin: 0 50%;
+  transition: transform var(--motion-slow) var(--ease-glide);
+}
+[data-compact='true'] .yf-head-title { transform: scale(var(--title-c)); }
+/* fold: a wrapper that goes 1fr to 0fr. The inner box clips only while it folds. */
+.yf-fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--motion-slow) var(--ease-glide); }
+[data-compact='true'] .yf-fold { grid-template-rows: 0fr; }
+.yf-fold-in { min-height: 0; overflow: hidden; }
+/* fade and slide together with the height change */
+.yf-fade { opacity: 1; transform: none; visibility: visible;
+  transition: opacity var(--motion-slow) var(--ease-glide), transform var(--motion-slow) var(--ease-glide), visibility 0s linear 0s; }
+[data-compact='true'] .yf-fade { opacity: 0; transform: translateY(-10px); visibility: hidden;
+  transition: opacity var(--motion-slow) var(--ease-glide), transform var(--motion-slow) var(--ease-glide), visibility 0s linear var(--motion-slow); }
+.yf-head-meta { margin: 0; padding-top: 8px; min-height: var(--meta-min); color: var(--text-2); font-size: 14px; }
+.yf-head-actions { align-self: start; }
+.yf-act-extra { display: none; }
+/* members row is header row 4; it folds with the same clock. Overflow opens again after the expand ends, so the tooltips can show. */
+.yf-extra { grid-row: 4; min-height: 0; overflow: visible; transition: overflow 0s linear var(--motion-slow) allow-discrete; }
+[data-compact='true'] .yf-extra { overflow: hidden; transition: overflow 0s linear 0s allow-discrete; }
+.yf-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px;
+  border: 0; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap;
+  background: var(--btn-accent); color: var(--btn-accent-fg);
+  box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12);
+  transition: filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.yf-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.yf-btn:active { transform: translateY(0); }
+
+/* member stack with presence dots */
+.yf-members { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: 14px; }
+.yf-avatars { display: flex; align-items: center; }
+.yf-avatar {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 32px; height: 32px; margin-left: -8px; border-radius: 50%; border: 2px solid var(--card);
+  background: var(--teal-soft); color: var(--ink-teal); font-weight: 800; font-size: 12px;
+}
+.yf-avatar:first-child { margin-left: 0; z-index: 3; }
+.yf-avatar:nth-child(2) { z-index: 2; }
+.yf-avatar:nth-child(3) { z-index: 1; }
+.yf-avatar:nth-child(2) { background: var(--yf-saffron); color: #0B2545; }
+.yf-avatar:nth-child(3) { background: var(--yf-purple); color: #0B2545; }
+.yf-avatar::after { content: ''; position: absolute; inset: -6px; } /* 44px hit area */
+.yf-avatar .dot { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--ok); border: 2px solid var(--card); }
+.yf-avatar .tip {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%) translateY(4px);
+  background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 4px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: var(--shadow-soft);
+  opacity: 0; pointer-events: none; z-index: 3;
+  transition: opacity var(--motion-med) var(--ease-out), transform var(--motion-med) var(--ease-out);
+}
+.yf-avatar:hover .tip, .yf-avatar:focus-visible .tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.yf-member-note { font-size: 13px; color: var(--text-2); }
+.yf-member-note b { color: var(--text); }
+.yf-viewing { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.yf-viewing i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+
+/* ---- SegmentedTabs-style tab bar (tablist semantics, glass bar, teal glider) ---- */
+.yf-tabbar {
+  position: relative; display: flex; gap: 2px; padding: 4px; margin-bottom: 20px; border-radius: 999px;
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  background: var(--yf-nav-glass); border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--shadow-soft);
+  transition: margin var(--motion-slow) var(--ease-glide);
+}
+.yf-tabbar::-webkit-scrollbar { display: none; }
+[data-compact='true'] .yf-tabbar { margin-bottom: 12px; }
+.yf-tabbar[data-overflow='start'] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.yf-tabbar[data-overflow='middle'] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.yf-tabbar[data-overflow='end'] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }
+.yf-glider {
+  position: absolute; left: 0; top: 4px; bottom: 4px; width: 0; border-radius: 999px;
+  background: var(--teal-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yf-teal-600) 28%, transparent);
+  transform: translateX(0); pointer-events: none;
+}
+.yf-glider.on { transition: transform var(--motion-med) var(--ease-out), width var(--motion-med) var(--ease-out); }
+.yf-tab {
+  position: relative; z-index: 1; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 16px; border: 0; background: none; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: var(--text-3); white-space: nowrap;
+  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.yf-tab:hover { color: var(--text); }
+.yf-tab[aria-selected='true'] { color: var(--ink-teal); font-weight: 700; }
+.yf-count { background: var(--card); color: var(--ink-teal); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--yf-border); }
+
+/* ---- Tab panel placeholders (every tab except Overview) ---- */
+.tab-panel { margin-top: 0; padding-bottom: 28px; }
+.ph-note { margin: 0 0 12px; font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.ph-grid { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); }
+.ph-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; min-height: 120px; padding: 16px; color: var(--text-3); font-size: 13px; }
+.ph-board { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
+.ph-col { background: color-mix(in srgb, var(--card) 70%, transparent); border: 1px dashed var(--line); border-radius: 14px; min-height: 280px; padding: 12px; font-size: 13px; color: var(--text-3); }
+.ph-map {
+  position: relative; border-radius: 14px; border: 1px solid var(--line); overflow: hidden;
+  height: calc(100dvh - var(--above, 300px) - 12px); min-height: 360px;
+  transition: height var(--motion-slow) var(--ease-glide);
+  background:
+    linear-gradient(0deg, color-mix(in srgb, var(--yf-teal-600) 8%, transparent), transparent),
+    repeating-linear-gradient(45deg, transparent 0 22px, color-mix(in srgb, var(--text-3) 10%, transparent) 22px 23px),
+    var(--yf-mist);
+  display: grid; place-items: center; color: var(--text-3); font-size: 13px; text-align: center; padding: 16px;
+}
+.ph-tall { height: 360px; }
+.notes { margin-top: 24px; padding: 18px 20px; border: 1px dashed var(--line); border-radius: 14px; background: color-mix(in srgb, var(--card) 60%, transparent); font-size: 13px; color: var(--text-2); }
+.notes h2 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text); }
+.notes ul { margin: 0; padding-left: 18px; }
+.notes li { margin: 4px 0; }
+.notes code { font-size: 12px; background: var(--yf-mist); padding: 1px 5px; border-radius: 5px; }
+
+/* ---- Entrance: page blocks rise in with a stagger, tokens only ---- */
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.page-enter > * { animation: riseIn var(--motion-slow) var(--ease-out) backwards; }
+.page-enter > *:nth-child(2) { animation-delay: var(--stagger-step); }
+.page-enter > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+#ph > * { animation: riseIn var(--motion-slow) var(--ease-out) backwards; }
+
+/* P2 header on phones */
+@media (max-width: 720px) {
+  .container { padding-left: 16px; padding-right: 16px; }
+  .yf-trip-head { --slot: 64px; --ty: 4px; --thumb-c: .5625; --shift: -28px;
+    --title-c: .643; --pt: 16px; --pt-c: 10px; --meta-min: 20px; padding: 0 16px; border-radius: 20px; }
+  .yf-head-row { grid-template-columns: var(--slot) minmax(0, 1fr); column-gap: 14px; }
+  .yf-head-title { font-size: 1.75rem; }
+  .yf-head-meta { font-size: 13px; }
+  .yf-head-actions { position: absolute; right: 0; top: 0; opacity: 0; visibility: hidden;
+    transition: opacity var(--motion-slow) var(--ease-glide), visibility 0s linear var(--motion-slow); }
+  [data-compact='true'] .yf-head-actions { opacity: 1; visibility: visible;
+    transition: opacity var(--motion-slow) var(--ease-glide), visibility 0s linear 0s; }
+  .yf-head-actions .yf-btn { padding: 0 14px; }
+  .yf-act-extra { display: block; padding-top: 12px; }
+  .yf-act-extra .yf-btn { width: 100%; }
+  .ph-grid, .ph-board { grid-template-columns: 1fr; }
+  .yf-trip-head::after { width: 160px; height: 160px; right: -60px; top: -80px; }
+}
+
+/* ---- P12 decisions on the header: outline Invite & share, and the .avatar chip used in cards ---- */
+.yf-btn--quiet { background: transparent; color: var(--ink-teal); border: 1px solid var(--line); box-shadow: none; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+.yf-btn--quiet:hover { background: var(--teal-soft); filter: none; }
+.avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin-inline-start: -8px; border-radius: 50%; border: 2px solid var(--card); background: var(--teal-soft); color: var(--ink-teal); font-weight: 800; font-size: 12px; }
+.avatar:first-child { margin-inline-start: 0; }
+.avatar:nth-child(2) { background: var(--yf-saffron); color: #0B2545; }
+.avatar:nth-child(3) { background: var(--yf-purple); color: #0B2545; }
+
+/* ================= P12 Overview (all new rules; ovw- prefix) =================
+   Spacing steps come from the --space-* tokens (styles.css:181). Every gap is one step below the first draft. */
+.ovw { display: grid; gap: var(--space-5); padding-bottom: var(--space-8); font-variant-numeric: tabular-nums; --mx-tint: 16%; --mx-ring: 55%; --mx-edge: color-mix(in srgb, var(--text-3) 80%, var(--card)); }
+.ovw-card { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: var(--space-7); min-width: 0; }
+.ovw-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
+.ovw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-4); min-height: 28px; }
+.ovw-head-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3) var(--space-5); font-size: 12px; color: var(--text-2); }
+
+/* Buttons: one primary (accent pill), one secondary (outline pill), one quiet (text). All 44px tall. */
+.ovw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 800; white-space: nowrap; border: 1.5px solid var(--line); background: transparent; color: var(--ink-teal); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+.ovw-btn:hover { background: var(--teal-soft); border-color: var(--yf-teal-600); }
+.ovw-btn:active { transform: translateY(1px); }
+.ovw-btn--primary { border: 0; background: var(--btn-accent); color: var(--btn-accent-fg); box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.12); padding: 0 22px; font-size: 15px; }
+.ovw-btn--primary:hover { background: var(--btn-accent); filter: brightness(1.06); transform: translateY(-1px); }
+.ovw-btn--quiet { border-color: transparent; padding: 0 12px; margin-inline-start: -12px; }
+.ovw-head-btn { margin-block: -8px; margin-inline: 0 -12px; }
+/* Text link that opens another tab: 44px target, 40px with a fine pointer. */
+.ovw-link { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: 13px; font-weight: 800; color: var(--ink-teal); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; border-radius: 8px; }
+.ovw-link:hover { color: var(--text); }
+.ovw-link:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); }
+@media (pointer: fine) { .ovw-link { min-height: 40px; } }
+
+/* 1. Verdict: one slim band */
+.ovw-verdict { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-7); padding: var(--space-5) var(--space-8) var(--space-5) var(--space-9); }
+.ovw-verdict > * { position: relative; z-index: 1; }
+.ovw-verdict[data-band='ok'] { --band-fill: var(--ok); --band-ink: var(--ink-green); --band-soft: var(--ok-soft); }
+.ovw-verdict[data-band='teal'] { --band-fill: var(--yf-teal-600); --band-ink: var(--ink-teal); --band-soft: var(--teal-soft); }
+.ovw-verdict[data-band='saffron'] { --band-fill: var(--yf-saffron); --band-ink: var(--ink-amber); --band-soft: var(--warn-soft); }
+.ovw-verdict[data-band='danger'] { --band-fill: var(--danger); --band-ink: var(--ink-coral); --band-soft: var(--danger-soft); }
+.ovw-score { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; gap: 0 var(--space-3); }
+.ovw-score-num { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--band-ink); }
+.ovw-score-of { font-size: 12px; font-weight: 700; color: var(--text-3); }
+.ovw-band { grid-column: 1 / -1; display: inline-flex; align-items: center; justify-self: start; min-height: 22px; margin-top: var(--space-3); padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--band-soft); color: var(--band-ink); }
+.ovw-verdict-text { min-width: 0; display: grid; gap: var(--space-2); }
+.ovw-verdict-line { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; text-wrap: balance; }
+.ovw-verdict-sub { color: var(--text-2); font-size: 13px; }
+.ovw-bar { height: 6px; border-radius: 999px; background: var(--info-soft); overflow: hidden; margin-top: var(--space-2); }
+.ovw-bar i { display: block; height: 100%; border-radius: 999px; background: var(--band-fill); transform-origin: 0 50%; animation: growX calc(var(--motion-slow) * 2) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * 2); }
+
+/* 2. Stat row: three slim tiles, label and value on one line */
+.ovw-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
+.ovw-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-5); padding: var(--space-4) var(--space-7); }
+.ovw-stat-label { grid-column: 1; font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.ovw-stat-val { grid-column: 2; grid-row: 1 / span 2; font-family: var(--font-display); font-size: 18px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; text-align: right; }
+.ovw-stat-sub { grid-column: 1; font-size: 12px; color: var(--text-2); }
+
+/* 3. What needs you (left) beside the route (right) */
+.ovw-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-5); align-items: stretch; grid-template-areas: 'needs route' 'stats stats'; }
+.ovw-needs { display: flex; flex-direction: column; }
+.ovw-count { display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--warn-soft); color: var(--ink-amber); }
+.ovw-need-list { display: grid; }
+.ovw-need { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2) var(--space-5); align-items: center; padding: var(--space-5) 0; border-top: 1px solid var(--line); }
+.ovw-need:first-child { border-top: 0; padding-top: 0; }
+.ovw-sev {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 22px; padding: 0 10px 0 8px;
+  border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap;
+}
+.ovw-sev svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.ovw-sev[data-sev='high'] { background: var(--danger-soft); color: var(--ink-coral); }
+.ovw-sev[data-sev='medium'] { background: var(--warn-soft); color: var(--ink-amber); }
+.ovw-sev[data-sev='low'] { background: var(--info-soft); color: var(--text-2); }
+.ovw-need-title { font-weight: 800; font-size: 14px; line-height: 1.3; }
+.ovw-need-fix { color: var(--text-2); font-size: 13px; line-height: 1.35; }
+.ovw-more-btn { align-self: flex-start; margin-top: auto; min-height: 44px; padding: 0; border: 0; background: none; font-size: 13px; font-weight: 800; color: var(--ink-teal); text-decoration: underline; text-underline-offset: 3px; }
+.ovw-need-list[hidden] { display: none; }
+.ovw-btn--review { min-height: 44px; }
+@media (pointer: fine) { .ovw-btn--review { min-height: 40px; } }
+.ovw-split > .ovw-needs { grid-area: needs; }
+.ovw-split > .ovw-route { grid-area: route; }
+.ovw-split > .ovw-stats { grid-area: stats; }
+
+/* 4. Route card: the route is the picture. Names and numbers sit in the tooltip and the stop list. */
+.ovw-route { display: flex; flex-direction: column; gap: var(--space-4); }
+.ovw-route .ovw-head { margin-bottom: 0; }
+/* Route card: a terrain journey strip. The plate is a stylised landscape built from the trip's own places
+   (ridges follow the stop elevations, water follows the coast or river). The road is drawn on top and stays the hero.
+   Every colour is a token or a mix of tokens. */
+.ovw-map {
+  --rm-a: var(--yf-saffron);
+  --rm-b: color-mix(in srgb, var(--yf-saffron) 45%, #fff);
+  --rm-c: color-mix(in srgb, var(--danger) 60%, var(--yf-saffron));
+  --rm-cream: color-mix(in srgb, var(--yf-saffron) 14%, #fff);
+  --rm-edge: var(--yf-navy);
+  --tr-sky-top: color-mix(in srgb, var(--yf-teal-600) 12%, var(--yf-mist));
+  --tr-sky-low: color-mix(in srgb, var(--yf-saffron) 26%, var(--yf-peach));
+  --tr-glow: var(--yf-saffron);
+  --tr-orb: color-mix(in srgb, var(--yf-saffron) 85%, #fff);
+  --tr-far: color-mix(in srgb, var(--yf-purple) 24%, var(--yf-peach));
+  --tr-far-rim: color-mix(in srgb, var(--yf-purple) 14%, var(--card));
+  --tr-mid: color-mix(in srgb, var(--yf-teal-600) 34%, var(--yf-mist));
+  --tr-mid-rim: color-mix(in srgb, var(--yf-teal-600) 18%, var(--card));
+  --tr-near: color-mix(in srgb, var(--yf-teal-600) 52%, var(--yf-mist));
+  --tr-near-rim: color-mix(in srgb, var(--yf-teal-600) 30%, var(--card));
+  --tr-water: color-mix(in srgb, var(--yf-teal-600) 26%, var(--info-soft));
+  --tr-water-deep: color-mix(in srgb, var(--tr-water) 70%, var(--yf-teal-600));
+  --tr-far-low: color-mix(in srgb, var(--tr-far) 45%, var(--tr-sky-low));
+  --tr-mid-low: color-mix(in srgb, var(--tr-mid) 72%, var(--tr-far));
+  --tr-near-low: color-mix(in srgb, var(--tr-near) 86%, var(--yf-navy));
+  --tr-foam: color-mix(in srgb, var(--card) 80%, var(--tr-water));
+  --tr-line: color-mix(in srgb, var(--yf-navy) 16%, transparent);
+  --tr-snow: color-mix(in srgb, var(--card) 85%, transparent);
+  position: relative; border-radius: var(--radius-sm); overflow: hidden; color: var(--text);
+  background-color: var(--tr-sky-low);
+}
+:root[data-theme='dark'] .ovw-map {
+  --rm-edge: var(--yf-cream);
+  --tr-sky-top: color-mix(in srgb, var(--yf-purple) 16%, var(--yf-cream));
+  --tr-sky-low: color-mix(in srgb, var(--yf-saffron) 20%, color-mix(in srgb, var(--yf-purple) 24%, var(--yf-peach)));
+  --tr-glow: var(--yf-saffron);
+  --tr-orb: color-mix(in srgb, var(--text) 80%, var(--yf-purple));
+  --tr-far: color-mix(in srgb, var(--yf-purple) 30%, var(--yf-cream));
+  --tr-far-rim: color-mix(in srgb, var(--yf-purple) 42%, var(--yf-cream));
+  --tr-mid: color-mix(in srgb, var(--yf-teal-600) 22%, var(--yf-cream));
+  --tr-mid-rim: color-mix(in srgb, var(--yf-teal-600) 38%, var(--yf-cream));
+  --tr-near: color-mix(in srgb, var(--yf-teal-600) 30%, var(--yf-navy));
+  --tr-near-rim: color-mix(in srgb, var(--yf-teal-600) 46%, var(--yf-navy));
+  --tr-water: color-mix(in srgb, var(--yf-teal-600) 22%, var(--card));
+  --tr-water-deep: color-mix(in srgb, var(--tr-water) 72%, var(--yf-cream));
+  --tr-far-low: color-mix(in srgb, var(--tr-far) 60%, var(--yf-cream));
+  --tr-mid-low: color-mix(in srgb, var(--tr-mid) 70%, var(--tr-far));
+  --tr-near-low: color-mix(in srgb, var(--tr-near) 80%, var(--yf-cream));
+  --tr-foam: color-mix(in srgb, var(--yf-teal-600) 40%, var(--tr-water));
+  --tr-line: color-mix(in srgb, var(--text) 12%, transparent);
+  --tr-snow: color-mix(in srgb, var(--text) 30%, transparent);
+}
+.ovw-map svg { display: block; width: 100%; height: auto; }
+/* Terrain layers. Fills are flat paper shapes, as on the Landing page. */
+.tr-sky { fill: url(#trSky); }
+.tr-glow { fill: url(#trGlow); }
+.tr-orb { fill: var(--tr-orb); }
+.tr-sea { fill: url(#trSea); }
+.tr-foam { fill: none; stroke: var(--tr-foam); stroke-width: 2.5; stroke-linecap: round; }
+.tr-wave { fill: none; stroke: var(--tr-foam); stroke-width: 1.5; stroke-linecap: round; opacity: .8; }
+.tr-river { fill: none; stroke: var(--tr-water); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
+.tr-river-hi { fill: none; stroke: var(--tr-foam); stroke-width: 2; stroke-linecap: round; opacity: .7; }
+.tr-ridge { stroke: none; }
+.tr-far .tr-ridge { fill: url(#trFar); } .tr-mid .tr-ridge { fill: url(#trMid); } .tr-near .tr-ridge { fill: url(#trNear); }
+.tr-rim { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.tr-far .tr-rim { stroke: var(--tr-far-rim); } .tr-mid .tr-rim { stroke: var(--tr-mid-rim); } .tr-near .tr-rim { stroke: var(--tr-near-rim); }
+.tr-snow { fill: var(--tr-snow); stroke: none; }
+.tr-contour { fill: none; stroke: var(--tr-line); stroke-width: 1; stroke-linejoin: round; }
+/* The ridges settle into place once, one or two pixels, after the road starts to draw. */
+.tr-far { --tr-off: 1px; } .tr-mid { --tr-off: 1.5px; } .tr-near { --tr-off: 2px; }
+.tr-l { animation: trSettle calc(var(--motion-slow) * 2) var(--ease-out) backwards; }
+@keyframes trSettle { from { transform: translateY(var(--tr-off)); opacity: .86; } }
+/* The line widths are custom properties, so the script can widen them when the map shrinks on a phone. */
+.rm-case { fill: none; stroke: var(--rm-edge); stroke-width: var(--cw, 17px); stroke-linecap: round; stroke-linejoin: round; }
+.rm-hl { fill: none; stroke: var(--rm-b); stroke-width: var(--gw, 26px); stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-hl.is-hl { opacity: .5; }
+.rm-road { fill: none; stroke-width: var(--rw, 9px); stroke-linecap: round; stroke-linejoin: round; transition: stroke-width var(--motion-fast) var(--ease-out); }
+.rm-road.is-hl { stroke-width: calc(var(--rw, 9px) * 1.35); }
+.rm-dash { fill: none; stroke: var(--rm-cream); stroke-width: var(--dw, 2px); stroke-dasharray: var(--dd, 7 9); stroke-linecap: round; }
+.rm-leghit { fill: none; stroke: transparent; stroke-width: var(--hw, 18px); pointer-events: stroke; }
+/* Draw-in: each leg draws once, one stagger step after the leg before it. The dashes fade in with the road. */
+.rm-case, .rm-road { stroke-dasharray: 1; stroke-dashoffset: 0; animation: rmDraw var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * var(--i, 0)); }
+.rm-dash { animation: rmFade var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(var(--stagger-step) * var(--i, 0)); }
+@keyframes rmDraw { from { stroke-dashoffset: 1; } }
+@keyframes rmFade { from { opacity: 0; } }
+/* Pin: a small face over a transparent hit circle of 44px. Hover, focus and a matching list row draw a 2px ring. */
+.rm-pin { cursor: pointer; outline: none; }
+.rm-pin[data-inert] { pointer-events: none; }
+.rm-hit { fill: transparent; }
+.rm-ring { fill: none; stroke: var(--rm-edge); stroke-width: 2px; opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-pin:hover .rm-ring, .rm-pin:focus-visible .rm-ring, .rm-pin.is-hl .rm-ring { opacity: 1; }
+.rm-dot { fill: #fff; stroke: var(--rm-edge); stroke-width: var(--pw, 2.5px); }
+.is-start .rm-dot { fill: var(--teal-deep); }
+.is-end .rm-dot { fill: var(--yf-saffron); }
+.rm-num { font-family: var(--font-display); font-weight: 800; text-anchor: middle; dominant-baseline: central; fill: var(--yf-navy); pointer-events: none; }
+.is-start .rm-num { fill: var(--card); }
+:root[data-theme='dark'] .is-start .rm-num { fill: var(--yf-cream); }
+.is-end .rm-num { fill: var(--btn-accent-fg); }
+.rm-name { font-family: var(--font-body); font-weight: 800; fill: var(--text); paint-order: stroke; stroke: var(--card); stroke-width: 3.5px; stroke-linejoin: round; }
+.rm-tag { font-family: var(--font-body); font-weight: 700; fill: var(--text-2); paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+:root[data-theme='dark'] .rm-name, :root[data-theme='dark'] .rm-tag { stroke: var(--yf-cream); }
+/* Tooltip: names the stop and the day, plus the leg. It opens on hover and on keyboard focus. */
+.rm-tip { position: absolute; z-index: 2; pointer-events: none; display: grid; gap: 1px; padding: 6px 10px; border-radius: 10px; background: var(--card); color: var(--text); border: 1px solid var(--yf-border); box-shadow: var(--shadow-soft); font-size: 12px; line-height: 1.3; white-space: nowrap; opacity: 0; transform: translate(-50%, calc(-100% - 14px)); transition: opacity var(--motion-fast) var(--ease-out); }
+.rm-tip.is-below { transform: translate(-50%, 14px); }
+.rm-tip.is-on { opacity: 1; }
+.rm-tip b { font-size: 13px; font-weight: 800; }
+.rm-tip span { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ovw-verdict-act { display: grid; justify-items: end; }
+.ovw-sample { margin: 0; font-size: 11px; color: var(--text-3); }
+.ovw-route-empty { display: grid; align-content: center; flex: 1; }
+.ovw-rsum { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin: 0; font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ovw-rsum b { color: var(--text); font-weight: 800; }
+/* Stop list: one compact row for each stop, two columns on a wide card. It is the text version of the route. */
+.ovw-stoplist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-9); margin: 0; padding: 0; list-style: none; }
+.ovw-stoplist > li { border-top: 1px solid var(--line); }
+.ovw-stoplist > li:nth-child(-n + 2) { border-top: 0; }
+.ovw-stoplist.is-long { max-height: 176px; overflow-y: auto; align-content: start; padding-inline-end: var(--space-2); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
+.ovw-stoplist.is-long:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); border-radius: 8px; }
+.ovw-stop-btn { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto auto; column-gap: var(--space-4); align-items: center; width: 100%; min-height: 44px; padding-inline: var(--space-2); cursor: pointer; border-radius: 8px; transition: background-color var(--motion-fast) var(--ease-out); }
+.ovw-stop-btn:hover, .ovw-stop-btn.is-hl { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); }
+.ovw-stop-btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--ring); }
+.ovw-stop-pin { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--font-display); background: var(--card); border: 2px solid var(--yf-teal-600); color: var(--ink-teal); }
+.ovw-stoplist .is-start .ovw-stop-pin { background: var(--teal-deep); border-color: var(--teal-deep); color: var(--card); }
+:root[data-theme='dark'] .ovw-stoplist .is-start .ovw-stop-pin { color: var(--yf-cream); }
+.ovw-stoplist .is-end .ovw-stop-pin { background: var(--yf-saffron); border-color: var(--yf-saffron); color: var(--btn-accent-fg); }
+.ovw-stop-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-size: 13px; }
+.ovw-stop-name small { margin-inline-start: 6px; font-size: 12px; font-weight: 700; color: var(--text-2); }
+.ovw-stop-d, .ovw-stop-km, .ovw-stop-t { font-size: 12px; color: var(--text-2); white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; }
+.ovw-stop-km { min-width: 52px; }
+.ovw-stop-t { min-width: 66px; }
+
+/* 5. Day matrix: a grid, days as rows, parts as columns */
+.ovw-block { background: var(--card); border: 1px solid var(--yf-border); border-radius: var(--radius-sm); padding: var(--space-6) var(--space-7); display: flex; flex-direction: column; min-width: 0; }
+.ovw-lower { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--space-5); align-items: start; }
+.ovw-stack { display: grid; gap: var(--space-5); min-width: 0; }
+.ovw-block-foot { margin-top: auto; padding-top: var(--space-2); }
+.mx-wrap { position: relative; }
+.mx-scroll { overflow: auto; max-height: 560px; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); scrollbar-width: thin; }
+.mx { min-width: 820px; }
+.mx-row { display: grid; grid-template-columns: 116px repeat(6, minmax(0, 1fr)) 76px; align-items: stretch; border-top: 1px solid var(--line); }
+.mx-row:first-child { border-top: 0; }
+.mx-row.is-head { background: var(--info-soft); position: sticky; top: 0; z-index: 3; }
+.mx-th { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-4); font-size: 12px; font-weight: 700; color: var(--text-2); }
+.mx-th svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--k); }
+.mx-daycol { position: sticky; inset-inline-start: 0; z-index: 2; transition: background-color var(--motion-fast) var(--ease-out); background: var(--card); box-shadow: 1px 0 0 var(--line); }
+.mx-row.is-head .mx-daycol { background: var(--info-soft); z-index: 4; }
+.mx-day { display: flex; align-items: center; min-height: 44px; padding: 0; }
+.mx-day button { all: unset; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 44px; padding: 0 var(--space-4); font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--text); cursor: pointer; }
+.mx-day button small { font-size: 11px; font-weight: 600; color: var(--text-3); }
+.mx-day button:focus-visible { outline: 2px solid transparent; box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
+@media (hover: hover) { .mx-day button:hover { color: var(--ink-teal); } }
+.mx-today { display: inline-flex; align-items: center; min-height: 18px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--ink-teal); color: var(--card); vertical-align: 1px; }
+:root[data-theme='dark'] .mx-today { color: var(--yf-cream); }
+.mx-row.is-today .mx-daycol { box-shadow: inset 3px 0 0 var(--yf-teal-600), 1px 0 0 var(--line); }
+.mx-cell { min-width: 0; min-height: 44px; display: flex; align-items: stretch; transition: background-color var(--motion-fast) var(--ease-out); }
+/* The chip radius is 8px inside 8px of padding, so the cell radius is 16px. The focus ring follows the cell. */
+.mx-btn { all: unset; box-sizing: border-box; flex: 1; min-width: 0; min-height: 44px;
+  display: flex; align-items: stretch; padding: 8px; border-radius: 16px; cursor: pointer; }
+.mx-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mx-chip svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--k); }
+.mx-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mx-btn:focus-visible { outline: 2px solid transparent; box-shadow: inset 0 0 0 2px var(--yf-teal-600); }
+.mx-cell[data-state='filled'] .mx-chip { background: color-mix(in srgb, var(--k) var(--mx-tint), var(--card)); }
+@media (hover: hover) { .mx-cell[data-state='filled'] .mx-btn:hover .mx-chip { background: color-mix(in srgb, var(--k) 26%, var(--card)); } }
+.mx-cell[data-state='auto'] .mx-chip { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); color: var(--text-2); font-weight: 600; }
+.mx-cell[data-state='empty'] .mx-chip { border: 1.5px dashed; border-color: var(--mx-edge); color: var(--text-3); font-weight: 600; justify-content: center; padding: 0; }
+@media (hover: hover) { .mx-cell[data-state='empty'] .mx-btn:hover .mx-chip { border-color: var(--yf-teal-600); color: var(--ink-teal); background: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); } }
+.mx-cell[data-state='none'] .mx-btn { cursor: default; }
+.mx-cell[data-state='none'] .mx-chip { justify-content: center; color: var(--text-3); font-weight: 600; }
+@media (hover: hover) { .mx-row:not(.is-head):hover .mx-cell, .mx-row:not(.is-head):hover .mx-daycol, .mx-row:not(.is-head):hover .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 8%, var(--card)); } }
+.mx-row.is-today .mx-cell, .mx-row.is-today .mx-daycol, .mx-row.is-today .mx-total { background-color: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); }
+.mx-total { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; transition: background-color var(--motion-fast) var(--ease-out); }
+.mx-total em { font-style: normal; font-weight: 800; }
+.mx-total.is-thin { color: var(--ink-amber); font-weight: 800; }
+.mx-bar { display: block; width: 48px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.mx-bar b { display: block; height: 100%; border-radius: 2px; background: var(--yf-teal-600); }
+.mx-total.is-thin .mx-bar b { background: var(--ink-amber); }
+.mx-fade { display: none; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 36px; pointer-events: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: linear-gradient(to right, transparent, var(--card)); opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.mx-wrap.can-scroll .mx-fade { opacity: 1; }
+.mx-key { display: inline-flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); }
+.mx-key i { display: inline-block; width: 18px; height: 10px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+.mx-key .k-f { background: color-mix(in srgb, var(--ink-teal) var(--mx-tint), var(--card)); }
+.mx-key .k-a { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink-teal) var(--mx-ring), var(--card)); }
+.mx-key .k-e { border: 1.5px dashed var(--mx-edge); }
+
+/* Small blocks */
+.ovw-pulse-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-5); min-height: 44px; border-top: 1px solid var(--line); }
+.ovw-pulse-row:first-of-type { border-top: 0; }
+.ovw-pulse-row b { font-variant-numeric: tabular-nums; }
+.ovw-feed { display: grid; }
+.ovw-feed li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--line); font-size: 13px; }
+.ovw-feed li:first-child { border-top: 0; }
+.ovw-feed time { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.ovw-feed .avatar { width: 28px; height: 28px; margin: 0; font-size: 11px; }
+.ovw-next { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); padding: var(--space-4) var(--space-5); border-radius: 10px; background: var(--info-soft); }
+.ovw-next svg { width: 16px; height: 16px; margin-top: 3px; color: var(--ink-teal); }
+.ovw-next b { display: block; font-size: 14px; }
+.ovw-next span { font-size: 12px; color: var(--text-2); }
+.ovw-commit { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); min-height: 40px; border-top: 1px solid var(--line); font-size: 13px; }
+.ovw-commit-when { color: var(--text-2); }
+.ovw-chip { display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--info-soft); color: var(--text-2); }
+.ovw-wx { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); }
+.ovw-wx-cell { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0 var(--space-4); padding: var(--space-4) var(--space-5); border-radius: 10px; background: var(--info-soft); font-size: 12px; color: var(--text-2); }
+.ovw-wx-cell.wet { background: var(--teal-soft); }
+.ovw-wx-cell > svg { grid-row: 1 / span 3; width: 22px; height: 22px; color: var(--ink-amber); }
+.ovw-wx-cell.wet > svg { color: var(--ink-teal); }
+.ovw-wx-cell b { color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }
+.ovw-legend { margin-top: var(--space-4); font-size: 12px; color: var(--text-2); }
+
+/* StateBlock, compact (R22): same roles, no dashed border. Copy of .yf-state rules. */
+.yf-state { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-2); text-align: center; }
+.yf-state-icon { display: grid; place-items: center; color: var(--ink-teal); }
+.yf-state-icon svg { width: 20px; height: 20px; }
+.yf-state[data-kind='failed'] .yf-state-icon { color: var(--ink-coral); }
+.yf-state-title { font-family: var(--font-body); font-size: 15px; font-weight: 800; line-height: 1.3; color: var(--text); }
+.yf-state-body { max-width: 44ch; color: var(--text-2); font-size: 13px; }
+.yf-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-4); margin-top: var(--space-1); }
+.yf-state--kept { justify-items: start; text-align: left; grid-template-columns: auto 1fr; padding: var(--space-4) var(--space-5); margin-bottom: var(--space-3); border-radius: 10px; background: var(--warn-soft); }
+.yf-state--kept .yf-state-title { font-size: 14px; }
+.yf-state--kept .yf-state-body { grid-column: 2; font-size: 13px; }
+.yf-state--kept .yf-state-actions { grid-column: 2; justify-content: flex-start; }
+.spinner { width: 24px; height: 24px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--yf-teal-600); animation: spin calc(var(--motion-slow) * 4) linear infinite; }
+
+/* Entrance: same idea as .page-enter. Tokens only. */
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes growX { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ovw > * { animation: riseIn var(--motion-slow) var(--ease-out) backwards; }
+.ovw > *:nth-child(2) { animation-delay: var(--stagger-step); }
+.ovw > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.ovw > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+
+
+/* Guide overlay: ?guides=1 draws the 1400px container, the yf-page wrapper and the 1720px Board and Map width */
+.guide-wide { display: none; position: fixed; top: 0; bottom: 0; left: 50%; width: var(--container-wide); max-width: 100vw; transform: translateX(-50%); border-left: 1px dashed var(--yf-saffron); border-right: 1px dashed var(--yf-saffron); pointer-events: none; z-index: 40; }
+.guide-wide span { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font: 700 11px var(--font-body); color: var(--ink-amber); background: var(--card); padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+body.guides .guide-wide { display: block; }
+
+
+/* Phone matrix: one 44px button for each day. Hidden above 720px. */
+.mx-compact { display: none; border: 1px solid var(--yf-border); border-radius: var(--radius-sm); overflow: hidden; }
+.mx-chead, .mx-crow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(6, 28px) 34px; align-items: center; column-gap: 3px; padding: 0 var(--space-4); width: 100%; }
+.mx-chead { min-height: 36px; background: var(--info-soft); font-size: 12px; font-weight: 700; color: var(--text-2); }
+.mx-chead svg { width: 14px; height: 14px; color: var(--k); justify-self: center; }
+.mx-crow { min-height: 44px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.mx-crow.is-today { background: color-mix(in srgb, var(--yf-teal-600) 5%, var(--card)); box-shadow: inset 3px 0 0 var(--yf-teal-600); }
+.mx-cday { display: flex; flex-direction: column; line-height: 1.2; }
+.mx-cday b { font-size: 13px; }
+.mx-cday b, .mx-day button > span:first-child { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mx-chead span:last-child { text-align: end; }
+.mx-cday small { font-size: 11px; color: var(--text-3); }
+.mx-g { display: grid; place-items: center; box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; color: var(--text-3); }
+.mx-g svg { width: 15px; height: 15px; color: var(--k); }
+.mx-g[data-state='filled'] { background: color-mix(in srgb, var(--k) var(--mx-tint), var(--card)); }
+.mx-g[data-state='auto'] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k) var(--mx-ring), var(--card)); }
+.mx-g[data-state='empty'] { border: 1.5px dashed var(--mx-edge); }
+.mx-ctot { font-size: 12px; font-weight: 700; color: var(--text-2); text-align: end; }
+.mx-crow:focus-visible { outline: 2px solid transparent; outline-offset: -2px; box-shadow: inset 0 0 0 3px var(--yf-teal-600); }
+
+/* Mockup only: shows where a click would go. The real tabs navigate. */
+.mock-toast { position: fixed; inset-inline: 16px; bottom: 16px; z-index: 50; width: fit-content; max-width: calc(100vw - 32px); margin-inline: auto; padding: 10px 18px; border-radius: 999px; background: var(--text); color: var(--card); font-size: 13px; font-weight: 700; pointer-events: none; opacity: 0; transform: translateY(8px); transition: opacity var(--motion-med) var(--ease-out), transform var(--motion-med) var(--ease-out); }
+.mock-toast.is-on { opacity: 1; transform: none; }
+
+
+/* ---- Narrow ---- */
+@media (max-width: 1100px) {
+  .ovw-lower { grid-template-columns: minmax(0, 1fr); }
+  .ovw-stack + .ovw-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+@media (max-width: 960px) {
+  .ovw-split { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'needs' 'stats' 'route'; }
+  .ovw-wx { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
+}
+@media (max-width: 720px) {
+  .app-nav-stub { gap: 12px; white-space: nowrap; overflow: hidden; padding: 0 16px; }
+  .mock-bar { padding: 8px 16px; }
+  .ovw-card { padding: var(--space-6); }
+  .ovw-verdict { padding: var(--space-4) var(--space-6) var(--space-4) var(--space-8); gap: var(--space-3) var(--space-6); grid-template-columns: auto minmax(0, 1fr); }
+  .ovw-verdict-act { grid-column: 1 / -1; }
+  .ovw-verdict-act .ovw-btn { width: 100%; }
+  .ovw-score-num { font-size: 34px; }
+  .ovw-stats { grid-template-columns: 1fr; gap: var(--space-4); }
+  .ovw-stat { padding: var(--space-3) var(--space-6); }
+  .ovw { gap: var(--space-4); }
+  .ovw-need { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'sev btn' 'txt btn'; gap: var(--space-2) var(--space-5); }
+  .ovw-need .ovw-sev { grid-area: sev; justify-self: start; }
+  .ovw-need-text { grid-area: txt; }
+  .ovw-need .ovw-btn { grid-area: btn; align-self: center; padding: 0 12px; }
+  .mock-note, .app-nav-stub { display: none; }
+  .mock-bar { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
+  .mock-bar .seg { flex-wrap: nowrap; }
+  .mock-bar > b { display: none; }
+  .mock-bar .readout { margin-left: 0; }
+  .ovw-stats { gap: 0; padding: 0; border-radius: var(--radius); background: var(--card); border: 1px solid var(--yf-border); box-shadow: var(--shadow-card); }
+  .ovw-stats .ovw-card { border: 0; box-shadow: none; border-radius: 0; background: none; border-top: 1px solid var(--line); padding: var(--space-3) var(--space-6); }
+  .ovw-stats .ovw-card:first-child { border-top: 0; }
+  .ovw-block { padding: var(--space-5) var(--space-6); }
+  .ovw-head { min-height: 24px; margin-bottom: var(--space-3); }
+  .ovw-wx-cell { padding: var(--space-3) var(--space-4); }
+  .ovw-stoplist { grid-template-columns: minmax(0, 1fr); }
+  .ovw-stoplist > li:nth-child(2) { border-top: 1px solid var(--line); }
+  .ovw-stoplist.is-long { max-height: 264px; }
+  .ovw-stop-t { min-width: 0; }
+  .ovw-stop-km { min-width: 0; }
+  .ovw-stop-btn { column-gap: var(--space-3); }
+  .ovw-pulse-row { min-height: 40px; }
+  .ovw-feed li { padding: var(--space-2) 0; }
+  .ovw-route { gap: var(--space-3); }
+  .mx-scroll, .mx-wrap { display: none; }
+  .mx-compact { display: block; }
+  .ovw-stack, .ovw-stack + .ovw-stack { grid-template-columns: minmax(0, 1fr); }
+  .ovw-wx { grid-template-columns: repeat(5, 132px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .rm-leg { stroke-dashoffset: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="mock-bar" role="group" aria-label="Mockup controls">
+  <b>P2 header with P12 Overview (Workspace tabs)</b>
+  <span>Sample data only.</span>
+  <span class="seg" role="group" aria-label="Tab">
+    <button type="button" data-tab="overview" aria-pressed="true">Overview (1400px)</button>
+    <button type="button" data-tab="board" aria-pressed="false">Board (1720px)</button>
+    <button type="button" data-tab="map" aria-pressed="false">Map (1720px)</button>
+  </span>
+  <span class="seg" role="group" aria-label="Overview state">
+    <button type="button" data-state="ready" aria-pressed="true">Ready</button>
+    <button type="button" data-state="loading" aria-pressed="false">Loading</button>
+    <button type="button" data-state="failed" aria-pressed="false">Failed</button>
+    <button type="button" data-state="empty" aria-pressed="false">Empty</button>
+    <button type="button" data-state="kept" aria-pressed="false">Kept</button>
+  </span>
+  <span class="seg" role="group" aria-label="View options">
+    <button type="button" id="themeBtn" aria-pressed="false">Dark</button>
+    <button type="button" id="guideBtn" aria-pressed="false">Guides</button>
+  </span>
+  <span class="readout" id="readout" aria-live="off"></span>
+</div>
+
+<div class="app-nav-stub" aria-hidden="true"><span class="brand">YatraFlow</span><span>My trips</span><span>Plan a trip</span><span>Explore</span></div>
+
+<div class="container page-enter" id="container" data-guide="div.container (max-width 1400px)">
+
+  <!-- R15: header and tab bar sit in their own yf-page wrapper. .container does NOT carry yf-page. -->
+  <div class="yf-page" id="yfwrap" data-compact="false">
+    <header class="yf-trip-head" id="head">
+      <button type="button" class="yf-back">&larr; All trips</button>
+      <div class="yf-head-row">
+        <span class="yf-thumb-slot" aria-hidden="true"><span class="yf-thumb">
+          <!-- Papercut placeholder. The real header uses TripArt, then the generated region art. -->
+          <svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid slice" focusable="false">
+            <rect width="96" height="96" fill="var(--yf-mist)"/>
+            <circle cx="68" cy="26" r="11" fill="var(--yf-saffron)"/>
+            <g style="filter: drop-shadow(0 2px 1.5px rgba(11,37,69,.28))">
+              <path d="M0 58 L18 38 L30 50 L48 28 L70 52 L84 42 L96 54 V96 H0Z" fill="var(--yf-purple)"/>
+            </g>
+            <g style="filter: drop-shadow(0 2px 1.5px rgba(11,37,69,.32))">
+              <path d="M0 70 Q22 54 44 68 T96 62 V96 H0Z" fill="var(--yf-teal-600)"/>
+            </g>
+            <g style="filter: drop-shadow(0 2px 1.5px rgba(11,37,69,.36))">
+              <path d="M0 82 Q28 70 52 82 T96 78 V96 H0Z" fill="var(--yf-navy)"/>
+            </g>
+          </svg>
+        </span></span>
+        <div class="yf-head-text">
+          <h1 class="yf-head-title">North South</h1>
+          <div class="yf-fold"><div class="yf-fold-in">
+            <p class="yf-head-meta yf-fade">Kolkata, West Bengal &rarr; Leh, Ladakh &middot; 1 Sep &ndash; 10 Sep 2026 &middot; 4 travellers &middot; Motorcycle &middot; Relaxed</p>
+          </div></div>
+        </div>
+        <div class="yf-head-actions">
+          <button type="button" class="yf-btn yf-btn--quiet">Invite &amp; share</button>
+        </div>
+      </div>
+      <div class="yf-extra"><div class="yf-fade">
+      <div class="yf-act-extra"><button type="button" class="yf-btn yf-btn--quiet">Invite &amp; share</button></div>
+      <div class="yf-members" aria-label="Members">
+        <span class="yf-avatars">
+          <span class="yf-avatar" tabindex="0" aria-label="Sample member A, viewing now">A<span class="dot" aria-hidden="true"></span><span class="tip" role="tooltip">Sample member A &middot; viewing now</span></span>
+          <span class="yf-avatar" tabindex="0" aria-label="Sample member B, viewing now">B<span class="dot" aria-hidden="true"></span><span class="tip" role="tooltip">Sample member B &middot; viewing now</span></span>
+          <span class="yf-avatar" tabindex="0" aria-label="Sample member C">C<span class="tip" role="tooltip">Sample member C &middot; away</span></span>
+        </span>
+        <span class="yf-member-note"><b>3 members</b> &middot; you are owner</span>
+        <span class="yf-viewing"><i aria-hidden="true"></i>2 viewing now</span>
+      </div>
+      </div></div>
+    </header>
+
+    <div class="yf-tabbar" role="tablist" aria-label="Trip sections" id="tabbar" data-overflow="none">
+      <span class="yf-glider" id="glider" aria-hidden="true"></span>
+      <button class="yf-tab" role="tab" id="tab-overview" aria-controls="panel-overview" data-key="overview">Overview</button>
+      <button class="yf-tab" role="tab" id="tab-board" aria-controls="panel-board" data-key="board">Board</button>
+      <button class="yf-tab" role="tab" id="tab-map" aria-controls="panel-map" data-key="map">Map</button>
+      <button class="yf-tab" role="tab" id="tab-timeline" aria-controls="panel-timeline" data-key="timeline">Timeline</button>
+      <button class="yf-tab" role="tab" id="tab-group" aria-controls="panel-group" data-key="group">Group input<span class="yf-count">3</span></button>
+      <button class="yf-tab" role="tab" id="tab-budget" aria-controls="panel-budget" data-key="budget">Budget</button>
+      <button class="yf-tab" role="tab" id="tab-share" aria-controls="panel-share" data-key="share">Share</button>
+      <button class="yf-tab" role="tab" id="tab-settings" aria-controls="panel-settings" data-key="settings">Settings</button>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel" role="tabpanel" aria-labelledby="tab-overview">
+    <div id="ovwPane">
+      <div id="note"></div>
+      <div class="ovw" id="ovw"></div>
+    </div>
+    <div id="ph" hidden></div>
+  </div>
+
+  <aside class="notes">
+    <h2>What this mockup shows</h2>
+    <ul>
+      <li>The header and tab bar come from the P2 mockup. The Overview under them comes from the P12 mockup. Neither design changed.</li>
+      <li>Overview uses 1400px. Board and Map use 1720px and show a placeholder. The header compacts on those two tabs and expands again on the others.</li>
+      <li>The header <b>Invite &amp; share</b> button is an outline button (P12). The verdict button is the only saffron pill on the Overview.</li>
+      <li>Query parameters: <code>tab</code>, <code>state</code>, <code>route</code>, <code>stops</code>, <code>days</code>, <code>theme</code> and <code>guides</code>.</li>
+    </ul>
+  </aside>
+</div>
+<div id="toast" class="mock-toast" role="status" aria-live="polite"></div>
+
+<script>
+window.__yfParam = function (k, v) {
+  var q = new URLSearchParams(location.search); q.set(k, v);
+  history.replaceState(null, '', '?' + q.toString());
+};
+</script>
+<script>
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var root = document.documentElement;
+  var STATES = ['ready', 'loading', 'failed', 'empty', 'kept'];
+  var NS = 'http://www.w3.org/2000/svg';
+  /* Sample-size knobs for the review shots: ?days=N sets the day count, ?stops=N sets the route points. */
+  var DAYS = Math.max(1, Math.min(30, parseInt(qs.get('days'), 10) || 10));
+  var NPTS = qs.has('stops') ? Math.max(0, Math.min(30, parseInt(qs.get('stops'), 10) || 0)) : 6;
+  var alertUsed = false;
+
+  /* ---------- inline icons (decorative) ---------- */
+  function ic(d, w) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; }
+  var I = {
+    high: ic('<path d="M12 3v9"/><circle cx="12" cy="18" r="1.6"/>', 2.4),
+    medium: ic('<path d="M12 3 2.5 20h19z"/><path d="M12 10v5"/>', 2.2),
+    warn: ic('<path d="M12 3 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/>'),
+    check: ic('<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/>', 2.2),
+    pin: ic('<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+    sun: ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+    rain: ic(
+      '<path d="M7 15a4.5 4.5 0 1 1 1.2-8.8A5.5 ' +
+      '5.5 0 0 1 18.8 8 3.5 3.5 ' +
+      '0 0 1 18 15"/><path d="M9 18l-1 3M13 ' +
+      '18l-1 3M17 18l-1 3"/>'),
+    breakfast: ic(
+      '<path d="M4 8h12v6a5 5 0 0 1-5 5H9a5 ' +
+      '5 0 0 1-5-5V8z"/><path d="M16 10h2a2 2 0 ' +
+      '0 1 0 4h-2M8 3v2M12 3v2"/>'),
+    meal: ic(
+      '<path d="M6 3v7a2 2 0 0 0 4 ' +
+      '0V3M8 3v18M17 3c-2 2-3 4-3 7 0 1.5 ' +
+      '1 2 3 2V3zM17 12v9"/>'),
+    fuel: ic(
+      '<path d="M5 21V5a2 2 0 0 1 2-2h6a2 ' +
+      '2 0 0 1 2 2v16M3 21h14M8 8h4M15 ' +
+      '10h2a2 2 0 0 1 2 2v4a1.5 1.5 ' +
+      '0 0 0 3 0V9l-3-3"/>'),
+    stretch: ic('<circle cx="12" cy="5" r="2"/><path d="M12 8v6M8 21l4-7 4 7M7 11l5-3 5 3"/>'),
+    night: ic('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>')
+  };
+  I.low = ic('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>', 2.2);
+
+  /* ---------- StateBlock, compact. Only the first failed block is an alert; the rest are status. ---------- */
+  function state(kind, o) {
+    var role = '';
+    if (kind === 'failed') { role = alertUsed ? ' role="status"' : ' role="alert"'; alertUsed = true; }
+    else if (kind === 'loading' || kind === 'kept') role = ' role="status"';
+    var icon = o.icon ? '<div class="yf-state-icon">' + o.icon + '</div>' : '';
+    return '<div class="yf-state' + (kind === 'kept' ? ' yf-state--kept' : '') + '" data-kind="' + kind + '"' + role + '>' + icon +
+      '<h3 class="yf-state-title">' + o.title + '</h3>' + (o.body ? '<p class="yf-state-body">' + o.body + '</p>' : '') +
+      (o.actions ? '<div class="yf-state-actions">' + o.actions + '</div>' : '') + '</div>';
+  }
+  var spin = '<span class="spinner" aria-hidden="true"></span>';
+  var retry = '<button type="button" class="ovw-btn">Try again</button>';
+
+  /* ---------- sample data (labelled sample; engine logic is not touched) ---------- */
+  var WARN = [
+    { sev: 'high', lead: 'High', title: 'Day 3 drives 11 h 40 min', fix: 'Move one stop to Day 4, or add a rest stop before Kargil.', act: 'Fix Day 3' },
+    { sev: 'medium', lead: 'Medium', title: 'Day 6 arrives after sunset', fix: 'Leave 1 h earlier, or shorten the lunch break.', act: 'Fix Day 6' },
+    { sev: 'low', lead: 'Low', title: 'Day 8 has no fuel stop planned', fix: 'Add a fuel stop before the long climb.', act: 'Fix Day 8' },
+    { sev: 'low', lead: 'Low', title: 'Day 9 has a short lunch break', fix: 'Add 20 minutes so the stop is not rushed.', act: 'Fix Day 9' },
+    { sev: 'low', lead: 'Low', title: 'Day 2 has no rest stop planned', fix: 'Add a stretch break after the climb.', act: 'Fix Day 2' }
+  ];
+  function needRow(w) {
+    return '<li class="ovw-need"><span class="ovw-sev" data-sev="' + w.sev + '">' + I[w.sev] + w.lead + '</span>' +
+      '<div class="ovw-need-text"><div class="ovw-need-title">' + w.title + '</div><div class="ovw-need-fix">' + w.fix + '</div></div>' +
+      '<button type="button" class="ovw-btn ovw-btn--review">' + w.act + '</button></li>';
+  }
+
+  function verdict(s) {
+    var empty = s === 'empty';
+    var band = empty ? 'teal' : 'saffron', name = empty ? 'Not scored yet' : 'Tight', score = empty ? '–' : '58';
+    var line = empty ? 'Nothing is planned yet.' : 'The days run long. Expect late arrivals.';
+    var sub = empty ? 'Add a stop and the plan gets a score.' : WARN.length + ' issues in ' + DAYS + ' days. First: ' + WARN[0].title + '.';
+    var btn = empty ? 'Open Timeline' : 'Fix ' + WARN.length + ' issues';
+    var bar = empty ? '' : '<div class="ovw-bar" role="img" aria-label="Trip health 58 of 100"><i style="width:58%"></i></div>';
+    return '<section class="ovw-card ovw-verdict" data-band="' + band + '" aria-labelledby="v-h">' +
+      '<div class="ovw-score"><span class="ovw-score-num">' + score + '</span><span class="ovw-score-of">' + (empty ? 'no score' : 'of 100') + '</span><span class="ovw-band">' + name + '</span></div>' +
+      '<div class="ovw-verdict-text"><h2 class="ovw-verdict-line" id="v-h">' + line + '</h2><p class="ovw-verdict-sub">' + sub + '</p>' + bar + '</div>' +
+      '<div class="ovw-verdict-act"><button type="button" class="ovw-btn ovw-btn--primary">' + btn + '</button></div></section>';
+  }
+
+  function needs(s) {
+    if (s === 'empty') {
+      return '<section class="ovw-card ovw-needs" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2></div>' +
+        state('empty', { icon: I.check, title: 'Nothing to check yet', body: 'Issues appear after you add a stop.' }) + '</section>';
+    }
+    var rows = WARN.slice(0, 3).map(needRow).join('');
+    var more = WARN.slice(3).map(needRow).join('');
+    return '<section class="ovw-card ovw-needs" aria-labelledby="n-h"><div class="ovw-head"><h2 class="ovw-title" id="n-h">What needs you</h2>' +
+      '<span class="ovw-count">' + WARN.length + ' warnings</span></div><ul class="ovw-need-list">' + rows + '</ul>' +
+      '<ul class="ovw-need-list" id="moreRows" hidden>' + more + '</ul>' +
+      '<button type="button" class="ovw-more-btn" id="moreBtn" aria-expanded="false" aria-controls="moreRows">' + (WARN.length - 3) + ' more warnings</button></section>';
+  }
+
+  function stats(s) {
+    var e = s === 'empty';
+    return '<section class="ovw-stats" aria-label="Trip totals">' +
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Total cost</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;1,84,500') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : '&#8377;18,450 a day, estimate') + '</span></div>' +
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Per person</span><span class="ovw-stat-val">' + (e ? '–' : '&#8377;46,125') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a cost' : 'against a &#8377;50,000 target') + '</span></div>' +
+      '<div class="ovw-card ovw-stat"><span class="ovw-stat-label">Travel effort</span><span class="ovw-stat-val">' + (e ? '–' : '38 h 20 min') + '</span><span class="ovw-stat-sub">' + (e ? 'Shows after you add a stop' : '4 overnight bases') + '</span></div></section>';
+  }
+
+  /* ---------- route map ----------
+     Geometry first: the road is the picture. It fills the plate, so the shape of the trip reads at a glance.
+     Real data (OverviewTab.tsx): overviewRoutePoints gives ordered points { lat, lng, day | null }.
+     This mockup uses real place coordinates (approximate, labelled as a sample) and projects them like RouteSnapshot does:
+     equirectangular fit with a cosine of the latitude, north up, drawn bounds centred, Catmull-Rom curves.
+     The landscape behind the road is stylised from the same stops. Each stop carries an elevation in metres, which
+     lifts the ridges under it. Each trip names its water: sea on one side, or a river. This is mockup data only.
+     road.legs gives distanceKm and durationMinutes for each leg, but only after the road is measured.
+     ?route=north-south|ladakh|bengal-sikkim|goa-coast picks the sample trip. ?road=pending shows the route before the road is measured. */
+  var W = 720, H = 340, PAD = 28, ROAD_FACTOR = 1.18;
+  var NARROW = window.matchMedia ? matchMedia('(max-width: 720px)') : { matches: false };
+  var plateNarrow = false;
+  function sizePlate() { plateNarrow = NARROW.matches; if (NARROW.matches) { W = 420; H = 320; PAD = 24; } else { W = 720; H = 340; PAD = 28; } }
+  /* Each stop: [name, lat, lng, elevation in m]. def = the six stops shown by default. relief = extra ridge control points [x as a share of the plate width, metres]. */
+  var TRIPS = {
+    'north-south': { label: 'Kolkata to Leh', seed: 3, emax: 3800, sea: false, river: true, relief: [], def: [0, 1, 2, 6, 9, 13], stops: [
+      ['Kolkata', 22.57, 88.36, 9],
+      ['Siliguri', 26.72, 88.43, 120],
+      ['Gangtok', 27.33, 88.61, 1650],
+      ['Pelling', 27.30, 88.24, 2150],
+      ['Darjeeling', 27.04, 88.26, 2050],
+      ['Kalimpong', 27.07, 88.47, 1250],
+      ['Chandigarh', 30.73, 76.78, 350],
+      ['Ambala', 30.38, 76.78, 264],
+      ['Shimla', 31.10, 77.17, 2200],
+      ['Manali', 32.24, 77.19, 2050],
+      ['Kaza (Spiti Valley)', 32.23, 78.07, 3800],
+      ['Keylong', 32.57, 77.03, 3100],
+      ['Sarchu', 32.90, 77.57, 4250],
+      ['Leh', 34.16, 77.58, 3500]] },
+    'ladakh': { label: 'Srinagar to Pangong', seed: 5, emax: 5400, sea: false, river: true, relief: [], def: [0, 4, 6, 9, 11, 13], stops: [
+      ['Srinagar', 34.08, 74.80, 1585],
+      ['Sonamarg', 34.30, 75.29, 2700],
+      ['Zoji La', 34.28, 75.47, 3528],
+      ['Drass', 34.43, 75.76, 3280],
+      ['Kargil', 34.56, 76.13, 2676],
+      ['Mulbekh', 34.38, 76.37, 3290],
+      ['Lamayuru', 34.28, 76.78, 3510],
+      ['Alchi', 34.22, 77.17, 3100],
+      ['Nimmu', 34.19, 77.34, 3100],
+      ['Leh', 34.16, 77.58, 3524],
+      ['Thiksey', 34.05, 77.67, 3600],
+      ['Chang La', 34.04, 77.97, 5360],
+      ['Tangtse', 34.03, 78.19, 4000],
+      ['Pangong Lake', 33.75, 78.67, 4225]] },
+    'bengal-sikkim': { label: 'Kolkata to Yumthang', seed: 7, emax: 4200, sea: false, river: true, relief: [], def: [0, 4, 6, 8, 11, 13], stops: [
+      ['Kolkata', 22.57, 88.36, 9],
+      ['Barasat', 22.72, 88.48, 10],
+      ['Krishnanagar', 23.40, 88.50, 15],
+      ['Berhampore', 24.10, 88.25, 20],
+      ['Malda', 25.01, 88.14, 30],
+      ['Raiganj', 25.62, 88.13, 35],
+      ['Siliguri', 26.72, 88.43, 120],
+      ['Kalimpong', 27.07, 88.47, 1250],
+      ['Gangtok', 27.33, 88.61, 1650],
+      ['Mangan', 27.51, 88.53, 1000],
+      ['Chungthang', 27.60, 88.64, 1790],
+      ['Lachung', 27.69, 88.74, 2750],
+      ['Yumthang Valley', 27.83, 88.70, 3564],
+      ['Katao', 27.86, 88.72, 4000]] },
+    'goa-coast': { label: 'Mumbai to Gokarna', seed: 11, emax: 1300, sea: true, river: false, relief: [[0.78, 900],
+      [1, 1200]], def: [0, 2, 6, 9, 11, 13], stops: [
+      ['Mumbai', 18.97, 72.83, 14],
+      ['Alibag', 18.64, 72.87, 10],
+      ['Murud', 18.33, 72.96, 8],
+      ['Guhagar', 17.48, 73.19, 10],
+      ['Ganpatipule', 17.14, 73.27, 12],
+      ['Ratnagiri', 16.99, 73.30, 10],
+      ['Vijaydurg', 16.56, 73.33, 25],
+      ['Malvan', 16.06, 73.46, 8],
+      ['Vengurla', 15.86, 73.64, 15],
+      ['Arambol', 15.69, 73.70, 12],
+      ['Panjim', 15.50, 73.83, 7],
+      ['Palolem', 15.01, 74.02, 10],
+      ['Betul', 15.15, 73.95, 6],
+      ['Gokarna', 14.55, 74.32, 9]] }
+  };
+  var ALIAS = { winding: 'north-south', straight: 'ladakh', loop: 'goa-coast' };
+  var PRESET = qs.get('route'); PRESET = ALIAS[PRESET] || PRESET; if (!TRIPS[PRESET]) PRESET = 'north-south';
+  var ROAD_OK = qs.get('road') !== 'pending';
+  function hm(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m + ' min' : ''); }
+  /* Pick n stops from the 14 the trip has. Six is the default set. Fewer pick evenly. More interpolate along the same path. */
+  function pickStops(T, n) {
+    var L = T.stops, out = [], i;
+    if (n === 6) return T.def.map(function (k) { return L[k].slice(); });
+    if (n === 1) return [L[0].slice()];
+    if (n <= L.length) { for (i = 0; i < n; i++) out.push(L[Math.round(i * (L.length - 1) / (n - 1))].slice()); return out; }
+    for (i = 0; i < n; i++) {
+      var t = i * (L.length - 1) / (n - 1), j = Math.min(Math.floor(t), L.length - 2), f = t - j, a = L[j], b = L[j + 1];
+      out.push(f < 1e-6 ? a.slice() : ['Stop ' + (i + 1), a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f]);
+    }
+    return out;
+  }
+  function kmBetween(a, b) {
+    var kc = Math.cos(((a[1] + b[1]) / 2) * Math.PI / 180);
+    return Math.hypot((b[2] - a[2]) * kc * 111, (b[1] - a[1]) * 111) * ROAD_FACTOR;
+  }
+  function chainKmOf(list) { var t = 0; for (var i = 1; i < list.length; i++) t += kmBetween(list[i - 1], list[i]); return t; }
+  /* One speed for every trip. The default Kolkata to Leh sample reads 38 h 20 min, the same as the stat row. */
+  var SPEED = chainKmOf(pickStops(TRIPS['north-south'], 6)) / (38 + 20 / 60);
+  /* Days follow the distance driven, so a long leg spans several days. */
+  function dayFrom(cum, tot) { return tot < 1e-6 ? 1 : 1 + Math.round(cum / tot * (DAYS - 1)); }
+  function f1(v) { return v.toFixed(1); }
+  function routeData(n) {
+    var T = TRIPS[PRESET], list = pickStops(T, n);
+    var ll = list.map(function (p) { return { lat: p[1], lng: p[2] }; });
+    var lats = ll.map(function (p) { return p.lat; }), lngs = ll.map(function (p) { return p.lng; });
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats), minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+    var kcos = Math.max(0.2, Math.cos(((minLat + maxLat) / 2) * Math.PI / 180));
+    var wKm = Math.max((maxLng - minLng) * kcos * 111, 1e-4), hKm = Math.max((maxLat - minLat) * 111, 1e-4);
+    var s = Math.min((W - 2 * PAD) / wKm, (H - 2 * PAD) / hKm);
+    var raw = ll.map(function (p) { return { x: (p.lng - minLng) * kcos * 111 * s, y: -p.lat * 111 * s }; });
+    var xs = raw.map(function (r) { return r.x; }), ys = raw.map(function (r) { return r.y; });
+    var dx = (W - (Math.max.apply(null, xs) - Math.min.apply(null, xs))) / 2 - Math.min.apply(null, xs);
+    var dy = (H - (Math.max.apply(null, ys) - Math.min.apply(null, ys))) / 2 - Math.min.apply(null, ys);
+    var cum = [0]; for (var ci = 1; ci < n; ci++) cum.push(cum[ci - 1] + kmBetween(list[ci - 1], list[ci]));
+    var pts = raw.map(function (r, i) { return { n: list[i][0], x: r.x + dx, y: r.y + dy, day: dayFrom(cum[i], cum[n - 1]), e: list[i][3] }; });
+    pts.forEach(function (p, i) {
+      p.nn = Infinity;
+      pts.forEach(function (q, j) { if (i !== j) p.nn = Math.min(p.nn, Math.hypot(p.x - q.x, p.y - q.y)); });
+    });
+    var legs = [], total = 0, mins = 0, kmX = 0;
+    for (var i = 1; i < n; i++) {
+      var km = kmBetween(list[i - 1], list[i]), mn = km / SPEED * 60;
+      legs.push({ km: Math.round(km), min: Math.round(mn), a: pts[i - 1].day, b: pts[i].day, from: pts[i - 1].n, to: pts[i].n });
+      total += Math.round(km); kmX += km;
+    }
+    mins = kmX / SPEED * 60;
+    /* Catmull-Rom, one cubic for each leg: the same smoothing as catmullRomPath in ui.tsx. */
+    var at = function (i) { return pts[Math.max(0, Math.min(i, n - 1))]; };
+    var segs = [], samples = [];
+    for (var k = 1; k < n; k++) {
+      var p0 = at(k - 2), p1 = at(k - 1), p2 = at(k), p3 = at(k + 1);
+      var c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6, c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      segs.push('M' + f1(p1.x) + ' ' + f1(p1.y) + ' C' + f1(c1x) + ' ' + f1(c1y) + ', ' + f1(c2x) + ' ' + f1(c2y) + ', ' + f1(p2.x) + ' ' + f1(p2.y));
+      for (var q = 0; q <= 10; q++) {
+        var t = q / 10, u = 1 - t;
+        samples.push([u * u * u * p1.x + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * p2.x, u * u * u * p1.y + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * p2.y]);
+      }
+    }
+    return { pts: pts, legs: legs, segs: segs, samples: samples, total: total, mins: mins, T: T };
+  }
+
+  /* ---------- terrain: a calm layered landscape, drawn from the trip's own stops ---------- */
+  function poly(a) { return a.map(function (p, i) { return (i ? 'L' : 'M') + f1(p[0]) + ' ' + f1(p[1]); }).join(' '); }
+  function buildTerrain(R) {
+    var T = R.T, P = R.pts, g = el('g', { class: 'tr', 'aria-hidden': 'true' }), i;
+    var defs = el('defs', {});
+    var sky = el('linearGradient', { id: 'trSky', x1: 0, y1: 0, x2: 0, y2: 1 });
+    sky.appendChild(el('stop', { offset: '0', style: 'stop-color:var(--tr-sky-top)' })); sky.appendChild(el('stop', { offset: '.72', style: 'stop-color:var(--tr-sky-low)' }));
+    var glow = el('radialGradient', { id: 'trGlow' });
+    glow.appendChild(el('stop', { offset: '0', style: 'stop-color:var(--tr-glow);stop-opacity:.5' })); glow.appendChild(el('stop', { offset: '1', style: 'stop-color:var(--tr-glow);stop-opacity:0' }));
+    defs.appendChild(sky); defs.appendChild(glow);
+    [['trFar', 'var(--tr-far)', 'var(--tr-far-low)'], ['trMid', 'var(--tr-mid)', 'var(--tr-mid-low)'], ['trNear', 'var(--tr-near)', 'var(--tr-near-low)']].forEach(function (d) {
+      var lgd = el('linearGradient', { id: d[0], x1: 0, y1: 0, x2: 0, y2: 1 });
+      lgd.appendChild(el('stop', { offset: '0', style: 'stop-color:' + d[1] })); lgd.appendChild(el('stop', { offset: '1', style: 'stop-color:' + d[2] })); defs.appendChild(lgd);
+    });
+    var seaG = el('linearGradient', { id: 'trSea', x1: 0, y1: 0, x2: 1, y2: 0 });
+    seaG.appendChild(el('stop', { offset: '0', style: 'stop-color:var(--tr-water-deep)' })); seaG.appendChild(el('stop', { offset: '1', style: 'stop-color:var(--tr-water)' })); defs.appendChild(seaG);
+    g.appendChild(defs);
+    g.appendChild(el('rect', { class: 'tr-sky', x: 0, y: 0, width: W, height: H }));
+    /* Sun or moon: the open spot of the sky that sits furthest from the road. */
+    var best = [0.82 * W, 0.2 * H], bd = -1;
+    [[.12, .2], [.3, .14], [.5, .16], [.7, .14], [.88, .2], [.2, .34], [.8, .34]].forEach(function (c) {
+      var cx = c[0] * W, cy = c[1] * H, d = Infinity;
+      R.samples.forEach(function (q) { d = Math.min(d, Math.hypot(q[0] - cx, q[1] - cy)); });
+      if (d > bd) { bd = d; best = [cx, cy]; }
+    });
+    g.appendChild(el('circle', { class: 'tr-glow', cx: f1(best[0]), cy: f1(best[1]), r: f1(0.3 * H) }));
+    g.appendChild(el('circle', { class: 'tr-orb', cx: f1(best[0]), cy: f1(best[1]), r: 12 }));
+    /* Elevation along the plate: the stops, plus any relief the trip names, blended with a cosine. */
+    var ctrl = P.map(function (p) { return [p.x, p.e]; }).concat((T.relief || []).map(function (r) { return [r[0] * W, r[1]]; })).sort(function (a, b) { return a[0] - b[0]; });
+    function elev(x) {
+      if (x <= ctrl[0][0]) return ctrl[0][1];
+      for (var k = 1; k < ctrl.length; k++) {
+        if (x <= ctrl[k][0]) { var a = ctrl[k - 1], b = ctrl[k], t = (x - a[0]) / Math.max(b[0] - a[0], 1e-6), w = (1 - Math.cos(Math.PI * t)) / 2; return a[1] + (b[1] - a[1]) * w; }
+      }
+      return ctrl[ctrl.length - 1][1];
+    }
+    function nz(x, sd) { return (Math.sin(x * 0.021 + sd * 1.7) * 0.5 + Math.sin(x * 0.047 + sd * 3.1) * 0.3 + Math.sin(x * 0.113 + sd * 5.3) * 0.2) * 0.5 + 0.5; }
+    /* Sea on the left: the coast follows the road, 34 units to its west. */
+    if (T.sea) {
+      var coast = [];
+      for (var y = 0; y <= H; y += 10) {
+        var mx = Infinity;
+        R.samples.forEach(function (q) { if (Math.abs(q[1] - y) < 46) mx = Math.min(mx, q[0]); });
+        coast.push([y, mx]);
+      }
+      var known = coast.filter(function (c) { return c[1] < Infinity; }), fall = known.length ? known.reduce(function (a, c) { return a + c[1]; }, 0) / known.length : W * 0.3;
+      var cl = coast.map(function (c, k) { return [Math.max(30, (c[1] < Infinity ? c[1] : fall) - 40 + Math.sin(c[0] / 23 + T.seed) * 5), c[0]]; });
+      for (var pass = 0; pass < 4; pass++) cl = cl.map(function (c, k) { var a = cl[Math.max(0, k - 1)], b = cl[Math.min(cl.length - 1, k + 1)]; return [(a[0] + c[0] * 2 + b[0]) / 4, c[1]]; });
+      var landD = poly([[cl[0][0], 0]].concat(cl)) + ' L' + (W + 10) + ' ' + H + ' L' + (W + 10) + ' 0 Z';
+      defs.appendChild(el('clipPath', { id: 'trLand' })).appendChild(el('path', { d: landD }));
+      g.appendChild(el('path', { class: 'tr-sea', d: 'M0 0 ' + poly([[cl[0][0], 0]].concat(cl)).replace(/^M/, 'L') + ' L0 ' + H + ' Z' }));
+      g.appendChild(el('path', { class: 'tr-foam', d: poly(cl) }));
+      for (i = 0; i < 9; i++) {
+        var wy = H * (0.08 + i * 0.105), wx = Math.max(24, (cl[Math.round(wy / 10)] || cl[0])[0]) - 52 - (i % 3) * 26;
+        g.appendChild(el('path', { class: 'tr-wave', d: 'M' + f1(wx) + ' ' + f1(wy) + ' q10 -5 20 0 t20 0' }));
+      }
+    }
+    /* Three ridge layers, far to near. Tall where the stops are high, low where they are not. */
+    var land = el('g', T.sea ? { 'clip-path': 'url(#trLand)' } : {});
+    g.appendChild(land);
+    var LAY = [{ c: 'tr-far', base: 0.5, amp: 0.34, sd: 1 }, { c: 'tr-mid', base: 0.64, amp: 0.25, sd: 2 }, { c: 'tr-near', base: 0.8, amp: 0.15, sd: 3 }];
+    LAY.forEach(function (Ly) {
+      var lg = el('g', { class: 'tr-l ' + Ly.c }), top = [];
+      for (var x = -8; x <= W + 8; x += 9) {
+        var ev = Math.min(1, Math.max(0, elev(x) / T.emax)), n1 = nz(x, T.seed * 10 + Ly.sd), ridged = 1 - Math.abs(2 * n1 - 1), w = Math.min(1, ev * 1.5);
+        var h = 0.07 + ev * (w * ridged + (1 - w) * n1) * 0.93 + 0.03 * Math.sin(x / 41 + Ly.sd);
+        top.push([x, H * Ly.base - H * Ly.amp * h]);
+      }
+      lg.appendChild(el('path', { class: 'tr-ridge', d: poly(top) + ' L' + (W + 8) + ' ' + (H + 4) + ' L-8 ' + (H + 4) + ' Z' }));
+      if (Ly.sd > 1) [7, 15].forEach(function (off) { lg.appendChild(el('path', { class: 'tr-contour', d: poly(top.map(function (p) { return [p[0], p[1] + off]; })) })); });
+      if (Ly.sd < 3) for (var k2 = 2; k2 < top.length - 2; k2++) {
+        var pk = top[k2], evk = Math.min(1, Math.max(0, elev(pk[0]) / T.emax));
+        if (evk > 0.55 && pk[1] < top[k2 - 1][1] && pk[1] < top[k2 + 1][1] && pk[1] <= top[k2 - 2][1] && pk[1] <= top[k2 + 2][1]) {
+          var cw = 5 + 6 * evk; lg.appendChild(el('path', { class: 'tr-snow', d: 'M' + f1(pk[0] - cw) + ' ' + f1(pk[1] + cw * 1.5) + ' L' + f1(pk[0] - cw * 0.35) + ' ' + f1(pk[1] + cw) + ' L' + f1(pk[0]) + ' ' + f1(pk[1]) + ' L' + f1(pk[0] + cw * 0.4) + ' ' + f1(pk[1] + cw * 1.05) + ' L' + f1(pk[0] + cw) + ' ' + f1(pk[1] + cw * 1.5) + ' Z' }));
+        }
+      }
+      lg.appendChild(el('path', { class: 'tr-rim', d: poly(top) }));
+      land.appendChild(lg);
+    });
+    if (T.river) {
+      var rv = [];
+      for (var x2 = -10; x2 <= W + 10; x2 += 12) rv.push([x2, H * 0.88 + Math.sin(x2 / 58 + T.seed) * 9 + Math.sin(x2 / 23) * 2.5]);
+      land.appendChild(el('path', { class: 'tr-river', d: poly(rv) })); land.appendChild(el('path', { class: 'tr-river-hi', d: poly(rv.map(function (p) { return [p[0], p[1] - 2.5]; })) }));
+    }
+    return g;
+  }
+  function el(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function overlap(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
+  function cut(nm, max) { return nm.length > max ? nm.slice(0, max - 1) + '…' : nm; }
+  function legFacts(R, i) { var L = R.legs[i - 1]; return L && ROAD_OK ? L.km.toLocaleString('en-IN') + ' km, ' + hm(L.min) : ''; }
+
+  /* The static drawing: casing, glow, road, centre line, hit paths, label slot, pins. The script sizes it in layoutMap. */
+  function buildMap(R) {
+    var P = R.pts, n = P.length;
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Route map. Each pin opens the Map at that stop.', focusable: 'false' });
+    svg.appendChild(buildTerrain(R));
+    var defs = el('defs', {}), gr = el('linearGradient', { id: 'rmgrad', gradientUnits: 'userSpaceOnUse', x1: PAD, y1: 0, x2: W - PAD, y2: 0 });
+    [['0', 'var(--rm-a)'], ['.5', 'var(--rm-b)'], ['1', 'var(--rm-c)']].forEach(function (st) { gr.appendChild(el('stop', { offset: st[0], style: 'stop-color:' + st[1] })); });
+    defs.appendChild(gr); svg.appendChild(defs);
+    /* Each layer draws for all legs first. A casing never covers the road of the leg before it. */
+    var layers = ['rm-case', 'rm-hl', 'rm-road', 'rm-dash', 'rm-leghit'].map(function (cls) {
+      var g = el('g', { 'aria-hidden': 'true' });
+      R.segs.forEach(function (d, i) {
+        var a = { class: cls, d: d, 'data-to': String(i + 1), style: '--i:' + Math.min(i, 8) };
+        if (cls === 'rm-case' || cls === 'rm-road') a.pathLength = '1';
+        if (cls === 'rm-road') a.stroke = 'url(#rmgrad)';
+        g.appendChild(el('path', a));
+      });
+      svg.appendChild(g); return g;
+    });
+    svg.appendChild(el('g', { class: 'rm-labels', 'aria-hidden': 'true' }));
+    P.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
+      var facts = legFacts(R, i);
+      var label = 'Stop ' + (i + 1) + ' of ' + n + ', ' + p.n + ', Day ' + p.day + (facts ? ', ' + facts + ' from stop ' + i : '') + '. Opens the Map at this stop.';
+      var g = el('g', { class: 'rm-pin ' + role, role: 'button', tabindex: '0', 'aria-label': label, 'data-stop': String(i), 'data-open': 'Map at ' + p.n });
+      g.appendChild(el('circle', { class: 'rm-hit', cx: p.x, cy: p.y, r: 22 }));
+      g.appendChild(el('circle', { class: 'rm-ring', cx: p.x, cy: p.y, r: 18 }));
+      g.appendChild(el('circle', { class: 'rm-dot', cx: p.x, cy: p.y, r: 10 }));
+      g.appendChild(el('text', { class: 'rm-num', x: p.x, y: p.y + 0.5, 'aria-hidden': 'true' }, String(i + 1)));
+      svg.appendChild(g);
+    });
+    return svg;
+  }
+
+  /* Size the drawing for the width it has. On a phone the map shrinks, so lines, dots and text grow in map units
+     and keep their size on screen. Only the Start and End names stay on the map. */
+  function layoutMap(svg, R, scale) {
+    if (!scale) return;
+    var P = R.pts, n = P.length, small = n > 8;
+    var c = Math.max(1, 0.625 / scale), tc = Math.max(1, 0.92 / scale), S = svg.style;
+    S.setProperty('--rw', (9 * c) + 'px'); S.setProperty('--cw', (17 * c) + 'px'); S.setProperty('--gw', (26 * c) + 'px');
+    S.setProperty('--dw', (2 * c) + 'px'); S.setProperty('--dd', (7 * c) + ' ' + (9 * c)); S.setProperty('--hw', (18 * c) + 'px'); S.setProperty('--pw', (2 * c) + 'px');
+    var rects = [], radii = [];
+    Array.prototype.forEach.call(svg.querySelectorAll('.rm-pin'), function (g, i) {
+      var p = P[i], end = n > 1 && (i === 0 || i === n - 1);
+      var r = end ? Math.max(12.5, 9 / scale) : Math.max(small ? 5.5 : 10.5, 6.5 / scale), hit = Math.max(22, 22 / scale);
+      if (!end) r = Math.max(5.5, Math.min(r, p.nn / 2 - 1.5));
+      g.querySelector('.rm-hit').setAttribute('r', f1(hit));
+      g.querySelector('.rm-ring').setAttribute('r', f1(r + 4.5 * Math.max(1, 0.5 / scale)));
+      g.querySelector('.rm-dot').setAttribute('r', f1(r));
+      var num = g.querySelector('.rm-num'); num.setAttribute('font-size', f1(r * 0.95)); num.style.display = r * scale >= 9.5 ? '' : 'none';
+      /* A pin is a target only when its 44px circle fits between its neighbours. The stop list carries the rest. */
+      if (end || hit <= p.nn / 2 + 0.5) { g.removeAttribute('data-inert'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.removeAttribute('aria-hidden'); }
+      else { g.setAttribute('data-inert', ''); g.setAttribute('tabindex', '-1'); g.removeAttribute('role'); g.setAttribute('aria-hidden', 'true'); }
+      radii.push(r); rects.push({ x: p.x - r - 3, y: p.y - r - 3, w: 2 * r + 6, h: 2 * r + 6 });
+    });
+    var lab = svg.querySelector('.rm-labels'); while (lab.firstChild) lab.removeChild(lab.firstChild);
+    var placed = rects.slice(), half = 4 * c + 1;
+    var onRoad = function (r) { return R.samples.some(function (q) { return q[0] > r.x - half && q[0] < r.x + r.w + half && q[1] > r.y - half && q[1] < r.y + r.h + half; }); };
+    (n === 1 ? [0] : [0, n - 1]).forEach(function (i) {
+      var p = P[i], r0 = radii[i], tag = n > 1 ? (i === 0 ? 'Start' : 'End') : '';
+      var txt = cut(p.n, 16), fs = 12 * tc, ts = 11 * tc, w = Math.ceil(txt.length * 0.6 * fs) + 6, h = tag ? fs + ts + 6 : fs + 4, gap = r0 + 6 * c;
+      var below = { x: p.x - w / 2, y: p.y + gap, a: 'middle' }, above = { x: p.x - w / 2, y: p.y - gap - h, a: 'middle' };
+      var right = { x: p.x + gap, y: p.y - h / 2, a: 'start' }, left = { x: p.x - gap - w, y: p.y - h / 2, a: 'end' };
+      var BL = { x: 6, y: H - h - 4, a: 'start', c: 1 }, TL = { x: 6, y: 4, a: 'start', c: 1 }, BR = { x: W - 6 - w, y: H - h - 4, a: 'end', c: 1 }, TR = { x: W - 6 - w, y: 4, a: 'end', c: 1 };
+      var adj = i === 0 ? [below, above, right, left] : [above, below, left, right];
+      var corners = (i === 0 ? [BL, TL, BR, TR] : [TR, BR, TL, BL]);
+      var near = corners.filter(function (q) { return Math.hypot(q.x + w / 2 - p.x, q.y + h / 2 - p.y) < 150; });
+      /* Try these places: beside the pin, clear of the road; a near corner; beside the pin; any corner. */
+      var tiers = [[adj, false], [near, false], [adj, true], [corners, false]], pick = null;
+      for (var ti = 0; ti < tiers.length && !pick; ti++) {
+        var list = tiers[ti][0], loose = tiers[ti][1];
+        for (var k = 0; k < list.length && !pick; k++) {
+          var c0 = list[k], x = c0.a === 'middle' ? Math.min(Math.max(c0.x, 4), W - 4 - w) : c0.x;
+          var r = { x: x, y: c0.y, w: w, h: h, a: c0.a };
+          if (r.x < 4 || r.x + r.w > W - 4 || r.y < 2 || r.y + r.h > H - 2) continue;
+          var others = placed.filter(function (q) { return c0.c || q !== rects[i]; });
+          if (others.some(function (q) { return overlap(r, q); }) || (!loose && onRoad(r))) continue;
+          pick = r;
+        }
+      }
+      if (!pick) pick = { x: BL.x, y: BL.y, w: w, h: h, a: BL.a };
+      placed.push(pick);
+      var cx = pick.a === 'middle' ? pick.x + w / 2 : (pick.a === 'start' ? pick.x : pick.x + w);
+      lab.appendChild(el('text', { class: 'rm-name', x: f1(cx), y: f1(pick.y + fs * 0.9), 'font-size': f1(fs), 'text-anchor': pick.a }, txt));
+      if (tag) lab.appendChild(el('text', { class: 'rm-tag', x: f1(cx), y: f1(pick.y + fs + ts * 0.95 + 2), 'font-size': f1(ts), 'text-anchor': pick.a }, tag));
+    });
+  }
+
+  function stopList(R) {
+    var P = R.pts, n = P.length, long = n > 8;
+    var out = '<ol class="ovw-stoplist' + (long ? ' is-long' : '') + '" aria-label="Stops on the route"' + (long ? ' tabindex="0"' : '') + '>';
+    P.forEach(function (p, i) {
+      var role = i === 0 ? 'is-start' : (i === n - 1 && n > 1 ? 'is-end' : '');
+      var tag = n > 1 && i === 0 ? '<small>Start</small>' : (n > 1 && i === n - 1 ? '<small>End</small>' : '');
+      var L = i > 0 && ROAD_OK ? R.legs[i - 1] : null, facts = legFacts(R, i);
+      out += '<li class="' + role + '"><button type="button" class="ovw-stop-btn" data-stop="' + i + '" data-open="Map at ' + p.n + '" aria-label="Stop ' + (i + 1) + ', ' + p.n + ', Day ' + p.day + (facts ? ', ' + facts + ' from stop ' + i : '') + '. Opens the Map at this stop.">' +
+        '<span class="ovw-stop-pin" aria-hidden="true">' + (i + 1) + '</span><span class="ovw-stop-name">' + p.n + tag + '</span><span class="ovw-stop-d">Day ' + p.day + '</span>' +
+        '<span class="ovw-stop-km">' + (L ? L.km.toLocaleString('en-IN') + ' km' : '') + '</span><span class="ovw-stop-t">' + (L ? hm(L.min) : '') + '</span></button></li>';
+    });
+    return out + '</ol>';
+  }
+
+  var curR = null;
+  function route(s) {
+    var open = '<button type="button" class="ovw-link" data-open="Map">Open map</button>';
+    if (s === 'empty' || NPTS === 0) {
+      curR = null;
+      return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2></div><div class="ovw-route-empty">' +
+        state('empty', { icon: I.pin, title: 'No route to draw yet', body: 'This plan needs at least two places with confirmed coordinates. Add a stop, or pin the missing ones.' }) + '</div></section>';
+    }
+    sizePlate();
+    var R = routeData(NPTS), n = R.pts.length; curR = R;
+    var sum = '<p class="ovw-rsum">' + (ROAD_OK && n > 1 ? '<span><b>' + R.total.toLocaleString('en-IN') + '</b> km</span><span><b>' + hm(R.mins) + '</b> driving</span>' : '') +
+      '<span><b>' + DAYS + '</b> ' + (DAYS === 1 ? 'day' : 'days') + '</span><span><b>' + n + '</b> ' + (n === 1 ? 'stop' : 'stops') + '</span>' +
+      (!ROAD_OK && n > 1 ? '<span>Distance and drive time show after the road is measured.</span>' : '') + '</p>';
+    return '<section class="ovw-card ovw-route" aria-labelledby="r-h"><div class="ovw-head"><h2 class="ovw-title" id="r-h">Route</h2><div class="ovw-head-meta">' + open + '</div></div>' +
+      '<div class="ovw-map" id="rmap"><div class="rm-tip" id="rmTip" aria-hidden="true"></div></div>' + sum + stopList(R) +
+      '<p class="ovw-sample">Sample trip: real place coordinates, approximate and drawn to scale. The landscape is stylised.</p></section>';
+  }
+
+  /* ---------- day matrix ---------- */
+  var KINDS = [
+    { key: 'breakfast', name: 'Breakfast', ic: 'breakfast', k: 'var(--ink-amber)' },
+    { key: 'lunch', name: 'Lunch', ic: 'meal', k: 'var(--ink-green)' },
+    { key: 'fuel', name: 'Fuel', ic: 'fuel', k: 'var(--yf-purple)' },
+    { key: 'stretch', name: 'Stretch', ic: 'stretch', k: 'var(--ink-teal)' },
+    { key: 'dinner', name: 'Dinner', ic: 'meal', k: 'var(--ink-amber)' },
+    { key: 'stay', name: 'Night', ic: 'night', k: 'var(--text-2)' }
+  ];
+  /* f = planned (stop title), a = added by the app, e = still open, n = not part of this day */
+  var MX = [
+    ['n', ['f', 'Barasat'], 'a', 'e', ['f', 'Hotel'], ['f', 'Siliguri']],
+    [['f', 'Buffet'], 'e', ['f', 'HP, Mirik'], 'a', ['f', 'Thali'], ['f', 'Siliguri']],
+    ['e', ['f', 'Momo stop'], 'e', 'e', 'e', ['f', 'Gangtok']],
+    [['f', 'Rumtek'], ['f', 'Singtam'], ['f', 'IOC pump'], 'a', ['f', 'Rooftop'], ['f', 'Gangtok']],
+    [['f', 'Buffet'], 'e', 'a', 'e', ['f', 'Thali'], ['f', 'Ambala']],
+    [['f', 'Karnal'], ['f', 'Ambala'], 'e', 'a', ['f', 'Hotel'], ['f', 'Chandigarh']],
+    [['f', 'Buffet'], 'a', ['f', 'HP, Mandi'], 'e', ['f', 'Riverside'], ['f', 'Manali']],
+    [['f', 'Manali'], ['f', 'Keylong'], 'a', 'a', 'e', ['f', 'Jispa camp']],
+    [['f', 'Camp'], ['f', 'Pang tea'], ['f', 'Sarchu'], 'e', ['f', 'Leh'], ['f', 'Leh']],
+    [['f', 'Buffet'], 'e', 'n', 'n', 'n', 'n']
+  ];
+  var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dateOf(i) { var d = new Date(2026, 8, 1 + i); return WD[d.getDay()] + ' ' + d.getDate() + ' ' + MO[d.getMonth()]; }
+  var TODAY = Math.min(3, DAYS - 1);
+  function matrixRows() {
+    var out = [];
+    for (var di = 0; di < DAYS; di++) {
+      var cells = MX[di % MX.length], filled = 0, total = 0;
+      var cs = cells.map(function (c, ki) {
+        var k = KINDS[ki], st = typeof c === 'string' ? c : c[0], title = typeof c === 'string' ? '' : c[1];
+        if (st === 'n') return { st: 'n', k: k, html: '<div class="mx-cell" role="gridcell" data-state="none" style="--k:' + k.k + '" aria-label="Day ' + (di + 1) + ' ' + k.name + ': not part of this day"><span class="mx-btn"><span class="mx-chip" aria-hidden="true">&ndash;</span></span></div>', g: '<span class="mx-g" data-state="none" style="--k:' + k.k + '" aria-hidden="true">&ndash;</span>' };
+        total++; if (st === 'f') filled++;
+        /* The auto chip reads "Auto" on one line. The full words sit in the title and the label. */
+        var full = st === 'f' ? title : st === 'a' ? 'Auto-added by the app' : 'Open';
+        var aria = 'Day ' + (di + 1) + ' ' + k.name + ': ' + (st === 'f' ? title : st === 'a' ? 'Auto-added by the app' : 'still open') + '. Opens the Timeline at this slot.';
+        var inner = st === 'e' ? '<span>Open</span>' : I[k.ic] + '<span>' + (st === 'a' ? 'Auto' : title) + '</span>';
+        var name = { f: 'filled', a: 'auto', e: 'empty' }[st];
+        return { st: st, k: k, title: title, html: '<div class="mx-cell" role="gridcell" data-state="' + name + '" style="--k:' + k.k + '"><button type="button" class="mx-btn" tabindex="-1" data-open="Timeline at Day ' + (di + 1) + ', ' + k.name + '" title="' + k.name + ': ' + full + '" aria-label="' + aria + '"><span class="mx-chip">' + inner + '</span></button></div>',
+          g: '<span class="mx-g" data-state="' + name + '" style="--k:' + k.k + '" aria-hidden="true">' + (st === 'e' ? '' : I[k.ic]) + '</span>' };
+      });
+      out.push({ di: di, filled: filled, total: total, cs: cs, html: cs.map(function (c) { return c.html; }).join('') });
+    }
+    return out;
+  }
+  function compactRow(r) {
+    var today = r.di === TODAY, lists = { f: [], a: [], e: [], n: [] };
+    r.cs.forEach(function (c) { lists[c.st].push(c.k.name.toLowerCase()); });
+    var aria = 'Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. ' + r.filled + ' of ' + r.total + ' planned.' +
+      (lists.f.length ? ' Planned: ' + lists.f.join(', ') + '.' : '') + (lists.a.length ? ' Added by the app: ' + lists.a.join(', ') + '.' : '') +
+      (lists.e.length ? ' Still open: ' + lists.e.join(', ') + '.' : '') + (lists.n.length ? ' Not part of this day: ' + lists.n.join(', ') + '.' : '') + ' Opens the Timeline at this day.';
+    return '<li><button type="button" class="mx-crow' + (today ? ' is-today' : '') + '" data-open="Timeline at Day ' + (r.di + 1) + '" aria-label="' + aria + '"><span class="mx-cday"><b>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</b><small>' + dateOf(r.di) + '</small></span>' +
+      r.cs.map(function (c) { return c.g; }).join('') + '<span class="mx-ctot">' + r.filled + '/' + r.total + '</span></button></li>';
+  }
+  function matrix(s) {
+    var head = '<section class="ovw-block" aria-labelledby="m-h"><div class="ovw-head"><h2 class="ovw-title" id="m-h">What each day holds</h2>';
+    if (s === 'empty') return head + '</div>' + state('empty', { title: 'Nothing planned yet', body: 'Add a stop and each day shows its meals, fuel, stretch breaks and night.' }) + '</section>';
+    var rows = matrixRows();
+    var ratio = function (r) { return r.total ? r.filled / r.total : 1; };
+    var thin = rows.slice().sort(function (a, b) { return ratio(a) - ratio(b); })[0];
+    var tie = rows.every(function (r) { return ratio(r) === ratio(rows[0]); });
+    var showThin = rows.length > 1 && !tie;
+    var thinTxt = showThin ? '<span class="ovw-item">Thinnest: <b>Day ' + (thin.di + 1) + ', ' + thin.filled + ' of ' + thin.total + '</b></span>' : '';
+    var heads = KINDS.map(function (k) { return '<div class="mx-th" role="columnheader" style="--k:' + k.k + '">' + I[k.ic] + k.name + '</div>'; }).join('');
+    var body = rows.map(function (r) {
+      var today = r.di === TODAY, isThin = showThin && r === thin;
+      return '<div class="mx-row' + (today ? ' is-today' : '') + '" role="row"><div class="mx-daycol mx-day" role="rowheader"><button type="button" tabindex="-1" data-open="Timeline at Day ' + (r.di + 1) + '" aria-label="Day ' + (r.di + 1) + ', ' + dateOf(r.di) + (today ? ', today' : '') + '. Opens the Timeline at this day."><span>Day ' + (r.di + 1) + (today ? '<span class="mx-today">Today</span>' : '') + '</span><small>' + dateOf(r.di) + '</small></button></div>' +
+        r.html + '<div class="mx-total' + (isThin ? ' is-thin' : '') + '" role="gridcell" aria-label="' + r.filled + ' of ' + r.total + ' planned' + (isThin ? '. Thin day.' : '') + '"><span>' + r.filled + '/' + r.total + (isThin ? ' <em>Thin</em>' : '') + '</span>' +
+        '<i class="mx-bar" aria-hidden="true"><b style="width:' + (r.total ? Math.round(r.filled / r.total * 100) : 0) + '%"></b></i></div></div>';
+    }).join('');
+    var key = '<span class="mx-key"><span><i class="k-f"></i>Planned</span><span><i class="k-a"></i>Auto-added</span><span><i class="k-e"></i>Open</span></span>';
+    var chead = '<li class="mx-chead" aria-hidden="true"><span>Day</span>' + KINDS.map(function (k) { return '<span style="--k:' + k.k + '" title="' + k.name + '">' + I[k.ic] + '</span>'; }).join('') + '<span>n/6</span></li>';
+    return head + '<div class="ovw-head-meta">' + thinTxt + key + '</div></div>' +
+      '<div class="mx-wrap" id="mxwrap"><div class="mx-scroll" id="mxscroll"><div class="mx" role="grid" id="mxgrid" aria-label="Planned parts per day. Use the arrow keys to move between cells.">' +
+      '<div class="mx-row is-head" role="row"><div class="mx-th mx-daycol" role="columnheader">Day</div>' + heads + '<div class="mx-th" role="columnheader" style="justify-content:center">Filled</div></div>' + body + '</div></div><div class="mx-fade" aria-hidden="true"></div></div>' +
+      '<ul class="mx-compact" aria-label="Planned parts per day">' + chead + rows.map(compactRow).join('') + '</ul></section>';
+  }
+  function wireMatrix() {
+    var grid = document.getElementById('mxgrid'); if (!grid) return;
+    var scroll = document.getElementById('mxscroll'), wrap = document.getElementById('mxwrap');
+    function fade() { wrap.classList.toggle('can-scroll', scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 2); }
+    scroll.addEventListener('scroll', fade); window.addEventListener('resize', fade); fade();
+    var rowEls = Array.prototype.slice.call(grid.querySelectorAll('[role=row]'));
+    var rows = rowEls.map(function (r) { return Array.prototype.slice.call(r.querySelectorAll('[role=rowheader] button, [role=gridcell] button')); }).filter(function (r) { return r.length; });
+    function colOf(btn) { var cell = btn.closest('[role=gridcell],[role=rowheader]'); return Array.prototype.indexOf.call(cell.parentNode.children, cell); }
+    function at(r, c) { var row = rows[r]; if (!row) return null; for (var i = 0; i < row.length; i++) if (colOf(row[i]) === c) return row[i]; return null; }
+    var start = 0; rows.forEach(function (row, i) { if (row[0].closest('[role=row]').classList.contains('is-today')) start = i; });
+    var cur = rows[start][0]; cur.tabIndex = 0;
+    function go(btn) { if (!btn) return; cur.tabIndex = -1; cur = btn; cur.tabIndex = 0; cur.focus(); }
+    grid.addEventListener('focusin', function (e) { var b = e.target.closest('button'); if (b && b !== cur) { cur.tabIndex = -1; cur = b; b.tabIndex = 0; } });
+    grid.addEventListener('keydown', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var r = 0, c = colOf(b); rows.forEach(function (row, i) { if (row.indexOf(b) >= 0) r = i; });
+      var d = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] }[e.key];
+      if (d) { e.preventDefault(); var rr = r + d[0], cc = c + d[1], t = null; while (!t && rr >= 0 && rr < rows.length && cc >= 0 && cc <= 6) { t = at(rr, cc); rr += d[0]; cc += d[1]; } go(t); }
+      else if (e.key === 'Home') { e.preventDefault(); go(rows[r][0]); }
+      else if (e.key === 'End') { e.preventDefault(); go(rows[r][rows[r].length - 1]); }
+    });
+  }
+
+  /* ---------- small data blocks ---------- */
+  function pulse(s) {
+    var dec;
+    if (s === 'loading') dec = state('loading', { icon: spin, title: 'Loading decisions' });
+    else if (s === 'failed') dec = state('failed', { icon: I.warn, title: 'Couldn’t load decisions', body: 'The request failed. It does not mean there are no open decisions.', actions: retry });
+    else if (s === 'empty') dec = state('empty', { title: 'No open decisions', body: 'Nothing is waiting for a vote.' });
+    else dec = (s === 'kept' ? state('kept', { icon: I.warn, title: 'Couldn’t refresh decisions', body: 'Showing the decisions that were loaded.', actions: retry }) : '') +
+      '<div class="ovw-pulse-row"><span><b>2</b> open decisions</span><button type="button" class="ovw-btn ovw-btn--quiet">Review decisions</button></div>';
+    return '<section class="ovw-block" aria-labelledby="p-h"><div class="ovw-head"><h2 class="ovw-title" id="p-h">Group pulse</h2><button type="button" class="ovw-btn ovw-btn--quiet ovw-head-btn">Invite travellers</button></div>' +
+      '<div class="ovw-pulse-row"><span><b>3</b> members</span><span class="yf-avatars"><span class="avatar">A</span><span class="avatar">B</span><span class="avatar">C</span></span></div>' + dec + '</section>';
+  }
+
+  function commitments(s) {
+    var body;
+    if (s === 'empty') body = state('empty', { title: 'No fixed commitments yet', body: 'Add check-ins, trains or flights so the planner can protect them.' });
+    else body = '<div class="ovw-next">' + I.pin + '<div><b>Next: Hotel check-in, Gangtok</b><span>Day 4 at 2:00 pm</span></div></div>' +
+      '<div class="ovw-commit"><span><b>Train to Siliguri</b> <span class="ovw-commit-when">Day 1, 9:15 pm</span></span><span class="ovw-chip">Train</span></div>' +
+      '<div class="ovw-commit"><span><b>Flight from Leh</b> <span class="ovw-commit-when">Day 10, 6:40 am</span></span><span class="ovw-chip">Flight</span></div>';
+    return '<section class="ovw-block" aria-labelledby="c-h"><div class="ovw-head"><h2 class="ovw-title" id="c-h">Fixed commitments</h2>' +
+      '<span class="ovw-chip">' + (s === 'empty' ? 0 : 3) + '</span></div>' + body + '</section>';
+  }
+
+  function activity(s) {
+    var body, rows = '<ul class="ovw-feed"><li><span class="avatar">A</span><span><b>Sample member A</b> moved a stop to Day 4</span><time>2 h ago</time></li>' +
+      '<li><span class="avatar">B</span><span><b>Sample member B</b> voted on a stay</span><time>5 h ago</time></li>' +
+      '<li><span class="avatar">C</span><span><b>Sample member C</b> added a fuel stop</span><time>1 d ago</time></li></ul>';
+    if (s === 'loading') body = state('loading', { icon: spin, title: 'Loading activity' });
+    else if (s === 'failed') body = state('failed', { icon: I.warn, title: 'Couldn’t load activity', body: 'The request failed. It does not mean there is no activity.', actions: retry });
+    else if (s === 'empty') body = state('empty', { title: 'No recent activity yet', body: 'Updates from your group will appear here.' });
+    else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh recent activity', body: 'Showing the activity that was loaded.', actions: retry }) + rows;
+    else body = rows;
+    return '<section class="ovw-block" aria-labelledby="a-h"><div class="ovw-head"><h2 class="ovw-title" id="a-h">Recent activity</h2></div>' + body + '</section>';
+  }
+
+  function weather(s) {
+    var cells = [['Day 1', 'sun', '31° / 22°', 'Dry', 0], ['Day 2', 'rain', '27° / 20°', 'Rain 70%', 1], ['Day 3', 'rain', '24° / 18°', 'Rain 50%', 1], ['Day 4', 'sun', '22° / 14°', 'Dry', 0], ['Day 5', 'sun', '19° / 9°', 'Dry', 0]];
+    var grid = '<div class="ovw-wx">' + cells.map(function (c) {
+      return '<div class="ovw-wx-cell' + (c[4] ? ' wet' : '') + '">' + I[c[1]] + '<span>' + c[0] + '</span><b>' + c[2] + '</b><span>' + c[3] + '</span></div>';
+    }).join('') + '</div>';
+    var body, meta = '';
+    if (s === 'loading') body = state('loading', { icon: spin, title: 'Loading forecast' });
+    else if (s === 'failed') body = state('failed', { icon: I.warn, title: 'Couldn’t load the forecast', body: 'The request failed. It does not mean the weather is clear.', actions: retry });
+    else if (s === 'empty') body = state('empty', { title: 'No forecast yet', body: 'A forecast appears when a day comes close enough.' });
+    else if (s === 'kept') body = state('kept', { icon: I.warn, title: 'Couldn’t refresh the forecast', body: 'Showing the last one.', actions: retry }) + grid;
+    else { body = grid; meta = '<div class="ovw-head-meta">Rain is likely on Day 2 and Day 3. Pack rain gear.</div>'; }
+    return '<section class="ovw-block ovw-weather" aria-labelledby="w-h"><div class="ovw-head"><h2 class="ovw-title" id="w-h">Weather along the route</h2>' + meta + '</div>' + body + '</section>';
+  }
+
+  var notes = {
+    ready: 'Ready: every panel has data.',
+    loading: 'Loading: weather, group pulse and recent activity wait for a read. The verdict, issues, totals, route, commitments and day matrix come from the plan already on screen, so they stay as they are.',
+    failed: 'Failed: three reads failed and each says so with Try again. A failed read never shows as empty.',
+    empty: 'Empty: a trip with nothing planned. The score reads a dash, the totals read a dash, and nothing is invented.',
+    kept: 'Kept: a refresh failed, so the last loaded rows stay on screen with a note.'
+  };
+
+  /* The map shrinks with its card, so the drawing is sized again whenever its width changes. */
+  var mapWatch = null;
+  function fitMap(m, svg, R) {
+    if (mapWatch) mapWatch.disconnect();
+    var run = function () { layoutMap(svg, R, svg.getBoundingClientRect().width / W); };
+    run();
+    if (window.ResizeObserver) { mapWatch = new ResizeObserver(run); mapWatch.observe(m); }
+  }
+
+  /* Pin, list row and the leg that arrives at the stop share one index. Hover or focus on any of them lights the other two
+     and opens the tooltip on the map. Escape closes the tooltip. */
+  function setHl(i, on) {
+    Array.prototype.forEach.call(document.querySelectorAll('#ovw [data-stop="' + i + '"], #ovw [data-to="' + i + '"]'), function (e) { e.classList.toggle('is-hl', on); });
+  }
+  var hlIndex = -1;
+  function clearHl() {
+    if (hlIndex >= 0) setHl(hlIndex, false);
+    hlIndex = -1;
+    var tip = document.getElementById('rmTip'); if (tip) tip.classList.remove('is-on');
+  }
+  function showTip(R, i, leg) {
+    var m = document.getElementById('rmap'), tip = document.getElementById('rmTip'), svg = m && m.querySelector('svg');
+    if (!tip || !svg) return;
+    var p = R.pts[i], L = R.legs[i - 1], sc = svg.getBoundingClientRect().width / W, x = p.x, y = p.y, html;
+    if (leg && L) {
+      var mid = R.samples[(i - 1) * 11 + 5]; x = mid[0]; y = mid[1];
+      html = '<b>' + L.from + ' to ' + L.to + '</b>' + (ROAD_OK ? '<span>' + L.km.toLocaleString('en-IN') + ' km, ' + hm(L.min) + '</span>' : '<span>Road not measured yet</span>') + '<span>' + (L.a === L.b ? 'Day ' + L.a : 'Days ' + L.a + '–' + L.b) + '</span>';
+    } else {
+      var tag = R.pts.length > 1 && i === 0 ? 'Start' : (R.pts.length > 1 && i === R.pts.length - 1 ? 'End' : '');
+      html = '<b>' + p.n + '</b><span>Day ' + p.day + (tag ? ', ' + tag.toLowerCase() : '') + '</span>' + (L ? (ROAD_OK ? '<span>' + L.km.toLocaleString('en-IN') + ' km, ' + hm(L.min) + ' from ' + L.from + '</span>' : '<span>Road not measured yet</span>') : '');
+    }
+    tip.innerHTML = html; tip.classList.toggle('is-below', y * sc < 96); tip.classList.add('is-on');
+    var w = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(x * sc, w / 2 + 6), m.clientWidth - w / 2 - 6) + 'px'; tip.style.top = (y * sc) + 'px';
+  }
+  function activate(t) {
+    if (!curR || !t) return;
+    var leg = t.hasAttribute('data-to') && !t.hasAttribute('data-stop');
+    var i = +(t.getAttribute('data-stop') || t.getAttribute('data-to'));
+    if (i === hlIndex && !leg) return;
+    clearHl(); hlIndex = i; setHl(i, true); showTip(curR, i, leg);
+  }
+
+  /* Mockup only: a click shows where the real tab would go. */
+  var toastEl = document.getElementById('toast'), toastTimer = 0;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add('is-on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove('is-on'); }, 2600);
+  }
+  var ovwEl = document.getElementById('ovw');
+  ovwEl.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-open]'); if (t) toast('Would open: ' + t.getAttribute('data-open'));
+  });
+  ovwEl.addEventListener('keydown', function (e) {
+    var p = e.target.closest && e.target.closest('.rm-pin');
+    if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toast('Would open: ' + p.getAttribute('data-open')); }
+  });
+  var LINKED = '[data-stop], .rm-leghit';
+  ovwEl.addEventListener('mouseover', function (e) { var t = e.target.closest && e.target.closest(LINKED); if (t) activate(t); });
+  ovwEl.addEventListener('mouseout', function (e) { var t = e.target.closest && e.target.closest(LINKED); if (t && !t.contains(e.relatedTarget)) clearHl(); });
+  ovwEl.addEventListener('focusin', function (e) { var t = e.target.closest && e.target.closest('[data-stop]'); if (t) activate(t); });
+  ovwEl.addEventListener('focusout', function () { clearHl(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clearHl(); });
+
+  var lastState = 'ready';
+  function render(s) {
+    lastState = s;
+    alertUsed = false;
+    /* The strings build in page order, so the first failed block on the page is the one alert. */
+    var html = verdict(s) + '<div class="ovw-split">' + needs(s) + route(s) + stats(s) + '</div>' +
+      '<div class="ovw-lower">' + matrix(s) + '<div class="ovw-stack">' + pulse(s) + commitments(s) + activity(s) + '</div></div>' + weather(s);
+    document.getElementById('ovw').innerHTML = html;
+    var m = document.getElementById('rmap'); if (m && curR) { var msvg = buildMap(curR); m.insertBefore(msvg, m.firstChild); fitMap(m, msvg, curR); }
+    hlIndex = -1;
+    var mb = document.getElementById('moreBtn');
+    if (mb) mb.addEventListener('click', function () {
+      var rows = document.getElementById('moreRows'), open = rows.hidden;
+      rows.hidden = !open; mb.setAttribute('aria-expanded', String(open)); mb.textContent = open ? 'Show fewer' : (WARN.length - 3) + ' more warnings';
+    });
+    wireMatrix();
+    document.getElementById('note').innerHTML = '<p class="mock-note">' + notes[s] + '</p>';
+    Array.prototype.forEach.call(document.querySelectorAll('.mock-bar [data-state]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-state') === s)); });
+  }
+
+  /* ---------- theme, guides and state from the URL ---------- */
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    var b = document.getElementById('themeBtn'); b.setAttribute('aria-pressed', String(t === 'dark')); b.textContent = t === 'dark' ? 'Dark (on)' : 'Dark';
+  }
+  var t0 = qs.get('theme');
+  if (t0 !== 'light' && t0 !== 'dark') t0 = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  setTheme(t0);
+  /* Guides: one toggle for the whole page (P2 wrapper outline, container width, 1720px line). */
+  var gb = document.getElementById('guideBtn');
+  var gw = document.createElement('div'); gw.className = 'guide-wide'; gw.setAttribute('aria-hidden', 'true');
+  gw.innerHTML = '<span>Board and Map ' + getComputedStyle(root).getPropertyValue('--container-wide').trim() + '</span>'; document.body.appendChild(gw);
+  function setGuides(on) { document.body.classList.toggle('guides', on); gb.setAttribute('aria-pressed', String(on)); }
+  setGuides(qs.get('guides') === '1');
+  gb.addEventListener('click', function () { var on = !document.body.classList.contains('guides'); setGuides(on); __yfParam('guides', on ? '1' : '0'); });
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var n = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    setTheme(n); __yfParam('theme', n);
+  });
+  if (NARROW.addEventListener) NARROW.addEventListener('change', function () { if (NARROW.matches !== plateNarrow) render(lastState); });
+  var s0 = qs.get('state'); if (STATES.indexOf(s0) < 0) s0 = 'ready';
+  render(s0);
+  Array.prototype.forEach.call(document.querySelectorAll('.mock-bar [data-state]'), function (b) {
+    b.addEventListener('click', function () {
+      var n = b.getAttribute('data-state'); __yfParam('state', n); render(n);
+    });
+  });
+})();
+</script>
+<script>
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var root = document.documentElement;
+  var wrap = document.getElementById('yfwrap');
+  var tabbar = document.getElementById('tabbar');
+  var glider = document.getElementById('glider');
+  var panel = document.getElementById('panel');
+  var container = document.getElementById('container');
+  var tabs = Array.prototype.slice.call(tabbar.querySelectorAll('[role=tab]'));
+  var current = null;
+
+  function placeGlider(animate) {
+    var sel = tabs.filter(function (t) { return t.getAttribute('aria-selected') === 'true'; })[0];
+    if (!sel) return;
+    glider.classList.toggle('on', !!animate);
+    glider.style.width = sel.offsetWidth + 'px';
+    glider.style.transform = 'translateX(' + sel.offsetLeft + 'px)';
+  }
+  function overflowState() {
+    var max = tabbar.scrollWidth - tabbar.clientWidth;
+    var st = 'none';
+    if (max > 2) st = tabbar.scrollLeft < 2 ? 'start' : (tabbar.scrollLeft > max - 2 ? 'end' : 'middle');
+    tabbar.setAttribute('data-overflow', st);
+  }
+  function readout() {
+    var top = panel.getBoundingClientRect().top + window.scrollY;
+    document.getElementById('readout').textContent =
+      'Viewport ' + innerWidth + '×' + innerHeight + ' · container ' + container.offsetWidth + 'px · panel starts ' + Math.round(top) + 'px from page top';
+    panel.style.setProperty('--above', Math.round(top - window.scrollY) + 'px');
+  }
+
+  var ovwPane = document.getElementById('ovwPane'), ph = document.getElementById('ph');
+  var LABEL = { overview: 'Overview', board: 'Board', map: 'Map', timeline: 'Timeline', group: 'Group input', budget: 'Budget', share: 'Share', settings: 'Settings' };
+  var PH = {
+    board: function () {
+      return '<p class="ph-note">Board tab: not part of this mockup</p>' +
+        '<div class="ph-board"><div class="ph-col">Day 1 column</div><div class="ph-col">Day 2 column</div>' +
+        '<div class="ph-col">Day 3 column</div><div class="ph-col">Day 4 column</div></div>';
+    },
+    map: function () { return '<div class="ph-map">Map tab: not part of this mockup. The panel fills the viewport below the compact header and tab bar.</div>'; }
+  };
+  function setTab(key, focus) {
+    var prev = current; current = key;
+    tabs.forEach(function (t) {
+      var on = t.dataset.key === key;
+      t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+    });
+    var wide = key === 'board' || key === 'map';
+    wrap.setAttribute('data-compact', String(wide));
+    container.className = 'container page-enter' + (key === 'board' ? ' container--board' : '') + (key === 'map' ? ' container--map' : '');
+    container.setAttribute('data-guide', 'div.container' + (key === 'board' ? '--board (max-width 1720px)' : key === 'map' ? '--map (max-width 1720px)' : ' (max-width 1400px)'));
+    panel.setAttribute('aria-labelledby', 'tab-' + key);
+    var isOv = key === 'overview';
+    ovwPane.hidden = !isOv; ph.hidden = isOv;
+    ph.innerHTML = isOv ? '' : (PH[key] || function () {
+      return '<p class="ph-note">' + LABEL[key] + ' tab: not part of this mockup</p><div class="ph-card ph-tall">Placeholder panel</div>';
+    })();
+    document.querySelectorAll('.mock-bar [data-tab]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tab === key)); });
+    placeGlider(true);
+    if (focus) { var s = document.getElementById('tab-' + key); s.focus(); s.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    __yfParam('tab', key);
+    setTimeout(function () { readout(); if (isOv && prev && prev !== 'overview') window.dispatchEvent(new Event('resize')); }, 260);
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { setTab(t.dataset.key, false); });
+    t.addEventListener('keydown', function (e) {
+      var n = null;
+      if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = tabs.length - 1;
+      if (n !== null) { e.preventDefault(); setTab(tabs[n].dataset.key, true); }
+    });
+  });
+  document.querySelectorAll('.mock-bar [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab, false); }); });
+  tabbar.addEventListener('scroll', overflowState, { passive: true });
+  window.addEventListener('resize', function () { placeGlider(false); overflowState(); readout(); });
+
+  var start = qs.get('tab'); if (!document.getElementById('tab-' + start)) start = 'overview';
+  setTab(start, false);
+  placeGlider(false); overflowState(); readout();
+  if (qs.get('tabscroll') === 'end') { tabbar.scrollLeft = tabbar.scrollWidth; overflowState(); }
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>

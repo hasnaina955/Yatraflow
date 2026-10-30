@@ -40,7 +40,7 @@ describe('#404 — the matrix reads the gate (source)', () => {
   it('the matrix resolves freshness and branches stale before numbers', () => {
     expect(page).toContain('matrixFreshness(')
     const stale = page.indexOf(`freshness === 'stale'`)
-    const grid = page.indexOf('className="slotmatrix"')
+    const grid = page.indexOf('role="grid" aria-label="Planned parts per day"')
     expect(stale).toBeGreaterThan(-1)
     expect(grid).toBeGreaterThan(-1)
     expect(stale, 'the stale qualifier must precede the numbers grid').toBeLessThan(grid)
@@ -49,7 +49,7 @@ describe('#404 — the matrix reads the gate (source)', () => {
   it('the stale qualifier offers the Map tab, not dead text', () => {
     expect(page).toContain('Refresh on the Map tab')
     expect(page).toContain('onClick={onRefreshMatrix}')
-    expect(page).toContain('onRefreshMatrix={onOpenMap}')
+    expect(page).toContain('onRefreshMatrix={openGenericMap}')
   })
 
   it('the workspace holds the pair, clears it on trip switch, and wires both ends', () => {

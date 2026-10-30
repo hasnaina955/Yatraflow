@@ -18,7 +18,7 @@
 //     for the wrong ocean, which is worse than failing. Both now import
 //     `coordValid`, the boundary routing.ts already enforced.
 import { coordValid } from './routing'
-import { buildRoadChain } from './tripRoad'
+import { buildRoadChain, type RoadPointKind, type TripRoadView } from './tripRoad'
 
 export interface OverviewRoutePoint {
   lat: number
@@ -29,6 +29,34 @@ export interface OverviewRoutePoint {
 }
 
 type ChainTrip = Parameters<typeof buildRoadChain>[0]
+type OverviewRouteTrip = ChainTrip & {
+  startLocation?: string
+  destinations?: string[]
+}
+
+export interface OverviewRouteArrivingLeg {
+  distanceKm: number
+  durationMinutes: number
+  estimated: boolean
+}
+
+/** One row in the Overview route card. The stop list keeps every valid point,
+ *  even when two points share one pin on the map. */
+export interface OverviewRouteRow {
+  key: string
+  kind: RoadPointKind
+  lat: number
+  lng: number
+  dayIndex: number | null
+  stopId: string | null
+  title: string
+  /** The point's index in the unfiltered road chain. */
+  chainIndex: number
+  /** The unfiltered chain length, so a filtered final point stays visible. */
+  chainPointCount?: number
+  /** The leg that arrives at this point, when the road is measured. */
+  arrivingLeg: OverviewRouteArrivingLeg | null
+}
 
 /**
  * The trip's route-snapshot geometry, or an EMPTY list when there is nothing
@@ -51,6 +79,54 @@ export function overviewRoutePoints(trip: ChainTrip): OverviewRoutePoint[] {
   // A single point is not a route: a line needs two, and the shared component's
   // mock exists precisely for this case — which is what we are refusing to show.
   return valid.length >= 2 ? valid : []
+}
+
+/**
+ * The route card's one row model. It keeps the chain order and the original
+ * index, so an arriving leg stays attached to the right row after an invalid
+ * coordinate is filtered out. The stop list keeps every row. Pin grouping is a
+ * separate map-only concern.
+ */
+export function overviewRouteRows(
+  trip: OverviewRouteTrip,
+  road?: Pick<TripRoadView, 'status' | 'legs'> | null,
+): OverviewRouteRow[] {
+  const chain = buildRoadChain(trip)
+  const stopTitles = new Map<string, string>()
+  for (const day of trip.days) {
+    for (const stop of day.stops) stopTitles.set(stop.id, stop.title)
+  }
+  const rows: OverviewRouteRow[] = []
+  for (let i = 0; i < chain.points.length; i++) {
+    const point = coordValid(chain.points[i])
+    if (!point) continue
+    const kind = chain.ptKind[i] ?? (i === 0 ? 'start' : 'stop')
+    const stopId = chain.ptStopId[i] ?? null
+    const title = kind === 'start' || kind === 'return'
+      ? trip.startLocation || 'Start'
+      : kind === 'destination'
+        ? trip.destinations?.[trip.destinations.length - 1] || 'End'
+        : (stopId ? stopTitles.get(stopId) ?? 'Stop' : 'Stop')
+    const previousIsValid = i > 0 && !!coordValid(chain.points[i - 1])
+    const leg = road?.status === 'ok' && previousIsValid ? road.legs?.[i - 1] : undefined
+    rows.push({
+      key: kind === 'stop' ? `stop:${stopId ?? i}` : kind,
+      kind,
+      lat: point.lat,
+      lng: point.lng,
+      dayIndex: chain.ptDay[i] ?? null,
+      stopId,
+      title,
+      chainIndex: i,
+      chainPointCount: chain.points.length,
+      arrivingLeg: leg ? {
+        distanceKm: leg.distanceKm,
+        durationMinutes: leg.durationMinutes,
+        estimated: leg.source === 'estimate' || leg.estimated === true,
+      } : null,
+    })
+  }
+  return rows.length >= 2 ? rows : []
 }
 
 /**

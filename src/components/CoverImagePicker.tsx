@@ -3,17 +3,25 @@ import type { ChangeEvent } from 'react'
 import type { Trip } from '../data/types'
 import { currentUser, updateTrip } from '../store/store'
 import { fetchFirstAvailableThumb, pickTripQueryCandidates, sizedCoverUrl } from '../lib/tripThumb'
-import { useDestinationCover } from '../hooks/useDestinationCover'
 import { COVER_TYPES, coverFileError, uploadCover } from '../lib/coverUpload'
+import { coverPlanFor } from '../lib/regionArt'
+import { regionFor } from '../lib/tripsPage'
+import { CoverMedia } from './CoverMedia'
 
 /**
  * Owner-facing control to set / change / clear a trip's cover image.
- *   • "Use destination photo" fetches a popular Wikipedia image of the trip's
- *     headline destination and stores it as coverImageUrl (the default the
- *     product prefers — see types.ts), sized through `Special:Redirect` so no
- *     row ever holds a multi-megabyte original.
+ *   • The preview shows what the trip's cards will show: the chosen image, or
+ *     the generated artwork for its own places, or the emoji when neither can
+ *     load. Nothing here fetches a photo on its own.
+ *   • "Use destination photo" is an explicit action: it looks up a popular
+ *     Wikipedia image of the trip's headline destination and stores it as
+ *     coverImageUrl, sized through `Special:Redirect` so no row ever holds a
+ *     multi-megabyte original.
  *   • A custom URL lets the owner override with any image.
- *   • "Use emoji only" clears the image so the card falls back to the emoji.   *   • "Upload image" shrinks a picked photo to 1200px, re-encodes it as JPEG
+ *   • "Use artwork" clears the image so the cards fall back to the generated
+ *     artwork. It clears the URL ONLY: the stored upload object stays, because
+ *     a fork or a publication may still reference it.
+ *   • "Upload image" shrinks a picked photo to 1200px, re-encodes it as JPEG
  *     and stores it in our own public bucket (lib/coverUpload.ts), so the
  *     creator is not limited to photos someone else hosts. Replacing one adds
  *     a new object and leaves the old in place — see uploadCover for why.
@@ -88,8 +96,15 @@ export function CoverImagePicker({ trip, editable, error: externalError }: {
   // a single "no photo on Wikipedia" page doesn't make the cover picker look
   // empty when a perfectly good image exists for the next stop.
   const candidates = pickTripQueryCandidates(trip)
-  const auto = useDestinationCover(candidates)
-  const current = trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : (auto ?? null)
+  const previewPlan = coverPlanFor({
+    userCover: trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : '',
+    fallbackEmoji: trip.coverEmoji,
+    region: regionFor(trip),
+    seed: trip.id,
+    placeCount: trip.destinations?.length ?? 0,
+    destinations: trip.destinations,
+    startLocation: trip.startLocation,
+  })
 
   function setCover(url: string | undefined) {
     // Size on the way IN: a row written before sizing existed is fixed at
@@ -165,11 +180,14 @@ export function CoverImagePicker({ trip, editable, error: externalError }: {
 
   return (
     <div className="cover-picker">
-      <div
-        className="cover-picker-preview"
-        style={current ? { backgroundImage: `url("${current}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-      >
-        {!current && <span className="cover-picker-emoji">{trip.coverEmoji}</span>}
+      <div className="cover-picker-preview">
+        <CoverMedia
+          plan={previewPlan}
+          ratio="16:7"
+          sizes="(min-width: 720px) 520px, 92vw"
+          className="cover-picker-img"
+          emojiClassName="cover-picker-emoji"
+        />
       </div>
       {editable && (
         <div className="cover-picker-controls">
@@ -202,7 +220,7 @@ export function CoverImagePicker({ trip, editable, error: externalError }: {
               both are present — it is the more specific one. */}
           {showError && <p id="cover-picker-error" className="err-text" role="status" aria-live="polite">{error}</p>}
           {trip.coverImageUrl && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCover(undefined)}>Use emoji only</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCover(undefined)}>Use artwork</button>
           )}
         </div>
       )}

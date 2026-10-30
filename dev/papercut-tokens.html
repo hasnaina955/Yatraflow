@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Papercut foundations</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/node_modules/@fontsource/sora/600.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/sora/700.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/sora/800.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/plus-jakarta-sans/500.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/plus-jakarta-sans/600.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/plus-jakarta-sans/700.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/plus-jakarta-sans/800.css">
+<link rel="stylesheet" href="/src/styles.css">
+<style>
+body { background: var(--bg); }
+.gallery, .gallery * { box-sizing: border-box; }
+.gallery { width: 100%; max-width: 1120px; margin: auto; padding: var(--space-14) var(--space-7); color: var(--text); }
+.gallery header, .gallery section { margin-bottom: var(--space-14); }
+.gallery h1, .gallery h2, .gallery h3 { overflow-wrap: anywhere; }
+.gallery h2 { margin-bottom: var(--space-7); }
+.gallery p { max-width: 65ch; }
+.gallery-grid { display: flex; flex-wrap: wrap; gap: var(--space-7); }
+.gallery-tile { min-width: 120px; flex: 1; padding: var(--space-7); border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.gallery-swatch { height: 72px; border-radius: var(--radius-sm); background: var(--swatch); }
+.gallery small { display: block; margin-top: var(--space-4); color: var(--text-2); overflow-wrap: anywhere; }
+.gallery-demo { transition: transform var(--motion-instant) var(--ease-paper); }
+.gallery-demo:active { transform: scale(.94); }
+.gallery-status { color: var(--status-ink); background: var(--status-bg); }
+.gallery .btn { margin: var(--space-4); }
+.gallery-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-5); }
+.gallery-row h3 { margin: 0; }
+.gallery-stagger { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-5); }
+.gallery-stagger-item {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card-soft);
+  animation: galleryRise var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * min(var(--i, 0), 5));
+}
+.gallery-stagger-item strong { display: block; }
+.gallery-exit-card {
+  margin-top: var(--space-5);
+  padding: var(--space-7);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card-soft);
+}
+.gallery-exit-card.is-exiting {
+  animation: galleryExit var(--motion-med) var(--ease-exit) 0s forwards;
+}
+.gallery-reduced-demo {
+  margin-top: var(--space-5);
+  padding: var(--space-7);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card-soft);
+  animation: galleryRise var(--motion-med) var(--ease-paper) backwards;
+}
+.gallery-final-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5); margin-top: var(--space-5); }
+.gallery-final-route { width: 180px; max-width: 100%; }
+.gallery-final-route path { fill: none; stroke: var(--teal-deep); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 180; animation: galleryRouteDraw var(--motion-slower) var(--ease-paper) backwards; }
+.gallery-final-pin { width: 20px; height: 20px; border: 4px solid var(--pw-marigold-500); border-radius: 50%; background: var(--card); }
+.gallery-final-number { font: 800 28px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.gallery-final-pin { animation: galleryPinIn var(--motion-fast) var(--ease-settle) backwards; }
+.gallery-final-number { animation: galleryNumberSwap var(--motion-med) var(--ease-paper) backwards; }
+@keyframes galleryRise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes galleryExit { to { opacity: 0; transform: translateY(6px) scale(.97); } }
+@keyframes galleryRouteDraw { from { stroke-dashoffset: 180; } to { stroke-dashoffset: 0; } }
+@keyframes galleryPinIn { from { opacity: 0; transform: scale(.4); } }
+@keyframes galleryNumberSwap { from { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 720px) {
+  .gallery { padding: var(--space-10) var(--space-7); }
+  .gallery-stagger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 440px) {
+  .gallery { padding: var(--space-8) var(--space-5); }
+  .gallery-stagger { grid-template-columns: minmax(0, 1fr); }
+  .gallery-tile { min-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gallery-demo { transition: none; }
+  .gallery-demo:active { transform: none; }
+  .gallery-stagger-item,
+  .gallery-reduced-demo {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .gallery-exit-card.is-exiting { animation: none !important; opacity: 0; }
+  .gallery-final-route path,
+  .gallery-final-pin,
+  .gallery-final-number {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .gallery-final-route path { stroke-dashoffset: 0; }
+}
+</style>
+</head>
+<body>
+<main class="gallery" id="papercut-foundations-5178">
+  <header>
+    <h1>Papercut foundations</h1>
+    <p>Live design tokens from the app stylesheet. The reduced-motion path follows the operating system setting.</p>
+    <div class="gallery-row">
+      <button class="btn btn-primary" id="theme" type="button">Switch theme</button>
+      <button class="btn btn-outline" id="replay-stagger" type="button">Replay entrance</button>
+    </div>
+  </header>
+
+  <section aria-labelledby="colour-title">
+    <h2 id="colour-title">Colour</h2>
+    <div class="gallery-grid" id="colours"></div>
+  </section>
+
+  <section aria-labelledby="type-title">
+    <h2 id="type-title">Typography</h2>
+    <div class="gallery-grid">
+      <div class="gallery-tile"><h1>Plan with purpose</h1><small>Sora display</small></div>
+      <div class="gallery-tile"><p>Good plans leave room for the unexpected. Share the route and make decisions together.</p><small>Plus Jakarta Sans body</small></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="shape-title">
+    <h2 id="shape-title">Radius, spacing and elevation</h2>
+    <div class="gallery-grid" id="radii"></div>
+    <div class="gallery-grid" id="spacing"></div>
+    <div class="gallery-grid" id="shadows"></div>
+  </section>
+
+  <section aria-labelledby="controls-title">
+    <h2 id="controls-title">Controls and status</h2>
+    <button class="btn btn-primary gallery-demo" type="button">Primary action</button>
+    <button class="btn btn-saffron" type="button">Share trip</button>
+    <button class="btn btn-primary" type="button" disabled>Disabled</button>
+    <div class="gallery-grid" id="statuses"></div>
+  </section>
+
+  <section aria-labelledby="motion-title">
+    <h2 id="motion-title">Motion</h2>
+    <p>The entrance caps at six items with 60ms steps. Later items share the sixth step. List exits use the full 240ms token with no stagger.</p>
+    <div class="gallery-grid" id="computed-tokens"></div>
+
+    <div class="gallery-tile">
+      <div class="gallery-row">
+        <h3>Eight-item entrance</h3>
+        <button class="btn btn-outline" id="replay-stagger-inline" type="button">Replay</button>
+      </div>
+      <div class="gallery-stagger" id="stagger-list" aria-label="Eight-item entrance demo"></div>
+      <small id="stagger-delays" aria-live="polite"></small>
+    </div>
+
+    <div class="gallery-grid">
+      <div class="gallery-tile">
+        <h3>Exit</h3>
+        <div class="gallery-exit-card" id="exit-card">A row that leaves the list.</div>
+        <button class="btn btn-outline" id="replay-exit" type="button">Play exit</button>
+        <small id="exit-status" aria-live="polite"></small>
+      </div>
+
+      <div class="gallery-tile">
+        <h3>Reduced motion</h3>
+        <div class="gallery-reduced-demo" id="reduced-demo">Movement is immediate. The final state stays visible.</div>
+        <button class="btn btn-outline" id="replay-reduced" type="button">Replay entrance</button>
+        <small id="reduced-status" aria-live="polite"></small>
+      </div>
+
+      <div class="gallery-tile">
+        <h3>Final state</h3>
+        <div class="gallery-final-row">
+          <svg class="gallery-final-route" id="final-route" viewBox="0 0 180 50" aria-hidden="true">
+            <path d="M8 40 C 48 40, 50 12, 90 20 S 142 8, 172 12" />
+          </svg>
+          <span class="gallery-final-pin" id="final-pin" aria-hidden="true"></span>
+          <span class="gallery-final-number" id="final-number">12</span>
+        </div>
+        <small>Route, pin and number stay final under reduced motion.</small>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+const make = (id, values, render) => { document.querySelector(id).innerHTML = values.map(render).join(''); };
+const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+const tokenRows = [
+  ['--motion-instant', 'instant'],
+  ['--motion-fast', 'fast'],
+  ['--motion-med', 'medium'],
+  ['--motion-slow', 'slow'],
+  ['--motion-slower', 'slower'],
+  ['--stagger-step', 'stagger'],
+  ['--ease-paper', 'ease paper'],
+  ['--ease-exit', 'ease exit'],
+  ['--radius', 'radius'],
+  ['--space-8', 'spacing'],
+];
+
+make('#colours', ['paper', 'sunken', 'soft', 'card', 'raised', 'ink', 'ink-2', 'ink-3', 'sea-700', 'lagoon-600', 'marigold-500', 'bloom-500'], x => `<div class="gallery-tile"><div class="gallery-swatch" style="--swatch:var(--pw-${x})"></div><small>${x}</small></div>`);
+make('#radii', ['mark', 'xs', 'sm', '', 'lg', 'xl', 'pill'], x => `<div class="gallery-tile" style="border-radius:var(--radius${x ? '-' + x : ''})"><small>${x || 'base'}</small></div>`);
+make('#spacing', ['4a', '5', '7', '7a', '8', '10', '11', '12', '17'], x => `<div class="gallery-tile"><div style="height:var(--space-${x});background:var(--pw-lagoon-600)"></div><small>space-${x}</small></div>`);
+make('#shadows', ['press', '1', '2', '3', 'glow-sea', 'glow-marigold'], x => `<div class="gallery-tile" style="box-shadow:var(--${x.startsWith('glow-') ? x : 'elev-' + x})"><small>${x.startsWith('glow-') ? x : 'elev-' + x}</small></div>`);
+make('#statuses', [['Sea', 'sea-900', 'lagoon-100'], ['Attention', 'marigold-ink', 'marigold-100'], ['Confirmed', 'ok', 'ok-100'], ['Risk', 'risk', 'risk-100'], ['Saved', 'bloom-700', 'bloom-100']], x => `<div class="gallery-tile gallery-status" style="--status-ink:var(--pw-${x[1]});--status-bg:var(--pw-${x[2]})">${x[0]}</div>`);
+
+const staggerList = document.querySelector('#stagger-list');
+staggerList.innerHTML = Array.from({ length: 8 }, (_, i) => `<div class="gallery-stagger-item" style="--i:${i}"><strong>Item ${i + 1}</strong><small>--i ${i}</small></div>`).join('');
+
+function ms(value) {
+  const time = parseFloat(value);
+  return value.trim().endsWith('ms') ? time : time * 1000;
+}
+
+function renderComputed() {
+  const style = getComputedStyle(document.documentElement);
+  document.querySelector('#computed-tokens').innerHTML = tokenRows.map(([token, label]) => `<div class="gallery-tile"><strong>${token}</strong><small>${label}: ${style.getPropertyValue(token).trim() || 'unset'}</small></div>`).join('');
+  document.querySelector('#stagger-delays').textContent = 'Computed delays: ' + [...staggerList.children].map(el => getComputedStyle(el).animationDelay).join(' / ');
+  const mode = reducedQuery.matches ? 'reduced motion active' : 'full motion active';
+  document.querySelector('#reduced-status').textContent = mode + (reducedQuery.matches ? '. Final state shown.' : '.');
+}
+
+function replay(node) {
+  node.style.setProperty('animation', 'none', 'important');
+  void node.offsetWidth;
+  node.style.removeProperty('animation');
+}
+
+function replayStagger() {
+  [...staggerList.children].forEach(replay);
+  document.querySelector('#stagger-delays').textContent = 'Replay started. Computed delays: ' + [...staggerList.children].map(el => getComputedStyle(el).animationDelay).join(' / ');
+}
+
+let exitBusy = false;
+function replayExit() {
+  if (exitBusy) return;
+  exitBusy = true;
+  const card = document.querySelector('#exit-card');
+  card.classList.remove('is-exiting');
+  void card.offsetWidth;
+  card.classList.add('is-exiting');
+  const duration = reducedQuery.matches ? 0 : ms(getComputedStyle(card).animationDuration);
+  document.querySelector('#exit-status').textContent = reducedQuery.matches ? 'Reduced motion: exit is immediate.' : `Exit: ${duration}ms.`;
+  window.setTimeout(() => {
+    card.classList.remove('is-exiting');
+    exitBusy = false;
+  }, duration + 40);
+}
+
+function replayReduced() {
+  replay(document.querySelector('#reduced-demo'));
+  document.querySelector('#reduced-status').textContent = reducedQuery.matches ? 'Reduced motion: immediate; final state shown.' : 'Full motion: 240ms rise and fade.';
+}
+
+document.querySelector('#theme').onclick = () => {
+  document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  renderComputed();
+};
+document.querySelector('#replay-stagger').onclick = replayStagger;
+document.querySelector('#replay-stagger-inline').onclick = replayStagger;
+document.querySelector('#replay-exit').onclick = replayExit;
+document.querySelector('#replay-reduced').onclick = replayReduced;
+reducedQuery.addEventListener?.('change', renderComputed);
+renderComputed();
+</script>
+</body>
+</html>

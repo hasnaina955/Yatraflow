@@ -4,6 +4,7 @@
 // comments are stripped before any scan.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (relativePath: string) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -48,7 +49,7 @@ function enclosingBlockBody(source: string, needle: string): string {
 
 const tripCardSource = stripTsComments(read('../src/components/trips/TripCard.tsx'))
 const upNextSource = stripTsComments(read('../src/components/trips/UpNextCard.tsx'))
-const stylesSource = stripCssComments(read('../src/styles.css'))
+const stylesSource = stripCssComments(readCssSource('src/styles.css'))
 
 describe('TripCard drops the meter', () => {
   it('has no progressbar role, in either quote style', () => {

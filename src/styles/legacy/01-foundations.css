@@ -1,0 +1,322 @@
+/* ---- Calm Travel Intelligence utilities (design refresh M1) ---- */
+/* Level-1 atmospheric canvas (doc §4.2): Landing, Explore, Public Itinerary,
+   workspace outer shell. Two soft gradient blobs over the mist→cream→peach ramp. */
+.atmos {
+  background:
+    radial-gradient(circle at 18% 12%, var(--yf-atmos-mint), transparent 32%),
+    radial-gradient(circle at 88% 28%, var(--yf-atmos-peach), transparent 30%),
+    linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
+}
+/* Native shell: the nav pill is 58%-opaque glass, and the peach radial
+   (88% x / 28% y) sits exactly behind the logo area — on a small screen it
+   reads as a yellow smudge bleeding through the nav, not the soft wash it
+   paints on desktop. Flat cream ramp under the app UI; the web keeps the
+   full atmosphere. */
+html.native-shell .atmos {
+  background: linear-gradient(135deg, var(--yf-mist) 0%, var(--yf-cream) 52%, var(--yf-peach) 100%);
+}
+/* Level-2 expressive overlay (doc §3.3): translucent nav, map panels, hero
+   support cards. Content that must be read/edited stays on --color-card.
+   Dialled up for the glass-first look: deep blur + saturation + a top sheen. */
+.glass {
+  background: var(--yf-glass);
+  border: 1px solid var(--yf-glass-border);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  box-shadow: inset 0 1px 0 var(--yf-glass-sheen);
+}
+
+/* ---------- Mobile / native-shell performance budget ----------
+   The landing page runs layered backdrop-blur glass, two 340–380px blobs
+   blurred at 70–80px, an infinite ticker, a dash-animated SVG road and the
+   odometer — all cheap on a desktop GPU, a jank farm in a phone WebView
+   (observed on the Android app: the homepage lagged badly). Phones report
+   a coarse pointer, so that's the gate; the class targets the packaged app
+   specifically and overrides anything the media query loosens. */
+@media (pointer: coarse) {
+  /* Halve the blur radius: the glass keeps its frosted identity, the
+     compositor keeps its frame time. Every surface that hardcodes an
+     oversized blur (18px tabbar, 14px strips, 12px glass-soft) comes down
+     to the same 8px budget in one sweep — spelled var(--yf-blur-chip) so
+     the reduced budget still routes through the design-system blur tiers. */
+  .topnav,
+  .glass,
+  .bottom-nav,
+  .tabbar,
+  .glass-soft,
+  .filter-pillbar,
+  .tl-total-strip,
+  .board-info, .board-pulse {
+    -webkit-backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+    backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+  }
+  /* Frozen atmosphere: drifting 80px-blurred blobs repaint large layers
+     every frame; as static washes they cost one paint. */
+  .hero-blob-a, .hero-blob-b,
+  .bench-blob-a, .bench-blob-b { animation: none; }
+  /* The continuous ticker is a second infinite compositor loop. */
+  .ticker-track { animation: none; }
+}
+/* The native shell is a phone WebView even when a mouse is attached via
+   desktop mode — apply the same budget there, unconditionally.
+   (.native-shell is <html>; the descendant selectors stay simple.) */
+html.native-shell .topnav,
+html.native-shell .glass,
+html.native-shell .bottom-nav {
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+  backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
+}
+html.native-shell .hero-blob-a, html.native-shell .hero-blob-b,
+html.native-shell .bench-blob-a, html.native-shell .bench-blob-b { animation: none; }
+html.native-shell .ticker-track { animation: none; }
+/* App-bar solidity: a near-opaque pill reads as an Android top bar; any
+   background tint that survives the reduced blur can't bleed through. */
+html.native-shell .topnav {
+  background: var(--app-bar, rgba(250, 247, 242, 0.92));
+}
+html.native-shell[data-theme='dark'] .topnav {
+  background: var(--app-bar-dark, rgba(12, 20, 32, 0.92));
+}
+/* The bottom navigation is the same chrome as the top bar and reads the same
+   way: content scrolls under it, so 58% glass would smear the row behind it.
+   Same near-opaque pair, opposite edge. */
+html.native-shell .bottom-nav {
+  background: var(--app-bar, rgba(250, 247, 242, 0.92));
+}
+html.native-shell[data-theme='dark'] .bottom-nav {
+  background: var(--app-bar-dark, rgba(12, 20, 32, 0.92));
+}
+
+* { box-sizing: border-box; }
+
+/* Root-level horizontal clip. The hero/bench atmosphere blobs and the full-bleed
+   destination ticker deliberately paint past the 100vw edge for a soft diffused
+   glow. `clip` (unlike `hidden`) prunes that overflow to a clean page width
+   WITHOUT becoming a scroll container — so no horizontal scrollbar appears AND
+   the floating `position: sticky` topnav keeps working. */
+html { overflow-x: clip; }
+
+/* ---------- Overview Bento briefing (CTI §6.2) ---------- */
+/* Large-radius, softly-shadowed cards; the briefing reads as tiles, not a form. */
+.bento .card { --card-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+.bento .stat-tile { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+
+/* Trip Health big-number layout (mockup): number, horizontal bar, reasons */
+.health-big { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.health-num-big { font-size: 54px; font-weight: 800; font-family: var(--font-display); line-height: 1; font-variant-numeric: tabular-nums; }
+.health-num-big.ok { color: var(--ok); }
+/* #400: the band's FOUR-WAY palette, so the number agrees with the chip beside
+   it. `teal` is the missing middle band — before this a 70–84 trip printed
+   "Manageable" in Comfortable-green because the number read a 3-bucket class
+   while the chip read a 4-way tone. The `ink-teal` family, not the raw brand
+   teal, so 54px text keeps AA on both themes.
+   These four REPLACE the old `.mid`/`.bad` pair: `healthBandClass` no longer
+   emits either name, so keeping them would be a rule nothing can reach. */
+.health-num-big.teal { color: var(--ink-teal); }
+.health-num-big.saffron { color: var(--ink-amber); }
+.health-num-big.danger { color: var(--yf-coral); }
+.health-bar { height: 8px; border-radius: 999px; background: var(--yf-amber-100); overflow: hidden; }
+.health-bar > i { display: block; height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out); }
+.health-bar > i.ok { background: var(--ok); }
+/* The bar is a FILL, not text — it takes the band hue at full strength, the
+   same move `.clickable-chip.on-teal` makes. */
+.health-bar > i.teal { background: var(--teal); }
+.health-bar > i.saffron { background: var(--saffron); }
+.health-bar > i.danger { background: var(--yf-coral); }
+.health-reasons { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; color: var(--text-2); }
+.health-rec {
+  display: block; width: 100%; margin-top: 12px;
+  background: var(--yf-amber-100); color: var(--text);
+  border: none; border-radius: 10px; padding: 10px 13px;
+  font-weight: 700; font-size: 13px; cursor: pointer; text-align: left; font-family: var(--font-body);
+}
+.health-rec:hover { filter: brightness(.97); }
+.health-rec:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* Route snapshot dark card (mockup) — same rich treatment as the landing hero:
+   navy gradient + faint cartographic grid + ambient saffron/coral glows.
+   .card.route-snap (0,2,0) on purpose: `.card`'s `background: var(--card)`
+   shorthand is declared LATER in this file and would otherwise strip the
+   gradient — light theme rendered a cream card under light-on-light SVG labels. */
+.route-snap::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(420px 180px at 8% 0%, rgba(239,173,84,.14), transparent 70%),
+    radial-gradient(380px 200px at 96% 100%, rgba(232,104,76,.13), transparent 70%),
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: auto, auto, 26px 26px, 26px 26px;
+}
+.route-snap > * { position: relative; }
+.route-snap h3 { color: #fff; }
+.route-snap .divider { border-top-color: rgba(255,255,255,.16); }
+.route-snap-meta { font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+.link-btn { background: none; border: none; padding: 0; color: var(--yf-saffron); font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-body); }
+.link-btn:hover { text-decoration: underline; }
+.link-btn.teal { color: var(--teal-deep); }
+.link-btn:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+
+/* Group pulse full-width strip (mockup) */
+.pulse-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px; grid-column: 1 / -1; }
+.pulse-bar .pulse-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--yf-text-muted); }
+.pulse-bar .pulse-item { font-size: 13.5px; color: var(--text-2); }
+.pulse-bar .pulse-item b { color: var(--text); }
+.pulse-bar .pulse-dot { color: var(--yf-border); }
+.pulse-bar .pulse-link { margin-left: auto; }
+html {
+  -webkit-text-size-adjust: 100%;
+  /* No grey UA tap-flash on touch devices. */
+  -webkit-tap-highlight-color: transparent;
+  /* Anchor/scrollIntoView targets land clear of the floating pill topnav
+     (12px top gap + nav height + breathing room). */
+  scroll-padding-top: calc(12px + var(--nav-h) + 16px);
+  /* The bottom half of the same rule. --bottom-ui-offset already resolves to
+     just the gesture inset outside the shell, so this is correct on both
+     platforms and no longer needs to be re-declared inside html.native-shell. */
+  scroll-padding-bottom: calc(var(--bottom-ui-offset) + 12px);
+}
+/* Native app feel: pages scroll with a finger, so the WebView's chunky
+   desktop scrollbar (a thick bar hugging the right edge) is pure chrome —
+   Android apps never draw one on the page itself. Web keeps it. The class
+   lives on <html> itself (main.tsx), so selectors start there. */
+html.native-shell, html.native-shell body {
+  scrollbar-width: none;
+}
+html.native-shell ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  /* Jakarta 400 reads faded at body and secondary sizes (the Inter it
+     replaced carried more ink at the same weight), so the unweighted base
+     is 500; explicit 600/700/800 declarations are untouched. */
+  font-weight: 500;
+  line-height: 1.55;
+  /* Drops the double-tap-zoom delay on rapid taps (pan + pinch still allowed).
+     touchDnd's touchstart/touchmove preventDefault still vetoes browser
+     gestures during long-press drag, and MapLibre's canvas container sets its
+     own touch-action: none. */
+  touch-action: manipulation;
+}
+h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.22; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h1 { font-size: clamp(26px, 4.5vw, 40px); font-weight: 800; }
+h2 { font-size: 21px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+/* h4 is named in the display-family rule above but had no weight of its own,
+   so it resolved to Sora 400 — a weight the font link does not load
+   (Sora is 600/700/800 only), which the browser then synthesised. */
+h4 { font-weight: 700; }
+p { margin: 0; }
+/* Wrap tuning: headings balance (in the h1–h4 rule above), prose pretty. The
+   pair is the type reference's recipe; pretty trims a last-line orphan and is
+   a no-op on copy that fits one line. */
+p, .hint-text { text-wrap: pretty; }
+a { color: var(--teal-deep); text-decoration: none; }
+button { font-family: var(--font-body); cursor: pointer; color: inherit; }
+input, select, textarea { font-family: var(--font-body); font-size: 14.5px; color: var(--text); }
+/* ---------- Icon weight: one rule, every glyph ---------- */
+/* Lucide emits `stroke-width="2"` as a PRESENTATION ATTRIBUTE, and a CSS
+   declaration outranks a presentation attribute - so this single rule re-inks
+   all ~291 icon tags in the app instead of carrying a prop on each usage.
+   Hand-authored decorative SVG (road lines, gauges, travel motifs) sets its own
+   literal weight and is deliberately untouched. Pinned in
+   tests/design-system.test.ts ("icon stroke weight is a token, not a library
+   default") so it cannot silently drift back to the stock weight. */
+.lucide { stroke-width: var(--icon-stroke); }
+/* Small inline glyphs (InlineIcon/MetaIcon/KindIcon at 12px and under) render
+   through this class from the shared wrappers in components/icons.tsx. */
+.lucide.ic-sm { stroke-width: var(--icon-stroke-sm); }
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column;
+  /* Edge-to-edge (Android 15, iPhone): the gesture bar overlays the last
+     row otherwise — and in the shell the bottom navigation sits on top of
+     that. --bottom-ui-offset is exactly the gesture-bar inset on the web,
+     so this line is unchanged there. */
+  padding-bottom: var(--bottom-ui-offset); }
+
+/* ---------- Top navigation ---------- */
+.topnav {
+  /* Float on scroll: sticky pins the pill to the top of the viewport once the
+     page scrolls, so the glass pill nav "follows" alongside the trip-total
+     strip the way the user asked. It keeps the CTI floating-pill look. */
+  position: sticky; top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); z-index: var(--z-nav-glass);
+  /* CTI nav language: a floating pill detached from the viewport edges,
+     not a full-bleed bar — the page atmosphere shows around it. */
+  width: min(1180px, calc(100% - 28px));
+  margin: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) auto 0;
+  background: var(--yf-nav-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  border: 1px solid var(--yf-glass-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-soft);
+}
+.topnav .container.topnav-inner { max-width: none; padding: 0 10px 0 22px; }
+.topnav-inner { display: flex; align-items: center; gap: 14px; height: var(--nav-h); }
+.brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--text); cursor: pointer; background:none;border:none;padding:0; }
+.brand svg { flex: 0 0 auto; }
+.nav-links { margin-left: 10px; }
+/* The pill nav family is owned by components/pill-nav-01.css. */
+.auth-tabs { margin: 18px 0; }
+.nav-link {
+  border: none; background: none; padding: 8px 13px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: var(--text-2);
+  text-decoration: none; /* real <a> since F-06 */
+}
+.nav-link:hover { background: var(--bg-soft); color: var(--text); }
+.nav-link.active { background: var(--teal-soft); color: var(--teal-deep); }
+.icon-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: none; background: none; color: var(--text-2); font-size: 17px;
+}
+.icon-btn:hover { background: var(--bg-soft); color: var(--text); }
+
+/* ---------- Android touch-target budget (48dp) ----------
+   Material requires a 48dp minimum hit area; our compact controls (.btn-sm
+   ~33px, .icon-btn 40px, chips ~28px) undercut it. On coarse pointers the
+   VISUALS stay identical — only the hit area grows, via negative-margin
+   pseudo-extensions that draw nothing and block nothing nearby (they sit
+   under siblings, never over them, because they're only 4-8px past the
+   edge and the surrounding layout has real gaps). */
+@media (pointer: coarse) {
+  .btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn,
+  .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip,
+  .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button,
+  .day-collapse {
+    position: relative;
+  }
+  .btn::after, .icon-btn::after, .chip::after, .clickable-chip::after,
+  .toast-action::after, .tab-btn::after, .map-legend-toggle::after,
+  .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after,
+  .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after,
+  /* the day accordion's 28px chevron was the one compact control left out of
+     this budget: its only neighbour inside 14px is the day badge, 12px away,
+     so a 6px expansion stays clear of it. The collapsed route line needs no
+     expander — it wraps to 2+ lines (41-62px) at phone widths. */
+  .day-collapse::after {
+    content: ''; position: absolute; inset: -6px; border-radius: inherit;
+  }
+}
+/* …except inside a grid, which already spaces its own items with `gap`. The
+   stacked-card beat double-applied there: the 14px margin pushed every card
+   after the first DOWN 14px and shrank it by the same amount, so a row of peers
+   rendered with ragged tops, unequal heights and a 26px gap where the grid said
+   12 (Explore shelf, creator page, My Trips, and the public itinerary's
+   Travel-tips / Warnings row). */
+/* The inventory below is the answer to "which grids hold `.card`s?" — a sweep
+   found three (Explore/CreatorPage/TripsList share one, the public page's
+   content grid, and the landing feature strip). Add the next one here. */
+.explore-grid > .card + .card,
+.two-col > .card + .card,
+.feature-strip > .card + .card { margin-top: 0; }
+/* Explicit card spacing where the sibling selector can't express the intent
+   (Profile stacks its cards with a wider 16px beat — was inline style). */
+.stack-gap { margin-top: 16px; }
+.label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+/* A disabled form control must look disabled — three selects shipped identical
+   to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
+   .btn:disabled. */
+

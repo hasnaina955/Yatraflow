@@ -41,9 +41,16 @@ export interface SegmentedTabsProps {
   label: string
   /** The look class of the row. A tablist defaults to tabbar. A toggle has no default. */
   className?: string
+  /**
+   * Paint the labels in the glider's ink where the glider covers them. Set this
+   * when the fill is a different colour from the rail, so one label ink cannot
+   * be legible on both. It adds a decorative copy of each label; the tab keeps
+   * its own name, focus and handler.
+   */
+  ink?: boolean
 }
 
-export function SegmentedTabs({ semantics, items, value, onChange, label, className }: SegmentedTabsProps) {
+export function SegmentedTabs({ semantics, items, value, onChange, label, className, ink }: SegmentedTabsProps) {
   const keys = useMemo(() => items.map(item => item.key), [items])
   const activate = useCallback((key: string) => onChange(key), [onChange])
   // The hook is called for both semantics so the hook order never changes. A
@@ -63,7 +70,15 @@ export function SegmentedTabs({ semantics, items, value, onChange, label, classN
   }
 
   return (
-    <PillNav className={className ?? 'tabbar'} role="tablist" aria-label={label} activeKey={value}>
+    <PillNav className={className ?? 'tabbar'} role="tablist" aria-label={label} activeKey={value}
+      ink={ink ? items.map(item => {
+        const hasCount = item.count !== undefined && item.count > 0
+        return (
+          <span key={item.key} className={`tab-btn${value === item.key ? ' active' : ''}`}>
+            {item.icon}{item.label}{hasCount ? <span className="tab-count">{item.count}</span> : null}
+          </span>
+        )
+      }) : undefined}>
       {items.map((item, index) => {
         const isActive = value === item.key
         const hasCount = item.count !== undefined && item.count > 0

@@ -1,0 +1,19 @@
+@media (min-width: 720px) {
+  .cond {
+    z-index: 1000;
+  }
+}
+
+@supports (display: grid) {
+  @container (min-width: 30rem) {
+    .deep {
+      z-index: 1001;
+    }
+  }
+}
+
+@keyframes fixture-pulse {
+  50% {
+    transform: scale(1.02);
+  }
+}

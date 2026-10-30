@@ -7,6 +7,7 @@
 // pinned by source invariants, the same pattern as trip-road/mobile-shell.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const mapTab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
@@ -37,7 +38,7 @@ describe('in-map search-result markers (wiring)', () => {
   })
 
   it('the search-pin style exists in the stylesheet (CRLF-tolerant)', () => {
-    const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+    const css = readCssSource('src/styles.css')
     expect(css).toMatch(/\.yf-map-pin-search \{/)
     expect(css).toMatch(/\.yf-map-pin-search--active \{/)
   })

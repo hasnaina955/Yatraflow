@@ -393,8 +393,8 @@ describe('the catalogue installs under the authority that is current', () => {
     // own account-change branch, which empties the cache and moves the identity.
     state.profileRows = { 'u-2': { ...OTHER_PRIVATE } }
     state.profileErrors = { 'u-1': { message: 'gone' } }
-    // The new account's bulk read sees only its own account. u-1's private row is
-    // therefore not a fallback for u-2 and not a leftover from u-1's session.
+    // The new account's bulk read sees only its own account. That row is not a
+    // fallback for u-2, and it is not a leftover from u-1's session.
     state.allProfileRows = [{ ...OTHER_PRIVATE }]
     state.authHandler!('SIGNED_IN', signedSession('u-2', '22222222-2222-4222-8222-222222222222', true))
     await flush(); await flush()
@@ -1149,7 +1149,7 @@ describe('a refused edit restores only its own operation-owned data', () => {
     await flush()
     expect((store.currentUser()?.profile as { homeCity?: string }).homeCity).toBe('NewCity')
 
-    // B signs in as admin and hydrates A's row, which currently holds the value
+    // B signs in as admin and hydrates A's row, which now holds the value
     // A optimistically wrote.
     state.sessionUser = 'u-2'
     state.sessionAdmin = true

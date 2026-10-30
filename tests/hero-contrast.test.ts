@@ -11,8 +11,9 @@
 // styles.css drifts, this fails rather than shipping an unreadable hero.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readCssSource('src/styles.css')
 
 /** Relative luminance, WCAG 2.x. */
 function luminance([r, g, b]: number[]): number {

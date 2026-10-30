@@ -280,7 +280,7 @@ describe('#408/#412/#414 — the form and its neighbours are wired as pinned', (
     // Settings can jump to a timeline day (#425: the raise is validated
     // through the shared focus contract's setFocusedDay and lands on the
     // shared day-focus axis too).
-    expect(ws).toMatch(/onOpenDay=\{\(dayIndex\) => \{ setFocusedDay\(dayIndex\); setFocus\(focusForDay\(trip!\.id, dayIndex\)\); setTimelineFocusDay\(dayIndex\); setTab\('timeline'\) \}\}/)
+    expect(ws).toMatch(/onOpenDay=\{dayIndex => openTimeline\(\{ dayIndex \}\)\}/)
   })
 
   it('the pure helpers the guards above lean on', () => {

@@ -1,0 +1,97 @@
+/* Board — moved from legacy/04-mobile-usability.css, imported at that
+   position so the family keeps its cascade place. Mechanical move: every
+   declaration is unchanged. Rules the board shares with another family stay
+   in the legacy file. */
+
+.board-col { animation: panelIn var(--t-slow) var(--ease-out) backwards; }
+
+.board-col:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+
+.board-col:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+
+.board-col:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+
+.board-col:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+
+.board-col:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+
+.board-col:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
+
+.board-col:nth-child(8) { animation-delay: calc(var(--stagger-step) * 7); }
+
+.board-stop, .board-col-zone, .board-col--focused { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--t-fast) var(--ease-out); }
+
+.board-stop:hover { transform: translateY(-1px); }
+
+.board-row { transition: transform var(--motion-fast) var(--ease-glide); min-width: 0; }
+
+.board-col {
+  transition:
+    background-color var(--t-slow) var(--ease-out),
+    color var(--t-slow) var(--ease-out),
+    border-color var(--t-slow) var(--ease-out),
+    transform var(--t-slow) var(--ease-glide);
+}
+
+.board--mapfocus .board-col { transform: translateY(88%); }
+
+.board-col:nth-child(2), .board--mapfocus .board-col:nth-child(2) { transition-delay: 40ms; }
+
+.board-col:nth-child(3), .board--mapfocus .board-col:nth-child(3) { transition-delay: 80ms; }
+
+.board-col:nth-child(4), .board--mapfocus .board-col:nth-child(4) { transition-delay: 120ms; }
+
+.board-col:nth-child(5), .board--mapfocus .board-col:nth-child(5) { transition-delay: 160ms; }
+
+.board-col:nth-child(6), .board--mapfocus .board-col:nth-child(6) { transition-delay: 200ms; }
+
+.board-col:nth-child(7), .board--mapfocus .board-col:nth-child(7) { transition-delay: 240ms; }
+
+.board-col:nth-child(8), .board--mapfocus .board-col:nth-child(8) { transition-delay: 280ms; }
+
+.board--mapfocus .board-topbar { opacity: .35; transform: translateY(-8px); }
+
+.board-topbar { transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out); }
+
+.board-col-stops.is-dragging .board-row { will-change: transform; }
+
+.board-col-stops { position: relative; }
+
+.board-stop { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--motion-fast) var(--ease-glide); }
+
+.board-stop.dragging {
+  opacity: .45; background: transparent; box-shadow: none;
+  border: 1.5px dashed var(--teal);
+}
+
+.board-stop.dragging .stop-main { visibility: hidden; }
+
+.board-cols { user-select: none; -webkit-user-select: none; }
+/* The phone stacking rules. They keep the @media (max-width: 720px) wrapper
+   they had in 04-mobile-usability.css: the wrapper is what makes them a phone
+   rule rather than a global one. */
+@media (max-width: 720px) {
+  .board-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .board { height: auto; overflow: visible; border: none; background: transparent; box-shadow: none; }
+  .board-map {
+    position: relative; inset: auto; height: 240px;
+    border-radius: var(--radius-lg); overflow: hidden;
+    border: 1px solid var(--yf-glass-border);
+    box-shadow: var(--shadow-soft); margin-bottom: 12px;
+  }
+  .board-map .map-frame { min-height: 0; }
+  .board-topbar { position: static; inset: auto; flex-direction: column; margin: 0 0 8px; gap: 8px; }
+  .board-info { max-width: none; }
+  .board-pulse { width: 100%; }
+  /* column-direction topbar: the desktop equal-size flex basis would become a
+     560px height here — stack panels at natural size instead */
+  .board-topbar .board-info, .board-topbar .board-pulse { flex: 0 0 auto; }
+  .board-cols { position: static; inset: auto; margin-top: 4px; padding-bottom: 10px; }
+  .board-col { flex: 0 0 264px; height: auto; min-height: 0; }
+  .board-col-head { min-height: 52px; }
+  .board-col-zone { min-height: 48px; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-stop { transition: none; }
+}

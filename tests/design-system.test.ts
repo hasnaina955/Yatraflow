@@ -4,8 +4,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import ts from 'typescript'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readCssSource('src/styles.css')
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
 
@@ -606,7 +607,7 @@ describe('the day collapse moves as one gesture', () => {
     expect(inner, '.day-body-clip-inner is missing from styles.css').toBeTruthy()
     expect(inner!.body).toMatch(/visibility 0s var\(--motion-slower\)/)
     const declared = [...css.matchAll(/--motion-slower:\s*([^;]+);/g)].map((m) => m[1].trim())
-    expect(declared).toEqual(['560ms'])
+    expect(declared).toEqual(['560ms', '560ms', '0ms'])
   })
 
   it('declares that easing once, in the motion token block', () => {
@@ -686,6 +687,140 @@ describe('the day collapse moves as one gesture', () => {
     expect(css).toMatch(/\.day-route:focus-visible \{ border-radius: 6px; \}/)
   })
 
+  // The selected workspace tab painted `box-shadow: none` so the glider could
+  // own the fill. At (0,5,0) that rule outranked the shared `:focus-visible` ring
+  // at (0,2,0), so a keyboard user who tabbed onto the CURRENT tab got
+  // `outline: none` and `box-shadow: none` — no focus sign at all, while every
+  // inactive tab kept its ring. Measured in Chrome: focus-visible true, outline
+  // none, box-shadow none. Selection must never be the reason focus disappears.
+  it('keeps the focus ring on the SELECTED workspace tab', () => {
+    const rules = [...stripCssComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(m => ({ selectors: m[1].split(',').map(s => s.trim().replace(/\s+/g, ' ')).filter(Boolean), body: m[2] }))
+
+    const selected = '.yf-page .yf-tabbar .tab-btn.active'
+    const ringOn = (body: string) => /box-shadow:\s*var\(--ring\)/.test(body)
+
+    // Find the rule that actually paints the ring on a focused selected tab.
+    const ringRules = rules.filter(r => r.selectors.includes(`${selected}:focus-visible`) && ringOn(r.body))
+    expect(ringRules.length, 'no rule gives the selected workspace tab a focus ring').toBeGreaterThan(0)
+
+    // It must also cover the focused-AND-hovered state: hovering the selected
+    // tab is the common case right after a mouse click, and a rule that only
+    // lists `:focus-visible` leaves the hover rule's own box-shadow winning.
+    const coversHover = rules.some(r => r.selectors.includes(`${selected}:hover:focus-visible`) && ringOn(r.body))
+    expect(coversHover, 'the selected+hovered+focused tab must keep its ring').toBe(true)
+
+    // Order matters as well as specificity: a later `box-shadow: none` on the
+    // selected tab would win at equal specificity. Assert the ring rule comes
+    // after every rule that clears the shadow on that tab.
+    const indexOfRule = (predicate: (r: (typeof rules)[number]) => boolean) => rules.findIndex(predicate)
+    const ringAt = indexOfRule(r => r.selectors.includes(`${selected}:focus-visible`) && ringOn(r.body))
+    const clearsAt = indexOfRule(r => r.selectors.some(s => s === selected || s === `${selected}:hover`) && /box-shadow:\s*none/.test(r.body))
+    expect(clearsAt, 'the selected tab must still clear its own shadow somewhere').toBeGreaterThan(-1)
+    expect(ringAt, 'the ring rule must come AFTER the rule that clears the shadow').toBeGreaterThan(clearsAt)
+
+    // And it must not be satisfied by painting the ring INSIDE the glider: the
+    // ring is teal on the sea fill, which measures under 3:1. The declaration
+    // has to stay a spread box-shadow, not an inset one.
+    const ringRule = rules[ringAt]
+    expect(ringRule.body, 'the focus ring must paint outside the box').not.toMatch(/box-shadow:[^;]*\binset\b/)
+  })
+
+  // The workspace tab's label ink cannot be fixed by a TIMER. The rail is light
+  // glass with dark ink; the glider is a sea fill with white ink. A `color`
+  // transition between those two passes through mid-grey, where the ink matches
+  // neither surface: measured frame by frame on the real rail (1440px and 390px,
+  // both themes) the incoming label fell to 1.0:1 at 233ms while the glider was
+  // still 226px away.
+  //
+  // A timed SWAP was the first fix, and it is removed: it held the rail ink for
+  // `--motion-med` and inverted on the frame the capsule landed. That is a fixed
+  // moment describing a moving edge, and it fails in both directions. Controlled
+  // capture of the real rail put the fill fully over the label 180ms before the
+  // swap at 2.19:1 light / 2.09:1 dark, and a 120ms reversal moved the ink while
+  // the fill still covered it.
+  //
+  // So the paint follows the geometry instead: `PillNav` renders a decorative
+  // copy of the items inside `.pill-ink`, a box placed and transitioned exactly
+  // like the fill, clipped by `overflow: hidden`. The real label keeps the rail
+  // ink at all times and the copy supplies the fill ink, so every glyph pixel
+  // sits on the surface it is inked for. This block pins the mechanism, not a
+  // timing: a `color` delay reappearing here is the regression.
+  it('inks the workspace tab by clipping a copy to the moving fill, not by timing', () => {
+    const rules = [...stripCssComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(m => ({ selectors: m[1].split(',').map(s => s.trim().replace(/\s+/g, ' ')).filter(Boolean), body: m[2] }))
+    const ruleFor = (sel: string) => rules.find(r => r.selectors.includes(sel))
+
+    const base = '.yf-page .yf-tabbar .tab-btn'
+    const selected = `${base}.active`
+
+    // The workspace rail's own rules may not put the ink on a clock. A `color`
+    // leg with a duration OR a delay is the fixed-timing fix coming back. Scope
+    // this to the tab rules: other components ink their chips on a transition
+    // and are none of this test's business.
+    for (const r of rules) {
+      if (!r.selectors.some(s => s.includes('.yf-tabbar'))) continue
+      const legs = r.body.match(/transition:\s*([^;]+);/)?.[1] ?? ''
+      const colorLeg = legs.split(',').map(s => s.trim()).find(s => s.startsWith('color '))
+      if (colorLeg) {
+        expect(colorLeg, `a color transition leg is a timed ink swap: ${r.selectors.join(', ')}`).toMatch(/^color 0s\b/)
+      }
+    }
+    const resting = ruleFor(base)
+    expect(resting, 'no resting workspace-tab rule').toBeTruthy()
+    expect(resting!.body, 'the resting label must not animate its ink').not.toMatch(/color\s+0s\s+linear\s+var\(--motion-/)
+    const sel = ruleFor(selected)
+    expect(sel, 'no selected workspace-tab rule').toBeTruthy()
+    expect(sel!.body, 'the selected label must not carry a delayed ink swap').not.toMatch(/color\s+0s\s+linear\s+var\(--motion-/)
+
+    // The label keeps the RAIL ink even when selected — the fill ink is the
+    // copy's job. This is what makes the split possible at all.
+    expect(sel!.body, 'the selected label must keep the rail ink; the copy supplies the fill ink')
+      .toMatch(/color:\s*var\(--pw-ink\)/)
+
+    // The window: absolutely placed, clipped, and transitioned on the same box
+    // properties as the fill so the two cannot drift.
+    const win = ruleFor('.pill-ink')
+    expect(win, 'no .pill-ink window rule').toBeTruthy()
+    const winDecl = declMap(win!.body)
+    expect(winDecl.get('position'), 'the ink window must be placed like the fill').toBe('absolute')
+    expect(winDecl.get('overflow'), 'the ink window must CLIP the copy to the fill').toBe('hidden')
+    expect(winDecl.get('pointer-events'), 'the window must not steal clicks from the tab').toBe('none')
+    const winTransition = winDecl.get('transition') ?? ''
+    for (const prop of ['left', 'top', 'width', 'height']) {
+      expect(winTransition, `the ink window must ride the fill's ${prop}`).toMatch(new RegExp(`\\b${prop}\\b`))
+    }
+
+    // The copy row is counter-offset on the same clock.
+    const row = ruleFor('.pill-ink-row')
+    expect(row, 'no .pill-ink-row rule').toBeTruthy()
+    const rowTransition = declMap(row!.body).get('transition') ?? ''
+    expect(rowTransition, 'the copy row must ride the same clock as the window').toMatch(/\bleft\b/)
+    expect(rowTransition, 'the copy row must ride the same clock as the window').toMatch(/\btop\b/)
+
+    // Reduced motion is mandatory on animated rules.
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(reduced, 'the ink window needs a reduced-motion opt-out').toMatch(/\.pill-ink\b[^{]*\{[^}]*transition:\s*none/)
+  })
+
+  it('keeps one accessible control and one name per tab beside the decorative copy', () => {
+    // The copy is a second rendering of the same label. It must never become a
+    // second control, a second name, or a second tab stop.
+    const nav = source('src/components/PillNav.tsx')
+    expect(nav, 'the ink window must be hidden from assistive tech').toMatch(/className="pill-ink"\s+aria-hidden/)
+    expect(nav, 'the copy must be inside the aria-hidden window').toMatch(/aria-hidden[^>]*>\s*<span ref=\{inkRowRef\}/)
+    // The copy is a plain <span>, never a button: no focus, no click, no name.
+    expect(nav, 'the copy must not be a control').not.toMatch(/inkRowRef[\s\S]{0,200}<button/)
+    // The window is pointer-events: none so clicks land on the real tab; assert
+    // the CSS half here and the hit test in the browser probe.
+    const winRule = [...stripCssComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(m => ({ sel: m[1].split(',').map(s => s.trim()).filter(Boolean), body: m[2] }))
+      .find(r => r.sel.includes('.pill-ink'))
+    expect(winRule, 'no .pill-ink rule').toBeTruthy()
+    expect(winRule!.body, 'a container that covers the labels must not steal their clicks')
+      .toMatch(/pointer-events:\s*none/)
+  })
+
   it('hands focus back before a clip unmounts under the keyboard user', () => {
     // Measured: opening a day from its route line (Enter on the chain) unmounted
     // that control one animation later and dropped focus to <body> — the next Tab
@@ -746,7 +881,7 @@ describe('the day collapse moves as one gesture', () => {
     expect(inner, '.day-body-clip-inner is missing from styles.css').toBeTruthy()
     expect(inner!.body).toMatch(/visibility 0s var\(--motion-slower\)/)
     const declared = [...css.matchAll(/--motion-slower:\s*([^;]+);/g)].map((m) => m[1].trim())
-    expect(declared).toEqual(['560ms'])
+    expect(declared).toEqual(['560ms', '560ms', '0ms'])
   })
 
   it('declares that easing once, in the motion token block', () => {
@@ -922,9 +1057,20 @@ describe('the toggle glider glides on its box, not a transform', () => {
     expect(transition, 'a transform glide stretches a rounded pill into ellipses - see the note above').not.toMatch(/transform/)
   })
 
-  it('keeps the 4px inset that centres the fill on its label', () => {
+  it('makes the glider follow the active item box, with no paint inset', () => {
+    // The rule this pins replaced a hardcoded `+4` top and `-8` height. Those
+    // numbers were a paint inset invented for one control shape and then
+    // applied to every PillNav: a 44px item got a 36px fill, and inside the
+    // workspace rail (6px padding, 1px border, 58px outer) the fill sat 11px
+    // in where the source has 7 - flat instead of concentric. The rail's own
+    // padding and border are what space a nested capsule, so measuring must
+    // add nothing. The arithmetic lives in lib/pillGeometry.ts and is checked
+    // against real box shapes in tests/pill-geometry.test.ts; this pin only
+    // asserts the component routes its measurement through it.
     const nav = source('src/components/PillNav.tsx')
-    expect(nav, 'the glider must be inset 4px from the item top, paired with the -8 on its height').toMatch(/wrap\.clientTop\s*\+\s*4/)
+    expect(nav, 'the glider geometry must come from the shared pure seam').toMatch(/from '\.\.\/lib\/pillGeometry'/)
+    expect(nav, 'the glider must not carry a hardcoded vertical inset').not.toMatch(/clientTop\s*\+\s*\d/)
+    expect(nav, 'the glider must not shrink its height from the item box').not.toMatch(/item\.height\s*-\s*\d/)
     expect(nav, 'the glider must write its box').toMatch(/glider\.style\.left\s*=/)
     expect(nav, 'and must not write a transform').not.toMatch(/glider\.style\.transform\s*=/)
   })
@@ -954,7 +1100,7 @@ describe('spacing rhythm: new values land on the documented ladder', () => {
   // that made every CSS insertion force a re-baseline, and the set may only
   // shrink — retiring one of these values means deleting its entry, after which
   // it can never come back.
-  const LADDER = new Set([2, 4, 6, 8, 12, 14, 16, 20, 22, 24])
+  const LADDER = new Set([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40, 48, 56, 64, 80])
   const SPACING = /^(gap|row-gap|column-gap|margin|padding)(-top|-bottom|-left|-right)?$/
 
   it('introduces no new off-ladder spacing', () => {
@@ -977,10 +1123,15 @@ describe('the spacing ladder has a token home (design-audit F4)', () => {
   // The --s-1…--s-8 set was deleted by SYS-2 as unconsumed, leaving the ladder
   // with no token home. The --space-* ramp re-homes it WITH adopters (the
   // adopt-or-delete rule), and this pin keeps ramp and ratchet in lockstep.
-  it('declares --space-1…--space-10 matching the gate ladder exactly', () => {
-    const ladder = [2, 4, 6, 8, 12, 14, 16, 20, 22, 24]
-    ladder.forEach((px, i) => {
-      expect(css).toContain('--space-' + (i + 1) + ': ' + px + 'px')
+  it('declares --space-1…--space-17 matching the gate ladder exactly', () => {
+    const ladder = [
+      ['1', 2], ['2', 4], ['3', 6], ['4', 8], ['4a', 10],
+      ['5', 12], ['6', 14], ['7', 16], ['7a', 18], ['8', 20],
+      ['9', 22], ['10', 24], ['11', 28], ['12', 32], ['13', 40],
+      ['14', 48], ['15', 56], ['16', 64], ['17', 80],
+    ]
+    ladder.forEach(([step, px]) => {
+      expect(css).toContain('--space-' + step + ': ' + px + 'px')
     })
   })
 })
@@ -1498,8 +1649,12 @@ describe('a surface that appears carries motion (AGENTS §2.10)', () => {
     // `topLevelRules` skips rules inside @media. That is right for the other
     // checks and wrong here: a rule this gate cannot see is a rule it cannot
     // police, so this walks every block with its media context.
-    type Block = { selector: string; body: string; media: string; line: number }
-    const walkBlocks = (src: string, media: string, at: number): Block[] => {
+    type Block = { selector: string; body: string; media: string; at: number }
+    // `at` is the block's absolute offset, so a diagnostic line costs one scan
+    // only when a block OFFENDS. Slicing and splitting the whole sheet for
+    // every block was quadratic, and the added rules pushed it past the
+    // timeout under a full-suite run.
+    const walkBlocks = (src: string, media: string, offset: number): Block[] => {
       const out: Block[] = []
       let i = 0
       while (i < src.length) {
@@ -1513,15 +1668,17 @@ describe('a surface that appears carries motion (AGENTS §2.10)', () => {
           else if (src[j] === '}') { depth--; if (depth === 0) break }
         }
         const body = src.slice(open + 1, j)
-        const line = at + src.slice(0, open).split('\n').length
+        const at = offset + open
         if (selector.startsWith('@keyframes')) { /* keyframe steps are not rules */ }
-        else if (selector.startsWith('@')) out.push(...walkBlocks(body, media ? `${media} ${selector}` : selector, line))
-        else if (body.includes(':')) out.push({ selector, body, media, line })
+        else if (selector.startsWith('@')) out.push(...walkBlocks(body, media ? `${media} ${selector}` : selector, at + 1))
+        else if (body.includes(':')) out.push({ selector, body, media, at })
         i = j + 1
       }
       return out
     }
-    const blocks = walkBlocks(stripCssComments(css), '', 0)
+    const sheet = stripCssComments(css)
+    const lineOf = (at: number) => sheet.slice(0, at).split('\n').length
+    const blocks = walkBlocks(sheet, '', 0)
     const key = (b: Block) => (b.media ? `${b.media} ` : '') + b.selector
 
     const GLASS = /background(?:-color)?:\s*[^;]*(?:var\(--popover-bg\)|var\(--yf-nav-glass\)|var\(--yf-glass\))/
@@ -1542,7 +1699,7 @@ describe('a surface that appears carries motion (AGENTS §2.10)', () => {
     const bare = blocks.filter((b) => GLASS.test(b.body) && !PAIR.test(b.body))
     const offenders = bare
       .filter((b) => !(key(b) in EXCEPTIONS))
-      .map((b) => `${b.media ? b.media + ' ' : ''}${b.selector} (line ${b.line})`)
+      .map((b) => `${b.media ? b.media + ' ' : ''}${b.selector} (line ${lineOf(b.at)})`)
     expect(
       offenders,
       'These rules paint translucent glass and leave the backdrop-filter behind, so they render '

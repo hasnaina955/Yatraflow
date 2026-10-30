@@ -19,8 +19,9 @@
 
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const raw = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const raw = readCssSource('src/styles.css')
 
 /** The stylesheet without comments, so prose about a rule is not read as one. */
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, ' ')

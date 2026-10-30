@@ -1,0 +1,18 @@
+/* Shared avatar.
+   Owns the circular surface, its two sizes and its tone variants. A page places
+   an avatar, sizes it for its own row and stacks it with its neighbours. A page
+   does not restyle the surface from here.
+
+   The tone classes are surface variants, so they live here. Page-scoped sizing
+   such as `.who-voted .avatar` and stacking such as `.member-stack .avatar`
+   stay in their page modules. */
+
+.avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--teal-soft); color: var(--teal-deep); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex: 0 0 auto; }
+
+.avatar.lg { width: 44px; height: 44px; font-size: 16px; }
+
+.avatar.tone-sea { background: var(--pw-sea-700, #0B5F67); color: var(--pw-on-sea, #FFFFFF); }
+
+.avatar.tone-marigold { background: var(--pw-marigold-500, #F2A33A); color: var(--pw-on-marigold, #142329); }
+
+.avatar.tone-bloom { background: var(--pw-bloom-500, #C9475E); color: var(--pw-on-bloom, #FFFFFF); }

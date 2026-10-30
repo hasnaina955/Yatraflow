@@ -1,15 +1,14 @@
 // ============ My trips — card cover ============
-// A trip with its own cover image keeps the shared CoverThumb. Every other trip
-// gets the papercut motif for its region, and where a generated scene exists for
-// that region the scene paints over the motif. The motif stays underneath as the
-// loading and error floor. The status tag sits on top of all three.
-import { CoverThumb } from '../CoverThumb'
+// One renderer, one image: the traveller's upload, else the generated scene for
+// the trip's own places, else their emoji. The raw destination strings go in,
+// not just the collapsed region, so a trip to Bhubaneswar can reach Odisha's
+// scene. The status tag sits on top.
+import { CoverMedia } from '../CoverMedia'
 import { regionFor, type TripStatus } from '../../lib/tripsPage'
-import { coverFor } from '../../lib/regionArt'
+import { coverPlanFor } from '../../lib/regionArt'
+import { sizedCoverUrl } from '../../lib/tripThumb'
 import type { Trip } from '../../data/types'
-import { RegionArt } from '../RegionArt'
 import { StatusTag } from './StatusTag'
-import { TripArt } from './TripArt'
 
 export function TripCover({ trip, status, sizes = GRID_SIZES }: {
   trip: Trip
@@ -17,33 +16,27 @@ export function TripCover({ trip, status, sizes = GRID_SIZES }: {
   /** The slot's real width. The list layout is a narrow fixed column, so it passes its own. */
   sizes?: string
 }) {
-  const hasOwnCover = Boolean(trip.coverImageUrl)
-  const region = regionFor(trip)
-  // The user's own cover is handled above by CoverThumb. The chain here is the
-  // India place scene for the trip's own destinations, then the seven-region
-  // scene, then the road or city family, then the motif. The raw destination
-  // strings go in, not just the collapsed region: a trip to Bhubaneswar can only
-  // reach Odisha's scene if this layer sees the name.
-  const choice = hasOwnCover
-    ? null
-    : coverFor({
-      region,
-      seed: trip.id,
-      placeCount: trip.destinations?.length ?? 0,
-      destinations: trip.destinations,
-    })
+  const plan = coverPlanFor({
+    // Sized on the way in, exactly as the shared card does. A Wikimedia cover
+    // stored before sizing existed is a 1.3 MB original; every other cover
+    // surface requests it at 1200px, so this one must too.
+    userCover: trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : '',
+    fallbackEmoji: trip.coverEmoji,
+    region: regionFor(trip),
+    seed: trip.id,
+    placeCount: trip.destinations?.length ?? 0,
+    destinations: trip.destinations,
+    startLocation: trip.startLocation,
+  })
   return (
     <div className="mt-cover">
-      {hasOwnCover ? (
-        <CoverThumb variant="short" trip={trip} explicitUrl={trip.coverImageUrl} emoji={trip.coverEmoji} />
-      ) : (
-        <RegionArt
-          id={choice?.kind === 'generated' ? choice.id : null}
-          ratio="16:10"
-          sizes={sizes}
-          fallback={<TripArt region={region} />}
-        />
-      )}
+      <CoverMedia
+        plan={plan}
+        ratio="16:10"
+        sizes={sizes}
+        className="mt-cover-img"
+        emojiClassName="itin-cover-fallback"
+      />
       <StatusTag status={status} />
     </div>
   )

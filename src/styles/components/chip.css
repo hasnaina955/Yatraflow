@@ -1,0 +1,23 @@
+/* Shared chip.
+   Owns the chip surface and its colour variants: the pill shape, the padding,
+   the type and the fill/ink pairs. A page places a chip and sets the documented
+   variables. A page does not restyle the surface from here.
+
+   The chip's focus ring, its transition and its coarse-pointer hit area are
+   declared in shared selector lists that span several controls. Those lists
+   stay where they are until the shared-control batch moves them. */
+
+/* ---------- Chips & badges ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg-soft); color: var(--text-2);
+  border: 1px solid transparent;
+}
+
+.chip-teal { background: var(--teal-soft); color: var(--teal-deep); }
+
+.chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
+
+.chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }

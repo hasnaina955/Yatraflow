@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import type { DayWeather } from '../src/lib/weather'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 import {
   filterOverviewWeather,
   mergeOverviewWeather,
+  overviewHasPlan,
+  overviewIssueSummary,
   overviewSliceView,
+  overviewSlotTarget,
+  overviewWarningTarget,
   overviewWeatherKey,
+  overviewWeatherNotice,
+  overviewWeatherView,
 } from '../src/pages/trip/OverviewTab'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tab = read('../src/pages/trip/OverviewTab.tsx')
-const css = read('../src/styles.css')
+const css = readCssSource('src/styles.css')
 const count = (source: string, needle: string) => source.split(needle).length - 1
 const PRIOR_SECTION = '/* ===== P10: Creator hub — panel titles and moved margins ===== */'
 const SECTION = '/* ===== P12: Overview panels and titles ===== */'
@@ -41,8 +48,10 @@ const rejected = (): PromiseRejectedResult => ({ status: 'rejected', reason: new
 
 describe('Overview panel classes', () => {
   it('uses Surface with a token-staggered entrance on every panel root', () => {
-    expect(count(tab, '<Surface className="card')).toBe(10)
-    expect(count(tab, 'enterIndex={')).toBe(10)
+    const surfaces = tab.match(/<Surface\b[\s\S]*?>/g) ?? []
+    expect(surfaces).toHaveLength(15)
+    expect(surfaces.every(surface => surface.includes('enterIndex={'))).toBe(true)
+    expect(count(tab, 'enterIndex={')).toBe(15)
     expect(count(tab, '<div className="card')).toBe(0)
     expect(css).toContain('.yf-surface.is-entering { animation: cardIn var(--motion-slow) var(--ease-out) backwards; }')
     expect(css).toContain('.yf-surface.is-entering { animation: none; }')
@@ -50,25 +59,32 @@ describe('Overview panel classes', () => {
   })
 
   it('gives each Overview panel heading the R20 title class', () => {
-    const titles = tab.match(/<h[23]\b[^>]*className="[^"]*\bovw-card-title\b[^"]*"[^>]*>/g) ?? []
-    expect(titles).toHaveLength(11)
-    expect(tab).toContain('<h3 className="ovw-card-title">Group pulse</h3>')
-    expect(tab).toContain('<Surface className="card ovw-panel ovw-route-snap" enterIndex={2}>')
-    expect(tab).toContain('<Surface className="card pulse-bar ovw-panel ovw-strip" enterIndex={7}>')
+    const titles = tab.match(/<h2\b[^>]*className="[^"]*\bovw-title\b[^"]*"[^>]*>/g) ?? []
+    expect(titles).toHaveLength(10)
+    expect(tab).toContain('className="ovw-title" id="ovw-pulse-title">The group')
+    expect(tab).toContain('className="ovw-card ovw-route ovw2-route" enterIndex={7}')
+    expect(tab).toContain('className="ovw-card ovw2-health"')
     expect(tab).not.toContain('className="card route-snap')
   })
 
-  it('uses compact empty states and keeps the zero-decision label', () => {
-    expect(count(tab, 'kind="empty"')).toBe(5)
-    expect(tab).toContain('title="0 open decisions"')
-    expect(tab).toContain('title="Nothing needs fixing right now" body="— the plan flows."')
-    expect(tab).toContain('title="None saved yet." body="Add check-ins, trains or flights so the planner can protect them."')
-    expect(tab).toContain('title="No route to draw yet"')
+  it('uses compact state blocks with separate empty copy', () => {
+    const routeCard = read('../src/components/trips/OverviewRouteCard.tsx')
+    expect(count(tab, 'kind="empty"')).toBe(7)
+    expect(count(routeCard, 'kind="empty"')).toBe(1)
+    expect(tab).toContain('title={hasPlan ? \'The plan flows\' : \'Nothing to check yet\'}')
+    expect(tab).toContain('title="Nothing planned yet"')
+    expect(tab).toContain('body="Add a stop and each day shows its meals, fuel, stretch breaks and night."')
+    expect(tab).toContain('title="No open decisions"')
+    expect(tab).toContain('title="No fixed commitments yet"')
+    expect(tab).toContain('title="No recent activity yet"')
+    expect(tab).toContain('title="No forecast yet"')
+    expect(tab).toContain('title="No forecast available"')
+    expect(routeCard).toContain('title="No route to draw yet"')
   })
 
   it('keeps only the dynamic health width inline', () => {
     expect(count(tab, 'style={')).toBe(1)
-    expect(count(tab, 'style={{ width: `${health.score}%` }}')).toBe(1)
+    expect(count(tab, "style={{ '--ovw-score': `${hasPlan ? health.score : 0}%` } as CSSProperties}")).toBe(1)
   })
 
   it('keeps the Overview rules in one named section', () => {
@@ -85,6 +101,99 @@ describe('Overview panel classes', () => {
       expect(hits).toHaveLength(1)
       expect(hits[0][2].replace(/\s+/g, ' ').trim()).toBe(rule.declarations)
     }
+  })
+
+  it('wraps every navigation callback so a React event cannot become a Map target', () => {
+    expect(tab).toContain('onClick={() => onOpenTimeline(verdictTarget)}')
+    expect(tab).toContain('onClick={() => onOpenTimeline(target)}')
+    expect(tab).toContain('onRefreshMatrix={openGenericMap}')
+    expect(tab).toContain('const openGenericMap = onOpenMap ? () => onOpenMap() : undefined')
+    expect(tab).not.toContain('onClick={onOpenMap}')
+    expect(tab).not.toContain('onClick={onOpenTimeline}')
+  })
+
+  it('marks schematic connectors and estimated legs honestly', () => {
+    const routeCard = read('../src/components/trips/OverviewRouteCard.tsx')
+    expect(routeCard).toContain("summary.state === 'schematic' ? ' is-neutral' : ''")
+    expect(routeCard).toContain('Straight-line estimate, not a measured road.')
+    expect(routeCard).toContain('r={OVERVIEW_PIN_HIT_DIAMETER / 2}')
+    expect(tab).toContain('coverUrl={trip.coverImageUrl}')
+    expect(routeCard).toContain('className="ovw-map-atmosphere"')
+    expect(routeCard).toContain('className="ovw-survey" aria-hidden="true"')
+    expect(routeCard).toContain('usePlateSize(compact, routeReady)')
+    expect(routeCard).toContain('}, [compact, routeReady])')
+    expect(routeCard).not.toContain('Math.round(element.getBoundingClientRect().width)')
+    expect(css).toContain('.ovw-map.is-neutral .rm-road')
+    expect(css).toContain('.ovw-map .rm-road { stroke: var(--teal-deep); stroke-width: 3.5px; stroke-dasharray: 1; }')
+    expect(css).toContain(".mx-cell[data-state='filled'] .mx-chip {")
+    expect(css).toContain('background: var(--pw-ok-100);')
+    expect(css).toContain(".mx-cell[data-state='auto'] .mx-chip {")
+    expect(css).toContain('box-shadow: inset 0 0 0 1.5px var(--pw-lagoon-400);')
+  })
+
+  it('keeps weather from creating a second alert before the parent updates', () => {
+    expect(tab).toContain("failedRole={weatherView === 'loading'")
+    expect(tab).toContain("? 'status'")
+    expect(tab).toContain(": overviewReadRole('weather', firstFailed)}")
+  })
+})
+
+describe('Overview view models', () => {
+  it('keeps a plan verdict honest about an empty trip and the issue count', () => {
+    expect(overviewHasPlan({ days: [{ stops: [{ status: 'rejected' }] }] } as never)).toBe(false)
+    expect(overviewHasPlan({ days: [{ stops: [{ status: 'confirmed' }] }] } as never)).toBe(true)
+    expect(overviewIssueSummary([])).toBe('No schedule issues detected.')
+    expect(overviewIssueSummary([
+      { severity: 'low' },
+      { severity: 'high' },
+    ] as never)).toBe('2 issues, high severity.')
+  })
+
+  it('targets a day warning and a trip-wide warning differently', () => {
+    expect(overviewWarningTarget({ dayIndex: 2 } as never)).toEqual({ dayIndex: 2 })
+    expect(overviewWarningTarget({ dayIndex: null } as never)).toEqual({ block: 'trip-wide' })
+  })
+
+  it('targets a filled slot by stop, and every other slot by its day only', () => {
+    expect(overviewSlotTarget({ state: 'filled', filledStop: { id: 'stop-a' } } as never)).toBe('stop-a')
+    expect(overviewSlotTarget({ state: 'empty', filledStop: null } as never)).toBeNull()
+    expect(overviewSlotTarget({ state: 'auto', filledStop: null } as never)).toBeNull()
+  })
+
+  it('reports loading, failed, empty, ready and retained weather distinctly', () => {
+    const base = { anchored: true, loading: false, failed: false, forecastCount: 2, partialFailed: false, refreshFailed: false }
+    expect(overviewWeatherView({ ...base, anchored: false, forecastCount: 0 })).toBe('empty')
+    expect(overviewWeatherView({ ...base, loading: true })).toBe('loading')
+    expect(overviewWeatherView({ ...base, failed: true, forecastCount: 0 })).toBe('failed')
+    expect(overviewWeatherView({ ...base, forecastCount: 0 })).toBe('empty')
+    expect(overviewWeatherView({ ...base, partialFailed: true })).toBe('failed')
+    expect(overviewWeatherView({ ...base, refreshFailed: true })).toBe('kept')
+    expect(overviewWeatherView(base)).toBe('ready')
+  })
+
+  it('names retained days when a partial failure keeps some forecasts', () => {
+    expect(overviewWeatherNotice({ partialFailed: false, retainedDays: 0, refreshFailed: false })).toBeNull()
+    expect(overviewWeatherNotice({ partialFailed: true, retainedDays: 0, refreshFailed: false })).toBe('partial')
+    expect(overviewWeatherNotice({ partialFailed: true, retainedDays: 2, refreshFailed: true })).toBe('partial-retained')
+    expect(overviewWeatherNotice({ partialFailed: false, retainedDays: 2, refreshFailed: true })).toBe('retained')
+  })
+
+  it('renders one weather notice, so a retained forecast is never hidden', () => {
+    expect(count(tab, 'weatherNotice ===')).toBe(3)
+    expect(tab).toContain('title="Couldn’t refresh some forecasts. The last saved values stay on screen."')
+    expect(tab).toContain('show the last saved forecast.')
+    expect(tab).not.toContain('refreshFailedNow && !partialFailureNow')
+  })
+
+  it('wires the matrix as a roving grid and keeps the phone day summary', () => {
+    expect(tab).toContain('role="grid" aria-label="Planned parts per day"')
+    expect(tab).toContain('onKeyDown={event => onCellKeyDown(event, rowIndex, colIndex)}')
+    expect(tab).toContain('tabIndex={active ? 0 : -1}')
+    expect(tab).toContain("event.key === 'ArrowLeft'")
+    expect(tab).toContain("event.key === 'End'")
+    expect(tab).toContain('onClick={() => onSelectCell(day.index, overviewSlotTarget(slot))}')
+    expect(tab).toContain('aria-label={dayStatesLabel(day.index, slots)}')
+    expect(tab).toContain('className="mx-compact"')
   })
 })
 

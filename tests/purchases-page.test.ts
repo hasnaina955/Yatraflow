@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = async (relativePath: string) =>
   (await readFile(join(process.cwd(), relativePath), 'utf8')).replace(/\r\n/g, '\n')
@@ -163,7 +164,7 @@ describe('UnlockReveal: true copy and a way to the shelf', () => {
 
 describe('Styles: the page blocks take their entrance from page-enter', () => {
   it('declares no entrance on the My purchases page rules, so the shared cascade owns every block', async () => {
-    const css = await read('src/styles.css')
+    const css = readCssSource('src/styles.css')
     const start = css.indexOf('/* ===== My purchases (page rules) ===== */')
     const end = css.indexOf('/* ===== My purchases: the kept-for-you card')
     expect(start).toBeGreaterThan(-1)
@@ -174,7 +175,7 @@ describe('Styles: the page blocks take their entrance from page-enter', () => {
 
 describe('Styles: the new rules use tokens and opt out of motion', () => {
   it('fades the new-card outline with the slow token and the out easing, and has a still fallback', async () => {
-    const css = await read('src/styles.css')
+    const css = readCssSource('src/styles.css')
     const start = css.indexOf('.pur-row.is-new::after')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, start + 900)

@@ -16,17 +16,30 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { railOverflow } from '../lib/railOverflow'
+import { gliderBox } from '../lib/pillGeometry'
 
-export function PillNav({ activeKey, className, role = 'presentation', 'aria-label': ariaLabel, children }: {
+export function PillNav({ activeKey, className, role = 'presentation', 'aria-label': ariaLabel, ink, children }: {
   activeKey: string
   className?: string
   /** the workspace tab bar keeps its tablist semantics; navs use 'navigation' */
   role?: 'presentation' | 'tablist' | 'group' | 'navigation'
   'aria-label'?: string
+  /**
+   * A second copy of the items, painted in the ink that reads ON the fill and
+   * clipped to the fill's own box. Pass it when the fill is a different colour
+   * from the rail behind it, so one ink cannot serve both surfaces.
+   *
+   * The copies are decoration: they carry no key, no handler and no semantics.
+   * The real items keep the rail's ink at all times, so the label is legible
+   * before the fill arrives, after it leaves, and under its leading edge.
+   */
+  ink?: ReactNode
   children: ReactNode
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const gliderRef = useRef<HTMLSpanElement>(null)
+  const inkWinRef = useRef<HTMLSpanElement>(null)
+  const inkRowRef = useRef<HTMLSpanElement>(null)
   /** The last placed box, in the wrap's padding-box space: the FLIP's frame 1.
       A ref, not state — it is read and written during layout, and none of it
       should cost a render. */
@@ -40,6 +53,29 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
     const wrap = wrapRef.current
     const glider = gliderRef.current
     if (!wrap || !glider) return
+    const inkWin = inkWinRef.current
+    const inkRow = inkRowRef.current
+
+    /**
+     * The ink copies are laid out in the SAME flex row as the real items, so a
+     * copy's own offset inside that row is identical to its item's. That is what
+     * makes the mechanism exact: the row is offset by `origin - fill`, so a copy
+     * lands at `origin + ownOffset` — its item's position — whatever the fill's
+     * box is now. Only the clip window moves; the glyphs never do.
+     *
+     * `origin` is the first item's position, not the wrap's content origin: the
+     * wrap may carry padding (the workspace rail carries `--space-3`), and the
+     * row has to start where the items do.
+     */
+    const inkOrigin = { x: 0, y: 0 }
+    const syncInkOrigin = () => {
+      const first = wrap.querySelector<HTMLElement>('[data-pill-key]')
+      if (!first) return
+      const box = wrap.getBoundingClientRect()
+      const item = first.getBoundingClientRect()
+      inkOrigin.x = item.left - box.left + wrap.scrollLeft - wrap.clientLeft
+      inkOrigin.y = item.top - box.top + wrap.scrollTop - wrap.clientTop
+    }
 
     const place = (animate: boolean) => {
       const el = wrap.querySelector<HTMLElement>(`[data-pill-key="${CSS.escape(activeKey)}"]`)
@@ -57,15 +93,21 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
       // since the padding box starts inside it.
       const box = wrap.getBoundingClientRect()
       const item = el.getBoundingClientRect()
-      const x = item.left - box.left + wrap.scrollLeft - wrap.clientLeft
-      // track the row too, so wrapping pillbars glide correctly, and INSET the
-      // glider 4px from the top to match the `- 8` on the height below, which
-      // centres the pill's fill on its label. The FLIP rewrite dropped this +4
-      // and every active pill across the UI read as off-centre - the fill sat
-      // flush at the top and 8px short at the bottom.
-      const y = item.top - box.top + wrap.scrollTop - wrap.clientTop + 4
-      const w = item.width
-      const h = item.height - 8
+      // The glider follows the active item's border box, with no paint inset.
+      // An inset here used to be a hardcoded `+4` / `-8`, invented for one
+      // control shape and then applied to all fifteen: a 44px item got a 36px
+      // fill, and inside the workspace rail (6px padding, 1px border) the fill
+      // sat 11px in where the source has 7 — flat instead of concentric.
+      // A nested capsule is concentric when its inset is the rail's padding
+      // plus border, and the rail already carries both. See lib/pillGeometry.ts.
+      const { x, y, w, h } = gliderBox(item, {
+        left: box.left,
+        top: box.top,
+        scrollLeft: wrap.scrollLeft,
+        scrollTop: wrap.scrollTop,
+        clientLeft: wrap.clientLeft,
+        clientTop: wrap.clientTop,
+      })
 
       const prev = prevRef.current
       // A re-measure that found the same box has nothing to correct, and acting
@@ -95,6 +137,28 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
         glider.style.transition = ''
       }
 
+      // The ink WINDOW is the fill's box — the same four numbers, written in the
+      // same pass — and the copy row inside it is offset by `origin - fill`, so
+      // each copy lands on its own item. Only the window moves; the glyphs never
+      // do. Both elements carry the same transition declaration, so the two
+      // values are read on the same clock: two independently-timed elements were
+      // measured 7.5px out of step on a 60ms reversal, which is exactly the
+      // half-covered label this exists to avoid.
+      if (inkWin && inkRow) {
+        if (!canAnimate) { inkWin.style.transition = 'none'; inkRow.style.transition = 'none' }
+        inkWin.style.left = `${x}px`
+        inkWin.style.top = `${y}px`
+        inkWin.style.width = `${w}px`
+        inkWin.style.height = `${h}px`
+        inkRow.style.left = `${inkOrigin.x - x}px`
+        inkRow.style.top = `${inkOrigin.y - y}px`
+        if (!canAnimate) {
+          void inkWin.offsetWidth
+          inkWin.style.transition = ''
+          inkRow.style.transition = ''
+        }
+      }
+
       prevRef.current = { x, y, w, h }
     }
 
@@ -108,6 +172,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
 
     // Only a change of activeKey glides; the first paint and every later
     // re-measure snap.
+    syncInkOrigin()
     const keyChanged = lastKeyRef.current !== activeKey
     place(!firstRunRef.current && keyChanged)
     syncOverflow()
@@ -125,7 +190,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
     // wherever the row happened to be would read as a second, unasked-for
     // movement.
     let live = true
-    const remeasure = () => { place(false); syncOverflow() }
+    const remeasure = () => { syncInkOrigin(); place(false); syncOverflow() }
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(remeasure)
     ro?.observe(wrap)
     document.fonts?.ready.then(() => { if (live) remeasure() }).catch(() => {})
@@ -144,6 +209,11 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
   return (
     <div ref={wrapRef} className={`pill-nav ${className ?? ''}`} role={role} aria-label={ariaLabel}>
       <span ref={gliderRef} className="pill-glider" aria-hidden />
+      {ink
+        ? <span ref={inkWinRef} className="pill-ink" aria-hidden>
+            <span ref={inkRowRef} className="pill-ink-row">{ink}</span>
+          </span>
+        : null}
       {children}
     </div>
   )

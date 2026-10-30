@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 /** Strip comment lines so prose about the contract cannot impersonate it
  *  (§6x: a negative source assertion judges code, never comments). */
@@ -87,7 +88,7 @@ describe('featured next-step deep link — the timeline lands on the stop', () =
 })
 
 describe('featured next-step deep link — the flash ring stays on the tokens', () => {
-  const css = readFileSync(resolve(__dirname, '../src/styles.css'), 'utf8')
+  const css = readCssSource('src/styles.css')
 
   it('animates the row through the motion tokens', () => {
     expect(css).toMatch(/\.tl-row\.tl-stop-flash \{\s*animation: yf-stop-flash var\(--motion-slower\) var\(--ease-out\)/)

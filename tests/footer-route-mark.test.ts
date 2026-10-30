@@ -2,10 +2,11 @@
 // The mark is a decorative svg. It is hidden from assistive tech, it is not a link, and it does not move.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const app = read('src/App.tsx')
-const css = read('src/styles.css')
+const css = readCssSource('src/styles.css')
 
 const footerOpen = app.indexOf('<footer className="footer">')
 const footerClose = app.indexOf('</footer>', footerOpen)

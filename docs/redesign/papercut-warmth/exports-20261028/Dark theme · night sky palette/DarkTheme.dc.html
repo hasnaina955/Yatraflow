@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dark theme, night sky</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+:root{--radius-mark:4px;--radius-xs:8px;--radius-sm:12px;--radius:18px;--radius-lg:24px;--radius-xl:32px;--radius-pill:999px;--elev-press:0 1px 2px rgba(20,56,66,.12);--elev-1:inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24);--elev-2:0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34);--elev-3:0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55);--glow-sea:inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6);--glow-marigold:inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);--ring:0 0 0 3px rgba(13,141,130,.35);--icon-stroke:1.9}
+body{margin: 0}
+button{font-family:inherit;cursor:pointer}
+.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.grainD{}
+.grainD > *{flex-shrink:0}
+.disp{font-family:'Sora','Plus Jakarta Sans',sans-serif;font-weight:700;letter-spacing:-.02em}
+.lbl{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8FA0B5}
+.ncard{background:#16233A;border:1px solid #27395A;border-radius: var(--radius-lg);box-shadow:inset 0 1px 0 rgba(220,235,255,.05),0 2px 4px rgba(0,0,0,.25),0 22px 40px -22px rgba(0,0,0,.7)}
+.sw{display:flex;flex-direction:column;gap: 6px}
+.sw i{display:block;height:54px;border-radius: var(--radius-sm);border:1px solid rgba(220,235,255,.08)}
+.sw b{font-size:12.5px;color:#E8EFF5}
+.sw span{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#8FA0B5}
+.prow{display:grid;grid-template-columns:120px repeat(6,minmax(0,1fr));gap: 12px;align-items:start}
+.prow > em{font-style:normal;font-size:13px;font-weight:700;color:#ADBCCF;padding-top: 18px}
+.map{display:grid;grid-template-columns:1.2fr 1fr 1fr 0.7fr;gap: 0;font-size:12.5px}
+.map > *{padding: 10px 12px;border-bottom:1px solid #27395A;display:flex;align-items:center;gap: 8px}
+.map .h{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8FA0B5}
+.dot{width:16px;height:16px;border-radius: var(--radius-mark);flex:none;border:1px solid rgba(220,235,255,.12)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+.ok{color:#7FCF9A;font-weight:700}
+</style>
+</helmet>
+<div class="grainD" style="width: 1440px; height: 2044px; box-sizing: border-box; padding: 48px 56px; background-color: #0C1420; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #E8EFF5; display: flex; flex-direction: column; gap: 24px; font-variant-numeric: tabular-nums">
+
+  <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span class="lbl" style="color: #F5B04E">Dark theme · night sky</span>
+      <h1 class="disp" style="margin: 0; font-size: 40px; line-height: 1.1">Evening light, not a black screen</h1>
+      <span style="font-size: 15px; color: #ADBCCF; max-width: 900px; line-height: 1.5">Night is a deep navy sky, the dark mode YatraFlow already had. Cards are lifted with light, not borders. The sea and marigold get brighter so they still read, and the covers are dimmed a little so they glow instead of shout.</span>
+    </div>
+    <div class="ncard" style="display: flex; gap: 18px; padding: 14px 18px; border-radius: var(--radius)">
+      <div style="display: flex; flex-direction: column"><span class="disp" style="font-size: 26px">15.9:1</span><span style="font-size: 12px; color: #8FA0B5">ink on ground</span></div>
+      <div style="display: flex; flex-direction: column"><span class="disp" style="font-size: 26px">5.9:1</span><span style="font-size: 12px; color: #8FA0B5">faintest text</span></div>
+      <div style="display: flex; flex-direction: column"><span class="disp" style="font-size: 26px; color: #7FCF9A">All AA</span><span style="font-size: 12px; color: #8FA0B5">every pair below</span></div>
+    </div>
+  </header>
+
+  <section class="ncard" aria-label="Night palette" style="display: flex; flex-direction: column; gap: 18px; padding: 22px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="disp" style="font-size: 20px">The night palette</span><span style="font-size: 12.5px; color: #8FA0B5">Every light token has a night twin. Same names, new values.</span></div>
+    <div class="prow"><em>Ground</em>
+      <div class="sw"><i style="background: #0C1420"></i><b>Page</b><span>#0C1420</span></div>
+      <div class="sw"><i style="background: #101B2B"></i><b>Sunken</b><span>#101B2B</span></div>
+      <div class="sw"><i style="background: #16233A"></i><b>Card</b><span>#16233A</span></div>
+      <div class="sw"><i style="background: #1A2A44"></i><b>Raised · sheets</b><span>#1A2A44</span></div>
+      <div class="sw"><i style="background: #27395A"></i><b>Line</b><span>#27395A</span></div>
+      <div class="sw"><i style="background: rgba(26,42,68,.78); box-shadow: inset 0 0 0 1px rgba(220,235,255,.1)"></i><b>Frosted glass</b><span>#1A2A44 · 78%</span></div>
+    </div>
+    <div class="prow"><em>Ink</em>
+      <div class="sw"><i style="background: #E8EFF5"></i><b>Ink</b><span>#E8EFF5 · 13.5:1</span></div>
+      <div class="sw"><i style="background: #ADBCCF"></i><b>Ink 2 · meta</b><span>#ADBCCF · 8.1:1</span></div>
+      <div class="sw"><i style="background: #8FA0B5"></i><b>Ink 3 · labels</b><span>#8FA0B5 · 5.9:1</span></div>
+      <div class="sw"><i style="background: #0A1622"></i><b>On lagoon</b><span>#0A1622 · 7.5:1</span></div>
+      <div class="sw"><i style="background: #1A1408"></i><b>On marigold</b><span>#1A1408 · 9.8:1</span></div>
+      <div class="sw"><i style="background: #F4F8FC"></i><b>On cover photos</b><span>#F4F8FC</span></div>
+    </div>
+    <div class="prow"><em>Sea &amp; sun</em>
+      <div class="sw"><i style="background: #3FB8AC"></i><b>Primary · lagoon</b><span>#3FB8AC · 6.5:1</span></div>
+      <div class="sw"><i style="background: #12302F"></i><b>Sea surface</b><span>#12302F</span></div>
+      <div class="sw"><i style="background: #9FD9CF"></i><b>Route · spine</b><span>#9FD9CF · 60%</span></div>
+      <div class="sw"><i style="background: #F5B04E"></i><b>Marigold</b><span>#F5B04E · 8.4:1</span></div>
+      <div class="sw"><i style="background: #3A2A14"></i><b>Marigold surface</b><span>#3A2A14</span></div>
+      <div class="sw"><i style="background: #F08AA0"></i><b>Bloom · saved</b><span>#F08AA0 · 6.6:1</span></div>
+    </div>
+    <div class="prow"><em>Status</em>
+      <div class="sw"><i style="background: #17291E; box-shadow: inset 0 0 0 999px #17291E, inset 0 0 0 0 #000"></i><b style="color: #7FCF9A">Confirmed · ok</b><span>#7FCF9A on #17291E · 8.2</span></div>
+      <div class="sw"><i style="background: #33240F"></i><b style="color: #F2B45C">Attention</b><span>#F2B45C on #33240F · 8.2</span></div>
+      <div class="sw"><i style="background: #3A1C18"></i><b style="color: #F08A7A">Clash · risk</b><span>#F08A7A on #3A1C18 · 6.3</span></div>
+      <div class="sw"><i style="background: #1A2636"></i><b style="color: #8DB8F2">Sights</b><span>#8DB8F2 on #1A2636 · 7.5</span></div>
+      <div class="sw"><i style="background: #2A2033"></i><b style="color: #C3A6DD">Culture</b><span>#C3A6DD on #2A2033 · 7.3</span></div>
+      <div class="sw"><i style="background: #33221A"></i><b style="color: #F0A07E">Food</b><span>#F0A07E on #33221A · 7.3</span></div>
+    </div>
+  </section>
+
+  <div style="display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; align-items: start">
+
+    <section aria-label="Day 2 at night" class="ncard" style="display: flex; flex-direction: column; overflow: hidden">
+      <div style="position: relative; height: 150px">
+        <img src="./assets/d5375549bd5f6d8d79d221f7144e8381.jpg" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.78) saturate(.9)">
+        <div aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12,20,32,0) 30%, #16233A 100%)"></div>
+        <button type="button" style="position: absolute; top: 14px; right: 14px; height: 34px; padding: 0 12px; border-radius: var(--radius-pill); border: 1px solid rgba(220,235,255,.14); background: rgba(26,42,68,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #E8EFF5; font-size: 12px; font-weight: 700">Change day cover</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 18px; padding: 0 22px 16px; margin-top: -40px; position: relative">
+        <div style="width: 62px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 8px 0 10px; border-radius: var(--radius); background: rgba(26,42,68,.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(220,235,255,.12); box-shadow: 0 10px 24px -10px rgba(0,0,0,.7)"><span style="font-size: 11px; font-weight: 700; letter-spacing: .1em; color: #F5B04E">SUN</span><span class="disp" style="font-size: 30px; line-height: 1">15</span><span style="font-size: 11.5px; font-weight: 600; color: #ADBCCF">Nov</span></div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding-top: 32px">
+          <div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 12px; font-weight: 700; color: #3FB8AC">Day 2</span><span class="disp" style="font-size: 22px">Munnar — tea estates &amp; Top Station</span><span style="font-size: 12px; font-weight: 700; color: #ADBCCF; background: #1A2A44; padding: 4px 10px; border-radius: var(--radius-pill)">Stay day</span></div>
+          <span style="font-size: 13.5px; color: #ADBCCF">6 stops · 115 km, road measured · 4h 08m driving · 05:00 → 16:08</span>
+        </div>
+      </div>
+      <div style="padding: 0 22px 18px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px dashed #27395A">
+        <div style="display: flex; gap: 4px; height: 12px"><span style="width: 25.8%; background: #3FB8AC; border-radius: var(--radius-pill)"></span><span style="width: 40.6%; background: #B88A5C; border-radius: var(--radius-pill)"></span><span style="width: 3.1%; background: #F5B04E; border-radius: var(--radius-pill)"></span><span style="flex: 1; background: #12302F; border-radius: var(--radius-pill)"></span></div>
+        <div style="display: flex; gap: 18px; font-size: 12.5px; color: #ADBCCF"><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: var(--radius-pill); background: #3FB8AC"></span>Driving 4h 08m</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: var(--radius-pill); background: #B88A5C"></span>At stops 6h 30m</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: var(--radius-pill); background: #F5B04E"></span>Waiting 30m</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: var(--radius-pill); background: #12302F; border: 1px solid #2F5452"></span>Free 4h 52m</span></div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; padding: 8px 22px 22px">
+        <div style="display: grid; grid-template-columns: 58px 30px 1fr">
+          <div style="padding-top: 20px; text-align: end; display: flex; flex-direction: column"><span class="disp" style="font-size: 19px">06:05</span><span style="font-size: 12px; color: #8FA0B5">to 07:20</span></div>
+          <div style="position: relative"><span style="position: absolute; left: 14px; top: 0; bottom: 0; width: 3px; background-image: linear-gradient(rgba(159,217,207,.55) 55%, transparent 55%); background-size: 3px 9px"></span><span style="position: absolute; left: 4px; top: 20px; width: 23px; height: 23px; box-sizing: border-box; border-radius: var(--radius-pill); background: #16233A; border: 3px solid #F5B04E; font-size: 10px; font-weight: 800; color: #F5B04E; display: flex; align-items: center; justify-content: center">1</span></div>
+          <div style="padding: 8px 0"><div style="display: flex; align-items: center; gap: 14px; padding: 14px 10px 14px 14px; background: #1A2A44; border: 1px solid #27395A; border-radius: var(--radius-lg); box-shadow: inset 0 1px 0 rgba(220,235,255,.05), 0 14px 26px -16px rgba(0,0,0,.7)">
+            <span style="width: 48px; height: 48px; flex: none; border-radius: var(--radius); background: #1A2636; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="m8 4 4 7 4-4 6 13H2Z" fill="#2E4566" stroke="#8DB8F2" stroke-width="1.9" stroke-linejoin="round"></path><circle cx="17" cy="5" r="2" fill="#F5B04E"></circle></svg></span>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 6px"><div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 16px; font-weight: 700">Top Station sunrise viewpoint</span><span style="font-size: 12px; font-weight: 700; color: #7FCF9A; background: #17291E; padding: 4px 10px; border-radius: var(--radius-pill)">✓ Confirmed</span><span style="font-size: 12px; font-weight: 700; color: #F08AA0; background: #3A1E26; padding: 4px 10px; border-radius: var(--radius-pill)">Must do</span></div><div style="font-size: 13.5px; color: #ADBCCF">1h 15m here · free entry · sunrise 06:12, 14° clear</div></div>
+            <button type="button" aria-label="Saved" style="width: 40px; height: 40px; flex: none; border-radius: var(--radius-pill); border: 0; background: #3A1E26; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" fill="#F08AA0"></path></svg></button>
+            <button type="button" aria-label="More" style="width: 40px; height: 40px; flex: none; border-radius: var(--radius-pill); border: 0; background: #27395A; color: #ADBCCF; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </div></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 58px 30px 1fr; min-height: 40px"><div></div><div style="position: relative"><span style="position: absolute; left: 14px; top: 0; bottom: 0; width: 3px; background-image: linear-gradient(rgba(159,217,207,.55) 55%, transparent 55%); background-size: 3px 9px"></span></div><div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #8FA0B5"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 15h2l2-5h10l2 5h2v3H3Z" fill="#33444C" stroke="#ADBCCF" stroke-width="1.9" stroke-linejoin="round"></path><circle cx="7.5" cy="18" r="2" fill="#16233A" stroke="#ADBCCF" stroke-width="1.9"></circle><circle cx="16.5" cy="18" r="2" fill="#16233A" stroke="#ADBCCF" stroke-width="1.9"></circle></svg>34 km through the tea valley · 1h 10m · ≈ ₹260 fuel</div></div>
+        <div style="display: grid; grid-template-columns: 58px 30px 1fr">
+          <div style="padding-top: 20px; text-align: end; display: flex; flex-direction: column"><span class="disp" style="font-size: 19px">09:00</span><span style="font-size: 12px; color: #8FA0B5">to 10:30</span></div>
+          <div style="position: relative"><span style="position: absolute; left: 14px; top: 0; bottom: 0; width: 3px; background-image: linear-gradient(rgba(159,217,207,.55) 55%, transparent 55%); background-size: 3px 9px"></span><span style="position: absolute; left: 4px; top: 20px; width: 23px; height: 23px; box-sizing: border-box; border-radius: var(--radius-pill); background: #16233A; border: 3px solid #F5B04E; font-size: 10px; font-weight: 800; color: #F5B04E; display: flex; align-items: center; justify-content: center">2</span></div>
+          <div style="padding: 8px 0"><div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 10px 14px 14px; background: #1A2A44; border: 1px solid #27395A; border-radius: var(--radius-lg); box-shadow: inset 0 1px 0 rgba(220,235,255,.05), 0 14px 26px -16px rgba(0,0,0,.7)">
+            <div style="display: flex; align-items: center; gap: 14px"><span style="width: 48px; height: 48px; flex: none; border-radius: var(--radius); background: #2A2033; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 2 21 7H3Z" fill="#4A3A5A" stroke="#C3A6DD" stroke-width="1.9" stroke-linejoin="round"></path><path d="M6 10v8M10 10v8M14 10v8M18 10v8M3 21h18" fill="none" stroke="#C3A6DD" stroke-width="1.9" stroke-linecap="round"></path></svg></span><div style="flex: 1; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 16px; font-weight: 700">KDHP Tea Museum</span><div style="font-size: 13.5px; color: #ADBCCF">Nullatanni · 1h 30m · ₹125 each · open 09:00–17:00</div></div></div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #33240F; border-radius: var(--radius)"><span style="width: 32px; height: 32px; flex: none; border-radius: var(--radius-xs); background: #4A3416; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="#33240F" stroke="#F2B45C" stroke-width="1.9"></circle><path d="M12 8v4l3 2" fill="none" stroke="#F2B45C" stroke-width="1.9" stroke-linecap="round"></path></svg></span><span style="flex: 1; font-size: 13.5px; color: #F2D9AE; line-height: 1.4"><b style="color: #F2B45C">You arrive 30 min before it opens.</b> Stay longer at Top Station, or start at 05:30.</span><button type="button" style="height: 36px; padding: 0 14px; border-radius: var(--radius-pill); border: 0; background: #3FB8AC; color: #0A1622; font-size: 13px; font-weight: 800">Start at 05:30</button></div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <div style="display: flex; flex-direction: column; gap: 18px">
+      <section class="ncard" aria-label="Components at night" style="display: flex; flex-direction: column; gap: 14px; padding: 20px">
+        <span class="lbl">Controls</span>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+          <button type="button" style="height: 42px; padding: 0 18px; border-radius: var(--radius-pill); border: 0; background: #3FB8AC; color: #0A1622; font-size: 14px; font-weight: 800; box-shadow: 0 8px 18px -8px rgba(63,184,172,.6)">Add stop</button>
+          <button type="button" style="height: 42px; padding: 0 18px; border-radius: var(--radius-pill); border: 0; background: #F5B04E; color: #1A1408; font-size: 14px; font-weight: 800">Invite &amp; share</button>
+          <button type="button" style="height: 42px; padding: 0 18px; border-radius: var(--radius-pill); border: 0; background: #27395A; color: #E8EFF5; font-size: 14px; font-weight: 700">Open in Board</button>
+          <button type="button" style="height: 42px; padding: 0 16px; border-radius: var(--radius-pill); border: 1.5px solid #5A2A24; background: transparent; color: #F08A7A; font-size: 14px; font-weight: 700">Remove</button>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <span style="font-size: 12px; font-weight: 700; color: #7FCF9A; background: #17291E; padding: 4px 10px; border-radius: var(--radius-pill)">✓ Confirmed</span>
+          <span style="font-size: 12px; font-weight: 700; color: #F2B45C; background: #33240F; padding: 4px 10px; border-radius: var(--radius-pill)">Maybe</span>
+          <span style="font-size: 12px; font-weight: 700; color: #F08A7A; background: #3A1C18; padding: 4px 10px; border-radius: var(--radius-pill)">Clash</span>
+          <span style="font-size: 12px; font-weight: 700; color: #F08AA0; background: #3A1E26; padding: 4px 10px; border-radius: var(--radius-pill)">Must do</span>
+          <span style="font-size: 12px; font-weight: 700; color: #6CCAB3; background: #13302C; padding: 4px 10px; border-radius: var(--radius-pill); border: 1.5px dashed #2F6D66">app</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div style="display: flex; padding: 4px; background: #101B2B; border-radius: var(--radius-pill); border: 1px solid #27395A"><span style="height: 34px; padding: 0 14px; border-radius: var(--radius-pill); background: #3FB8AC; color: #0A1622; font-size: 13px; font-weight: 800; display: flex; align-items: center">Timeline</span><span style="height: 34px; padding: 0 14px; font-size: 13px; font-weight: 600; color: #ADBCCF; display: flex; align-items: center">Map</span><span style="height: 34px; padding: 0 14px; font-size: 13px; font-weight: 600; color: #ADBCCF; display: flex; align-items: center">Budget</span></div>
+          <span style="position: relative; width: 48px; height: 28px; border-radius: var(--radius-pill); background: #3FB8AC"><span style="position: absolute; top: 4px; left: 24px; width: 20px; height: 20px; border-radius: var(--radius-pill); background: #0A1622"></span></span>
+          <span style="position: relative; width: 48px; height: 28px; border-radius: var(--radius-pill); background: #27395A"><span style="position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: var(--radius-pill); background: #8FA0B5"></span></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 700; color: #ADBCCF">Opens at</span><div style="height: 44px; padding: 0 14px; display: flex; align-items: center; border-radius: var(--radius-sm); border: 1.5px solid #3FB8AC; background: #101B2B; box-shadow: 0 0 0 3px rgba(63,184,172,.22); font-size: 14px; font-weight: 600">09:00</div></div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 12px 12px; background: #E8EFF5; color: #142329; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#0B5F67"></circle><path d="m8 12.5 3 3 5-6" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"></path></svg>Echo Point moved to Day 3<b style="margin-left: auto; color: #0B5F67">Undo</b></div>
+        <span style="font-size: 12px; color: #8FA0B5; margin-top: -6px">Toasts flip to paper at night, so they stand out from cards.</span>
+      </section>
+
+      <section class="ncard" aria-label="Overview tiles at night" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px">
+        <div style="grid-column: span 2; display: flex; align-items: center; gap: 14px; padding: 14px; background: #1A2A44; border-radius: var(--radius)"><svg viewBox="0 0 44 44" width="56" height="56" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="#27395A" stroke-width="5"></circle><circle cx="22" cy="22" r="18" fill="none" stroke="#F5B04E" stroke-width="5" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="47" transform="rotate(-90 22 22)"></circle><text x="22" y="26.5" text-anchor="middle" font-family="Sora, sans-serif" font-size="13" font-weight="700" fill="#E8EFF5">58</text></svg><div style="display: flex; flex-direction: column; gap: 2px"><span class="disp" style="font-size: 17px">The days run long</span><span style="font-size: 12.5px; color: #ADBCCF">5 issues in 10 days, 1 high</span></div></div>
+        <div style="padding: 12px 14px; background: #1A2A44; border-radius: var(--radius); display: flex; flex-direction: column"><span class="lbl" style="font-size: 10.5px">Per person</span><span class="disp" style="font-size: 22px">₹46,125</span><span style="font-size: 12px; color: #7FCF9A; font-weight: 600">₹3,875 under target</span></div>
+        <div style="padding: 12px 14px; background: #12302F; border-radius: var(--radius); display: flex; flex-direction: column"><span class="lbl" style="font-size: 10.5px; color: #6CCAB3">Highest point</span><span class="disp" style="font-size: 22px">5,328 m</span><span style="font-size: 12px; color: #9FD9CF; font-weight: 600">Tanglang La · Day 9</span></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="ncard" aria-label="Token mapping" style="display: flex; flex-direction: column; gap: 10px; padding: 20px 22px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="disp" style="font-size: 20px">Light → night, token by token</span><span style="font-size: 12.5px; color: #8FA0B5">Goes into the existing <span class="mono">[data-theme='dark']</span> block in styles.css</span></div>
+    <div class="map">
+      <span class="h">Token</span><span class="h">Light</span><span class="h">Night</span><span class="h">Check</span>
+      <span class="mono">--bg</span><span><i class="dot" style="background: #F0F8F6"></i>#F0F8F6 paper</span><span><i class="dot" style="background: #0C1420"></i>#0C1420</span><span class="ok">base</span>
+      <span class="mono">--card</span><span><i class="dot" style="background: #FCFEFD"></i>#FCFEFD</span><span><i class="dot" style="background: #16233A"></i>#16233A</span><span class="ok">13.5:1</span>
+      <span class="mono">--ink / --ink-2 / --ink-3</span><span><i class="dot" style="background: #142329"></i>#142329 · #45565D · #556972</span><span><i class="dot" style="background: #E8EFF5"></i>#E8EFF5 · #ADBCCF · #8FA0B5</span><span class="ok">13.5 · 8.1 · 5.9</span>
+      <span class="mono">--color-primary</span><span><i class="dot" style="background: #0B5F67"></i>#0B5F67 deep sea</span><span><i class="dot" style="background: #3FB8AC"></i>#3FB8AC lagoon, dark label</span><span class="ok">7.5:1 label</span>
+      <span class="mono">--color-accent</span><span><i class="dot" style="background: #F2A33A"></i>#F2A33A</span><span><i class="dot" style="background: #F5B04E"></i>#F5B04E</span><span class="ok">9.8:1 label</span>
+      <span class="mono">--line</span><span><i class="dot" style="background: #D3DEDC"></i>#D3DEDC</span><span><i class="dot" style="background: #27395A"></i>#27395A</span><span class="ok">3:1 non-text</span>
+      <span class="mono">--shadow-lift</span><span>teal ink, 24%</span><span>black 70% + 5% top light</span><span class="ok">depth by light</span>
+      <span class="mono">cover images</span><span>as drawn</span><span>brightness .78, saturation .9</span><span class="ok">glow, not glare</span>
+      <span class="mono">toast</span><span><i class="dot" style="background: #142329"></i>dark ink</span><span><i class="dot" style="background: #E8EFF5"></i>paper</span><span class="ok">flips</span>
+    </div>
+  </section>
+
+  <section aria-label="Rules" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px">
+    <div class="ncard" style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--radius)"><span class="lbl" style="color: #3FB8AC">1 · Light lifts</span><b class="disp" style="font-size: 14.5px">Higher means lighter</b><span style="font-size: 12.5px; color: #ADBCCF; line-height: 1.45">Page, card, raised, sheet each step up in brightness. Shadows still exist but do less; a 5% light top edge keeps the paper feel.</span></div>
+    <div class="ncard" style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--radius)"><span class="lbl" style="color: #3FB8AC">2 · Brighter accents, dark labels</span><b class="disp" style="font-size: 14.5px">Lagoon and marigold carry dark text</b><span style="font-size: 12.5px; color: #ADBCCF; line-height: 1.45">Deep sea is too dark on navy, so the primary becomes lagoon with near-black text. White text on lagoon would fail contrast.</span></div>
+    <div class="ncard" style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--radius)"><span class="lbl" style="color: #3FB8AC">3 · Tints, not fills</span><b class="disp" style="font-size: 14.5px">Status and places sit on dark tints</b><span style="font-size: 12.5px; color: #ADBCCF; line-height: 1.45">Each status and place colour has a night tint behind a lighter ink, all above 6:1. Colour never carries meaning alone; the word stays.</span></div>
+    <div class="ncard" style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--radius)"><span class="lbl" style="color: #3FB8AC">4 · Maps follow</span><b class="disp" style="font-size: 14.5px">A night map in the same navy</b><span style="font-size: 12.5px; color: #ADBCCF; line-height: 1.45">Land #101B2B, water #12302F, roads #27395A, route lagoon with a dark casing. Pins keep marigold rings, which read on both.</span></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2044}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

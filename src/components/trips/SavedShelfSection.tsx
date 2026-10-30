@@ -10,6 +10,7 @@ import { appLink } from '../../lib/appLink'
 import { savedShelfFor, type ShelfRow } from '../../lib/savedShelf'
 import { loadSavedIds, saveSavedIds, flipSavedId } from '../../lib/uiPrefs'
 import { usePresenceList, presenceAttrs } from '../../lib/usePresenceList'
+import { staggerDelay } from '../../lib/motion'
 
 export interface SavedShelfSectionProps {
   trips: Trip[]
@@ -18,7 +19,7 @@ export interface SavedShelfSectionProps {
 /** Entrance delay for the row at this position. Capped like the trip cards, so
  *  a long shelf does not keep the last rows waiting. */
 function enterDelay(index: number): CSSProperties {
-  return { animationDelay: `calc(var(--stagger-step) * ${Math.min(index, 8)})` }
+  return { animationDelay: staggerDelay(index) }
 }
 
 export function SavedShelfSection({ trips }: SavedShelfSectionProps) {

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { cardNextStep, countdownText, heroHeadline, heroNote, heroPostcards, heroStats, otherTripsEmptyKind, pickUpNext, planning, rangeText, regionFor, statusOf, whenBucket, type HeroTrip } from '../src/lib/tripsPage'
 import { routeLine } from '../src/lib/tripsCard'
-import { coverFor } from '../src/lib/regionArt'
+import { coverFor, coverPlanFor } from '../src/lib/regionArt'
 import type { ItineraryDay, StopStatus } from '../src/data/types'
 
 // Local noon on 2026-10-10: far from any day boundary.
@@ -429,9 +429,44 @@ describe('heroPostcards', () => {
     expect(heroPostcards({ trips: [], today: TODAY, ready: false })).toEqual([])
     expect(heroPostcards({ trips: [goa], today: TODAY, ready: false })).toEqual([])
   })
+  it('carries the saved emoji so an exhausted hero postcard shows it, not the compass', () => {
+    // The postcard draws the same plan as every other cover, so it needs the
+    // traveller's own emoji. Without it the terminal state was the compass
+    // default, which is the "no choice" marker and not what they picked.
+    const withEmoji = heroTrip({ id: 'emoji-trip', destinations: ['Goa'], coverEmoji: '🏖', startDate: '2026-10-20', endDate: '2026-10-23' })
+    expect(heroPostcards({ trips: [withEmoji], today: TODAY, ready: true })[0].coverEmoji).toBe('🏖')
+
+    const plan = coverPlanFor({
+      region: 'goa',
+      seed: 'emoji-trip',
+      placeCount: 1,
+      destinations: ['Goa'],
+      fallbackEmoji: heroPostcards({ trips: [withEmoji], today: TODAY, ready: true })[0].coverEmoji,
+    })
+    expect(plan.fallbackEmoji).toBe('🏖')
+    // …and it is never one of the images, so a working scene never shows it.
+    expect(plan.candidates.every(candidate => candidate.kind === 'generated')).toBe(true)
+  })
+
+  it('leaves the emoji absent when the trip has none, so the compass answers', () => {
+    const plain = heroTrip({ id: 'plain-trip', destinations: ['Goa'], coverEmoji: '', startDate: '2026-10-20', endDate: '2026-10-23' })
+    expect(heroPostcards({ trips: [plain], today: TODAY, ready: true })[0].coverEmoji).toBeUndefined()
+  })
+
   it('captions each postcard with the place the trip ends at and picks its art region', () => {
     const cards = heroPostcards({ trips: [goa], today: TODAY, ready: true })
-    expect(cards).toEqual([{ key: 'goa', place: 'Panjim', region: 'goa', destinations: goa.destinations, placeCount: 2, coverImageUrl: undefined }])
+    // `startLocation` rides along: it is art evidence when the stops name no
+    // supported place, which is what reaches the Goa scenes for a beach trip.
+    expect(cards).toEqual([{
+      key: 'goa',
+      place: 'Panjim',
+      region: 'goa',
+      destinations: goa.destinations,
+      startLocation: goa.startLocation,
+      placeCount: 2,
+      coverImageUrl: undefined,
+      coverEmoji: goa.coverEmoji || undefined,
+    }])
   })
   it.each([['Rishikesh', 'rishikesh-v1'], ['Srinagar', 'jammu-and-kashmir-v2']])('keeps %s destinations available for hero art', (place, id) => {
     const trip = heroTrip({ id: 'art-trip', destinations: [place] })

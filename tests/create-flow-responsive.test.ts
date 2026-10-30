@@ -5,8 +5,9 @@
 // height-only, and every transition has a reduced-motion opt-out.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync('src/styles.css', 'utf8')
+const css = readCssSource('src/styles.css')
 
 /** The CSS from `marker` up to `until`, so a slice never runs into the next block. */
 function between(marker: string, until: string): string {

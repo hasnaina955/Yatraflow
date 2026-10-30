@@ -16,6 +16,7 @@ const DELHI = { lat: 28.6139, lng: 77.209 }
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
 const ui = readFileSync(new URL('../src/components/ui.tsx', import.meta.url), 'utf8')
 const overview = readFileSync(new URL('../src/pages/trip/OverviewTab.tsx', import.meta.url), 'utf8')
+const overviewTruth = readFileSync(new URL('../src/lib/overviewTruth.ts', import.meta.url), 'utf8')
 const pubItinerary = readFileSync(new URL('../src/pages/PublicItinerary.tsx', import.meta.url), 'utf8')
 
 /** The popup block, sliced so later markup cannot satisfy the pins by accident. */
@@ -114,8 +115,9 @@ describe('#614 — the route snapshot prints one-based day badges', () => {
   })
 
   it('both callers pass day indexes, never a coerced zero', () => {
-    expect(overview).toContain('day: p.day }))}')
-    expect(overview).not.toContain('p.day ?? 0')
+    expect(overview).toContain('<OverviewRouteCard rows={routeRows}')
+    expect(overviewTruth).toContain('dayIndex: chain.ptDay[i] ?? null')
+    expect(overviewTruth).not.toContain('chain.ptDay[i] ?? 0')
     expect(pubItinerary).toContain('lng: trip.startLocationCoords.lng, day: null')
   })
 })

@@ -5,10 +5,11 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { stateBlockRole } from '../src/components/page/StateBlock'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const day = readFileSync(new URL('../src/pages/trip/timeline/DaySection.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const map = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readCssSource('src/styles.css')
 const baseline = JSON.parse(
   readFileSync(new URL('./page-consistency-baseline.json', import.meta.url), 'utf8'),
 ) as { pageFiles: Record<string, Record<string, number>> }
@@ -80,7 +81,7 @@ describe('P12 — the static steps moved out of the style attribute', () => {
   })
 
   it('the new section names no raw duration', () => {
-    const section = css.slice(css.indexOf('/* ===== P12: Timeline and map')).replace(/\/\*[\s\S]*?\*\//g, '')
+    const section = css.slice(css.indexOf('/* ===== P12: Timeline and map'), css.indexOf('/* Papercut foundations */')).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(section).not.toMatch(/\d+ms/)
   })
 })

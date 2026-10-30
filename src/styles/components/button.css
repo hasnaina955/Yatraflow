@@ -1,0 +1,84 @@
+/* Shared button recipe.
+   Owns button appearance, its supported scale, its interaction states, its
+   focus ring and its local motion. A page places a button and sets the
+   documented variables. A page does not restyle the control from here. */
+
+/* ---------- Buttons ---------- */
+/* The base recipe. Every value a page may select is read from a documented
+   variable, so a page supplies settings instead of redeclaring the control.
+   The fallbacks are the default scale, which is what a button outside a page
+   scope already used. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: var(--btn-radius, 999px); border: 1.5px solid transparent;
+  font-weight: var(--btn-weight, 600); font-size: var(--btn-font-size, 14px);
+  padding: var(--btn-padding, 9px 17px);
+  min-height: var(--btn-min-height, auto);
+  letter-spacing: var(--btn-tracking, normal);
+  transition: var(--btn-transition,
+    background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out));
+  white-space: nowrap;
+}
+.btn:active { transform: var(--btn-active-transform, scale(.97)); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+a.btn { text-decoration: none; }
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* Button variants: colour, border and ink. These are the control. */
+.btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-sm); }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-primary:active:not(:disabled) { background: var(--color-primary-active); }
+/* No dark-mode colour rule here. `[data-theme='dark'] .btn-primary` is an
+   attribute selector plus a class, so it is 0,2,0 — the same as
+   `.hero .btn-primary` — and it only ever won on order. It set exactly what
+   `.btn-primary` already sets, so it was a redundant rule that beat the hero
+   override once this module loaded after section 04. */
+.btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--shadow-sm); }
+.btn-saffron:hover:not(:disabled) { background: var(--color-accent-hover); }
+.btn-navy { background: var(--text); color: var(--bg); }
+.btn-outline { background: transparent; border-color: var(--line); color: var(--text); }
+.btn-outline:hover { background: var(--bg-soft); }
+
+/* Ghost uses the page scale when one is set. Size rules follow the variant. */
+.btn-ghost {
+  background: none; border: none; color: var(--text-2);
+  padding: var(--btn-padding, 8px 10px);
+  border-radius: var(--btn-radius, 999px);
+}
+.btn-ghost:hover { background: var(--bg-soft); }
+
+/* ---------- Button size scale ---------- */
+/* anchors styled as buttons (hero CTAs, auth links) drop the underline (F-06) */
+.btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
+/* Button state matrix (sizes + variants + states): see DESIGN_TOKENS.md */
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 24px; }
+/* The LARGE size is the one that carries a sentence, so it is the one that may
+   wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
+   but it also makes a sentence-length label's MIN-CONTENT equal to the whole
+   label — and that floor then propagates through every flex/grid ancestor whose
+   item has `min-width: auto`. Two real defects came from exactly that: the
+   landing CTA measured 400px inside a 316px band at 390px, and the receipt's
+   CTA floored the Plan Bench grid at 366px inside a 360px viewport (so the
+   whole calculator overflowed on a common Android width). Word-pair labels at
+   `lg` are unaffected — they never reach the wrap point. */
+.btn-lg {
+  padding: var(--btn-padding, 12px 24px);
+  font-size: var(--btn-font-size, 15.5px);
+  white-space: normal;
+}
+/* Button-in-button (landing hero): the trailing glyph rides its own circular
+   housing, flush with the button's right inner padding, and shifts diagonally on
+   hover so the button carries internal kinetic tension instead of only a fill
+   change. Declared after .btn-lg so it owns the right padding at equal
+   specificity rather than needing !important. */
+.btn-trail { padding-right: 6px; }
+.btn-trail-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, .18); transition: transform var(--motion-med) var(--ease-out), background var(--motion-fast) var(--ease-out); }
+.btn-trail:hover .btn-trail-icon { transform: translate3d(2px, -2px, 0) scale(1.06); background: rgba(255, 255, 255, .28); }
+
+/* Phone: the control keeps a 44px touch target. */
+@media (max-width: 720px) {
+  .btn { min-height: 44px; }
+}

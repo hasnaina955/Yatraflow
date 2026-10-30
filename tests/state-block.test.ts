@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
-import { stateBlockHasBody, stateBlockRole, stateBlockRootClass } from '../src/components/page/StateBlock'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { StateBlock, stateBlockHasBody, stateBlockRole, stateBlockRootClass } from '../src/components/page/StateBlock'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const SOURCE = readFileSync(join(process.cwd(), 'src/components/page/StateBlock.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
@@ -26,7 +28,7 @@ describe('stateBlockRole', () => {
   })
 })
 
-const CSS = readFileSync(join(process.cwd(), 'src/styles.css'), 'utf8').replace(/\r\n/g, '\n')
+const CSS = readCssSource('src/styles.css')
 const COMPACT_BLOCK = '/* ===== Shared page components: compact state block and surface roots ===== */'
 
 describe('stateBlockRootClass', () => {
@@ -105,9 +107,10 @@ describe('compact state block styles', () => {
 
 describe('StateBlock source contract', () => {
   it('handles role and aria-live in the markup', () => {
-    expect(SOURCE).toContain('role={role}')
-    expect(SOURCE).toContain("aria-live={isLoading ? 'polite' : undefined}")
-    expect(SOURCE).toContain('stateBlockRole(kind)')
+    expect(SOURCE).toContain('role={resolvedRole}')
+    expect(SOURCE).toContain("aria-live={isLoading && resolvedRole === 'status' ? 'polite' : undefined}")
+    expect(SOURCE).toContain('stateBlockRole(kind, role)')
+    expect(SOURCE).toContain("titleLevel?: 'h1' | 'h2' | 'h3'")
   })
 
   it('names all three kinds', () => {

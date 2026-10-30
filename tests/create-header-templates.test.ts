@@ -5,11 +5,12 @@
 // the phone scroll-snap row with its focus and motion rules, and the phone link.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 // CRLF to LF first, so every anchor matches on any checkout.
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const src = read('../src/pages/CreateTrip.tsx')
-const css = read('../src/styles.css')
+const css = readCssSource('src/styles.css')
 
 /** The text from one anchor up to the next. A moved anchor fails loudly. */
 function between(text: string, from: string, to: string): string {

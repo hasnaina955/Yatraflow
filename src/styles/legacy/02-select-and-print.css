@@ -2031,3 +2031,55 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .day-badge-date { width: 50px; height: 60px; }
 }
 
+/* PW-07: the day body splits into the stop rail and a brief aside at wide
+   widths. The aside is supplementary, so it follows the rail when stacked. */
+.day-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-10); }
+.day-main { min-width: 0; }
+.day-brief { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.brief-card {
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-7);
+}
+.brief-kicker {
+  font: var(--pw-kicker);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--pw-ink-3);
+  margin-bottom: var(--space-5);
+}
+.brief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.brief-grid b { display: block; font: var(--pw-title); }
+.brief-grid span { display: block; font-size: 11.5px; color: var(--pw-ink-3); margin-top: 2px; }
+.brief-lines {
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--pw-line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.brief-lines div { display: flex; justify-content: space-between; gap: var(--space-5); }
+.brief-lines dt { font-size: 12.5px; color: var(--pw-ink-2); }
+.brief-lines dd { margin: 0; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.brief-tools { display: flex; flex-direction: column; gap: var(--space-3); }
+.brief-tool {
+  text-align: start;
+  font: var(--pw-ui);
+  color: var(--pw-ink);
+  background: var(--pw-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+}
+.brief-tool:hover:not(:disabled) { border-color: var(--pw-route); }
+.brief-tool:disabled { opacity: .55; cursor: not-allowed; }
+@media (min-width: 1100px) {
+  .day-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-8); }
+}
+@media (max-width: 1099px) {
+  .day-brief { margin-top: var(--space-7); }
+}
+

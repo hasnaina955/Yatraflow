@@ -569,6 +569,12 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
     { cls: 'db-dwell', minutes: budgetDwell },
     { cls: 'db-free', minutes: budgetFree },
   ].filter(s => s.minutes > 0)
+  // The day's money, split so the lines add up to the total: travel and day
+  // costs are separate buckets, and the remainder is entry fees plus stay.
+  const dayTotal = dayTotals != null && dayTotals.dayIndex === day.index ? dayTotals : null
+  const dayRemainder = dayTotal
+    ? Math.max(0, dayTotal.totalInr - dayTotal.transportInr - dayTotal.expensesInr)
+    : 0
 
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
@@ -761,6 +767,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
       )}
 
       <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
+      <div className="day-layout">
+      <div className="day-main">
       {commitmentsToday.map(fc => (
         <div key={fc.id} className="warn-item sev-low tl-warn-gap">
           <span className="warn-icon"><Pin size={13} aria-hidden /></span>
@@ -1023,6 +1031,43 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             {foreignOver === ordered.length && dragging === null && <div className="tl-drop-line">Drop to add here</div>}
           </div>
         )}
+      </div>
+      </div>
+      <aside className="day-brief" aria-label={`Day ${day.index + 1} brief`}>
+        <div className="brief-card">
+          <div className="brief-kicker">Day brief</div>
+          <div className="brief-grid">
+            <div><b>{minutesToHM(budgetDrive)}</b><span>driving</span></div>
+            <div><b>{minutesToHM(budgetDwell)}</b><span>at stops</span></div>
+            <div><b>{formatHM(sim.endsAt, timeFormat)}</b><span>back at {journey.endTitle}</span></div>
+            <div>
+              <b>{dayTotal ? formatInr(dayTotal.totalInr) : '—'}</b>
+              <span>est. for the group</span>
+            </div>
+          </div>
+          {dayTotal && (dayTotal.transportInr > 0 || dayTotal.expensesInr > 0) && (
+            <dl className="brief-lines">
+              <div><dt>Travel</dt><dd>{formatInr(dayTotal.transportInr)}</dd></div>
+              <div><dt>Day costs</dt><dd>{formatInr(dayTotal.expensesInr)}</dd></div>
+              {dayRemainder > 0 && <div><dt>Entry fees &amp; stay</dt><dd>{formatInr(dayRemainder)}</dd></div>}
+            </dl>
+          )}
+        </div>
+        <div className="brief-card">
+          <div className="brief-kicker">Day tools</div>
+          <div className="brief-tools">
+            <button
+              type="button"
+              className="brief-tool"
+              disabled={ordered.length === 0 || !facts.hasNextDay}
+              onClick={() => onCopyDay(day.index)}
+            >Copy these stops to Day {day.index + 2}</button>
+            <button type="button" className="brief-tool" onClick={() => onAdd(day.index)}>
+              Add a stop to Day {day.index + 1}
+            </button>
+          </div>
+        </div>
+      </aside>
       </div>
       </SmoothCollapse>
 

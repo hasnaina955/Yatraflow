@@ -272,6 +272,46 @@ describe('css ownership: the real repository is clean', () => {
     const map = loadOwnershipMap(process.cwd())
     expect(map.baselines.customPropertyFiles).toEqual({})
   })
+
+  /**
+   * The Board's shared rules stay in lead files, and nine of its classes carry a
+   * rule there beside another family. Those classes are registered as
+   * configuration points anyway, so a NEW appearance patch on one of them fails.
+   *
+   * Without this, the nine were outside enforcement and an override could grow
+   * silently. The historical declarations are exempt by exact key, not by class.
+   */
+  it('refuses a new appearance patch on every shared Board class', () => {
+    const map = loadOwnershipMap(process.cwd())
+    const shared = [
+      'board', 'board-col', 'board-col-zone', 'board-fit', 'board-info',
+      'board-pulse', 'board-pulse-link', 'board-row', 'board-stop-kicker',
+    ]
+    const root = fixture({
+      'src/styles.css': `@import './styles/components/select.css';\n@import './styles/legacy/10-explore.css';\n`,
+      [OWNER]: OWNER_CSS,
+      // One appearance declaration per class, in a legacy file.
+      [LEGACY]: shared.map((c) => `.${c} { color: rgb(1, 2, 3); }`).join('\n') + '\n',
+    })
+    const graph = loadCssGraph('src/styles.css', { root })
+    const kept = applyAppearanceBaseline(checkOwnership(graph, map, root), map.baselines)
+    const appearance = kept.filter((f) => f.code === 'config-appearance')
+    const named = new Set(appearance.map((f) => classTokens(f.selector).find((t) => shared.includes(t))))
+    expect([...named].sort()).toEqual([...shared].sort())
+    for (const f of appearance) expect(f.prop).toBe('color')
+
+    // The same file may still place them: enforcement must not overreach.
+    const layoutRoot = fixture({
+      'src/styles.css': `@import './styles/components/select.css';\n@import './styles/legacy/10-explore.css';\n`,
+      [OWNER]: OWNER_CSS,
+      [LEGACY]: shared.map((c) => `.${c} { margin-top: 4px; }`).join('\n') + '\n',
+    })
+    const layoutGraph = loadCssGraph('src/styles.css', { root: layoutRoot })
+    const layoutFindings = applyAppearanceBaseline(
+      checkOwnership(layoutGraph, map, layoutRoot), map.baselines,
+    ).filter((f) => f.code === 'config-appearance' || f.code === 'config-variable')
+    expect(layoutFindings).toEqual([])
+  })
 })
 
 describe('css ownership: helpers', () => {

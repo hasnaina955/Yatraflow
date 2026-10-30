@@ -232,7 +232,17 @@
         "board-stop-title-btn",
         "board-topbar"
       ],
-      "configClasses": [],
+      "configClasses": [
+        "board",
+        "board-col",
+        "board-col-zone",
+        "board-fit",
+        "board-info",
+        "board-pulse",
+        "board-pulse-link",
+        "board-row",
+        "board-stop-kicker"
+      ],
       "variables": [],
       "files": [
         "src/styles/components/board-02.css",
@@ -274,6 +284,8 @@
       "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::border-radius",
       "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::content",
       "src/styles/legacy/01-foundations.css::.topnav .container.topnav-inner::padding",
+      "src/styles/legacy/01-foundations.css::.topnav, .glass, .bottom-nav, .tabbar, .glass-soft, .filter-pillbar, .tl-total-strip, .board-info, .board-pulse::-webkit-backdrop-filter",
+      "src/styles/legacy/01-foundations.css::.topnav, .glass, .bottom-nav, .tabbar, .glass-soft, .filter-pillbar, .tl-total-strip, .board-info, .board-pulse::backdrop-filter",
       "src/styles/legacy/02-select-and-print.css::.bezel > .card::box-shadow",
       "src/styles/legacy/02-select-and-print.css::.itin-cover .chip::-webkit-backdrop-filter",
       "src/styles/legacy/02-select-and-print.css::.itin-cover .chip::backdrop-filter",
@@ -282,6 +294,12 @@
       "src/styles/legacy/02-select-and-print.css::.member-stack .avatar::border",
       "src/styles/legacy/02-select-and-print.css::.presence-peer .avatar::border",
       "src/styles/legacy/02-select-and-print.css::.route-btn, .mode-btn, .crew-btn, .cal-day, .quick-budget .chip, .move-btn, .board-fit, .board-pulse-link, .vote-btn::transition",
+      "src/styles/legacy/02-select-and-print.css::.tl-row, .board-row::-webkit-user-select",
+      "src/styles/legacy/02-select-and-print.css::.tl-row, .board-row::user-select",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::pointer-events",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::transform",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::transition",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::will-change",
       "src/styles/legacy/04-mobile-usability.css::.balance-who .avatar::font-size",
       "src/styles/legacy/04-mobile-usability.css::.bench-dock .btn::padding",
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip::cursor",
@@ -289,6 +307,7 @@
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip::font-weight",
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip:disabled::cursor",
       "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip:disabled::opacity",
+      "src/styles/legacy/04-mobile-usability.css::.board-row::transition",
       "src/styles/legacy/04-mobile-usability.css::.creator-hero .avatar::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.creator-hero .avatar::font-size",
       "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::background",
@@ -301,6 +320,12 @@
       "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::padding",
       "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::font-size",
       "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::animation",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::border",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::border-radius",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::content",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::pointer-events",
+      "src/styles/legacy/04-mobile-usability.css::.tab-btn, .board-fit, .board-pulse-link::transition",
       "src/styles/legacy/04-mobile-usability.css::.topnav .container.topnav-inner::padding",
       "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::box-shadow",
       "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::font-size",
@@ -374,6 +399,9 @@
       "src/styles/legacy/16-motion-and-cover-v2.css::.container.yf-workspace.yf-workspace::padding-top",
       "src/styles/legacy/16-motion-and-cover-v2.css::.yf-page .yf-member .avatar::border",
       "src/styles/legacy/16-motion-and-cover-v2.css::.yf-page .yf-member .avatar::font-size",
+      "src/styles/legacy/16-motion-and-cover-v2.css:::is( .page-enter > *, .empty-state > *, .board-col, .tab-panel, .route-panel, .trip-enter, .ex-enter:not([data-presence='exit']), .ex-hero-copy, .ex-hero-visual, .ex-aside > *, .ex-selects.is-open, .mt-card:not([data-presence='exit']), .mt-shelf-item:not([data-presence='exit']), .yf-surface.is-entering:not([data-presence='exit']), .yf-surface.tsx-card, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .sf-daygrid > .sf-day, .sf-cover-pattern .sf-cover-dot, .popover, .map-legend-body, .tl-mode-copy, .engine-tips-text, .gin-followup, .err-text, .auth-submit-notice, .remote-edit-banner, .ovw-weather-failed, .ovw-weather-kept, .shr-read-failed, .shr-read-kept, .shr-read-loading, .hub-read-failed, .hub-read-kept, .shr-state, .tl-state, .tm-state, .bud-state, .ex-page .ex-clear:not([data-presence='exit']), .trips-page .ex-clear[style*='visible']:not([data-presence='exit']) ):not([data-presence='exit'])::animation",
+      "src/styles/legacy/16-motion-and-cover-v2.css:::is( .page-enter > *, .empty-state > *, .board-col, .tab-panel, .route-panel, .trip-enter, .ex-enter:not([data-presence='exit']), .ex-hero-copy, .ex-hero-visual, .ex-aside > *, .ex-selects.is-open, .mt-card:not([data-presence='exit']), .mt-shelf-item:not([data-presence='exit']), .yf-surface.is-entering:not([data-presence='exit']), .yf-surface.tsx-card, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .sf-daygrid > .sf-day, .sf-cover-pattern .sf-cover-dot, .popover, .map-legend-body, .tl-mode-copy, .engine-tips-text, .gin-followup, .err-text, .auth-submit-notice, .remote-edit-banner, .ovw-weather-failed, .ovw-weather-kept, .shr-read-failed, .shr-read-kept, .shr-read-loading, .hub-read-failed, .hub-read-kept, .shr-state, .tl-state, .tm-state, .bud-state, .ex-page .ex-clear:not([data-presence='exit']), .trips-page .ex-clear[style*='visible']:not([data-presence='exit']) ):not([data-presence='exit'])::animation-delay",
+      "src/styles/legacy/16-motion-and-cover-v2.css:::is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card )::animation-delay",
       "src/styles/legacy/17-overview-tiles-and-cover.css::.member-stack .avatar, .yf-avatars .avatar::box-shadow",
       "src/styles/legacy/17-overview-tiles-and-cover.css::.ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm::padding-inline",
       "src/styles/legacy/17-overview-tiles-and-cover.css::.yf-page .yf-avatars .avatar::box-shadow",
@@ -405,6 +433,48 @@
         "selector": ".container.trip-starter",
         "variable": "--choice-tint",
         "reason": "Page token consumed by .trip-starter descendants. The container never reads it. It is assigned on the container because the container is the page root, so it is not container configuration."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card )",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(2)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(3)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(4)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(5)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(6)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(n+7)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
       }
     ]
   }

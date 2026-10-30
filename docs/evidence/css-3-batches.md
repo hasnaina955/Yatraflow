@@ -893,7 +893,7 @@ The batch table named `.itin-card`, `.trip-head-card`, `.hero` and `.board*`. A 
 | `.hero` | 15 | 15 | The Landing page's own surface. `Landing.tsx` is the only consumer. |
 | `.itin-card` | 25 | 7 | A shared component's card, rendered by `PubCard`. 18 rules reach no element. |
 | `.trip-head-card` | 13 | 0 | No source file renders it. |
-| `.board*` | 150 (29 classes) | 150 | The Board tab's surface, spread over five legacy files. |
+| `.board*` | 120 (29 classes) | 120 | The Board tab's surface, spread over five legacy files. |
 
 `dev/_css3-b10-trace.mjs` produced the trace. It reads the graph the gate reads and reports each rule with its conditional context and the ancestor scope that constrains it. File position alone does not make a page override. A bare `.itin-card` rule in a late file still applies everywhere, and an `.explore-grid.as-list` prefix never applies at all.
 
@@ -998,7 +998,22 @@ The move is split by what can be proven, not by what is convenient.
 
 The third group is why this family cannot be moved whole. Twenty rules name `.board-*` on one line and another family on the next. Those families include `.btn`, `.topnav`, `.glass` and `.lucide`, and one stagger rule lists forty of them. A move would drag an unrelated family into a board owner and claim styling this batch does not own.
 
-Nine classes still carry a rule in that shared group. The other twenty classes are owned outright, and the map names exactly those twenty. The map reports the responsibility it actually took.
+Nine classes still carry a rule in that shared group. The other twenty classes are owned outright.
+
+Those nine are registered as **configuration points**, not left outside enforcement. That is the difference between tolerating a declaration and exempting a class.
+
+| Layer | Mechanism | Effect |
+|---|---|---|
+| The 20 owned classes | `owned` | any rule naming one must live in the owner files |
+| The 9 shared classes | `configClasses` | a page may set placement. Appearance is a finding unless registered |
+| The 18 existing appearance declarations | `configAppearanceKeys`, keyed by file, selector and property | pass today. A new property or selector fails |
+| The 7 existing stagger variables | `configVariableDebt`, keyed by file, selector and variable, with a reason | pass today. A new one fails |
+
+Each exception names one exact declaration. A stale key fails, so an exception cannot outlive the rule it describes. The `--stagger-index` entries are debt, not documented variables. The stagger rule both sets and reads that property, so the Board does not consume it as configuration.
+
+Nothing is exempt by class. A new `color`, `background` or `box-shadow` on any of the nine produces a finding. The finding names the file, line, class and property. A new `margin`, `display` or `grid-row` still passes, so enforcement did not overreach into placement.
+
+`tests/css-ownership.test.ts` now pins both halves against the real map. It fails if any of the nine is dropped from the map. That was proved by removing one and watching the test fail.
 
 The audit is exact. There are 120 rules before and 120 after. No rule is lost, none is added, no declaration changed, and every media context stayed.
 
@@ -1009,11 +1024,13 @@ Two tooling defects were caught by that audit before they could ship. Both would
 
 ### The three families that did not move
 
-`.board*` is the largest family and the one this batch cannot prove. Its 150 rules sit at five cascade positions across `01-foundations`, `02-select-and-print`, `04-mobile-usability`, `06-shell-and-consistency` and `16-motion-and-cover-v2`. Two of those files hold Board rules before and after other rules, so one module cannot keep both positions.
+`.board*` is the largest family. Its 120 rules sit at five cascade positions across `01-foundations`, `02-select-and-print`, `04-mobile-usability`, `06-shell-and-consistency` and `16-motion-and-cover-v2`. Two of those files hold Board rules before and after other rules, so one module cannot keep both positions.
 
-The reachability gap is the harder one. `/trips` sends a signed-out visitor to the Landing page, so the Board never renders in this environment. No trip data reaches the page without a session. The instrument reported its skip and named the cause. Moving 150 unmeasured rules is a guess, and this batch does not record guesses as results.
+An earlier version of this section said the Board could not be proved. `/trips` sends a signed-out visitor to the Landing page, and that was read as a hard limit. The conclusion was too strong. A fixture reaches the Board. `dev/overview-fixture.html?tab=board` mounts the real `TripWorkspace` with synthetic trip data, and the Board renders with four columns and ten stops. The 582,192-value comparison runs against it.
 
-`.trip-head-card` and the unreachable half of `.itin-card` stay listed as remaining legacy. Removing them is a separate change with its own proof, and one that would lower the reduced-motion floor.
+That is a component-level proof, not a route-level one. A signed-in `/trip/:id` route still composes with its own ancestors and real data, and that acceptance stays open. See the authenticated-routes table below.
+
+`.trip-head-card` and the unreachable half of `.itin-card` stay listed as remaining legacy. Removal is a separate change with its own proof, and one that would lower the reduced-motion floor.
 
 ### Reduced motion
 

@@ -320,6 +320,45 @@ const COVER_SAMPLE = ({ windowMs }) => new Promise((resolve) => {
   requestAnimationFrame(step)
 })
 
+/** Report every rounded layer inside the cover that is NOT clipped by the media.
+ *  Such a layer rounds itself, and its own antialiased arc blends with whatever
+ *  paints behind it. Over the cover's bright backdrop that showed as a 1px light
+ *  line along the rounded perimeter (reported 2026-10-30): the veil measured a
+ *  luminance of 110 against a 60 interior and a 19 page, brighter than both, so no
+ *  blend of those two could produce it. A pixel threshold cannot gate this,
+ *  because the backdrop is legitimately brighter than the artwork; the invariant
+ *  is structural, so the check is too. */
+const COVER_LAYERS = () => {
+  const media = document.querySelector('.yf-cover-media')
+  const head = document.querySelector('.yf-trip-head')
+  if (!media || !head) return null
+  const m = media.getBoundingClientRect()
+  const offenders = []
+  for (const el of head.querySelectorAll('*')) {
+    const cs = getComputedStyle(el)
+    const rounded = parseFloat(cs.borderTopLeftRadius) > 0
+    const clips = cs.overflow !== 'visible'
+    const insideMedia = media.contains(el)
+    const r = el.getBoundingClientRect()
+    // Only a full-bleed layer matters: it must cover the band's own perimeter,
+    // like the media does. A rounded control (button, avatar, tab pill) never
+    // spans the perimeter, so rounding itself is correct for it.
+    const fullBleed = Math.abs(r.left - m.left) < 2 && Math.abs(r.top - m.top) < 2 &&
+      Math.abs(r.width - m.width) < 2 && Math.abs(r.height - m.height) < 2
+    if (fullBleed && rounded && !clips && !insideMedia) {
+      offenders.push({ cls: (typeof el.className === 'string' && el.className) || el.tagName, radius: cs.borderTopLeftRadius, overflow: cs.overflow })
+    }
+  }
+  return {
+    offenders,
+    veilInsideMedia: Boolean(media.querySelector('.yf-cover-veil')),
+    veilRadius: (() => {
+      const veil = head.querySelector('.yf-cover-veil')
+      return veil ? getComputedStyle(veil).borderTopLeftRadius : null
+    })(),
+  }
+}
+
 /** Sample the trip cover and report whether the band stays inside its box while
  *  the artwork settles. Returns the number of failed checks. */
 async function checkCoverContainment(browser, fixtureBase) {
@@ -366,6 +405,22 @@ async function checkCoverContainment(browser, fixtureBase) {
         console.log(`FAIL  cover containment (${label}) — the band stayed put but the artwork never moved (${artStates} state); the settle was lost rather than contained`)
       } else {
         console.log(`ok    cover containment (${label}) — band held its box across ${frames.length} frames, artwork passed through ${artStates} states`)
+      }
+
+      // The rounded-perimeter invariant, checked in the real DOM.
+      const layers = await page.evaluate(COVER_LAYERS)
+      if (!layers) {
+        bad++
+        console.log(`FAIL  cover layers (${label}) — the cover media or band is missing, so the layering could not be read`)
+      } else if (layers.offenders.length || !layers.veilInsideMedia || (layers.veilRadius && layers.veilRadius !== '0px')) {
+        bad++
+        console.log(`FAIL  cover layers (${label}) — a rounded layer rounds itself instead of being clipped by the media`)
+        for (const o of layers.offenders) console.log(`        ${o.cls} radius=${o.radius} overflow=${o.overflow}`)
+        if (!layers.veilInsideMedia) console.log('        .yf-cover-veil is not inside .yf-cover-media, so it clips itself')
+        if (layers.veilRadius && layers.veilRadius !== '0px') console.log(`        .yf-cover-veil carries its own radius (${layers.veilRadius})`)
+        console.log('        The layer that clips must be the layer that paints: keep the veil inside the media and leave it unrounded.')
+      } else {
+        console.log(`ok    cover layers (${label}) — ${frames.length} frames, no self-rounded layer above the artwork, veil clipped by the media`)
       }
     } finally {
       await ctx.close()

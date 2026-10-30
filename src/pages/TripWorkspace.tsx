@@ -450,8 +450,12 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
               className="yf-cover-img"
               emojiClassName="yf-cover-emoji"
             />
+            {/* The veil sits INSIDE the media so the media's rounded clip owns it,
+                exactly as it owns the image. As a sibling it had to round itself,
+                and its own antialiased arc let the brighter band fill through as a
+                1px line along the cover's left perimeter. */}
+            <div className="yf-cover-veil" aria-hidden="true" />
           </div>
-          <div className="yf-cover-veil" aria-hidden="true" />
           <div className="yf-cover-content">
             <div className="yf-cover-top">
               <button type="button" className="yf-back" onClick={() => onNavigate('trips')}>← All trips</button>

@@ -300,12 +300,19 @@
 
 /* The source veil: one soft run from the left edge to nothing at the right, so
    the artwork stays visible. The title, facts and members all sit in the shaded
-   left third, which is what keeps the text readable without dimming the scene. */
-.yf-page .yf-trip-head > .yf-cover-veil {
+   left third, which is what keeps the text readable without dimming the scene.
+
+   It is a CHILD of the cover media, and carries no radius of its own. The media
+   clips it with `overflow: hidden` and the band's radius, exactly as it clips the
+   image. While it was a rounded sibling, its own antialiased arc let the brighter
+   band fill through: measured a 1px line at luminance 110 against a 60 interior,
+   brighter than either the page or the artwork, so no blend of those two could
+   account for it. A self-rounded layer will always blend its edge with whatever
+   sits behind it, so the layer that clips must be the layer that paints. */
+.yf-page .yf-cover-media > .yf-cover-veil {
   position: absolute;
   inset: 0;
   z-index: 1;
-  border-radius: inherit;
   background: linear-gradient(
     90deg,
     rgb(8 24 34 / .8) 0%,

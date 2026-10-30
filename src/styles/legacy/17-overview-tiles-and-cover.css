@@ -494,6 +494,16 @@
 .cover-picker-img { border-radius: inherit; }
 .dock-thumb-img { border-radius: inherit; }
 
+/* The cover settle runs on the ARTWORK, never on the band.
+   `.yf-cover-media` is `inset: 0` of `.yf-trip-head`, and that head sets
+   `overflow: visible`. `overflow` clips a box's descendants, never the box
+   itself, so scaling the media moved the band's own painted edge: at
+   scale(1.035) on a 1140px band the painted box measured 39.9px wider than the
+   layout box. The cards finished their 360ms entrance while the band was still
+   drifting, which read as a slow, unsynchronized entrance.
+   This element sits inside the media, which does clip it, so the zoom stays
+   inside the band. The keyframes, duration and easing live in
+   16-motion-and-cover-v2.css. */
 .yf-page .yf-cover-media > .yf-cover-img {
   position: absolute;
   inset: 0;
@@ -502,6 +512,7 @@
   height: 100%;
   object-fit: cover;
   background-color: var(--pw-sea-700);
+  animation: yfCoverSettle calc(var(--motion-slower) * 3) var(--ease-glide) backwards;
 }
 
 /* Exhausted: the emoji is the cover, so it sits in the middle of the slot

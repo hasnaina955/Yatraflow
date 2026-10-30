@@ -250,8 +250,21 @@
   overflow: hidden;
   border-radius: inherit;
   background: var(--pw-sea-700);
-  animation: yfCoverSettle calc(var(--motion-slower) * 3) var(--ease-glide) backwards;
 }
+
+/* The cover settle belongs to the ARTWORK, not to the band.
+   `.yf-cover-media` is `inset: 0` of `.yf-trip-head`, and that head sets
+   `overflow: visible`. `overflow` clips a box's descendants, never the box
+   itself, so a scale on the media moved the band's own painted edge: at
+   scale(1.035) on a 1140px band the painted box measured 39.9px wider than the
+   layout box, which is exactly 1140 x 0.035. The cards below finished their
+   360ms entrance, so for ~1.3s the cover was still drifting and no longer
+   aligned with the grid — a slow, unsynchronized entrance.
+   The declaration sits on the artwork's own rule in
+   17-overview-tiles-and-cover.css, because `.yf-cover-img` is styled there and a
+   second top-level rule for the same selector fails the duplicate gate. The
+   element is `<img class="yf-cover-img">`; the older `.yf-cover-photo` and
+   `.mt-art` selectors below match nothing here. */
 
 .yf-page .yf-cover-photo,
 .yf-page .yf-cover-media .mt-art {
@@ -1670,6 +1683,8 @@
 @media (prefers-reduced-motion: reduce) {
   .yf-page .yf-trip-head,
   .yf-page .yf-trip-head > .yf-cover-media,
+  /* The settle moved to the artwork, so its opt-out moves with it. */
+  .yf-page .yf-cover-media > .yf-cover-img,
   .yf-page .yf-cover-content > .yf-tabbar {
     animation: none;
     transition: none;

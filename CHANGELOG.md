@@ -31,6 +31,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The trip cover no longer drifts apart from the cards while the page enters.** The cover settle scaled the cover band, not the artwork inside it. The band is `inset: 0` of a head that sets `overflow: visible`. That property clips a box's descendants, but never the box itself. So `scale(1.035)` moved the band's own painted edge. On a 1140px band it measured 39.9px wider than its layout box. It was still travelling about 1.3s after the cards had finished their 360ms entrance. That is the slow, unsynchronized entrance reported on the Overview. The same recipe now runs on `.yf-cover-media > .yf-cover-img`, which the media clips. The zoom now stays inside the band. The duration, easing and stagger are unchanged, and the reduced-motion opt-out moved with the animation. Frame sampling on the workspace fixture: band drift 39.9px before, 0.00px after. The artwork still passes through 189 transform states. `npm run check:motion` now samples this. It fails when a cover band paints outside its own box.
 - **Compact inputs and small ghost buttons keep their intended size.** Flight fields keep their widths.
 - **Height reads request at most six tiles.** If the route cannot fit, the card reports that heights could not load.
 - **A failed height read makes no claim about the road measurement.** Each failed read keeps its retry control.

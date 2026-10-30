@@ -105,6 +105,8 @@ describe('the trip places', () => {
   it('picks a zoom that fits the trip inside the tile cap', () => {
     const points = buildRouteHeightPoints(INPUT)
     const zoom = routeHeightZoom(points)
+    expect(zoom).not.toBeNull()
+    if (zoom === null) throw new Error('normal route did not fit')
     const keys = new Set(points.map(point => {
       const tile = elevationTileFor(point.lat, point.lng, zoom)
       return `${tile.x}/${tile.y}`
@@ -173,10 +175,29 @@ describe('stats', () => {
 describe('measuring the places', () => {
   beforeEach(() => clearElevationTileCache())
 
+  it('refuses an oversized route before requesting tiles', async () => {
+    const cities = [[28.6, 77.2], [19.1, 72.9], [13.08, 80.27], [22.57, 88.36],
+      [26.14, 91.74], [9.93, 76.26], [34.08, 74.79]]
+      .map(([lat, lng], index) => place(String(index), lat, lng))
+    const distinct = new Set(cities.map(({ lat, lng }) => {
+      const { x, y } = elevationTileFor(lat, lng, 5)
+      return `${x}/${y}`
+    }))
+    expect(distinct.size).toBe(7)
+    const calls: string[] = []
+    const result = await measureRouteHeights(cities, async ({ z, x, y }) => {
+      calls.push(`${z}/${x}/${y}`)
+      return flatTile(140)
+    })
+    expect(new Set(calls).size).toBeLessThanOrEqual(ELEVATION_MAX_TILES)
+    expect(calls).toEqual([])
+    expect(result).toEqual({ kind: 'failed', reason: 'tile-limit' })
+  })
+
   it('reads one height per place and reuses the tile cache', async () => {
-    let calls = 0
-    const loader = async () => {
-      calls += 1
+    const calls: string[] = []
+    const loader = async ({ z, x, y }: { z: number; x: number; y: number }) => {
+      calls.push(`${z}/${x}/${y}`)
       return flatTile(140)
     }
     const first = await measureRouteHeights(INPUT, loader)
@@ -185,9 +206,13 @@ describe('measuring the places', () => {
     expect(first.points.map(point => point.elevationM)).toEqual([140, 140, 140])
     expect(first.stats.maxM).toBe(140)
     expect(first.runs).toHaveLength(1)
-    const firstCalls = calls
+    expect(first.zoom).toBe(routeHeightZoom(buildRouteHeightPoints(INPUT)))
+    expect(new Set(calls).size).toBe(calls.length)
+    expect(calls.length).toBeGreaterThan(0)
+    expect(calls.length).toBeLessThanOrEqual(ELEVATION_MAX_TILES)
+    const firstCalls = calls.length
     await measureRouteHeights(INPUT, loader)
-    expect(calls).toBe(firstCalls)
+    expect(calls.length).toBe(firstCalls)
   })
 
   it('leaves a missing place at null, never zero', async () => {

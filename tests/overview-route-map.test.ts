@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
+import { OverviewRouteCard } from '../src/components/trips/OverviewRouteCard'
 import { overviewRouteRows, type OverviewRouteRow } from '../src/lib/overviewTruth'
 import {
   OVERVIEW_PIN_HIT_DIAMETER,
@@ -377,6 +381,26 @@ describe('overview road summary and terrain', () => {
 })
 
 describe('overview read alert order', () => {
+  it('shows both failed reads without claiming a road measurement', () => {
+    const rows = overviewRouteRows(tripOf())
+    const first = firstFailedOverviewRead(new Set(['elevation', 'weather']))
+    const html = renderToStaticMarkup(createElement(OverviewRouteCard, {
+      rows,
+      road: { chain: null, legs: null, status: 'failed', retry: () => {} },
+      transportMode: 'car',
+      elevation: { view: 'failed', result: null, points: [], retry: () => {} },
+      elevationRole: overviewReadRole('elevation', first),
+    }))
+    expect(html).toContain('Heights could not load.')
+    expect(html).toContain('Road not measured.')
+    expect(html).not.toContain('The road is still measured.')
+    expect(html.match(/role="alert"/g)).toHaveLength(1)
+    expect(html.indexOf('Heights could not load.')).toBeLessThan(html.indexOf('Road not measured.'))
+    expect(html.match(/Try again/g)).toHaveLength(2)
+    const source = readFileSync('src/components/trips/OverviewRouteCard.tsx', 'utf8')
+    expect(source).toContain('onClick={elevation.retry}')
+    expect(source).toContain('onClick={road.retry}')
+  })
   it('alerts on the first failed read, then switches when it recovers', () => {
     const all = new Set(['decisions', 'activity', 'weather'] as const)
     expect(firstFailedOverviewRead(all)).toBe('decisions')

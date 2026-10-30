@@ -31,7 +31,12 @@
       "configClasses": [
         "input",
         "textarea",
-        "field"
+        "field",
+        "input--compact",
+        "flight-w-airline",
+        "flight-w-flight",
+        "flight-w-fare",
+        "flight-w-ref"
       ],
       "variables": [
         "--input-padding",

@@ -412,7 +412,7 @@ export function OverviewRouteCard({
         <div className={`ovw-road-note ${elevationFailed ? 'is-failed' : 'is-kept'}`} role={elevationFailed ? elevationRole : undefined}>
           <span>
             {elevationFailed
-              ? <><b>Heights could not load.</b> The road is still measured.</>
+              ? <><b>Heights could not load.</b></>
               : <>Couldn’t refresh the heights. The last profile stays.</>}
           </span>
           {elevation?.retry && <button type="button" className="ovw-btn ovw-btn--quiet" onClick={elevation.retry}>Try again</button>}

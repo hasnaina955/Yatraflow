@@ -26,6 +26,29 @@
 a.btn { text-decoration: none; }
 .btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
+/* Button variants: colour, border and ink. These are the control. */
+.btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-sm); }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-primary:active:not(:disabled) { background: var(--color-primary-active); }
+/* No dark-mode colour rule here. `[data-theme='dark'] .btn-primary` is an
+   attribute selector plus a class, so it is 0,2,0 — the same as
+   `.hero .btn-primary` — and it only ever won on order. It set exactly what
+   `.btn-primary` already sets, so it was a redundant rule that beat the hero
+   override once this module loaded after section 04. */
+.btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--shadow-sm); }
+.btn-saffron:hover:not(:disabled) { background: var(--color-accent-hover); }
+.btn-navy { background: var(--text); color: var(--bg); }
+.btn-outline { background: transparent; border-color: var(--line); color: var(--text); }
+.btn-outline:hover { background: var(--bg-soft); }
+
+/* Ghost uses the page scale when one is set. Size rules follow the variant. */
+.btn-ghost {
+  background: none; border: none; color: var(--text-2);
+  padding: var(--btn-padding, 8px 10px);
+  border-radius: var(--btn-radius, 999px);
+}
+.btn-ghost:hover { background: var(--bg-soft); }
+
 /* ---------- Button size scale ---------- */
 /* anchors styled as buttons (hero CTAs, auth links) drop the underline (F-06) */
 .btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
@@ -59,28 +82,3 @@ a.btn { text-decoration: none; }
 @media (max-width: 720px) {
   .btn { min-height: 44px; }
 }
-
-/* Button variants: colour, border and ink. These are the control. */
-.btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-sm); }
-.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
-.btn-primary:active:not(:disabled) { background: var(--color-primary-active); }
-/* No dark-mode colour rule here. `[data-theme='dark'] .btn-primary` is an
-   attribute selector plus a class, so it is 0,2,0 — the same as
-   `.hero .btn-primary` — and it only ever won on order. It set exactly what
-   `.btn-primary` already sets, so it was a redundant rule that beat the hero
-   override once this module loaded after section 04. */
-.btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--shadow-sm); }
-.btn-saffron:hover:not(:disabled) { background: var(--color-accent-hover); }
-.btn-navy { background: var(--text); color: var(--bg); }
-.btn-outline { background: transparent; border-color: var(--line); color: var(--text); }
-.btn-outline:hover { background: var(--bg-soft); }
-/* Ghost reads the same scale variables as the base recipe. Without this it wins
-   on order instead: a page scope sets --btn-padding, the base rule reads it, and
-   a variant that hardcodes padding overrides the result. The fallback is the
-   variant's own value, so an unscoped button is unchanged. */
-.btn-ghost {
-  background: none; border: none; color: var(--text-2);
-  padding: var(--btn-padding, 8px 10px);
-  border-radius: var(--btn-radius, 999px);
-}
-.btn-ghost:hover { background: var(--bg-soft); }

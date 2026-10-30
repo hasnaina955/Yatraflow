@@ -26,6 +26,13 @@
    real 14.5px, which is how that was found. A page that changes the size
    still declares font-size itself, and that is recorded as debt. */
 
+/* Inline controls keep their compact size beside a label. */
+.input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
+.flight-w-airline { width: 140px; }
+.flight-w-flight { width: 96px; }
+.flight-w-fare { width: 110px; }
+.flight-w-ref { width: 120px; }
+
 /* from src/styles/legacy/01-foundations.css */
 .input:focus, .textarea:focus {
   border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);

@@ -37,7 +37,7 @@ const SCOPES = [
 ]
 
 // Every variant the module owns, including the ones that used to be invisible.
-const VARIANTS = [
+const ALL_VARIANTS = [
   ['base', '<button class="btn" data-key="__KEY__">Go</button>'],
   ['link', '<a class="btn" href="#x" data-key="__KEY__">Go</a>'],
   ['sm', '<button class="btn btn-sm" data-key="__KEY__">Go</button>'],
@@ -46,10 +46,23 @@ const VARIANTS = [
   ['saffron', '<button class="btn btn-saffron" data-key="__KEY__">Go</button>'],
   ['outline', '<button class="btn btn-outline" data-key="__KEY__">Go</button>'],
   ['ghost', '<button class="btn btn-ghost" data-key="__KEY__">Go</button>'],
+  ['ghost-sm', '<button class="btn btn-ghost btn-sm" data-key="__KEY__">Remove</button>'],
+  ['ghost-lg', '<button class="btn btn-ghost btn-lg" data-key="__KEY__">Go</button>'],
+  ['ghost-sm-disabled', '<button class="btn btn-ghost btn-sm" disabled data-key="__KEY__">Remove</button>'],
+  ['ghost-primary', '<button class="btn btn-primary btn-ghost" data-key="__KEY__">Go</button>'],
+  ['ghost-outline', '<button class="btn btn-outline btn-ghost" data-key="__KEY__">Go</button>'],
+  ['ghost-saffron', '<button class="btn btn-saffron btn-ghost" data-key="__KEY__">Go</button>'],
+  ['ghost-navy', '<button class="btn btn-navy btn-ghost" data-key="__KEY__">Go</button>'],
   ['icon', '<button class="btn" aria-label="Go" data-key="__KEY__"><svg width="14" height="14"><circle cx="7" cy="7" r="6"/></svg></button>'],
   ['disabled', '<button class="btn" disabled data-key="__KEY__">Go</button>'],
   ['loading', '<button class="btn" aria-busy="true" disabled data-key="__KEY__">Go</button>'],
 ]
+const onlyVariants = process.env.CSS3_VARIANTS?.split(',').filter(Boolean)
+const excludedVariants = process.env.CSS3_EXCLUDE_VARIANTS?.split(',').filter(Boolean) ?? []
+const VARIANTS = ALL_VARIANTS.filter(([name]) => (!onlyVariants || onlyVariants.includes(name)) && !excludedVariants.includes(name))
+if (!VARIANTS.length || (onlyVariants && onlyVariants.some(name => !VARIANTS.some(([variant]) => variant === name)))) {
+  throw new Error('The variant selection is empty or names an unknown variant.')
+}
 
 const PROPS = [
   'display', 'align-items', 'justify-content', 'gap', 'border-top-width', 'border-top-style',
@@ -100,7 +113,7 @@ for (const env of ENVS) {
     await page.waitForTimeout(120)
 
     await assertScopes(page, SCOPES, scopeSelector, `${env.id} ${label}`)
-    const focusInfo = await assertFocusReachable(page, expected, ['disabled', 'loading'], `${env.id} ${label} rest`)
+    const focusInfo = await assertFocusReachable(page, expected, ['disabled', 'loading', 'ghost-sm-disabled'], `${env.id} ${label} rest`)
     focusTotal += focusInfo.focused
     hiddenTotal += focusInfo.hidden.length
 
@@ -146,5 +159,5 @@ console.log(`property-comparisons=${comparedTotal}`)
 console.log(`focus-checks=${focusTotal}`)
 console.log(`differences=${total}`)
 for (const d of allDiffs.slice(0, 40)) console.log('  ' + d)
-writeReport(outDir, 'report.json', { elements, envs: ENVS.length, comparedTotal, focusTotal, total, diffs: allDiffs })
+writeReport(outDir, 'report.json', { variants: VARIANTS.map(([name]) => name), elements, envs: ENVS.length, comparedTotal, focusTotal, total, diffs: allDiffs })
 process.exit(total ? 1 : 0)

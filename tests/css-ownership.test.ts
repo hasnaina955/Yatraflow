@@ -138,6 +138,45 @@ describe('css ownership: a cross-owner patch fails with its real location', () =
 })
 
 describe('css ownership: the graph refusals still hold', () => {
+  it.each([
+    '.ex-select { &:hover { background: red; } }',
+    '.ex-select { @media (max-width: 720px) { background: red; } }',
+    '.select { @supports (display: grid) { color: red; } }',
+    '@media (min-width: 1px) { .ex-select { @supports (display: grid) { background: red; } } }',
+  ])('rejects unsupported nesting through the graph and checker: %s', (css) => {
+    expect(() => run({
+      'src/styles.css': ENTRY,
+      [OWNER]: OWNER_CSS,
+      [LEGACY]: css,
+    })).toThrow(/nested/i)
+  })
+
+  it('reports the imported file and line for unsupported nesting', () => {
+    expect(() => run({
+      'src/styles.css': ENTRY,
+      [OWNER]: OWNER_CSS,
+      [LEGACY]: '.ex-select {\n  &:hover { background: red; }\n}',
+    })).toThrow(`Nested CSS is not supported: ${LEGACY}:2`)
+  })
+
+  it('still rejects the flat form as component appearance', () => {
+    const { findings } = run({
+      'src/styles.css': ENTRY,
+      [OWNER]: OWNER_CSS,
+      [LEGACY]: '.ex-select:hover { background: red; }',
+    })
+    expect(findings.map(f => f.code)).toContain('config-appearance')
+  })
+
+  it('accepts top-level media, supports, container and keyframes', () => {
+    const { findings } = run({
+      'src/styles.css': ENTRY,
+      [OWNER]: `${OWNER_CSS}@media (min-width: 1px) { @supports (display: grid) { @container (min-width: 1px) { .select { padding: 1px; } } } } @keyframes fade { from { opacity: 0; } to { opacity: 1; } }`,
+      [LEGACY]: PAGE_CSS,
+    })
+    expect(findings).toEqual([])
+  })
+
   it('fails on a missing import', () => {
     const root = fixture({ 'src/styles.css': `@import './styles/components/select.css';\n` })
     expect(() => loadCssGraph('src/styles.css', { root })).toThrow(CssGraphError)

@@ -86,7 +86,7 @@ export type RouteHeightsResult =
     missingTiles: number
   }
   | { kind: 'empty'; reason: 'no-points' | 'no-data' }
-  | { kind: 'failed'; reason: 'tiles' | 'aborted' }
+  | { kind: 'failed'; reason: 'tiles' | 'aborted' | 'tile-limit' }
 
 /** Terrarium packs the height in the RGB channels, offset by 32768 m. */
 export function terrariumHeight(r: number, g: number, b: number): number {
@@ -145,8 +145,8 @@ export function buildRouteHeightPoints(input: readonly RouteHeightInput[]): Rout
   return points
 }
 
-/** The coarsest zoom that still fits the trip inside the tile cap. */
-export function routeHeightZoom(points: readonly RouteHeightPoint[]): number {
+/** The finest supported zoom that fits the trip inside the tile cap. */
+export function routeHeightZoom(points: readonly RouteHeightPoint[]): number | null {
   for (let zoom = 12; zoom >= 5; zoom--) {
     const keys = new Set(points.map(point => {
       const tile = elevationTileFor(point.lat, point.lng, zoom)
@@ -154,7 +154,7 @@ export function routeHeightZoom(points: readonly RouteHeightPoint[]): number {
     }))
     if (keys.size <= ELEVATION_MAX_TILES) return zoom
   }
-  return 5
+  return null
 }
 
 /** Read one pixel's height from a decoded tile. */
@@ -329,6 +329,7 @@ export async function measureRouteHeights(
   if (signal?.aborted) return { kind: 'failed', reason: 'aborted' }
 
   const zoom = routeHeightZoom(points)
+  if (zoom === null) return { kind: 'failed', reason: 'tile-limit' }
   const tiles = new Map<string, ElevationTile>()
   const pending: ElevationTileKey[] = []
   for (const point of points) {

@@ -40,6 +40,7 @@ const START = params.get('start') ?? 'Panaji, Goa'
 const SURFACE = params.get('surface') === 'hero' ? 'hero' : 'workspace'
 const WEATHER = params.get('weather') ?? 'ok'
 const ELEVATION = params.get('elev') ?? 'ok'
+const ROAD = params.get('road') ?? 'ok'
 // `tab` reaches any workspace tab, not just overview and settings, so the Board
 // surface can be measured without a session. The workspace validates the key
 // itself and falls back to overview, so a bad value cannot make the fixture lie.
@@ -327,7 +328,18 @@ setWeatherTransportForTests(async url => {
   }), { status: 200, headers: { 'content-type': 'application/json' } })
 })
 
-setRoadMeasureForTests(async points => syntheticLegs(points))
+let roadRetryRequested = false
+document.addEventListener('click', event => {
+  if (!(event.target instanceof Element)) return
+  const note = event.target.closest('.ovw-road-note')
+  if (note && !note.classList.contains('is-failed') && note.textContent?.includes('Road not measured.')) {
+    roadRetryRequested = true
+  }
+}, true)
+setRoadMeasureForTests(async points => {
+  if (ROAD === 'failed' || (ROAD === 'recover' && !roadRetryRequested)) throw new Error('fixture road failure')
+  return syntheticLegs(points)
+})
 // Build the chain once so a bad fixture coordinate fails loudly here.
 buildRoadChain(trip)
 

@@ -319,8 +319,4 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 /* A disabled form control must look disabled — three selects shipped identical
    to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as
    .btn:disabled. */
-/* Inline-row variant — the .input surface at a size that fits beside a label
-   on one line (travel-panel departure / halt-planner fields), with the same
-   focus ring instead of the hand-styled borders those fields used to have. */
-.input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
 

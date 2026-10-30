@@ -1183,6 +1183,37 @@ The default run now passes: 4,476 prose lines, exit 0.
 
 One consequence is worth naming. The gate had been failing for so long that "inherited" had become a standing excuse. Two of the three causes were the gate's own faults, so the excuse hid a real defect in the tool. The fix was small once the findings were counted by cause instead of by total.
 
+## Final review repairs
+
+The reviewed head was `5ec7fb6447958e5c68c21af5e0edfbdd2fbee56e`.
+The comparison base was `699fbe2806844df15ee3d1bccfca3aaebbca3453`.
+The base CSS came from the committed stylesheet graph.
+The fixed CSS came from the current graph.
+
+| Check | Before repair | After repair |
+|---|---|---|
+| Nested style rules and nested at-rules | Three bad cases passed the checker. | The graph rejects them with the file and line. |
+| Seven-tile route at zoom 5 | The loader received seven distinct tile requests. | The read fails before any request. |
+| Compact and flight inputs | 1,002 values differed. | 3,468 values compared, with zero differences. |
+| Button combinations | 1,247 values differed in the first set. | 72,540 values compared, with zero differences. |
+| Failed road and height reads | The height note claimed a measured road. | Both notes appear, with one alert and two working retries. |
+
+`dev/_css3-input-compare.mjs` tests compact, departure and four flight inputs.
+It checks plain, Timeline and flight-field scopes, with disabled and focus states.
+It uses phone and desktop widths in both themes.
+`dev/_css3-btn-compare2.mjs` includes ghost with small and large sizes.
+It also tests page scales, focus, disabled states and reduced motion.
+Both tools check element keys and scope matches before comparing values.
+The checkpoint comparison excludes the ghost and primary combination.
+The migration changed its dark ink before this repair.
+That combination matches the reviewed head across 4,680 values.
+
+`dev/_css3-route-failures.mjs` drives `dev/overview-fixture.tsx` with synthetic data.
+The fixture fails both reads, then recovers each one through its own retry.
+It recorded no page errors.
+The fixture does not prove signed-in route acceptance.
+Local JSON reports are under `.verify-evidence/css3-final-repair/`.
+
 ## Remaining legacy responsibilities
 
 These files are unowned on purpose. Each entry names what still lives there and why.

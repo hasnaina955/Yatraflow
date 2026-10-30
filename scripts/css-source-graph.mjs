@@ -181,14 +181,27 @@ export function loadCssGraph(entry = DEFAULT_ENTRY, options = {}) {
   function parse(absPath, trace) {
     const source = readSource(absPath, trace)
     stack.push(absPath)
+    let rootNode
     try {
-      return { source, rootNode: postcss.parse(source.raw, { from: absPath }) }
+      rootNode = postcss.parse(source.raw, { from: absPath })
     } catch (error) {
       throw new CssGraphError('PARSE_ERROR', `CSS parse failed: ${source.rel}: ${error.message}`, [
         ...trace,
         source.rel,
       ])
     }
+    rootNode.walk((node) => {
+      if (node.type !== 'rule' && node.type !== 'atrule') return
+      let parent = node.parent
+      while (parent) {
+        if (parent.type === 'rule') {
+          const line = node.source?.start?.line ?? 0
+          throw new CssGraphError('UNSUPPORTED_NESTING', `Nested CSS is not supported: ${source.rel}:${line}. Use a flat selector or a top-level at-rule.`)
+        }
+        parent = parent.parent
+      }
+    })
+    return { source, rootNode }
   }
 
   /** The file a node was written in, relative to root. */

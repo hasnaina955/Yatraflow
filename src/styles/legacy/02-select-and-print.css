@@ -391,10 +391,6 @@
   border-top: 1px solid var(--line);
 }
 .flight-edit { margin-left: auto; flex: none; }
-.flight-w-airline { width: 140px; }
-.flight-w-flight { width: 96px; }
-.flight-w-fare { width: 110px; }
-.flight-w-ref { width: 120px; }
 
 /* ---------- Timeline time rail ---------- */
 /* one shared rail geometry — these three used to redeclare 74px/12px each,

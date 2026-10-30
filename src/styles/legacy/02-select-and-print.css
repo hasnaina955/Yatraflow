@@ -2125,3 +2125,30 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .day-layout .stop-actions button { width: 28px; height: 28px; }
 }
 
+/* The stop number moves onto the rail: a ringed dot that covers the line. */
+.tl-rail-num {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  align-self: start;
+  width: 23px;
+  height: 23px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--pw-marigold-500);
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  color: var(--pw-marigold-ink);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  z-index: 1;
+}
+.tl-rail-num.cat-food { border-color: var(--pw-saffron-600); }
+.tl-rail-num.cat-hotel { border-color: var(--pw-sea-700); color: var(--pw-sea-700); }
+@media (max-width: 720px) {
+  .tl-gutter { grid-template-columns: 62px 3px; }
+}
+

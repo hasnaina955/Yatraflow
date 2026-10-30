@@ -215,7 +215,7 @@ export function otherTripsEmptyKind({ matchCount, otherCount, hasFilters }: {
 /** The parts of a Trip the hero reads. A full Trip fits. */
 export type HeroTrip = TripPlan
   & Pick<Trip, 'id' | 'name' | 'startLocation' | 'destinations' | 'updatedAt'>
-  & Partial<Pick<Trip, 'members' | 'coverImageUrl'>>
+  & Partial<Pick<Trip, 'members' | 'coverImageUrl' | 'coverEmoji'>>
 
 /** The part of a place name before the first comma: "Kolkata, India" gives
  *  "Kolkata". Empty when the name is blank. */
@@ -331,10 +331,15 @@ export interface HeroPostcard {
   region: TripRegion
   /** Original place names for destination and jurisdiction art selection. */
   destinations?: readonly string[]
+  /** The trip's start place. It is art evidence only when the stops name nothing. */
+  startLocation?: string
   /** Number of distinct stops. It picks road art over city art when the region has no scene. */
   placeCount: number
   /** The trip's own cover image, when it has one. */
   coverImageUrl?: string
+  /** The traveller's saved emoji. It is the cover's LAST resort, shown only
+   *  when every image is gone — never the compass default in its place. */
+  coverEmoji?: string
   /** True for the empty "your next trip" postcard. */
   blank?: boolean
 }
@@ -379,8 +384,10 @@ export function heroPostcards({ trips, today, ready }: {
       place,
       region: regionFor(t),
       destinations: t.destinations,
+      startLocation: t.startLocation,
       placeCount: t.destinations?.length ?? 0,
       coverImageUrl: t.coverImageUrl || undefined,
+      coverEmoji: t.coverEmoji || undefined,
     })
     if (cards.length === HERO_POSTCARD_LIMIT) break
   }

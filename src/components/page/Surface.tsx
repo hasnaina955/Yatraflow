@@ -7,6 +7,7 @@
 // still. The caller owns the padding and the inner layout. Styles: the
 // yf-surface rules in src/styles.css.
 import type { CSSProperties, ElementType, HTMLAttributes, ReactNode } from 'react'
+import { staggerDelay } from '../../lib/motion'
 
 /** The element a surface renders as. A button is one whole action. A details root folds its children. */
 export type SurfaceTag = 'div' | 'article' | 'li' | 'section' | 'button' | 'details'
@@ -22,9 +23,6 @@ export interface SurfaceProps extends Omit<HTMLAttributes<HTMLElement>, 'classNa
   type?: 'button' | 'submit' | 'reset'
   children?: ReactNode
 }
-
-/** The largest step of the entrance delay, so a long list does not wait. */
-const MAX_ENTER_STEP = 8
 
 /** A button is one whole action, so it lifts and presses like an interactive surface. */
 export function surfaceIsInteractive(as: SurfaceTag, interactive: boolean): boolean {
@@ -54,7 +52,7 @@ export function Surface({
   if (hasEnter) classNames.push('is-entering')
   if (className) classNames.push(className)
   const enterDelay: CSSProperties | undefined = hasEnter
-    ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, MAX_ENTER_STEP)})` }
+    ? { animationDelay: staggerDelay(enterIndex) }
     : undefined
   const buttonType = surfaceButtonType(as, type)
   return (

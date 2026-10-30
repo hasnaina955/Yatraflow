@@ -974,6 +974,59 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    belongs in the vignette's own `fallback`, where it is the loading and failure
    floor and nothing else.
 
+6bc. **A rule that clears `box-shadow` for a sliding fill also clears the focus
+   ring (learned 2026-10-29, P2/P12 batch).** The selected workspace tab set
+   `box-shadow: none` so the glider could own the fill. At (0,5,0) that rule
+   outranked the shared `:focus-visible` ring at (0,2,0). A keyboard user on the
+   current tab got `outline: none` and `box-shadow: none`: no focus sign, while
+   every other tab kept one. Chrome reported `:focus-visible` true with both
+   declarations empty, so a source read of the shared rule said "covered". The
+   fix is a rule AFTER the selection rules that restates the ring, lists the
+   focused state and the focused-and-hovered state, and does not paint inside
+   the fill: `--ring` is teal, so on the sea fill it measures 1.8:1, while over
+   the rail glass it clears 3:1. Check all three states in the browser, not just
+   focus. `tests/design-system.test.ts` pins the order and both states for this
+   tab.
+
+6bd. **An ink token borrowed from another role is a contrast bug waiting for a
+   theme (learned 2026-10-29, P2/P12 batch).** The avatar tones inked sea with
+   `--pw-sea-900` and marigold with `--pw-ink`. Both read as deliberate choices,
+   and both were right for the role they were named for. In dark mode they
+   measured 2.13:1 and 1.62:1. Initials painted and unreadable. Use the
+   `--pw-on-*` partner of the fill. A source check cannot catch this, because
+   the declaration looks correct; only the numbers show it. So a new fill/ink
+   pair ships with a test that reads the two tokens out of the rule, resolves
+   them through the real token blocks for both themes, and measures them.
+   `tests/avatar-tone.test.ts` does this for the three tones.
+
+6be. **A label whose ink must change with the surface under it cannot be fixed
+   by a TIMER — clip a contrasting copy to the moving shape (learned 2026-10-29,
+   P2/P12 batch).** The workspace tab label was dark on the rail glass and white
+   on the teal fill. The shared button rule transitioned `color` on 160ms while
+   the fill travelled on 240ms, so the text reached white with the fill still a
+   tab away; measured frame by frame, the label fell to 1.0:1 at 233ms. Any
+   `color` transition between two inks on two different surfaces passes through
+   mid-grey, which matches neither, so a shorter duration does not help.
+   The second try — `color 0s` with the wait in the delay on the `.active`
+   rule — was reported as fixed and was **wrong**. Controlled capture of the
+   real rail put the fill fully over the label 180ms BEFORE the swap, at 2.19:1
+   light / 2.09:1 dark, and a 120ms reversal moved the ink while the fill still
+   covered it. The reason is structural, not a tuning error: a fixed moment
+   cannot describe a moving edge, and for most of the glide the label is on
+   BOTH surfaces at once, where no single `color` is legible.
+   Paint by geometry instead. Render a decorative copy of the label in the
+   fill's ink inside a box that is placed and transitioned exactly like the
+   fill, clipped with `overflow: hidden`, and offset by `origin - fill` so each
+   copy lands on its own item. The real label keeps the rail ink permanently.
+   Measured after: every sampled frame of the glide held 7.38:1 light / 7.53:1
+   dark, in both directions of a 120ms reversal, with 0.00px window-vs-fill
+   drift. Two elements animated by SEPARATE transitions drifted 7.5px apart on
+   a 60ms reversal, so both must run one declaration and be written in one pass.
+   The copies are `aria-hidden`, never `<button>`, and the window is
+   `pointer-events: none` — one accessible name and one tab stop per tab.
+   `tests/design-system.test.ts` pins the mechanism and forbids a `color` leg
+   with a duration or delay.
+
 6ay. **A SQL CHECK passes on TRUE or NULL, so a nullable shape check without an
    existence gate admits malformed rows (learned 2026-10-25, #839).** `check (col
    is null or (col->>'k' = 'v'))` passes a bad row when `k` is absent, because
@@ -1011,6 +1064,10 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    the same guards as before. A wider allowlist is a behaviour change, so prove the
    pick through the real seam (facade + provider + draft, fixture HTTP) and prove the
    rejections still reject, in the same run.
+
+6bf. **A move looks like new prose to the STE gate.** The CSS split moved accepted comments.
+   The gate compares legacy files with the extraction commit. It checks new and edited lines.
+   If that commit is missing, the gate checks all changed lines. `--file` checks the whole file.
 
 ## 2. Conventions (`AGENTS.md` §4)
 
@@ -1274,6 +1331,10 @@ process.
 - **A worktree's `node_modules` must be its own install (learned 2026-10-21).** A junction to another clone can point at an empty folder. Every run then fails with `Cannot find module` for `vitest.mjs`. Run `npm ci` in the worktree, with `NODE_ENV` cleared first (`AGENTS.md` §2.15).
 
 - **A derived boundary must travel as one typed plan, not as a boolean a consumer re-reads (learned 2026-10-24, #832).** The banner, corridor, day attribution and readiness each split the same journey. A `multiDay` flag let them split it from partial facts. A late start, rain, terrain or a vulnerable crew could then move one and not the others. `deriveDrivingPlan` now builds one readonly result from the full facts. `planRideSegments` must receive its `dayBoundaries`. There is no fallback. The cache carries the effective projection and its fingerprint, and the version moved so old boundaries evict. When a boolean becomes a typed input, migrate every caller in the same change. A test helper may keep the old fixture meaning, but an explicit boundary input must win over its default. A saved later-day departure must enter the same clock, not a parallel timing input. Every outward walk path must read that lookup, including the weather tail guard. Read each optional override by name. An `undefined` value must not erase a default. A pinned day moves later starts with it, so effective spans stay contiguous.
+
+- **A shared component's paint offset must be geometry the container owns, not a number the component invents (learned 2026-10-29).** `PillNav` measured its glider as `item.height - 8` and `item.top + 4`. Those numbers came from one control shape and applied to all fifteen callsites. A 44px active pill painted 36px tall. In the workspace rail (6px padding, 1px border, 58px outer) the fill sat 11px in where the source has 7. The result was a flat pill, not a concentric one. The rule: a nested capsule takes its spacing from the container's padding and border. The component measures the item's border box and adds nothing. Put the arithmetic in a pure module (`src/lib/pillGeometry.ts`). Test it at every real control shape (`tests/pill-geometry.test.ts`). A source-only pin cannot see this class of bug. A test that only matches the component's own text will pass while every rendered pill is wrong.
+
+- **A stack of overlapping avatars must not paint one colour (learned 2026-10-29).** Three initials circles in the same pale mint merge where they overlap. The stack then reads as one block, not as three people. Give each member a tone from the approved token trio. Two properties must hold together. The tone must be stable for an identity, so a rerender or a reorder does not reshuffle the colours. Neighbours must also differ, which a plain hash cannot promise. The stack resolves collisions in `assignAvatarTones`. Only a colliding member moves. A real photo still wins over a tone. Keep the visible circle and its hit target separate. The target may be 44px tall. A negative margin on a wide target either cancels the overlap or steals the neighbour's hits. `tests/avatar-tone.test.ts` pins the distinctness, the stability and the stylesheet pairing.
 
 ## 3. Scripted edits
 

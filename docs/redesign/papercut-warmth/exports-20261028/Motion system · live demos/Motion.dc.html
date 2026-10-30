@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Motion system, papercut warmth</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button,label{font-family:inherit;cursor:pointer}
+.grain{background-image:url(./assets/7bcbdfec9083b260f1de644639532b22.png);background-size:220px 220px}
+.grain > *{flex-shrink:0}
+:root{
+  --dur-instant:90ms;--dur-quick:160ms;--dur-base:240ms;--dur-calm:360ms;--dur-scenic:560ms;
+  --ease-paper:cubic-bezier(.2,.8,.2,1);--ease-settle:cubic-bezier(.34,1.32,.64,1);--ease-exit:cubic-bezier(.4,0,1,1);--ease-glide:cubic-bezier(.3,.86,.48,1);--ease-resize:cubic-bezier(.42,0,.58,1);
+}
+.disp{font-family:'Sora','Plus Jakarta Sans',sans-serif;font-weight:700;letter-spacing:-.02em}
+.lbl{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#706354}
+.card{background:#FFFDF8;border:1px solid #EFE3D1;border-radius:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(96,60,24,.05),0 18px 36px -20px rgba(96,60,24,.24)}
+.tile{display:flex;flex-direction:column;gap:12px;padding:18px}
+.stage{position:relative;height:150px;border-radius:18px;background:#FBF5EA;border:1px solid #EFE3D1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tt{font-family:'Sora','Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.spec{font-size:12px;color:#5B5146;line-height:1.45}
+.spec b{color:#22201C}
+.try{position:absolute;top:8px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#A89886}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+/* duration rows */
+.drow{display:grid;grid-template-columns:118px 64px 1fr 210px;align-items:center;gap:14px;padding:10px 12px;border-radius:14px}
+.drow:hover{background:#F8F0E4}
+.track{position:relative;height:10px;border-radius:999px;background:#F3E6D3}
+.track .dot{position:absolute;left:0;top:-4px;width:18px;height:18px;border-radius:999px;background:#0B5F67;box-shadow:0 4px 10px -4px rgba(11,95,103,.6);transition-property:transform;transition-timing-function:var(--ease-paper)}
+.drow:hover .dot{transform:translateX(calc(100% * 12.5))}
+/* easing curves */
+.stag i{display:block;height:14px;border-radius:7px;background:#EADCC6;transition:transform var(--dur-base) var(--ease-paper),opacity var(--dur-base) var(--ease-paper),background var(--dur-quick);transition-delay:calc(var(--i)*40ms)}
+.stag i:nth-child(2n){width:78%}
+.chor:hover .stag i{animation:rise var(--dur-base) var(--ease-paper) both;animation-delay:calc(var(--i)*40ms);background:#CDE9E3}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.erow{display:grid;grid-template-columns:84px 1fr;gap:14px;align-items:center;padding:10px 12px;border-radius:14px}
+.erow:hover{background:#F8F0E4}
+.erow .rail{position:relative;height:6px;border-radius:999px;background:#F3E6D3;margin-top:8px}
+.erow .ball{position:absolute;left:0;top:-6px;width:18px;height:18px;border-radius:999px;background:#F2A33A;transition:transform 900ms}
+.erow:hover .ball{transform:translateX(250px)}
+/* demos */
+.btn{height:44px;padding:0 20px;border-radius:999px;border:0;background:#0B5F67;color:#FFFFFF;font-size:14px;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 18px -8px rgba(11,95,103,.7);transition:transform var(--dur-instant) var(--ease-paper),box-shadow var(--dur-quick) var(--ease-paper),background var(--dur-quick) var(--ease-paper)}
+.btn:hover{background:#0A535A;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 12px 22px -8px rgba(11,95,103,.75)}
+.btn:active{transform:scale(.97);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 10px -6px rgba(11,95,103,.7)}
+.btn:focus-visible{outline:3px solid #6CCAB3;outline-offset:3px}
+.lift{width:200px;padding:12px;display:flex;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EFE3D1;border-radius:18px;box-shadow:0 1px 2px rgba(96,60,24,.05),0 10px 22px -16px rgba(96,60,24,.3);transition:transform var(--dur-base) var(--ease-paper),box-shadow var(--dur-base) var(--ease-paper)}
+.lift:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(96,60,24,.06),0 22px 34px -18px rgba(96,60,24,.42)}
+.chip input,.sw input,.heart input,.tabs input{position:absolute;opacity:0;pointer-events:none}
+.chip span{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;background:#F8F0E4;color:#22201C;font-size:13.5px;font-weight:600;transition:background var(--dur-quick) var(--ease-paper),color var(--dur-quick) var(--ease-paper),transform var(--dur-instant) var(--ease-paper)}
+.chip span i{width:0;overflow:hidden;display:inline-flex;transition:width var(--dur-base) var(--ease-settle)}
+.chip input:checked + span{background:#0B5F67;color:#FFFFFF}
+.chip input:checked + span i{width:14px}
+.chip span:active{transform:scale(.96)}
+.sw span{position:relative;display:block;width:52px;height:30px;border-radius:999px;background:#E6D8C4;transition:background var(--dur-quick) var(--ease-paper)}
+.sw span::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:999px;background:#FFFDF8;box-shadow:0 2px 6px rgba(96,60,24,.3);transition:transform var(--dur-base) var(--ease-settle),width var(--dur-instant) var(--ease-paper)}
+.sw:active span::after{width:26px}
+.sw input:checked + span{background:#0B5F67}
+.sw input:checked + span::after{transform:translateX(22px)}
+.tabs{position:relative;display:flex;padding:4px;background:#F3E6D3;border-radius:999px}
+.tabs label{position:relative;z-index:1;width:92px;height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#5B5146;transition:color var(--dur-quick) var(--ease-paper)}
+.tabs .glider{position:absolute;top:4px;left:4px;width:92px;height:36px;border-radius:999px;background:#0B5F67;box-shadow:0 6px 14px -6px rgba(11,95,103,.6);transition:transform var(--dur-base) var(--ease-glide)}
+#tb1:checked ~ label[for=tb1],#tb2:checked ~ label[for=tb2],#tb3:checked ~ label[for=tb3]{color:#FFFFFF}
+#tb2:checked ~ .glider{transform:translateX(92px)}
+#tb3:checked ~ .glider{transform:translateX(184px)}
+details.acc{width:240px;background:#FFFFFF;border:1px solid #EFE3D1;border-radius:16px;overflow:hidden}
+details.acc summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:11px 14px;font-size:14px;font-weight:700;cursor:pointer}
+details.acc summary::-webkit-details-marker{display:none}
+details.acc summary b{display:inline-flex;width:26px;height:26px;border-radius:999px;background:#F8F0E4;align-items:center;justify-content:center;transition:transform var(--dur-calm) var(--ease-resize)}
+details.acc[open] summary b{transform:rotate(180deg)}
+details.acc .body{padding:0 14px 12px;font-size:12.5px;color:#5B5146;line-height:1.45;animation:accIn var(--dur-calm) var(--ease-paper)}
+@keyframes accIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.heart span{display:flex;width:52px;height:52px;border-radius:999px;background:#F8F0E4;align-items:center;justify-content:center;transition:background var(--dur-quick) var(--ease-paper)}
+.heart svg path{fill:transparent;stroke:#9C2347;transition:fill var(--dur-quick) var(--ease-paper)}
+.heart input:checked + span{background:#FBE3E8}
+.heart input:checked + span svg{animation:pop var(--dur-calm) var(--ease-settle)}
+.heart input:checked + span svg path{fill:#C9475E}
+@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.28)}100%{transform:scale(1)}}
+.toast{position:absolute;left:16px;right:16px;bottom:14px;display:flex;align-items:center;gap:10px;padding:11px 12px;background:#22201C;color:#FBF5EA;border-radius:14px;font-size:12.5px;font-weight:600;animation:toast 4.2s var(--ease-paper) infinite}
+.toast b{margin-left:auto;color:#6CCAB3}
+@keyframes toast{0%{transform:translateY(130%);opacity:0}8%{transform:translateY(-3px);opacity:1}11%{transform:none}78%{transform:none;opacity:1}86%,100%{transform:translateY(130%);opacity:0}}
+.sheetstage .scrim{position:absolute;inset:0;background:rgba(96,60,24,0);transition:background var(--dur-calm) var(--ease-paper)}
+.sheetstage .sheet{position:absolute;left:0;right:0;bottom:0;height:104px;padding:10px 14px;box-sizing:border-box;background:#FFFDF8;border-radius:22px 22px 0 0;box-shadow:0 -8px 24px rgba(96,60,24,.25);transform:translateY(100%);transition:transform var(--dur-calm) var(--ease-glide)}
+.sheetstage:hover .scrim{background:rgba(96,60,24,.35)}
+.sheetstage:hover .sheet{transform:none}
+.menuwrap{position:relative}
+.menuwrap .pop{position:absolute;top:48px;left:-40px;width:170px;padding:6px;background:#FFFDF8;border:1px solid #EFE3D1;border-radius:16px;box-shadow:0 18px 30px -14px rgba(96,60,24,.4);opacity:0;transform:translateY(-6px) scale(.97);transform-origin:top center;pointer-events:none;transition:opacity var(--dur-quick) var(--ease-paper),transform var(--dur-base) var(--ease-paper)}
+.menuwrap:hover .pop,.menuwrap:focus-within .pop{opacity:1;transform:none}
+.pop span{display:block;padding:8px 10px;border-radius:10px;font-size:13px;font-weight:600}
+.pop span:hover{background:#F8F0E4}
+.pg{width:210px;border-radius:14px;overflow:hidden;background:#FFFFFF;border:1px solid #EFE3D1;transition:transform var(--dur-scenic) var(--ease-glide),height var(--dur-scenic) var(--ease-glide),opacity var(--dur-base)}
+.pg span{display:block;padding:8px 10px;font-size:12.5px;font-weight:700}
+.pg1{height:34px}
+.pg2{height:34px;opacity:.0;transform:translateY(8px)}
+.pg2 span{color:#FFFDF8;background:linear-gradient(180deg,rgba(18,63,73,.2),#123F49);height:100%;box-sizing:border-box;display:flex;align-items:flex-end}
+.pagestage:hover .pg1{opacity:0;transform:translateY(-8px)}
+.pagestage:hover .pg2{opacity:1;transform:none;height:96px}
+.inp{height:42px;padding:0 12px;border-radius:12px;border:1.5px solid #E8D9C3;background:#FFFFFF;font:600 14px 'Plus Jakarta Sans',sans-serif;color:#22201C;box-shadow:0 0 0 0 rgba(108,202,179,.6);transition:box-shadow var(--dur-quick) var(--ease-paper),border-color var(--dur-quick)}
+.inp:focus{outline:none;border-color:#B23A2E;box-shadow:0 0 0 3px rgba(178,58,46,.18)}
+.err{font-size:12px;font-weight:600;color:#B23A2E;opacity:0;transform:translateY(4px);transition:opacity var(--dur-base) var(--ease-paper),transform var(--dur-base) var(--ease-paper)}
+.inp:focus + .err{opacity:1;transform:none}
+.skel{width:220px;display:flex;gap:10px;align-items:center}
+.skel i{display:block;border-radius:10px;background:linear-gradient(90deg,#EADCC6 0%,#F8F0E4 40%,#EADCC6 80%);background-size:300% 100%;animation:shimmer 1.6s linear infinite}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-200% 0}}
+.route path.draw{stroke-dasharray:300;stroke-dashoffset:300;animation:draw 3.2s var(--ease-paper) infinite}
+@keyframes draw{0%{stroke-dashoffset:300}45%,100%{stroke-dashoffset:0}}
+.route circle.p{transform-box:fill-box;transform-origin:center;animation:pin 3.2s var(--ease-settle) infinite;opacity:0}
+.route circle.p2{animation-delay:.25s}.route circle.p3{animation-delay:.5s}
+@keyframes pin{0%,30%{opacity:0;transform:scale(.4)}42%{opacity:1;transform:scale(1.15)}50%,100%{opacity:1;transform:scale(1)}}
+.drag{width:200px;padding:11px 12px;display:flex;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EFE3D1;border-radius:16px;box-shadow:0 1px 2px rgba(96,60,24,.05);cursor:grab;transition:transform var(--dur-base) var(--ease-settle),box-shadow var(--dur-base) var(--ease-paper)}
+.drag:active{cursor:grabbing;transform:rotate(-1.5deg) scale(1.03);box-shadow:0 26px 40px -18px rgba(96,60,24,.5)}
+.slot{width:200px;height:10px;border-radius:999px;border:1.5px dashed #9FD9CF;margin-top:10px;transition:height var(--dur-base) var(--ease-paper),background var(--dur-quick)}
+.dragwrap:active .slot{height:40px;background:#F3FAF8}
+.count{display:flex;gap:2px;height:34px;overflow:hidden;font-family:'Sora',sans-serif;font-weight:700;font-size:28px}
+.count span{display:flex;flex-direction:column;animation:roll 3.6s var(--ease-paper) infinite}
+@keyframes roll{0%,30%{transform:translateY(0)}45%,85%{transform:translateY(-34px)}100%{transform:translateY(0)}}
+.count span i{font-style:normal;height:34px;line-height:34px}
+.stamp{padding:10px 16px;border:3px solid #1F6B41;border-radius:12px;color:#1F6B41;font-size:15px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;animation:stamp 3.4s var(--ease-settle) infinite;transform-origin:center}
+@keyframes stamp{0%,20%{opacity:0;transform:scale(1.6) rotate(-14deg)}32%{opacity:1;transform:scale(.96) rotate(-8deg)}40%,85%{opacity:1;transform:scale(1) rotate(-8deg)}100%{opacity:0;transform:scale(1) rotate(-8deg)}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}}
+</style>
+</helmet>
+<div class="grain" style="width: 1440px; height: 2600px; box-sizing: border-box; padding: 48px 56px; background-color: #FBF5EA; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #22201C; display: flex; flex-direction: column; gap: 26px; font-variant-numeric: tabular-nums">
+
+  <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span class="lbl" style="color: #8A4F0E">Motion system · papercut warmth</span>
+      <h1 class="disp" style="margin: 0; font-size: 40px; line-height: 1.1">Paper settles. It never bounces around.</h1>
+      <span style="font-size: 15px; color: #5B5146; max-width: 860px; line-height: 1.5">One duration scale and five easings replace today's two scales (<span class="mono">--t-*</span> and <span class="mono">--motion-*</span>) and 67 one-off keyframes. Everything on this board is live: hover, press and click the demos.</span>
+    </div>
+    <div class="card" style="display: flex; gap: 18px; padding: 14px 18px; border-radius: 20px">
+      <div style="display: flex; flex-direction: column"><span class="disp" style="font-size: 26px">5</span><span style="font-size: 12px; color: #5B5146">durations</span></div>
+      <div style="display: flex; flex-direction: column"><span class="disp" style="font-size: 26px">5</span><span style="font-size: 12px; color: #5B5146">easings</span></div>
+      <div style="display: flex; flex-direction: column"><span class="disp" style="font-size: 26px">16</span><span style="font-size: 12px; color: #5B5146">patterns</span></div>
+    </div>
+  </header>
+
+  <section aria-label="Principles" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+    <div class="card tile"><span style="width: 40px; height: 40px; border-radius: 13px; background: #DDF1EE; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 16c3 0 3-6 8-6s5 6 8 6" fill="none" stroke="#0B5F67" stroke-width="2" stroke-linecap="round"></path><circle cx="12" cy="10" r="2.5" fill="#F2A33A"></circle></svg></span><span class="tt">Cause, then effect</span><span class="spec">Motion starts where the finger or cursor is. A sheet rises from the button that opened it; a stop flies to the day it moved to.</span></div>
+    <div class="card tile"><span style="width: 40px; height: 40px; border-radius: 13px; background: #FBE7C6; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="#FFF4E0" stroke="#8A4F0E" stroke-width="1.8"></circle><path d="M12 9v4l2.5 2" fill="none" stroke="#8A4F0E" stroke-width="1.8" stroke-linecap="round"></path></svg></span><span class="tt">Fast to feel, slower to travel</span><span class="spec">Feedback (press, hover, toggle) lands in under 160ms. Only things that move across the screen take longer, up to 560ms.</span></div>
+    <div class="card tile"><span style="width: 40px; height: 40px; border-radius: 13px; background: #F8E3D6; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 18h14M7 18V9l5-4 5 4v9" fill="#F8E3D6" stroke="#A4492A" stroke-width="1.8" stroke-linejoin="round"></path></svg></span><span class="tt">Weight like paper</span><span class="spec">Lifts are 2px, presses shrink to 97%, entrances rise 8px. A 3% settle overshoot only on small delights: hearts, toasts, stamps.</span></div>
+    <div class="card tile"><span style="width: 40px; height: 40px; border-radius: 13px; background: #EFE4F1; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4" fill="none" stroke="#6E4A7E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span class="tt">Calm by default</span><span class="spec">Nothing loops unless it is loading or live. With reduced motion, movement becomes a 120ms fade and route lines appear already drawn.</span></div>
+  </section>
+
+  <section aria-label="Tokens" style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px">
+    <div class="card" style="display: flex; flex-direction: column; gap: 4px; padding: 20px 20px 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px"><span class="tt" style="font-size: 18px">Durations</span><span style="font-size: 12px; color: #706354">Hover a row to run it</span></div>
+      <div class="drow"><span class="mono" style="font-weight: 700">--dur-instant</span><b class="disp" style="font-size: 16px">90ms</b><span class="track"><span class="dot" style="transition-duration: 90ms"></span></span><span class="spec">Press, switch knob, checkbox tick</span></div>
+      <div class="drow"><span class="mono" style="font-weight: 700">--dur-quick</span><b class="disp" style="font-size: 16px">160ms</b><span class="track"><span class="dot" style="transition-duration: 160ms"></span></span><span class="spec">Hover, colour, focus ring, fades</span></div>
+      <div class="drow"><span class="mono" style="font-weight: 700">--dur-base</span><b class="disp" style="font-size: 16px">240ms</b><span class="track"><span class="dot" style="transition-duration: 240ms"></span></span><span class="spec">Card lift, chips, tab glider, menus</span></div>
+      <div class="drow"><span class="mono" style="font-weight: 700">--dur-calm</span><b class="disp" style="font-size: 16px">360ms</b><span class="track"><span class="dot" style="transition-duration: 360ms"></span></span><span class="spec">Sheets, dialogs, accordion height</span></div>
+      <div class="drow"><span class="mono" style="font-weight: 700">--dur-scenic</span><b class="disp" style="font-size: 16px">560ms</b><span class="track"><span class="dot" style="transition-duration: 560ms"></span></span><span class="spec">Route draw, hero, map fly-to</span></div>
+      <div class="chor" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px 12px 4px; margin-top: 6px; border-top: 1px dashed #E8D9C3">
+        <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 14px; font-weight: 700">Choreography <span style="font-size: 12px; font-weight: 600; color: #706354">· hover the list</span></span>
+          <div class="stag" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #FBF5EA; border: 1px solid #EFE3D1; border-radius: 14px"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 7px; font-size: 12.5px; color: #3F372E; padding-top: 24px"><span><b>Stagger</b> 40ms a step, 6 items max, then all at once</span><span><b>Exit</b> 75% of the enter time, no stagger</span><span><b>Distance</b> lift 2px · rise 8px · press 97%</span><span><b>Order</b> top-left first, in reading order</span></div>
+      </div>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 2px; padding: 20px 20px 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px"><span class="tt" style="font-size: 18px">Easings</span><span style="font-size: 12px; color: #706354">Hover to compare</span></div>
+      <div class="erow"><svg viewBox="-6 -20 112 130" width="72" height="72" aria-hidden="true"><rect x="0" y="0" width="100" height="100" rx="10" fill="#FBF5EA" stroke="#EFE3D1"></rect><path d="M0 100 C20 20 20 0 100 0" fill="none" stroke="#0B5F67" stroke-width="4" stroke-linecap="round"></path></svg><div><div style="display: flex; justify-content: space-between"><b style="font-size: 14px">ease-paper</b><span class="mono" style="color: #706354">.2, .8, .2, 1</span></div><div style="font-size: 12px; color: #5B5146">The default. Quick start, soft landing.</div><div class="rail"><span class="ball" style="transition-timing-function: cubic-bezier(.2,.8,.2,1)"></span></div></div></div>
+      <div class="erow"><svg viewBox="-6 -20 112 130" width="72" height="72" aria-hidden="true"><rect x="0" y="0" width="100" height="100" rx="10" fill="#FBF5EA" stroke="#EFE3D1"></rect><path d="M0 100 C34 -32 64 0 100 0" fill="none" stroke="#F2A33A" stroke-width="4" stroke-linecap="round"></path></svg><div><div style="display: flex; justify-content: space-between"><b style="font-size: 14px">ease-settle</b><span class="mono" style="color: #706354">.34, 1.32, .64, 1</span></div><div style="font-size: 12px; color: #5B5146">Tiny overshoot for delight: hearts, stamps, toasts.</div><div class="rail"><span class="ball" style="transition-timing-function: cubic-bezier(.34,1.32,.64,1)"></span></div></div></div>
+      <div class="erow"><svg viewBox="-6 -20 112 130" width="72" height="72" aria-hidden="true"><rect x="0" y="0" width="100" height="100" rx="10" fill="#FBF5EA" stroke="#EFE3D1"></rect><path d="M0 100 C30 14 48 0 100 0" fill="none" stroke="#2EB1A6" stroke-width="4" stroke-linecap="round"></path></svg><div><div style="display: flex; justify-content: space-between"><b style="font-size: 14px">ease-glide</b><span class="mono" style="color: #706354">.3, .86, .48, 1</span></div><div style="font-size: 12px; color: #5B5146">Spatial travel: sheets, tab glider, map pans. Kept from today.</div><div class="rail"><span class="ball" style="transition-timing-function: cubic-bezier(.3,.86,.48,1)"></span></div></div></div>
+      <div class="erow"><svg viewBox="-6 -20 112 130" width="72" height="72" aria-hidden="true"><rect x="0" y="0" width="100" height="100" rx="10" fill="#FBF5EA" stroke="#EFE3D1"></rect><path d="M0 100 C42 100 58 0 100 0" fill="none" stroke="#6E4A7E" stroke-width="4" stroke-linecap="round"></path></svg><div><div style="display: flex; justify-content: space-between"><b style="font-size: 14px">ease-resize</b><span class="mono" style="color: #706354">.42, 0, .58, 1</span></div><div style="font-size: 12px; color: #5B5146">Heights and layout. Symmetric so open and close mirror.</div><div class="rail"><span class="ball" style="transition-timing-function: cubic-bezier(.42,0,.58,1)"></span></div></div></div>
+      <div class="erow"><svg viewBox="-6 -20 112 130" width="72" height="72" aria-hidden="true"><rect x="0" y="0" width="100" height="100" rx="10" fill="#FBF5EA" stroke="#EFE3D1"></rect><path d="M0 100 C40 100 100 100 100 0" fill="none" stroke="#B23A2E" stroke-width="4" stroke-linecap="round"></path></svg><div><div style="display: flex; justify-content: space-between"><b style="font-size: 14px">ease-exit</b><span class="mono" style="color: #706354">.4, 0, 1, 1</span></div><div style="font-size: 12px; color: #5B5146">Leaving the screen: dismissed toasts, closed sheets.</div><div class="rail"><span class="ball" style="transition-timing-function: cubic-bezier(.4,0,1,1)"></span></div></div></div>
+    </div>
+  </section>
+
+  <section aria-label="Patterns" style="display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="tt" style="font-size: 22px">Every interactive element, one recipe each</span><span style="font-size: 13px; color: #706354">Live demos · hover, press, click</span></div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+
+      <div class="card tile"><div class="stage"><span class="try">Press</span><button type="button" class="btn">Add stop to Day 2</button></div><span class="tt">Buttons</span><span class="spec"><b>Hover</b> deepen fill, shadow grows · quick<br><b>Press</b> scale .97 · instant · ease-paper<br><b>Focus</b> 3px lagoon ring, no motion</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Hover</span><div class="lift"><span style="width: 36px; height: 36px; border-radius: 12px; background: #DDEBF2; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m8 4 4 7 4-4 6 13H2Z" fill="#B9D3E1" stroke="#2F6A8A" stroke-width="1.8" stroke-linejoin="round"></path></svg></span><span style="font-size: 13.5px; font-weight: 700">Top Station sunrise</span></div></div><span class="tt">Cards &amp; stop rows</span><span class="spec"><b>Hover</b> rise 2px, shadow deepens · base<br><b>Tap</b> opens in place, never jumps<br><b>Phone</b> no hover lift, press tint only</span></div>
+
+      <div class="card tile"><div class="stage" style="gap: 8px"><span class="try">Click</span><label class="chip"><input type="checkbox" checked=""><span><i><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="m5 12 4 4 10-10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></i>Hills</span></label><label class="chip"><input type="checkbox"><span><i><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="m5 12 4 4 10-10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></i>Beaches</span></label></div><span class="tt">Chips &amp; filters</span><span class="spec"><b>Select</b> fill to deep sea · quick<br><b>Tick</b> slides in · base · ease-settle<br><b>Results</b> fade and re-stagger 40ms</span></div>
+
+      <div class="card tile"><div class="stage" style="gap: 14px"><span class="try">Click</span><label class="sw" aria-label="Editing"><input type="checkbox" checked=""><span></span></label><span style="font-size: 13.5px; font-weight: 700">Editing on</span></div><span class="tt">Switches</span><span class="spec"><b>Knob</b> stretches while pressed · instant<br><b>Travel</b> base · ease-settle<br><b>Track</b> colour fades · quick</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Click</span><div class="tabs" role="tablist"><input type="radio" name="tb" id="tb1" checked=""><input type="radio" name="tb" id="tb2"><input type="radio" name="tb" id="tb3"><span class="glider"></span><label for="tb1">Overview</label><label for="tb2">Map</label><label for="tb3">Timeline</label></div></div><span class="tt">Tabs &amp; segmented</span><span class="spec"><b>Glider</b> slides under the label · base · ease-glide<br><b>Label</b> colour swaps at the midpoint<br><b>Panel</b> crossfade 160ms, no slide</span></div>
+
+      <div class="card tile"><div class="stage" style="align-items: flex-start; padding-top: 22px; box-sizing: border-box"><span class="try">Click</span><details class="acc"><summary>Long-ride tools <b><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="#5B5146" stroke-width="2.2" stroke-linecap="round"></path></svg></b></summary><div class="body">Plan where to stop on the 140 km drive. A halt sits on the road.</div></details></div><span class="tt">Accordions &amp; day rows</span><span class="spec"><b>Height</b> calm · ease-resize<br><b>Content</b> rises 6px and fades in<br><b>Chevron</b> rotates with the height</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Hover the ⋯</span><div class="menuwrap"><button type="button" aria-label="More" style="width: 44px; height: 44px; border-radius: 999px; border: 0; background: #F8F0E4; color: #5B5146; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button><div class="pop" role="menu"><span>Edit details</span><span>Move to Day 3</span><span style="color: #B23A2E">Remove</span></div></div></div><span class="tt">Menus &amp; popovers</span><span class="spec"><b>Open</b> from its trigger: drop 6px, scale .97→1 · base<br><b>Close</b> fade only · quick · ease-exit<br><b>Tooltip</b> 400ms delay, then quick</span></div>
+
+      <div class="card tile"><div class="stage sheetstage"><span class="try">Hover</span><span style="font-size: 13px; color: #706354">Day 2 · KDHP Tea Museum</span><div class="scrim"></div><div class="sheet"><span style="display: block; width: 36px; height: 4px; margin: 0 auto 10px; border-radius: 999px; background: #E8D9C3"></span><b style="font-size: 14px">KDHP Tea Museum</b><div style="font-size: 12px; color: #5B5146; margin-top: 2px">Edit · Move · Remove</div></div></div><span class="tt">Sheets &amp; dialogs</span><span class="spec"><b>Sheet</b> rises from the bottom · calm · ease-glide<br><b>Dialog</b> scale .96→1 + fade · base<br><b>Scrim</b> warm ink 35%, fades with it</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Loops</span><div class="toast"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#2EB1A6"></circle><path d="m8 12.5 3 3 5-6" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"></path></svg>Moved to Day 3<b>Undo</b></div></div><span class="tt">Toasts</span><span class="spec"><b>In</b> rise from below with a 3px settle · calm<br><b>Stay</b> 5s, or until Undo · pauses on hover<br><b>Out</b> drop and fade · base · ease-exit</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Click</span><label class="heart" aria-label="Save"><input type="checkbox"><span><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" stroke-width="1.8" stroke-linejoin="round"></path></svg></span></label></div><span class="tt">Save &amp; must-do</span><span class="spec"><b>On</b> pop to 1.28 and settle · calm · ease-settle<br><b>Fill</b> bloom pink · quick<br><b>Off</b> no pop, just fades</span></div>
+
+      <div class="card tile"><div class="stage dragwrap" style="flex-direction: column"><span class="try">Hold</span><div class="drag"><span style="width: 32px; height: 32px; border-radius: 11px; background: #F8E3D6; display: flex; align-items: center; justify-content: center"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 11h16a8 8 0 0 1-16 0Z" fill="#EFC3A8" stroke="#A4492A" stroke-width="1.8"></path></svg></span><span style="font-size: 13.5px; font-weight: 700">Lunch at Saravana</span></div><div class="slot"></div></div><span class="tt">Drag &amp; reorder</span><span class="spec"><b>Pick up</b> tilt 1.5°, scale 1.03, deep shadow · base<br><b>Gap</b> opens where it will land · base<br><b>Drop</b> settles · ease-settle, then the impact preview</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Loops</span><div class="skel"><i style="width: 48px; height: 48px; border-radius: 14px"></i><span style="flex: 1; display: flex; flex-direction: column; gap: 8px"><i style="height: 12px; width: 80%"></i><i style="height: 10px; width: 55%"></i></span></div></div><span class="tt">Loading</span><span class="spec"><b>Skeleton</b> warm sheen, 1.6s linear · only while loading<br><b>Swap</b> content fades in over the skeleton · quick<br><b>Under 300ms</b> show nothing at all</span></div>
+
+      <div class="card tile"><div class="stage"><span class="try">Loops</span><svg class="route" viewBox="0 0 220 110" width="220" height="110" aria-hidden="true"><path d="M14 92 C60 88 70 40 110 46 S170 20 206 16" fill="none" stroke="#E8D9C3" stroke-width="5" stroke-linecap="round"></path><path class="draw" d="M14 92 C60 88 70 40 110 46 S170 20 206 16" fill="none" stroke="#0B5F67" stroke-width="5" stroke-linecap="round"></path><circle class="p" cx="14" cy="92" r="8" fill="#FFFDF8" stroke="#F2A33A" stroke-width="4"></circle><circle class="p p2" cx="110" cy="46" r="8" fill="#FFFDF8" stroke="#F2A33A" stroke-width="4"></circle><circle class="p p3" cx="206" cy="16" r="9" fill="#F2A33A"></circle></svg></div><span class="tt">Route &amp; map</span><span class="spec"><b>Route</b> draws once on first view · scenic<br><b>Pins</b> drop in order, 250ms apart · ease-settle<br><b>Fly-to</b> scenic · ease-glide, never on every filter</span></div>
+
+      <div class="card tile"><div class="stage" style="gap: 14px"><span class="try">Loops</span><div class="count" aria-label="Filled 4 then 5 of 6"><span><i>4</i><i>5</i></span><i style="font-style: normal">/6</i></div><span class="stamp">Day planned</span></div><span class="tt">Numbers &amp; milestones</span><span class="spec"><b>Figures</b> roll the changed digit only · base<br><b>Milestone</b> paper stamp, once per day · calm · settle<br><b>Never</b> confetti on routine saves</span></div>
+
+      <div class="card tile"><div class="stage pagestage" style="flex-direction: column; gap: 8px"><span class="try">Hover</span><div class="pg pg1"><span>My trips</span></div><div class="pg pg2"><span>Kerala Hills &amp; Backwaters</span></div></div><span class="tt">Page &amp; tab changes</span><span class="spec"><b>Into a trip</b> the card's cover grows into the hero · scenic · ease-glide<br><b>Between tabs</b> crossfade + 8px rise · base<br><b>Back</b> reverses, at 75% time</span></div>
+
+      <div class="card tile"><div class="stage" style="flex-direction: column; gap: 6px; align-items: stretch; padding: 0 22px; box-sizing: border-box"><span class="try">Click in</span><input class="inp" value="25:00" aria-label="Opens at"><span class="err">Enter a time between 00:00 and 23:59.</span></div><span class="tt">Inputs &amp; errors</span><span class="spec"><b>Focus</b> ring grows 0→3px · quick<br><b>Error</b> message rises 4px and fades in · base<br><b>Never</b> shake fields; it reads as scolding</span></div>
+
+      <div class="card tile" style="grid-column: span 2; flex-direction: row; gap: 18px; align-items: stretch">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px"><span class="tt">Reduced motion</span><span class="spec">When the phone or OS asks for less motion, the app keeps the meaning and drops the movement:</span>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #3F372E">
+            <span>• Slides, lifts and pops become a 120ms fade.</span>
+            <span>• Routes appear drawn, pins appear placed, numbers swap.</span>
+            <span>• Skeleton sheen stops; a static warm block stays.</span>
+            <span>• Map fly-to becomes a jump cut with a 120ms fade.</span>
+          </div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 14px; background: #FBF5EA; border-radius: 16px; border: 1px solid #EFE3D1"><span class="lbl">Today's tokens → new</span>
+          <div style="display: grid; grid-template-columns: 1fr 18px 1fr; gap: 6px 8px; font-size: 12px; align-items: center">
+            <span class="mono">--motion-fast 120ms</span><span>→</span><span class="mono">--dur-quick</span>
+            <span class="mono">--t-fast 180 · --motion-med 180</span><span>→</span><span class="mono">--dur-quick / --dur-base</span>
+            <span class="mono">--motion-slow 240</span><span>→</span><span class="mono">--dur-base</span>
+            <span class="mono">--t-med 300 · --t-slow 440</span><span>→</span><span class="mono">--dur-calm</span>
+            <span class="mono">--motion-slower 560</span><span>→</span><span class="mono">--dur-scenic</span>
+            <span class="mono">--ease-out · --ease-soft</span><span>→</span><span class="mono">--ease-paper</span>
+            <span class="mono">--stagger-step 60ms</span><span>→</span><span class="mono">40ms, 6 max</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card tile" style="grid-column: span 2; flex-direction: row; gap: 18px; align-items: stretch">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px"><span class="tt">Rules that keep it calm</span>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #3F372E">
+            <span>• Animate only transform and opacity, except height in accordions.</span>
+            <span>• One thing moves at a time per region; no parallel entrances.</span>
+            <span>• Never animate on every keystroke or filter tick; debounce 150ms.</span>
+            <span>• Loops only for live states: loading, "viewing now", recording.</span>
+          </div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px"><span class="tt">Cleanup in the repo</span>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #3F372E">
+            <span>• 67 keyframes collapse to about 15 shared ones (rise, pop, sheet, toast, shimmer, draw, stamp…).</span>
+            <span>• The global reduced-motion switch stays, plus per-pattern fallbacks above.</span>
+            <span>• A test fails on raw ms values or easings outside the tokens.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2600}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

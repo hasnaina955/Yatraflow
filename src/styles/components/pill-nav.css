@@ -1,0 +1,83 @@
+/* Pill navigation — the family contract.
+
+   `.pill-nav` is the rail, `.pill-glider` is the sliding highlight, and
+   `.pill-ink` with `.pill-ink-row` is the clipped copy of the labels painted in
+   the fill's ink. `PillNav` in `src/components/PillNav.tsx` renders all of it and
+   measures the glider from the active item.
+
+   The family spans FOUR cascade positions, not one. Its rules used to sit in
+   `legacy/01-foundations.css`, `legacy/02-select-and-print.css`,
+   `legacy/16-motion-and-cover-v2.css` and `legacy/17-overview-tiles-and-cover.css`.
+   A single owner file cannot hold all four without moving rules past the rules
+   they answer to, so this owner is four files, imported at those four positions:
+
+     pill-nav-01.css   the rail, the glider, the cleared fills, the inks
+     pill-nav-02.css   the focus ring restatement, the count badge
+     pill-nav-16.css   the workspace rail's glider tint and its motion reset
+     pill-nav-17.css   the ink copy's ink
+
+   `.pill-nav` is also not one component's styling. The rail's rules paint
+   `.nav-link`, `.tab-btn` and `.clickable-chip` — three other families — from
+   inside this scope, because the glider owns the fill and those items must stop
+   painting their own. Those appearance declarations stay recorded as debt in
+   `docs/css-ownership.json`: this owner answers for `.pill-nav` and
+   `.pill-glider`, and the button and chip owners still answer for their own ink.
+
+   The behaviour that must not change, and is checked by
+   `dev/_css3-pillnav-compare.mjs`:
+
+     - the glider box equals the active item's box, and equals the ink window's
+     - a switch, an interrupted switch and a rapid reversal all settle on the
+       right item with a zero delta
+     - every tab is reachable by the arrow keys, and the active one keeps a
+       visible focus ring because the cleared fill would otherwise remove it
+     - an overflowing rail publishes `data-overflow`, and scrolling updates it
+     - reduced motion collapses the glider and ink transitions to near zero
+*/
+
+/* PillNav: one sliding "glider" pill behind the active item — switching reads
+   as one continuous motion instead of two backgrounds cross-fading.
+   `--pill-gap` is the row's own gap, named so the clipped ink copy (`.pill-ink-row`)
+   can lay out with the SAME spacing instead of restating the number. */
+.pill-nav { position: relative; display: flex; gap: 2px; --pill-gap: 2px; }
+.pill-nav > * { position: relative; z-index: 1; }
+.pill-glider {
+  position: absolute; left: 0; top: 0; width: 0; z-index: 0;
+  border-radius: 999px; background: var(--teal-soft);
+  /* The glide animates this element's own BOX, and deliberately NOT a transform.
+     A `scaleX` FLIP cannot resize a rounded pill without stretching its ends into
+     ellipses - at a 76px -> 146px tab change that is scaleX 1.93 - which reads as
+     the animation breaking rather than the pill gliding.
+     The box is also not the layout cost it looks like: the glider is absolutely
+     positioned, so its own box cannot reflow its siblings; the work is this one
+     element's layout and paint.
+     MOTION-TOKENS.md's catalog row described this as a "thumb `transform` slide";
+     that was wrong about the implementation, and is corrected there rather than
+     making the pill pay for the doc. */
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
+    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide),
+    opacity var(--motion-fast) var(--ease-glide), background var(--motion-fast) var(--ease-glide);
+  pointer-events: none;
+}
+[data-theme='dark'] .pill-glider { background: var(--teal); }
+/* inside a pill nav the glider paints the active background — the items don't
+   (no background AND no glow on the item itself: a shadow that pops on/off on
+   the chip while the glider glides is exactly the two-step switch feel the
+   tabbar doesn't have) */
+.pill-nav .nav-link.active, .pill-nav .tab-btn.active,
+.pill-nav .clickable-chip.on-teal,
+.pill-nav .nav-link.active:hover, .pill-nav .tab-btn.active:hover,
+.pill-nav .clickable-chip.on-teal:hover { background: transparent; box-shadow: none; }
+/* Ink on the glider: light mode paints a PALE teal glider, so the active chip
+   keeps deep-teal ink — it would otherwise inherit #fff from .on-teal and
+   vanish against the pale background (1.2:1). Dark mode paints a saturated
+   glider and wants dark ink (kept from the original fix). */
+.pill-nav .clickable-chip.on-teal { color: var(--yf-teal-700); }
+[data-theme='dark'] .pill-nav .nav-link.active, [data-theme='dark'] .pill-nav .tab-btn.active,
+[data-theme='dark'] .pill-nav .clickable-chip.on-teal { color: #06251f; }
+/* Saffron active state, for any pillbar chip that wants it: same rule — the
+   glider paints the highlight, the chip only supplies ink (dark amber: 4.8:1
+   on solid saffron, where white ink was 2:1). The glider recolours while it
+   slides via the :has() below. */
+.pill-nav .clickable-chip.on-saffron { background: transparent; box-shadow: none; color: #5C3600; }
+.pill-nav:has(.clickable-chip.on-saffron) .pill-glider { background: var(--saffron); }

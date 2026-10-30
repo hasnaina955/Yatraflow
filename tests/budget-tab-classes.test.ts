@@ -4,10 +4,11 @@
 // before and after screenshot pair.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tab = read('../src/pages/trip/BudgetTab.tsx')
-const css = read('../src/styles.css')
+const css = readCssSource('src/styles.css')
 
 const count = (source: string, needle: string) => source.split(needle).length - 1
 const SECTION = '/* ---------- Budget tab static styles (bud-) ---------- */'

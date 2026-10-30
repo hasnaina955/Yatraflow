@@ -260,6 +260,36 @@ export function placeArtFor(
   return genericId ? { kind: 'generic', id: genericId, seed } : null
 }
 
+/**
+ * Every scene the match's own family owns, seeded-first.
+ *
+ * A cover that can try only one file goes blank when that file is missing from
+ * the build or fails at the network. The family gives it the siblings to try
+ * before it leaves the family: the same seeded scene the single-choice chain
+ * would show comes first, then the rest in their declared order. The order is
+ * a rotation of the declared list, so it is stable for one seed and finite.
+ *
+ * Empty for a null match and for a family with no ids.
+ */
+export function placeArtFamilyFor(
+  match: PlaceArtMatch | null,
+  fallbacks: PlaceArtFallbacks,
+  tables: PlaceArtTables = placeTables(),
+): string[] {
+  if (!match) return []
+  const ids = match.kind === 'destination'
+    ? Object.values(tables.destination).find(entry => entry.place === match.place)?.ids
+    : match.kind === 'state'
+      ? Object.values(tables.state).find(entry => entry.state === match.state)?.ids
+      : match.kind === 'crossState'
+        ? fallbacks.road
+        : fallbacks.neutral
+  const list = ids ?? []
+  if (list.length === 0) return []
+  const start = hash(match.seed) % list.length
+  return [...list.slice(start), ...list.slice(0, start)]
+}
+
 /** The single scene id from a match, or null so the caller keeps its motif. */
 export function placeArtIdFor(
   destinations: readonly string[] | null | undefined,

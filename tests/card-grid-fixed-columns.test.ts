@@ -6,6 +6,7 @@
 // code and not prose: comments are stripped before any scan.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (relativePath: string) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -30,7 +31,7 @@ function blockBody(source: string, header: string): string {
   throw new Error(`block not closed: ${header}`)
 }
 
-const css = stripComments(read('../src/styles.css'))
+const css = stripComments(readCssSource('src/styles.css'))
 const tripsListSource = stripComments(read('../src/pages/TripsList.tsx'))
 const tripsCardSource = stripComments(read('../src/lib/tripsCard.ts'))
 

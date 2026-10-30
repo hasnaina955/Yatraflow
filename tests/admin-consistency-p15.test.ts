@@ -4,9 +4,10 @@
 // undoes one of them fails here instead of in a screenshot review.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const page = readFileSync(new URL('../src/pages/AdminPage.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readCssSource('src/styles.css')
 const baseline = JSON.parse(
   readFileSync(new URL('./page-consistency-baseline.json', import.meta.url), 'utf8'),
 ) as { pageRootAllowlist: string[]; pageFiles: Record<string, Record<string, number>> }

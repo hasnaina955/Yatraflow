@@ -1,0 +1,67 @@
+/* Shared input, textarea and field composition.
+   Owns the control's appearance, its interaction states, its focus ring and
+   its local motion. It also owns how a label, a control and a hint stack in a
+   field. A page places a field and sets the documented variables. A page does
+   not restyle the control from here.
+
+   The search field and the select keep their own modules. This file must not
+   grow a second recipe for either of them. */
+
+/* from src/styles/legacy/01-foundations.css */
+/* ---------- Forms ---------- */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+
+/* from src/styles/legacy/01-foundations.css */
+.input, .textarea {
+  width: 100%; padding: var(--input-padding, 10px 13px);
+  border: 1.5px solid var(--input-border-color, var(--line));
+  border-radius: var(--input-radius, var(--radius-sm));
+  background: var(--input-background, var(--card-soft)); outline: none;
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+  color: var(--input-color, var(--text));
+}
+/* Size and appearance are NOT declared here. The sheet sets type on the
+   element selector `input, select, textarea`, so a declaration on `.input`
+   would have to beat that rule. `revert` measured 13.3333px against the
+   real 14.5px, which is how that was found. A page that changes the size
+   still declares font-size itself, and that is recorded as debt. */
+
+/* Inline controls keep their compact size beside a label. */
+.input--compact { width: auto; padding: 5px 8px; font-size: 13px; }
+.flight-w-airline { width: 140px; }
+.flight-w-flight { width: 96px; }
+.flight-w-fare { width: 110px; }
+.flight-w-ref { width: 120px; }
+
+/* from src/styles/legacy/01-foundations.css */
+.input:focus, .textarea:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+
+/* from src/styles/legacy/01-foundations.css */
+.input:disabled, .textarea:disabled {
+  opacity: .55; cursor: not-allowed;
+}
+
+/* from src/styles/legacy/01-foundations.css */
+.textarea { resize: vertical; min-height: 74px; }
+
+/* from src/styles/legacy/01-foundations.css */
+.input[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
+
+/* from src/styles/legacy/04-mobile-usability.css */
+.input:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* from src/styles/legacy/04-mobile-usability.css */
+.textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* from src/styles/legacy/04-mobile-usability.css */
+@media (max-width: 720px) {
+.input, .textarea { min-height: 44px; font-size: 16px; }
+}

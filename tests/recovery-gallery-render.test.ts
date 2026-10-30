@@ -54,6 +54,7 @@ vi.mock('../src/lib/writeQueue', () => ({
 vi.mock('../src/lib/snapshot', () => ({ downloadTripJson: vi.fn() }))
 
 import { OfflineBanner } from '../src/components/OfflineBanner'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 function write(overrides: Partial<QueuedWrite> = {}): QueuedWrite {
   return {
@@ -137,7 +138,7 @@ describe('recovery state gallery', () => {
   })
 
   it('writes the gallery page with the real stylesheet', () => {
-    const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+    const css = readCssSource('src/styles.css')
     const page = `<!doctype html>
 <html lang="en" data-theme="light">
 <head>

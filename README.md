@@ -93,9 +93,9 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 _Release highlights, newest first — the full record lives in [CHANGELOG.md](CHANGELOG.md)._
 
-## The v0.80.0 release candidate
+## The v0.80.0 release
 
-v0.80.0 is deployed to production. This candidate joins the verified work on `test` with main's dependency security updates.
+v0.80.0 is deployed to production. It joins the verified work on `test` with main's dependency security updates.
 
 - **Group actions save one result.** Acceptance and poll resolution save the stop and status together. Same-day repeats need explicit confirmation. A deleted day asks for a current day.
 - **Destination covers match their place names.** Uploaded covers still win. Unknown or mixed destinations use neutral art.
@@ -300,7 +300,8 @@ The web app routes on real paths (`/trip/<id>`, `/pub/<slug>`, `/creator/<id>`, 
 src/
 ├── main.tsx           # Entry — mounts <App/> inside <ErrorBoundary/>
 ├── App.tsx            # Path router, nav shell, footer, notifications
-├── styles.css         # Single hand-written stylesheet (light+dark via data-theme)
+├── styles.css         # Entry: the ordered imports of the section modules
+├── styles/legacy/     # The pre-split sections, one contiguous range per file
 ├── data/              # types.ts domain model · seed.ts demo content
 ├── store/store.ts     # Supabase-backed reactive cache + all mutations
 ├── lib/               # engine.ts · impact.ts · ai.ts · ridePlan.ts · geocode.ts

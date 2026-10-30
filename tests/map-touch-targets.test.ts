@@ -10,9 +10,10 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const css = readFileSync(join(root, 'src', 'styles.css'), 'utf8')
+const css = readCssSource('src/styles.css')
 
 describe('coarse-pointer hit areas on the map shapes (A10)', () => {
   it('the pin and the tear both get one', () => {

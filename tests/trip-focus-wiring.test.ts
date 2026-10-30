@@ -25,10 +25,19 @@ describe('#425 PR 1 — the shared focus contract is wired at the workspace', ()
     expect(ws).toMatch(/normalizeFocus\(/)
   })
 
-  it('both onOpenDay call sites raise through the validated path', () => {
+  it('openTimeline resolves the target and sets the shared day focus', () => {
+    const openTimeline = ws.match(/function openTimeline\([\s\S]*?\n  \}/)?.[0] ?? ''
+    expect(openTimeline).toContain('const next = resolveTimelineFocus(trip, target)')
+    expect(openTimeline).toContain('if (next.dayIndex != null) setFocusedDay(next.dayIndex)')
+  })
+
+  it('both onOpenDay call sites pass the day target to openTimeline', () => {
     // map tab + settings both hand days to the timeline
-    const raises = (ws.match(/setFocusedDay\(dayIndex\)/g) ?? []).length
-    expect(raises).toBe(2)
+    expect((ws.match(/onOpenDay=\{dayIndex => openTimeline\(\{ dayIndex \}\)\}/g) ?? []).length).toBe(2)
+    const mapTab = ws.match(/<MapTab\b[\s\S]*?\/>/)?.[0] ?? ''
+    const settings = ws.match(/<TripSettingsForm\b[\s\S]*?\/>/)?.[0] ?? ''
+    expect(mapTab).toContain('onOpenDay={dayIndex => openTimeline({ dayIndex })}')
+    expect(settings).toContain('onOpenDay={dayIndex => openTimeline({ dayIndex })}')
   })
 
   it('focus is local UI state only — never written through updateTrip', () => {

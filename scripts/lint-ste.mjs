@@ -26,6 +26,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { chooseLintBase, GateError, requireMergeBase } from './lint-ste-base.mjs'
 
 const MAX_WORDS = 20
@@ -416,8 +417,37 @@ const EXCLUDED_PATH_PREFIXES = [
   'docs/agents/AGENTS-FULL.md', // verbatim copy of AGENTS.md written before the STE rules applied
 ]
 
+// The design study keeps its supplied inputs and its own exports in the tree.
+// Only those artifacts are exempt, never the folder. An earlier version of this
+// file exempted `docs/redesign/papercut-warmth/` whole, which also skipped
+// REFERENCES.md, the export READMEs and any note added later. An exclusion that
+// covers a directory hides authored prose, and that is the prose this gate is for.
+const DESIGN_ROOT = 'docs/redesign/papercut-warmth/'
+const DESIGN_SOURCES = `${DESIGN_ROOT}sources/` // supplied design inputs, not our prose
+const DESIGN_EXPORTS = `${DESIGN_ROOT}exports-20261028/`
+
+// What a visual design tool produced inside an export folder: the standalone
+// mockup page, its runtime shim, the images, and vendored copies of React and
+// React DOM. These are fixed artifacts, so rewriting them would falsify the
+// record of what was exported. Named one kind at a time, so a README or a new
+// note in the same folder is still checked.
+const EXPORT_ARTIFACT_SUFFIXES = ['.dc.html']
+const EXPORT_ARTIFACT_NAMES = new Set(['support.js'])
+const EXPORT_ARTIFACT_DIRS = ['/assets/', '/vendor/']
+
+function isExportArtifact(normalised) {
+  if (!normalised.startsWith(DESIGN_EXPORTS)) return false
+  const base = normalised.slice(normalised.lastIndexOf('/') + 1)
+  if (EXPORT_ARTIFACT_SUFFIXES.some((suffix) => base.endsWith(suffix))) return true
+  if (EXPORT_ARTIFACT_NAMES.has(base)) return true
+  return EXPORT_ARTIFACT_DIRS.some((dir) => normalised.includes(dir))
+}
+
 function isExcludedPath(file) {
-  return EXCLUDED_PATH_PREFIXES.some((prefix) => file.startsWith(prefix))
+  const normalised = file.replace(/\\/g, '/')
+  if (EXCLUDED_PATH_PREFIXES.some((prefix) => normalised.startsWith(prefix))) return true
+  if (normalised.startsWith(DESIGN_SOURCES)) return true
+  return isExportArtifact(normalised)
 }
 
 // Checks one line. A list item in a fence is code, and an indented block is
@@ -426,6 +456,7 @@ function isExcludedPath(file) {
 function checkIfProse(file, lineno, text, kind = 'text', prose) {
   const name = kind && typeof kind === 'object' ? kind.kind : kind
   if (name === 'indented') return
+  if (name === 'code') return
   if (name === 'fenced' && LIST_MARKER.test(text)) return
   if (name === 'comment' || name === 'statement') {
     if (!prose) return
@@ -442,7 +473,115 @@ function checkIfProse(file, lineno, text, kind = 'text', prose) {
 // statements, so a block-comment body and a RAISE message are prose while the
 // statements stay code.
 function kindsFor(file, lines) {
-  return file.endsWith('.sql') ? sqlLineKinds(lines) : lineKinds(lines)
+  if (file.endsWith('.sql')) return sqlLineKinds(lines)
+  if (file.endsWith('.css')) return cssLineKinds(lines)
+  if (/\.(?:[cm]?[jt]sx?)$/.test(file)) return codeLineKinds(lines)
+  return lineKinds(lines)
+}
+
+/**
+ * Classify one source line as code or comment prose.
+ *
+ * Before this existed, a TypeScript file fell through to `lineKinds`, which is
+ * written for Markdown and treats every non-indented line as prose. That made the
+ * gate report identifiers as prose: `attempt: number,` in a function signature
+ * was scored as a sentence using a code word, and the suggested remedy
+ * was to rewrite an API parameter. Line length limits were applied to code too.
+ *
+ * A line is prose only when it carries comment text, and only the comment body is
+ * checked. Everything else is code and is skipped.
+ */
+function codeLineKinds(lines) {
+  const kinds = []
+  let blockDepth = 0
+  for (const line of lines) {
+    let prose = ''
+    let i = 0
+    let sawCode = false
+    while (i < line.length) {
+      if (blockDepth > 0) {
+        const close = line.indexOf('*/', i)
+        if (close < 0) {
+          prose += ' ' + line.slice(i)
+          i = line.length
+        } else {
+          prose += ' ' + line.slice(i, close)
+          blockDepth = 0
+          i = close + 2
+        }
+        continue
+      }
+      const ch = line[i]
+      const pair = line.slice(i, i + 2)
+      if (pair === '//') {
+        prose += ' ' + line.slice(i + 2)
+        break
+      }
+      if (pair === '/*') {
+        blockDepth = 1
+        i += 2
+        continue
+      }
+      // A string or template literal is code, and it may hold comment markers.
+      if (ch === '"' || ch === "'" || ch === '`') {
+        let j = i + 1
+        while (j < line.length) {
+          if (line[j] === '\\') { j += 2; continue }
+          if (line[j] === ch) { j += 1; break }
+          j += 1
+        }
+        sawCode = true
+        i = j
+        continue
+      }
+      if (!/\s/.test(ch)) sawCode = true
+      i += 1
+    }
+    const body = prose.replace(/\s+/g, ' ').trim()
+    if (sawCode) kinds.push({ kind: 'statement', prose: body })
+    else if (body) kinds.push({ kind: 'comment', prose: body })
+    else kinds.push({ kind: 'code' })
+  }
+  return kinds
+}
+
+/**
+ * Classify one stylesheet line.
+ *
+ * A line is code when it carries CSS syntax: a declaration, a brace, an
+ * at-rule, or a selector list. A line is prose when it is a comment body or
+ * bare text, which is where a stylesheet's own prose lives.
+ *
+ * The distinction is by line shape, not by file extension. An explicit
+ * `--file` check on a stylesheet must still report bad prose, which is the
+ * contract the extraction guard already pins.
+ */
+function cssLineKinds(lines) {
+  const kinds = []
+  let inComment = false
+  for (const line of lines) {
+    const t = line.trim()
+    if (inComment) {
+      kinds.push('text')
+      if (t.includes('*/')) inComment = false
+      continue
+    }
+    if (t.startsWith('/*')) {
+      kinds.push('text')
+      if (!t.includes('*/')) inComment = true
+      continue
+    }
+    if (!t) {
+      kinds.push('blank')
+      continue
+    }
+    const looksLikeCss =
+      t.endsWith('{') || t.endsWith('}') || t.endsWith(';') || t.endsWith(',') ||
+      t.startsWith('@') || t.startsWith('}') || t.includes('{') ||
+      /^[.#:\[*]|^[a-zA-Z][\w-]*\s*[>+~]/.test(t)
+    kinds.push(looksLikeCss ? 'code' : 'text')
+  }
+  return kinds
 }
 
 function proseOf(kind) {
@@ -524,6 +663,90 @@ function checkAdded(added, staged) {
   }
 }
 
+// Compare extracted files with the immutable extraction commit as well. Only
+// lines still identical to that extraction are historical. If the commit is
+// missing, check all lines rather than silently granting an exemption.
+//
+// A module can inherit comments from the frozen legacy sections when a move
+// carries them out of `legacy/`. Its line numbers differ, so a positional
+// compare cannot work.
+//
+// The exemption is deliberately narrow. It applies only to a module that the
+// ownership map registers as a migration destination, and only to a line that
+// is a comment and whose text exists in the extraction commit. New prose
+// written in the same file is checked, and an identical sentence pasted into a
+// file that is not a registered destination is checked too.
+// Modules that a migration may have moved historical comments into. They come
+// from the ownership map, so the list cannot drift away from what the CSS
+// ownership check considers an owner module.
+function migrationDestinations() {
+  try {
+    const mapPath = path.join(process.cwd(), 'docs/css-ownership.json')
+    const map = JSON.parse(readFileSync(mapPath, 'utf8'))
+    return new Set((map.owners ?? []).map((o) => o.file).filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+function excludeExtractedLines(added) {
+  const extraction = '6d356f84b6a6d97d327a651b8295eeee6a38a3b9'
+  const sha = commitOf(extraction)
+  if (!sha) return added
+  const prefix = 'src/styles/legacy/'
+  const destinations = migrationDestinations()
+  const changed = new Set(addedLines([sha, '--', prefix]).map(a => `${a.file}:${a.lineno}:${a.text}`))
+
+  let extractionComments = null
+  const loadExtractionComments = () => {
+    if (extractionComments !== null) return extractionComments
+    try {
+      const files = execFileSync('git', ['ls-tree', '-r', '--name-only', sha, '--', prefix], { encoding: 'utf8' })
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+      const text = files
+        .map((f) => execFileSync('git', ['show', `${sha}:${f}`], { encoding: 'utf8', maxBuffer: 1 << 26 }))
+        .join('\n')
+      // Every line inside a block comment, not only the ones that carry the
+      // delimiters. A moved multi-line comment keeps its continuation lines
+      // verbatim, and those lines have no `/*` or `*/` to recognise them by.
+      const collected = new Set()
+      let inComment = false
+      for (const raw of text.split(/\r?\n/)) {
+        const l = raw.trim()
+        if (!inComment && l.startsWith('/*')) {
+          collected.add(l)
+          if (!l.includes('*/')) inComment = true
+          continue
+        }
+        if (inComment) {
+          collected.add(l)
+          if (l.includes('*/')) inComment = false
+          continue
+        }
+        if (l.startsWith('*') || l.endsWith('*/')) collected.add(l)
+      }
+      extractionComments = collected
+    } catch {
+      extractionComments = new Set()
+    }
+    return extractionComments
+  }
+
+  const isHistoricalComment = (text) => {
+    const t = String(text).trim()
+    if (!t) return false
+    return loadExtractionComments().has(t)
+  }
+
+  return added.filter((a) => {
+    if (a.file.startsWith(prefix)) return changed.has(`${a.file}:${a.lineno}:${a.text}`)
+    if (destinations.has(a.file)) return !isHistoricalComment(a.text)
+    return true
+  })
+}
+
 const argv = process.argv.slice(2)
 const argValue = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined)
 
@@ -597,16 +820,26 @@ function main() {
   const base = chooseBase()
   if (base.warning) console.error(base.warning)
   const added = addedLines([base.sha])
-  checkAdded(added, false)
+  checkAdded(excludeExtractedLines(added), false)
   return report(base.label, rangeNote(base, added))
 }
 
-try {
-  process.exitCode = main()
-} catch (err) {
-  const message = err instanceof GateError
-    ? err.message
-    : `cannot read the input: ${String(err.message).split('\n')[0]}`
-  console.error(`STE100: ${message}`)
-  process.exitCode = 2
+// The gate runs only when this file is the entry point. Importing it from a test
+// must not evaluate the argv of the test runner and exit the process, so the
+// classifiers below are exported for the tests to call directly.
+const invokedDirectly = Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (invokedDirectly) {
+  try {
+    process.exitCode = main()
+  } catch (err) {
+    const message = err instanceof GateError
+      ? err.message
+      : `cannot read the input: ${String(err.message).split('\n')[0]}`
+    console.error(`STE100: ${message}`)
+    process.exitCode = 2
+  }
 }
+
+export { isExcludedPath, codeLineKinds, isProse }

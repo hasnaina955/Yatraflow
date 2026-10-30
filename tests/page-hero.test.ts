@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = async (relativePath: string) =>
   (await readFile(join(process.cwd(), relativePath), 'utf8')).replace(/\r\n/g, '\n')
@@ -10,7 +11,7 @@ const read = async (relativePath: string) =>
 const PAGE_HERO = 'src/components/page/PageHero.tsx'
 const EXPLORE_HERO = 'src/components/explore/ExploreHero.tsx'
 const TRIPS_HERO = 'src/components/trips/TripsHero.tsx'
-const STYLES = 'src/styles.css'
+const STYLES_TEXT = readCssSource('src/styles.css')
 const YF_PAGE_MARKER = '/* ===== Page scope: yf-page ===== */'
 
 describe('PageHero component contract', () => {
@@ -69,11 +70,14 @@ describe('PageHero callers', () => {
 
 describe('yf-page scope in styles.css', () => {
   it('appends a button-skin block that lists the yf-page selector', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf(YF_PAGE_MARKER)
     expect(start, 'the yf-page section comment').toBeGreaterThan(-1)
     const block = css.slice(start)
     expect(block).toMatch(/:is\(\.yf-page\) \.btn:where\(:not\(\.btn-sm, \.modal \*\)\) \{/)
-    expect(block).toMatch(/\.container:is\(\.yf-page\) \{\s*max-width: 1240px;/)
+    // The width moved from a direct declaration to the container's documented
+    // variable, so a page selects it instead of restating the property. The
+    // value the page asks for is unchanged.
+    expect(block).toMatch(/\.container:is\(\.yf-page\) \{\s*--container-max: 1240px;/)
   })
 })

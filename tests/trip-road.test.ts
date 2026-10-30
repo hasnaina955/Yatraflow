@@ -71,6 +71,15 @@ function leg(km: number, min: number): RoadLeg {
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('buildRoadChain', () => {
+  it('keeps point metadata aligned through sorting, rejection and the tail', () => {
+    const trip = tripOf({ start: P(1, 2), days: [{ index: 2, stops: [{ lat: 3, lng: 4 }, { lat: 5, lng: 6, status: 'rejected' }] }], roundTrip: true, destinationCoords: [P(7, 8)] })
+    trip.days[0].stops[0].id = 'stop-1'
+    const chain = buildRoadChain(trip)
+    expect(chain.ptKind).toEqual(['start', 'stop', 'return', 'destination'])
+    expect(chain.ptStopId).toEqual([null, 'stop-1', null, null])
+    expect(chain.ptDay).toEqual([null, 2, null, null])
+    expect(chain.points).toEqual([P(1, 2), P(3, 4), P(1, 2), P(7, 8)])
+  })
   it('walks start → stops in day/order sequence and marks the outbound boundary', () => {
     const chain = buildRoadChain(tripOf({
       start: P(26.9, 75.8),
@@ -308,7 +317,9 @@ describe('the wiring: one measurement site, no second caller (#188)', () => {
   it('tripRoad.ts is the single owner of the whole-trip chain', () => {
     const tripRoad = read('../src/lib/tripRoad.ts')
     const calls = tripRoad.match(/routePath\(/g) ?? []
-    expect(calls.length).toBe(2) // measureRoadChain + measureDayRide (the map's day line)
+    // ONE shared default in `activeMeasure` serves both entry points, so the
+    // file holds a single call site. A stray second one still fails this pin.
+    expect(calls.length).toBe(1)
   })
 
   // The reported defect: a flight trip was measured as a ROAD. Google Routes has

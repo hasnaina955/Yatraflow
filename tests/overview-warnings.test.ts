@@ -86,14 +86,14 @@ describe('#401 — tone follows the severest warning present', () => {
 describe('#401 — OverviewTab reads the shared rules (source)', () => {
   const page = readFileSync(new URL('../src/pages/trip/OverviewTab.tsx', import.meta.url), 'utf8')
 
-  it('both lists slice the same ranked array', () => {
-    expect(page.split('rankedWarnings.slice(0, 3)').length - 1).toBe(2)
+  it('the visible list slices the shared ranked array', () => {
+    expect(page.split('rankedWarnings.slice(0, 3)').length - 1).toBe(1)
     expect(page).not.toContain('health.warnings.slice(0, 3)')
   })
 
-  it('both rows key on data and announce severity', () => {
-    expect(page.split('warningKey(w)').length - 1).toBe(2)
-    expect(page.split('severityLead(w.severity)').length - 1).toBe(2)
+  it('each visible row keys on data and announces severity', () => {
+    expect(page.split('warningKey(warning)').length - 1).toBe(1)
+    expect(page.split('severityLead(warning.severity)').length - 1).toBe(1)
     expect(page).not.toContain('w.code + w.title')
   })
 

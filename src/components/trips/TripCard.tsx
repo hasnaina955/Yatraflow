@@ -9,6 +9,7 @@ import { cap } from '../../lib/labels'
 import { nextStepRoute } from '../../lib/tripNextStep'
 import { routeLine, travelHoursText } from '../../lib/tripsCard'
 import { cardNextStep, rangeText, statusOf } from '../../lib/tripsPage'
+import { staggerDelay } from '../../lib/motion'
 import type { Trip, CachedUser } from '../../data/types'
 import type { PresenceAttrs } from '../../lib/usePresenceList'
 import { Planners } from './Planners'
@@ -36,7 +37,7 @@ export function TripCard({ trip, today, budget, totalTravelMinutes, users, meId,
   const status = statusOf(trip, today)
   const step = cardNextStep(trip, today)
   const plannerCount = (trip.members ?? []).length
-  const enterDelay: CSSProperties = { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` }
+  const enterDelay: CSSProperties = { animationDelay: staggerDelay(enterIndex) }
   return (
     <article className="mt-card" data-status={status} style={enterDelay} {...presence}>
       <TripCover trip={trip} status={status} sizes={coverSizes} />

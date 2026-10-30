@@ -1,0 +1,46 @@
+/* Shared toast.
+   Owns the fixed toast zone, the pill, its two semantic variants and the action
+   button inside it.
+
+   Behaviour is not CSS. The live region, the role assignment, the one timer per
+   toast, the hover and focus hold and the dismiss path live in
+   src/components/ui.tsx `ToastZone`. Nothing here changes them.
+
+   The three dark overrides sit after .ok and .err on purpose: the neutral dark
+   rule has the same specificity as the semantic ones, so it must not win. The
+   note explaining that travelled with them. */
+
+.toast-zone { position: fixed; bottom: calc(18px + var(--bottom-ui-offset) + var(--dock-h)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: var(--z-toast); pointer-events: none; padding: 0 14px; }
+
+.toast {
+  pointer-events: auto; background: var(--text); color: var(--bg);
+  padding: 11px 20px; border-radius: var(--toast-radius, 999px); font-size: 13.5px; font-weight: 600;
+  box-shadow: var(--shadow); animation: slideUp var(--t-med) var(--ease-out); max-width: 100%;
+  /* Undo button inside a toast */
+  display: inline-flex; align-items: center; gap: 12px;
+}
+
+.toast.ok { background: var(--teal-deep); color: #fff; }
+
+.toast.err { background: var(--danger); color: #fff; }
+
+/* The blanket dark rule below has the same specificity as .toast.ok/.toast.err
+   and comes later, so on its own it wiped the success/error fill: in dark mode
+   every toast rendered as the same neutral pill and the two outcomes became
+   visually identical. The semantic pairs keep their own fills and take the dark
+   ink this codebase already uses wherever a lightened teal carries text
+   (see .ai-bubble.user, .notif-badge) — 7.9:1 on the teal and 5.1:1 on the soft
+   red, against 2.05:1 and 3.22:1 for white. */
+[data-theme='dark'] .toast { background: var(--gray-900); color: var(--gray-50); }
+
+[data-theme='dark'] .toast.ok { background: var(--teal-deep); color: #06251f; }
+
+[data-theme='dark'] .toast.err { background: var(--danger); color: #06251f; }
+
+.toast-action {
+  border: none; background: rgba(255,255,255,.18); color: inherit;
+  font-weight: 700; font-size: 12.5px; padding: 8px 16px; border-radius: var(--toast-radius, 999px);
+  cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
+}
+
+.toast-action:hover { background: rgba(255,255,255,.32); }

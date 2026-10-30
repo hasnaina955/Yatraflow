@@ -1,0 +1,15 @@
+/* Pill navigation — part 3 of 4. See `pill-nav.css` for the family contract.
+
+   These rules sat in `legacy/16-motion-and-cover-v2.css`, and this file is
+   imported at that position. `.yf-tabbar` is the workspace rail, whose glider
+   tint and reduced-motion reset are its own. */
+
+.yf-page .yf-tabbar .pill-glider {
+  background: var(--pw-sea-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yf-page .yf-tabbar .pill-glider {
+    transition: none;
+  }
+}

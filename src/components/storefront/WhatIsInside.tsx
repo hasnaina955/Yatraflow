@@ -1,10 +1,8 @@
 // P7 storefront: the "What is inside" section. Words first, then chips, then day cards.
 import type { KindCount, WeekGroup } from '../../lib/publicStorefront'
+import { staggerStep } from '../../lib/motion'
 import { KindChip } from './KindChip'
 import { DayCard, DayCardProps } from './DayCard'
-
-/** The entrance delay stops growing here, so card 30 never starts late. */
-const STAGGER_CAP = 8
 
 export function WhatIsInside(p: {
   /** The one-sentence plan summary. Absent when the plan has no days, so the
@@ -22,7 +20,7 @@ export function WhatIsInside(p: {
   const dayByIndex = new Map(p.days.map((d, i) => [i, d] as const))
   const body = (
     <div className="sf-daygrid">
-      {p.days.map((d, n) => <DayCard key={d.summary.index} {...d} stagger={Math.min(n, STAGGER_CAP)} />)}
+      {p.days.map((d, n) => <DayCard key={d.summary.index} {...d} stagger={staggerStep(n)} />)}
     </div>
   )
   return (
@@ -40,7 +38,7 @@ export function WhatIsInside(p: {
           <div className="sf-daygrid">
             {w.days.map((i, j) => {
               const d = dayByIndex.get(i)
-              return d ? <DayCard key={d.summary.index} {...d} stagger={Math.min(j, STAGGER_CAP)} headingLevel={4} /> : null
+              return d ? <DayCard key={d.summary.index} {...d} stagger={staggerStep(j)} headingLevel={4} /> : null
             })}
           </div>
         </details>

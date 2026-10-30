@@ -1,0 +1,637 @@
+/* ===== P12 Overview: health tiles and the height profile ===== */
+/* The four checks under the health sentence. Each tile reads a real number.
+   A check with no input keeps its shell and says so. */
+.ovw2-health-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.ovw2-tiles {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ovw2-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4a);
+  border-radius: var(--radius-sm);
+  line-height: 1.25;
+}
+
+.ovw2-tile.is-ok { background: var(--pw-ok-100); color: var(--pw-ok); }
+.ovw2-tile.is-watch { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.ovw2-tile.is-risk { background: var(--pw-risk-100); color: var(--pw-risk); }
+.ovw2-tile.is-quiet { background: var(--pw-sunken); color: var(--pw-ink-2); }
+
+.ovw2-tile-label {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.ovw2-tile-value {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* The height profile. The SVG fills the content box, and its geometry comes
+   from elevationPlot.ts, so every pixel here is a real sample. */
+.ovw-elev {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--pw-line-soft);
+  border-radius: var(--radius);
+  background: var(--pw-paper);
+}
+
+.ovw-elev-svg { display: block; width: 100%; }
+
+.ovw-elev-sky-top { stop-color: var(--pw-lagoon-50); }
+.ovw-elev-sky-bottom { stop-color: var(--pw-paper); }
+.ovw-elev-land-top { stop-color: var(--pw-lagoon-600); }
+.ovw-elev-land-bottom { stop-color: color-mix(in srgb, var(--pw-lagoon-600) 42%, var(--pw-card)); }
+
+.ovw-elev-sun { fill: var(--pw-marigold-500); opacity: .55; }
+.ovw-elev-area { opacity: .55; }
+
+.ovw-elev-line {
+  fill: none;
+  stroke: var(--pw-ink);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ovw-elev-base { stroke: var(--pw-line); stroke-width: 1; }
+
+.ovw-elev-dot {
+  fill: var(--pw-card);
+  stroke: var(--pw-sea-700);
+  stroke-width: 2;
+}
+
+.ovw-elev-dot.is-start,
+.ovw-elev-dot.is-destination { stroke: var(--pw-marigold-500); }
+
+.ovw-elev-name {
+  fill: var(--pw-ink);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ovw-elev-axis {
+  fill: var(--pw-ink-3);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ovw-elev-peak rect { fill: var(--pw-card); stroke: var(--pw-line); }
+
+.ovw-elev-peak-title {
+  fill: var(--pw-ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ovw-elev-peak-value {
+  fill: var(--pw-sea-700);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ovw-elev-inset {
+  position: absolute;
+  top: var(--space-5);
+  left: var(--space-7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: max-content;
+  padding: var(--space-2);
+  border: 1px solid var(--pw-line-soft);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--pw-card) 92%, transparent);
+  box-shadow: var(--elev-1);
+  pointer-events: none;
+}
+
+.ovw-elev-inset span {
+  padding-inline: var(--space-2);
+  color: var(--pw-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.ovw-elev-inset-case {
+  fill: none;
+  stroke: var(--pw-card);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ovw-elev-inset-line {
+  fill: none;
+  stroke: var(--pw-sea-700);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ovw-elev-note {
+  margin: 0;
+  color: var(--pw-ink-3);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ovw-elev-note.is-pending { color: var(--pw-ink-2); }
+
+.ovw-route-caption.is-elevation {
+  background: var(--pw-sunken);
+  color: var(--pw-ink-2);
+}
+
+.ovw-road-note.is-kept {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+
+@media (max-width: 720px) {
+  .ovw2-health-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ovw2-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .ovw-elev-inset { display: none; }
+
+  .ovw-elev-name { font-size: 11px; }
+
+  .ovw-elev-axis { font-size: 11px; }
+}
+
+
+.ovw-elev-leader {
+  stroke: var(--pw-ink-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: .7;
+}
+
+/* In elevation mode the stop row carries its own height, so the name and the
+   meta share the column as two lines instead of one squeezed line. */
+.ovw2 .ovw-stoplist.is-elevated .ovw-stop-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.ovw2 .ovw-stoplist.is-elevated .ovw-stop-name small {
+  margin-inline-start: 0;
+}
+
+/* ===== P12 Overview: source layout — right stack, group strip, weather row ===== */
+/* The body reads as the source: issues and the matrix on the left, the route
+   card and the commitments stacked on the right, then one group strip and one
+   weather row beneath both columns. */
+.ovw2 .ovw2-right {
+  display: grid;
+  gap: var(--space-7a);
+  align-content: start;
+  min-width: 0;
+}
+
+.yf-surface.ovw-card.ovw2-commitments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-8);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: var(--elev-1);
+}
+
+.yf-surface.ovw-block.ovw2-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: center;
+  padding: var(--space-6) var(--space-8);
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: none;
+}
+
+.ovw2-strip-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ovw2-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.ovw2-strip-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4a);
+  min-width: 0;
+  padding: var(--space-4a) var(--space-5);
+  border-radius: var(--radius);
+  background: var(--pw-soft);
+}
+
+.ovw2-strip-tile.is-decisions { background: var(--pw-marigold-100); }
+.ovw2-strip-tile.is-activity { display: block; }
+
+.ovw2-strip-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ovw2-strip-copy b {
+  color: var(--pw-ink);
+  font-size: 14px;
+}
+
+.ovw2-strip-copy small {
+  color: var(--pw-ink-2);
+  font-size: 12px;
+}
+
+.ovw2-strip-kicker {
+  margin: 0 0 var(--space-1);
+  color: var(--pw-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ovw2-strip-tile .ovw-feed.is-strip li {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  padding: var(--space-2) 0;
+  font-size: 12px;
+}
+
+.ovw2-wx-row {
+  display: grid;
+  grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: center;
+}
+
+.ovw2-wx-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The profile keeps the source teal base band, with the distance labels on it. */
+.ovw-elev-band {
+  fill: var(--pw-sea-700);
+  opacity: .92;
+}
+
+.ovw-elev-axis.is-x { fill: var(--pw-on-sea); }
+
+/* The credit stays out of the way: one small disclosure at the card foot. */
+.ovw-elev-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.ovw-sources {
+  position: relative;
+  color: var(--pw-ink-3);
+  font-size: 11px;
+}
+
+.ovw-sources > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  color: var(--pw-ink-2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ovw-sources > summary::-webkit-details-marker { display: none; }
+
+.ovw-sources > summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-inline-end: var(--space-2);
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.ovw-sources[open] > summary::before { transform: rotate(45deg); }
+
+.ovw-sources > summary:focus-visible {
+  outline: 3px solid var(--pw-lagoon-600);
+  outline-offset: 2px;
+}
+
+.ovw-sources-body {
+  position: absolute;
+  right: 0;
+  z-index: var(--z-frost);
+  display: grid;
+  gap: var(--space-3);
+  width: min(320px, calc(100vw - 48px));
+  margin-top: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  background: var(--pw-card);
+  box-shadow: var(--elev-2);
+  color: var(--pw-ink-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ovw-sources-body p { margin: 0; }
+
+.ovw-sources-body a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--pw-sea-700);
+  font-weight: 700;
+}
+
+
+/* The group strip spans both body columns, like the source row. */
+.ovw2 .ovw2-strip {
+  grid-column: 1 / -1;
+}
+
+/* ===== P12 Overview: phone layout for the strip and the weather row ===== */
+/* These sit LAST on purpose: they carry the same specificity as the desktop
+   rules above, so source order is what makes the phone rules win. */
+@media (max-width: 720px) {
+  .ovw2-wx-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .yf-surface.ovw-block.ovw2-strip {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .ovw2-strip-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ovw2 .ovw-wx {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(148px, 1fr);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+  }
+}
+
+/* The Overview keeps the product 44 px floor on every control, including the
+   compact state-block actions inside the read-state notices. */
+.ovw2 .btn.btn-sm,
+.ovw-weather .btn.btn-sm {
+  min-height: 44px;
+  padding-inline: var(--space-5);
+}
+
+/* ===== P2 workspace: the source nav fill ===== */
+/* The source draws its nav pill at 86% of the card colour. That value belongs to
+   the workspace design, so it stays scoped to the workspace page. Every other
+   surface keeps the lighter shared glass it was designed with. */
+.app-shell:has(.yf-workspace) > .topnav {
+  background: color-mix(in srgb, var(--pw-card) 86%, transparent);
+}
+
+/* Keep compact titles inside the cover while the member row folds away. */
+.yf-page.yf-page[data-compact='true'] .yf-cover-emoji {
+  display: none;
+}
+.yf-page.yf-page[data-compact='true'] .yf-head-text {
+  transform: none;
+}
+.yf-page.yf-page[data-compact='true'] .yf-trip-head .yf-trip-title {
+  overflow: visible;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 720px) {
+  .yf-page.yf-page[data-compact='true'] .yf-cover-content > .yf-tabbar { max-width: 100%; }
+}
+
+/* ===== Shared cover renderer ===== */
+/* One image per slot, on every surface. These rules cover the states a card did
+   not have before: PENDING, where the slot shows its own neutral wash until the
+   file paints, and EXHAUSTED, where the traveller's emoji is the whole answer.
+   Neither state paints over an image, and no slot is ever a transparent hole.
+   The wash rides the image's own box, so no existing slot rule changes. */
+
+/* The image fills its slot exactly as the background it replaced did. */
+.itin-cover-img,
+.mt-cover-img,
+.cover-picker-img,
+.dock-thumb-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-color: var(--teal-soft);
+}
+
+/* The two card slots are positioned boxes, so their image is absolutely placed
+   and cannot add height to the box. */
+.itin-cover-img,
+.mt-cover-img {
+  position: absolute;
+  inset: 0;
+}
+
+.cover-picker-img { border-radius: inherit; }
+.dock-thumb-img { border-radius: inherit; }
+
+/* The cover settle runs on the ARTWORK, never on the band.
+   `.yf-cover-media` is `inset: 0` of `.yf-trip-head`, and that head sets
+   `overflow: visible`. `overflow` clips a box's descendants, never the box
+   itself, so scaling the media moved the band's own painted edge: at
+   scale(1.035) on a 1140px band the painted box measured 39.9px wider than the
+   layout box. The cards finished their 360ms entrance while the band was still
+   drifting, which read as a slow, unsynchronized entrance.
+   This element sits inside the media, which does clip it, so the zoom stays
+   inside the band. The keyframes, duration and easing live in
+   16-motion-and-cover-v2.css. */
+.yf-page .yf-cover-media > .yf-cover-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-color: var(--pw-sea-700);
+  animation: yfCoverSettle calc(var(--motion-slower) * 3) var(--ease-glide) backwards;
+}
+
+/* Exhausted: the emoji is the cover, so it sits in the middle of the slot
+   instead of in a corner. A corner badge reads as an accent on a photo. */
+.yf-page .yf-cover-media > .yf-cover-emoji {
+  left: 50%;
+  right: auto;
+  top: 50%;
+  width: auto;
+  height: auto;
+  font-size: 64px;
+  transform: translate(-50%, -50%);
+}
+
+.tk-cover > .emoji-chip {
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: auto;
+  font-size: 34px;
+  background: none;
+  border: 0;
+  transform: translate(-50%, -50%);
+}
+
+.dock-thumb-emoji { font-size: 19px; }
+
+/* The folded header keeps its cover when the emoji is all there is. */
+.yf-page.yf-page[data-compact='true'] .yf-cover-media > .yf-cover-emoji {
+  display: grid;
+}
+
+/* ---------- Member avatar tones ----------
+   A stack of initials avatars must read as several people. Overlapping circles
+   painted the same pale mint merge into one blob where they cross, so each
+   member's initials take a deterministic tone (lib/avatarTone.ts) and each tone
+   pairs its fill with an ink that clears AA in both themes. A real profile
+   photo still wins: these rules paint only the initials span, never an <img>.
+
+   The three fills are the mockup's own header trio — sea, marigold, bloom — so
+   the palette is the approved one, not a new set of hues. Each fill is inked by
+   the semantic `--pw-on-*` partner token, so the pair is decided by the token
+   set rather than here: an ink borrowed from another role (the page ink, the
+   card surface) is only correct until that role's value moves. The `--pw-*`
+   tokens are scoped to `.ovw` / `.yf-page`, so each rule carries the light value
+   as a fallback: a stack on a page outside those scopes still tones instead of
+   painting transparent. Both themes clear AA — see the ratio table in
+   DESIGN_TOKENS.md, and tests/avatar-tone.test.ts computes them from the tokens. */
+
+/* The stack's cut: a ring in the surface colour, so overlapping circles stay
+   separate without a hard outline. The 8px overlap is the mockup's own
+   (`margin-left: -8px` at a 28px circle), and it is a NEGATIVE margin on the
+   visible circle only — never on a hit target, which must stay 44px. */
+.member-stack .avatar,
+.yf-avatars .avatar { box-shadow: 0 0 0 2px var(--card); }
+.yf-page .yf-avatars .avatar { box-shadow: 0 0 0 2px color-mix(in srgb, var(--pw-cover-ink) 92%, transparent); }
+
+/* ---------- Glider ink window ----------
+   A pill nav whose fill is a different colour from the rail behind it cannot
+   ink its label with one colour: the label sits on the rail before the fill
+   arrives and on the fill afterwards, and for most of the glide it is on both
+   at once. A timed `color` swap was tried first and it cannot work — a
+   fixed moment does not describe a moving edge. Controlled capture on the
+   workspace rail put the fill fully over the label 180ms before the swap, at
+   2.19:1 light / 2.09:1 dark, and a 120ms reversal swapped the ink while the
+   fill still covered it.
+
+   So the paint follows the geometry. `PillNav` renders a second copy of the
+   items inside `.pill-ink`, a box that is placed and transitioned exactly like
+   the fill, and clips them with `overflow: hidden`. The copy row is offset by
+   `origin - fill`, so a copy lands on its own item whatever the fill's box is:
+   only the clip window moves, the glyphs never do. The visible result is the
+   rail ink outside the fill and the fill ink inside it, per pixel, at every
+   frame and in both directions.
+
+   Both boxes are written in one pass from one measurement, and the two run the
+   SAME transition declaration. That matters: two independently-transitioned
+   elements were measured 7.5px out of step on a 60ms reversal, which is exactly
+   the half-covered label this exists to prevent.
+
+   The copies are decoration — `aria-hidden`, no key, no handler, no tab stop —
+   so each tab keeps one accessible name and one interactive control. */
+.pill-ink {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 2;
+  overflow: hidden; border-radius: 999px; pointer-events: none;
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
+    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide);
+}
+.pill-ink-row {
+  position: absolute; left: 0; top: 0; display: flex; flex-wrap: nowrap; width: max-content;
+  /* Same flex geometry as the real row: the gap comes from one shared property,
+     so the two rows cannot drift apart when a surface changes it. */
+  gap: var(--pill-gap, 2px);
+  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide);
+}
+/* The window paints the fill OPAQUELY, on top of the real label, so the light
+   copy is the only ink inside it. A transparent window would composite white
+   over the dark glyph and fringe every stroke. */
+.yf-page .yf-tabbar .pill-ink { background: var(--pw-sea-700); }
+/* The ink copy's ink is owned by components/pill-nav-17.css. */
+
+@media (prefers-reduced-motion: reduce) {
+  .pill-ink, .pill-ink-row { transition: none; }
+}
+
+/* The member row balances on the PHONE cover too. At `--space-4` the desktop
+   cover meets (13.59 above, 14.41 below), but the phone cover is taller
+   (296px against 260px) and wraps, so the row sat 13.80 above and 27.81 below.
+   The extra `--space-7` (16px) moves the row down by 8px on that cover only,
+   which closes the difference to 21.80 / 19.81 — the lower gap is now the
+   smaller of the two by 2px, so the row reads centred rather than stuck to the
+   paragraph above it.
+
+   Scoped to `data-compact='false'`: the folded Board and Map headers collapse
+   this row with the rest of the header, and they must keep their own geometry.
+   A margin, not a transform — the row is a real box in a flex column, so the
+   fold still collapses the same box. */
+@media (max-width: 720px) {
+  .yf-page[data-compact='false'] .yf-members { margin-top: var(--space-7); }
+}

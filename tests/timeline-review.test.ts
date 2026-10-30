@@ -6,12 +6,13 @@
 // surfaces are built from — and the prefs round-trip in tests/uiPrefs.test.ts.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 const tab = read('src/pages/trip/TimelineTab.tsx')
 const day = read('src/pages/trip/timeline/DaySection.tsx')
 const prefs = read('src/lib/uiPrefs.ts')
-const css = read('src/styles.css')
+const css = readCssSource('src/styles.css')
 
 const slice = (src: string, from: string, to: string) => {
   const at = src.indexOf(from)

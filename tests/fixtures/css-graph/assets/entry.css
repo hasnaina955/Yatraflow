@@ -1,0 +1,5 @@
+@import './sub/card.css';
+
+.bg {
+  background-image: url('./img/dot.svg');
+}

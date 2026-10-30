@@ -1,0 +1,16 @@
+/* Shared page container.
+   Owns the width cap, the centring and the horizontal padding of a page
+   container. It owns nothing about what a page puts inside it.
+
+   A page selects a width through --container-max. A page that needs its own
+   layout keeps that layout in its own module.
+
+   This module is imported where the base rule used to sit, directly after
+   section 01. It sets inline padding only, never the vertical axis: `.form-page`
+   owns its own vertical padding at the same specificity, and a `padding`
+   shorthand here would wipe it now that this module loads after section 02. */
+
+/* from src/styles/legacy/01-foundations.css */
+.container { width: 100%; max-width: var(--container-max, 1180px); margin: 0 auto; padding-inline: 20px;
+  /* the Board tab widens the canvas to 1680px — glide it (both directions) */
+  transition: max-width var(--t-slow) var(--ease-out); }

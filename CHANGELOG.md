@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Timeline stop number no longer covers the arrival time.** The ring has its own 23px column and an 8px gap before the time. The row track grows by the same amount. The gap to the stop card stays 12px, or 8px at 640px and below.
+
 ### Changed
 
 - **The Timeline's open day reads as one card with a dated header.** The day badge shows the weekday, the date and the month. The "Day N" label sits in the title row. A time bar splits the day into driving, time at stops and free time. It uses the day simulation's own minutes. The stop cards take the Papercut surface and the large radius. The stop number sits on the rail. A brief beside the rail shows the day's numbers, warnings and tools. Its cost split adds up to the day total. The brief stacks under the rail below 1100px.

@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Heart } from 'lucide-react'
 import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
 import {
-  ArrowRight, Ban, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
+  ArrowRight, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Droplets, ExternalLink, Flag, MapPin,
   MoveHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, 
 } from 'lucide-react'
@@ -784,18 +784,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
         </div>
       ))}
 
-      {/* Warning state lives inside the affected day (doc §6.3) — the "Day N:"
-          prefix is redundant here, the pill + card already say which day. */}
-      {warnings.map((w, i) => (
-        <div key={i} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'medium' ? '' : 'sev-low'} tl-warn-gap`}>
-          <span className="warn-icon">{w.severity === 'high' ? <Ban size={13} aria-hidden /> : <TriangleAlert size={13} aria-hidden />}</span>
-          <div>
-            <div className="warn-title">{w.title.replace(/^Day \d+:\s*/, '')}</div>
-            {w.fix && <div className="warn-fix">{w.fix}</div>}
-          </div>
-        </div>
-      ))}
-
       {bodyTrip && <TravelPanel trip={bodyTrip} day={day} editable={editable} journey={journey} suggestionCache={suggestionCache} legCorrections={legCorrections}
         onSetDayStart={onSetDayStart} onAddPlannedHalts={onAddPlannedHalts} />}
 
@@ -1053,6 +1041,17 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             </dl>
           )}
         </div>
+        {warnings.length > 0 && (
+          <div className="brief-card">
+            <div className="brief-kicker">Needs attention <span className="brief-count">{warnings.length}</span></div>
+            {warnings.slice(0, 3).map((w, i) => (
+              <div key={`${w.code}-${i}`} className={`brief-warn sev-${w.severity}`}>
+                <b>{w.title.replace(/^Day \d+:\s*/, '')}</b>
+                {w.fix && <p>{w.fix}</p>}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="brief-card">
           <div className="brief-kicker">Day tools</div>
           <div className="brief-tools">

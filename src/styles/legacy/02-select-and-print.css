@@ -2068,6 +2068,25 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .brief-lines div { display: flex; justify-content: space-between; gap: var(--space-5); }
 .brief-lines dt { font-size: 12.5px; color: var(--pw-ink-2); }
 .brief-lines dd { margin: 0; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.brief-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  margin-inline-start: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.brief-kicker + .brief-warn { padding-top: 0; border-top: 0; }
+.brief-warn { padding: var(--space-4) 0; border-top: 1px solid var(--pw-line); }
+.brief-warn b { font: var(--pw-ui); }
+.brief-warn p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--pw-ink-2); }
+.brief-warn.sev-high b { color: var(--pw-risk); }
+.brief-warn.sev-medium b { color: var(--pw-marigold-ink); }
 .brief-tools { display: flex; flex-direction: column; gap: var(--space-3); }
 .brief-tool {
   text-align: start;
@@ -2085,7 +2104,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .day-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-8); }
 }
 @media (max-width: 1099px) {
-  .day-brief { margin-top: var(--space-7); }
+  .day-brief { order: -1; }
 }
 /* The brief narrows the rail, so the six inline stop actions move into a
    compact two-column cluster on a fine pointer. Touch keeps the 44px row. */

@@ -7,12 +7,14 @@
 @import './styles/layouts/container.css';
 @import './styles/components/card.css';
 @import './styles/legacy/02-select-and-print.css';
+@import './styles/components/board-02.css';
 @import './styles/components/chip.css';
 @import './styles/components/dialog.css';
 @import './styles/components/toast.css';
 @import './styles/components/avatar.css';
 @import './styles/legacy/03-maplibre.css';
 @import './styles/legacy/04-mobile-usability.css';
+@import './styles/components/board-04.css';
 @import './styles/pages/landing.css';
 @import './styles/components/select.css';
 @import './styles/components/button.css';

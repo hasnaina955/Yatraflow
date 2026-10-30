@@ -878,7 +878,7 @@ Rollback: move the nine rules back to section 02, remove the module and its impo
 
 ## B10: the page families
 
-**Status: partial.** `.hero` is complete. `.itin-card`, `.trip-head-card` and `.board*` are not.
+**Status: complete for the four families, with a recorded exception.** `.hero`, `.itin-card` and `.board*` are owned. `.trip-head-card` has no consumer, so it has no owner and stays listed as unreachable. Twenty board rules stay in legacy. Another family shares their selector list, and the map names exactly which classes were owned.
 
 Checkpoint 1 is the `.hero` extraction. Checkpoint 2 merges its box rules.
 
@@ -983,6 +983,29 @@ Verification ran on the real pages that render the card. Those are a real creato
 | Differences | 0 |
 
 One run reported a single difference, `creator-grid :: case missing after`. That was a coverage flake. At one viewport the Explore page happened to render no creator link. The tool now separates a case skipped on both sides from a case that ran before and not after. A skip can no longer read as a style difference.
+
+### `.board*` now has one owner over two files
+
+The Board is the largest family: 29 classes and 120 rules in five legacy files. It renders only inside the trip workspace, so it looked unreachable. It is not. `dev/overview-fixture.html?tab=board` mounts the real `TripWorkspace` with synthetic trip data, and the Board renders with 4 columns and 10 stops. The fixture took a one-line change: it now passes any `tab` value through instead of only `overview` and `settings`.
+
+The move is split by what can be proven, not by what is convenient.
+
+| Group | Rules | Outcome |
+|---|---|---|
+| Board-only, no media wrapper | 86 | moved to `board-02.css` and `board-04.css`, at their original positions |
+| Board-only, inside `@media` | 14 | moved with the wrapper intact, into the same owner files |
+| Shares a selector list with another family | 20 | stays in its legacy file, recorded below |
+
+The third group is why this family cannot be moved whole. Twenty rules name `.board-*` on one line and another family on the next. Those families include `.btn`, `.topnav`, `.glass` and `.lucide`, and one stagger rule lists forty of them. A move would drag an unrelated family into a board owner and claim styling this batch does not own.
+
+Nine classes still carry a rule in that shared group. The other twenty classes are owned outright, and the map names exactly those twenty. The map reports the responsibility it actually took.
+
+The audit is exact. There are 120 rules before and 120 after. No rule is lost, none is added, no declaration changed, and every media context stayed.
+
+Two tooling defects were caught by that audit before they could ship. Both would have changed rendering.
+
+- The first extractor lifted a rule out of its `@media` block and dropped the condition. That turned a phone rule into a global one. The audit reported 14 rules missing their context.
+- The second version wrote imports for three modules it never created, which broke the graph outright.
 
 ### The three families that did not move
 

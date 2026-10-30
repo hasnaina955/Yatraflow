@@ -206,6 +206,38 @@
         "src/styles/components/pill-nav-16.css",
         "src/styles/components/pill-nav-17.css"
       ]
+    },
+    {
+      "id": "board",
+      "file": "src/styles/components/board-02.css",
+      "owned": [
+        "board--mapfocus",
+        "board-col--focused",
+        "board-col-count",
+        "board-col-day",
+        "board-col-head",
+        "board-col-stops",
+        "board-col-subtitle",
+        "board-col-zone--add",
+        "board-cols",
+        "board-flight",
+        "board-head",
+        "board-map",
+        "board-pulse-band",
+        "board-pulse-lines",
+        "board-pulse-row",
+        "board-stop",
+        "board-stop-actions",
+        "board-stop-meta",
+        "board-stop-title-btn",
+        "board-topbar"
+      ],
+      "configClasses": [],
+      "variables": [],
+      "files": [
+        "src/styles/components/board-02.css",
+        "src/styles/components/board-04.css"
+      ]
     }
   ],
   "legacy": [

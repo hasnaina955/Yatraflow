@@ -395,19 +395,19 @@ main:focus { outline: none; }
 .tab-panel { animation: panelIn var(--t-med) var(--ease-out); }
 
 /* Board choreography: day columns drift in with a light stagger on mount. */
-.board-col { animation: panelIn var(--t-slow) var(--ease-out) backwards; }
-.board-col:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
-.board-col:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
-.board-col:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
-.board-col:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
-.board-col:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
-.board-col:nth-child(7) { animation-delay: calc(var(--stagger-step) * 6); }
-.board-col:nth-child(8) { animation-delay: calc(var(--stagger-step) * 7); }
+
+
+
+
+
+
+
+
 /* Drag/focus states glide instead of snapping. */
-.board-stop, .board-col-zone, .board-col--focused { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--t-fast) var(--ease-out); }
-.board-stop:hover { transform: translateY(-1px); }
+
+
 /* sibling glide for the board's position layer (the .board-row wrapper) */
-.board-row { transition: transform var(--motion-fast) var(--ease-glide); min-width: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .board-row { transition: none; }
 }
@@ -419,26 +419,20 @@ main:focus { outline: none; }
 /* All four properties are declared here, including the theme cross-fade's three:
    `transition` is a shorthand, so the later theme rule used to replace this one
    outright and the peek movement snapped instead of gliding. */
-.board-col {
-  transition:
-    background-color var(--t-slow) var(--ease-out),
-    color var(--t-slow) var(--ease-out),
-    border-color var(--t-slow) var(--ease-out),
-    transform var(--t-slow) var(--ease-glide);
-}
-.board--mapfocus .board-col { transform: translateY(88%); } /* 12% sliver keeps a readable card edge */
+
+ /* 12% sliver keeps a readable card edge */
 /* staggered choreography: the slide-off cascades left→right. The delays are not
    reset per direction, so the return settles in the SAME ascending order — there
    is no reverse wave. */
-.board-col:nth-child(2), .board--mapfocus .board-col:nth-child(2) { transition-delay: 40ms; }
-.board-col:nth-child(3), .board--mapfocus .board-col:nth-child(3) { transition-delay: 80ms; }
-.board-col:nth-child(4), .board--mapfocus .board-col:nth-child(4) { transition-delay: 120ms; }
-.board-col:nth-child(5), .board--mapfocus .board-col:nth-child(5) { transition-delay: 160ms; }
-.board-col:nth-child(6), .board--mapfocus .board-col:nth-child(6) { transition-delay: 200ms; }
-.board-col:nth-child(7), .board--mapfocus .board-col:nth-child(7) { transition-delay: 240ms; }
-.board-col:nth-child(8), .board--mapfocus .board-col:nth-child(8) { transition-delay: 280ms; }
-.board--mapfocus .board-topbar { opacity: .35; transform: translateY(-8px); }
-.board-topbar { transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out); }
+
+
+
+
+
+
+
+
+
 
 /* ---- Drag feel: while a card is carried, the column live-reorders (FLIP
    pass in BoardView provides the up/down motion). No CSS wiggle here on
@@ -446,27 +440,22 @@ main:focus { outline: none; }
    FLIP animations frame-by-frame (jitter + broken native drag). The original
    of the carried card becomes an empty dashed slot — the browser's drag ghost
    is then the only "copy", killing the double-ghost effect. */
-.board-col-stops.is-dragging .board-row { will-change: transform; }
+
 /* Insertion marker — a slim teal line that glides between cards to show where
    the carried card will land; the cards themselves never move during a drag.
    transform-only movement on a 3px element = pure compositor, zero churn. */
 /* Liquid drag (rule 10 pattern): siblings glide by the carried row's height
    while a drag is live — translation only, no scale/morph; the FLIP settle
    takes over on commit (WAAPI sits above these CSS transitions). */
-.board-col-stops { position: relative; }
-.board-stop { transition: border-color var(--t-med) var(--ease-out), background var(--t-med) var(--ease-out), transform var(--motion-fast) var(--ease-glide); }
-@media (prefers-reduced-motion: reduce) {
-  .board-stop { transition: none; }
-}
-.board-stop.dragging {
-  opacity: .45; background: transparent; box-shadow: none;
-  border: 1.5px dashed var(--teal);
-}
-.board-stop.dragging .stop-main { visibility: hidden; }
+
+
+/* The board's reduced-motion rule is owned by components/board-04.css. */
+
+
 /* Kanban cards are drag surfaces — text selection has no use here and a
    failed/late drag gesture must never fall back to painting blue over
    the whole board. */
-.board-cols { user-select: none; -webkit-user-select: none; }
+
 
 /* Unified card hover lift (cards that don't already define one). */
 .trip-card, .trip-card-hit {
@@ -1847,30 +1836,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .icon-btn { min-width: 40px; min-height: 40px; }
   .loc-dropdown { max-height: 240px; }
 
-  /* Board stacks instead of overlaying — the map becomes a fixed landscape
-     block, the info/pulse cards stack above it, and the day columns scroll
-     below in normal flow (nothing fights the small viewport). */
-  .board-head { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .board { height: auto; overflow: visible; border: none; background: transparent; box-shadow: none; }
-  .board-map {
-    position: relative; inset: auto; height: 240px;
-    border-radius: var(--radius-lg); overflow: hidden;
-    border: 1px solid var(--yf-glass-border);
-    box-shadow: var(--shadow-soft); margin-bottom: 12px;
-  }
-  .board-map .map-frame { min-height: 0; }
-  .board-topbar { position: static; inset: auto; flex-direction: column; margin: 0 0 8px; gap: 8px; }
-  .board-info { max-width: none; }
-  .board-pulse { width: 100%; }
-  /* column-direction topbar: the desktop equal-size flex basis would become a
-     560px height here — stack panels at natural size instead */
-  .board-topbar .board-info, .board-topbar .board-pulse { flex: 0 0 auto; }
-  .board-cols { position: static; inset: auto; margin-top: 4px; padding-bottom: 10px; }
-  .board-col { flex: 0 0 264px; height: auto; min-height: 0; }
-  .board-col-head { min-height: 52px; }
+  /* The Board stacking rules are owned by components/board-04.css. They keep
+     this same media wrapper there. */
   .dec-strip { grid-template-columns: 1fr; gap: 8px; }
   .budget-hero-num { font-size: 32px; }
-  .board-col-zone { min-height: 48px; justify-content: center; }
 
   /* hero bench CTA */
   .hero-bench-cta { width: 100%; }

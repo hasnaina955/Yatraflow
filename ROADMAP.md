@@ -41,6 +41,70 @@ number collides with a shipped release, the ledger wins.
 
 ## Open issues
 
+### Full update: payment grant recovery and budget guidance
+
+Status: the user approved consolidation into a `main` pull request on 2026-10-30.
+The preserved payment and budget repairs join the profile privacy work in [PR #867](https://github.com/hasnaina955/Yatraflow/pull/867).
+The pull request records verification evidence. Hosted checks remain pending.
+Budget guidance must compare the target with the current plan estimate.
+The suggested target must cover that estimate. Disable the shortcut when no estimate exists.
+Preserve the current guided flow and regional reference range.
+Grants and refunds must lock the same order before they change buyer access.
+Duplicate deliveries must remain safe. Partial refunds must preserve access.
+Apply `20261019b_atomic_entitlement_grant.sql` before deploying the webhook.
+Hosted SQL and deployment remain outside this approval.
+
+The payment review found a separate existing buyer-claim gap under launch gate #776.
+A full refund before payment confirmation can still be followed by a browser claim.
+This consolidation repairs the webhook race. It does not certify the full payment rail.
+
+### Issue #800: protect private profiles
+
+Status: the user confirmed the specification and local implementation delegation on 2026-10-25.
+The fixed design base is `85ef831ff24f13391babbda73b884b8f2d71753e` on `test`.
+
+Implementation status: local source and test-contract reviews pass.
+The local gate and synthetic browser and SQL checks pass.
+Hosted Auth, RLS, Realtime and migration checks remain pending.
+The user approved a pull request to `main` on 2026-10-29.
+This exception does not authorize merging or hosted SQL.
+
+The user confirmed these privacy choices on 2026-10-25:
+
+- Keep home city and languages private. Remove them from public creator pages.
+- Keep names and avatars in past crews when an account is disabled.
+- Hide disabled accounts from creator pages and public discovery.
+
+The repair must meet these requirements:
+
+- Limit private profile reads to the authenticated owner and authorized admins.
+- Preserve restrictive disabled-account rules and self profile updates.
+- Provide a typed public-profile RPC with an explicit field allowlist.
+- Expose only names, avatars, IDs, and reviewed public creator metadata.
+- Allow only reviewed YouTube and Instagram keys inside public social links.
+- Keep email, location, languages, preferences, account dates, and administrative flags private.
+- Distinguish retained crew identity from public creator availability without exposing administrative flags.
+- Preserve current publication access rules, including buyer access to withdrawn plans.
+- Remove other members' email addresses from crew displays.
+- Separate public and private profile types, readers, and cache entries.
+- Scrub private fields from old offline snapshots and future public snapshots.
+- Prevent stale private data from surviving account changes or public refreshes.
+- Preserve public name and avatar updates without private Realtime payloads.
+- Update creator link previews, reconnect reads, and all four whole-row readers.
+- Audit alternate views, functions, grants, and admin audit access.
+- Add a forward migration and mirror its final contract in `supabase/schema.sql`.
+- Fail safely when database support is missing. Never restore permissive reads as a fallback.
+
+The user approved Codex to finish the preserved local implementation on 2026-10-27.
+Codex owns implementation and local verification. MiniMax's interrupted work stays preserved.
+An independent fixed-candidate security review must pass before completion.
+Disposable SQL tests must reproduce the old leak before they prove the new boundary.
+Tests must cover anonymous users, owners, outsiders, crew, admins, and disabled accounts.
+Browser checks must cover discovery, creator pages, crew identity, account changes, and profile edits.
+Run one full verification gate on the exact final candidate after focused checks pass.
+Hosted Auth and Realtime remain unverified until separately authorized staging checks run.
+Pushes, pull requests, hosted SQL, deployments, and live data changes need separate approval.
+
 You must read current counts from GitHub with `gh issue list --state open --limit 1000`.
 This table tracks three named sets, not the full queue. These sets are the
 **launch-readiness criteria** (#227–#234), filed from

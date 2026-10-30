@@ -83,17 +83,23 @@ describe('adminDeleteUser store + UI wiring', () => {
     const fnStart = store.indexOf('export async function adminDeleteUser')
     const fnEnd = store.indexOf('// ---------------- Trip deletion + undo ----------------', fnStart)
     const body = store.slice(fnStart, fnEnd)
-    for (const slice of ['users:', 'trips:', 'published:', 'suggestions:', 'decisions:', 'activity:', 'notifications:']) {
+    // #800: the profile catalogue is NOT one of these slices. It leaves through
+    // the store's one install gate, so the authority revision is re-checked and
+    // the stamp is rewritten — and a rollback cannot reinstate a private row the
+    // authority no longer covers.
+    for (const slice of ['trips:', 'published:', 'suggestions:', 'decisions:', 'activity:', 'notifications:']) {
       expect(body).toContain(slice)
     }
-    expect(body).toContain('prevUsers, trips: prevTrips, published: prevPubs,')
+    expect(body).toContain('removeCatalogEntry(userId)')
+    expect(body).toContain('trips: prevTrips, published: prevPubs,')
   })
 
   it('the UI gate is the type-to-confirm modal; the force flag rides the call', () => {
     expect(page).toContain('adminDeleteUser(target.id, deleteForce)')
     // email-typed confirmation (case-insensitive trim)
-    expect(page).toMatch(/deleteName\.trim\(\)\.toLowerCase\(\) !== \(deleteTarget\?\.email \?\? ''\)\.trim\(\)\.toLowerCase\(\)/)
-    // the force checkbox only renders when the user has publications
+    // #800: the typed email is read through the narrowed local, because the
+    // address exists only on a private row.
+    expect(page).toMatch(/deleteName\.trim\(\)\.toLowerCase\(\) !== deleteTargetEmail\.trim\(\)\.toLowerCase\(\)/)    // the force checkbox only renders when the user has publications
     expect(page).toMatch(/pubs > 0 \? \([\s\S]*?deleteForce/)
     // never rendered for the admin's own row
     expect(page).toMatch(/\{u\.id !== meId && \(\s*<button[^>]*permanent/)

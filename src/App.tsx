@@ -13,7 +13,7 @@ import {
   shouldBrowserNotify,
 } from './lib/browserNotifications'
 import type { Notification, Trip } from './data/types'
-import { useDb, currentUser, useUsers, useNotifications, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, fetchSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import { useDb, currentUser, privateUser, useUsers, useNotifications, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, fetchSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -71,8 +71,16 @@ const lazyRouteFallback = <div className="container page-enter"><StateBlock kind
 
 export type ProfileLookupState = 'anonymous' | 'reading' | 'failed' | 'missing' | 'ready'
 
-export function needsProfileLookup(sessionUserId: string | null, hasProfile: boolean): boolean {
-  return !!sessionUserId && !hasProfile
+/** Whether the profile lookup is still outstanding for this render.
+ *
+ *  `state` is required, not defaulted: a caller that omits it would silently
+ *  treat a failed read as settled, which is the defect this replaces. */
+export function needsProfileLookup(
+  sessionUserId: string | null,
+  hasProfile: boolean,
+  state: ProfileLookupState,
+): boolean {
+  return !!sessionUserId && (!hasProfile || state === 'failed')
 }
 
 export function profileLookupState(
@@ -80,13 +88,35 @@ export function profileLookupState(
   hasProfile: boolean,
   sliceReads: Record<string, 'ok' | 'failed'>,
 ): ProfileLookupState {
-  if (hasProfile) return 'ready'
   if (!sessionUserId) return 'anonymous'
+  // The signed-in account is the PRIVATE read (`self profile`), not the public
+  // catalogue. A public catalogue that succeeded while the private read failed
+  // used to read as "completed without an account", so the notice offered a
+  // missing-profile message and no working retry.
+  //
+  // Self success stands on its OWN verdict. A public-only failure must not
+  // override a private read that succeeded: the account's data is usable, and a
+  // consumer that follows the public verdict would hide a working import action
+  // behind a profile failure.
+  //
+  // A failure is checked BEFORE `hasProfile`, because a private row still in the
+  // cache from an earlier successful read must not settle a lookup whose latest
+  // read failed. A read that failed means the account's status is unproven,
+  // whatever the cache happens to still hold.
+  const selfRead = sliceState(sliceReads, 'self profile')
+  if (selfRead === 'failed') return 'failed'
+  if (selfRead === 'ready' && hasProfile) return 'ready'
+  if (selfRead === 'reading' && 'self profile' in sliceReads) return 'reading'
   const profileRead = sliceState(sliceReads, 'profiles')
   if (profileRead === 'failed') return 'failed'
+  if (hasProfile) return 'ready'
   if (profileRead === 'reading') return 'reading'
   return 'missing'
 }
+
+/** Route segments that answer for a signed-out visitor. They stay reachable when
+ *  the signed-in account's private read fails. */
+const GUEST_ROUTE_SEGMENTS = new Set(['pub', 'creator', 'explore'])
 
 /** Whether the profile lookup takes the page from the route. A failed lookup takes it on the
  *  bare route too, so its Try again is never hidden behind the landing. A reading lookup does
@@ -98,7 +128,7 @@ export function profileLookupBlocksRoute(
   bareRoute: boolean,
   native: boolean,
 ): boolean {
-  if (!needsProfileLookup(sessionUserId, hasProfile)) return false
+  if (!needsProfileLookup(sessionUserId, hasProfile, state)) return false
   return !bareRoute || native || state === 'failed'
 }
 
@@ -119,8 +149,18 @@ export function notificationPanelModel(
   return { rows, view: rowsView(read, rows.length) }
 }
 
-export function retryProfileLookup(): void {
-  window.location.reload()
+/** Re-issue the private profile read (#800 F1). A reload re-runs hydrate, but a
+ *  reload is not what the notice promises: it reloads the whole app, loses the
+ *  scroll position and any in-progress draft, and — worst — it re-reads the
+ *  PUBLIC catalogue too, which is the read that already succeeded. `resumeSync`
+ *  re-issues the same authorized reads under the same generation, so the retry
+ *  actually reaches the read that failed.
+ *
+ *  The promise is returned so a caller can await the retry it triggered. */
+export function retryProfileLookup(): Promise<void> {
+  return import('./store/store')
+    .then(store => store.resumeSync())
+    .catch(() => { window.location.reload() })
 }
 
 export function ProfileLookupNotice({ state }: { state: ProfileLookupState }) {
@@ -223,7 +263,12 @@ export default function App() {
   const notifications = useNotifications()
   const sliceReads = useSliceReads()
   // Same semantics as currentUser(): the profile whose id matches sessionUserId.
-  const me = useMemo(() => users.find(u => u.id === sessionUserId) ?? null, [users, sessionUserId])
+  // Narrowed to the PRIVATE row, because the account menu below shows the signed-in
+  // user's own email — which exists only there (#800).
+  const me = useMemo(() => {
+    const found = users.find(u => u.id === sessionUserId)
+    return found && privateUser(found) ? found : null
+  }, [users, sessionUserId])
   const profileState = profileLookupState(sessionUserId, !!me, sliceReads)
   const notificationPanel = useMemo(
     () => notificationPanelModel(sliceReads, notifications, sessionUserId),
@@ -511,6 +556,14 @@ export default function App() {
     else if (parts[0] === 'auth' && !sessionUserId) page = <Suspense fallback={lazyRouteFallback}><AuthPage onNavigate={navigate} /></Suspense>
     else if (profileLookupBlocksRoute(sessionUserId, !!me, profileState, bareRoute, isNative)) page = <ProfileLookupPage state={profileState} />
     else page = <LandingPage onNavigate={navigate} />
+  } else if (!GUEST_ROUTE_SEGMENTS.has(parts[0] ?? '')
+    && profileLookupBlocksRoute(sessionUserId, !!me, profileState, bareRoute, isNative)) {
+    // A failed private read KEEPS the account's row — it is not silently
+    // downgraded to a public card — so `me` is non-null and this branch runs. The
+    // notice and its Try again must still be reachable here; a gate consulted only
+    // inside the `!me` branch above could never see this case. Guest-accessible
+    // segments stay reachable, exactly as they do for an account with no row.
+    page = <ProfileLookupPage state={profileState} />
   } else {
     switch (parts[0]) {
       case undefined:
@@ -805,7 +858,7 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   const db = useDb()
   const me = currentUser(db)
   const profileState = profileLookupState(db.sessionUserId, !!me, db.sliceReads)
-  const profileLookupPending = needsProfileLookup(db.sessionUserId, !!me)
+  const profileLookupPending = needsProfileLookup(db.sessionUserId, !!me, profileState)
   const [state, setState] = useState<
     { s: 'loading' } | { s: 'error' } | { s: 'ready'; name: string; days: number; destinations: string }
   >({ s: 'loading' })
@@ -1336,7 +1389,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   }
 
   if (!me) {
-    if (needsProfileLookup(db.sessionUserId, !!me)) {
+    // The state rides the gate, so a stale private row cannot settle a lookup
+    // whose latest read failed — the notice and its retry stay reachable.
+    if (needsProfileLookup(db.sessionUserId, !!me, profileState)) {
       return (
         <div className="container yf-page page-enter">
           <StateBlock

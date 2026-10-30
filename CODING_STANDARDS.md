@@ -33,7 +33,16 @@ anywhere in this repo means the entry labelled `6b` below.
 Source-contract tests must handle both LF and CRLF line endings.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
 
+Budget guidance must compare the target with the current plan estimate.
+It must not promise room or transport choices from a spending target alone.
+
+Record fresh row events independently of whole-catalogue read verdicts. Test delayed reconciliation while the event's private refresh remains pending or fails.
+A field allowlist must not evaluate unlisted property getters.
+
 Query changes can remount a form when its page key includes the full URL. Exclude only step navigation from that key. Preserve keys for new entries and seed changes. Prove that Next, Back and Review edits keep live answers.
+
+Payment grants and refunds must lock the same order row before they check state or change access.
+Webhook adapters must not grant access through a separate table insert.
 
 Flight records can exist without stored stops. Protect their days during date reconciliation and preserve them through imports and snapshots.
 Use resolved journey points for exports and insertion origins. Stored stops can omit airports and arrival anchors.
@@ -1274,6 +1283,8 @@ process.
 
 Read this section **before** writing any script that edits a source file.
 The editor primitives are the default; a script is the exception.
+
+- **Use absolute paths with PowerShell .NET file APIs.** `Set-Location` does not change the process directory used by `System.IO.File`. A relative write can edit another clone. Resolve the path against the owned clone. Check that path before each write. Use editor primitives for `CHANGELOG.md`.
 
 - **A scripted replace needs an anchor that is unique.** `.NET String.Replace`
   replaces every occurrence, and `-replace` has no "first only" mode. A

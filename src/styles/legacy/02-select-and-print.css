@@ -2028,7 +2028,12 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .day-section:not(.day-closed) .day-progress { display: none; }
 @media (max-width: 720px) {
   .day-budget { margin-inline-start: 0; }
-  .day-badge-date { width: 50px; height: 60px; }
+  .day-badge-date { width: 46px; height: 56px; }
+  .day-badge-date b { font-size: 24px; }
+  .day-title-row h3,
+  .day-title-btn { font-size: 19px; }
+  .day-header { gap: 8px; }
+  .stop-num { width: 38px; height: 38px; font-size: 14px; }
 }
 
 /* PW-07: the day body splits into the stop rail and a brief aside at wide

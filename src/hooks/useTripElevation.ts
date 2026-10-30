@@ -40,7 +40,7 @@ export function routeHeightSignature(inputs: readonly Pick<OverviewRouteRow, 'ke
   return JSON.stringify(inputs)
 }
 
-/** True when a finished request belongs to the places and attempt on screen. */
+/** True when a finished request belongs to the places and the count on screen. */
 export function elevationResultApplies(
   settled: { signature: string; attempt: number } | null,
   signature: string,

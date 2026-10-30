@@ -174,10 +174,10 @@ The detector does not sample the veil layer, so it reports the bare colour.
 
 The parent owns the shared browser tab and the final acceptance.
 I did not use the parent tab. I opened a separate tab in the same profile.
-The four required captures come from the dev fixture, not from the signed-in trip.
+The four captures we need come from the dev fixture, not from the signed-in trip.
 The preview snapshot tool still times out, so the captures use headless Chrome.
 The signed-in trip was read through the DOM. It shows the real profile and a 233 m peak.
 No fresh signed-in screenshot exists for the elevation card.
-Changing a cover through the trip settings is not exercised. Each cover source renders.
+Each cover source renders. A cover change through trip settings is not exercised.
 The Daylight check is unavailable. A trip stores no time zone and the arrival clock wraps.
 The "Planned stops" metric returns for a flown or railed trip.

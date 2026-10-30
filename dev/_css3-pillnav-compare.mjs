@@ -227,8 +227,8 @@ async function behaviourPass(browser, theme, width, reducedMotion) {
     //
     // The real item is `:scope > [data-pill-key]`. A plain `.tab-btn` also
     // matches the decorative ink COPIES inside `.pill-ink-row`, which are spans
-    // with no key, no handler and no tab stop. Selecting one of those made an
-    // earlier version of this check report "0 stops" and "no focus ring" on a
+    // with no key, no handler and no tab stop. An earlier version of this check
+    // picked one of those and reported "0 stops" and "no focus ring" on a
     // healthy stylesheet.
     const firstTab = page.locator('.pill-nav > [data-pill-key].tab-btn').first()
     await firstTab.focus()

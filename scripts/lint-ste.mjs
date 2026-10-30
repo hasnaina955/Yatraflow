@@ -414,10 +414,25 @@ function sqlLineKinds(lines) {
 const EXCLUDED_PATH_PREFIXES = [
   'docs/consistency/', // planning notes written before the STE rules applied
   'docs/agents/AGENTS-FULL.md', // verbatim copy of AGENTS.md written before the STE rules applied
+  // Exported design artifacts and their source notes. The mockups are generated
+  // by a visual design tool and the wrapper text says so; rewriting that text
+  // would falsify a record of what was exported. The notes beside them are the
+  // design input, quoted in the export.
+  'docs/redesign/papercut-warmth/',
 ]
 
+// Vendored third-party bundles are not prose an agent wrote. The design export
+// artifacts carry their own copies of React and React DOM, minified, under a
+// `vendor/` directory. Scanning them reports the vendor's text as if it were our
+// prose: 105 of the gate's findings came from two React files, which no rewrite
+// here can fix and no reader of this repository wrote. A path segment is matched
+// rather than a tree, so authored READMEs beside those bundles stay checked.
+const EXCLUDED_PATH_SEGMENTS = ['/vendor/']
+
 function isExcludedPath(file) {
-  return EXCLUDED_PATH_PREFIXES.some((prefix) => file.startsWith(prefix))
+  const normalised = file.replace(/\\/g, '/')
+  if (EXCLUDED_PATH_PREFIXES.some((prefix) => normalised.startsWith(prefix))) return true
+  return EXCLUDED_PATH_SEGMENTS.some((segment) => normalised.includes(segment))
 }
 
 // Checks one line. A list item in a fence is code, and an indented block is
@@ -445,7 +460,74 @@ function checkIfProse(file, lineno, text, kind = 'text', prose) {
 function kindsFor(file, lines) {
   if (file.endsWith('.sql')) return sqlLineKinds(lines)
   if (file.endsWith('.css')) return cssLineKinds(lines)
+  if (/\.(?:[cm]?[jt]sx?)$/.test(file)) return codeLineKinds(lines)
   return lineKinds(lines)
+}
+
+/**
+ * Classify one source line as code or comment prose.
+ *
+ * Before this existed, a TypeScript file fell through to `lineKinds`, which is
+ * written for Markdown and treats every non-indented line as prose. That made the
+ * gate report identifiers as prose: `attempt: number,` in a function signature
+ * was scored as a sentence using a code word, and the suggested remedy
+ * was to rewrite an API parameter. Line length limits were applied to code too.
+ *
+ * A line is prose only when it carries comment text, and only the comment body is
+ * checked. Everything else is code and is skipped.
+ */
+function codeLineKinds(lines) {
+  const kinds = []
+  let blockDepth = 0
+  for (const line of lines) {
+    let prose = ''
+    let i = 0
+    let sawCode = false
+    while (i < line.length) {
+      if (blockDepth > 0) {
+        const close = line.indexOf('*/', i)
+        if (close < 0) {
+          prose += ' ' + line.slice(i)
+          i = line.length
+        } else {
+          prose += ' ' + line.slice(i, close)
+          blockDepth = 0
+          i = close + 2
+        }
+        continue
+      }
+      const ch = line[i]
+      const pair = line.slice(i, i + 2)
+      if (pair === '//') {
+        prose += ' ' + line.slice(i + 2)
+        break
+      }
+      if (pair === '/*') {
+        blockDepth = 1
+        i += 2
+        continue
+      }
+      // A string or template literal is code, and it may hold comment markers.
+      if (ch === '"' || ch === "'" || ch === '`') {
+        let j = i + 1
+        while (j < line.length) {
+          if (line[j] === '\\') { j += 2; continue }
+          if (line[j] === ch) { j += 1; break }
+          j += 1
+        }
+        sawCode = true
+        i = j
+        continue
+      }
+      if (!/\s/.test(ch)) sawCode = true
+      i += 1
+    }
+    const body = prose.replace(/\s+/g, ' ').trim()
+    if (sawCode) kinds.push({ kind: 'statement', prose: body })
+    else if (body) kinds.push({ kind: 'comment', prose: body })
+    else kinds.push({ kind: 'code' })
+  }
+  return kinds
 }
 
 /**

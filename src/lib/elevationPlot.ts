@@ -59,7 +59,7 @@ const STROKE_SPACING_PX = 40
  * One calm cubic through the stroke's own anchors.
  *
  * The tangents come from Fritsch and Carlson's monotone rule: a tangent never
- * points far enough to overshoot the two heights it joins. The curve therefore
+ * points far enough to overshoot the two heights it joins. The curve
  * stays between them, so a gentle hill reads gentle and no peak appears where
  * the data has none.
  */

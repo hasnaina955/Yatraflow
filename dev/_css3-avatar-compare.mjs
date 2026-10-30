@@ -2,7 +2,7 @@
 //
 // Before this tool is trusted, it is proven to catch a seeded avatar defect.
 // See dev/_css3-avatar-seed.mjs: it plants a change in the module, runs this
-// tool, and requires a non-zero result.
+// tool, and needs a non-zero result.
 import fs from 'node:fs'
 import {
   launchChrome,

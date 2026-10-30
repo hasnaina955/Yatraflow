@@ -16,7 +16,7 @@ The branch is `chore/css-3-ownership`.
 | Canonical fingerprint | `6ccb7bcd42b3fd650e24209e3db46ed2908269c564562e1eb0182f8491cd3226` |
 
 The record count and the asset count equal the CSS-2 report.
-The declaration content is therefore unchanged.
+The declaration content is unchanged.
 
 ## Line-ending repair
 

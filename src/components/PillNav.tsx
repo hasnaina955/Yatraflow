@@ -61,7 +61,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
      * copy's own offset inside that row is identical to its item's. That is what
      * makes the mechanism exact: the row is offset by `origin - fill`, so a copy
      * lands at `origin + ownOffset` — its item's position — whatever the fill's
-     * box currently is. Only the clip window moves; the glyphs never do.
+     * box is now. Only the clip window moves; the glyphs never do.
      *
      * `origin` is the first item's position, not the wrap's content origin: the
      * wrap may carry padding (the workspace rail carries `--space-3`), and the

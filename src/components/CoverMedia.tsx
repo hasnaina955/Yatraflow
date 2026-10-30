@@ -7,7 +7,7 @@
 //
 // The plan comes from lib/regionArt (which image honestly fits) and the URLs
 // from lib/coverAttempts (which files exist, AVIF before WebP). This component
-// only walks that list: one attempt is mounted at a time, a failure moves to
+// only walks that list: one candidate is mounted at a time, a failure moves to
 // the next, and the emoji is the terminal state. Nothing paints over a working
 // image, and no second image is mounted beside the first.
 //
@@ -22,7 +22,7 @@ function attemptUrl(attempt: CoverAttempt): string {
   return attempt.kind === 'user' ? attempt.url : attempt.src
 }
 
-/** The image to mount, or null when every attempt has failed. */
+/** The image to mount, or null when every candidate has failed. */
 function liveAttempt(attempts: readonly CoverAttempt[], failed: readonly string[]): CoverAttempt | null {
   return attempts.find(attempt => !failed.includes(attemptUrl(attempt))) ?? null
 }

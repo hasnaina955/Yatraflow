@@ -1,18 +1,18 @@
-// ============ Cover attempts — the finite image chain ============
-// A cover plan names the images that honestly fit, in order. This module turns
-// that plan into the exact URLs a renderer may try, and nothing else. Pure: no
-// React, no network, no clock.
+// ============ Cover candidates — the finite image chain ============
+// A cover plan names the images that honestly fit, in the plan's own order. This
+// module turns that plan into the exact URLs a renderer may try, and nothing
+// else. Pure: no React, no network, no clock.
 //
 // Three rules, and each one exists because its absence shipped a bug:
-//   1. A scene with no bundled file is SKIPPED, not attempted. The build's
-//      glob is the only source of truth for what exists, so a manifest entry
-//      whose files were never generated costs the chain nothing.
-//   2. A scene is attempted in AVIF first and in WebP second, as two separate
-//      attempts. A browser that cannot decode AVIF, or a network that refuses
-//      the file, therefore costs one step inside the scene instead of the
-//      scene's whole slot. RegionArt could not do this: it rejected an id with
-//      no AVIF file outright, so a WebP-only scene never painted.
-//   3. Every attempt carries a distinct URL. The chain is finite, its order is
+//   1. A scene with no bundled file is SKIPPED, never tried. The build's glob is
+//      the only source of truth for what exists, so a manifest entry whose files
+//      were never generated costs the chain nothing.
+//   2. A scene is tried in AVIF first and in WebP second, as two separate
+//      candidates. A browser that cannot decode AVIF, or a network that refuses
+//      the file, then costs one step inside the scene instead of the scene's
+//      whole slot. RegionArt could not do this: it rejected an id with no AVIF
+//      file outright, so a WebP-only scene never painted.
+//   3. Every candidate carries a distinct URL. The chain is finite, its order is
 //      a pure function of the plan, and a renderer that walks it once cannot
 //      loop.
 
@@ -24,7 +24,7 @@ export type CoverAttempt =
   | { kind: 'user'; url: string }
   | {
     kind: 'scene'
-    /** The manifest id this attempt belongs to. */
+    /** The manifest id this candidate belongs to. */
     id: string
     format: ArtFormat
     /** The `src` fallback, for a browser that ignores the srcset. */
@@ -34,11 +34,11 @@ export type CoverAttempt =
   }
 
 /**
- * The attempts a plan may make, in order.
+ * The candidates a plan may offer, in the plan's order.
  *
- * The traveller's own upload is a single attempt: it is their choice, and a
+ * The traveller's own upload is a single candidate: it is their choice, and a
  * generated scene behind it would be a claim they did not make. Every scene
- * contributes an AVIF attempt then a WebP attempt, and only for the formats
+ * contributes an AVIF candidate then a WebP candidate, and only for the formats
  * the build actually holds.
  */
 export function coverAttemptsFor(plan: CoverPlan, manifest: ArtManifest = ART_MANIFEST): CoverAttempt[] {

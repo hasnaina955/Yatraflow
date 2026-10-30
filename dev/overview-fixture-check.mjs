@@ -607,7 +607,7 @@ try {
 
   // ---- The failure chain, one controlled cause per case ----
   // Each case blocks a different thing and asserts what the slot shows next.
-  // The renderer walks ONE attempt at a time, so these prove the order rather
+  // The renderer walks one candidate at a time, so these prove the order rather
   // than a single happy path.
 
   /** Read the cover slot's own state, without any case-specific assumption. */

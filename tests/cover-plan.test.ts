@@ -159,7 +159,7 @@ describe('the start place is evidence, but only when the stops say nothing', () 
   })
 
   it('reaches the sibling region scene when the preferred one is refused', () => {
-    // The renderer walks the list in order, so the sibling must be reachable
+    // The renderer walks the list, so the sibling must be reachable
     // without any neutral scene between it and the preferred one.
     const attempts = coverAttemptsFor({
       candidates: coverPlanFor({

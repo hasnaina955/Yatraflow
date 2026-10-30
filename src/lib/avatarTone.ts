@@ -17,7 +17,7 @@
 // Resolving (2) is what threatens (1), and the naive fix breaks it: walking the
 // list in RENDER order means the collision is settled by whoever happens to sit
 // first, so reversing the same three people swaps two of their colours. The
-// tone therefore comes from a CANONICAL pass — the stack's distinct identities,
+// tone comes from a CANONICAL pass — the stack's distinct identities,
 // sorted — and the result is then mapped back onto render order. For a stack of
 // three or fewer identities the palette is large enough that every identity
 // takes a different tone, so the canonical map is the whole answer and no

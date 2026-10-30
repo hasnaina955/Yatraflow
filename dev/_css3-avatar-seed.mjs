@@ -1,7 +1,7 @@
 // Prove the avatar comparison detects a real avatar defect before it is trusted.
 //
 // It plants a defect in the avatar module, rebuilds, runs the comparison, and
-// requires a non-zero result. Then it restores the file and requires zero. A
+// needs a non-zero result. Then it restores the file and needs zero. A
 // tool that reports zero both times is measuring nothing.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'

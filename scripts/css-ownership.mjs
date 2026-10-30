@@ -47,7 +47,7 @@ export const ALLOWED_ON_CONFIG = new Set([
 
 const CLASS_RE = /\.(-?[A-Za-z_][\w-]*)/g
 
-/** Every class token named by a selector, in order, without duplicates. */
+/** Every class token named by a selector, without duplicates. */
 /**
  * Every class token a selector targets, without duplicates.
  *

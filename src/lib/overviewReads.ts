@@ -3,7 +3,7 @@ export type OverviewReadKey = 'elevation' | 'decisions' | 'activity' | 'weather'
 /**
  * Page order, top to bottom. The route card's height profile sits in the main
  * column, above the quiet blocks, so a failed elevation read is the first
- * failed block on the page. Keeping this list in DOM order is what lets exactly
+ * failed block on the page. The list follows DOM order, which lets exactly
  * one block carry the alert role.
  */
 export const OVERVIEW_READ_ORDER: readonly OverviewReadKey[] = [

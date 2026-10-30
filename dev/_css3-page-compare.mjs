@@ -161,8 +161,8 @@ function diff(beforeRows, afterRows, props, label) {
   return { diffs: out, compared }
 }
 
-async function collect(browser, label, theme, width, css, evidence) {
-  const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'no-preference' })
+async function collect(browser, label, theme, width, css, evidence, motion = 'no-preference') {
+  const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: motion })
   const perCase = new Map()
   try {
     for (const c of CASES) {
@@ -229,9 +229,14 @@ const browser = await launchChrome()
 try {
   for (const theme of ['light', 'dark']) {
     for (const width of [390, 768, 1440]) {
-      const label = `${theme}@${width}`
-      const before = await collect(browser, label, theme, width, beforeCss, evidence)
-      const after = await collect(browser, label, theme, width, afterCss, evidence)
+      // Reduced motion is a separate reading, not an afterthought. A stylesheet
+      // move can invert two equal-specificity rules and only change what a
+      // reduced-motion user sees; an earlier version of this tool hardcoded
+      // 'no-preference' and so could not see exactly that.
+      for (const motion of ['no-preference', 'reduce']) {
+      const label = `${theme}@${width}${motion === 'reduce' ? ' rm' : ''}`
+      const before = await collect(browser, label, theme, width, beforeCss, evidence, motion)
+      const after = await collect(browser, label, theme, width, afterCss, evidence, motion)
       for (const [name, beforeRows] of before) {
         const afterRows = after.get(name)
         if (!afterRows) {
@@ -249,6 +254,7 @@ try {
         const { diffs, compared } = diff(beforeRows, afterRows, PROPS, `${label} ${name}`)
         evidence.diffs.push(...diffs)
         evidence.cases.push({ label, case: name, compared })
+      }
       }
     }
   }

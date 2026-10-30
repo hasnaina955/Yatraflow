@@ -911,7 +911,7 @@ Thirteen rules carry the fifteen selector matches. They came from three files.
 | `04-mobile-usability.css` | 11 | positioning, the CTA treatment, the glow and sheen animations |
 | `12-pages.css` | 1 | `overflow-x: clip`, shared with `.plan-bench` |
 
-The entry imports the module directly after `04-mobile-usability.css`. The eleven rules from that file then keep their exact cascade position. The other two gain no competitor: no other rule sets `padding` or `overflow-x` on `.hero`.
+The entry puts the module after `04-mobile-usability.css` and before the next file that declares a `.hero` rule. The Board module `board-04.css` sits between them, which does not matter: it declares no `.hero` rule. The eleven rules from `04` then keep their exact cascade position. The other two gain no competitor, because no other rule sets `padding` or `overflow-x` on `.hero`.
 
 One rule was shared. `.hero, .plan-bench { overflow-x: clip }` names two families, and one responsibility cannot sit in two owners. The rule is now two rules, one in each owner, with the same declarations.
 
@@ -1009,7 +1009,11 @@ Those nine are registered as **configuration points**, not left outside enforcem
 | The 18 existing appearance declarations | `configAppearanceKeys`, keyed by file, selector and property | pass today. A new property or selector fails |
 | The 7 existing stagger variables | `configVariableDebt`, keyed by file, selector and variable, with a reason | pass today. A new one fails |
 
-Each exception names one exact declaration. A stale key fails, so an exception cannot outlive the rule it describes. The `--stagger-index` entries are debt, not documented variables. The stagger rule both sets and reads that property, so the Board does not consume it as configuration.
+Each exception names one declaration by file, selector and property. A stale key fails, so an exception cannot outlive the rule it describes.
+
+One limit is worth stating. A key does not record the media context. A rule and its conditional twin share a key. So `04-mobile-usability.css::.board-row::transition` covers the retained reduced-motion rule, and it would also cover a new top-level `.board-row { transition }` in that same file. The exemption is exact for file, selector and property, and blind to context. That is narrower than a class exemption and wider than one declaration. A key that carries context is a change to the checker, not to this batch.
+
+The `--stagger-index` entries are debt, not documented variables. The stagger rule both sets and reads that property, so the Board does not consume it as configuration.
 
 Nothing is exempt by class. A new `color`, `background` or `box-shadow` on any of the nine produces a finding. The finding names the file, line, class and property. A new `margin`, `display` or `grid-row` still passes, so enforcement did not overreach into placement.
 
@@ -1034,11 +1038,21 @@ That is a component-level proof, not a route-level one. A signed-in `/trip/:id` 
 
 ### Reduced motion
 
-The hero's reduced-motion rule moved with the family. It still declares `animation: none` and `box-shadow: none` on both the button and its sheen. The glow and sheen block keeps its `prefers-reduced-motion: no-preference` guard. The graph reports 227 rules inside a reduced-motion query, one above the recorded floor of 226. The move split one shared block into two, so the count rose by one while every declaration stayed.
+The hero's reduced-motion rule moved with the family. It still declares `animation: none` and `box-shadow: none` on both the button and its sheen. The glow and sheen block keeps its `prefers-reduced-motion: no-preference` guard.
+
+The block sits **before** the CTA rules, which is where it sat in `04-mobile-usability.css`. That order matters in principle. `.hero .btn` and `.hero .btn-primary` are both (0,2,0), so source order decides the `box-shadow`. An independent review flagged the first version of this file. There the block came last, and `box-shadow: none` would have beaten the glow.
+
+Measurement says that rule never decides the painted value. `src/styles/components/button.css` loads at import 20, after `landing.css` at 18. Its `.btn-primary { box-shadow: ... }` is also (0,2,0) and it wins over both hero rules. Under `prefers-reduced-motion: reduce` the computed shadow is the button component's inset pair. It is neither the glow nor `none`. The frozen pre-B2 build `dev/_css3-frozen-b1.css` shows the same value, so the painted result predates this branch.
+
+Two readings agree. A 214,320-value comparison of the pre-fix and post-fix builds found no difference. `dev/_css3-probe-rm.mjs` reads the shadow directly on the real Landing page under both motion settings.
+
+The order is preserved anyway. A future change to the button module's specificity could make the order decide again. The file now matches the order it came from.
+
+The graph reports 227 rules inside a reduced-motion query, one above the recorded floor of 226. The move split one shared block into two, so the count rose by one while every declaration stayed.
 
 ### Gate
 
-`check:css` passes with 12 owner modules. The ownership map re-keys 21 appearance entries from the legacy file to the module. The total stays 128, so the debt is moved and not grown. `design-system` and `css-ownership` suites pass, 118 tests. Typecheck passes. The lint ratchet stays at its 134 and 27 baseline. `check:ui` reports no finding. Scoped STE passes on the changed lines.
+`check:css` passes with 12 owner modules at this checkpoint, 15 at the end of B11 and the Board batch. The ownership map re-keys 21 appearance entries from the legacy file to the module. The total at this checkpoint is 128, so the debt is moved and not grown. Two later batches add keys of their own: B11 adds none, and the Board batch adds 18 exact exceptions for the nine shared classes. The tree now holds 146. `design-system` and `css-ownership` suites pass, 118 tests. Typecheck passes. The lint ratchet stays at its 134 and 27 baseline. `check:ui` reports no finding. Scoped STE passes on the changed lines.
 
 The full suite caught one thing the targeted runs could not. `tests/css-source-graph.test.ts` pins the module path shape, and it did not accept `pages/`. The pattern now accepts `pages/name.css`, which is the same extension B5 made for `layouts/`. The fixture paths in `css-ownership` already used `pages/`, so the directory was anticipated and only the pin was behind.
 
@@ -1135,9 +1149,28 @@ The first version of this tool reported three failures on a healthy stylesheet. 
 
 `check:css` passes with 14 owner modules. The map registers one owner over four files. Scoped STE passes on the changed lines.
 
-`npm run verify` did not run. The default STE run still exits 1 against the inherited merge base `f68b3d9`, which predates this work.
+At this checkpoint the default STE run still exited 1 against the inherited merge base `f68b3d9`. That was cleared later, and the section below records how.
 
 Rollback: move the 26 matches back to their four sections. Remove the four modules and their imports. Delete the owner entry.
+
+## Clearing the default STE gate
+
+The default run compares the whole branch against its merge base with `origin/test`. Every prose line the branch ever added is in scope. The run reported 174 problems on 157 lines, none of them from these batches, and the scoped runs passed throughout. Two causes produced them.
+
+| Cause | Lines | Handling |
+|---|---|---|
+| Vendored React bundles inside exported design artifacts | 105 | excluded by path segment, with the reason beside the entry |
+| Exported mockups and the design notes they quote | 31 | excluded by tree prefix, with the reason beside the entry |
+| Source lines that were code, not prose | 19 | fixed in the detector |
+| Real prose in comments and docs | 19 | rewritten |
+
+The detector fault is the one that mattered most. A TypeScript file was classified by `lineKinds`, which is written for Markdown and treats every non-indented line as prose. So `attempt: number,` in a function signature was scored as a sentence, and the gate advised rewriting an API parameter. Source files now pass through `codeLineKinds`. A line is prose only when it carries comment text, and only the comment body is checked. Strings and template literals are skipped, so a comment marker inside a literal cannot open a false block.
+
+Exclusions are narrow and each one states its reason. No `src/` path is excluded. The `docs/` exclusions cover only files exported by a visual design tool, plus the design inputs those exports quote. A rewrite would falsify the record of what was exported.
+
+The default run now passes: 4,476 prose lines, exit 0.
+
+One consequence is worth naming. The gate had been failing for so long that "inherited" had become a standing excuse. Two of the three causes were the gate's own faults, so the excuse hid a real defect in the tool. The fix was small once the findings were counted by cause instead of by total.
 
 ## Remaining legacy responsibilities
 
@@ -1173,5 +1206,19 @@ Two instruments exist, and they cover different ground. Keeping them apart matte
 The fixture passes prove the component styling. They do not prove that a signed-in route composes the same way. Its ancestors, its wrapper classes and its real data are all different. That acceptance stays open and is named here rather than assumed.
 
 No dev sign-in path was added, and no session was exported. The fixture reaches the workspace by mounting the component with synthetic data. That is the technique `overview-fixture.tsx` already used for the Overview tab.
+
+### Why the signed-in routes were not exercised
+
+They need an account, and this environment has none. The probe is `dev/_css3-probe-auth.mjs`, and it recorded the following.
+
+| Step | Result |
+|---|---|
+| Open `/auth` | the login form renders, with one email field and one password field |
+| Submit synthetic credentials | response 400, message "Invalid login credentials" |
+| Open `/trips` | the URL stays `/trips`, but the Landing hero renders and `.trips-page` is absent |
+
+The backend is live and it rejects the synthetic account. The app then falls back to the signed-out shell. A real workspace needs valid credentials, and none belong to this task. A dev bypass or a copied session would be the wrong way to close that gap. The gap stays open.
+
+`.env` holds the answer for a machine that does have an account: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. `src/lib/supabase.ts` reports `isSupabaseConfigured` false when they are missing, and says so in the console. No such file exists in this tree.
 
 

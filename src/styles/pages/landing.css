@@ -16,6 +16,15 @@
   overflow-x: clip;
 }
 
+/* Reduced motion kills the breathing glow and the sheen. This block sits BEFORE
+   the CTA rules below on purpose. Both selectors are (0,2,0), so source order
+   decides which `box-shadow` wins, and at the original position this rule came
+   before `.hero .btn-primary`'s glow. Moving it after would silently flatten the
+   hero CTAs for reduced-motion users. */
+@media (prefers-reduced-motion: reduce) {
+  .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
+}
+
 /* ---------- Rich, solid CTAs — colour must not be washed by glass ---------- */
 .hero .btn-lg {
   position: relative; overflow: hidden; letter-spacing: .01em;
@@ -56,7 +65,3 @@
   }
 }
 
-/* Reduced motion: no breathing glow and no sheen on the hero CTAs. */
-@media (prefers-reduced-motion: reduce) {
-  .hero .btn, .hero .btn::after { animation: none; box-shadow: none; }
-}

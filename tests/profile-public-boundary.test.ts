@@ -213,7 +213,7 @@ describe('the merge rule', () => {
     // The natural hydrate shape carries an id TWICE: the public catalogue holds a
     // card for the signed-in user, and the self read adds their private row beside
     // it. The merge must resolve that to the private row, or `currentUser()` finds
-    // a name where an account should be.
+    // a name in place of an account.
     const natural = mergeUsers([pub, rowToPublicUser(OTHER_CARD)], [priv])
     expect(natural).toHaveLength(2)
     expect(natural.find(u => u.id === 'u-1')?.kind).toBe('private')

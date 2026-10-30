@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-10-30
+
+**This minor release joins `test` and `main`, and promotes the design-system ownership batch with the private profile boundary.** Every stylesheet family now has one owner, and the gate checks it. Public identity reads through `profile_cards` and one RPC. Private account fields stay with the owner and authorized admins. Grants and refunds lock the same order, so a delayed webhook cannot restore access after a full refund. #800 is closed. Release `0.80.0` stays as shipped.
+
 ### Fixed
 
 - **Trip creation compares your per-person budget target with the current plan estimate.** A spending target does not promise room or transport choices. The estimate shortcut stays disabled until an estimate exists. Its rounded target covers the estimate. The guided form and regional reference range remain available. Comparison guidance uses the existing budget feature flag.

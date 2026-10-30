@@ -2082,4 +2082,17 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 @media (max-width: 1099px) {
   .day-brief { margin-top: var(--space-7); }
 }
+/* The brief narrows the rail, so the six inline stop actions move into a
+   compact two-column cluster on a fine pointer. Touch keeps the 44px row. */
+@media (min-width: 1100px) and (pointer: fine) {
+  .day-layout .stop-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 28px);
+    gap: 2px;
+    align-content: start;
+    justify-items: center;
+  }
+  .day-layout .stop-actions .move-btns { display: contents; }
+  .day-layout .stop-actions button { width: 28px; height: 28px; }
+}
 

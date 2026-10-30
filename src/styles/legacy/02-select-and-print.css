@@ -395,7 +395,7 @@
 /* ---------- Timeline time rail ---------- */
 /* one shared rail geometry — these three used to redeclare 74px/12px each,
    so widening the rail meant finding all of them */
-.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 90px 1fr; gap: 12px; }
 .tl-row { margin-bottom: 8px; align-items: center; }
 .tl-legrow { align-items: center; margin-bottom: 8px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
@@ -405,13 +405,13 @@
   padding: 14px 0 10px; min-width: 0;
 }
 .tl-time {
-  font-size: 11.5px; font-weight: 700; color: var(--text-2);
+  font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--pw-ink);
   font-variant-numeric: tabular-nums;
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: 8px; padding: 2px 6px; white-space: nowrap;
-  box-shadow: var(--shadow-sm);
+  background: none; border: 0;
+  border-radius: 0; padding: 0; white-space: nowrap;
+  box-shadow: none;
 }
-.tl-time.tl-dep { color: var(--teal-deep); background: var(--teal-soft); border-color: transparent; }
+.tl-time.tl-dep { font-family: var(--font-body); font-size: 11.5px; font-weight: 600; color: var(--pw-ink-3); background: none; border-color: transparent; }
 .tl-line { flex: 1; width: 3px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--pw-route) 0 4px, transparent 4px 9px); }
 .tl-gutter-leg { padding: 0; min-height: 26px; }
 .tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
@@ -2034,6 +2034,10 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .day-title-btn { font-size: 19px; }
   .day-header { gap: 8px; }
   .stop-num { width: 38px; height: 38px; font-size: 14px; }
+  .tl-row,
+  .tl-legrow,
+  .tl-end { grid-template-columns: 74px 1fr; }
+  .tl-time { font-size: 15px; }
 }
 
 /* PW-07: the day body splits into the stop rail and a brief aside at wide

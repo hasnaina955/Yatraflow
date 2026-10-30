@@ -140,30 +140,30 @@
 .day-badge b { font-size: 18px; font-weight: 800; line-height: 1.1; }
 .stop-card {
   display: flex; gap: 12px;
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 14px 15px;
-  box-shadow: var(--shadow-sm);
+  background: var(--pw-card); border: 1px solid var(--pw-line);
+  border-radius: var(--radius-lg); padding: 14px 16px;
+  box-shadow: var(--elev-1);
   transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
-.stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
+.stop-card:hover { border-color: var(--pw-route); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
    pointer engine carries the real row instead) */
 .stop-card.status-rejected { border-style: dashed; }
 .stop-card.status-maybe { background: var(--card-soft); }
 .stop-num {
-  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-top: 2px;
+  width: 44px; height: 44px; border-radius: var(--radius); flex: 0 0 auto; margin-top: 0;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 13.5px; font-family: var(--font-display);
-  background: var(--teal-soft); color: var(--teal-deep);
+  font-weight: 700; font-size: 15px; font-family: var(--font-display);
+  background: var(--pw-lagoon-100); color: var(--pw-sea-700);
 }
-.stop-num.cat-travel { background: var(--info-soft); color: var(--text-2); }
-.stop-num.cat-food { background: var(--saffron-soft); color: var(--ink-amber); }
-.stop-num.cat-hotel { background: var(--info-soft); color: var(--text-2); }
+.stop-num.cat-travel { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-num.cat-food { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.stop-num.cat-hotel { background: var(--pw-sunken); color: var(--pw-ink-2); }
 .stop-main { flex: 1; min-width: 0; }
 .stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-.stop-title { font-weight: 700; font-size: 15px; font-family: var(--font-display); }
-.stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 12.5px; color: var(--text-3); font-weight: 500; }
-.stop-desc { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
+.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; }
+.stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 13px; color: var(--pw-ink-2); font-weight: 500; }
+.stop-desc { font-size: 13px; color: var(--pw-ink-2); margin-top: 6px; }
 /* Clamped stop-card descriptions (issue #3): clamp to 2 lines + "Show more" toggle. */
 .clamp-wrap { position: relative; }
 .clamp-lines {
@@ -412,7 +412,7 @@
   box-shadow: var(--shadow-sm);
 }
 .tl-time.tl-dep { color: var(--teal-deep); background: var(--teal-soft); border-color: transparent; }
-.tl-line { flex: 1; width: 2px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--line) 0 4px, transparent 4px 8px); }
+.tl-line { flex: 1; width: 3px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--pw-route) 0 4px, transparent 4px 9px); }
 .tl-gutter-leg { padding: 0; min-height: 26px; }
 .tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }

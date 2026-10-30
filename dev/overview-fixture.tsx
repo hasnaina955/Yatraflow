@@ -8,7 +8,7 @@ import '@fontsource/plus-jakarta-sans/500.css'
 import '@fontsource/plus-jakarta-sans/600.css'
 import '@fontsource/plus-jakarta-sans/700.css'
 import '../src/styles.css'
-import type { ActivityEntry, ItineraryStop, Trip, TripDecision, User } from '../src/data/types'
+import type { ActivityEntry, CachedUser, ItineraryStop, Trip, TripDecision } from '../src/data/types'
 import type { RoadLeg } from '../src/lib/routing'
 import { buildRoadChain, setRoadMeasureForTests } from '../src/lib/tripRoad'
 import { setElevationTileLoaderForTests } from '../src/lib/elevationTiles'
@@ -69,24 +69,23 @@ const stop = (
   orderInDay,
 })
 
-const users: User[] = [
+const users: CachedUser[] = [
   {
     id: OWNER_ID,
+    kind: 'private',
     email: 'fixture-owner@example.invalid',
-    profile: { name: 'Owner One', languages: ['en'], travelStyles: ['balanced'], isCreator: false },
+    profile: { name: 'Owner One', languages: ['en'], travelStyles: ['balanced'], isCreator: false, creatorAvailable: true },
     createdAt: 1,
   },
   {
     id: EDITOR_ID,
-    email: 'fixture-editor@example.invalid',
-    profile: { name: 'Editor Two', languages: ['en'], travelStyles: ['food-focused'], isCreator: false },
-    createdAt: 2,
+    kind: 'public',
+    profile: { name: 'Editor Two', isCreator: false, creatorAvailable: true },
   },
   {
     id: VIEWER_ID,
-    email: 'fixture-viewer@example.invalid',
-    profile: { name: 'Viewer Three', languages: ['en'], travelStyles: ['balanced'], isCreator: false },
-    createdAt: 3,
+    kind: 'public',
+    profile: { name: 'Viewer Three', isCreator: false, creatorAvailable: true },
   },
 ]
 

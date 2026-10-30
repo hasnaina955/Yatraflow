@@ -117,11 +117,11 @@
 /* M4: the day is a near-opaque soft card (doc §6.3 — readability before transparency). */
 .day-section {
   margin-bottom: 22px;
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: var(--pw-card);
+  border: 1.5px solid var(--pw-line);
   border-radius: var(--radius-lg);
   padding: 18px 20px 14px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--elev-1);
 }
 /* Items align to the TOP of the row, never to its centre. The middle block's
    height changes with the collapse — the route chain is collapsed-only and the
@@ -140,30 +140,30 @@
 .day-badge b { font-size: 18px; font-weight: 800; line-height: 1.1; }
 .stop-card {
   display: flex; gap: 12px;
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 14px 15px;
-  box-shadow: var(--shadow-sm);
+  background: var(--pw-card); border: 1px solid var(--pw-line);
+  border-radius: var(--radius-lg); padding: 14px 16px;
+  box-shadow: var(--elev-1);
   transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
-.stop-card:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); }
+.stop-card:hover { border-color: var(--pw-route); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
    pointer engine carries the real row instead) */
 .stop-card.status-rejected { border-style: dashed; }
 .stop-card.status-maybe { background: var(--card-soft); }
 .stop-num {
-  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-top: 2px;
+  width: 44px; height: 44px; border-radius: var(--radius); flex: 0 0 auto; margin-top: 0;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 13.5px; font-family: var(--font-display);
-  background: var(--teal-soft); color: var(--teal-deep);
+  font-weight: 700; font-size: 15px; font-family: var(--font-display);
+  background: var(--pw-lagoon-100); color: var(--pw-sea-700);
 }
-.stop-num.cat-travel { background: var(--info-soft); color: var(--text-2); }
-.stop-num.cat-food { background: var(--saffron-soft); color: var(--ink-amber); }
-.stop-num.cat-hotel { background: var(--info-soft); color: var(--text-2); }
+.stop-num.cat-travel { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-num.cat-food { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.stop-num.cat-hotel { background: var(--pw-sunken); color: var(--pw-ink-2); }
 .stop-main { flex: 1; min-width: 0; }
 .stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-.stop-title { font-weight: 700; font-size: 15px; font-family: var(--font-display); }
-.stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 12.5px; color: var(--text-3); font-weight: 500; }
-.stop-desc { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
+.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; }
+.stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 13px; color: var(--pw-ink-2); font-weight: 500; }
+.stop-desc { font-size: 13px; color: var(--pw-ink-2); margin-top: 6px; }
 /* Clamped stop-card descriptions (issue #3): clamp to 2 lines + "Show more" toggle. */
 .clamp-wrap { position: relative; }
 .clamp-lines {
@@ -395,26 +395,31 @@
 /* ---------- Timeline time rail ---------- */
 /* one shared rail geometry — these three used to redeclare 74px/12px each,
    so widening the rail meant finding all of them */
-.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 74px 1fr; gap: 12px; }
+/* 105px = the 74px time cell + 8px clearance + the 23px ring column below,
+   so the ring can never reach the time. Grows with the gutter at each rung. */
+.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 105px 1fr; gap: 12px; }
 .tl-row { margin-bottom: 8px; align-items: center; }
 .tl-legrow { align-items: center; margin-bottom: 8px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-row .stop-card { margin-bottom: 0; }
 .tl-gutter {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 14px 0 10px; min-width: 0;
+  display: grid; grid-template-columns: 74px 23px; column-gap: 8px; justify-content: end;
+  align-items: start; padding: 14px 0 10px; min-width: 0;
 }
 .tl-time {
-  font-size: 11.5px; font-weight: 700; color: var(--text-2);
+  font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--pw-ink);
+  grid-column: 1; justify-self: end; text-align: end;
   font-variant-numeric: tabular-nums;
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: 8px; padding: 2px 6px; white-space: nowrap;
-  box-shadow: var(--shadow-sm);
+  background: none; border: 0;
+  border-radius: 0; padding: 0; white-space: nowrap;
+  box-shadow: none;
 }
-.tl-time.tl-dep { color: var(--teal-deep); background: var(--teal-soft); border-color: transparent; }
-.tl-line { flex: 1; width: 2px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--line) 0 4px, transparent 4px 8px); }
+.tl-time.tl-dep { font-family: var(--font-body); font-size: 11.5px; font-weight: 600; color: var(--pw-ink-3); background: none; border-color: transparent; }
+/* The line sits in the middle of the ring's own column, so the stop rail and
+   the travel-leg rail share one x and the ring is centred on both. */
+.tl-line { grid-column: 2; grid-row: 1 / span 3; justify-self: center; height: 100%; width: 3px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--pw-route) 0 4px, transparent 4px 9px); }
 .tl-gutter-leg { padding: 0; min-height: 26px; }
-.tl-line-leg { flex: none; width: 2px; height: 100%; min-height: 26px; }
+.tl-line-leg { grid-column: 2; justify-self: center; flex: none; width: 2px; height: 100%; min-height: 26px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-drop-line {
   grid-column: 2; color: var(--ink-amber); background: var(--warn-soft);
@@ -1951,4 +1956,203 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 /* Consistent vertical rhythm between stacked cards & sections */
 .day-section + .day-section { margin-top: 22px; }
 .card h3 + hr.divider, .card h2 + hr.divider { margin-top: 12px; }
+
+/* ===== PW-07: the open day reads as one Papercut card =====
+   The date badge replaces the navy "Day N" tile, and the header gains the
+   mockup's time-budget bar. Values come from the day simulation; the bar never
+   invents a "waiting" segment the engine does not measure. */
+.day-section:not(.day-closed) { border-color: var(--pw-route); }
+.day-badge-date {
+  width: 56px;
+  height: 66px;
+  gap: 1px;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  background: var(--pw-raised);
+  color: var(--pw-ink);
+  box-shadow: var(--elev-press);
+}
+.day-badge-date .day-badge-wd {
+  font: var(--pw-kicker);
+  letter-spacing: .12em;
+  color: var(--pw-marigold-ink);
+}
+.day-badge-date b {
+  font: var(--pw-display-m);
+  line-height: 1;
+}
+.day-badge-date .day-badge-mon {
+  font: var(--pw-kicker);
+  font-weight: 600;
+  color: var(--pw-ink-2);
+}
+.day-number {
+  font: var(--pw-caption);
+  color: var(--pw-sea-700);
+  white-space: nowrap;
+}
+.day-title-row h3,
+.day-title-btn {
+  font: var(--pw-display-s);
+  letter-spacing: -.01em;
+}
+.day-budget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-2));
+}
+.day-budget-bar {
+  display: grid;
+  gap: var(--space-2);
+  height: 12px;
+}
+.day-budget-bar > span {
+  min-width: 4px;
+  border-radius: var(--radius-pill);
+}
+.db-drive { background: var(--pw-time-drive); }
+.db-dwell { background: var(--pw-time-stop); }
+.db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route); }
+.day-budget-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-7);
+  font: var(--pw-meta);
+  color: var(--pw-ink-2);
+}
+.day-budget-key .db-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  margin-inline-end: var(--space-3);
+  border-radius: var(--radius-pill);
+  vertical-align: 0;
+}
+.day-section:not(.day-closed) .day-progress { display: none; }
+@media (max-width: 720px) {
+  .day-budget { margin-inline-start: 0; }
+  .day-badge-date { width: 46px; height: 56px; }
+  .day-badge-date b { font-size: 24px; }
+  .day-title-row h3,
+  .day-title-btn { font-size: 19px; }
+  .day-header { gap: 8px; }
+  .stop-num { width: 38px; height: 38px; font-size: 14px; }
+  .tl-row,
+  .tl-legrow,
+  .tl-end { grid-template-columns: 97px 1fr; }
+  .tl-time { font-size: 15px; }
+}
+
+/* PW-07: the day body splits into the stop rail and a brief aside at wide
+   widths. The aside is supplementary, so it follows the rail when stacked. */
+.day-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-10); }
+.day-main { min-width: 0; }
+.day-brief { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.brief-card {
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-7);
+}
+.brief-kicker {
+  font: var(--pw-kicker);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--pw-ink-3);
+  margin-bottom: var(--space-5);
+}
+.brief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.brief-grid b { display: block; font: var(--pw-title); }
+.brief-grid span { display: block; font-size: 11.5px; color: var(--pw-ink-3); margin-top: 2px; }
+.brief-lines {
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--pw-line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.brief-lines div { display: flex; justify-content: space-between; gap: var(--space-5); }
+.brief-lines dt { font-size: 12.5px; color: var(--pw-ink-2); }
+.brief-lines dd { margin: 0; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.brief-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  margin-inline-start: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.brief-kicker + .brief-warn { padding-top: 0; border-top: 0; }
+.brief-warn { padding: var(--space-4) 0; border-top: 1px solid var(--pw-line); }
+.brief-warn b { font: var(--pw-ui); }
+.brief-warn p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--pw-ink-2); }
+.brief-warn.sev-high b { color: var(--pw-risk); }
+.brief-warn.sev-medium b { color: var(--pw-marigold-ink); }
+.brief-tools { display: flex; flex-direction: column; gap: var(--space-3); }
+.brief-tool {
+  text-align: start;
+  font: var(--pw-ui);
+  color: var(--pw-ink);
+  background: var(--pw-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+}
+.brief-tool:hover:not(:disabled) { border-color: var(--pw-route); }
+.brief-tool:disabled { opacity: .55; cursor: not-allowed; }
+@media (min-width: 1100px) {
+  .day-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-8); }
+}
+@media (max-width: 1099px) {
+  .day-brief { order: -1; }
+}
+/* The brief narrows the rail, so the six inline stop actions move into a
+   compact two-column cluster on a fine pointer. Touch keeps the 44px row. */
+@media (min-width: 1100px) and (pointer: fine) {
+  .day-layout .stop-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 28px);
+    gap: 2px;
+    align-content: start;
+    justify-items: center;
+  }
+  .day-layout .stop-actions .move-btns { display: contents; }
+  .day-layout .stop-actions button { width: 28px; height: 28px; }
+}
+
+/* The stop number moves onto the rail: a ringed dot that covers the line. */
+.tl-rail-num {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  align-self: start;
+  width: 23px;
+  height: 23px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--pw-marigold-500);
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  color: var(--pw-marigold-ink);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  z-index: 1;
+}
+.tl-rail-num.cat-food { border-color: var(--pw-saffron-600); }
+.tl-rail-num.cat-hotel { border-color: var(--pw-sea-700); color: var(--pw-sea-700); }
+@media (max-width: 720px) {
+  .tl-gutter { grid-template-columns: 66px 23px; }
+}
 

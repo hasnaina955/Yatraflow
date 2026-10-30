@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Heart } from 'lucide-react'
 import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
 import {
-  ArrowRight, Ban, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
+  ArrowRight, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Droplets, ExternalLink, Flag, MapPin,
   MoveHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, 
 } from 'lucide-react'
@@ -544,6 +544,38 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
   // anchors and single-stop days would just repeat it back.
   const chainStops = visibleStops(day).filter(s => !s.auto)
 
+  // PW-07: the day's own date, derived from the trip start. Manual weekday and
+  // month names keep the label stable across locales; the timeline is English.
+  const dayDate = (() => {
+    const raw = facts.startDate
+    if (!raw) return null
+    const base = new Date(`${raw}T00:00:00`)
+    if (Number.isNaN(base.getTime())) return null
+    base.setDate(base.getDate() + day.index)
+    const WD = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+    const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return { wd: WD[base.getDay()], d: base.getDate(), mon: MO[base.getMonth()] }
+  })()
+  // The mockup's time budget, from real minutes: wheel time, time at the
+  // stops, and the free remainder of the day window. The simulation has no
+  // separate "waiting" total, so the bar does not invent one.
+  const budgetWindow = Math.max(1, hmToMinutes(A.dayEnd) - hmToMinutes(dayStartHM))
+  const budgetDrive = Math.max(0, Math.min(budgetWindow, sim.totalTravelMinutes))
+  const budgetDwell = Math.max(0, Math.min(budgetWindow - budgetDrive, sim.dwellMinutes))
+  const budgetFree = Math.max(0, budgetWindow - budgetDrive - budgetDwell)
+  // Only real segments get a column; a zero-minute drive must not leave a gap.
+  const budgetSegments = [
+    { cls: 'db-drive', minutes: budgetDrive },
+    { cls: 'db-dwell', minutes: budgetDwell },
+    { cls: 'db-free', minutes: budgetFree },
+  ].filter(s => s.minutes > 0)
+  // The day's money, split so the lines add up to the total: travel and day
+  // costs are separate buckets, and the remainder is entry fees plus stay.
+  const dayTotal = dayTotals != null && dayTotals.dayIndex === day.index ? dayTotals : null
+  const dayRemainder = dayTotal
+    ? Math.max(0, dayTotal.totalInr - dayTotal.transportInr - dayTotal.expensesInr)
+    : 0
+
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
       <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
@@ -558,9 +590,20 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
           <ChevronDown size={16} aria-hidden className="day-collapse-icon" />
         </button>
         )}
-        <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
+        <div className={`day-badge${dayDate ? ' day-badge-date' : ''}`}>
+          {dayDate ? (
+            <>
+              <span className="day-badge-wd">{dayDate.wd}</span>
+              <b>{dayDate.d}</b>
+              <span className="day-badge-mon">{dayDate.mon}</span>
+            </>
+          ) : (
+            <><small>Day</small><b>{day.index + 1}</b></>
+          )}
+        </div>
         <div className="tl-stop-flex">
           <div className="day-title-row">
+            {dayDate && <span className="day-number">Day {day.index + 1}</span>}
             {editingTitle ? (
               <input
                 autoFocus
@@ -705,7 +748,27 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
         )}
       </div>
 
+      {!collapsed && (
+        <div className="day-budget">
+          <div
+            className="day-budget-bar"
+            style={{ gridTemplateColumns: budgetSegments.map(s => `${s.minutes}fr`).join(' ') }}
+            role="img"
+            aria-label={`Day ${day.index + 1} time budget, ${formatHM(dayStartHM, timeFormat)} to ${formatHM(A.dayEnd, timeFormat)}: driving ${minutesToHM(budgetDrive)}, at stops ${minutesToHM(budgetDwell)}, free ${minutesToHM(budgetFree)}`}
+          >
+            {budgetSegments.map(s => <span key={s.cls} className={s.cls} />)}
+          </div>
+          <div className="day-budget-key">
+            {budgetDrive > 0 && <span><i className="db-dot db-drive" aria-hidden="true" />Driving {minutesToHM(budgetDrive)}</span>}
+            {budgetDwell > 0 && <span><i className="db-dot db-dwell" aria-hidden="true" />At stops {minutesToHM(budgetDwell)}</span>}
+            <span><i className="db-dot db-free" aria-hidden="true" />Free {minutesToHM(budgetFree)}</span>
+          </div>
+        </div>
+      )}
+
       <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
+      <div className="day-layout">
+      <div className="day-main">
       {commitmentsToday.map(fc => (
         <div key={fc.id} className="warn-item sev-low tl-warn-gap">
           <span className="warn-icon"><Pin size={13} aria-hidden /></span>
@@ -717,18 +780,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
                 onChange={val => onLinkCommitment(String(fc.id), day.index, val || null)}
                 options={linkStopOptions(ordered)} />
             )}
-          </div>
-        </div>
-      ))}
-
-      {/* Warning state lives inside the affected day (doc §6.3) — the "Day N:"
-          prefix is redundant here, the pill + card already say which day. */}
-      {warnings.map((w, i) => (
-        <div key={i} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'medium' ? '' : 'sev-low'} tl-warn-gap`}>
-          <span className="warn-icon">{w.severity === 'high' ? <Ban size={13} aria-hidden /> : <TriangleAlert size={13} aria-hidden />}</span>
-          <div>
-            <div className="warn-title">{w.title.replace(/^Day \d+:\s*/, '')}</div>
-            {w.fix && <div className="warn-fix">{w.fix}</div>}
           </div>
         </div>
       ))}
@@ -837,11 +888,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
                   <span className="tl-time tl-arr"><span className="sr-only">Arrival: </span>{row?.arrive ? formatHM(row.arrive, timeFormat) : '--:--'}</span>
                   <span className="tl-line" aria-hidden="true" />
                   <span className="tl-time tl-dep"><span className="sr-only">Departure: </span>{row?.depart ? formatHM(row.depart, timeFormat) : '--:--'}</span>
+                  <span className={`tl-rail-num cat-${s.category}`} aria-hidden="true">{i + 1}</span>
                 </div>
                 <div
                   className={`stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
                 >
-                <div className={`stop-num cat-${s.category}`}>{i + 1}</div>
               <div className="stop-main">
                 <div className="stop-toprow">
                   <span className="stop-title">{s.title}</span>
@@ -968,6 +1019,54 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             {foreignOver === ordered.length && dragging === null && <div className="tl-drop-line">Drop to add here</div>}
           </div>
         )}
+      </div>
+      </div>
+      <aside className="day-brief" aria-label={`Day ${day.index + 1} brief`}>
+        <div className="brief-card">
+          <div className="brief-kicker">Day brief</div>
+          <div className="brief-grid">
+            <div><b>{minutesToHM(budgetDrive)}</b><span>driving</span></div>
+            <div><b>{minutesToHM(budgetDwell)}</b><span>at stops</span></div>
+            <div><b>{formatHM(sim.endsAt, timeFormat)}</b><span>back at {journey.endTitle}</span></div>
+            <div>
+              <b>{dayTotal ? formatInr(dayTotal.totalInr) : '—'}</b>
+              <span>est. for the group</span>
+            </div>
+          </div>
+          {dayTotal && (dayTotal.transportInr > 0 || dayTotal.expensesInr > 0) && (
+            <dl className="brief-lines">
+              <div><dt>Travel</dt><dd>{formatInr(dayTotal.transportInr)}</dd></div>
+              <div><dt>Day costs</dt><dd>{formatInr(dayTotal.expensesInr)}</dd></div>
+              {dayRemainder > 0 && <div><dt>Entry fees &amp; stay</dt><dd>{formatInr(dayRemainder)}</dd></div>}
+            </dl>
+          )}
+        </div>
+        {warnings.length > 0 && (
+          <div className="brief-card">
+            <div className="brief-kicker">Needs attention <span className="brief-count">{warnings.length}</span></div>
+            {warnings.slice(0, 3).map((w, i) => (
+              <div key={`${w.code}-${i}`} className={`brief-warn sev-${w.severity}`}>
+                <b>{w.title.replace(/^Day \d+:\s*/, '')}</b>
+                {w.fix && <p>{w.fix}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="brief-card">
+          <div className="brief-kicker">Day tools</div>
+          <div className="brief-tools">
+            <button
+              type="button"
+              className="brief-tool"
+              disabled={ordered.length === 0 || !facts.hasNextDay}
+              onClick={() => onCopyDay(day.index)}
+            >Copy these stops to Day {day.index + 2}</button>
+            <button type="button" className="brief-tool" onClick={() => onAdd(day.index)}>
+              Add a stop to Day {day.index + 1}
+            </button>
+          </div>
+        </div>
+      </aside>
       </div>
       </SmoothCollapse>
 

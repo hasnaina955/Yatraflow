@@ -16,6 +16,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Timeline stop number no longer covers the arrival time.** The ring has its own 23px column and an 8px gap before the time. The row track grows by the same amount. The gap to the stop card stays 12px, or 8px at 640px and below.
+
+### Changed
+
+- **The Timeline's open day reads as one card with a dated header.** The day badge shows the weekday, the date and the month. The "Day N" label sits in the title row. A time bar splits the day into driving, time at stops and free time. It uses the day simulation's own minutes. The stop cards take the Papercut surface and the large radius. The stop number sits on the rail. A brief beside the rail shows the day's numbers, warnings and tools. Its cost split adds up to the day total. The brief stacks under the rail below 1100px.
+
 ## [0.81.0] - 2026-10-30
 
 **This minor release joins `test` and `main`, and promotes the design-system ownership batch with the private profile boundary.** Every stylesheet family now has one owner, and the gate checks it. Public identity reads through `profile_cards` and one RPC. Private account fields stay with the owner and authorized admins. Grants and refunds lock the same order, so a delayed webhook cannot restore access after a full refund. #800 is closed. Release `0.80.0` stays as shipped.

@@ -939,6 +939,24 @@ The seed also caught the gradient it displaced. A tool that reported "no change"
 
 The page root must render the family before any reading counts. The tool fails when a root matches no element, so an empty page cannot pass as a match. The Board case reported that it skipped, with its reason, rather than reporting a pass.
 
+### Checkpoint 2
+
+The three `.hero` box rules described disjoint properties: padding with centred text, relative positioning, and the horizontal clip. They were three rules only because three files each declared one. They are now one rule.
+
+The proof is the build itself. The stylesheet emitted after checkpoint 1 and the one emitted after checkpoint 2 hash the same: `f775d8f56229527d`. A merge that changes no declaration byte cannot change a rendered pixel, so this checkpoint needs no per-element comparison.
+
+The record count fell from 5406 to 5404, which is the two rule boundaries the merge removed. `.hero` no longer repeats as a top-level selector, so its entry left the duplicate-selector baseline in `tests/design-system-baseline.json`.
+
+The rest of the module stays separate, and is recorded here so a later batch does not tidy it away.
+
+| Declaration | Count | Why it stays |
+|---|---|---|
+| `box-shadow: 0 10px 26px …` | 2 | one glow per brand colour, with a different tint and spread |
+| `border-color: rgba(255,255,255,…)` | 3 | `.28`, `.3` and the dark `.2` are three deliberate weights |
+| `animation: glow-breathe-…` | 2 | one keyframe per brand colour |
+
+The raw durations inside these animations predate the batch. They stay keyed in the `rawDurations` baseline, and this batch changes neither them nor their keys.
+
 ### The three families that did not move
 
 `.board*` is the largest family and the one this batch cannot prove. Its 150 rules sit at five cascade positions across `01-foundations`, `02-select-and-print`, `04-mobile-usability`, `06-shell-and-consistency` and `16-motion-and-cover-v2`. Two of those files hold Board rules before and after other rules, so one module cannot keep both positions.

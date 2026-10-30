@@ -3,23 +3,16 @@
    renders `.hero`. Its geometry, its blobs' clipping and the rich CTA treatment
    belong here.
 
-   The three `.hero` base rules stay separate on purpose. Extraction is one
-   checkpoint and merging them is the next one; merging here would change two
-   things in one commit and hide which one caused a difference.
-
    The CTA rules below override the button component's appearance from a page.
    That is recorded debt in docs/css-ownership.json, not a supported page
    configuration: a page may set placement on a component root, not its paint. */
 
 .hero {
   padding: 26px 0 8px; text-align: center;
-}
-.hero { position: relative; }
-
-/* Clipping lives on the section that holds the blobs, so the wider scroll width
-   leaves the document. The root html { overflow-x: clip } rule clips painting
-   but not the section's own reported box. */
-.hero {
+  position: relative;
+  /* Clipping lives on the section that holds the blobs, so the wider scroll width
+     leaves the document. The root html { overflow-x: clip } rule clips painting
+     but not the section's own reported box. */
   overflow-x: clip;
 }
 

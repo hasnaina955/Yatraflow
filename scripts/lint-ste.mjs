@@ -26,6 +26,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { chooseLintBase, GateError, requireMergeBase } from './lint-ste-base.mjs'
 
 const MAX_WORDS = 20
@@ -414,25 +415,39 @@ function sqlLineKinds(lines) {
 const EXCLUDED_PATH_PREFIXES = [
   'docs/consistency/', // planning notes written before the STE rules applied
   'docs/agents/AGENTS-FULL.md', // verbatim copy of AGENTS.md written before the STE rules applied
-  // Exported design artifacts and their source notes. The mockups are generated
-  // by a visual design tool and the wrapper text says so; rewriting that text
-  // would falsify a record of what was exported. The notes beside them are the
-  // design input, quoted in the export.
-  'docs/redesign/papercut-warmth/',
 ]
 
-// Vendored third-party bundles are not prose an agent wrote. The design export
-// artifacts carry their own copies of React and React DOM, minified, under a
-// `vendor/` directory. Scanning them reports the vendor's text as if it were our
-// prose: 105 of the gate's findings came from two React files, which no rewrite
-// here can fix and no reader of this repository wrote. A path segment is matched
-// rather than a tree, so authored READMEs beside those bundles stay checked.
-const EXCLUDED_PATH_SEGMENTS = ['/vendor/']
+// The design study keeps its supplied inputs and its own exports in the tree.
+// Only those artifacts are exempt, never the folder. An earlier version of this
+// file exempted `docs/redesign/papercut-warmth/` whole, which also skipped
+// REFERENCES.md, the export READMEs and any note added later. An exclusion that
+// covers a directory hides authored prose, and that is the prose this gate is for.
+const DESIGN_ROOT = 'docs/redesign/papercut-warmth/'
+const DESIGN_SOURCES = `${DESIGN_ROOT}sources/` // supplied design inputs, not our prose
+const DESIGN_EXPORTS = `${DESIGN_ROOT}exports-20261028/`
+
+// What a visual design tool produced inside an export folder: the standalone
+// mockup page, its runtime shim, the images, and vendored copies of React and
+// React DOM. These are fixed artifacts, so rewriting them would falsify the
+// record of what was exported. Named one kind at a time, so a README or a new
+// note in the same folder is still checked.
+const EXPORT_ARTIFACT_SUFFIXES = ['.dc.html']
+const EXPORT_ARTIFACT_NAMES = new Set(['support.js'])
+const EXPORT_ARTIFACT_DIRS = ['/assets/', '/vendor/']
+
+function isExportArtifact(normalised) {
+  if (!normalised.startsWith(DESIGN_EXPORTS)) return false
+  const base = normalised.slice(normalised.lastIndexOf('/') + 1)
+  if (EXPORT_ARTIFACT_SUFFIXES.some((suffix) => base.endsWith(suffix))) return true
+  if (EXPORT_ARTIFACT_NAMES.has(base)) return true
+  return EXPORT_ARTIFACT_DIRS.some((dir) => normalised.includes(dir))
+}
 
 function isExcludedPath(file) {
   const normalised = file.replace(/\\/g, '/')
   if (EXCLUDED_PATH_PREFIXES.some((prefix) => normalised.startsWith(prefix))) return true
-  return EXCLUDED_PATH_SEGMENTS.some((segment) => normalised.includes(segment))
+  if (normalised.startsWith(DESIGN_SOURCES)) return true
+  return isExportArtifact(normalised)
 }
 
 // Checks one line. A list item in a fence is code, and an indented block is
@@ -809,12 +824,22 @@ function main() {
   return report(base.label, rangeNote(base, added))
 }
 
-try {
-  process.exitCode = main()
-} catch (err) {
-  const message = err instanceof GateError
-    ? err.message
-    : `cannot read the input: ${String(err.message).split('\n')[0]}`
-  console.error(`STE100: ${message}`)
-  process.exitCode = 2
+// The gate runs only when this file is the entry point. Importing it from a test
+// must not evaluate the argv of the test runner and exit the process, so the
+// classifiers below are exported for the tests to call directly.
+const invokedDirectly = Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (invokedDirectly) {
+  try {
+    process.exitCode = main()
+  } catch (err) {
+    const message = err instanceof GateError
+      ? err.message
+      : `cannot read the input: ${String(err.message).split('\n')[0]}`
+    console.error(`STE100: ${message}`)
+    process.exitCode = 2
+  }
 }
+
+export { isExcludedPath, codeLineKinds, isProse }

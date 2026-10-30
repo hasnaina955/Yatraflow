@@ -1159,14 +1159,25 @@ The default run compares the whole branch against its merge base with `origin/te
 
 | Cause | Lines | Handling |
 |---|---|---|
-| Vendored React bundles inside exported design artifacts | 105 | excluded by path segment, with the reason beside the entry |
-| Exported mockups and the design notes they quote | 31 | excluded by tree prefix, with the reason beside the entry |
+| Vendored React bundles inside exported design artifacts | 105 | excluded as a named artifact kind, not by tree |
+| Exported mockup pages, their runtime shim and their images | 24 | excluded as named artifact kinds |
+| Supplied design inputs under `sources/` | 6 | excluded as supplied material, not our prose |
 | Source lines that were code, not prose | 19 | fixed in the detector |
 | Real prose in comments and docs | 19 | rewritten |
 
 The detector fault is the one that mattered most. A TypeScript file was classified by `lineKinds`, which is written for Markdown and treats every non-indented line as prose. So `attempt: number,` in a function signature was scored as a sentence, and the gate advised rewriting an API parameter. Source files now pass through `codeLineKinds`. A line is prose only when it carries comment text, and only the comment body is checked. Strings and template literals are skipped, so a comment marker inside a literal cannot open a false block.
 
-Exclusions are narrow and each one states its reason. No `src/` path is excluded. The `docs/` exclusions cover only files exported by a visual design tool, plus the design inputs those exports quote. A rewrite would falsify the record of what was exported.
+Exclusions name a kind of file, never a folder. No `src/` path is excluded.
+
+An earlier version of this fix exempted `docs/redesign/papercut-warmth/` whole. A reviewer caught it. The tree also holds `REFERENCES.md`, an authored inventory, and an editable `README.md` in every export folder. A directory exemption hides authored prose, which is the prose this gate exists for.
+
+The exclusion now lists what a design tool produced. It names `.dc.html` mockup pages, `support.js`, `assets/` and `vendor/` bundles, each only inside `exports-20261028/`. The supplied inputs under `sources/` are exempt as supplied material. Everything else in that tree is checked, including notes added later.
+
+The effect is measurable rather than claimed. The checked-line count rose from 4,487 to 5,373, and the 7 export READMEs then failed on their own prose. They are rewritten to plain wording.
+
+`tests/lint-ste.test.ts` pins both halves with 7 new cases. Widening the exclusion back to the whole tree fails exactly 3 of them. That was run and observed before reverting.
+
+The source reader has its own cases. A signature line is code and a comment is prose. A block comment spans lines. A `//` inside a string or template does not open a comment. One honest limit is worth naming. A bare prose line in a source file outside a comment now reads as code and is skipped. That is a syntax error in those files, so it cannot ship. Of the 18 source findings the old reader produced, 14 were comments and 4 were identifiers in a signature. No genuine stray prose was being caught.
 
 The default run now passes: 4,476 prose lines, exit 0.
 
@@ -1209,9 +1220,11 @@ No dev sign-in path was added, and no session was exported. The fixture reaches 
 
 ### A gap this batch found and did not close
 
-`dev/evidence/README.md` is tracked and it cites screenshot files by name, such as `overview-1440-light-signedin.png`. No image file is tracked: `git ls-files 'dev/**/*.png'` returns nothing. A fresh clone therefore gets the citations and none of the pictures.
+`dev/evidence/README.md` is tracked, and it used to cite screenshot and log files by name. None of them are tracked, and none are present in this working tree either: the `.verify-evidence/` folder and the log files do not exist. A fresh clone therefore had citations and no files to open.
 
-The screenshots exist in this working tree, so nothing is lost today. They are untracked, so a clone or a cleanup step would drop them. The owner of the repo must choose. Commit the cited images, or stop citing files that are not in version control. This batch does not decide that. It does not delete the images either, because other batches point at them.
+The citations are removed. The README now states what was measured, and marks the captures as local-only and unavailable in a fresh clone. It also names one capture that must never be committed: the signed-in trip, because it shows a real account's data.
+
+The repo owner must decide whether to commit the other captures. This batch does not commit them, and does not invent replacements.
 
 ### Why the signed-in routes were not exercised
 

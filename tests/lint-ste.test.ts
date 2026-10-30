@@ -710,4 +710,91 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     const dir = fixtureRepo(GOOD)
     expect(runScript(dir, ['--base', 'no-such-ref']).code).toBe(2)
   }, SLOW)
+
+  it('exempts only the fixed artifacts in a design export, never the folder', () => {
+    // The files the design tool produced are exempt.
+    const dir = 'docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette'
+    for (const rel of [
+      `${dir}/DarkTheme.dc.html`,
+      `${dir}/support.js`,
+      `${dir}/vendor/react.js`,
+      `${dir}/assets/cover.jpg`,
+    ]) {
+      const repo = fixtureRepo(GOOD)
+      commitFile(repo, rel, GOOD + BAD_LINE)
+      expect(runScript(repo).code, rel).toBe(0)
+    }
+    // The README beside them is prose a person can edit, so it is checked.
+    const readme = fixtureRepo(GOOD)
+    commitFile(readme, `${dir}/README.md`, GOOD + BAD_LINE)
+    expect(runScript(readme).code).toBe(1)
+  }, SLOW)
+
+  it('checks authored records and later notes inside the design folder', () => {
+    // A directory-wide exemption would have skipped every one of these.
+    for (const rel of [
+      'docs/redesign/papercut-warmth/REFERENCES.md',
+      'docs/redesign/papercut-warmth/archive-inventory-20261028.json',
+      'docs/redesign/papercut-warmth/NOTES.md',
+      'docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/REVIEW.md',
+    ]) {
+      const repo = fixtureRepo(GOOD)
+      commitFile(repo, rel, GOOD + BAD_LINE)
+      expect(runScript(repo).code, rel).toBe(1)
+    }
+  }, SLOW)
+
+  it('exempts the supplied design inputs, and not a note beside them', () => {
+    const supplied = fixtureRepo(GOOD)
+    commitFile(supplied, 'docs/redesign/papercut-warmth/sources/DESIGN_TOKENS.md', GOOD + BAD_LINE)
+    expect(runScript(supplied).code).toBe(0)
+    const authored = fixtureRepo(GOOD)
+    commitFile(authored, 'docs/redesign/papercut-warmth/sources-notes.md', GOOD + BAD_LINE)
+    expect(runScript(authored).code).toBe(1)
+  }, SLOW)
+
+  it('does not exempt a vendor or assets folder outside a design export', () => {
+    // A source file carries prose only in a comment, so the bad line goes in one.
+    for (const rel of ['src/vendor/thing.ts', 'src/assets/notes.md', 'docs/assets/terms.md']) {
+      const repo = fixtureRepo(GOOD)
+      const body = rel.endsWith('.md') ? GOOD + BAD_LINE : `// ${BAD_LINE.trim()}\nexport const a = 1\n`
+      commitFile(repo, rel, body)
+      expect(runScript(repo).code, rel).toBe(1)
+    }
+  }, SLOW)
+
+  it('reads a TypeScript declaration as code, not as a sentence', () => {
+    // The defect this pins: a signature line was scored as prose because it used
+    // that word as an identifier, and the gate advised rewriting an API parameter.
+    const repo = fixtureRepo(GOOD)
+    commitFile(repo, 'src/lib/probe.ts', [
+      'export function coverFor(attempt: number) {',
+      '  return attempt',
+      '}',
+      '',
+    ].join('\n'))
+    expect(runScript(repo).code).toBe(0)
+  }, SLOW)
+
+  it('still fails a TypeScript comment that breaks the rules', () => {
+    const repo = fixtureRepo(GOOD)
+    commitFile(repo, 'src/lib/probe.ts', [
+      '// This therefore requires an attempt.',
+      'export const a = 1',
+      '',
+    ].join('\n'))
+    const run = runScript(repo)
+    expect(run.code).toBe(1)
+    expect(run.stderr + run.stdout).toContain('probe.ts:1')
+  }, SLOW)
+
+  it('does not open a comment inside a string, so a URL path stays code', () => {
+    const repo = fixtureRepo(GOOD)
+    commitFile(repo, 'src/lib/probe.ts', [
+      'export const u = "https://example.test/a//b"',
+      'export const t = `// template`',
+      '',
+    ].join('\n'))
+    expect(runScript(repo).code).toBe(0)
+  }, SLOW)
 })

@@ -7,12 +7,12 @@ The route curve joins public height estimates at trip places.
 The curve is illustrative. It does not measure the road between places.
 The Data sources disclosure holds the full terrain credits.
 The fixture uses synthetic heights and does not prove live terrain reads.
-The four current theme and width captures are in `.verify-evidence/overview-fixture/`.
-The source capture and `records.json` are in that folder too.
-`states.json` records both retries and the simultaneous failure alert.
-`../verify-final-20261028.log` records the latest full gate.
+The four current theme and width captures were written to a local folder that is
+not in this repository. The source capture, `records.json` and `states.json` were
+local too, and none of them exist in this tree now.
+The latest full gate was recorded in a log file that is also local-only.
 The source and fixture differ in trip data, cover and counts.
-The screenshots show the requested layout, not pixel parity.
+The screenshots showed the requested layout, not pixel parity.
 The signed-in acceptance remains open. The shared tab was not changed.
 
 ## Earlier evidence record
@@ -20,23 +20,37 @@ The signed-in acceptance remains open. The shared tab was not changed.
 The sections below describe earlier captures and checks.
 Their road sampling, daylight, tile counts and credit placement are superseded.
 
-This folder holds the evidence for the workspace header and the Overview port.
-The code is uncommitted on branch `feat/p2-p12-combined-mockup` at `69094cd7`.
+This folder holds the evidence notes for the workspace header and the Overview port.
+The code was uncommitted on branch `feat/p2-p12-combined-mockup` at `69094cd7`.
 
-## How to read the files
+## Availability of the capture files
 
-- `overview-1440-light-signedin.png` shows the real signed-in trip at 1440 by 900.
-- `overview-1440-light.png`, `overview-1440-dark.png`, `overview-390-light.png` and
-  `overview-390-dark.png` are the fixture at both widths and themes.
-- `mockup-p12warm2-1440.png` is the source design, captured for the side-by-side.
-- `card-route-light.png` and `card-brief-light.png` are the two cards alone.
-- `state-elevation-failed.png`, `state-weather-partial-retained.png`,
-  `state-cover-broken.png` and `state-mode-train.png` record the failure and
-  fallback states.
-- `../verify-gate-20261028.log` holds the clean full gate output.
-- `../check-motion-20261028.log` holds the motion check output.
-- `../impeccable-*.json` holds the detector output.
-- `.verify-evidence/overview-fixture/records.json` holds the computed geometry.
+The earlier record listed screenshot and log files by name. None of them are in
+version control, and none are present in this working tree. A fresh clone has no
+images here at all, so this file no longer cites them by name.
+
+What that means for a reader:
+
+| Claim | Status |
+|---|---|
+| The layout screenshots were captured at these widths and themes | recorded, not reproducible from this repository |
+| `records.json` holds the computed geometry | not reproducible |
+| The full gate logs exist | not reproducible |
+
+The reasoning and the verdict in these notes still stand on their own. The
+pictures they referred to are local-only and are unavailable in a fresh clone.
+
+If the captures matter to a future reader, they must be committed. Until then,
+this note describes what was measured rather than pointing at files nobody can
+open.
+
+## How to read this folder
+
+- The notes are the record.
+- No image, log or JSON file is referenced here, because none can be opened from
+  a clone.
+- The signed-in capture was never committed. Do not add one without the account
+  owner's consent, because it shows a real trip.
 
 ## Server proof
 

@@ -587,10 +587,9 @@
   color: var(--pw-ink);
 }
 
-.yf-page .yf-tabbar .pill-glider {
-  background: var(--pw-sea-700);
-}
+/* The workspace rail's glider tint is owned by components/pill-nav-16.css. */
 
+/* The compact day list is a full-row button, not an inline reset. */
 .yf-page .yf-tabbar .tab-btn.active,
 .yf-page .yf-tabbar .tab-btn.active:hover {
   background: transparent;
@@ -1673,10 +1672,6 @@
   .yf-page .yf-trip-head > .yf-cover-media,
   .yf-page .yf-cover-content > .yf-tabbar {
     animation: none;
-    transition: none;
-  }
-
-  .yf-page .yf-tabbar .pill-glider {
     transition: none;
   }
 }

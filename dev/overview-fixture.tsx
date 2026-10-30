@@ -40,7 +40,10 @@ const START = params.get('start') ?? 'Panaji, Goa'
 const SURFACE = params.get('surface') === 'hero' ? 'hero' : 'workspace'
 const WEATHER = params.get('weather') ?? 'ok'
 const ELEVATION = params.get('elev') ?? 'ok'
-const TAB = params.get('tab') === 'settings' ? 'settings' : 'overview'
+// `tab` reaches any workspace tab, not just overview and settings, so the Board
+// surface can be measured without a session. The workspace validates the key
+// itself and falls back to overview, so a bad value cannot make the fixture lie.
+const TAB = params.get('tab') ?? 'overview'
 
 const stop = (
   id: string,

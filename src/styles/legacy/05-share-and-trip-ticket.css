@@ -129,10 +129,9 @@
 
 @media (max-width: 720px) {
   .trips-page { padding-top: 8px; }
-  /* cards: single column, softer radius, no hover-lift (touch has no hover) */
+  /* cards: single column, softer radius, no hover-lift (touch has no hover).
+     The `.itin-card` half of this is owned by components/itin-card.css. */
   .explore-grid { grid-template-columns: 1fr; gap: 12px; }
-  .itin-card { border-radius: var(--radius-sm); }
-  .itin-card:hover { transform: none; }
 }
 
 /* ============ Trip Starter — CreateTrip "Trip Ticket" (Sep 2026) ============ */

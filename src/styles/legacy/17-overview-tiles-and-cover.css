@@ -603,19 +603,7 @@
    copy is the only ink inside it. A transparent window would composite white
    over the dark glyph and fringe every stroke. */
 .yf-page .yf-tabbar .pill-ink { background: var(--pw-sea-700); }
-/* A copy is a label, not a control: it takes the fill's ink. The badge keeps
-   its own rules — the window is opaque, so a hidden badge would leave a hole
-   where the real one is.
-
-   The selector carries `.yf-page .yf-tabbar` because the copy wears `tab-btn`
-   and so inherits that rule's ink at (0,3,0); a bare `.pill-ink-row
-   .tab-btn` at (0,2,0) loses and the copy paints the rail's dark ink inside the
-   sea fill — 2.19:1, measured. Keep this at least as specific as the rule it
-   has to beat. */
-.pill-nav .pill-ink-row .tab-btn,
-.yf-page .yf-tabbar .pill-ink-row .tab-btn,
-.pill-nav .pill-ink-row .nav-link { color: var(--pw-on-sea); }
-.pill-nav .pill-ink-row .tab-btn { background: none; }
+/* The ink copy's ink is owned by components/pill-nav-17.css. */
 
 @media (prefers-reduced-motion: reduce) {
   .pill-ink, .pill-ink-row { transition: none; }

@@ -1,0 +1,23 @@
+/* Pill navigation — part 4 of 4. See `pill-nav.css` for the family contract.
+
+   These rules sat in `legacy/17-overview-tiles-and-cover.css`, and this file is
+   imported at that position.
+
+   The ink-copy rule keeps all three of its selectors. Two name `.pill-nav` and
+   one names `.yf-page .yf-tabbar`; splitting them would change one rule into two
+   with different specificity, and the reason the `.yf-tabbar` copy exists is that
+   the bare `.pill-ink-row .tab-btn` form loses the ink contest at (0,2,0). */
+
+/* A copy is a label, not a control: it takes the fill's ink. The badge keeps
+   its own rules — the window is opaque, so a hidden badge would leave a hole
+   where the real one is.
+
+   The selector carries `.yf-page .yf-tabbar` because the copy wears `tab-btn`
+   and so inherits that rule's ink at (0,3,0); a bare `.pill-ink-row
+   .tab-btn` at (0,2,0) loses and the copy paints the rail's dark ink inside the
+   sea fill — 2.19:1, measured. Keep this at least as specific as the rule it
+   has to beat. */
+.pill-nav .pill-ink-row .tab-btn,
+.yf-page .yf-tabbar .pill-ink-row .tab-btn,
+.pill-nav .pill-ink-row .nav-link { color: var(--pw-on-sea); }
+.pill-nav .pill-ink-row .tab-btn { background: none; }

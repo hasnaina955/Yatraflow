@@ -1,0 +1,74 @@
+/* Itinerary card — deferred rules.
+
+   These rules name `.itin-card`, so the class has one owner. They are kept, not
+   deleted, because removal needs proof of its own and proves nothing about
+   extraction.
+
+   Why they are probably unreachable, recorded so the removal change starts from
+   evidence rather than a hunch:
+     - `.trips-page` renders `.mt-card` (see `components/trips/TripCard.tsx`),
+       so `.trips-page .itin-card` matches nothing.
+     - No source file applies `.explore-grid.as-list`, so those seven rules
+       match nothing.
+     - No source file renders `.trip-next-chevron` inside a card.
+
+   They are NOT removed here. This file exists so the ownership map can name one
+   owner for `.itin-card` without deleting a rule on an unproven claim.
+
+   Position: imported directly after `legacy/11-shared-page.css`, which is where
+   these rules sat. These selectors outrank the base recipe on specificity, so
+   the order matters only among themselves, and that order is preserved. */
+
+.explore-grid.as-list .itin-card { flex-direction: row; align-items: stretch; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.explore-grid.as-list .itin-card > .itin-meta { flex: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; margin-top: 0; grid-column: 2; grid-row: 1 / span 2; }
+.explore-grid.as-list .itin-card > .itin-meta::before { display: none; }
+
+@media (max-width: 640px) {
+  .explore-grid.as-list .itin-card { flex-direction: column; grid-template-columns: minmax(0, 1fr); }
+  .explore-grid.as-list .itin-card > .itin-meta {
+    flex-direction: row; align-items: center; justify-content: space-between; width: 100%;
+    padding: 0 12px 12px; grid-column: 1; grid-row: 3;
+  }
+}
+
+.explore-grid.as-list .itin-card > .trip-card-hit { grid-column: 1; grid-row: 1; min-width: 0; }
+.explore-grid.as-list .itin-card > .trip-task-row { grid-column: 1; grid-row: 2; margin-top: var(--space-3); }
+
+.trips-page .itin-card {
+  border-radius: 14px;
+  border-color: var(--line);
+  box-shadow: 0 1px 2px rgba(var(--shadow-navy-rgb), .05);
+  transition: transform var(--motion-slow) var(--ease-out),
+    box-shadow var(--motion-slow) var(--ease-out),
+    border-color var(--motion-slow) var(--ease-out);
+}
+.trips-page .itin-card:has(.trip-card-hit:focus-visible) { box-shadow: var(--ring); }
+.trips-page .itin-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--line) 80%, var(--text-3));
+  box-shadow: 0 8px 24px -14px rgba(var(--shadow-navy-rgb), .28);
+}
+.trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: scale(1.04); }
+
+.trips-page .explore-grid.as-list .itin-card {
+  display: grid; align-items: stretch;
+  grid-template-columns: 236px minmax(0, 1fr); grid-template-rows: auto auto;
+}
+@media (max-width: 760px) {
+  .trips-page .explore-grid.as-list .itin-card {
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trips-page .itin-card { transition: none; }
+  .trips-page .itin-card:hover { transform: none; }
+  .trips-page .itin-card:hover .trip-card-media .itin-emoji { transform: none; }
+}
+
+/* The card's hover nudge on the next-stop chevron. Kept with the deferred set
+   because no source file renders `.trip-next-chevron` inside a card. */
+.itin-card:hover .trip-next-chevron { transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .itin-card:hover .trip-next-chevron { transform: none; }
+}

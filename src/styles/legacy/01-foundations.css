@@ -258,52 +258,7 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--text); cursor: pointer; background:none;border:none;padding:0; }
 .brand svg { flex: 0 0 auto; }
 .nav-links { margin-left: 10px; }
-/* PillNav: one sliding "glider" pill behind the active item — switching reads
-   as one continuous motion instead of two backgrounds cross-fading.
-   `--pill-gap` is the row's own gap, named so the clipped ink copy (`.pill-ink-row`)
-   can lay out with the SAME spacing instead of restating the number. */
-.pill-nav { position: relative; display: flex; gap: 2px; --pill-gap: 2px; }
-.pill-nav > * { position: relative; z-index: 1; }
-.pill-glider {
-  position: absolute; left: 0; top: 0; width: 0; z-index: 0;
-  border-radius: 999px; background: var(--teal-soft);
-  /* The glide animates this element's own BOX, and deliberately NOT a transform.
-     A `scaleX` FLIP cannot resize a rounded pill without stretching its ends into
-     ellipses - at a 76px -> 146px tab change that is scaleX 1.93 - which reads as
-     the animation breaking rather than the pill gliding.
-     The box is also not the layout cost it looks like: the glider is absolutely
-     positioned, so its own box cannot reflow its siblings; the work is this one
-     element's layout and paint.
-     MOTION-TOKENS.md's catalog row described this as a "thumb `transform` slide";
-     that was wrong about the implementation, and is corrected there rather than
-     making the pill pay for the doc. */
-  transition: left var(--motion-med) var(--ease-glide), top var(--motion-med) var(--ease-glide),
-    width var(--motion-med) var(--ease-glide), height var(--motion-med) var(--ease-glide),
-    opacity var(--motion-fast) var(--ease-glide), background var(--motion-fast) var(--ease-glide);
-  pointer-events: none;
-}
-[data-theme='dark'] .pill-glider { background: var(--teal); }
-/* inside a pill nav the glider paints the active background — the items don't
-   (no background AND no glow on the item itself: a shadow that pops on/off on
-   the chip while the glider glides is exactly the two-step switch feel the
-   tabbar doesn't have) */
-.pill-nav .nav-link.active, .pill-nav .tab-btn.active,
-.pill-nav .clickable-chip.on-teal,
-.pill-nav .nav-link.active:hover, .pill-nav .tab-btn.active:hover,
-.pill-nav .clickable-chip.on-teal:hover { background: transparent; box-shadow: none; }
-/* Ink on the glider: light mode paints a PALE teal glider, so the active chip
-   keeps deep-teal ink — it would otherwise inherit #fff from .on-teal and
-   vanish against the pale background (1.2:1). Dark mode paints a saturated
-   glider and wants dark ink (kept from the original fix). */
-.pill-nav .clickable-chip.on-teal { color: var(--yf-teal-700); }
-[data-theme='dark'] .pill-nav .nav-link.active, [data-theme='dark'] .pill-nav .tab-btn.active,
-[data-theme='dark'] .pill-nav .clickable-chip.on-teal { color: #06251f; }
-/* Saffron active state, for any pillbar chip that wants it: same rule — the
-   glider paints the highlight, the chip only supplies ink (dark amber: 4.8:1
-   on solid saffron, where white ink was 2:1). The glider recolours while it
-   slides via the :has() below. */
-.pill-nav .clickable-chip.on-saffron { background: transparent; box-shadow: none; color: #5C3600; }
-.pill-nav:has(.clickable-chip.on-saffron) .pill-glider { background: var(--saffron); }
+/* The pill nav family is owned by components/pill-nav-01.css. */
 .auth-tabs { margin: 18px 0; }
 .nav-link {
   border: none; background: none; padding: 8px 13px; border-radius: 999px;

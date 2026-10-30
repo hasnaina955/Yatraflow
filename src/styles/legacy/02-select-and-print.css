@@ -93,15 +93,8 @@
   box-shadow: var(--shadow-soft);
 }
 
-/* Selected states paint through box-shadow — a glow here, and `box-shadow: none`
-   in the pill nav so the glider owns the fill. Both outrank the shared
-   `:focus-visible` ring on specificity, so a focused *selected* chip lost its
-   focus indicator entirely. Restate the ring wherever selection wins. */
-.pill-nav .clickable-chip.on-teal:focus-visible,
-.pill-nav .tab-btn.active:focus-visible,
-.pill-nav .nav-link.active:focus-visible {
-  outline: none; box-shadow: var(--ring);
-}
+/* The pill nav focus ring is owned by components/pill-nav-02.css. The note
+   above still explains why the ring has to be restated wherever selection wins. */
 /* ---------- Stat tiles ---------- */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .stat-tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 17px; box-shadow: var(--shadow-sm); }
@@ -1000,11 +993,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 .tab-btn.active { color: var(--teal-deep); }
 
 .tab-count { background: var(--teal-soft); color: var(--teal-deep); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
-/* In light mode the pill nav's glider paints --teal-soft too, so a count badge
-   inside the active pill was the same fill on the same fill (1:1) — the shape
-   vanished and the active tab read as a bare label. --card reads on either
-   glider, in both themes. */
-.pill-nav .clickable-chip.on-teal .tab-count { background: var(--card); }
+/* The pill nav's count-badge fill is owned by components/pill-nav-02.css. */
 /* Editable day title — a real button (keyboard-reachable rename), styled as
    the heading it replaces. */
 .day-title-btn { border: none; background: none; padding: 0; cursor: pointer;
@@ -1326,10 +1315,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
 
 /* ---------- Explore cards ---------- */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
-.itin-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out); }
-/* Lift convention: card/hero surfaces rise -2px (itin/feature/trip-card),
-   control-sized things -1px (clickable-chip, board-stop, bench buttons). */
-.itin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12); }
+/* `.itin-card` and its footer divider are owned by components/itin-card.css. */
 .itin-cover { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--teal-deep), var(--text)); overflow: hidden; }
 .itin-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .itin-cover-route {
@@ -1352,13 +1338,7 @@ button.board-col-zone--add:active { transform: translateY(1px); }
    Jakarta Sans — one class, one size, two faces. Stated once, here, for both. */
 .card-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
 .itin-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; font-size: var(--text-xs); color: var(--text-3); font-weight: 600; }
-/* Explore card footer: full-width divider to the card edges, content inset to
-   align with .itin-body's 16px side padding (separate from itin-body above). */
-.itin-card > .itin-meta { position: relative; padding: 12px 16px 16px; margin-top: 4px; }
-.itin-card > .itin-meta::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0;
-  border-top: 1px solid var(--line);
-}
+/* The card's own footer divider is owned by components/itin-card.css. */
 /* The creator line + its channel icons are the card's LAST row whenever the
    creator has a bio or a social link, and that row owns the card's bottom
    padding: unpadded it sat 1px from the bottom edge, inside the 12px corner

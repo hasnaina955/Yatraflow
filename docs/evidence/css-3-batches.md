@@ -878,7 +878,11 @@ Rollback: move the nine rules back to section 02, remove the module and its impo
 
 ## B10: the page families
 
-Checkpoint 1 is the `.hero` extraction. The other three families are traced and recorded below, and only one of them moved.
+**Status: partial.** `.hero` is complete. `.itin-card`, `.trip-head-card` and `.board*` are not.
+
+Checkpoint 1 is the `.hero` extraction. Checkpoint 2 merges its box rules.
+
+Only `.hero` moved so far. The earlier section that called the other three unmeasurable was wrong. A fixture can reach them, and checkpoint 3 takes that path. This section records what the batch actually did, not what it concluded about the rest.
 
 ### The plan listed four families. Measurement reclassified three.
 
@@ -957,6 +961,29 @@ The rest of the module stays separate, and is recorded here so a later batch doe
 
 The raw durations inside these animations predate the batch. They stay keyed in the `rawDurations` baseline, and this batch changes neither them nor their keys.
 
+### `.itin-card` now has one owner over two files
+
+The card that `PubCard` renders is one family. Its 25 rules sat in four files. They are now one owner over two ordered files.
+
+| File | Position | Content |
+|---|---|---|
+| `itin-card.css` | after `05-share-and-trip-ticket` | the recipe, the hover lift, the footer divider, the phone step |
+| `itin-card-legacy.css` | after `11-shared-page` | the 18 rules that reach no element |
+
+The second file exists because the map needs an owner to answer for every rule that names its class. The 18 unreachable rules are not deleted here. Removal needs proof of its own, and this batch proves extraction, not reachability. The file records why each group is probably unreachable. A later removal starts from that evidence.
+
+The batch audit is exact. There are 25 rules before and 25 after. No selector is missing, none is added, and no declaration changed. A first pass produced 24 with `position: relative` folded into the recipe. That is a consolidation inside an extraction checkpoint, so it went back to its own rule.
+
+Verification ran on the real pages that render the card. Those are a real creator page and the Landing page, at three widths and two themes.
+
+| Measure | Value |
+|---|---|
+| Compared values | 108,288 |
+| Element reads | 2,304 |
+| Differences | 0 |
+
+One run reported a single difference, `creator-grid :: case missing after`. That was a coverage flake. At one viewport the Explore page happened to render no creator link. The tool now separates a case skipped on both sides from a case that ran before and not after. A skip can no longer read as a style difference.
+
 ### The three families that did not move
 
 `.board*` is the largest family and the one this batch cannot prove. Its 150 rules sit at five cascade positions across `01-foundations`, `02-select-and-print`, `04-mobile-usability`, `06-shell-and-consistency` and `16-motion-and-cover-v2`. Two of those files hold Board rules before and after other rules, so one module cannot keep both positions.
@@ -981,7 +1008,7 @@ Rollback: move the thirteen rules back to sections 02, 04 and 12. Restore the sh
 
 ## B11: the pill navigation
 
-Inventory only. The batch did not move a rule, and this section records why.
+**Status: implemented and verified on a real-component fixture.**
 
 ### The family is three components under one scope
 
@@ -1004,30 +1031,73 @@ The tokens inside those selectors — `.nav-link`, `.tab-btn`, `.clickable-chip`
 
 ### What a signed-out page can reach
 
-The probe is `dev/_css3-probe-pill.mjs`. It counts the family on the two routes that render the top navigation.
+The probe is `dev/_css3-probe-pill.mjs`. It counts the family on the two app routes that render the top navigation.
 
-| Route | Width | `.pill-nav` | `.pill-glider` | `.nav-link` in rail | `.tab-btn` | `.clickable-chip` | `.pill-ink-row` |
-|---|---|---|---|---|---|---|---|
-| `/` | 1440 | 1 | 1 | 1 | 0 | 0 | 0 |
-| `/` | 390 | 1 | 1 | 1 | 0 | 0 | 0 |
-| `/explore` | 1440 | 1 | 1 | 1 | 0 | 0 | 0 |
-| `/explore` | 390 | 1 | 1 | 1 | 0 | 0 | 0 |
+That probe is the wrong instrument for this family, and it is kept only to record why. The app signs a visitor out of the workspace. The chip states and the ink row never render on a route. A **fixture** reaches them, because `PillNav` and `SegmentedTabs` take props and children and need no session.
 
-One rail renders, and it holds one link. The teal and saffron chip states, the count pill, the ink row and the workspace glider never render. Two thirds of the family is unreachable without a session.
+`dev/css3-pillnav-fixture.tsx` mounts the real `SegmentedTabs` tablist and the real `PillNav`, and it renders three shapes: the workspace rail with counts and the clipped ink copy, the top-nav shape with eight links, and the filter-pillbar shape with teal and saffron chips. The probe below measures the fixture, not a route.
 
-### Why the batch stops here
+### Why the owner spans four files
 
-`/trips` sends a signed-out visitor to the Landing page, and no source file offers a dev sign-in path. The tab rail, the ink row and every chip state stay unreachable. So does the Board.
+The family's rules sat at four cascade positions: `01-foundations`, `02-select-and-print`, `16-motion-and-cover-v2` and `17-overview-tiles-and-cover`. One file cannot hold all four without moving rules past the rules they answer to. So the owner is four ordered files, each imported where its rules already sat:
 
-The family cannot be declared owned and moved in part. An owner claims every rule that names the class, so a partial move fails the gate. A move of the unreachable rules without a reading is a guess.
+| File | Position | Content |
+|---|---|---|
+| `pill-nav.css` | after `01-foundations` | the rail, the glider, the cleared fills, the inks |
+| `pill-nav-02.css` | after `02-select-and-print` | the focus ring restatement, the count badge |
+| `pill-nav-16.css` | after `16-motion-and-cover-v2` | the workspace rail's glider tint and motion reset |
+| `pill-nav-17.css` | after `17-overview-tiles-and-cover` | the ink copy's ink |
 
-The batch needs one thing first: a measurement path into a signed-in workspace. The instrument is ready for it. `dev/_css3-page-compare.mjs` already enumerates a live DOM, swaps a stylesheet and compares. It needs a case that a session can open.
+The container owner already used this pattern with two files. This family needed four, and the map records all four against one owner.
 
-### Interrupted switching and rapid reversal
+One rule keeps all three of its selectors. Two name `.pill-nav` and one names `.yf-page .yf-tabbar`. A split would change one rule into two with different specificity. The `.yf-tabbar` copy exists because the bare form loses the ink contest at (0,2,0).
 
-These need the same session. A glider that is mid-transition when the active item changes, and a reversal during that transition, are behaviour questions. The geometry is `left`, `top`, `width` and `height` with `--motion-med` and `--ease-glide`. A test reads the glider box after an interrupt, then after a reversal.
+### Detection proven before the result
 
-No such reading exists yet, so this batch makes no claim about it.
+| Proof | Setup | Result |
+|---|---|---|
+| Self-comparison | the same stylesheet both sides | 0 differences |
+| Seed: glider paint and gap | `.pill-glider` radius and fill changed, `.pill-nav` gap 2px to 11px | 272 differences, including the ink row's knock-on geometry |
+
+The seed did not only catch the two painted values. It caught the glider's left offset, the ink window's box and the ink row's width. A wider gap moves all three. A tool that read only colour would have passed.
+
+### Verification
+
+| Measure | Value |
+|---|---|
+| Fixture | the real `PillNav` and `SegmentedTabs`, three rail shapes |
+| Passes | 12: three widths by two themes by two motion settings |
+| Element reads | 480 |
+| Properties per element | 56 |
+| Compared values | 26,880 |
+| Differences | 0 |
+
+Behaviour, asserted at every pass and not inferred from the comparison:
+
+| Check | Result |
+|---|---|
+| The glider covers the active item | delta `0,0,0,0` |
+| The ink window equals the glider box | identical on all four edges |
+| A switch lands on the new item | `board`, delta `0,0,0,0` |
+| An interrupted switch lands correctly | `group`, delta `0,0,0,0` |
+| A rapid reversal lands correctly | `timeline`, delta `0,0,0,0` |
+| Arrow keys reach every tab | 7 of 7, and `:focus-visible` is true |
+| The active tab keeps a visible focus ring | ring present, because the cleared fill removes the default |
+| The overflowing rail publishes `data-overflow` | `start` at 390px, and it changes on scroll |
+| Reduced motion collapses the glider and ink transitions | `1e-05s` |
+
+The first version of this tool reported three failures on a healthy stylesheet. All three were the tool's, and the fixes are recorded because they are the same trap twice:
+
+- `.pill-nav .tab-btn` also matches the decorative copies inside `.pill-ink-row`, which are spans with no key and no tab stop. It was measuring the copy.
+- Reduced motion uses `1e-05s`, a deliberate near-zero transition, which a strict zero check rejects.
+
+### Gate
+
+`check:css` passes with 14 owner modules. The map registers one owner over four files. Scoped STE passes on the changed lines.
+
+`npm run verify` did not run. The default STE run still exits 1 against the inherited merge base `f68b3d9`, which predates this work.
+
+Rollback: move the 26 matches back to their four sections. Remove the four modules and their imports. Delete the owner entry.
 
 ## Remaining legacy responsibilities
 

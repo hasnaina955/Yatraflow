@@ -726,7 +726,7 @@ html.vt-active :where(*) {
   transition: transform var(--t-fast) var(--ease-out);
 }
 [data-theme='dark'] .save-heart { background: rgba(20, 32, 46, .85); color: #e58875; }
-.itin-card { position: relative; }
+/* `.itin-card`'s relative positioning is owned by components/itin-card.css. */
 
 /* ---------- Plan Bench (issue #37) — homepage cost calculator ---------- */
 .plan-bench {

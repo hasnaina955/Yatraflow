@@ -177,6 +177,35 @@
       ],
       "configClasses": [],
       "variables": []
+    },
+    {
+      "id": "itin-card",
+      "file": "src/styles/components/itin-card.css",
+      "owned": [
+        "itin-card"
+      ],
+      "configClasses": [],
+      "variables": [],
+      "files": [
+        "src/styles/components/itin-card.css",
+        "src/styles/components/itin-card-legacy.css"
+      ]
+    },
+    {
+      "id": "pill-nav",
+      "file": "src/styles/components/pill-nav.css",
+      "owned": [
+        "pill-nav",
+        "pill-glider"
+      ],
+      "configClasses": [],
+      "variables": [],
+      "files": [
+        "src/styles/components/pill-nav.css",
+        "src/styles/components/pill-nav-02.css",
+        "src/styles/components/pill-nav-16.css",
+        "src/styles/components/pill-nav-17.css"
+      ]
     }
   ],
   "legacy": [

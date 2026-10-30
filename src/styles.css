@@ -3,6 +3,7 @@
    Do not reorder these imports. */
 @import './styles/tokens.css';
 @import './styles/legacy/01-foundations.css';
+@import './styles/components/pill-nav.css';
 @import './styles/layouts/container.css';
 @import './styles/components/card.css';
 @import './styles/legacy/02-select-and-print.css';
@@ -18,6 +19,8 @@
 @import './styles/components/input.css';
 @import './styles/layouts/container-phone.css';
 @import './styles/legacy/05-share-and-trip-ticket.css';
+@import './styles/components/itin-card.css';
+@import './styles/components/pill-nav-02.css';
 @import './styles/legacy/06-shell-and-consistency.css';
 @import './styles/legacy/07-workspace-and-unlock.css';
 @import './styles/legacy/08-map-review.css';
@@ -25,9 +28,12 @@
 @import './styles/components/search-field.css';
 @import './styles/legacy/10-explore.css';
 @import './styles/legacy/11-shared-page.css';
+@import './styles/components/itin-card-legacy.css';
 @import './styles/legacy/12-pages.css';
 @import './styles/legacy/13-phone-polish-and-guided-create.css';
 @import './styles/legacy/14-art-and-workspace-header.css';
 @import './styles/legacy/15-overview.css';
 @import './styles/legacy/16-motion-and-cover-v2.css';
+@import './styles/components/pill-nav-16.css';
 @import './styles/legacy/17-overview-tiles-and-cover.css';
+@import './styles/components/pill-nav-17.css';

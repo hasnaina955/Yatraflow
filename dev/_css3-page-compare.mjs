@@ -235,7 +235,12 @@ try {
       for (const [name, beforeRows] of before) {
         const afterRows = after.get(name)
         if (!afterRows) {
-          evidence.diffs.push(`${label} ${name} :: case missing after`)
+          // A case that was skipped on BOTH sides is a coverage gap, reported
+          // once as a skip. A case that ran before and not after is a real
+          // difference in coverage and must fail, so the two are not conflated.
+          if (!evidence.skipped.some((s) => s.startsWith(`${label} ${name}:`))) {
+            evidence.diffs.push(`${label} ${name} :: ran before but not after`)
+          }
           continue
         }
         if (beforeRows.length !== afterRows.length) {

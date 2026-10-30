@@ -1207,6 +1207,12 @@ The fixture passes prove the component styling. They do not prove that a signed-
 
 No dev sign-in path was added, and no session was exported. The fixture reaches the workspace by mounting the component with synthetic data. That is the technique `overview-fixture.tsx` already used for the Overview tab.
 
+### A gap this batch found and did not close
+
+`dev/evidence/README.md` is tracked and it cites screenshot files by name, such as `overview-1440-light-signedin.png`. No image file is tracked: `git ls-files 'dev/**/*.png'` returns nothing. A fresh clone therefore gets the citations and none of the pictures.
+
+The screenshots exist in this working tree, so nothing is lost today. They are untracked, so a clone or a cleanup step would drop them. The owner of the repo must choose. Commit the cited images, or stop citing files that are not in version control. This batch does not decide that. It does not delete the images either, because other batches point at them.
+
 ### Why the signed-in routes were not exercised
 
 They need an account, and this environment has none. The probe is `dev/_css3-probe-auth.mjs`, and it recorded the following.

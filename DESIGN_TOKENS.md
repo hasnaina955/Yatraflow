@@ -1,9 +1,15 @@
 # YatraFlow Design Tokens
 
-`src/styles.css` is authoritative; correct this reference when the two disagree,
-never change CSS to honour an obsolete table. Reconciliation evidence below uses
+`src/styles.css` and its `src/styles/legacy/` modules are authoritative.
+Correct this reference when the two disagree. Never change CSS to honour an
+obsolete table. Reconciliation evidence below uses
 one measured CSS snapshot (SHA-256 in the appendix); line numbers may move during
 concurrent CSS work. Counts describe source declarations, not computed rendering.
+
+> **Repo adoption note (curated, 28 Oct 2026).** The Papercut foundation is live.
+> `src/styles.css` owns the current values and aliases. Component and page layouts
+> still adopt their own slices. The supplied source is preserved byte-for-byte in
+> [`docs/redesign/papercut-warmth/sources/DESIGN_TOKENS.md`](docs/redesign/papercut-warmth/sources/DESIGN_TOKENS.md).
 
 Token architecture adopted from the `ui-ux-pro-max-skill` design-system reference
 (audit issue #24). Three layers:
@@ -22,13 +28,12 @@ Token architecture adopted from the `ui-ux-pro-max-skill` design-system referenc
 > re-add them with an adopter, not speculatively. The adopted action-color set
 > below stays.)
 
-## Calm Travel Intelligence layer (design refresh, `redesign/calm-travel-intelligence`)
+## Historical Calm Travel Intelligence layer (pre-Papercut evidence)
 
-The redesign adds a `--yf-*` primitive scale from
-`docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md` §4.1. These sit **beside** the
-existing primitives (evolve, don't replace); semantics re-point to them only
-where the direction doc says so. Every token is mirrored in
-`[data-theme='dark']`.
+**Historical record.** Do not read this table as the current alias map.
+It records the pre-Papercut `--yf-*` values.
+The adopted values are in the Papercut warmth layer below.
+`src/styles.css` is the runtime authority.
 
 | Token | Light | Dark | Use |
 |------|-------|------|-----|
@@ -90,14 +95,293 @@ popup stops clashing.
 **Also added:** `--radius-lg: 24px` (large bento cards) and `--shadow-soft`
 (diffuse CTI depth) in both themes.
 
-**Shared page tokens (on `:root`):** Explore and My trips use the same look, so they share
-five tokens. `--font-serif` is Playfair Display for a hero headline. `--font-hand` is Caveat
-for the handwritten note. `--line-strong` is the border of a control (22% of `--text`).
+**Shared page tokens (on `:root`):** `--font-serif` aliases `--font-display`, and `--font-hand`
+aliases `--font-body`. The legacy names remain for compatibility. `--line-strong` is the border
+of a control (22% of `--text`).
 `--shadow-card` and `--shadow-card-hover` are the resting and hover shadows of a catalog card.
 The older `--ex-font-serif`, `--ex-font-hand`, `--ex-line-strong`, `--ex-shadow-sm` and
 `--ex-shadow-md` names stay as aliases of these tokens.
 
-## Primitive palette
+## Papercut warmth layer (28 Oct 2026)
+
+**Status: the shared foundation is adopted.** The owner decided the three open questions on 28 Oct 2026. See Decisions. The foundation surfaces are cool now. Teal-tinted paper and blue-teal inks replaced the yellow paper and brown inks. The lightness stays the same, so contrast holds. The foundation drops the shared grain texture. Shadows use a teal ink. Night uses the app's night-sky navy: `#0C1420` ground and `#16233A` cards. The CSS now declares the colour, type, radius, spacing, elevation and motion values below. Component and page layouts adopt them per slice under the adopt-or-delete rule. Page-specific warm styles remain exceptions until their slices. `src/styles.css` remains the runtime authority.
+
+Naming rule: an existing repo name is reused when its meaning already fits (`--radius`, `--radius-sm`, `--radius-lg`, `--space-1…10`, `--icon-stroke`, `--yf-blur-*`, `--ring`). New families take the `--pw-` prefix until the owner picks final names. Each `--pw-*` row names the token it would replace or alias.
+
+### Colour
+
+Every token is mirrored in `[data-theme='dark']`. We measured contrast for the text pairs. `--pw-ink-3` on `--pw-card` is 5.68:1 light and 5.89:1 night. The tinted pairs are all at least 5.2:1 in both themes. These pairs are sea-900 on lagoon-100, marigold-ink on marigold-100, ok on ok-100, risk on risk-100 and bloom-700 on bloom-100. `--pw-ink-4` is 3.0:1. Use it for marks only, never text.
+
+**Surfaces**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-paper` | `#F0F8F6` | `#0C1420` | Page ground (no grain texture) | `--bg / --yf-cream` |
+| `--pw-sunken` | `#E0EBE9` | `#101B2B` | Tracks, segmented wells, quiet chips | `--bg-soft` |
+| `--pw-soft` | `#EAF3F2` | `#182740` | Hover fills, inline panels, collapsed rows | — |
+| `--pw-card` | `#FCFEFD` | `#16233A` | Cards and sheets | `--card / --yf-surface` |
+| `--pw-raised` | `#FFFFFF` | `#1A2A44` | Stop cards inside a day card | — |
+| `--pw-line` | `#D3DEDC` | `#27395A` | Control borders, dividers | `--line / --yf-border` |
+| `--pw-line-soft` | `#DCE7E6` | `#1E3050` | Card borders, dashed rules | — |
+
+**Ink**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-ink` | `#142329` | `#E8EFF5` | Titles, body, figures | `--text` |
+| `--pw-ink-2` | `#45565D` | `#ADBCCF` | Meta lines, secondary text | `--text-2` |
+| `--pw-ink-3` | `#556972` | `#8FA0B5` | Labels, captions, axis text | `--text-3 / --yf-text-muted` |
+| `--pw-ink-4` | `#79929E` | `#5F757F` | Chevrons, disabled marks, dots. Not for text (3.0:1) | — |
+| `--pw-on-sea` | `#FFFFFF` | `#0A1622` | Labels on sea and lagoon fills (7.4:1) | `--color-primary-foreground` |
+| `--pw-on-marigold` | `#142329` | `#1A1408` | Labels on marigold fills (7.7:1) | `--color-accent-foreground` |
+| `--pw-on-bloom` | `#FFFFFF` | `#2B0E16` | Labels on bloom fills (4.6:1 light, 7.5:1 night) | — |
+
+**Sea (primary)**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-sea-900` | `#0B3F44` | `#E3F4F0` | Text on lagoon tints | — |
+| `--pw-sea-700` | `#0B5F67` | `#3FB8AC` | Primary buttons, selected tabs, links | `--color-primary` |
+| `--pw-lagoon-600` | `#0D8D82` | `#3FB8AC` | Progress, focus, free-day marks | `--yf-teal-600` |
+| `--pw-lagoon-400` | `#2EB1A6` | `#5CC8BC` | Charts, map routes on light ground | — |
+| `--pw-lagoon-300` | `#6CCAB3` | `#6CCAB3` | Illustration water, sparkline fill | — |
+| `--pw-route` | `#9FD9CF` | `#2D5E58` | Route lines, dashed spines, tint borders | — |
+| `--pw-lagoon-100` | `#DDF1EE` | `#13302C` | Selected backgrounds, teal pills | `--yf-teal-100` |
+| `--pw-lagoon-50` | `#F3FAF8` | `#162A27` | Info panels, creator notes | — |
+
+**Marigold (paid, share, attention)**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-marigold-500` | `#F2A33A` | `#F5B04E` | Paid buttons, destination dot, attention | `--yf-saffron / --color-accent` |
+| `--pw-marigold-300` | `#F6CF8E` | `#8A6526` | Borders of paid tints | — |
+| `--pw-marigold-100` | `#FBE7C6` | `#33240F` | Paid and warning panels | `--yf-saffron-100` |
+| `--pw-marigold-50` | `#FFF4E0` | `#2B2212` | Buy box, sealed day ground | — |
+| `--pw-marigold-ink` | `#8A4F0E` | `#F2B45C` | Text on marigold tints | `--ink-amber` |
+
+**Bloom (people, saved)**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-bloom-700` | `#9C2347` | `#F08AA0` | Saved hearts, market tiles | — |
+| `--pw-bloom-500` | `#C9475E` | `#F08AA0` | Member avatars | — |
+| `--pw-bloom-100` | `#FBE3E8` | `#3A1E26` | Bloom tints | — |
+
+**Status (never series colours)**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-ok` | `#1F6B41` | `#7FCF9A` | Confirmed, under budget | `--ok-500 / --ink-ok` |
+| `--pw-ok-100` | `#E2F0E8` | `#17291E` | Confirmed pills and panels | — |
+| `--pw-risk` | `#B23A2E` | `#F08A7A` | Over target, blocked, to book | `--danger-500 / --ink-coral` |
+| `--pw-risk-100` | `#FBEDEA` | `#3A1C18` | Risk pills | `--color-destructive-soft` |
+
+**Spend categories (charts, fixed order)**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-cat-stays` | `#008C7F` | `#26A898` | Stays · Road on leg charts | `--cat-accommodation` |
+| `--pw-cat-transport` | `#3168C4` | `#5A8AE6` | Transport · Air | `--cat-transport` |
+| `--pw-cat-food` | `#CF5A2C` | `#DC6C3E` | Food · Rail | `--cat-food` |
+| `--pw-cat-activity` | `#A04CA8` | `#BF6BC9` | Activities · Water | `--cat-activities` |
+
+**Time-budget bar**
+
+| Token | Light | Night | Use | Replaces or aliases |
+|------|-------|-------|-----|------|
+| `--pw-time-drive` | `#0B5F67` | `#3FB8AC` | Driving | — |
+| `--pw-time-stop` | `#C9925A` | `#D9A673` | At places | — |
+| `--pw-time-wait` | `#F2A33A` | `#F5B04E` | Waiting | — |
+| `--pw-time-free` | `#DDF1EE` | `#13302C` | Free time | — |
+
+The four `--pw-cat-*` values replace the first four `--cat-*` categories only where a chart shows four or fewer series. They passed the categorical palette checks (lightness band, chroma, colour-blind separation, contrast) in both themes. Status colours never colour a series, and category colours never signal state.
+
+### Place tiles
+
+Duotone icon tiles for stops: tint ground, light fill, darker stroke. The glyph is half the tile.
+
+| Kind | Use | Tint | Fill | Stroke |
+|------|-----|------|------|--------|
+| sight | Sights, viewpoints | `#DDEBF2` | `#B9D3E1` | `#2F6A8A` |
+| temple | Temples, monasteries | `#EFE4F1` | `#D9C2DF` | `#6E4A7E` |
+| food | Food, dhabas | `#F8E3D6` | `#EFC3A8` | `#A4492A` |
+| nature | Nature stops | `#E3EFDC` | `#BFDDAE` | `#2F6B3A` |
+| water | Lakes, beaches, boats | `#DDF1EE` | `#6CCAB3` | `#0B5F67` |
+| market | Markets, shopping | `#FBE3E8` | `#F4C3CE` | `#9C2347` |
+| stay | Stays, check-in | `#FBE7C6` | `#F6CF8E` | `#8A4F0E` |
+
+### Type styles
+
+Sora for display and figures, Plus Jakarta Sans for everything else, weights 500–800 only. This retires the catalog-page exception above: Explore and My trips stop using `--font-serif` (Playfair Display) and `--font-hand` (Caveat). The owner decided on Sora + Plus Jakarta Sans in Oct 2026.
+
+| Token | Family | Size / line | Weight | Tracking | Use |
+|------|--------|------|------|------|-----|
+| `--pw-display-xl` | Sora | 56/1.04 | 700 | -.025em | Page titles on covers (Explore, itinerary, creator) |
+| `--pw-display-l` | Sora | 40/1.1 | 700 | -.02em | Board and section heroes, buy price |
+| `--pw-display-m` | Sora | 28/1.15 | 700 | -.02em | Section titles |
+| `--pw-display-s` | Sora | 22/1.2 | 700 | -.01em | Day titles, card heroes, big figures |
+| `--pw-title` | Sora | 18/1.25 | 700 | -.01em | Card titles, h3 |
+| `--pw-figure` | Sora | 24/1.1 | 700 | -.02em | Stats and totals (tabular) |
+| `--pw-body-l` | Plus Jakarta Sans | 17/1.55 | 500 | 0 | Lede paragraphs |
+| `--pw-body` | Plus Jakarta Sans | 15/1.5 | 500 | 0 | Body text |
+| `--pw-ui` | Plus Jakarta Sans | 14/1.4 | 600 | 0 | Buttons, tabs, inputs |
+| `--pw-meta` | Plus Jakarta Sans | 13/1.4 | 500 | 0 | Meta lines, legends |
+| `--pw-caption` | Plus Jakarta Sans | 12/1.4 | 600 | 0 | Pills, captions, chart labels |
+| `--pw-kicker` | Plus Jakarta Sans | 11/1.3 | 700 | .1em | Uppercase labels (CSS text-transform) |
+
+### Spacing
+
+The `--space-1…10` ladder keeps its values (2/4/6/8/12/14/16/20/22/24) and gains two in-between rungs, `--space-4a` (10px) and `--space-7a` (18px). Seven layout rungs are added for page layout only. Add all nine to the spacing gate's `LADDER` set in the same commit.
+
+| Token | Value | Use |
+|------|------:|-----|
+| `--space-4a` | 10px | icon to label in buttons, dense rows |
+| `--space-7a` | 18px | card padding (medium), panel gaps |
+| `--space-11` | 28px | hero inner padding |
+| `--space-12` | 32px | between page sections |
+| `--space-13` | 40px | hero gutters |
+| `--space-14` | 48px | board padding |
+| `--space-15` | 56px | page bottom |
+| `--space-16` | 64px | time gutter |
+| `--space-17` | 80px | desktop page gutter |
+
+### Radius
+
+Pick the radius by what the element is, not by its size on screen. An element whose radius is at least half its height is a pill or a circle and uses `--radius-pill`. Charts keep 2px inner joins between stacked segments.
+
+| Token | Value | Use | Status |
+|------|------:|-----|--------|
+| `--radius-mark` | 4px | Chart data ends, swatches, month cells (inner joins stay 2px) | new |
+| `--radius-xs` | 8px | Small tiles and thumbs up to 32px, code chips | new |
+| `--radius-sm` | 12px | Thumbnails, 34–40px tiles, inline notes, small buttons in sheets | existing |
+| `--radius` | 18px | Inputs, 48px stop tiles, panels inside cards, date stamps | existing |
+| `--radius-lg` | 24px | Cards, day cards, sheets, popovers | existing |
+| `--radius-xl` | 32px | Covers, heroes, board frames | new |
+| `--radius-pill` | 999px | Buttons, pills, tabs, tracks, avatars | existing value, new name |
+
+#### Nested pills: spacing comes from padding, not from radius
+
+A capsule inside a capsule is concentric when its inset is the same on every
+side. With `--radius-pill` the radius is whatever the box allows, so the only
+thing you control is the inset. Two rules follow, and they apply to every
+pill-in-pill surface (PillNav gliders, segmented thumbs, stacked avatar rings):
+
+1. **Let the outer container's padding and border set the gap.** A nested fill
+   fills its item's box; the container's `padding` plus `border` is the visible
+   spacing. Do not add an inset in JavaScript to "centre" it.
+2. **Never reuse one numeric radius for a finite rounded rectangle.** Two
+   `18px` radii on a small and a large box are not concentric — the smaller box
+   reads over-rounded. Either use `--radius-pill` on both, or derive the inner
+   radius as `outerRadius - inset`.
+
+Measured reference: the workspace tab rail is 58px outer (6px padding, 1px
+border) with a 44px fill, so the gap is 7px above and below. The same 7px rule
+gives the filter pillbar (36px outer, 26px fill) and the mode pillbar (46px
+outer, 36px fill) their 5px gap.
+
+`PillNav` enforces rule 1 in `src/lib/pillGeometry.ts`, and
+`tests/pill-geometry.test.ts` checks it at all three shapes. A hardcoded paint
+inset there is a defect: it was `+4` top and `-8` height, and it made every
+44px active pill paint 36px tall.
+
+#### A fill is inked by its own `--pw-on-*` partner
+
+Every fill token has one partner token that names the ink for it. Use the
+partner, and never borrow another role's token: a borrowed value is correct for
+the role it was named for and wrong here, and it moves when that role moves.
+
+| Fill | Ink | Light | Night |
+|------|-----|-------|-------|
+| `--pw-sea-700` | `--pw-on-sea` | 7.38:1 | 7.53:1 |
+| `--pw-marigold-500` | `--pw-on-marigold` | 7.74:1 | 9.76:1 |
+| `--pw-bloom-500` | `--pw-on-bloom` | 4.62:1 | 7.52:1 |
+
+The member avatar tones are the reference case. Sea and marigold once borrowed
+`--pw-sea-900` and `--pw-ink` for their dark ink. Both looked deliberate. They
+measured 2.13:1 and 1.62:1, so the initials were painted and unreadable. A
+source check cannot see this. `tests/avatar-tone.test.ts` reads the two tokens
+out of each rule, resolves them through the real token blocks, and measures
+them, so a wrong partner fails the build.
+
+#### Focus outranks selection
+
+A selected control that clears its own shadow for a sliding fill also clears
+the shared `:focus-visible` ring. The ring must be restated on the selected
+control, after the selection rules, and it must also list the focused-and-
+hovered state. `tests/design-system.test.ts` checks the selected workspace tab
+for this. The ring paints as a spread `box-shadow`, outside the border box, over
+the rail's glass where `--ring` clears 3:1. Painting it inside the fill would
+measure about 1.8:1.
+
+### Elevation
+
+One recipe per level. The shadow hue moves from navy (`--shadow-navy-rgb`) to a teal ink (`20, 56, 66`), so `--shadow-navy-rgb` can simply take the new value. Night depth comes from lighter surfaces plus a faint top edge; night shadows are black and do less.
+
+| Token | Light | Night | Use |
+|------|-------|-------|-----|
+| `--elev-press` | `0 1px 2px rgba(20,56,66,.12)` | `0 1px 2px rgba(0,0,0,.5)` | Segmented thumbs, pressed chips |
+| `--elev-1` | `inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24)` | `inset 0 1px 0 rgba(255,255,255,.05), 0 18px 36px -20px rgba(0,0,0,.7)` | Resting cards and the nav |
+| `--elev-2` | `0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34)` | `inset 0 1px 0 rgba(255,255,255,.06), 0 16px 30px -14px rgba(0,0,0,.75)` | Hover lift, stamps and chrome floating on photos |
+| `--elev-3` | `0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55)` | `0 32px 60px -28px rgba(0,0,0,.85)` | Menus, sheets, dialogs, buy card on a cover |
+| `--glow-sea` | `inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6)` | same | Primary buttons, selected tab |
+| `--glow-marigold` | `inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6)` | same | Paid buttons |
+| `--ring` | `0 0 0 3px var(--yf-teal-600)` (#0D8D82) | `0 0 0 3px var(--yf-teal-600)` (#3FB8AC) | Keyboard focus (repo token, unchanged): 3.8:1 on paper, 4.0:1 on card |
+
+The existing `--shadow`, `--shadow-soft`, `--shadow-card` and `--shadow-card-hover` would become aliases of `--elev-1`, `--elev-1`, `--elev-1` and `--elev-2`.
+
+### Glass
+
+The four `--yf-blur-*` tiers stay as they are. Glass floats only over photos, maps and covers. It never floats over plain paper. Use it for the frosted pill nav and tabs inside a cover. Use it for a buy card, stamps and chips on photos.
+
+### Icons
+
+`--icon-stroke` and `--icon-stroke-sm` stay 1.9. Line icons are drawn at 14, 16, 20 or 24px. Duotone tiles come in three sizes:
+
+| Tile | Radius | Glyph |
+|------|--------|-------|
+| 32px | `--radius-sm` | 16px |
+| 40px | `--radius-sm` | 20px |
+| 48px | `--radius` | 24px |
+
+### Motion (decided)
+
+These values are now in `src/styles.css` and `docs/MOTION-TOKENS.md`. The no-bounce rule gets one written exception: `--ease-settle` on entrance transforms for elements 48px or smaller.
+
+| Token | Repo today | Adopted | Use |
+|------|-----------|----------|-----|
+| `--motion-instant` | — | 90ms | Colour-only changes, press |
+| `--motion-fast` | 120ms | 160ms | Hovers, chips, small pops |
+| `--motion-med` | 180ms | 240ms | Popovers, gliders, list rows rising |
+| `--motion-slow` | 240ms | 360ms | Drawers, panels, page sections entering |
+| `--motion-slower` | 560ms | 560ms | Long travel (day collapse), chart bars growing |
+
+| Easing | Curve | Status |
+|------|-------|--------|
+| `--ease-out` | `cubic-bezier(.22,.61,.36,1)` | repo today |
+| `--ease-paper` | `cubic-bezier(.2,.8,.2,1)` | adopted: replaces --ease-out (same family, softer tail) |
+| `--ease-glide` | `cubic-bezier(.3,.86,.48,1)` | repo today, unchanged |
+| `--ease-resize` | `cubic-bezier(.42,0,.58,1)` | repo today, unchanged |
+| `--ease-exit` | `cubic-bezier(.4,0,1,1)` | adopted: exits only |
+| `--ease-settle` | `cubic-bezier(.34,1.32,.64,1)` | adopted: small pops only, 48px or smaller (stamps, pins, badges). Everything larger uses `--ease-paper` |
+
+### Decisions (28 Oct 2026)
+
+1. **Bounce on small pops: kept.** `--ease-settle` stays for stamps, pins and badges, 48px or smaller. Anything larger uses `--ease-paper`. Write this exception into `docs/MOTION-TOKENS.md`.
+2. **Slower durations: adopted.** instant 90ms (new), fast 120→160ms, med 180→240ms, slow 240→360ms, slower 560ms (unchanged).
+3. **10px and 18px: back on the ladder** as `--space-4a` and `--space-7a`. The boards were re-snapped with them. The gate's `LADDER` set needs both values.
+
+### Adoption order
+
+1. Colour primitives with their dark mirrors, aliased from the legacy names so no consumer breaks.
+2. Radius and elevation, replacing literal radii and shadows component by component. The measured appendix shows 206 literal radii today.
+3. Type styles, starting with Explore and My trips, where the serif and the handwritten face retire.
+4. Motion: swap the five durations and the easings in one commit, then add the settle exception to `docs/MOTION-TOKENS.md`.
+
+## Historical primitive palette (pre-Papercut evidence)
+
+**Historical record.** This table records pre-Papercut values.
+The current `--gray-*` aliases resolve to `--pw-*` foundation values.
+See the Papercut warmth layer for the current token map.
 
 | Token | Light | Dark |
 |------|-------|------|
@@ -117,7 +401,11 @@ The older `--ex-font-serif`, `--ex-font-hand`, `--ex-line-strong`, `--ex-shadow-
 | `--gray-700` (text-2) | `#45566E` | `#ADBCCF` |
 | `--gray-900` (text/fg) | `#0B2545` | `#ECF1F8` |
 
-## Semantic tokens (theme-aware)
+## Historical semantic mappings (pre-Papercut evidence)
+
+**Historical record.** This table records pre-Papercut mappings.
+The adopted runtime aliases use `--pw-*` values.
+The current focus ring is solid, not a tint.
 
 | Token | Maps to (light) | Notes |
 |------|-----------------|-------|
@@ -236,13 +524,17 @@ scrollbars are hidden, and the shell swaps the website topnav for the
 tokens, the same hierarchy, fewer GPU effects. A future "the app looks flatter
 than the site" pass should read this paragraph first.
 
-### One green
+### Historical one-green note (pre-Papercut)
 
 `--teal-500` is now `#0D8D82` (the CTI primary), so primary buttons, focus rings,
 form accents and selected states all resolve to a single green. The dark theme
 already resolved to `#2BB8AC` in both families, so nothing there changes.
 
-### Typography policy
+### Historical typography policy (pre-Papercut evidence)
+
+The current roles are Sora and Plus Jakarta Sans.
+`--font-serif` aliases `--font-display`, and `--font-hand` aliases `--font-body`.
+Keep the catalog exceptions below as pre-Papercut evidence.
 
 - **Catalog pages:** Explore and My trips set a hero headline in Playfair Display 600
   (`--font-serif`) with one italic accent phrase. They set the handwritten note in Caveat 600
@@ -347,7 +639,10 @@ The bar itself is `height: calc(var(--shell-nav-h) + var(--safe-bottom))` with
 padding-only would eat into the 58px row and drop the items under Material's
 48dp tap floor.
 
-## Measured appendix — reconciliation snapshot
+## Historical measured appendix (pre-Papercut foundation)
+
+This appendix records a pre-foundation CSS snapshot. The current Papercut
+foundation supersedes its palette, spacing and radius statements.
 
 **Verified method:** grep located the declarations; a PostCSS declaration walk
 counted every authored occurrence, including overridden rules and media blocks,

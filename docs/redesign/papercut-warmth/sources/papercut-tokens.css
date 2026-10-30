@@ -1,0 +1,130 @@
+/* Papercut warmth tokens — 28 Oct 2026. Spacing rungs and motion values decided; not yet in src/styles.css. */
+:root {
+  /* papercut warmth — colour */
+  --pw-paper: #F0F8F6;
+  --pw-sunken: #E0EBE9;
+  --pw-soft: #EAF3F2;
+  --pw-card: #FCFEFD;
+  --pw-raised: #FFFFFF;
+  --pw-line: #D3DEDC;
+  --pw-line-soft: #DCE7E6;
+  --pw-ink: #142329;
+  --pw-ink-2: #45565D;
+  --pw-ink-3: #556972;
+  --pw-ink-4: #79929E;
+  --pw-on-sea: #FFFFFF;
+  --pw-on-marigold: #142329;
+  --pw-sea-900: #0B3F44;
+  --pw-sea-700: #0B5F67;
+  --pw-lagoon-600: #0D8D82;
+  --pw-lagoon-400: #2EB1A6;
+  --pw-lagoon-300: #6CCAB3;
+  --pw-route: #9FD9CF;
+  --pw-lagoon-100: #DDF1EE;
+  --pw-lagoon-50: #F3FAF8;
+  --pw-marigold-500: #F2A33A;
+  --pw-marigold-300: #F6CF8E;
+  --pw-marigold-100: #FBE7C6;
+  --pw-marigold-50: #FFF4E0;
+  --pw-marigold-ink: #8A4F0E;
+  --pw-bloom-700: #9C2347;
+  --pw-bloom-500: #C9475E;
+  --pw-bloom-100: #FBE3E8;
+  --pw-ok: #1F6B41;
+  --pw-ok-100: #E2F0E8;
+  --pw-risk: #B23A2E;
+  --pw-risk-100: #FBEDEA;
+  --pw-cat-stays: #008C7F;
+  --pw-cat-transport: #3168C4;
+  --pw-cat-food: #CF5A2C;
+  --pw-cat-activity: #A04CA8;
+  --pw-time-drive: #0B5F67;
+  --pw-time-stop: #C9925A;
+  --pw-time-wait: #F2A33A;
+  --pw-time-free: #DDF1EE;
+  /* radius */
+  --radius-mark: 4px;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+  /* spacing: --space-1..10 already exist; layout steps */
+  --space-4a: 10px;
+  --space-7a: 18px;
+  --space-11: 28px;
+  --space-12: 32px;
+  --space-13: 40px;
+  --space-14: 48px;
+  --space-15: 56px;
+  --space-16: 64px;
+  --space-17: 80px;
+
+  /* motion — decided 28 Oct 2026; these replace the values in src/styles.css */
+  --motion-instant: 90ms;
+  --motion-fast: 160ms;
+  --motion-med: 240ms;
+  --motion-slow: 360ms;
+  --motion-slower: 560ms;
+  --ease-paper: cubic-bezier(.2,.8,.2,1);     /* replaces --ease-out */
+  --ease-glide: cubic-bezier(.3,.86,.48,1);
+  --ease-resize: cubic-bezier(.42,0,.58,1);
+  --ease-exit: cubic-bezier(.4,0,1,1);         /* exits only */
+  --ease-settle: cubic-bezier(.34,1.32,.64,1); /* small pops only: stamps, pins, badges, 48px or smaller */
+  /* elevation */
+  --elev-press: 0 1px 2px rgba(20,56,66,.12);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24);
+  --elev-2: 0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34);
+  --elev-3: 0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55);
+  --glow-sea: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6);
+  --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
+  --icon-stroke: 1.9; --icon-stroke-sm: 1.9;
+}
+[data-theme='dark'] {
+  --pw-paper: #0C1420;
+  --pw-sunken: #101B2B;
+  --pw-soft: #182740;
+  --pw-card: #16233A;
+  --pw-raised: #1A2A44;
+  --pw-line: #27395A;
+  --pw-line-soft: #1E3050;
+  --pw-ink: #E8EFF5;
+  --pw-ink-2: #ADBCCF;
+  --pw-ink-3: #8FA0B5;
+  --pw-ink-4: #5F757F;
+  --pw-on-sea: #0A1622;
+  --pw-on-marigold: #1A1408;
+  --pw-sea-900: #E3F4F0;
+  --pw-sea-700: #3FB8AC;
+  --pw-lagoon-600: #3FB8AC;
+  --pw-lagoon-400: #5CC8BC;
+  --pw-lagoon-300: #6CCAB3;
+  --pw-route: #2D5E58;
+  --pw-lagoon-100: #13302C;
+  --pw-lagoon-50: #162A27;
+  --pw-marigold-500: #F5B04E;
+  --pw-marigold-300: #8A6526;
+  --pw-marigold-100: #33240F;
+  --pw-marigold-50: #2B2212;
+  --pw-marigold-ink: #F2B45C;
+  --pw-bloom-700: #F08AA0;
+  --pw-bloom-500: #F08AA0;
+  --pw-bloom-100: #3A1E26;
+  --pw-ok: #7FCF9A;
+  --pw-ok-100: #17291E;
+  --pw-risk: #F08A7A;
+  --pw-risk-100: #3A1C18;
+  --pw-cat-stays: #26A898;
+  --pw-cat-transport: #5A8AE6;
+  --pw-cat-food: #DC6C3E;
+  --pw-cat-activity: #BF6BC9;
+  --pw-time-drive: #3FB8AC;
+  --pw-time-stop: #D9A673;
+  --pw-time-wait: #F5B04E;
+  --pw-time-free: #13302C;
+  --elev-press: 0 1px 2px rgba(0,0,0,.5);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.05), 0 18px 36px -20px rgba(0,0,0,.7);
+  --elev-2: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 30px -14px rgba(0,0,0,.75);
+  --elev-3: 0 32px 60px -28px rgba(0,0,0,.85);
+}

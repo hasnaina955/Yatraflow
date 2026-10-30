@@ -49,6 +49,7 @@ vi.mock('../src/lib/writeQueue', () => ({
 vi.mock('../src/lib/snapshot', () => ({ downloadTripJson: vi.fn() }))
 
 import { OfflineBanner } from '../src/components/OfflineBanner'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 function write(overrides: Partial<QueuedWrite> = {}): QueuedWrite {
   return {
@@ -244,12 +245,12 @@ describe('recovery access and async guard wiring', () => {
   })
 
   it('gives the sync check a 44px target', () => {
-    const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+    const css = readCssSource('src/styles.css')
     expect(css).toMatch(/\.offline-banner-summary \.btn\s*\{[^}]*min-height:\s*44px/)
   })
 
   it('uses token-based motion with a reduced-motion opt-out', () => {
-    const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+    const css = readCssSource('src/styles.css')
     expect(css).toMatch(/\.offline-recovery-row\s*\{[^}]*animation:\s*cardIn var\(--motion-slow\) var\(--ease-out\)/)
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.offline-recovery-row\s*\{\s*animation:\s*none/)
   })

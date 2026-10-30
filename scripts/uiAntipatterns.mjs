@@ -52,6 +52,7 @@
 // ============================================================================
 
 import { readFileSync } from 'node:fs'
+import { CssGraphError, loadCssGraph } from './css-source-graph.mjs'
 
 export const RULES = [
   {
@@ -110,6 +111,21 @@ export function check(files) {
   return findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
 }
 
+/**
+ * Point each stylesheet finding at the file it lives in now.
+ * The rules read the flattened cascade, so a finding's line is a line of the
+ * entry. `sourceAt` turns it back into `module:line`. A reader needs that after
+ * a rule moves into an imported module, and the JSON output carries both.
+ */
+export function withSources(findings, graph) {
+  for (const finding of findings) {
+    if (finding.file !== 'src/styles.css' || !graph) continue
+    const origin = graph.sourceAt(finding.line)
+    if (origin) finding.source = `${origin.file}:${origin.line}`
+  }
+  return findings
+}
+
 function main() {
   const args = process.argv.slice(2)
   const json = args.includes('--json')
@@ -118,18 +134,29 @@ function main() {
     process.exit(2)
   }
 
+  // The stylesheet is read through the shared source graph, so the rules keep
+  // firing on rules that have moved into an imported module.
   let files
+  let cssGraph = null
   try {
+    cssGraph = loadCssGraph('src/styles.css')
     files = {
-      'src/styles.css': readFileSync('src/styles.css', 'utf8'),
+      'src/styles.css': cssGraph.text,
       'index.html': readFileSync('index.html', 'utf8'),
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof CssGraphError) {
+      // An error path sets the code and returns (#656): a direct exit can
+      // truncate this diagnostic on Windows.
+      console.error(`check:ui cannot resolve the stylesheet: ${error.code}: ${error.message}`)
+      process.exitCode = 1
+      return
+    }
     console.error('check:ui must run from the repo root (src/styles.css or index.html not found)')
     process.exit(2)
   }
 
-  const findings = check(files)
+  const findings = withSources(check(files), cssGraph)
 
   if (json) {
     console.log(JSON.stringify({ ok: findings.length === 0, findings }, null, 2))
@@ -143,7 +170,7 @@ function main() {
 
   console.error(`ui anti-patterns: ${findings.length} finding(s)\n`)
   for (const f of findings) {
-    console.error(`  ${f.rule}  ${f.file}:${f.line}  ${f.title}`)
+    console.error(`  ${f.rule}  ${f.source ?? `${f.file}:${f.line}`}  ${f.title}`)
     console.error(`      ${f.text}`)
     console.error(`      ${f.why}\n`)
   }

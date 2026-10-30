@@ -6,7 +6,6 @@
     "src/pages/Explore.tsx",
     "src/pages/Landing.tsx",
     "src/pages/PublicItinerary.tsx",
-    "src/pages/TripWorkspace.tsx",
     "src/pages/TripsList.tsx"
   ],
   "pageFiles": {
@@ -181,7 +180,7 @@
     "src/pages/trip/TimelineTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 4,
+      "inlineStyle": 3,
       "rawH1": 0
     },
     "src/pages/trip/TripSettingsForm.tsx": {
@@ -204,14 +203,12 @@
     },
     "src/pages/TripWorkspace.tsx": {
       "EmptyState": 0,
-      "loadingBlock": 3,
-      "inlineStyle": 8,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
       "rawH1": 1
     }
   },
   "cardHoverViolations": 8,
   "fontScopeViolations": 0,
-  "fontNameFiles": {
-    "src/main.tsx": 1
-  }
+  "fontNameFiles": {}
 }

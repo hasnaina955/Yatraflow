@@ -1,18 +1,14 @@
 // ============ Explore — card cover ============
-// A publication with its own cover image shows that image. Every other one gets
-// the papercut art for the region its route names, the same art My trips uses,
-// with the generated scene for that region over it where one exists. The motif
-// stays underneath as the loading and error floor. No photo is fetched for a card.
-//
-// The seed is the publication id, so a card keeps the same scene across renders
-// and pages. Every call site already passes a whole publication, so the id costs
-// them nothing.
+// One renderer, one image: the publication's own cover, else the generated
+// scene for the places its route names, else the neutral emoji. The seed is the
+// publication id, so a card keeps the same scene across renders and pages.
+// Every call site already passes a whole publication, so the id costs them
+// nothing. No photo is fetched for a card.
 import type { PublishedItinerary } from '../../data/types'
 import { regionFor } from '../../lib/tripsPage'
-import { coverFor } from '../../lib/regionArt'
+import { coverPlanFor } from '../../lib/regionArt'
 import { sizedCoverUrl } from '../../lib/tripThumb'
-import { RegionArt } from '../RegionArt'
-import { TripArt } from '../trips/TripArt'
+import { CoverMedia } from '../CoverMedia'
 
 /**
  * The `.ex-grid` cover box, measured in the browser.
@@ -69,25 +65,23 @@ export function ExploreCover({ pub, sizes = EX_GRID_SIZES }: {
   sizes?: string
 }) {
   const coverUrl = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : ''
-  if (coverUrl) {
-    return <img className="ex-cover-img" src={coverUrl} alt="" loading="lazy" decoding="async" />
-  }
-  const region = regionFor({ destinations: pub.routeSummary })
   // The publication's route stops go in as they are, so a stop the India place
   // layer knows (a jurisdiction or a named destination) can win over the
   // seven-region collapse.
-  const choice = coverFor({
-    region,
+  const plan = coverPlanFor({
+    userCover: coverUrl,
+    region: regionFor({ destinations: pub.routeSummary }),
     seed: pub.id,
     placeCount: pub.routeSummary?.length ?? 0,
     destinations: pub.routeSummary,
   })
   return (
-    <RegionArt
-      id={choice?.kind === 'generated' ? choice.id : null}
+    <CoverMedia
+      plan={plan}
       ratio="16:10"
       sizes={sizes}
-      fallback={<TripArt region={region} />}
+      className="ex-cover-img"
+      emojiClassName="itin-cover-fallback"
     />
   )
 }

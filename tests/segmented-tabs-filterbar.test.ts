@@ -5,6 +5,7 @@
 // shape from drifting.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
@@ -12,7 +13,7 @@ const segmented = source('src/components/page/SegmentedTabs.tsx')
 const filterBar = source('src/components/page/FilterBar.tsx')
 const viewSwitch = source('src/components/trips/ViewSwitch.tsx')
 const exploreBar = source('src/components/explore/ExploreFilterBar.tsx')
-const styles = source('src/styles.css')
+const styles = readCssSource('src/styles.css')
 
 describe('SegmentedTabs', () => {
   it('takes the two semantics and the props every caller needs', () => {

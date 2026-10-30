@@ -20,12 +20,15 @@ import { routePath, type RoadLeg } from './routing'
 import type { Trip } from '../data/types'
 
 export interface RoadChainPoint { lat: number; lng: number }
+export type RoadPointKind = 'start' | 'stop' | 'return' | 'destination'
 
 export interface RoadChain {
   /** start → stops, plus the round-trip return-to-start and any trailing destination */
   points: RoadChainPoint[]
   /** Parallel to `points`: the day each point's ARRIVAL leg belongs to (null for the start) */
   ptDay: (number | null)[]
+  ptKind?: RoadPointKind[]
+  ptStopId?: (string | null)[]
   /** Points in the outbound section (start → stops) — the Map tab's own view */
   outboundCount: number
   /** true when the chain ends with a one-way DESTINATION leg (after any
@@ -47,12 +50,15 @@ export interface RoadChain {
  * describe); legs after it are the drive home / trailing destination the engine
  * corrections need but the map's outbound view must not double-count.
  */
-export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' | 'destinationCoords' | 'roundTrip' | 'transportMode'>): RoadChain {
+export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' | 'destinationCoords' | 'roundTrip' | 'transportMode'>): RoadChain & { ptKind: RoadPointKind[]; ptStopId: (string | null)[] } {
   const points: RoadChainPoint[] = []
   const ptDay: (number | null)[] = []
+  const ptKind: RoadPointKind[] = []
+  const ptStopId: (string | null)[] = []
   if (trip.startLocationCoords) {
     points.push({ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng })
     ptDay.push(null)
+    ptKind.push('start'); ptStopId.push(null)
   }
   ;[...trip.days]
     .sort((a, b) => a.index - b.index)
@@ -62,12 +68,14 @@ export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' |
       .forEach(s => {
         points.push({ lat: s.lat, lng: s.lng })
         ptDay.push(d.index)
+        ptKind.push('stop'); ptStopId.push(s.id)
       }))
   // The outbound journey ends here: everything below is the drive back.
   const outboundCount = points.length
   if (isRoundTrip(trip) && trip.startLocationCoords) {
     points.push({ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng })
     ptDay.push(null)
+    ptKind.push('return'); ptStopId.push(null)
   }
   const dc = trip.destinationCoords ?? []
   const lastDest = dc.length ? dc[dc.length - 1] : undefined
@@ -76,8 +84,9 @@ export function buildRoadChain(trip: Pick<Trip, 'startLocationCoords' | 'days' |
   if (hasDestTail) {
     points.push({ lat: lastDest.lat, lng: lastDest.lng })
     ptDay.push(null)
+    ptKind.push('destination'); ptStopId.push(null)
   }
-  return { points, ptDay, outboundCount, hasDestTail }
+  return { points, ptDay, ptKind, ptStopId, outboundCount, hasDestTail }
 }
 
 /** Geometry-only signature: the trip's road chain rebuilds only when a stop moves,
@@ -152,6 +161,23 @@ export interface MeasureOpts {
 export const ROAD_RETRY_DELAY_MS = 2000
 
 /**
+ * Test seam. The dev fixture swaps the measurement so a capture run never
+ * depends on the shared OSRM demo server. Production never calls the setter,
+ * so the shipped path is still `routePath`.
+ */
+let roadMeasureOverride: MeasureOpts['measure'] | null = null
+
+export function setRoadMeasureForTests(next: MeasureOpts['measure'] | null): void {
+  // Dev and test only. A production bundle must never swap the measurement.
+  if (!import.meta.env.DEV) return
+  roadMeasureOverride = next
+}
+
+function activeMeasure(opts: MeasureOpts, signal?: AbortSignal): NonNullable<MeasureOpts['measure']> {
+  return opts.measure ?? roadMeasureOverride ?? ((pts, asm) => routePath(pts, asm, signal))
+}
+
+/**
  * Did this chain resolve? A rate-limited OSRM does not throw — `routePath`
  * degrades to all-estimate haversine legs internally — so a chain counts as a
  * road only when at least ONE leg came from a real provider. Returns the legs
@@ -194,7 +220,7 @@ export async function measureDayRide(
 ): Promise<RoadOutcome> {
   const signal = opts.signal
   if (signal?.aborted) return { ok: false }
-  const measure = opts.measure ?? ((pts, asm) => routePath(pts, asm, signal))
+  const measure = activeMeasure(opts, signal)
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
   const retryDelayMs = opts.retryDelayMs ?? ROAD_RETRY_DELAY_MS
   const attempt = async (): Promise<RoadLeg[] | null> => resolvedLegs(await measure(points, assumptions))
@@ -234,7 +260,7 @@ export async function measureRoadChain(
 ): Promise<RoadOutcome> {
   const signal = opts.signal
   if (signal?.aborted) return { ok: false }
-  const measure = opts.measure ?? ((pts, asm) => routePath(pts, asm, signal))
+  const measure = activeMeasure(opts, signal)
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
   const retryDelayMs = opts.retryDelayMs ?? ROAD_RETRY_DELAY_MS
   const attempt = async (): Promise<RoadLeg[] | null> => resolvedLegs(await measure(points, assumptions))

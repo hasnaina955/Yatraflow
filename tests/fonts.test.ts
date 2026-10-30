@@ -3,12 +3,13 @@
 // link must fail here, not at render time.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
 
 const html = read('index.html')
 const main = read('src/main.tsx')
-const css = read('src/styles.css')
+const css = readCssSource('src/styles.css')
 
 const SORA_WEIGHTS = ['600', '700', '800']
 const JAKARTA_WEIGHTS = ['400', '500', '600', '700', '800']

@@ -1,0 +1,742 @@
+/* YatraFlow token definitions.
+   One owner for every primitive, semantic mapping, theme block and
+   compatibility alias. Order is the cascade: a later block wins.
+   Moved from the legacy modules in CSS-3 batch B1. Do not add page or
+   component rules here. */
+
+/* from src/styles/legacy/01-foundations.css */
+/* Token architecture (3 layers, per ui-ux-pro-max-skill design-system ref):
+ *   1. PRIMITIVES  — raw palette values (brand + neutral ramp)
+ *   2. SEMANTICS   — purpose aliases (--color-*) mapped from primitives; carry
+ *                    hover/active/foreground so interactive states stay consistent
+ *   3. COMPONENTS  — consume semantics only (see DESIGN_TOKENS.md state matrix)
+ * Existing flat names (--teal, --saffron, …) are KEPT as legacy aliases so the
+ * ~200 existing references keep working; new code should use --color-*.
+ */
+:root {
+  /* Native UA chrome (scrollbars, <select> popups, date/time pickers, autofill)
+     must follow the active theme, and native checkboxes/radios/range sliders
+     pick up the brand accent. --teal-500 re-resolves per theme below. */
+  color-scheme: light;
+  accent-color: var(--yf-teal-600);
+  /* The scrollbar's gutter is always reserved, so a page that grows past the
+     fold (the budget block, the advanced drawer) no longer shifts every
+     centred layout sideways when the vertical scrollbar appears. */
+  scrollbar-gutter: stable;
+
+  /* ---- 1. PRIMITIVES: brand ---- */
+  --teal-500: #0D8D82;
+  --teal-600: #0E7A72;
+  --teal-700: #0B6B63;
+  --saffron-500: #F59E2D;
+  --saffron-600: #E0860F;
+  --danger-500: #C93B3B;
+  --danger-600: #A82E2E;
+  --ok-500: #2E8B57;
+  --warn-600: #B47207;
+  /* ---- 1. PRIMITIVES: neutral ramp (cool slate, for shadows/disabled) ---- */
+  --gray-50: #FAF7F2;
+  --gray-100: #F3EEE5;
+  --gray-200: #E4DCCC;
+  --gray-400: #8291A6;
+  --gray-500: #5A6A80;
+  --gray-700: #45566E;
+  --gray-900: #0B2545;
+
+  /* ---- 1b. PRIMITIVES: Calm Travel Intelligence palette (design refresh;
+        docs/redesign/YATRAFLOW_DESIGN_DIRECTION.md §4.1) ---- */
+  --yf-navy: #123F49;          /* header bands, dark cards, AI anchor surfaces */
+  --yf-teal-600: #0D8D82;      /* CTI primary */
+  --yf-teal-700: #0C716D;      /* CTI primary hover/pressed */
+  --yf-teal-100: #E5F4EE;      /* selected backgrounds */
+  --yf-saffron: #F3AA3D;       /* invite / share / publish / explore */
+  --yf-saffron-100: #FFF4E4;
+  --yf-amber: #E4AE43;         /* attention / trade-offs / pending */
+  --yf-amber-100: #FFF7E9;
+  --yf-coral: #D6534D;         /* critical risk / destructive */
+  --yf-coral-100: #FFF0EC;
+  --yf-purple: #897ABB;        /* scenic / creative discovery */
+  --yf-purple-100: #F0EAFA;
+  --yf-poi-see: #db4cf0;       /* "places to see" lane + viewpoint spine — scenic magenta-violet, 292°: 40° clear of DAY_COLORS[2]'s 252° and 38° of the activity purple */
+  --yf-poi-see-ink: #8a2999;   /* its text ink, light theme */
+  /* Expense-category bar colors (Budget tab "Where the money goes") — one
+     hue per spend category, reused by the per-line icon chips. */
+  /* A dedicated categorical family, NOT the status palette: the first version
+     borrowed warn/ok/coral verbatim (entry fees wore the critical coral), so a
+     money bar read as an alert. Every hue sits >=15° from its siblings — the
+     hue gate reads the first four. */
+  --cat-transport: #2D61A9;        /* steel blue */
+  --cat-accommodation: #237895;    /* cerulean */
+  --cat-food: #B24F24;             /* terracotta */
+  --cat-activities: #378637;       /* leaf green (NOT the ok green) */
+  --cat-entry-fees: #AB367A;       /* rose (NOT the critical coral) */
+  --cat-tolls-parking: var(--gray-500);
+  --cat-local-travel: #747722;     /* olive — the auto-rickshaw hue */
+  --cat-emergency-buffer: #9E6D1A; /* deep honey — caution-family, not the token */
+  --yf-cream: #F8F7EF;         /* main app canvas */
+  --yf-mist: #ECF8F4;          /* atmospheric gradient edge */
+  --yf-peach: #FFF2E8;         /* atmospheric gradient edge */
+  --yf-atmos-mint: rgba(124, 225, 207, 0.20);
+  --yf-atmos-peach: rgba(255, 179, 107, 0.16);
+  --yf-surface: #FFFFFF;
+  --yf-border: #DCE7E1;
+  --yf-text-muted: #566A6C;
+  --yf-glass: rgba(255, 255, 255, 0.58);        /* level-2 overlay (map/board panels) */
+  --yf-nav-glass: rgba(255, 255, 255, 0.58);    /* nav pill — user-decided (AGENTS rule 9) */
+  --yf-glass-border: rgba(255, 255, 255, 0.65);
+  --yf-glass-sheen: rgba(255, 255, 255, 0.35);  /* top-edge highlight on glass panels */
+  /* backdrop blur tiers live in the v0.48 block at the end of this file:
+     --yf-blur-nav / -panel / -chip / -scrim. */
+  /* ---- z-index ladder (M4.4) — every fixed/absolute layer maps to a rung;
+     values are the historical literals so no stacking outcome changes ---- */
+  --z-under: 0;         /* decorative layers behind content (blobs, motifs, board-map canvas, pub-hero photo) */
+  --z-content: 1;       /* page content above in-card decor (hero-split, pub-hero-inner, itin-cover-route) */
+  --z-raised: 2;        /* second local layer (nav-right tray, pub-stats card, save-heart, bench bubble) */
+  --z-topbar: 3;        /* board topbar above its columns */
+  --z-frost: 5;         /* frosted locals above page content (map-legend, locked-overlay) */
+  --z-strip: 40;        /* sticky trip-total strip */
+  --z-dock: 55;         /* fixed mobile chrome below the nav pill (mobile-menu) */
+  --z-nav-glass: 60;    /* floating glass chrome: topnav, user-menu, loc-dropdown/loc-empty, bench-dock.
+                           Ties at 60 resolve by DOM order exactly as before: the user-menu is a portaled
+                           fixed panel (paints after the sticky nav); the others never share its space. */
+  --z-map-expanded: 70; /* expanded map shell — must sit BELOW the dialogs it can spawn (AGENTS ladder) */
+  --z-ai-fab: 70;       /* ties with --z-map-expanded on purpose — DOM order decides, unchanged */
+  --z-notif: 80;        /* notification popover */
+  --z-drawer: 90;       /* ai-drawer (opens over everything up to modals) */
+  --z-modal: 100;       /* modal overlay */
+  --z-toast: 200;       /* toast zone */
+  --z-impact: 210;      /* impact sheet + its top strip — deliberately ABOVE toasts (recent fix) */
+
+  /* ---- motion (subtle & premium): one easing family, three speeds ---- */
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-soft: cubic-bezier(.3, .7, .4, 1);
+  --t-fast: 180ms;
+  --t-med: 300ms;
+  --t-slow: 440ms;
+  /* the one entrance-stagger step (board columns, trip cards, create blocks) */
+  --stagger-step: 60ms;
+
+  /* Brand teal glow for selected/primary pill states — one triplet, not three. */
+  --shadow-glow-teal: 0 2px 10px rgba(13, 141, 130, .35);
+
+  /* ---- 2. SEMANTICS (light) ---- */
+  /* SYS-3: the primary fill steps off teal-500 so its white label clears AA
+     (4.08 → 5.19 at rest); the whole ladder deepens one notch to keep hover
+     darker than rest. Dark re-declares these + uses #06251F ink, untouched. */
+  --color-primary: var(--teal-600);
+  --color-primary-hover: var(--teal-700);
+  --color-primary-active: #095750;
+  --color-primary-foreground: #FFFFFF;
+  --color-accent: var(--saffron-500);
+  --color-accent-hover: var(--saffron-600);
+  --color-accent-foreground: #3A2506;
+  --color-destructive: var(--danger-500);
+  --color-destructive-soft: #F9E7E7;
+  /* The focus indicator, at full strength. As a 35% tint the teal measured
+     1.50:1 against --bg and 1.57:1 against --card — under the 3:1 WCAG 1.4.11
+     asks of a focus indicator, and it is the ONLY signal on the controls that
+     remove their outline (the slots rail's day chips, its Fill buttons and the
+     ledger's rows all set `outline: none`). Solid --yf-teal-600 measures 3.80:1
+     on --bg and 4.08:1 on --card, and the token is theme-aware, so the dark
+     block needs no second recipe — one focus token, both themes. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
+  /* SYS-3a: deepened amber/green TEXT inks. The raw --warn/--ok pass only ~3.5–
+     4.25:1 on light tints; these clear AA on every light surface (#8F5B06:
+     5.08–5.73; #1F6B41: 5.61–6.49). Text/label roles consume these; decorative
+     fills/tints keep the raw primitives. Dark re-declares them to the raw
+     tokens (its lightened --warn/--ok already pass on dark surfaces). */
+  --ink-amber: #8F5B06;
+  --ink-ok: #1F6B41;
+  --ink-coral: #A82E2E;  /* AA on the soft danger tints (5.16–5.69): #C93B3B read 4.22 */
+  --ink-teal: #0B6B63;   /* teal ink for tint chips/hovers: teal-deep reads 4.0–4.5 there */
+
+  /* ---- 3. LEGACY flat aliases (do not remove; new code uses --color-*) ---- */
+  --bg: var(--yf-cream);   /* CTI canvas (was --gray-50) */
+  --bg-soft: var(--gray-100);
+  --card: #FFFFFF;
+  --card-soft: #FDFBF7;
+  --text: var(--gray-900);
+  --text-2: var(--gray-700);
+  --text-3: var(--gray-500);
+  --line: var(--gray-200);
+  --teal: var(--teal-500);
+  --teal-deep: var(--teal-600);
+  --teal-soft: var(--yf-teal-100);
+  --saffron: var(--saffron-500);
+  --saffron-soft: #FCF0DC;
+  --coral: var(--yf-coral);
+  --danger: var(--danger-500);
+  --danger-soft: #F9E7E7;
+  --ok: var(--ok-500);
+  --ok-soft: #E3F2EA;
+  --warn: var(--warn-600);
+  --warn-soft: #FBF1DD;
+  --info-soft: #E8EEF6;
+  --shadow-navy-rgb: 11, 37, 69;  /* shared shadow/shade navy — keep alphas on the consumers */
+  --shadow: 0 1px 2px rgba(var(--shadow-navy-rgb),.05), 0 8px 28px rgba(var(--shadow-navy-rgb),.08);
+  --shadow-sm: 0 1px 2px rgba(var(--shadow-navy-rgb),.07);
+  --shadow-soft: 0 2px 6px rgba(var(--shadow-navy-rgb),.04), 0 16px 40px rgba(var(--shadow-navy-rgb),.10);  /* CTI diffuse depth */
+  --shadow-carry: 0 6px 18px rgba(var(--shadow-navy-rgb),.14), 0 24px 48px rgba(var(--shadow-navy-rgb),.18);  /* carried drag row lift */
+  --shadow-carry-dark: 0 6px 18px rgba(0,0,0,.45), 0 24px 48px rgba(0,0,0,.5);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-lg: 24px;   /* CTI large bento cards */
+  /* ---- Spacing ladder: the ratchet's law for new code (tests/design-system
+     .test.ts' spacing gate), tokenised so surfaces route through it. Matches
+     the gate's LADDER set exactly — change one side and the pin fails. */
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;
+  --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px;
+  --space-9: 22px; --space-10: 24px;
+  --nav-h: 62px;
+  /* ---- bottom chrome (mobile / native shell) ----
+     One offset every fixed/sticky bottom layer clears: the shell's own
+     navigation row (--shell-nav-h, 0px on the web so both the offset and any
+     consumer of it collapse to exactly the old gesture-bar inset) plus the
+     device's bottom safe area. Consume --bottom-ui-offset, never the raw
+     inset, so a new bottom layer can't forget the nav sitting on top of it.
+     Overlays that intentionally own the true bottom edge (modals, the impact
+     sheet, the AI drawer, the expanded map) keep the raw inset. */
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --shell-nav-h: 0px;
+  /* The mobile dock's footprint. Stays 0 unless a surface actually shows the
+     dock — see the :has() rule beside .toast-zone. Deliberately NOT folded into
+     --bottom-ui-offset, because the dock consumes that offset itself. */
+  --dock-h: 0px;
+  --bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));
+  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Icon stroke weight. Lucide ships 2 as a presentation attribute on every
+     glyph. At the 13-15px the UI renders at, 1.5 drew under 1px and looked faint,
+     so 1.9 draws about 1.0-1.2px there (stroke x size / 24). One token, consumed by the
+     .lucide base rule near the type rules, so a denser surface can step it deliberately. */
+  --icon-stroke: 1.9;
+  /* Small-glyph step, matched to the base step: at 12px a 1.25 stroke drew under
+     0.7px and read as faint, so the shared inline wrappers keep 1.9 through .ic-sm
+     below (about 0.95px at 12px). */
+  --icon-stroke-sm: 1.9;
+  /* ---- Landing display scale + macro-whitespace ----
+     The marketing page is the one surface that is deliberately editorial rather
+     than app-scale: its headline is the largest type on the site and its
+     sections breathe in tens of px, not the 8-24 ladder. The hero's size,
+     leading and tracking were an inline clamp() in the page, which invited
+     exactly the drift the three values now can't have; the section gaps were
+     inline 60/70 literals. Kept in tokens because the spacing gate reads
+     literals - a `padding: 132px` would be a ratchet violation, a token
+     consumed by var() is not, which is how the ladder's law is scoped. */
+  /* Ceilings are deliberately moderate. The real hero headline is a long
+     sentence ("Plan trips that actually flow together") in a ~570px column, so a
+     5rem-class display size wraps to five lines and pushes the whole hero tall.
+     These keep the mobile floor and the leading exactly as they were and lift
+     the desktop ceiling only - the safe half of the scale change. */
+  --landing-hero-size: clamp(2.4rem, 5.4vw, 4.35rem);
+  --landing-hero-leading: 1.02;
+  --landing-hero-tracking: -.03em;
+  --landing-title-size: clamp(1.8rem, 3.2vw, 2.7rem);
+  --landing-section-pad: 132px;
+  /* The rhythm INSIDE a public surface - between its editorial blocks and between
+     its day blocks - as opposed to the section pad BETWEEN surfaces. One token
+     so Tier A surfaces share a beat. A token, not a literal: the spacing ratchet
+     reads literals and would reject a raw 40px; it ignores custom properties.
+     (The plan's `--landing-*` -> `--surface-*` rename is deliberately NOT done
+     here: it churns the landed Landing commit for no behaviour change, and it is
+     still an open question for the owner.) */
+  --surface-block-gap: 40px;
+}
+
+/* from src/styles/legacy/01-foundations.css */
+/* ============ YatraFlow Design System ============ */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* ---- 1. PRIMITIVES: brand (dark) ---- */
+  --teal-500: #2BB8AC;
+  --teal-600: #35C9BC;
+  --teal-700: #1E9D92;
+  --saffron-500: #F5A94A;
+  --saffron-600: #E0860F;
+  --danger-500: #E06C6C;
+  --danger-600: #C95050;
+  --ok-500: #52BE80;
+  --warn-600: #D99A2B;
+  --gray-50: #0C1420;
+  --gray-100: #101B2B;
+  --gray-200: #27395A;
+  --gray-400: #74879E;
+  --gray-500: #8FA0B5;
+  --gray-700: #ADBCCF;
+  --gray-900: #ECF1F8;
+
+  /* ---- 1b. PRIMITIVES: CTI palette (dark mirror) ---- */
+  --yf-navy: #0F2A33;
+  --yf-teal-600: #2BB8AC;
+  --yf-teal-700: #1E9D92;
+  --yf-teal-100: #12332F;
+  --yf-saffron: #F5A94A;
+  --yf-saffron-100: #3A2C15;
+  --yf-amber: #D99A2B;
+  --yf-amber-100: #36290F;
+  --yf-coral: #E06C6C;
+  --yf-coral-100: #3A2020;
+  --yf-purple: #A99BD6;
+  --yf-purple-100: #2A2440;
+  --yf-poi-see: #e488f2;       /* scenic base lifts in dark (spine 7.6:1 on the dark card) */
+  --yf-poi-see-ink: #f0a7fb;   /* POI-see text ink lifts in dark */
+  --cat-transport: #689ADF;
+  --cat-accommodation: #68C1DF;
+  --cat-food: #DF8C68;
+  --cat-activities: #6BC76B;
+  --cat-entry-fees: #DF68AD;
+  --cat-tolls-parking: #93A6BC;
+  --cat-local-travel: #D0D454;
+  --cat-emergency-buffer: #DFB368;
+  --yf-cream: #0C1420;
+  --yf-mist: #0F1B2B;
+  --yf-peach: #1A2030;
+  --yf-atmos-mint: rgba(43, 184, 172, 0.10);
+  --yf-atmos-peach: rgba(245, 169, 74, 0.08);
+  --yf-surface: #16233A;
+  --yf-border: #27395A;
+  --yf-text-muted: #8FA0B5;
+  --yf-glass: rgba(16, 27, 43, 0.58);
+  --yf-nav-glass: rgba(16, 27, 43, 0.58);
+  --yf-glass-border: rgba(255, 255, 255, 0.14);
+  --yf-glass-sheen: rgba(255, 255, 255, 0.08);
+
+  /* ---- 2. SEMANTICS (dark) ---- */
+  --color-primary: var(--teal-500);
+  --color-primary-hover: var(--teal-600);
+  --color-primary-active: var(--teal-700);
+  --color-primary-foreground: #06251F;
+  --color-accent: var(--saffron-500);
+  --color-accent-hover: var(--saffron-600);
+  --color-accent-foreground: #3A2506;
+  --color-destructive: var(--danger-500);
+  --color-destructive-soft: #3A2020;
+  /* Same single recipe: --yf-teal-600 is the dark mirror (#2BB8AC), so the
+     indicator measures 6.43:1 on --card and 7.61:1 on --bg here. The 40% tint
+     this used to carry measured 2.17:1 on the dark card. */
+  --ring: 0 0 0 3px var(--yf-teal-600);
+  /* SYS-3a: dark re-declares the ink tokens to the raw aliases — the darkened
+     --warn/--ok (#D99A2B/#52BE80) already clear AA on dark surfaces. */
+  --ink-amber: var(--warn);
+  --ink-ok: var(--ok);
+  --ink-coral: var(--danger);
+  --ink-teal: var(--teal-deep);
+
+  /* ---- 3. LEGACY flat aliases (dark) ---- */
+  --bg: var(--gray-50);
+  --bg-soft: var(--gray-100);
+  --card: #16233A;
+  --card-soft: #1A2A44;
+  --text: var(--gray-900);
+  --text-2: var(--gray-700);
+  --text-3: var(--gray-500);
+  --line: var(--gray-200);
+  --teal: var(--teal-500);
+  --teal-deep: var(--teal-600);
+  --teal-soft: var(--yf-teal-100);
+  --saffron: var(--saffron-500);
+  --saffron-soft: #3A2C15;
+  --coral: var(--yf-coral);
+  --danger: var(--danger-500);
+  --danger-soft: #3A2020;
+  --ok: var(--ok-500);
+  --ok-soft: #16301F;
+  --warn: var(--warn-600);
+  --warn-soft: #36290F;
+  --info-soft: #1B2B45;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.35);
+  --shadow-soft: 0 2px 8px rgba(0,0,0,.4), 0 18px 44px rgba(0,0,0,.5);
+}
+
+/* from src/styles/legacy/04-mobile-usability.css */
+@media (max-width: 720px) {
+:root { --landing-hero-leading: 1.14; --landing-hero-tracking: -.012em; }
+}
+
+/* from src/styles/legacy/06-shell-and-consistency.css */
+/* Type/spacing scales (SYS-2 decision, #107): the unused steps were DELETED
+   rather than adopted — with 340+ literal sizes in the cascade, a parallel
+   scale nobody routed through was a trap, not a tool. `--text-xs` stays (the
+   bottom-nav label uses it); sizes stay literal elsewhere by design. */
+:root {
+  --text-xs: 11px;
+  --kicker-size: 11px; --kicker-weight: 700; --kicker-tracking: .06em;
+}
+
+/* from src/styles/legacy/06-shell-and-consistency.css */
+/* Glass blur tiers: chrome 18, panel 14, chip 8, scrim 3. */
+:root {
+  --yf-blur-nav: 18px; --yf-blur-panel: 14px; --yf-blur-chip: 8px; --yf-blur-scrim: 3px;
+}
+
+/* from src/styles/legacy/06-shell-and-consistency.css */
+/* Motion tokens (docs/MOTION-TOKENS.md, AGENTS rule 10): four duration steps
+   + three easings. New interactive surfaces pick from here — a raw ms value in
+   a new rule is a review flag. --ease-out lives with the base tokens.
+   Both --ease-glide and --ease-out are DECELERATE curves — within .015 of each
+   other at every sampled point, 86% of the distance inside the first 44% of the
+   time. That is right for a 60px dropdown and a pop on a 1000px surface, where
+   it moves a quarter of the height in the first 6ms; --ease-resize is the
+   both-ends curve those in-place resizes use instead.
+   --ease-resize is symmetric on purpose. On a ~920px resize the asymmetric
+   Material standard curve carries a peak slope of 2.73x its average (it spends
+   its middle covering ground), which on a 60Hz screen is 96px of movement in
+   one frame; the symmetric curve peaks at 1.72x — 60px, a 37% softer middle —
+   for the same end-to-end time and the same 3px first frame. A large surface is
+   felt in its middle, so that is where the speed has to come out.
+   --motion-slower is the fourth step, for travel measured in hundreds of px
+   (a day body is ~950px). Peak frame speed is distance ÷ duration, so the same
+   gesture at --motion-slow moved the rows below a folding day ~176px inside one
+   60Hz frame; at 560ms it is ~47px and the eye tracks the edge instead of being
+   hit by it. Nothing above this step: longer reads sluggish — and this one is
+   already above Material's guidance for a large expansion (375–500ms), which is
+   only defensible because the thing moving is ~950px, not a panel. */
+:root {
+  --motion-fast: 120ms; --motion-med: 180ms; --motion-slow: 240ms; --motion-slower: 560ms;
+  --ease-glide: cubic-bezier(.3, .86, .48, 1);
+  --ease-resize: cubic-bezier(.42, 0, .58, 1);
+}
+
+/* from src/styles/legacy/06-shell-and-consistency.css */
+/* One dropdown/popover surface for the whole app — the navbar's exact glass
+   treatment (nav glass + blur-nav + saturate, the same tint as the rails).
+   Rule 10 pattern: entrance = fade + 4px rise. If this still reads too airy,
+   flipping --popover-bg to var(--card) takes the whole family solid in one
+   line (the blur route is kept because the user asked for the navbar recipe
+   first; the design-system test holds every blur to a tier token). */
+:root {
+  --popover-bg: var(--yf-nav-glass);
+  --popover-border: var(--yf-glass-border);
+}
+
+/* from src/styles/legacy/11-shared-page.css */
+/* Explore and My trips are siblings and read as one design. The tokens they
+   share live here on :root. The --ex-* names stay as aliases. Type: Playfair
+   Display for a hero line, Caveat for the handwritten note, Plus Jakarta Sans
+   for everything else. */
+:root {
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --line-strong: color-mix(in srgb, var(--text) 22%, transparent);
+  --shadow-card: 0 1px 2px rgba(var(--shadow-navy-rgb), .05), 0 4px 12px -6px rgba(var(--shadow-navy-rgb), .12);
+  --shadow-card-hover: 0 2px 4px rgba(var(--shadow-navy-rgb), .05), 0 22px 40px -20px rgba(var(--shadow-navy-rgb), .32);
+  --ex-font-serif: var(--font-serif);
+  --ex-font-hand: var(--font-hand);
+  --ex-line-strong: var(--line-strong);
+  --ex-shadow-sm: var(--shadow-card);
+  --ex-shadow-md: var(--shadow-card-hover);
+}
+
+/* from src/styles/legacy/13-phone-polish-and-guided-create.css */
+/* One token pair per kind. A modifier sets --sf-c and --sf-c-bg on the element. */
+:root {
+  --sf-kind-sight: #1A54A8;
+  --sf-kind-sight-bg: #DFE7F3;
+  --sf-kind-nature: #166534;
+  --sf-kind-nature-bg: #DEE9E3;
+  --sf-kind-food: #B91C1C;
+  --sf-kind-food-bg: #F5DFDF;
+  --sf-kind-temple: #6D28D9;
+  --sf-kind-temple-bg: #EBE1FA;
+  --sf-kind-museum: #4338CA;
+  --sf-kind-museum-bg: #E5E3F8;
+  --sf-kind-beach: #155E75;
+  --sf-kind-beach-bg: #DEE8EC;
+  --sf-kind-market: #9D174D;
+  --sf-kind-market-bg: #F1DFE6;
+  --sf-kind-outdoors: #3F6212;
+  --sf-kind-outdoors-bg: #E4E9DE;
+  --sf-kind-evening: #A21CAF;
+  --sf-kind-evening-bg: #F2DFF4;
+  /* A stay and a travel leg share one slate pair. */
+  --sf-kind-stay: #475569;
+  --sf-kind-stay-bg: #E5E7EA;
+  --sf-kind-travel: #475569;
+  --sf-kind-travel-bg: #E5E7EA;
+}
+
+/* from src/styles/legacy/13-phone-polish-and-guided-create.css */
+/* ---- P7 storefront (Look Inside) ----
+   The public page for one plan.
+   Each stop kind has one colour.
+   The colour paints the icon and tints the chip.
+   The pair holds 4.5:1 for the text on its own tint, in both themes.
+   The lowest light pair is evening at 5.01:1.
+   Saffron means paid. Only the Locked tag and the Unlock button use it.
+   Every duration and easing comes from the motion tokens.
+   The motion moves transform and opacity only. */
+:root[data-theme='dark'] {
+  --sf-kind-sight: #8DB8F2;
+  --sf-kind-sight-bg: #273854;
+  --sf-kind-nature: #6BD08F;
+  --sf-kind-nature-bg: #223B46;
+  --sf-kind-food: #F59595;
+  --sf-kind-food-bg: #353347;
+  --sf-kind-temple: #B9A2F8;
+  --sf-kind-temple-bg: #2D3555;
+  --sf-kind-museum: #A5A8F8;
+  --sf-kind-museum-bg: #2A3655;
+  --sf-kind-beach: #5FD0E6;
+  --sf-kind-beach-bg: #203B52;
+  --sf-kind-market: #F48FB8;
+  --sf-kind-market-bg: #35324C;
+  --sf-kind-outdoors: #A9D46A;
+  --sf-kind-outdoors-bg: #2B3C41;
+  --sf-kind-evening: #EE9BF5;
+  --sf-kind-evening-bg: #343454;
+  --sf-kind-stay: #A3B1C2;
+  --sf-kind-stay-bg: #2A374D;
+  --sf-kind-travel: #A3B1C2;
+  --sf-kind-travel-bg: #2A374D;
+}
+
+/* from src/styles/legacy/15-overview.css */
+/* Papercut foundations */
+:root {
+  /* colour */
+  --pw-paper: #F0F8F6;
+  --pw-sunken: #E0EBE9;
+  --pw-soft: #EAF3F2;
+  --pw-card: #FCFEFD;
+  --pw-raised: #FFFFFF;
+  --pw-line: #D3DEDC;
+  --pw-line-soft: #DCE7E6;
+  --pw-ink: #142329;
+  --pw-ink-2: #45565D;
+  --pw-ink-3: #556972;
+  --pw-ink-4: #79929E;
+  --pw-on-sea: #FFFFFF;
+  --pw-on-marigold: #142329;
+  --pw-on-bloom: #FFFFFF;
+  --pw-sea-900: #0B3F44;
+  --pw-sea-700: #0B5F67;
+  --pw-lagoon-600: #0D8D82;
+  --pw-lagoon-400: #2EB1A6;
+  --pw-lagoon-300: #6CCAB3;
+  --pw-route: #9FD9CF;
+  --pw-lagoon-100: #DDF1EE;
+  --pw-lagoon-50: #F3FAF8;
+  --pw-marigold-500: #F2A33A;
+  --pw-marigold-300: #F6CF8E;
+  --pw-marigold-100: #FBE7C6;
+  --pw-marigold-50: #FFF4E0;
+  --pw-marigold-ink: #8A4F0E;
+  --pw-bloom-700: #9C2347;
+  --pw-bloom-500: #C9475E;
+  --pw-bloom-100: #FBE3E8;
+  --pw-ok: #1F6B41;
+  --pw-ok-100: #E2F0E8;
+  --pw-risk: #B23A2E;
+  --pw-risk-100: #FBEDEA;
+  --pw-cat-stays: #008C7F;
+  --pw-cat-transport: #3168C4;
+  --pw-cat-food: #CF5A2C;
+  --pw-cat-activity: #A04CA8;
+  --pw-time-drive: #0B5F67;
+  --pw-time-stop: #C9925A;
+  --pw-time-wait: #F2A33A;
+  --pw-time-free: #DDF1EE;
+
+  /* type roles */
+  --pw-display-xl: 700 56px/1.04 var(--font-display);
+  --pw-display-l: 700 40px/1.1 var(--font-display);
+  --pw-display-m: 700 28px/1.15 var(--font-display);
+  --pw-display-s: 700 22px/1.2 var(--font-display);
+  --pw-title: 700 18px/1.25 var(--font-display);
+  --pw-figure: 700 24px/1.1 var(--font-display);
+  --pw-body-l: 500 17px/1.55 var(--font-body);
+  --pw-body: 500 15px/1.5 var(--font-body);
+  --pw-ui: 600 14px/1.4 var(--font-body);
+  --pw-meta: 500 13px/1.4 var(--font-body);
+  --pw-caption: 600 12px/1.4 var(--font-body);
+  --pw-kicker: 700 11px/1.3 var(--font-body);
+  --pw-display-xl-tracking: -.025em;
+  --pw-display-l-tracking: -.02em;
+  --pw-display-m-tracking: -.02em;
+  --pw-display-s-tracking: -.01em;
+  --pw-title-tracking: -.01em;
+  --pw-figure-tracking: -.02em;
+  --pw-kicker-tracking: .1em;
+
+  /* radius */
+  --radius-mark: 4px;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* spacing: --space-1..10 already exist; add the missing rungs */
+  --space-4a: 10px;
+  --space-7a: 18px;
+  --space-11: 28px;
+  --space-12: 32px;
+  --space-13: 40px;
+  --space-14: 48px;
+  --space-15: 56px;
+  --space-16: 64px;
+  --space-17: 80px;
+
+  /* motion */
+  --motion-instant: 90ms;
+  --motion-fast: 160ms;
+  --motion-med: 240ms;
+  --motion-slow: 360ms;
+  --motion-slower: 560ms;
+  --ease-paper: cubic-bezier(.2, .8, .2, 1);
+  --ease-exit: cubic-bezier(.4, 0, 1, 1);
+  --ease-settle: cubic-bezier(.34, 1.32, .64, 1);
+  --stagger-step: 60ms;
+
+  /* elevation */
+  --elev-press: 0 1px 2px rgba(20,56,66,.12);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24);
+  --elev-2: 0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34);
+  --elev-3: 0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55);
+  --glow-sea: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6);
+  --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
+  --icon-stroke: 1.9;
+  --icon-stroke-sm: 1.9;
+}
+
+/* from src/styles/legacy/15-overview.css */
+:root:where([data-theme='dark']) {
+  --pw-paper: #0C1420;
+  --pw-sunken: #101B2B;
+  --pw-soft: #182740;
+  --pw-card: #16233A;
+  --pw-raised: #1A2A44;
+  --pw-line: #27395A;
+  --pw-line-soft: #1E3050;
+  --pw-ink: #E8EFF5;
+  --pw-ink-2: #ADBCCF;
+  --pw-ink-3: #8FA0B5;
+  --pw-ink-4: #5F757F;
+  --pw-on-sea: #0A1622;
+  --pw-on-marigold: #1A1408;
+  --pw-on-bloom: #2B0E16;
+  --pw-sea-900: #E3F4F0;
+  --pw-sea-700: #3FB8AC;
+  --pw-lagoon-600: #3FB8AC;
+  --pw-lagoon-400: #5CC8BC;
+  --pw-lagoon-300: #6CCAB3;
+  --pw-route: #2D5E58;
+  --pw-lagoon-100: #13302C;
+  --pw-lagoon-50: #162A27;
+  --pw-marigold-500: #F5B04E;
+  --pw-marigold-300: #8A6526;
+  --pw-marigold-100: #33240F;
+  --pw-marigold-50: #2B2212;
+  --pw-marigold-ink: #F2B45C;
+  --pw-bloom-700: #F08AA0;
+  --pw-bloom-500: #F08AA0;
+  --pw-bloom-100: #3A1E26;
+  --pw-ok: #7FCF9A;
+  --pw-ok-100: #17291E;
+  --pw-risk: #F08A7A;
+  --pw-risk-100: #3A1C18;
+  --pw-cat-stays: #26A898;
+  --pw-cat-transport: #5A8AE6;
+  --pw-cat-food: #DC6C3E;
+  --pw-cat-activity: #BF6BC9;
+  --pw-time-drive: #3FB8AC;
+  --pw-time-stop: #D9A673;
+  --pw-time-wait: #F5B04E;
+  --pw-time-free: #13302C;
+  --elev-press: 0 1px 2px rgba(0,0,0,.5);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.05), 0 18px 36px -20px rgba(0,0,0,.7);
+  --elev-2: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 30px -14px rgba(0,0,0,.75);
+  --elev-3: 0 32px 60px -28px rgba(0,0,0,.85);
+}
+
+/* from src/styles/legacy/15-overview.css */
+:root, [data-theme='dark'] {
+  --gray-50: var(--pw-paper);
+  --gray-100: var(--pw-sunken);
+  --gray-200: var(--pw-line);
+  --gray-400: var(--pw-ink-4);
+  --gray-500: var(--pw-ink-3);
+  --gray-700: var(--pw-ink-2);
+  --gray-900: var(--pw-ink);
+  --yf-cream: var(--pw-paper);
+  --yf-surface: var(--pw-card);
+  --yf-border: var(--pw-line);
+  --yf-text-muted: var(--pw-ink-3);
+  --yf-teal-600: var(--pw-lagoon-600);
+  --yf-teal-700: var(--pw-sea-700);
+  --yf-teal-100: var(--pw-lagoon-100);
+  --yf-saffron: var(--pw-marigold-500);
+  --yf-saffron-100: var(--pw-marigold-100);
+  --yf-amber: var(--pw-marigold-500);
+  --yf-amber-100: var(--pw-marigold-100);
+  --yf-coral: var(--pw-risk);
+  --yf-coral-100: var(--pw-risk-100);
+  --bg: var(--pw-paper);
+  --bg-soft: var(--pw-sunken);
+  --card: var(--pw-card);
+  --card-soft: var(--pw-soft);
+  --line: var(--pw-line);
+  --line-soft: var(--pw-line-soft);
+  --text: var(--pw-ink);
+  --text-2: var(--pw-ink-2);
+  --text-3: var(--pw-ink-3);
+  --color-primary: var(--pw-sea-700);
+  --color-primary-hover: var(--pw-sea-700);
+  --color-primary-active: var(--pw-sea-700);
+  --color-primary-foreground: var(--pw-on-sea);
+  --color-accent: var(--pw-marigold-500);
+  --color-accent-foreground: var(--pw-on-marigold);
+  --color-destructive: var(--pw-risk);
+  --color-destructive-soft: var(--pw-risk-100);
+  --teal: var(--pw-lagoon-600);
+  --teal-deep: var(--pw-sea-700);
+  --teal-soft: var(--pw-lagoon-100);
+  --saffron: var(--pw-marigold-500);
+  --saffron-soft: var(--pw-marigold-100);
+  --coral: var(--pw-risk);
+  --danger: var(--pw-risk);
+  --danger-soft: var(--pw-risk-100);
+  --ok: var(--pw-ok);
+  --ok-soft: var(--pw-ok-100);
+  --warn: var(--pw-marigold-ink);
+  --warn-soft: var(--pw-marigold-100);
+  --info-soft: var(--pw-soft);
+  --ink-teal: var(--pw-sea-900);
+  --ink-amber: var(--pw-marigold-ink);
+  --ink-ok: var(--pw-ok);
+  --ink-coral: var(--pw-risk);
+  --shadow-navy-rgb: 20, 56, 66;
+  --shadow-sm: var(--elev-press);
+  --shadow: var(--elev-1);
+  --shadow-soft: var(--elev-1);
+  --shadow-card: var(--elev-1);
+  --shadow-card-hover: var(--elev-2);
+  --shadow-glow-teal: var(--glow-sea);
+  --font-serif: var(--font-display);
+  --font-hand: var(--font-body);
+  --dur-instant: var(--motion-instant);
+  --dur-quick: var(--motion-fast);
+  --dur-base: var(--motion-med);
+  --dur-calm: var(--motion-slow);
+  --dur-scenic: var(--motion-slower);
+  --t-fast: var(--motion-fast);
+  --t-med: var(--motion-slow);
+  --t-slow: var(--motion-slow);
+  --ease-out: var(--ease-paper);
+  --ease-soft: var(--ease-paper);
+}
+
+/* from src/styles/legacy/16-motion-and-cover-v2.css */
+@media (prefers-reduced-motion: reduce) {
+:root:root {
+    --motion-instant: 0ms;
+    --motion-fast: 0ms;
+    --motion-med: 0ms;
+    --motion-slow: 0ms;
+    --motion-slower: 0ms;
+    --stagger-step: 0ms;
+  }
+}

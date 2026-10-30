@@ -98,7 +98,7 @@ function measureStickyStack(): number {
 }
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, onOpenBoard, focusDay, focusStopId, onFocusConsumed }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
@@ -122,6 +122,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   /** Deep link (?stop=): a stop on the focused day. It scrolls to centre and
    *  flashes once, then the same consume clears it with the day. */
   focusStopId?: string | null
+  /** A trip-wide warning has no day. This one-shot request lands on its block. */
+  focusBlock?: 'trip-wide' | null
   /** clears the workspace's focusDay signal once the request is handled */
   onFocusConsumed?: () => void
 }) {
@@ -546,6 +548,22 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     // eslint-disable-next-line react-hooks/exhaustive-deps -- jumpToDay reads openDay (stable) + the DOM; focusDay is the one-shot signal
   }, [focusDay, focusStopId])
 
+  useEffect(() => {
+    if (focusBlock !== 'trip-wide') return
+    const block = document.getElementById('timeline-trip-wide')
+    if (!block) {
+      onFocusConsumed?.()
+      return
+    }
+    block.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+    block.focus({ preventScroll: true })
+    block.classList.add('tl-stop-flash')
+    const clear = () => block.classList.remove('tl-stop-flash')
+    block.addEventListener('animationend', clear, { once: true })
+    window.setTimeout(clear, motionTiming('--motion-slower').duration * 2 + 250)
+    onFocusConsumed?.()
+  }, [focusBlock, onFocusConsumed])
+
   /** Inline day rename — a lightweight label change, applied directly (no impact preview). */
   const handleRenameDay = useCallback((dayIndex: number, title: string) => {
     // #334: this writes the committed row directly, so while a preview is open
@@ -739,7 +757,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           block right after the totals — before it, the regex grouping dropped
           them from this tab entirely (#402). */}
       {tripWideWarnings.length > 0 && (
-        <div className="warn-list" style={{ marginTop: 10 }} role="note" aria-label="Trip-wide warnings">
+        <div id="timeline-trip-wide" tabIndex={-1} className="warn-list tl-trip-wide-warn" role="note" aria-label="Trip-wide warnings">
           {tripWideWarnings.map(w => (
             <div key={w.code + w.title} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'low' ? 'sev-low' : ''}`}>
               <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>

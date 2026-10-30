@@ -3,6 +3,12 @@
 # baseline; a CRLF checkout breaks that comparison on Windows.
 eslint-baseline.json text eol=lf
 
+# The CSS graph fingerprint hashes raw file bytes. A CRLF checkout changes every
+# hash and the fingerprint, so a Windows clone cannot reproduce an accepted CSS
+# baseline. Pin the stylesheet tree to LF on every platform.
+src/styles.css text eol=lf
+src/styles/** text eol=lf
+
 # CHANGELOG.md: sequential PRs both append an entry at the same anchor (top of
 # [Unreleased] Fixed), so every second PR merge hit a hand-merge conflict
 # (#643 against #642's entry, #654 against #653's). The union merge driver

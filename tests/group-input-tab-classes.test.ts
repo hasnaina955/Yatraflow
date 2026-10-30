@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 // Stage A pins for the Group input tab. The inline styles moved into gin-
 // classes, and each value stayed the same. The source files are read with
@@ -7,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 // nothing.
 const read = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tab = read('src/pages/trip/GroupInputTab.tsx')
-const css = read('src/styles.css')
+const css = readCssSource('src/styles.css')
 
 /** The declarations of one one-line rule, in source order, with spaces collapsed. */
 function declarationsOf(selector: string): string[] | undefined {

@@ -13,6 +13,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { STOP_KIND_LABELS } from '../src/lib/stopKind'
 import { TRANSPORT_MODES } from '../src/data/types'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = join(root, 'src')
@@ -31,7 +32,7 @@ const rel = (f: string) => f.slice(root.length + 1).split('\\').join('/')
 const tsxFiles = walk(SRC).filter(f => f.endsWith('.tsx'))
 const ICONS_PATH = join(SRC, 'components', 'icons.tsx')
 const iconsSrc = readFileSync(ICONS_PATH, 'utf8')
-const stylesSrc = readFileSync(join(SRC, 'styles.css'), 'utf8')
+const stylesSrc = readCssSource('src/styles.css')
 
 /** Keys of an `export const NAME … = { … }` block in icons.tsx. */
 function exportedKeys(name: string): string[] {

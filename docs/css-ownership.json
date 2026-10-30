@@ -1,0 +1,486 @@
+{
+  "$comment": "CSS ownership map. Read by scripts/css-ownership.mjs. One responsibility, one owner. Register a family here when its batch lands, and lower the matching baseline in the same commit.",
+  "entry": "src/styles.css",
+  "owners": [
+    {
+      "id": "tokens",
+      "file": "src/styles/tokens.css",
+      "owned": [],
+      "configClasses": [],
+      "variables": []
+    },
+    {
+      "id": "container",
+      "file": "src/styles/layouts/container.css",
+      "owned": [],
+      "configClasses": [
+        "container"
+      ],
+      "variables": [
+        "--container-max"
+      ],
+      "files": [
+        "src/styles/layouts/container.css",
+        "src/styles/layouts/container-phone.css"
+      ]
+    },
+    {
+      "id": "input",
+      "file": "src/styles/components/input.css",
+      "owned": [],
+      "configClasses": [
+        "input",
+        "textarea",
+        "field",
+        "input--compact",
+        "flight-w-airline",
+        "flight-w-flight",
+        "flight-w-fare",
+        "flight-w-ref"
+      ],
+      "variables": [
+        "--input-padding",
+        "--input-border-color",
+        "--input-radius",
+        "--input-background",
+        "--input-color"
+      ]
+    },
+    {
+      "id": "card",
+      "file": "src/styles/components/card.css",
+      "owned": [],
+      "configClasses": [
+        "card"
+      ],
+      "variables": [
+        "--card-border-color",
+        "--card-radius"
+      ]
+    },
+    {
+      "id": "chip",
+      "file": "src/styles/components/chip.css",
+      "owned": [],
+      "configClasses": [
+        "chip",
+        "chip-teal",
+        "chip-outline",
+        "chip-saffron"
+      ],
+      "variables": []
+    },
+    {
+      "id": "button",
+      "file": "src/styles/components/button.css",
+      "owned": [],
+      "configClasses": [
+        "btn",
+        "btn-sm",
+        "btn-lg",
+        "btn-primary",
+        "btn-saffron",
+        "btn-navy",
+        "btn-outline",
+        "btn-ghost",
+        "btn-danger",
+        "btn-trail",
+        "btn-trail-icon"
+      ],
+      "variables": [
+        "--btn-min-height",
+        "--btn-padding",
+        "--btn-radius",
+        "--btn-font-size",
+        "--btn-weight",
+        "--btn-tracking",
+        "--btn-transition",
+        "--btn-active-transform"
+      ]
+    },
+    {
+      "id": "select",
+      "file": "src/styles/components/select.css",
+      "owned": [
+        "select",
+        "cselect",
+        "cselect-trigger",
+        "cselect-label",
+        "cselect-ico",
+        "cselect-pop",
+        "cselect-option",
+        "cselect-check"
+      ],
+      "configClasses": [
+        "ex-select",
+        "ex-select--sort"
+      ],
+      "variables": [
+        "--select-leading-space"
+      ]
+    },
+    {
+      "id": "search-field",
+      "file": "src/styles/components/search-field.css",
+      "owned": [
+        "ex-search",
+        "ex-search-icon",
+        "ex-search-input",
+        "ex-search-clear"
+      ],
+      "configClasses": [],
+      "variables": [
+        "--search-field-flex"
+      ]
+    },
+    {
+      "id": "avatar",
+      "file": "src/styles/components/avatar.css",
+      "owned": [],
+      "configClasses": [
+        "avatar",
+        "tone-sea",
+        "tone-marigold",
+        "tone-bloom",
+        "lg"
+      ],
+      "variables": []
+    },
+    {
+      "id": "dialog",
+      "file": "src/styles/components/dialog.css",
+      "owned": [],
+      "configClasses": [
+        "modal",
+        "modal-overlay",
+        "modal-full"
+      ],
+      "variables": [
+        "--dialog-max-width",
+        "--dialog-max-height",
+        "--dialog-max-height-dvh"
+      ]
+    },
+    {
+      "id": "toast",
+      "file": "src/styles/components/toast.css",
+      "owned": [],
+      "configClasses": [
+        "toast",
+        "toast-zone",
+        "toast-action"
+      ],
+      "variables": [
+        "--toast-radius"
+      ]
+    },
+    {
+      "id": "landing",
+      "file": "src/styles/pages/landing.css",
+      "owned": [
+        "hero"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
+      "id": "itin-card",
+      "file": "src/styles/components/itin-card.css",
+      "owned": [
+        "itin-card"
+      ],
+      "configClasses": [],
+      "variables": [],
+      "files": [
+        "src/styles/components/itin-card.css",
+        "src/styles/components/itin-card-legacy.css"
+      ]
+    },
+    {
+      "id": "pill-nav",
+      "file": "src/styles/components/pill-nav.css",
+      "owned": [
+        "pill-nav",
+        "pill-glider"
+      ],
+      "configClasses": [],
+      "variables": [],
+      "files": [
+        "src/styles/components/pill-nav.css",
+        "src/styles/components/pill-nav-02.css",
+        "src/styles/components/pill-nav-16.css",
+        "src/styles/components/pill-nav-17.css"
+      ]
+    },
+    {
+      "id": "board",
+      "file": "src/styles/components/board-02.css",
+      "owned": [
+        "board--mapfocus",
+        "board-col--focused",
+        "board-col-count",
+        "board-col-day",
+        "board-col-head",
+        "board-col-stops",
+        "board-col-subtitle",
+        "board-col-zone--add",
+        "board-cols",
+        "board-flight",
+        "board-head",
+        "board-map",
+        "board-pulse-band",
+        "board-pulse-lines",
+        "board-pulse-row",
+        "board-stop",
+        "board-stop-actions",
+        "board-stop-meta",
+        "board-stop-title-btn",
+        "board-topbar"
+      ],
+      "configClasses": [
+        "board",
+        "board-col",
+        "board-col-zone",
+        "board-fit",
+        "board-info",
+        "board-pulse",
+        "board-pulse-link",
+        "board-row",
+        "board-stop-kicker"
+      ],
+      "variables": [],
+      "files": [
+        "src/styles/components/board-02.css",
+        "src/styles/components/board-04.css"
+      ]
+    }
+  ],
+  "legacy": [
+    "src/styles/legacy/01-foundations.css",
+    "src/styles/legacy/02-select-and-print.css",
+    "src/styles/legacy/03-maplibre.css",
+    "src/styles/legacy/04-mobile-usability.css",
+    "src/styles/legacy/05-share-and-trip-ticket.css",
+    "src/styles/legacy/06-shell-and-consistency.css",
+    "src/styles/legacy/07-workspace-and-unlock.css",
+    "src/styles/legacy/08-map-review.css",
+    "src/styles/legacy/09-trips-list.css",
+    "src/styles/legacy/10-explore.css",
+    "src/styles/legacy/11-shared-page.css",
+    "src/styles/legacy/12-pages.css",
+    "src/styles/legacy/13-phone-polish-and-guided-create.css",
+    "src/styles/legacy/14-art-and-workspace-header.css",
+    "src/styles/legacy/15-overview.css",
+    "src/styles/legacy/16-motion-and-cover-v2.css",
+    "src/styles/legacy/17-overview-tiles-and-cover.css"
+  ],
+  "baselines": {
+    "$comment": "Grandfathered debt, measured at 699fbe28. A batch lowers its own numbers. Nothing may rise.",
+    "customPropertyFiles": {},
+    "importantByFile": {
+      "src/styles/legacy/02-select-and-print.css": 8,
+      "src/styles/legacy/04-mobile-usability.css": 14,
+      "src/styles/legacy/13-phone-polish-and-guided-create.css": 4,
+      "src/styles/legacy/16-motion-and-cover-v2.css": 5
+    },
+    "reducedMotionRules": 226,
+    "configAppearanceKeys": [
+      "src/styles/legacy/01-foundations.css::.bento .card::box-shadow",
+      "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::border-radius",
+      "src/styles/legacy/01-foundations.css::.btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after::content",
+      "src/styles/legacy/01-foundations.css::.topnav .container.topnav-inner::padding",
+      "src/styles/legacy/01-foundations.css::.topnav, .glass, .bottom-nav, .tabbar, .glass-soft, .filter-pillbar, .tl-total-strip, .board-info, .board-pulse::-webkit-backdrop-filter",
+      "src/styles/legacy/01-foundations.css::.topnav, .glass, .bottom-nav, .tabbar, .glass-soft, .filter-pillbar, .tl-total-strip, .board-info, .board-pulse::backdrop-filter",
+      "src/styles/legacy/02-select-and-print.css::.bezel > .card::box-shadow",
+      "src/styles/legacy/02-select-and-print.css::.itin-cover .chip::-webkit-backdrop-filter",
+      "src/styles/legacy/02-select-and-print.css::.itin-cover .chip::backdrop-filter",
+      "src/styles/legacy/02-select-and-print.css::.itin-cover .chip::background",
+      "src/styles/legacy/02-select-and-print.css::.itin-cover .chip::color",
+      "src/styles/legacy/02-select-and-print.css::.member-stack .avatar::border",
+      "src/styles/legacy/02-select-and-print.css::.presence-peer .avatar::border",
+      "src/styles/legacy/02-select-and-print.css::.route-btn, .mode-btn, .crew-btn, .cal-day, .quick-budget .chip, .move-btn, .board-fit, .board-pulse-link, .vote-btn::transition",
+      "src/styles/legacy/02-select-and-print.css::.tl-row, .board-row::-webkit-user-select",
+      "src/styles/legacy/02-select-and-print.css::.tl-row, .board-row::user-select",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::pointer-events",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::transform",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::transition",
+      "src/styles/legacy/02-select-and-print.css::.tl-row.is-carried, .board-row.is-carried::will-change",
+      "src/styles/legacy/04-mobile-usability.css::.balance-who .avatar::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.bench-dock .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip::cursor",
+      "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip::font-weight",
+      "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip:disabled::cursor",
+      "src/styles/legacy/04-mobile-usability.css::.bench-receipt-actions .chip:disabled::opacity",
+      "src/styles/legacy/04-mobile-usability.css::.board-row::transition",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero .avatar::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero .avatar::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::background",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::border-color",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline::color",
+      "src/styles/legacy/04-mobile-usability.css::.creator-hero-actions .btn-outline:hover::background",
+      "src/styles/legacy/04-mobile-usability.css::.icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible::outline",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::font-size",
+      "src/styles/legacy/04-mobile-usability.css::.nav-right:has(> .btn) .btn::padding",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::animation",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::border",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::border-radius",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::content",
+      "src/styles/legacy/04-mobile-usability.css::.stop-card.drag-over::after, .stop-card.foreign-over::after, .board-col-zone.foreign-over::after, .travel-leg.foreign-over::after::pointer-events",
+      "src/styles/legacy/04-mobile-usability.css::.tab-btn, .board-fit, .board-pulse-link::transition",
+      "src/styles/legacy/04-mobile-usability.css::.topnav .container.topnav-inner::padding",
+      "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::box-shadow",
+      "src/styles/legacy/04-mobile-usability.css::.who-voted .avatar::font-size",
+      "src/styles/legacy/04-mobile-usability.css::body, .topnav, .glass, .board, .modal, .toast::transition",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::background",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::border-color",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip.on::color",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip::background",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip::border",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip::border-radius",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip::font-weight",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip:hover::background",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.quick-budget .chip:hover::border-color",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.unit-input .input::font-size",
+      "src/styles/legacy/05-share-and-trip-ticket.css::.unit-input .input::font-weight",
+      "src/styles/legacy/05-share-and-trip-ticket.css::[data-theme='dark'] .quick-budget .chip.on::color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm::border-color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm::color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm:hover::border-color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-ghost.btn-sm:hover::color",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-sm::font-size",
+      "src/styles/legacy/06-shell-and-consistency.css::.poi-actions .btn-sm::padding",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::font-size",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::font-weight",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::letter-spacing",
+      "src/styles/legacy/06-shell-and-consistency.css::.pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label, .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k, .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose, .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge, .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab, .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label, .pub-hero-badge, .pub-hero-byline, .eyebrow, .cal-wd, .route-glance .route-glance-label, .stat-label, .app-home-section, .poi-grp-k, .poi-reason-k::text-transform",
+      "src/styles/legacy/08-map-review.css::.chip-row .chip.on::background",
+      "src/styles/legacy/08-map-review.css::.chip-row .chip.on::border-color",
+      "src/styles/legacy/08-map-review.css::.chip-row .chip.on::color",
+      "src/styles/legacy/08-map-review.css::.day-slot-search .input::font-size",
+      "src/styles/legacy/08-map-review.css::.offline-recovery-actions .btn::white-space",
+      "src/styles/legacy/10-explore.css::.ex-byline .avatar::box-shadow",
+      "src/styles/legacy/10-explore.css::.ex-creator .avatar::font-size",
+      "src/styles/legacy/10-explore.css::.ex-enter, .ex-hero-copy, .ex-hero-visual, .ex-aside > :nth-child(n), .ex-selects.is-open, .ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg::animation",
+      "src/styles/legacy/10-explore.css::.ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg::animation",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn-primary:where(:not(.modal *))::box-shadow",
+      "src/styles/legacy/10-explore.css:::is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled)::transform",
+      "src/styles/legacy/11-shared-page.css::.mt-hero-secondary > .btn::padding",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn-primary:where(:not(.modal *))::box-shadow",
+      "src/styles/legacy/11-shared-page.css:::is(.yf-page) .btn:where(:not(.modal *)):active:not(:disabled)::transform",
+      "src/styles/legacy/12-pages.css::.container.dmca-page::padding-left",
+      "src/styles/legacy/12-pages.css::.container.dmca-page::padding-right",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.container.form-page.gcf::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.container.form-page.gcf::padding-bottom",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::border-radius",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::font-size",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::font-weight",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-nav .btn::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-save-err .chip::line-height",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .ct-save-err .chip::white-space",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::border-radius",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::font-size",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .gcf-presets .btn::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .modal-overlay::padding",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf .modal::border-radius",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf :is(.input, .loc-input, .namebox-in)::font-size",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf :is(.input, .loc-input, .namebox-input)::font-size",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-fuel-grid .input::appearance",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-fuel-grid .input::border",
+      "src/styles/legacy/13-phone-polish-and-guided-create.css::.gcf-review-actions > .btn::border-radius",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace, .yf-trip-head, .yf-back, .yf-thumb, .yf-head-text, .yf-trip-title, .yf-fold, .yf-fade, .yf-extra, .yf-tip, .yf-tabbar::transition",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::padding-left",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::padding-right",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::padding-top",
+      "src/styles/legacy/14-art-and-workspace-header.css::.container.yf-workspace::transition",
+      "src/styles/legacy/14-art-and-workspace-header.css::.yf-member .avatar::border",
+      "src/styles/legacy/14-art-and-workspace-header.css::.yf-member .avatar::font-size",
+      "src/styles/legacy/15-overview.css::.btn.btn-primary::box-shadow",
+      "src/styles/legacy/15-overview.css::.btn.btn-primary:focus-visible, .btn.btn-saffron:focus-visible::box-shadow",
+      "src/styles/legacy/15-overview.css::.btn.btn-saffron::box-shadow",
+      "src/styles/legacy/16-motion-and-cover-v2.css::.container.yf-workspace.yf-workspace::padding-top",
+      "src/styles/legacy/16-motion-and-cover-v2.css::.yf-page .yf-member .avatar::border",
+      "src/styles/legacy/16-motion-and-cover-v2.css::.yf-page .yf-member .avatar::font-size",
+      "src/styles/legacy/16-motion-and-cover-v2.css:::is( .page-enter > *, .empty-state > *, .board-col, .tab-panel, .route-panel, .trip-enter, .ex-enter:not([data-presence='exit']), .ex-hero-copy, .ex-hero-visual, .ex-aside > *, .ex-selects.is-open, .mt-card:not([data-presence='exit']), .mt-shelf-item:not([data-presence='exit']), .yf-surface.is-entering:not([data-presence='exit']), .yf-surface.tsx-card, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .sf-daygrid > .sf-day, .sf-cover-pattern .sf-cover-dot, .popover, .map-legend-body, .tl-mode-copy, .engine-tips-text, .gin-followup, .err-text, .auth-submit-notice, .remote-edit-banner, .ovw-weather-failed, .ovw-weather-kept, .shr-read-failed, .shr-read-kept, .shr-read-loading, .hub-read-failed, .hub-read-kept, .shr-state, .tl-state, .tm-state, .bud-state, .ex-page .ex-clear:not([data-presence='exit']), .trips-page .ex-clear[style*='visible']:not([data-presence='exit']) ):not([data-presence='exit'])::animation",
+      "src/styles/legacy/16-motion-and-cover-v2.css:::is( .page-enter > *, .empty-state > *, .board-col, .tab-panel, .route-panel, .trip-enter, .ex-enter:not([data-presence='exit']), .ex-hero-copy, .ex-hero-visual, .ex-aside > *, .ex-selects.is-open, .mt-card:not([data-presence='exit']), .mt-shelf-item:not([data-presence='exit']), .yf-surface.is-entering:not([data-presence='exit']), .yf-surface.tsx-card, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .sf-daygrid > .sf-day, .sf-cover-pattern .sf-cover-dot, .popover, .map-legend-body, .tl-mode-copy, .engine-tips-text, .gin-followup, .err-text, .auth-submit-notice, .remote-edit-banner, .ovw-weather-failed, .ovw-weather-kept, .shr-read-failed, .shr-read-kept, .shr-read-loading, .hub-read-failed, .hub-read-kept, .shr-state, .tl-state, .tm-state, .bud-state, .ex-page .ex-clear:not([data-presence='exit']), .trips-page .ex-clear[style*='visible']:not([data-presence='exit']) ):not([data-presence='exit'])::animation-delay",
+      "src/styles/legacy/16-motion-and-cover-v2.css:::is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card )::animation-delay",
+      "src/styles/legacy/17-overview-tiles-and-cover.css::.member-stack .avatar, .yf-avatars .avatar::box-shadow",
+      "src/styles/legacy/17-overview-tiles-and-cover.css::.ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm::padding-inline",
+      "src/styles/legacy/17-overview-tiles-and-cover.css::.yf-page .yf-avatars .avatar::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn, .hero .btn::after::animation",
+      "src/styles/pages/landing.css::.hero .btn, .hero .btn::after::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn-lg::letter-spacing",
+      "src/styles/pages/landing.css::.hero .btn-primary::animation",
+      "src/styles/pages/landing.css::.hero .btn-primary::background",
+      "src/styles/pages/landing.css::.hero .btn-primary::border-color",
+      "src/styles/pages/landing.css::.hero .btn-primary::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn-primary::color",
+      "src/styles/pages/landing.css::.hero .btn-saffron::animation",
+      "src/styles/pages/landing.css::.hero .btn-saffron::background",
+      "src/styles/pages/landing.css::.hero .btn-saffron::border-color",
+      "src/styles/pages/landing.css::.hero .btn-saffron::box-shadow",
+      "src/styles/pages/landing.css::.hero .btn-saffron::color",
+      "src/styles/pages/landing.css::.hero .btn::after::animation",
+      "src/styles/pages/landing.css::.hero .btn::after::background",
+      "src/styles/pages/landing.css::.hero .btn::after::content",
+      "src/styles/pages/landing.css::.hero .btn::after::pointer-events",
+      "src/styles/pages/landing.css::.hero .btn::after::transform",
+      "src/styles/pages/landing.css::.hero .btn:focus-visible::animation",
+      "src/styles/pages/landing.css::.hero .btn:focus-visible::box-shadow",
+      "src/styles/pages/landing.css::[data-theme='dark'] .hero .btn-primary, [data-theme='dark'] .hero .btn-saffron::border-color"
+    ],
+    "configVariableDebt": [
+      {
+        "file": "src/styles/legacy/13-phone-polish-and-guided-create.css",
+        "selector": ".container.trip-starter",
+        "variable": "--choice-tint",
+        "reason": "Page token consumed by .trip-starter descendants. The container never reads it. It is assigned on the container because the container is the page root, so it is not container configuration."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card )",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(2)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(3)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(4)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(5)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(6)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      },
+      {
+        "file": "src/styles/legacy/16-motion-and-cover-v2.css",
+        "selector": ":is( .page-enter > *, .empty-state > *, .board-col, .unlock-reveal > *, .unlock-reveal-facts > *, .purchase-list > *, .ex-aside > *, .inv-preview-row, .nh-trip-row, .yf-surface.tsx-card ):nth-child(n+7)",
+        "variable": "--stagger-index",
+        "reason": "Existing shared stagger rule that names this Board class beside nine other families. It sets the stagger index and reads it in the same rule, so the Board does not consume it as configuration. Recorded as historical debt, which keeps the class enforced: a new appearance declaration on it still fails."
+      }
+    ]
+  }
+}

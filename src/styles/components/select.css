@@ -1,0 +1,56 @@
+.select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent); }
+.select:disabled { opacity: .55; cursor: not-allowed; }
+.select {
+  width: 100%; border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card-soft); outline: none; color: var(--text);
+  appearance: none;
+  padding: 10px 32px 10px 13px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%230E7A72' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 11px 7px;
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.select:hover:not(:disabled) { border-color: var(--teal); }
+[data-theme='dark'] .select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1.5 1.5L6 6l4.5-4.5' fill='none' stroke='%238FA0B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.select option { background: var(--card); color: var(--text); }
+.select[aria-invalid='true'] { border-color: var(--danger); }
+.select:focus-visible { outline: none; box-shadow: var(--ring); }
+.cselect { position: relative; }
+.cselect-trigger {
+  display: flex; align-items: center; gap: 8px;
+  text-align: left; background-color: var(--card-soft); color: var(--text);
+}
+.cselect-trigger.compact { width: auto; padding: 5px 26px 5px 10px; font-size: 13px; }
+.cselect-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-ico { display: inline-flex; flex: none; color: var(--text-2); }
+.cselect-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost);
+  margin: 0; padding: 5px; list-style: none;
+  width: max(100%, 200px); max-height: 280px; overflow-y: auto;
+}
+.cselect-option {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 8px; border: none; background: none;
+  color: var(--text); font-size: 14px; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.cselect-option.active { background: var(--bg-soft); }
+.cselect-option[aria-selected='true'] { font-weight: 600; }
+.cselect-check { margin-left: auto; color: var(--teal-deep); flex: none; }
+.ex-select .cselect { width: 100%; }
+.ex-select .cselect-trigger {
+  width: 100%; min-height: 44px; padding: 0 40px 0 var(--select-leading-space, 14px); border: 1px solid var(--ex-line-strong); border-radius: 12px;
+  background-color: var(--card-soft); font-size: 14px; font-weight: 600;
+}
+.ex-select .cselect-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 40%, transparent); }
+.ex-select .cselect-trigger:focus-visible { border-color: var(--teal-deep); box-shadow: var(--ring); }
+@media (prefers-reduced-motion: reduce) {
+  .ex-select .cselect-trigger { transition: none; }
+}
+@media (max-width: 720px) {
+  .select { padding: 10px 32px 10px 13px; min-height: 44px; font-size: 16px; }
+}

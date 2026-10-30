@@ -7,8 +7,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { CREATE_PATH, CREATE_ROUTE } from '../src/lib/routes'
 import { navDestinations } from '../src/components/BottomNav'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readCssSource('src/styles.css')
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
 /** `app` with the route constants spelled out — the create route is an imported
  *  constant since #398, and the reachability checks below look for the

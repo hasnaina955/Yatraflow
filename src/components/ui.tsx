@@ -5,15 +5,26 @@ import { Check, Map as MapIcon, Mountain, Sailboat, Tent, TriangleAlert, Trees, 
 import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
+import { type AvatarTone } from '../lib/avatarTone'
 
-export function Avatar({ user, size = 'sm' }: { user?: { profile: { name: string; avatarUrl?: string } }; size?: 'sm' | 'lg' }) {
+export function Avatar({ user, size = 'sm', tone }: {
+  user?: { id?: string; profile: { name: string; avatarUrl?: string } }
+  size?: 'sm' | 'lg'
+  /** A stack's tone for this member. Omitted, the avatar keeps its pale default
+      — a lone byline or list avatar has no neighbours to be told apart from. */
+  tone?: AvatarTone
+}) {
   const cls = `avatar ${size === 'lg' ? 'lg' : ''}`
   const px = size === 'lg' ? 44 : 26
   // width/height give the <img> an intrinsic size so the row doesn't shift
   // while the avatar loads (matches .avatar / .avatar.lg in styles.css).
   if (user?.profile.avatarUrl) return <img className={cls} src={user.profile.avatarUrl} alt={user.profile.name} width={px} height={px} />
   const initials = (user?.profile.name ?? '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  return <span className={cls}>{initials}</span>
+  // In a stack, identical fills merge where the circles overlap, so the stack
+  // hands each member a tone. `data-tone` carries it for CSS and for the tests
+  // that assert two neighbours differ.
+  if (!tone) return <span className={cls}>{initials}</span>
+  return <span className={`${cls} tone-${tone}`} data-tone={tone}>{initials}</span>
 }
 
 export function Chip({ children, tone, onClick, active, disabled, 'aria-pressed': ariaPressed }: { children: React.ReactNode; tone?: 'teal' | 'saffron' | 'danger' | 'ok' | 'info'; onClick?: () => void; active?: boolean; disabled?: boolean; 'aria-pressed'?: boolean }) {

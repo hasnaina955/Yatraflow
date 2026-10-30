@@ -454,12 +454,14 @@ describe('#409 — the shelf stops overclaiming', () => {
     expect(fmt('UTC')).toBe(fmt('UTC'))
   })
 
-  it('gives a row that is not on sale NO auto cover, only the neutral fallback', () => {
-    // `CoverThumb` resolves a missing cover through the trip's query candidates,
-    // which for this caller degrades to the purchase TITLE — and a title is not
-    // a destination, so it yields a plausible photo the creator never chose.
-    // #570: the gate is `onSale`, the fact #350 separated from row presence.
-    expect(pageSrc).toContain('trip={row.onSale ? { name: row.title } : null}')
+  it('gives a purchase row no destination lookup at all, only its own cover or artwork', () => {
+    // A purchase row carries the cover and a place COUNT, never the place names,
+    // so it has no destination evidence to give the resolver. The purchase TITLE
+    // was the #409 bug: "Spiti Valley Circuit" is not a place, so resolving it
+    // produced a photo the creator never chose.
+    expect(pageSrc).toContain('<CoverThumb variant="short" explicitUrl={row.coverImageUrl} emoji="🧭" />')
+    expect(pageSrc).not.toMatch(/trip=\{row\.onSale/)
+    expect(pageSrc).not.toContain('name: row.title')
   })
 
   it('holds the share button busy while its sheet is open', () => {
@@ -810,11 +812,12 @@ describe('#570 — rowExists and onSale are different facts', () => {
     expect(pageSrc).toContain('{row.rowExists && !row.refunded && !row.pendingGrant && <button')
   })
 
-  it('offers no share and no auto cover for a withdrawn row', () => {
-    // The two "needs a LIVE plan" surfaces, both keyed on `onSale`: a card the
-    // recipient cannot open, and a title-derived photo in the cover slot.
+  it('offers no share and no title-derived cover for a withdrawn row', () => {
+    // The share card is keyed on a LIVE plan: the recipient could not open it.
+    // The cover slot no longer derives anything from the title for ANY row, so
+    // a withdrawn one cannot gain a photo that the live one lacks either.
     expect(purchaseShareable(buildPurchaseShelf([entitlement()], [pub({ unpublishedAt: 1_700_000_000_001 })], []).rows[0]!)).toBe(false)
-    expect(pageSrc).toContain('trip={row.onSale ? { name: row.title } : null}')
+    expect(pageSrc).not.toContain('name: row.title')
   })
 })
 

@@ -4,13 +4,31 @@ import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { surfaceButtonType, surfaceIsInteractive } from '../src/components/page/Surface'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = async (relativePath: string) =>
   (await readFile(join(process.cwd(), relativePath), 'utf8')).replace(/\r\n/g, '\n')
 
 const PAGE_HEADER = 'src/components/page/PageHeader.tsx'
 const SURFACE = 'src/components/page/Surface.tsx'
-const STYLES = 'src/styles.css'
+const STYLES_TEXT = readCssSource('src/styles.css')
+
+/**
+ * The slice from a section mark to the next section banner.
+ *
+ * These tests used to end the slice at `/* Papercut foundations *\/`, which was
+ * the following section while the sheet was one file. The token batch moved
+ * that section into `tokens.css`, which the graph imports first, so the marker
+ * now sits before the section mark and the slice came back empty. A section in
+ * this sheet starts with a `=====` banner, so the slice ends at the next one.
+ */
+function blockAfterMark(css: string, mark: string): string {
+  const start = css.indexOf(mark)
+  if (start < 0) return ''
+  const after = css.slice(start + mark.length)
+  const next = after.search(/\n\/\* =+/)
+  return next < 0 ? css.slice(start) : css.slice(start, start + mark.length + next)
+}
 
 describe('PageHeader component contract', () => {
   it('exports a PageHeader component', async () => {
@@ -60,7 +78,7 @@ describe('PageHeader component contract', () => {
 
 describe('PageHeader styles', () => {
   it('uses the yf-header rules and the serif title, and declares no entrance of its own', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: header ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* ===== Shared page components: surface ===== */'))
@@ -90,7 +108,7 @@ describe('Surface component contract', () => {
   })
 
   it('lifts on hover only when interactive, with token motion and a reduced-motion opt-out', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: surface ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* ===== My purchases (page rules) ===== */'))
@@ -102,7 +120,7 @@ describe('Surface component contract', () => {
   })
 
   it('keeps the list-row entrance with its opt-out, because the page cascade reaches direct children only', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: surface ===== */')
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('/* ===== My purchases (page rules) ===== */'))
@@ -144,22 +162,22 @@ describe('Surface root styles', () => {
   const BLOCK_MARK = '/* ===== Shared page components: compact state block and surface roots ===== */'
 
   it('rings a focused button surface with the shared ring, not a new recipe', async () => {
-    const css = await read(STYLES)
-    const block = css.slice(css.indexOf(BLOCK_MARK))
+    const css = STYLES_TEXT
+    const block = blockAfterMark(css, BLOCK_MARK)
     expect(css.indexOf(BLOCK_MARK)).toBeGreaterThan(-1)
     expect(block).toContain('.yf-surface.is-interactive:focus-visible { outline: none; box-shadow: var(--ring); }')
   })
 
   it('presses on the fast clock and turns the press off under reduced motion', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const block = css.slice(css.indexOf(BLOCK_MARK))
     expect(block).toContain('.yf-surface.is-interactive:active { transform: translateY(1px); transition-duration: var(--motion-fast); }')
     expect(block).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.yf-surface\.is-interactive:active \{ transform: none; transition: none; \}/)
   })
 
   it('declares the button reset with the card font and no raw duration', async () => {
-    const css = await read(STYLES)
-    const block = css.slice(css.indexOf(BLOCK_MARK)).replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = STYLES_TEXT
+    const block = blockAfterMark(css, BLOCK_MARK).replace(/\/\*[\s\S]*?\*\//g, '')
     expect(block).toContain(':where(button.yf-surface) {')
     expect(block).toContain('font: inherit; color: inherit;')
     expect(block).not.toMatch(/\d+ms/)
@@ -181,10 +199,10 @@ describe('PageHeader note slot', () => {
   })
 
   it('copies the hero note look: hand font, saffron highlight and the hand-drawn arrow', async () => {
-    const css = await read(STYLES)
+    const css = STYLES_TEXT
     const start = css.indexOf('/* ===== Shared page components: the handwritten header note ===== */')
     expect(start).toBeGreaterThan(-1)
-    const block = css.slice(start)
+    const block = blockAfterMark(css, '/* ===== Shared page components: the handwritten header note ===== */')
     expect(block).toContain('font-family: var(--font-hand)')
     expect(block).toContain('font-weight: 600')
     expect(block).toContain('color-mix(in srgb, var(--saffron) 45%, transparent)')

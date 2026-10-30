@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs'
 import { rowsView, sliceState, pubsPanel } from '../src/lib/readState'
 import { publishFormKey, publishFormMount } from '../src/lib/publishFormKey'
 import { stateBlockRole } from '../src/components/page/StateBlock'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 // Source scans read LF text. They ignore comments, so prose cannot pass a check.
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
@@ -311,7 +312,7 @@ describe('#704 — the creator hub checks the list before it prints an empty ans
   })
 
   it('the motion for the Hub notes is in the stylesheet, with the reduced-motion opt-out', () => {
-    const css = read('../src/styles.css')
+    const css = readCssSource('src/styles.css')
     expect(css).toMatch(/\.hub-read-failed, \.hub-read-kept \{ animation: errIn var\(--motion-med\) var\(--ease-out\); \}/)
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{ \.hub-read-failed, \.hub-read-kept \{ animation: none; \} \}/)
   })
@@ -388,7 +389,7 @@ describe('#704 — the Share tab does not say "not published" over an unread sta
 
   it('the gate draws no box of its own, and lays its button out as the form does', () => {
     // A block wrapper would shrink the inline-flex button to its natural width.
-    expect(read('../src/styles.css')).toContain(
+    expect(readCssSource('src/styles.css')).toContain(
       '.ts-submit-gate { display: flex; flex-direction: column; border: 0; margin: 0; padding: 0; min-width: 0; }',
     )
   })

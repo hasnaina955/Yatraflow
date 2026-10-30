@@ -1,0 +1,16 @@
+/* Container phone step.
+   This rule must load after section 04. It sets the full padding shorthand so
+   that at phone width it also clears the vertical padding a page scope sets on
+   the same element, which is the accepted behaviour.
+
+   It cannot live in container.css. That module loads after section 01 so the
+   base rule keeps losing to `.form-page` the way it always did, and a single
+   import cannot occupy both positions. Raising specificity instead was tried
+   and it overrode every page scope's own vertical padding, which is worse.
+
+   The two modules are one owner. The split records where each rule has to sit
+   in the cascade, not a second opinion about ownership. */
+
+@media (max-width: 640px) {
+  .container { padding: 0 14px; }
+}

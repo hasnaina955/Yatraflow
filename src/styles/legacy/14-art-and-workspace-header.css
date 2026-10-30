@@ -1,0 +1,361 @@
+/* ===== Generated region art (src/components/RegionArt.tsx) ===== */
+/* The picture sits over the inline SVG motif, which stays in place as the
+   loading floor and the error floor. Both are absolutely positioned inside the
+   slot's own aspect-ratio box, so the swap never changes the layout. The slot
+   keeps its radius and its `overflow: hidden` from the component that owns it. */
+.yf-art-picture { position: absolute; inset: 0; display: block; }
+.yf-art-img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform var(--motion-slow) var(--ease-out); }
+/* The scene is opaque, so it hides the motif that every card hover already
+   zoomed. Each rule below repeats the transform of the motif rule it shadows,
+   with the same token, so a card that now shows a scene keeps the interaction
+   it had before. The reduced-motion block at the end cancels both. */
+.mt-card:hover .yf-art-img,
+.ex-card:hover .yf-art-img,
+.ex-trend-card:hover .yf-art-img { transform: scale(1.035); }
+.ex-feature:hover .yf-art-img { transform: scale(1.03); }
+.ex-place:hover .yf-art-img,
+.ex-hero:hover .ex-postcard .yf-art-img { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) {
+  .yf-art-img { transition: none; }
+  .mt-card:hover .yf-art-img, .ex-card:hover .yf-art-img, .ex-trend-card:hover .yf-art-img,
+  .ex-feature:hover .yf-art-img, .ex-place:hover .yf-art-img,
+  .ex-hero:hover .ex-postcard .yf-art-img { transform: none; }
+}
+/* The scrim is the one DESIGN.md already puts over the SVG motif, moved onto the
+   scene. It is a sibling overlay, not a filter on the image, so it cannot
+   double-apply with the motif's own dark-theme rule and cannot dim the vignette. */
+.yf-art-picture.is-scrimmed::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background: transparent;
+}
+[data-theme='dark'] .yf-art-picture.is-scrimmed::after { background: rgba(6, 20, 24, .16); }
+/* A state vignette is square by contract and never takes the scrim. The icon the
+   block already shows sits behind the image, so a failure leaves the icon. */
+.yf-vignette { position: relative; width: 168px; max-width: 100%; aspect-ratio: 1 / 1; }
+.yf-vignette-floor { position: absolute; inset: 0; display: grid; place-items: center; color: var(--teal); }
+@media (max-width: 640px) {
+  .yf-vignette { width: 132px; }
+}
+
+/* #839 stage B - the retarget / add-another-visit follow-ups appear beside a
+   suggestion row's own buttons. They use the shared popover-in keyframe and the
+   motion tokens only; the reduced-motion opt-out is mandatory, matching
+   .tl-mode-copy above. */
+.gin-followup { animation: popover-in var(--motion-fast) var(--ease-glide); }
+@media (prefers-reduced-motion: reduce) { .gin-followup { animation: none; } }
+
+/* ===== P2 trip workspace: editorial header and responsive width ===== */
+.container.yf-workspace {
+  max-width: 1400px;
+  padding-top: 22px;
+  transition: max-width var(--motion-slow) var(--ease-glide);
+}
+.container.yf-workspace[data-wide='true'] { max-width: 1720px; }
+
+.yf-trip-head {
+  --slot: 96px;
+  --thumb-y: 2px;
+  --thumb-scale: .4167;
+  --title-shift: -56px;
+  --title-scale: .55;
+  --head-pad: 22px;
+  --head-pad-folded: 12px;
+  --meta-min: 52px;
+  position: relative;
+  overflow: visible;
+  margin: 0 0 14px;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--head-pad) auto auto auto var(--head-pad);
+  background: var(--card);
+  border: 1px solid var(--yf-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  transition:
+    grid-template-rows var(--motion-slow) var(--ease-glide),
+    background-color var(--motion-slow) var(--ease-out),
+    border-color var(--motion-slow) var(--ease-out);
+}
+.yf-trip-head::after {
+  content: '';
+  position: absolute;
+  right: -70px;
+  top: -90px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: var(--yf-saffron-100);
+  opacity: .9;
+  pointer-events: none;
+}
+[data-theme='dark'] .yf-trip-head::after { opacity: .4; }
+.yf-trip-head > * { position: relative; z-index: 1; }
+.yf-page[data-compact='true'] .yf-trip-head {
+  grid-template-rows: var(--head-pad-folded) auto auto auto var(--head-pad-folded);
+  overflow: hidden;
+}
+
+.yf-back {
+  grid-row: 2;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -10px 0 -10px -12px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 700;
+  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.yf-back:hover { color: var(--ink-teal); background: var(--teal-soft); }
+
+.yf-head-row {
+  grid-row: 3;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--slot) minmax(0, 1fr) auto;
+  column-gap: var(--space-8);
+  align-items: start;
+}
+.yf-thumb-slot { position: relative; width: var(--slot); height: 0; }
+.yf-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--slot);
+  height: var(--slot);
+  overflow: hidden;
+  border: 1px solid var(--yf-border);
+  border-radius: var(--radius);
+  background: var(--yf-mist);
+  transform-origin: 0 0;
+  transition: transform var(--motion-slow) var(--ease-glide);
+}
+.yf-page[data-compact='true'] .yf-thumb {
+  transform: translateY(var(--thumb-y)) scale(var(--thumb-scale));
+}
+.yf-thumb-photo {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+}
+.yf-thumb-emoji {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.yf-head-text { min-width: 0; transition: transform var(--motion-slow) var(--ease-glide); }
+.yf-page[data-compact='true'] .yf-head-text { transform: translateX(var(--title-shift)); }
+.yf-trip-title {
+  display: block;
+  height: 44px;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+  font-weight: 600;
+  line-height: 44px;
+  letter-spacing: -.015em;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+  white-space: nowrap;
+  transform-origin: 0 50%;
+  transition: transform var(--motion-slow) var(--ease-glide);
+}
+.yf-page[data-compact='true'] .yf-trip-title { transform: scale(var(--title-scale)); }
+
+.yf-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--motion-slow) var(--ease-glide);
+}
+.yf-page[data-compact='true'] .yf-fold { grid-template-rows: 0fr; }
+.yf-fold-in { min-height: 0; overflow: hidden; }
+.yf-head-meta {
+  margin: 0;
+  padding-top: 8px;
+  min-height: var(--meta-min);
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.yf-fade {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity var(--motion-slow) var(--ease-glide),
+    transform var(--motion-slow) var(--ease-glide),
+    visibility 0s linear 0s;
+}
+.yf-page[data-compact='true'] .yf-fade {
+  opacity: 0;
+  transform: translateY(-10px);
+  visibility: hidden;
+  transition:
+    opacity var(--motion-slow) var(--ease-glide),
+    transform var(--motion-slow) var(--ease-glide),
+    visibility 0s linear var(--motion-slow);
+}
+
+.yf-extra {
+  grid-row: 4;
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+  overflow: visible;
+  transition: grid-template-rows var(--motion-slow) var(--ease-glide);
+}
+.yf-page[data-compact='true'] .yf-extra {
+  grid-template-rows: 0fr;
+  overflow: hidden;
+}
+.yf-extra > .yf-fade { min-height: 0; }
+.yf-page[data-compact='true'] .yf-extra > .yf-fade { overflow: hidden; }
+
+.yf-head-actions { align-self: start; }
+.yf-invite { min-height: 44px; border-radius: 999px; white-space: nowrap; }
+
+.yf-members {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 14px 0 18px;
+}
+.yf-avatars { display: flex; align-items: center; }
+.yf-member {
+  position: relative;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  margin-left: -8px;
+  border-radius: 50%;
+}
+.yf-member:first-child { margin-left: 0; }
+.yf-member::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+.yf-member .avatar {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--card);
+  font-size: 12px;
+}
+.yf-member-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--card);
+  border-radius: 50%;
+  background: var(--ok);
+}
+.yf-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 3;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity var(--motion-med) var(--ease-out), transform var(--motion-med) var(--ease-out);
+}
+.yf-member:hover .yf-tip,
+.yf-member:focus-visible .yf-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.yf-member-note { color: var(--text-2); font-size: 13px; }
+.yf-member-note b { color: var(--text); }
+.yf-viewing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.yf-viewing i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+
+.yf-back:focus-visible,
+.yf-member:focus-visible,
+.yf-invite:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
+
+.yf-tabbar {
+  margin-top: 0;
+  margin-bottom: 20px;
+  transition: margin var(--motion-slow) var(--ease-glide);
+}
+.yf-tabbar .tab-btn { min-height: 44px; }
+.yf-page[data-compact='true'] .yf-tabbar { margin-bottom: 12px; }
+
+.tl-trip-wide-warn { margin-top: 10px; }
+.tl-trip-wide-warn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+
+@media (max-width: 720px) {
+  .container.yf-workspace { padding-left: 16px; padding-right: 16px; }
+  .yf-trip-head {
+    --slot: 64px;
+    --thumb-y: 4px;
+    --thumb-scale: .5625;
+    --title-shift: -28px;
+    --title-scale: .643;
+    --head-pad: 16px;
+    --head-pad-folded: 10px;
+    --meta-min: 20px;
+    padding: 0 16px;
+    border-radius: 20px;
+  }
+  .yf-head-row {
+    position: static;
+    grid-template-columns: var(--slot) minmax(0, 1fr);
+    column-gap: 14px;
+  }
+  .yf-trip-title { font-size: 1.75rem; }
+  .yf-head-meta { font-size: 13px; }
+  .yf-head-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2;
+  }
+  .yf-page[data-compact='true'] .yf-head-actions { top: 16px; bottom: auto; }
+  .yf-invite { padding: 0 14px; }
+  .yf-members { padding-right: 132px; }
+  .yf-trip-head::after { right: -60px; top: -80px; width: 160px; height: 160px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container.yf-workspace,
+  .yf-trip-head,
+  .yf-back,
+  .yf-thumb,
+  .yf-head-text,
+  .yf-trip-title,
+  .yf-fold,
+  .yf-fade,
+  .yf-extra,
+  .yf-tip,
+  .yf-tabbar { transition: none; }
+}
+

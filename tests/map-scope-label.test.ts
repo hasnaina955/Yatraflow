@@ -9,8 +9,9 @@
 // map's day filter ("Show on map") and the rail's day strip ("Plan this day").
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readCssSource('src/styles.css')
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
 const mapTab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
 

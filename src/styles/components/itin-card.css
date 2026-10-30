@@ -1,0 +1,41 @@
+/* Itinerary card — the interactive card rendered by `PubCard`.
+   `.card` is the static surface. This is the interactive family: it lifts on
+   hover and it is the card the Explore grid and the creator pages share.
+
+   The rules that shape it are owned here. The rules that a page applies to it
+   (the Explore list layout, the My trips grid) are page layout and stay with
+   their pages.
+
+   The unreachable overrides for `.trips-page` and `.explore-grid.as-list` are
+   NOT removed yet. Removal needs proof of its own, and that proof is a separate
+   change. They live in `itin-card-legacy.css`, which this owner also holds, so
+   one owner still answers for the class. */
+
+.itin-card {
+  overflow: hidden; padding: 0; display: flex; flex-direction: column;
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+/* Kept as its own rule. It arrived from a different file, so folding it into the
+   recipe above would be a consolidation inside an extraction checkpoint. */
+.itin-card { position: relative; }
+/* Lift convention: card/hero surfaces rise -2px, control-sized things -1px. */
+.itin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(var(--shadow-navy-rgb),.06), 0 16px 40px rgba(var(--shadow-navy-rgb),.12);
+}
+/* Explore card footer: full-width divider to the card edges, content inset to
+   align with .itin-body's 16px side padding. */
+.itin-card > .itin-meta { position: relative; padding: 12px 16px 16px; margin-top: 4px; }
+.itin-card > .itin-meta::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* Touch has no hover: a phone gets a softer radius and no lift. The media query
+   used to live in 05-share-and-trip-ticket.css, after the base recipe; it is
+   kept after the base here, which is the same cascade position for these
+   selectors. */
+@media (max-width: 720px) {
+  .itin-card { border-radius: var(--radius-sm); }
+  .itin-card:hover { transform: none; }
+}

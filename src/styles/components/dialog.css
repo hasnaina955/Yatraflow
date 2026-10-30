@@ -1,0 +1,67 @@
+/* Shared dialog.
+   Owns the fixed overlay, the sheet surface, its two responsive steps and the
+   `full` variant's entrance. It owns the surface only.
+
+   The behaviour is not CSS. Portal placement, the focus trap, the Escape
+   handler, the scroll lock and the focus restoration live in
+   src/components/ui.tsx `Modal`. Nothing here changes them.
+
+   A page places a dialog. `.gcf .modal` and `.gcf .modal-overlay` stay in their
+   page module because they are that page's own sizing. */
+
+/* ---------- Modal / drawer / toast ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: rgba(var(--shadow-navy-rgb),.42);
+  display: flex; align-items: flex-end; justify-content: center;
+  -webkit-backdrop-filter: blur(var(--yf-blur-scrim)); backdrop-filter: blur(var(--yf-blur-scrim));
+  animation: fadeIn var(--t-fast) var(--ease-out);
+}
+
+@media (min-width: 640px) {
+.modal-overlay { align-items: center; padding: 20px; }
+}
+
+.modal {
+  background: var(--card); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  width: 100%; max-width: var(--dialog-max-width, 620px);
+  max-height: var(--dialog-max-height, 92vh); max-height: var(--dialog-max-height-dvh, 92dvh);
+  overflow-y: auto;
+  /* Below 640px this is a bottom sheet, so two device facts matter: its last
+     control has to clear the home indicator, and 92vh measures a viewport the
+     mobile toolbar is still occupying (92dvh is the same pairing the map shell
+     and the header tray use). Desktop is unaffected — the insets resolve to 0. */
+  padding: 22px; padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  animation: slideUp var(--t-med) var(--ease-out);
+  /* Stop the sheet's scroll from chaining to the page behind it. */
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 640px) {
+.modal { border-radius: var(--radius-lg); }
+}
+
+@media (max-width: 720px) {
+.modal {
+    padding: 18px 16px 22px; border-radius: 16px 16px 0 0;
+    /* Edge-to-edge: bottom sheets must stop short of the gesture bar, and
+       their internal scroll ends above it. Only the height is selected here.
+       The base rule reads the same two variables, so the vh/dvh pairing is
+       declared once and this block subtracts the inset from both. */
+    padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    --dialog-max-height: calc(92vh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    --dialog-max-height-dvh: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+}
+
+.modal-full { --dialog-max-width: 720px; padding: 0; }
+
+.modal-full .modal-head { padding: 14px 18px 0; margin-bottom: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+.modal-full { animation: slideUp var(--motion-slow) var(--ease-out); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+.modal-full { animation: none; }
+}

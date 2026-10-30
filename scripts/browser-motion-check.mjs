@@ -282,6 +282,153 @@ async function checkListExit(browser) {
   return bad
 }
 
+// A fourth step covers CONTAINMENT on the trip cover, which the block sampler
+// cannot see. The cover band scales 1.035->1 as the page enters, and the head
+// that holds it sets `overflow: visible`. `overflow` clips a box's descendants,
+// never the box itself, so when the settle is applied to the band the band's own
+// painted edge travels: measured 39.9px wider than its layout box on a 1140px
+// band, still moving ~1.3s after the cards had finished. That read as a slow,
+// unsynchronized entrance (reported 2026-10-30).
+// The settle belongs to the artwork INSIDE the band, which is clipped.
+// This step samples the artwork against the band's box once per frame and fails
+// if the band's painted box ever leaves its layout box, or if the artwork never
+// moves at all. It needs the trip workspace, which is a signed-in route, so it
+// uses the dev fixture that mounts the real TripWorkspace with synthetic data.
+// Without MOTION_FIXTURE_BASE it skips and says so; MOTION_REQUIRE_FIXTURE=1
+// turns that skip into a failure for a job that serves the fixture.
+const COVER_SAMPLE = ({ windowMs }) => new Promise((resolve) => {
+  const frames = []
+  const start = performance.now()
+  const step = () => {
+    const head = document.querySelector('.yf-trip-head')
+    const media = document.querySelector('.yf-cover-media')
+    const art = document.querySelector('.yf-cover-media > .yf-cover-img')
+    if (head && media && art) {
+      const h = head.getBoundingClientRect()
+      const m = media.getBoundingClientRect()
+      frames.push({
+        t: Math.round(performance.now() - start),
+        dx: Math.round((m.x - h.x) * 100) / 100,
+        dw: Math.round((m.width - h.width) * 100) / 100,
+        dh: Math.round((m.height - h.height) * 100) / 100,
+        art: getComputedStyle(art).transform,
+      })
+    }
+    if (performance.now() - start < windowMs) requestAnimationFrame(step)
+    else resolve(frames)
+  }
+  requestAnimationFrame(step)
+})
+
+/** Report every rounded layer inside the cover that is NOT clipped by the media.
+ *  Such a layer rounds itself, and its own antialiased arc blends with whatever
+ *  paints behind it. Over the cover's bright backdrop that showed as a 1px light
+ *  line along the rounded perimeter (reported 2026-10-30): the veil measured a
+ *  luminance of 110 against a 60 interior and a 19 page, brighter than both, so no
+ *  blend of those two could produce it. A pixel threshold cannot gate this,
+ *  because the backdrop is legitimately brighter than the artwork; the invariant
+ *  is structural, so the check is too. */
+const COVER_LAYERS = () => {
+  const media = document.querySelector('.yf-cover-media')
+  const head = document.querySelector('.yf-trip-head')
+  if (!media || !head) return null
+  const m = media.getBoundingClientRect()
+  const offenders = []
+  for (const el of head.querySelectorAll('*')) {
+    const cs = getComputedStyle(el)
+    const rounded = parseFloat(cs.borderTopLeftRadius) > 0
+    const clips = cs.overflow !== 'visible'
+    const insideMedia = media.contains(el)
+    const r = el.getBoundingClientRect()
+    // Only a full-bleed layer matters: it must cover the band's own perimeter,
+    // like the media does. A rounded control (button, avatar, tab pill) never
+    // spans the perimeter, so rounding itself is correct for it.
+    const fullBleed = Math.abs(r.left - m.left) < 2 && Math.abs(r.top - m.top) < 2 &&
+      Math.abs(r.width - m.width) < 2 && Math.abs(r.height - m.height) < 2
+    if (fullBleed && rounded && !clips && !insideMedia) {
+      offenders.push({ cls: (typeof el.className === 'string' && el.className) || el.tagName, radius: cs.borderTopLeftRadius, overflow: cs.overflow })
+    }
+  }
+  return {
+    offenders,
+    veilInsideMedia: Boolean(media.querySelector('.yf-cover-veil')),
+    veilRadius: (() => {
+      const veil = head.querySelector('.yf-cover-veil')
+      return veil ? getComputedStyle(veil).borderTopLeftRadius : null
+    })(),
+  }
+}
+
+/** Sample the trip cover and report whether the band stays inside its box while
+ *  the artwork settles. Returns the number of failed checks. */
+async function checkCoverContainment(browser, fixtureBase) {
+  const base = fixtureBase.replace(/\/$/, '')
+  let bad = 0
+  for (const reducedMotion of ['no-preference', 'reduce']) {
+    const label = reducedMotion === 'reduce' ? 'reduced motion' : 'motion on'
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion })
+    const page = await ctx.newPage()
+    try {
+      await page.goto(`${base}/dev/overview-fixture.html?tab=overview`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      const reached = await page.waitForSelector('.yf-cover-media > .yf-cover-img', { timeout: 20000 }).then(() => true, () => false)
+      if (!reached) {
+        bad++
+        console.log(`FAIL  cover containment (${label}) — the trip cover never rendered at ${base}, so nothing could be sampled`)
+        continue
+      }
+      const frames = await page.evaluate(COVER_SAMPLE, { windowMs: 2200 })
+      if (frames.length < 10) {
+        bad++
+        console.log(`FAIL  cover containment (${label}) — sampler captured ${frames.length} frames; nothing could be measured`)
+        continue
+      }
+      // The band must never paint outside its own layout box.
+      const escaped = frames.filter((f) => Math.abs(f.dx) > 0.5 || Math.abs(f.dw) > 0.5 || Math.abs(f.dh) > 0.5)
+      const worst = frames.reduce((w, f) => Math.max(w, Math.abs(f.dx), Math.abs(f.dw), Math.abs(f.dh)), 0)
+      // The artwork must move on a normal load, and must not under reduced motion.
+      const artStates = new Set(frames.map((f) => f.art)).size
+      if (reducedMotion === 'reduce') {
+        if (escaped.length || artStates > 1) {
+          bad++
+          console.log(`FAIL  cover containment (${label}) — ${escaped.length} frame(s) moved the band by up to ${worst}px, artwork took ${artStates} state(s); reduced motion must be immediate and contained`)
+        } else {
+          console.log(`ok    cover containment (${label}) — band held its box across ${frames.length} frames, artwork static`)
+        }
+        continue
+      }
+      if (escaped.length) {
+        bad++
+        console.log(`FAIL  cover containment (${label}) — the cover band painted up to ${worst}px outside its layout box across ${escaped.length}/${frames.length} frames`)
+        console.log('        The entrance settled on the band, not on the artwork inside it. Apply the settle to `.yf-cover-media > .yf-cover-img`, which the media clips.')
+      } else if (artStates < 2) {
+        bad++
+        console.log(`FAIL  cover containment (${label}) — the band stayed put but the artwork never moved (${artStates} state); the settle was lost rather than contained`)
+      } else {
+        console.log(`ok    cover containment (${label}) — band held its box across ${frames.length} frames, artwork passed through ${artStates} states`)
+      }
+
+      // The rounded-perimeter invariant, checked in the real DOM.
+      const layers = await page.evaluate(COVER_LAYERS)
+      if (!layers) {
+        bad++
+        console.log(`FAIL  cover layers (${label}) — the cover media or band is missing, so the layering could not be read`)
+      } else if (layers.offenders.length || !layers.veilInsideMedia || (layers.veilRadius && layers.veilRadius !== '0px')) {
+        bad++
+        console.log(`FAIL  cover layers (${label}) — a rounded layer rounds itself instead of being clipped by the media`)
+        for (const o of layers.offenders) console.log(`        ${o.cls} radius=${o.radius} overflow=${o.overflow}`)
+        if (!layers.veilInsideMedia) console.log('        .yf-cover-veil is not inside .yf-cover-media, so it clips itself')
+        if (layers.veilRadius && layers.veilRadius !== '0px') console.log(`        .yf-cover-veil carries its own radius (${layers.veilRadius})`)
+        console.log('        The layer that clips must be the layer that paints: keep the veil inside the media and leave it unrounded.')
+      } else {
+        console.log(`ok    cover layers (${label}) — ${frames.length} frames, no self-rounded layer above the artwork, veil clipped by the media`)
+      }
+    } finally {
+      await ctx.close()
+    }
+  }
+  return bad
+}
+
 let browser
 let failures = 0
 let interactionFailures = 0
@@ -351,6 +498,15 @@ try {
   }
 
   interactionFailures += await checkListExit(browser)
+
+  const fixtureBase = process.env.MOTION_FIXTURE_BASE
+  if (fixtureBase) {
+    interactionFailures += await checkCoverContainment(browser, fixtureBase)
+  } else if (process.env.MOTION_REQUIRE_FIXTURE === '1') {
+    fail('MOTION_REQUIRE_FIXTURE=1 but MOTION_FIXTURE_BASE is not set; the cover containment step cannot run.')
+  } else {
+    console.log('skip  cover containment — the trip workspace is a signed-in route; set MOTION_FIXTURE_BASE to a dev server serving dev/overview-fixture.html to run this step')
+  }
 
   const storageState = process.env.MOTION_STORAGE_STATE
   if (storageState) {

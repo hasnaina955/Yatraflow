@@ -1,0 +1,2194 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-28",
+  "task": "Inventory of the read-only redesign export folder and extraction of seven relevant archives.",
+  "sourceRoot": "E:\\YatraFlow\\Redesign",
+  "sourceMutated": false,
+  "inventoryScope": "Every regular file directly inside the source root (recursive listing found no subdirectories).",
+  "totals": {
+    "files": 28,
+    "bytes": 64524154,
+    "archives": 24,
+    "htmlEntries": 24
+  },
+  "files": [
+    {
+      "name": "AI companion · drawer on the trip workspace-html.zip",
+      "relativePath": "AI companion · drawer on the trip workspace-html.zip",
+      "bytes": 235486,
+      "sha256": "6f6098a22bfad9ce914fd4ab19eafbccd3cab7b738797f88b43a1dbad6d710de",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 5,
+        "entries": [
+          {
+            "path": "AICompanion.dc.html",
+            "bytes": 45311,
+            "sha256": "033538a63fa4b02db936651bf7083911b1c96bb134517690cc75d28f19e94512",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 938,
+            "sha256": "c0234383514623700615c6174363e733c274fb112eed53b1c4445255fa789397",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "AICompanion.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Budget tab · animated charts, Play to replay-html.zip",
+      "relativePath": "Budget tab · animated charts, Play to replay-html.zip",
+      "bytes": 323008,
+      "sha256": "bd670665d2ec8272b8929fac1235aca1025950c7d7823d791218305272695482",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "Budget.dc.html",
+            "bytes": 47520,
+            "sha256": "417f16912820bcdb86f36e1bd39c6917319ca861317b241964f406d71fa2935c",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1310,
+            "sha256": "e6da4e20d682fd99c7862a3550093eb40124380dcb346ddb9b5fd22a309ec7ec",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Budget.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Creator hub · the seller’s desk-html.zip",
+      "relativePath": "Creator hub · the seller’s desk-html.zip",
+      "bytes": 1114649,
+      "sha256": "b66ce6440e8c6ac00726409afd989cf8a8123d707397b7ecce6368e691ff98f3",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 12,
+        "entries": [
+          {
+            "path": "assets/3b338df5f0ba07e4e2eac797368b5dfb.jpg",
+            "bytes": 210086,
+            "sha256": "ce48741080b7633275b9784d0d51ebc66088cc876a73b7cf309cb9bcaa117fad",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/f53340594c9c52831bf994fcc2d2f700.jpg",
+            "bytes": 97728,
+            "sha256": "3f119ab952045a14a200603b1e194889879f06abe3971b5430aa29ba13d3dd7f",
+            "isHtml": false
+          },
+          {
+            "path": "assets/4e5e29c3f6f86d08423069872776fef4.jpg",
+            "bytes": 210646,
+            "sha256": "8c3e501020e170be9a201c4604d14b993948430f1ac953b958a2e7b7e2d44a72",
+            "isHtml": false
+          },
+          {
+            "path": "assets/a1cefff75ec539ecf95dead16b04cfed.jpg",
+            "bytes": 37468,
+            "sha256": "18c927674e663bad6e321b403272c45d9ed0c9dc55cafb8ceef19cac4d21f9e3",
+            "isHtml": false
+          },
+          {
+            "path": "assets/63390c5a4e2b8d98af7982d25f10f6fe.jpg",
+            "bytes": 82565,
+            "sha256": "a61088ca6717283ec10cb0205c2fb6d1289c8b58177a24dede42e597759b4de1",
+            "isHtml": false
+          },
+          {
+            "path": "CreatorHub.dc.html",
+            "bytes": 96054,
+            "sha256": "77c58abf50f323d0c1b7072c9c01e9dd2bfb4b3aeb22be8deaa0253f05f7c1a3",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1307,
+            "sha256": "e88f240a3b7719a5f37ee339339d87c3ff646378212735b7675b4802b8a802fb",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "CreatorHub.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Creator page · Has9 storefront + owner view-html.zip",
+      "relativePath": "Creator page · Has9 storefront + owner view-html.zip",
+      "bytes": 1741578,
+      "sha256": "c319c3f8f7c18a6b4264d0495770135f8c8ce3126554f0191c4e541f0ad5172d",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 15,
+        "entries": [
+          {
+            "path": "assets/7bcbdfec9083b260f1de644639532b22.png",
+            "bytes": 51379,
+            "sha256": "3501b226670428c71bb4ce9cb9afbb8f4036b46be4bdd70892fe847202da016c",
+            "isHtml": false
+          },
+          {
+            "path": "assets/3b338df5f0ba07e4e2eac797368b5dfb.jpg",
+            "bytes": 210086,
+            "sha256": "ce48741080b7633275b9784d0d51ebc66088cc876a73b7cf309cb9bcaa117fad",
+            "isHtml": false
+          },
+          {
+            "path": "assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+            "bytes": 414767,
+            "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d3bb23729e6f39dedf12cb0d7296bd1c.jpg",
+            "bytes": 112746,
+            "sha256": "c03c2a4d78c2bf11e38493a2d905f8d4fc214821945a88254bec94b420801885",
+            "isHtml": false
+          },
+          {
+            "path": "assets/4e5e29c3f6f86d08423069872776fef4.jpg",
+            "bytes": 210646,
+            "sha256": "8c3e501020e170be9a201c4604d14b993948430f1ac953b958a2e7b7e2d44a72",
+            "isHtml": false
+          },
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/f53340594c9c52831bf994fcc2d2f700.jpg",
+            "bytes": 97728,
+            "sha256": "3f119ab952045a14a200603b1e194889879f06abe3971b5430aa29ba13d3dd7f",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2899a7659932c30013dbd21577b1385a.jpg",
+            "bytes": 102807,
+            "sha256": "7f44db409033a91261c3a6f5ae07942e303e41e40ec3c701a19d0c726cb04b84",
+            "isHtml": false
+          },
+          {
+            "path": "assets/a1cefff75ec539ecf95dead16b04cfed.jpg",
+            "bytes": 37468,
+            "sha256": "18c927674e663bad6e321b403272c45d9ed0c9dc55cafb8ceef19cac4d21f9e3",
+            "isHtml": false
+          },
+          {
+            "path": "Creator.dc.html",
+            "bytes": 123364,
+            "sha256": "158db306d1bd62fec995b8f932323ae7422325f53b027e3c88f44e97cded1796",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1312,
+            "sha256": "d6660dce89db8ce99f707d0279131a26041c16d45ce68ee035eb2388c4f698ac",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Creator.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Creator page v2 · Has9 storefront, road stats, Plan with Has9-html.zip",
+      "relativePath": "Creator page v2 · Has9 storefront, road stats, Plan with Has9-html.zip",
+      "bytes": 1865927,
+      "sha256": "d26bcdc5f664ae65ec442d2275771683c389b77ca56676d4138b6196df9c70a3",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 15,
+        "entries": [
+          {
+            "path": "assets/3b338df5f0ba07e4e2eac797368b5dfb.jpg",
+            "bytes": 210086,
+            "sha256": "ce48741080b7633275b9784d0d51ebc66088cc876a73b7cf309cb9bcaa117fad",
+            "isHtml": false
+          },
+          {
+            "path": "assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+            "bytes": 414767,
+            "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d3bb23729e6f39dedf12cb0d7296bd1c.jpg",
+            "bytes": 112746,
+            "sha256": "c03c2a4d78c2bf11e38493a2d905f8d4fc214821945a88254bec94b420801885",
+            "isHtml": false
+          },
+          {
+            "path": "assets/4e5e29c3f6f86d08423069872776fef4.jpg",
+            "bytes": 210646,
+            "sha256": "8c3e501020e170be9a201c4604d14b993948430f1ac953b958a2e7b7e2d44a72",
+            "isHtml": false
+          },
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/f53340594c9c52831bf994fcc2d2f700.jpg",
+            "bytes": 97728,
+            "sha256": "3f119ab952045a14a200603b1e194889879f06abe3971b5430aa29ba13d3dd7f",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "assets/63390c5a4e2b8d98af7982d25f10f6fe.jpg",
+            "bytes": 82565,
+            "sha256": "a61088ca6717283ec10cb0205c2fb6d1289c8b58177a24dede42e597759b4de1",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2899a7659932c30013dbd21577b1385a.jpg",
+            "bytes": 102807,
+            "sha256": "7f44db409033a91261c3a6f5ae07942e303e41e40ec3c701a19d0c726cb04b84",
+            "isHtml": false
+          },
+          {
+            "path": "assets/a1cefff75ec539ecf95dead16b04cfed.jpg",
+            "bytes": 37468,
+            "sha256": "18c927674e663bad6e321b403272c45d9ed0c9dc55cafb8ceef19cac4d21f9e3",
+            "isHtml": false
+          },
+          {
+            "path": "Creator.dc.html",
+            "bytes": 216509,
+            "sha256": "7874e335f173cf1e80681cc18b9d8446e5b8a4443e4caa195fdc25c9cc4742da",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1330,
+            "sha256": "3b66dc619d34fe0372e8645d04c06c0402dce0997aa784932942a4c800b03b2c",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Creator.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Creator rankings · India, state, city-html.zip",
+      "relativePath": "Creator rankings · India, state, city-html.zip",
+      "bytes": 519800,
+      "sha256": "c336633de54f30ace050f90b97dc2f0e2ca484d60150e106aec51302855175e9",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 8,
+        "entries": [
+          {
+            "path": "assets/75080c2952823b4412a0df84f01f3848.jpg",
+            "bytes": 58383,
+            "sha256": "f5c07fe87dfdce66dcb7f8e9b5f2aada550d74bbbb7646848597b6a3da848bb0",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2899a7659932c30013dbd21577b1385a.jpg",
+            "bytes": 102807,
+            "sha256": "7f44db409033a91261c3a6f5ae07942e303e41e40ec3c701a19d0c726cb04b84",
+            "isHtml": false
+          },
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "Ranking.dc.html",
+            "bytes": 82801,
+            "sha256": "7dc95c342df65de0b8959e2ecd0f63b92571d301e30d3e2cce43a8b8625ce8db",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1305,
+            "sha256": "265d2d4efd387f3a74d8afcdb451a85ad23c8c2d94066478ce1bf3df85b3025f",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Ranking.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Dark theme · lantern night palette-html.zip",
+      "relativePath": "Dark theme · lantern night palette-html.zip",
+      "bytes": 374499,
+      "sha256": "fc56f827470af244cb64893f6c0db10a08c102d6dc3e41814869ec86bcbc759b",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 7,
+        "entries": [
+          {
+            "path": "assets/7bcbdfec9083b260f1de644639532b22.png",
+            "bytes": 51379,
+            "sha256": "3501b226670428c71bb4ce9cb9afbb8f4036b46be4bdd70892fe847202da016c",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "DarkTheme.dc.html",
+            "bytes": 28620,
+            "sha256": "a5b551dc7fb39ebf5055242014db33803f2a1573b7935a1567db52f1e75c43c8",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1306,
+            "sha256": "fa50400958ee517ef3c3c3ebb638e7ce3da1f592faae604bc1e28f01d068c293",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "DarkTheme.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Dark theme · night sky palette-html.zip",
+      "relativePath": "Dark theme · night sky palette-html.zip",
+      "bytes": 324108,
+      "sha256": "7acd1873251c6ab956d3c7f6e114aca9cae6f3de4d7c48ab8010c7fe804483ab",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "DarkTheme.dc.html",
+            "bytes": 29774,
+            "sha256": "5757c0f9ad3745810a791d7e03a4c4b3a18a182824292292ffcf1264f35930d8",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1302,
+            "sha256": "6316f2f6353d8fceaaf9a8e865cd9bd357aee02ada9f7dbc8005433b59ba1562",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "DarkTheme.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Design system proposal · Papercut warmth · Day 2 before after-html.zip",
+      "relativePath": "Design system proposal · Papercut warmth · Day 2 before after-html.zip",
+      "bytes": 478393,
+      "sha256": "6a4dc4748247639b229b8bb2c92700fca4e9d5756252008b2c0e77f2d5ad0d1b",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 10,
+        "entries": [
+          {
+            "path": "assets/2da9c12d7f8fe91c52a3d78abd52cc59.jpg",
+            "bytes": 43623,
+            "sha256": "c739e2db73858d0d007234edf74411a2c90c3b9ef24efff5d3e69324415b58d7",
+            "isHtml": false
+          },
+          {
+            "path": "assets/028506faaa65050a29a4224f0745dc98.jpg",
+            "bytes": 31952,
+            "sha256": "0675077067d441971f2618908f6b2ecb29a43c9b3b346e58486de10f4f759601",
+            "isHtml": false
+          },
+          {
+            "path": "assets/77fa0bde4f2d972c77c5df684c07abac.jpg",
+            "bytes": 34971,
+            "sha256": "0bbb634674323faa397fd72d86c5fa6f32a3f7ff2cb4075f7e1de966bf7a5114",
+            "isHtml": false
+          },
+          {
+            "path": "assets/c20f6a861c73abcf506128944e69fdc1.jpg",
+            "bytes": 28963,
+            "sha256": "9ac436733c89f805dfff2195fe20e8cfc4d2c0f37c94f8c92bf7a055eefe4fb6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "WarmSystem.dc.html",
+            "bytes": 43866,
+            "sha256": "74f4d928285301c2556db9318633571248571e1a0a026a1aa441f72b26c67ad0",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1336,
+            "sha256": "190c5500f5083a87a01e2ee9696649802846918b403f70fc707c79e90e375b7f",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "WarmSystem.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "DESIGN.md",
+      "relativePath": "DESIGN.md",
+      "bytes": 23334,
+      "sha256": "1ddf5bcb4a976bf4db4a1cb37a52fb32907e3eb93f13934511248b2ce4cc01f0",
+      "kind": "document"
+    },
+    {
+      "name": "Desktop · Drive day with fixed times-html.zip",
+      "relativePath": "Desktop · Drive day with fixed times-html.zip",
+      "bytes": 325936,
+      "sha256": "f8b81270c530004db08470dd8157b261a949d5b7569b951875050cda0684c1ef",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "DriveDay.dc.html",
+            "bytes": 50448,
+            "sha256": "d03ae19e2b3e03ac61abdad3151394e0548b72931a38182cab331daad66487b3",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1306,
+            "sha256": "4481cbed1e18796a533d7e12dba114c692ae8757d1b59badb90ce53557151e94",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "DriveDay.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Desktop · One day · Day 2 open (stay day)-html.zip",
+      "relativePath": "Desktop · One day · Day 2 open (stay day)-html.zip",
+      "bytes": 635494,
+      "sha256": "20da1f10dee2f0e2e2635359862a8108c196f3cc26b39f0322a8d71049280527",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 9,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/63390c5a4e2b8d98af7982d25f10f6fe.jpg",
+            "bytes": 82565,
+            "sha256": "a61088ca6717283ec10cb0205c2fb6d1289c8b58177a24dede42e597759b4de1",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "assets/f53340594c9c52831bf994fcc2d2f700.jpg",
+            "bytes": 97728,
+            "sha256": "3f119ab952045a14a200603b1e194889879f06abe3971b5430aa29ba13d3dd7f",
+            "isHtml": false
+          },
+          {
+            "path": "Main.dc.html",
+            "bytes": 75600,
+            "sha256": "2d0c8fcdfe4255653e718c5b126724dd796149c3d9df916c2c8c65134865b545",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1304,
+            "sha256": "2dfbe7d27d4524987cb66fe717738bc39cb631a4f3224495a1406a6f1f2ebe9c",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Main.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Explore · redesign (desktop 1440)-html.zip",
+      "relativePath": "Explore · redesign (desktop 1440)-html.zip",
+      "bytes": 1156208,
+      "sha256": "f18af42ac6b363e4166aa80436561fd668087bf2951e02aab5715a476a0285be",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 13,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d3bb23729e6f39dedf12cb0d7296bd1c.jpg",
+            "bytes": 112746,
+            "sha256": "c03c2a4d78c2bf11e38493a2d905f8d4fc214821945a88254bec94b420801885",
+            "isHtml": false
+          },
+          {
+            "path": "assets/77fa0bde4f2d972c77c5df684c07abac.jpg",
+            "bytes": 34971,
+            "sha256": "0bbb634674323faa397fd72d86c5fa6f32a3f7ff2cb4075f7e1de966bf7a5114",
+            "isHtml": false
+          },
+          {
+            "path": "assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+            "bytes": 414767,
+            "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+            "isHtml": false
+          },
+          {
+            "path": "assets/f53340594c9c52831bf994fcc2d2f700.jpg",
+            "bytes": 97728,
+            "sha256": "3f119ab952045a14a200603b1e194889879f06abe3971b5430aa29ba13d3dd7f",
+            "isHtml": false
+          },
+          {
+            "path": "assets/028506faaa65050a29a4224f0745dc98.jpg",
+            "bytes": 31952,
+            "sha256": "0675077067d441971f2618908f6b2ecb29a43c9b3b346e58486de10f4f759601",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2da9c12d7f8fe91c52a3d78abd52cc59.jpg",
+            "bytes": 43623,
+            "sha256": "c739e2db73858d0d007234edf74411a2c90c3b9ef24efff5d3e69324415b58d7",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "Explore.dc.html",
+            "bytes": 40169,
+            "sha256": "c8d64bb0611f9ab8089c36ef7b8b2490e9836a13fbe949208e9713a9ee975435",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1301,
+            "sha256": "aa3ab64389871dbffca66f319b0c1cd17229c36128d94543cd6ee03b57e8dc15",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Explore.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Map tab · redesign (desktop 1440)-html.zip",
+      "relativePath": "Map tab · redesign (desktop 1440)-html.zip",
+      "bytes": 318143,
+      "sha256": "a3890d47d41f817f3506878a0902d52b149f53d0396dcbca2bea124608ea4d62",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "MapTab.dc.html",
+            "bytes": 42666,
+            "sha256": "dca91395648199b98c9f23f0b58d6f9166a2ed858a7a802699f3c1e92a7303dd",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1299,
+            "sha256": "e409fdf8716e73a56ddebfdbcb958cdb7781febf230cb169c3c074b1710783c4",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "MapTab.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Motion system · live demos-html.zip",
+      "relativePath": "Motion system · live demos-html.zip",
+      "bytes": 280713,
+      "sha256": "3ad08bf651955859b4fbf477371089fca73d0e1460ddcaecfdd11318fa7e0f1f",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/7bcbdfec9083b260f1de644639532b22.png",
+            "bytes": 51379,
+            "sha256": "3501b226670428c71bb4ce9cb9afbb8f4036b46be4bdd70892fe847202da016c",
+            "isHtml": false
+          },
+          {
+            "path": "Motion.dc.html",
+            "bytes": 38653,
+            "sha256": "e24af2c0047be13e981a0c65d2bae400ef3b6b0edf7aa3830d9b4cc401eaa4c1",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1292,
+            "sha256": "3ad59c5800ce6c6651bb1e34cc386d161dae59c37d7404cc917c4c4cc029aa78",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Motion.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "MOTION-TOKENS.md",
+      "relativePath": "MOTION-TOKENS.md",
+      "bytes": 14393,
+      "sha256": "a0c9b8e8c8f787b0c43834a1621ceac30c4e98c2dc865a7fb7fd6fe5337854b7",
+      "kind": "document"
+    },
+    {
+      "name": "My trips · new design system (desktop 1440)-html.zip",
+      "relativePath": "My trips · new design system (desktop 1440)-html.zip",
+      "bytes": 557191,
+      "sha256": "59136e1ef4ce19e3573f2944b7bd74a2886115527ac109b25ed67602d6a87b8b",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 11,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/028506faaa65050a29a4224f0745dc98.jpg",
+            "bytes": 31952,
+            "sha256": "0675077067d441971f2618908f6b2ecb29a43c9b3b346e58486de10f4f759601",
+            "isHtml": false
+          },
+          {
+            "path": "assets/77fa0bde4f2d972c77c5df684c07abac.jpg",
+            "bytes": 34971,
+            "sha256": "0bbb634674323faa397fd72d86c5fa6f32a3f7ff2cb4075f7e1de966bf7a5114",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2da9c12d7f8fe91c52a3d78abd52cc59.jpg",
+            "bytes": 43623,
+            "sha256": "c739e2db73858d0d007234edf74411a2c90c3b9ef24efff5d3e69324415b58d7",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d3bb23729e6f39dedf12cb0d7296bd1c.jpg",
+            "bytes": 112746,
+            "sha256": "c03c2a4d78c2bf11e38493a2d905f8d4fc214821945a88254bec94b420801885",
+            "isHtml": false
+          },
+          {
+            "path": "assets/c20f6a861c73abcf506128944e69fdc1.jpg",
+            "bytes": 28963,
+            "sha256": "9ac436733c89f805dfff2195fe20e8cfc4d2c0f37c94f8c92bf7a055eefe4fb6",
+            "isHtml": false
+          },
+          {
+            "path": "MyTrips.dc.html",
+            "bytes": 28635,
+            "sha256": "b23d50b0604c328f514d30d0d2290ecac47273144fe02bbd9acc8de8b8295f39",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1311,
+            "sha256": "89205b67ff343264e13d49d6f81583379b027d4f4942d23e6cce0d64debc3d90",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "MyTrips.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "P12 Overview · warmth v2 (compact + elevation route)-html.zip",
+      "relativePath": "P12 Overview · warmth v2 (compact + elevation route)-html.zip",
+      "bytes": 458754,
+      "sha256": "f075b30573a22240af5ae432ae944b288c99e8287eb38c176f97527eaab1099c",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 15,
+        "entries": [
+          {
+            "path": "assets/d3bb23729e6f39dedf12cb0d7296bd1c.jpg",
+            "bytes": 112746,
+            "sha256": "c03c2a4d78c2bf11e38493a2d905f8d4fc214821945a88254bec94b420801885",
+            "isHtml": false
+          },
+          {
+            "path": "assets/e68a0da6db033acfc6ffb855559da575.jpg",
+            "bytes": 6976,
+            "sha256": "984b960eb8cdec4cbd637556c7127cc74bbdc64795eae953ed8a0a2d5dd5b231",
+            "isHtml": false
+          },
+          {
+            "path": "assets/c7734e8a8d1427323d2790bc66acf69d.jpg",
+            "bytes": 9284,
+            "sha256": "5d0355179c0f464765fdda5b9d68e29d6bcfee21bf09d08192d3aec387bce29e",
+            "isHtml": false
+          },
+          {
+            "path": "assets/dd39c60b1bcdf5d63b49e717e9233c6a.jpg",
+            "bytes": 7001,
+            "sha256": "1906904e7065b862493103cdf4c3c11a5984ec20d23c0016484daf75995d9f6f",
+            "isHtml": false
+          },
+          {
+            "path": "assets/0a76eb28ba88ef67f5e50bbb9f58d8f6.jpg",
+            "bytes": 8657,
+            "sha256": "c4301f33181617aaa13711bfb04ad304979615230aefb3fe6e81dd5d4a165de3",
+            "isHtml": false
+          },
+          {
+            "path": "assets/a379f93608195b6b7976c2d30b5cdb75.jpg",
+            "bytes": 8934,
+            "sha256": "a092f24f61d5a99050bdae9e8e1ebea021a9d6b47a4e72b0a28dcef3753c8589",
+            "isHtml": false
+          },
+          {
+            "path": "assets/a8657f8711fa17ad555d01e4e0182f60.jpg",
+            "bytes": 7049,
+            "sha256": "d953ed382f1d803a056caee0417d0c6e944ffeca8ac1b6b623a16aef6e8c233e",
+            "isHtml": false
+          },
+          {
+            "path": "assets/40fc58f11202c8f7d59ad59124dbbc5d.jpg",
+            "bytes": 9043,
+            "sha256": "4162148b1e3b4452353aaaedd2852cd15a1269e4152d3e925b8465f1cbb29740",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d709bfde2c360f3d5c270a4efbe65d82.jpg",
+            "bytes": 7173,
+            "sha256": "522c0983a309191ecf102050b18ec285e4dec07ce5b2038c135b055d3afe250b",
+            "isHtml": false
+          },
+          {
+            "path": "assets/7b7fb43a45bf92e0dd71d560e576e89f.jpg",
+            "bytes": 8182,
+            "sha256": "77d24e42961cdfa28dea465afdcf43fffa84d00dfd36073c1cf966ca812d9b12",
+            "isHtml": false
+          },
+          {
+            "path": "P12Warm2.dc.html",
+            "bytes": 81535,
+            "sha256": "e8617dceada3487df612f9467d13cbf9ae809b9b8897610c8ab9b7959eccfca7",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1323,
+            "sha256": "e7bbb3bd94eda4ac9c556f0d7455d5163bdb30fb897e8679d141a135d4aab5d0",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "P12Warm2.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Papercut warmth · Component kit-html.zip",
+      "relativePath": "Papercut warmth · Component kit-html.zip",
+      "bytes": 432587,
+      "sha256": "e59e0a6529261d169cfe203ff24552a759e77ce99591b7b4480f7cf3b1ff538b",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 8,
+        "entries": [
+          {
+            "path": "assets/63390c5a4e2b8d98af7982d25f10f6fe.jpg",
+            "bytes": 82565,
+            "sha256": "a61088ca6717283ec10cb0205c2fb6d1289c8b58177a24dede42e597759b4de1",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "assets/13ea0432bb5f6c25b028a65b3c6c4510.jpg",
+            "bytes": 24219,
+            "sha256": "c0f3670099d5621697c8a0b42aac3f4c478a99c524027680e2abfe9ec47d1e25",
+            "isHtml": false
+          },
+          {
+            "path": "ComponentKit.dc.html",
+            "bytes": 31132,
+            "sha256": "753544d45075e06e3f17057f59aa1c2e8c10c73150ef29cf885524f900a18a89",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1309,
+            "sha256": "b3e582fa216db9114943f408c3bbd5fe48ae30267641b0ddffafcc0b11520a8e",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "ComponentKit.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Papercut warmth · tokens (named scales, light + night)-html.zip",
+      "relativePath": "Papercut warmth · tokens (named scales, light + night)-html.zip",
+      "bytes": 735598,
+      "sha256": "af1af930ccfb01c6ec261cc7631df3fe98dd4b309bde9809bd93752b4a55db56",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+            "bytes": 414767,
+            "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+            "isHtml": false
+          },
+          {
+            "path": "Tokens.dc.html",
+            "bytes": 130122,
+            "sha256": "83c4fcdf491451663fc1f905307fde32e68d76b6da032e200fabf4de5ca053ba",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1320,
+            "sha256": "e23ed203aafb6c190c5055d4c4fb3345bcce2407c1509ad161ddd3f0e9d07117",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Tokens.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Plan a trip · guided flow, restyled-html.zip",
+      "relativePath": "Plan a trip · guided flow, restyled-html.zip",
+      "bytes": 307966,
+      "sha256": "6f772d2ef9599f68e39ad2beeb7c61ba1c565cfad890ddd4d41046e4c66dbc54",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 6,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "PlanTrip.dc.html",
+            "bytes": 32479,
+            "sha256": "c80ba86c71b95cc1ec97090c3b694bbaf066b0d75c543e9a61ed596b3c87dfc7",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1305,
+            "sha256": "a3fd44c618c6b06be303badd36eff299816f49481d3021e66485e04c78a84e20",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "PlanTrip.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Profile and settings · restyled-html.zip",
+      "relativePath": "Profile and settings · restyled-html.zip",
+      "bytes": 253102,
+      "sha256": "b41eab731b240b94beace1faf20ff4e4c7ac8ca1c7672300c4edb001dbb118b3",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 5,
+        "entries": [
+          {
+            "path": "Profile.dc.html",
+            "bytes": 62955,
+            "sha256": "2338bfbbb4c683d105b37244a0cc3db7a149b9a119c8443dbb901022eddd67f4",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 918,
+            "sha256": "485d25114431c091ae41e089751db4c7f772ac5238fec0142eff9da0a1274f8c",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "Profile.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Public itinerary · Look inside, on the trip kit-html.zip",
+      "relativePath": "Public itinerary · Look inside, on the trip kit-html.zip",
+      "bytes": 1436589,
+      "sha256": "8c3816081c7c7e680ef45b8ba034dac84df17fadb23b9ab85fbc65ee6e5adbf1",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 12,
+        "entries": [
+          {
+            "path": "assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+            "bytes": 414767,
+            "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+            "isHtml": false
+          },
+          {
+            "path": "assets/bb6b36744d7963714a5884abe52251f4.jpg",
+            "bytes": 116270,
+            "sha256": "c6c866fa194a8fb39dfb1ac728e086615339e17198bb7d77437b570b215c1a98",
+            "isHtml": false
+          },
+          {
+            "path": "assets/4e5e29c3f6f86d08423069872776fef4.jpg",
+            "bytes": 210646,
+            "sha256": "8c3e501020e170be9a201c4604d14b993948430f1ac953b958a2e7b7e2d44a72",
+            "isHtml": false
+          },
+          {
+            "path": "assets/3b338df5f0ba07e4e2eac797368b5dfb.jpg",
+            "bytes": 210086,
+            "sha256": "ce48741080b7633275b9784d0d51ebc66088cc876a73b7cf309cb9bcaa117fad",
+            "isHtml": false
+          },
+          {
+            "path": "assets/b1648fa79e9e5bb3b87ea6178d4622bd.jpg",
+            "bytes": 43814,
+            "sha256": "365624491cd78afc017b601844402a827ec772b75db5faafa6a01c412b5cd55c",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2899a7659932c30013dbd21577b1385a.jpg",
+            "bytes": 102807,
+            "sha256": "7f44db409033a91261c3a6f5ae07942e303e41e40ec3c701a19d0c726cb04b84",
+            "isHtml": false
+          },
+          {
+            "path": "assets/75080c2952823b4412a0df84f01f3848.jpg",
+            "bytes": 58383,
+            "sha256": "f5c07fe87dfdce66dcb7f8e9b5f2aada550d74bbbb7646848597b6a3da848bb0",
+            "isHtml": false
+          },
+          {
+            "path": "LookInside.dc.html",
+            "bytes": 88126,
+            "sha256": "5bb3eed5f34e9a2e71109019d59cca212ccd2f6081bdfa2e109e6fdc1a8548f0",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1321,
+            "sha256": "8be75822bfb4f7fae2257e59ebea89b541dde0adf621e970f9c876e618f2cab7",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "LookInside.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Public itinerary · Ride along, on the trip kit-html.zip",
+      "relativePath": "Public itinerary · Ride along, on the trip kit-html.zip",
+      "bytes": 1576127,
+      "sha256": "24b4711d56db908bf4760b35d865c5485a12118e425f23c740d8186a504d4009",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 13,
+        "entries": [
+          {
+            "path": "assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+            "bytes": 414767,
+            "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+            "isHtml": false
+          },
+          {
+            "path": "assets/4e5e29c3f6f86d08423069872776fef4.jpg",
+            "bytes": 210646,
+            "sha256": "8c3e501020e170be9a201c4604d14b993948430f1ac953b958a2e7b7e2d44a72",
+            "isHtml": false
+          },
+          {
+            "path": "assets/117023cd17a67716bc0607de34e0f6b7.jpg",
+            "bytes": 144643,
+            "sha256": "6674a2320f30a337f3afd82785ed24d49ed43270e011cb9dd46849a83530f9f2",
+            "isHtml": false
+          },
+          {
+            "path": "assets/b1648fa79e9e5bb3b87ea6178d4622bd.jpg",
+            "bytes": 43814,
+            "sha256": "365624491cd78afc017b601844402a827ec772b75db5faafa6a01c412b5cd55c",
+            "isHtml": false
+          },
+          {
+            "path": "assets/bb6b36744d7963714a5884abe52251f4.jpg",
+            "bytes": 116270,
+            "sha256": "c6c866fa194a8fb39dfb1ac728e086615339e17198bb7d77437b570b215c1a98",
+            "isHtml": false
+          },
+          {
+            "path": "assets/3b338df5f0ba07e4e2eac797368b5dfb.jpg",
+            "bytes": 210086,
+            "sha256": "ce48741080b7633275b9784d0d51ebc66088cc876a73b7cf309cb9bcaa117fad",
+            "isHtml": false
+          },
+          {
+            "path": "assets/2899a7659932c30013dbd21577b1385a.jpg",
+            "bytes": 102807,
+            "sha256": "7f44db409033a91261c3a6f5ae07942e303e41e40ec3c701a19d0c726cb04b84",
+            "isHtml": false
+          },
+          {
+            "path": "assets/75080c2952823b4412a0df84f01f3848.jpg",
+            "bytes": 58383,
+            "sha256": "f5c07fe87dfdce66dcb7f8e9b5f2aada550d74bbbb7646848597b6a3da848bb0",
+            "isHtml": false
+          },
+          {
+            "path": "PublicRide.dc.html",
+            "bytes": 82860,
+            "sha256": "5aab503b2ed5cb7df44d2ea8f3e707ab710a980ed8adf69c07c020708820749d",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1320,
+            "sha256": "a93f4d2808b4d5ae1fd86460390405bf4528aa6cb9e6cf2b75a254eae26e524f",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "PublicRide.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "README_1.md",
+      "relativePath": "README_1.md",
+      "bytes": 2090,
+      "sha256": "8bb47f78474bfff1fa334ee60854f802e389dbe3c728ea09a6b5e3d00584936c",
+      "kind": "document"
+    },
+    {
+      "name": "Route card · flat, coast, flights and city stays (animated)-html.zip",
+      "relativePath": "Route card · flat, coast, flights and city stays (animated)-html.zip",
+      "bytes": 246706,
+      "sha256": "5ad6fc3c25536d5d7e10a3ce6e2961a2bb9a58fe187dc4834b054da9f56b327a",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 5,
+        "entries": [
+          {
+            "path": "FlatRoute.dc.html",
+            "bytes": 56523,
+            "sha256": "a390c4f7af153e7aa8bb77b2b4aa523efaa39561410203210745f449ef15ea30",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 950,
+            "sha256": "454a89df5541ac3f8e0be219178ef24ce46a95115d8be9389b9e3e8543a564a5",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "FlatRoute.dc.html"
+        ]
+      }
+    },
+    {
+      "name": "Timeline Redesign.pdf",
+      "relativePath": "Timeline Redesign.pdf",
+      "bytes": 48188753,
+      "sha256": "f83bdd06d70a42d8d91c2a6439f0dd78a2b7ba0fd42b9e5fd6d52aa7061aa85f",
+      "kind": "pdf"
+    },
+    {
+      "name": "Trip settings · redesign (desktop 1440)-html.zip",
+      "relativePath": "Trip settings · redesign (desktop 1440)-html.zip",
+      "bytes": 597022,
+      "sha256": "b5de6538e9609a0f612a0172a2d0615016a07a884a162e8eb3a876185969e247",
+      "kind": "zip-archive",
+      "archive": {
+        "entryCount": 9,
+        "entries": [
+          {
+            "path": "assets/de6c3014da5107b023045b22e625bfc6.jpg",
+            "bytes": 84789,
+            "sha256": "def5f52463d205ac1acf2c5de961f7574f83cadeec9577d9ef68fbbe32c486e6",
+            "isHtml": false
+          },
+          {
+            "path": "assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+            "bytes": 103637,
+            "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+            "isHtml": false
+          },
+          {
+            "path": "assets/63390c5a4e2b8d98af7982d25f10f6fe.jpg",
+            "bytes": 82565,
+            "sha256": "a61088ca6717283ec10cb0205c2fb6d1289c8b58177a24dede42e597759b4de1",
+            "isHtml": false
+          },
+          {
+            "path": "assets/f53340594c9c52831bf994fcc2d2f700.jpg",
+            "bytes": 97728,
+            "sha256": "3f119ab952045a14a200603b1e194889879f06abe3971b5430aa29ba13d3dd7f",
+            "isHtml": false
+          },
+          {
+            "path": "TripSettings.dc.html",
+            "bytes": 37099,
+            "sha256": "d059eafccdf06cfe4a050872d79166d25ec7342df40f662e428ee4559ccd46ae",
+            "isHtml": true
+          },
+          {
+            "path": "support.js",
+            "bytes": 46105,
+            "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react.js",
+            "bytes": 10751,
+            "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "isHtml": false
+          },
+          {
+            "path": "vendor/react-dom.js",
+            "bytes": 131835,
+            "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "isHtml": false
+          },
+          {
+            "path": "README.md",
+            "bytes": 1317,
+            "sha256": "f75cc5926b866c13abdb03299605d5cfa46131692d6e5842cb4ef1ab51a065c5",
+            "isHtml": false
+          }
+        ],
+        "htmlEntries": [
+          "TripSettings.dc.html"
+        ]
+      }
+    }
+  ],
+  "extractions": [
+    {
+      "key": "p12-overview-warmth-v2",
+      "label": "P12 Overview warmth v2",
+      "selector": "P12 Overview *",
+      "sourceArchive": "P12 Overview · warmth v2 (compact + elevation route)-html.zip",
+      "sourceBytes": 458754,
+      "sourceSha256": "f075b30573a22240af5ae432ae944b288c99e8287eb38c176f97527eaab1099c",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/P12Warm2.dc.html"
+      ],
+      "fileCount": 15,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/d3bb23729e6f39dedf12cb0d7296bd1c.jpg",
+          "bytes": 112746,
+          "sha256": "c03c2a4d78c2bf11e38493a2d905f8d4fc214821945a88254bec94b420801885",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/e68a0da6db033acfc6ffb855559da575.jpg",
+          "bytes": 6976,
+          "sha256": "984b960eb8cdec4cbd637556c7127cc74bbdc64795eae953ed8a0a2d5dd5b231",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/c7734e8a8d1427323d2790bc66acf69d.jpg",
+          "bytes": 9284,
+          "sha256": "5d0355179c0f464765fdda5b9d68e29d6bcfee21bf09d08192d3aec387bce29e",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/dd39c60b1bcdf5d63b49e717e9233c6a.jpg",
+          "bytes": 7001,
+          "sha256": "1906904e7065b862493103cdf4c3c11a5984ec20d23c0016484daf75995d9f6f",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/0a76eb28ba88ef67f5e50bbb9f58d8f6.jpg",
+          "bytes": 8657,
+          "sha256": "c4301f33181617aaa13711bfb04ad304979615230aefb3fe6e81dd5d4a165de3",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/a379f93608195b6b7976c2d30b5cdb75.jpg",
+          "bytes": 8934,
+          "sha256": "a092f24f61d5a99050bdae9e8e1ebea021a9d6b47a4e72b0a28dcef3753c8589",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/a8657f8711fa17ad555d01e4e0182f60.jpg",
+          "bytes": 7049,
+          "sha256": "d953ed382f1d803a056caee0417d0c6e944ffeca8ac1b6b623a16aef6e8c233e",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/40fc58f11202c8f7d59ad59124dbbc5d.jpg",
+          "bytes": 9043,
+          "sha256": "4162148b1e3b4452353aaaedd2852cd15a1269e4152d3e925b8465f1cbb29740",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/d709bfde2c360f3d5c270a4efbe65d82.jpg",
+          "bytes": 7173,
+          "sha256": "522c0983a309191ecf102050b18ec285e4dec07ce5b2038c135b055d3afe250b",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/assets/7b7fb43a45bf92e0dd71d560e576e89f.jpg",
+          "bytes": 8182,
+          "sha256": "77d24e42961cdfa28dea465afdcf43fffa84d00dfd36073c1cf966ca812d9b12",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/P12Warm2.dc.html",
+          "bytes": 81535,
+          "sha256": "e8617dceada3487df612f9467d13cbf9ae809b9b8897610c8ab9b7959eccfca7",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/README.md",
+          "bytes": 1323,
+          "sha256": "e7bbb3bd94eda4ac9c556f0d7455d5163bdb30fb897e8679d141a135d4aab5d0",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    },
+    {
+      "key": "route-card-animated",
+      "label": "Route card flat/coast/flights/city",
+      "selector": "Route card *",
+      "sourceArchive": "Route card · flat, coast, flights and city stays (animated)-html.zip",
+      "sourceBytes": 246706,
+      "sourceSha256": "5ad6fc3c25536d5d7e10a3ce6e2961a2bb9a58fe187dc4834b054da9f56b327a",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)/FlatRoute.dc.html"
+      ],
+      "fileCount": 5,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)/FlatRoute.dc.html",
+          "bytes": 56523,
+          "sha256": "a390c4f7af153e7aa8bb77b2b4aa523efaa39561410203210745f449ef15ea30",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Route card · flat, coast, flights and city stays (animated)/README.md",
+          "bytes": 950,
+          "sha256": "454a89df5541ac3f8e0be219178ef24ce46a95115d8be9389b9e3e8543a564a5",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    },
+    {
+      "key": "papercut-warmth-tokens",
+      "label": "Papercut warmth tokens",
+      "selector": "Papercut warmth *tokens*",
+      "sourceArchive": "Papercut warmth · tokens (named scales, light + night)-html.zip",
+      "sourceBytes": 735598,
+      "sourceSha256": "af1af930ccfb01c6ec261cc7631df3fe98dd4b309bde9809bd93752b4a55db56",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/Tokens.dc.html"
+      ],
+      "fileCount": 6,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/assets/97b2b6b8394fb785c1495f98b70ff372.jpg",
+          "bytes": 414767,
+          "sha256": "20bfd067bd31aa3cf7c8944643ae8001615a712c2ead3cf6187a3928fc4a72fa",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/Tokens.dc.html",
+          "bytes": 130122,
+          "sha256": "83c4fcdf491451663fc1f905307fde32e68d76b6da032e200fabf4de5ca053ba",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · tokens (named scales, light + night)/README.md",
+          "bytes": 1320,
+          "sha256": "e23ed203aafb6c190c5055d4c4fb3345bcce2407c1509ad161ddd3f0e9d07117",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    },
+    {
+      "key": "papercut-warmth-component-kit",
+      "label": "Papercut warmth Component kit",
+      "selector": "Papercut warmth *Component kit*",
+      "sourceArchive": "Papercut warmth · Component kit-html.zip",
+      "sourceBytes": 432587,
+      "sourceSha256": "e59e0a6529261d169cfe203ff24552a759e77ce99591b7b4480f7cf3b1ff538b",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/ComponentKit.dc.html"
+      ],
+      "fileCount": 8,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/assets/63390c5a4e2b8d98af7982d25f10f6fe.jpg",
+          "bytes": 82565,
+          "sha256": "a61088ca6717283ec10cb0205c2fb6d1289c8b58177a24dede42e597759b4de1",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+          "bytes": 103637,
+          "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/assets/13ea0432bb5f6c25b028a65b3c6c4510.jpg",
+          "bytes": 24219,
+          "sha256": "c0f3670099d5621697c8a0b42aac3f4c478a99c524027680e2abfe9ec47d1e25",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/ComponentKit.dc.html",
+          "bytes": 31132,
+          "sha256": "753544d45075e06e3f17057f59aa1c2e8c10c73150ef29cf885524f900a18a89",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Papercut warmth · Component kit/README.md",
+          "bytes": 1309,
+          "sha256": "b3e582fa216db9114943f408c3bbd5fe48ae30267641b0ddffafcc0b11520a8e",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    },
+    {
+      "key": "dark-theme-night-sky",
+      "label": "Dark theme night sky palette",
+      "selector": "Dark theme *night sky*",
+      "sourceArchive": "Dark theme · night sky palette-html.zip",
+      "sourceBytes": 324108,
+      "sourceSha256": "7acd1873251c6ab956d3c7f6e114aca9cae6f3de4d7c48ab8010c7fe804483ab",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/DarkTheme.dc.html"
+      ],
+      "fileCount": 6,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+          "bytes": 103637,
+          "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/DarkTheme.dc.html",
+          "bytes": 29774,
+          "sha256": "5757c0f9ad3745810a791d7e03a4c4b3a18a182824292292ffcf1264f35930d8",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Dark theme · night sky palette/README.md",
+          "bytes": 1302,
+          "sha256": "6316f2f6353d8fceaaf9a8e865cd9bd357aee02ada9f7dbc8005433b59ba1562",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    },
+    {
+      "key": "design-system-proposal-day2",
+      "label": "Design system proposal Day 2 before/after",
+      "selector": "Design system proposal *",
+      "sourceArchive": "Design system proposal · Papercut warmth · Day 2 before after-html.zip",
+      "sourceBytes": 478393,
+      "sourceSha256": "6a4dc4748247639b229b8bb2c92700fca4e9d5756252008b2c0e77f2d5ad0d1b",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/WarmSystem.dc.html"
+      ],
+      "fileCount": 10,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/assets/2da9c12d7f8fe91c52a3d78abd52cc59.jpg",
+          "bytes": 43623,
+          "sha256": "c739e2db73858d0d007234edf74411a2c90c3b9ef24efff5d3e69324415b58d7",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/assets/028506faaa65050a29a4224f0745dc98.jpg",
+          "bytes": 31952,
+          "sha256": "0675077067d441971f2618908f6b2ecb29a43c9b3b346e58486de10f4f759601",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/assets/77fa0bde4f2d972c77c5df684c07abac.jpg",
+          "bytes": 34971,
+          "sha256": "0bbb634674323faa397fd72d86c5fa6f32a3f7ff2cb4075f7e1de966bf7a5114",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/assets/c20f6a861c73abcf506128944e69fdc1.jpg",
+          "bytes": 28963,
+          "sha256": "9ac436733c89f805dfff2195fe20e8cfc4d2c0f37c94f8c92bf7a055eefe4fb6",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/assets/d5375549bd5f6d8d79d221f7144e8381.jpg",
+          "bytes": 103637,
+          "sha256": "e2ec61ff772351306b24facf0c92ea7081800640b48da89feaa485f95483fa10",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/WarmSystem.dc.html",
+          "bytes": 43866,
+          "sha256": "74f4d928285301c2556db9318633571248571e1a0a026a1aa441f72b26c67ad0",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Design system proposal · Papercut warmth · Day 2 before after/README.md",
+          "bytes": 1336,
+          "sha256": "190c5500f5083a87a01e2ee9696649802846918b403f70fc707c79e90e375b7f",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    },
+    {
+      "key": "motion-system-live-demos",
+      "label": "Motion system live demos",
+      "selector": "Motion system *",
+      "sourceArchive": "Motion system · live demos-html.zip",
+      "sourceBytes": 280713,
+      "sourceSha256": "3ad08bf651955859b4fbf477371089fca73d0e1460ddcaecfdd11318fa7e0f1f",
+      "destination": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos",
+      "htmlEntryPoints": [
+        "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/Motion.dc.html"
+      ],
+      "fileCount": 6,
+      "files": [
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/assets/7bcbdfec9083b260f1de644639532b22.png",
+          "bytes": 51379,
+          "sha256": "3501b226670428c71bb4ce9cb9afbb8f4036b46be4bdd70892fe847202da016c",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/Motion.dc.html",
+          "bytes": 38653,
+          "sha256": "e24af2c0047be13e981a0c65d2bae400ef3b6b0edf7aa3830d9b4cc401eaa4c1",
+          "isHtml": true,
+          "isSupportFile": false
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/support.js",
+          "bytes": 46105,
+          "sha256": "85c4831871e1b2b26b96206a45514a2d25a7e6591d51014317f57031a4e258f2",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/vendor/react.js",
+          "bytes": 10751,
+          "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/vendor/react-dom.js",
+          "bytes": 131835,
+          "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+          "isHtml": false,
+          "isSupportFile": true
+        },
+        {
+          "path": "docs/redesign/papercut-warmth/exports-20261028/Motion system · live demos/README.md",
+          "bytes": 1292,
+          "sha256": "3ad59c5800ce6c6651bb1e34cc386d161dae59c37d7404cc917c4c4cc029aa78",
+          "isHtml": false,
+          "isSupportFile": true
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Source archives are third-party export bundles. They are never executed or opened in a browser.",
+    "Every archive entry name was checked for absolute paths, drive letters, backslashes and dot-dot segments before extraction.",
+    "Every extracted file was re-hashed on disk and matched against the hash of its archive entry stream.",
+    "support.js and vendor/* are kept unmodified because the exported HTML files load them at runtime.",
+    "The older Dark theme lantern archive is inventoried only. It is not extracted."
+  ]
+}

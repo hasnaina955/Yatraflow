@@ -7,9 +7,10 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const code = readFileSync(join(process.cwd(), 'src/pages/trip/TripSettingsForm.tsx'), 'utf8')
-const css = readFileSync(join(process.cwd(), 'src/styles.css'), 'utf8')
+const css = readCssSource('src/styles.css')
 
 /** The sheet with every @media block removed. The duplicate-selector gate reads
  *  top-level rules only, so a rule inside a media query is not a duplicate. The

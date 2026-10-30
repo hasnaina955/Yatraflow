@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../src/components/ui', () => ({ toast: vi.fn() }))
 
 import { SuggestionFollowUpPanel, followUpFromOutcome, type SuggestionFollowUp } from '../src/pages/trip/GroupInputTab'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const days = [
   { id: 'day-a', index: 0, title: 'Arrival' },
@@ -109,7 +110,7 @@ describe('the follow-up entrance', () => {
   it('uses the shared motion vocabulary with its reduced-motion opt-out', () => {
     // The panel animates with the tokens, not an ad-hoc duration, and the
     // opt-out lives in src/styles.css beside the rule that needs it.
-    const css = require('node:fs').readFileSync('src/styles.css', 'utf8') as string
+    const css = readCssSource('src/styles.css')
     expect(css).toContain('.gin-followup { animation: popover-in var(--motion-fast) var(--ease-glide); }')
     expect(css).toContain('@media (prefers-reduced-motion: reduce) { .gin-followup { animation: none; } }')
   })

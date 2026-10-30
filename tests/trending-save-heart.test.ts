@@ -12,13 +12,14 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { PublishedItinerary, User } from '../src/data/types'
 import { TrendingShelf } from '../src/components/explore/TrendingShelf'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const shelfSource = read('../src/components/explore/TrendingShelf.tsx')
 const cardSource = read('../src/components/explore/ExploreCard.tsx')
 const heartSource = read('../src/components/explore/ExploreSaveHeart.tsx')
 const explorePage = read('../src/pages/Explore.tsx')
-const css = read('../src/styles.css')
+const css = readCssSource('src/styles.css')
 
 const creator: User = {
   id: 'c1', email: 'c1@example.test', createdAt: 0,

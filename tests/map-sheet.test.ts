@@ -12,12 +12,13 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { SHEET_MAX_WIDTH, SHEET_TABS, sheetAppliesAt, sheetHiddenClass, sheetTabFor, sheetTabMove } from '../src/lib/mapSheet'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const tab = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
 // #420 slice 12: the sheet state and its measure effect live in the rail-view hook.
 const hook = readFileSync(join(root, 'src', 'pages', 'trip', 'map', 'useRailView.ts'), 'utf8')
-const css = readFileSync(join(root, 'src', 'styles.css'), 'utf8')
+const css = readCssSource('src/styles.css')
 
 describe('the sheet tab model (A415)', () => {
   it('offers exactly the sections that exist, and points at their real ids', () => {

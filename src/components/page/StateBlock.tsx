@@ -14,7 +14,8 @@ export type StateKind = 'loading' | 'failed' | 'empty' | 'kept'
 export type StateSize = 'full' | 'compact'
 
 /** The ARIA role a state announces with. Loading and a kept note are a polite status. A failed read is an alert. An empty state stays silent. */
-export function stateBlockRole(kind: StateKind): 'status' | 'alert' | undefined {
+export function stateBlockRole(kind: StateKind, override?: 'status' | 'alert'): 'status' | 'alert' | undefined {
+  if (override) return override
   if (kind === 'loading' || kind === 'kept') return 'status'
   if (kind === 'failed') return 'alert'
   return undefined
@@ -30,7 +31,7 @@ export function stateBlockHasBody(body: ReactNode): boolean {
   return body !== undefined && body !== null && body !== false && body !== ''
 }
 
-export function StateBlock({ kind, art, icon, title, body, actions, titleLevel = 'h3', size = 'full' }: {
+export function StateBlock({ kind, art, icon, title, body, actions, titleLevel = 'h3', size = 'full', role }: {
   kind: StateKind
   art?: ReactNode
   icon?: ReactNode
@@ -39,15 +40,16 @@ export function StateBlock({ kind, art, icon, title, body, actions, titleLevel =
   body?: ReactNode
   actions?: ReactNode
   /** The heading level of the title. Use h2 on a page whose block sits right under the h1. */
-  titleLevel?: 'h2' | 'h3'
+  titleLevel?: 'h1' | 'h2' | 'h3'
+  role?: 'alert' | 'status'
   /** The size of the block. Use compact inside a workspace tab or a card. */
   size?: StateSize
 }) {
-  const role = stateBlockRole(kind)
+  const resolvedRole = stateBlockRole(kind, role)
   const isLoading = kind === 'loading'
   const TitleTag = titleLevel
   return (
-    <div className={stateBlockRootClass(size)} data-kind={kind} role={role} aria-live={isLoading ? 'polite' : undefined}>
+    <div className={stateBlockRootClass(size)} data-kind={kind} role={resolvedRole} aria-live={isLoading && resolvedRole === 'status' ? 'polite' : undefined}>
       {art && <div className="yf-state-art">{art}</div>}
       {icon && <div className="yf-state-icon">{icon}</div>}
       <TitleTag className="yf-state-title">{title}</TitleTag>

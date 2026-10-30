@@ -4,6 +4,9 @@ Start here. The codebase is documented across the files below — read the ones 
 
 | Doc | What's in it |
 |---|---|
+| [`redesign/papercut-warmth/REFERENCES.md`](redesign/papercut-warmth/REFERENCES.md) | Papercut source manifest, authority and conflicts. The execution plan is in ROADMAP. |
+| [`redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md`](redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md) | Trip workspace header and Overview implementation spec. It records the 28 October source direction and the P2 behavior contracts. |
+| [`dev/evidence/README.md`](../dev/evidence/README.md) | Overview fixture evidence and its signed-in verification limits. |
 | [`redesign/create-flow/SPEC.md`](redesign/create-flow/SPEC.md) | Guided Create trip specification and the 53 approved reference images. |
 | [`README.md`](../README.md) | Project overview, features, MVP scope, roadmap, quick start. The front door. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the pieces fit: data model, store, engine math, AI, geocoding, routing, maps, theming, extension points, gotchas. Read before changing core logic. |
@@ -29,6 +32,11 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`standards/store-persistence.md`](standards/store-persistence.md) | Reference: the store/persistence convention entries, split verbatim out of `CODING_STANDARDS.md` §2 (2026-10-05) — write-through, Supabase `{error}`, RLS probes, the covers bucket, offline cache/queue, import quality. |
 | [`standards/maps-and-providers.md`](standards/maps-and-providers.md) | Reference: the maps/provider convention entries, split verbatim out of `CODING_STANDARDS.md` §2 (2026-10-05) — basemaps, glyph stacks, quota SKUs, Null Island coords, route measurement, suggestion-cache persistence. |
 | [`standards/ui-and-design-system.md`](standards/ui-and-design-system.md) | Reference: the UI/design-system convention entries, split verbatim out of `CODING_STANDARDS.md` §2 (2026-10-05) — the CSS cascade traps, contrast ratchets, motion tokens, a11y, z-index, chunking. |
+| [`evidence/css-0-source-graph.md`](evidence/css-0-source-graph.md) | Evidence (2026-10-29): stage CSS-0 of the CSS migration. The shared source-graph reader, the reader inventory, the refusal codes, the fingerprint, the commands and the rollback boundary. |
+| [`evidence/css-2-pilot.md`](evidence/css-2-pilot.md) | CSS-2 ownership, checks, capture limits, and rollback boundaries. |
+| [`evidence/css-3-inventory.md`](evidence/css-3-inventory.md) | Evidence (2026-10-29): stage CSS-3 inventory. The starting fingerprint, the line-ending repair that makes it reproduce, the ownership table by family, the real cross-file duplicates, and the verification limits carried from CSS-2. |
+| [`evidence/css-3-batches.md`](evidence/css-3-batches.md) | Evidence (2026-10-29): CSS-3 batches. B0 enforcement rules and fixtures, B1 token consolidation with the declaration signature proof, the results, and the measurement limits. |
+| [`evidence/css-1-extraction.md`](evidence/css-1-extraction.md) | Evidence (2026-10-29): stage CSS-1. The slice table, the frozen input fingerprint, the ordered-parse and built-CSS equivalence, the commands and the one-step rollback. |
 | [`AGENTS-VERIFICATION.md`](AGENTS-VERIFICATION.md) | The `npm run verify` gate, the shell traps that make it lie, what CI runs per destination (§3.1), and the migration status check `verify` cannot see (§3.2). |
 | [`../GLOSSARY.md`](../GLOSSARY.md) | Reference: the domain vocabulary — plan, crew, road measurement, publishing and session terms — each entry grounded in the export that defines it and stating the traps (day `index` vs array position, 1-based `orderInDay`, INTO-legs, unpublish-is-a-marker). Read before naming a domain term in code or in a brief. |
 | [`adr/`](adr/) | Decision records: expensive-to-reverse, surprising, or contested choices. An Accepted ADR is never edited — it is superseded. Begins with the two-branch release model and the mockup palette decision. |

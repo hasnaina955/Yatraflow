@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { railOverflow } from '../src/lib/railOverflow'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 // #684: the trip tab rail scrolls sideways at phone width and hides its
 // scrollbar, so the edge fade has to know which side still holds hidden tabs.
@@ -34,7 +35,7 @@ describe('rail overflow state', () => {
 
 describe('the rail publishes its state, and the stylesheet paints it', () => {
   const pillNav = readFileSync(new URL('../src/components/PillNav.tsx', import.meta.url), 'utf8')
-  const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const css = readCssSource('src/styles.css')
 
   it('PillNav reads the rail and writes the state it measured', () => {
     expect(pillNav).toContain("import { railOverflow } from '../lib/railOverflow'")

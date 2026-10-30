@@ -65,6 +65,25 @@ const weatherCache = new Map<string, { at: number; data: Record<string, DayWeath
  *  hammering the API on every remount. */
 export const WEATHER_TTL_MS = 5 * 60 * 1000
 
+/**
+ * Test seam. The dev fixture swaps the transport so a capture run can drive
+ * failures and recoveries without touching the live forecast. Production never
+ * calls the setter, so the shipped path is still `fetch`.
+ */
+let weatherTransportOverride: ((url: string) => Promise<Response>) | null = null
+
+export function setWeatherTransportForTests(next: ((url: string) => Promise<Response>) | null): void {
+  // Dev and test only. A production bundle must never swap the transport.
+  if (!import.meta.env.DEV) return
+  weatherTransportOverride = next
+}
+
+/** Drop every cached and in-flight forecast, so a fixture scenario starts clean. */
+export function clearWeatherCacheForTests(): void {
+  weatherCache.clear()
+  inflightWeather.clear()
+}
+
 export function fetchDailyWeather(
   lat: number,
   lng: number,
@@ -103,7 +122,7 @@ async function fetchDailyWeatherOnce(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
     `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
     `&timezone=auto&start_date=${startDate}&end_date=${isoAddDays(startDate, Math.max(0, numDays - 1))}`
-  const res = await fetch(url)
+  const res = await (weatherTransportOverride ?? fetch)(url)
   if (!res.ok) throw new Error(`weather ${res.status}`)
   const data = await res.json()
   const d = data.daily ?? {}

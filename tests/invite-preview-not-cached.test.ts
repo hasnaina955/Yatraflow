@@ -587,7 +587,7 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
   it('fetchSharedTrip reads through the UUID RPC, never the code RPC', () => {
     // The full-row path for a shared trip. If it ever called the code RPC, a
     // non-member holding a UUID could resolve a code from it.
-    const shared = fnBody(STORE, 'export async function fetchSharedTrip(')
+    const shared = fnBody(STORE, 'export async function readSharedTrip(')
     expect(shared).toContain("rpc('get_invite_trip'")
     expect(shared).not.toContain("rpc('get_trip_by_invite_code'")
   })
@@ -640,7 +640,7 @@ describe('B2 — a resolved link leaves the loading status', () => {
     // The set must be inside the success branch, next to the trip it returns.
     // Round 10 keeps the trip WITH its target, so the setter is `setResolved`.
     const at = APP.indexOf("setStatus('ready')")
-    expect(APP.slice(Math.max(0, at - 120), at)).toContain('setResolved({ target: linkTarget, trip: t })')
+    expect(APP.slice(Math.max(0, at - 160), at)).toContain('setResolved({ target: linkTarget, trip: result.trip })')
   })
 
   it('the loading render is only for a genuinely unread link', () => {

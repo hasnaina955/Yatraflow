@@ -1,0 +1,27 @@
+.ex-search { position: relative; flex: var(--search-field-flex, 1 1 100%); min-width: 0; }
+.ex-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
+.ex-search-input {
+  width: 100%; min-height: 44px; padding: 0 3rem 0 2.75rem;
+  border: 1px solid var(--ex-line-strong); border-radius: 12px; background: var(--card-soft); color: var(--text);
+  font-size: 15px; -webkit-appearance: none; appearance: none;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+}
+.ex-search-input::placeholder { color: var(--text-2); opacity: 1; }
+.ex-search-input:hover { border-color: color-mix(in srgb, var(--text) 40%, transparent); }
+.ex-search-input:focus-visible { outline: none; border-color: var(--teal-deep); box-shadow: var(--ring); }
+.ex-search-input::-webkit-search-cancel-button { display: none; }
+.ex-search-clear {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--text-2); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ex-search-clear:hover { background: var(--bg-soft); }
+.ex-search-clear:focus-visible { outline: none; box-shadow: var(--ring); }
+
+@media (max-width: 720px), (pointer: coarse) {
+  .ex-search-clear { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ex-search-input, .ex-search-clear { transition: none; }
+}

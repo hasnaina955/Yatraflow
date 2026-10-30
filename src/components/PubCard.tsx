@@ -7,6 +7,7 @@ import { InlineIcon, MetaIcon } from './icons'
 import type { PublishedItinerary, User } from '../data/types'
 import { formatInr } from '../lib/engine'
 import { cap } from '../lib/labels'
+import { staggerDelay } from '../lib/motion'
 import { openExternal } from '../lib/native'
 import { Avatar, Chip } from './ui'
 import { CoverThumb } from './CoverThumb'
@@ -32,7 +33,7 @@ export function PubCard({ pub, creator, saved, onFork, onToggleSave, enterIndex,
        its plate fading in inside it. */
     <div
       className={`bezel${enterIndex != null ? ' trip-enter' : ''}`}
-      style={enterIndex != null ? { animationDelay: `calc(var(--stagger-step) * ${Math.min(enterIndex, 8)})` } : undefined}
+      style={enterIndex != null ? { animationDelay: staggerDelay(enterIndex) } : undefined}
     >
       <div className="card itin-card">
         <button className="save-heart" aria-pressed={saved} aria-label={saved ? 'Remove from saved' : 'Save itinerary'}

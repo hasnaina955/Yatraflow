@@ -11,9 +11,15 @@
 // Every region has at least one scene, including "generic", which holds the
 // geographically neutral scene an unmatched destination shows. The road and
 // city families are reached only when a region list is empty.
+//
+// coverPlanFor() is the same order as a LIST rather than one answer: the user
+// upload first, then every scene that honestly fits, then the neutral ones.
+// One renderer walks that list, so a missing or broken file moves to the next
+// scene instead of blanking the slot. The emoji is the list's last resort and
+// is never mixed into the images.
 
 import manifestJson from '../assets/art/manifest.json'
-import { placeArtFor } from './placeArt'
+import { placeArtFamilyFor, placeArtFor, placeFallbacksFrom } from './placeArt'
 
 export type ArtRegion = 'kerala' | 'goa' | 'rajasthan' | 'coorg' | 'meghalaya' | 'kashmir' | 'generic'
 
@@ -59,6 +65,20 @@ const ENTRIES_BY_ID = new Map(Object.entries(ART_MANIFEST.ids))
 /** The user's own cover, or a generated image id, or null for the SVG floor. */
 export type CoverChoice = { kind: 'user'; url: string } | { kind: 'generated'; id: string }
 
+/**
+ * The compass is the create form's default marker, not a cover choice. The form
+ * previews it, and the create path stores an empty string unless the traveller
+ * picks another emoji. A row written before this rule still holds the compass,
+ * so every reader treats it as "no choice" and shows the trip's own artwork.
+ */
+export const DEFAULT_COVER_EMOJI = '🧭'
+
+/** True only for an emoji the traveller actually chose. */
+export function isChosenCoverEmoji(value: string | null | undefined): boolean {
+  const emoji = value?.trim() ?? ''
+  return emoji !== '' && emoji !== DEFAULT_COVER_EMOJI
+}
+
 export interface CoverInput {
   /** The cover photo the user chose. Empty or missing means no user cover. */
   userCover?: string | null
@@ -75,6 +95,19 @@ export interface CoverInput {
    * chain below answers exactly as it always has.
    */
   destinations?: readonly string[] | null
+  /**
+   * The trip's start place. It is evidence only when the destination list
+   * resolves to nothing: a trip whose stops name no supported place is still
+   * a trip that starts somewhere. A recognised start never mixes with a
+   * recognised destination, so a Goa trip that leaves from Mumbai keeps the
+   * Goa scene and does not become a cross-state road cover.
+   */
+  startLocation?: string | null
+  /**
+   * The traveller's saved emoji. It is the cover's LAST resort: it shows only
+   * when every image above it is unavailable, and it never paints over one.
+   */
+  fallbackEmoji?: string | null
 }
 
 /** FNV-1a 32-bit hash of a string. The same input always gives the same number. */
@@ -95,6 +128,25 @@ function pickFromList(ids: readonly string[], seed: string): string | null {
 /** The generated id for a region, chosen by seed. Null when the region has no generated image. */
 export function artIdFor(region: ArtRegion, seed: string, manifest: ArtManifest = ART_MANIFEST): string | null {
   return pickFromList(manifest.regions[region] ?? [], seed)
+}
+
+/**
+ * Every scene a region owns, seeded-first.
+ *
+ * `artIdFor` answers with ONE id, so a cover that can try only that id falls
+ * straight through to the neutral road or city family when the file is missing
+ * or refused — even though the region's other scenes are bundled and would be
+ * an honest answer. This returns the whole family instead, rotated so the same
+ * seeded scene leads and the rest follow in their declared order. The order is
+ * stable for one seed and the list is finite.
+ *
+ * Empty only when the region declares no ids at all.
+ */
+export function artFamilyFor(region: ArtRegion, seed: string, manifest: ArtManifest = ART_MANIFEST): string[] {
+  const ids = manifest.regions[region] ?? []
+  if (ids.length === 0) return []
+  const start = hashSeed(seed) % ids.length
+  return [...ids.slice(start), ...ids.slice(0, start)]
 }
 
 /** Which fallback family a trip uses when its region has no image of its own. */
@@ -131,6 +183,100 @@ export function coverFor(input: CoverInput, manifest: ArtManifest = ART_MANIFEST
   if (fallbackId) return { kind: 'generated', id: fallbackId }
 
   return null
+}
+
+/**
+ * The whole cover as an ordered list, plus the emoji that may stand in when
+ * every image is gone.
+ *
+ * `candidates` is ordered by how specific the claim is: the traveller's own
+ * upload, then the scenes that name a place the trip actually reaches, then
+ * the neutral ones. A renderer walks the list and stops at the first image
+ * that paints, so one missing file costs a step, not the slot. The list holds
+ * no duplicates: a scene that is already a candidate is never added twice.
+ *
+ * `fallbackEmoji` is the saved emoji, or the compass when none is saved. It is
+ * drawn only when the list is exhausted, and never over an image.
+ */
+export interface CoverPlan {
+  candidates: readonly CoverChoice[]
+  fallbackEmoji: string
+}
+
+/**
+ * Resolve a cover as a whole plan.
+ *
+ * Order, and nothing may reorder it:
+ *   1. The traveller's own upload. It wins, and it is the only thing the slot
+ *      shows while it works.
+ *   2. The India place layer, when it identifies a destination or a
+ *      jurisdiction. Its own family follows, so a failed file has siblings.
+ *   3. The seven-region matcher's family, when the place layer named nothing
+ *      but the region matcher recognised the stops. Its table is the wider one,
+ *      so "Gulmarg" is Kashmir here even though no place table lists it.
+ *   4. The start place, but ONLY when steps 2 and 3 found nothing. A recognised
+ *      destination is the stronger claim, and mixing a recognised origin into
+ *      it would invent a cross-state trip that the traveller never planned.
+ *   5. The rest of the region's own scenes, seeded-first, then the road or city
+ *      family. A region with two bundled scenes never drops to the neutral
+ *      family while a scene of its own is still available.
+ *
+ * The generated scenes follow the upload rather than being dropped by it: an
+ * upload that cannot load is not a usable cover, and artwork beats an emoji.
+ * They never paint over an upload that does load, because the renderer stops at
+ * the first image that succeeds.
+ *
+ * A scene id is added at most once. The list is finite and its order is a pure
+ * function of the input, so the same trip always gets the same plan.
+ */
+export function coverPlanFor(input: CoverInput, manifest: ArtManifest = ART_MANIFEST): CoverPlan {
+  const emoji = input.fallbackEmoji?.trim()
+  const fallbackEmoji = emoji || DEFAULT_COVER_EMOJI
+  const generated: CoverChoice[] = []
+  const seen = new Set<string>()
+  const addScene = (id: string | null | undefined) => {
+    if (!id || seen.has(id)) return
+    seen.add(id)
+    generated.push({ kind: 'generated', id })
+  }
+
+  const fallbacks = placeFallbacksFrom(manifest)
+  const destinationMatch = placeArtFor(input.destinations, input.seed, fallbacks)
+  const destinationFamily = placeArtFamilyFor(destinationMatch, fallbacks)
+  // The place layer answers "generic" for anything it does not know. That is
+  // not evidence about this trip, so it does not stop the start place from
+  // being consulted.
+  const placeLayerKnows = destinationMatch !== null && destinationMatch.kind !== 'generic'
+  // The seven-region matcher is the WIDER table: it knows Gulmarg is Kashmir
+  // and Kochi is Kerala, where the place layer knows neither. A region it names
+  // is destination evidence too, so an unrelated origin cannot outrank it.
+  const regionKnows = input.region !== 'generic'
+
+  if (placeLayerKnows) {
+    for (const id of destinationFamily) addScene(id)
+  } else if (regionKnows) {
+    // No place named, but the region matcher recognised the stops. Its own
+    // family leads, so a refused file costs a step inside the region rather
+    // than dropping to the neutral scene.
+    for (const id of artFamilyFor(input.region, input.seed, manifest)) addScene(id)
+  } else {
+    const startMatch = placeArtFor([input.startLocation ?? ''], input.seed, fallbacks)
+    const startIsEvidence = startMatch !== null && startMatch.kind !== 'generic'
+    if (startIsEvidence) {
+      for (const id of placeArtFamilyFor(startMatch, fallbacks)) addScene(id)
+    }
+  }
+
+  // Every scene the region owns follows, seeded-first, so a place-layer match
+  // inside a recognised region still has the region's own scenes behind it.
+  for (const id of artFamilyFor(input.region, input.seed, manifest)) addScene(id)
+  for (const id of manifest.fallbacks[fallbackKindFor(input.placeCount)] ?? []) addScene(id)
+
+  const userUrl = input.userCover?.trim()
+  const candidates: CoverChoice[] = userUrl
+    ? [{ kind: 'user', url: userUrl }, ...generated]
+    : generated
+  return { candidates, fallbackEmoji }
 }
 
 /**

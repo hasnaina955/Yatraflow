@@ -1324,35 +1324,54 @@ export function tripById(id: ID): Trip | undefined {
  * read the invite code off a cached preview. Nothing in this change makes that
  * true or false — only the installed SQL decides it.
  */
-export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): Promise<Trip | null> {
+export type SharedTripRead =
+  | { kind: 'found'; trip: Trip }
+  | { kind: 'unavailable' }
+  | { kind: 'failed' }
+  | { kind: 'cancelled' }
+
+export async function readSharedTrip(tripId: ID, allowInvitePreview = false): Promise<SharedTripRead> {
   const epoch = identityEpoch
   const userId = cache.sessionUserId
   const live = () => epoch === identityEpoch && cache.sessionUserId === userId
   const local = tripById(tripId)
-  if (local) return local
+  if (local) return { kind: 'found', trip: local }
   let row: TripRow | null = null
-  const { data, error } = await supabase.from('trips').select('*').eq('id', tripId).maybeSingle()
-  if (!live()) return null
-  if (error) console.error('[yatraflow] shared trip fetch failed', error)
-  if (data) row = data as TripRow
-  if (!row && allowInvitePreview) {
-    const rpc = await supabase.rpc('get_invite_trip', { p_trip_id: tripId })
-    if (!live()) return null
-    if (rpc.error) console.error('[yatraflow] invite preview fetch failed', rpc.error)
-    const rows = rpc.data as TripRow[] | null
-    if (Array.isArray(rows) && rows.length > 0) row = rows[0]
+  try {
+    const { data, error } = await supabase.from('trips').select('*').eq('id', tripId).maybeSingle()
+    if (!live()) return { kind: 'cancelled' }
+    if (error) console.error('[yatraflow] shared trip fetch failed', error)
+    let failed = !!error
+    if (!error && data) row = data as TripRow
+    if (!row && allowInvitePreview) {
+      const rpc = await supabase.rpc('get_invite_trip', { p_trip_id: tripId })
+      if (!live()) return { kind: 'cancelled' }
+      if (rpc.error) console.error('[yatraflow] invite preview fetch failed', rpc.error)
+      failed = failed || !!rpc.error
+      const rows = rpc.data as TripRow[] | null
+      if (!rpc.error && Array.isArray(rows) && rows.length > 0) row = rows[0]
+    }
+    if (!row) return { kind: failed ? 'failed' : 'unavailable' }
+    // B3 (round 10) — provenance. A preview for another trip is not this link's
+    // answer, so the gate says the link is dead instead of previewing a stranger.
+    if (typeof row.id !== 'string' || row.id.toLowerCase() !== tripId.toLowerCase()) return { kind: 'unavailable' }
+    const trip = rowToTrip(row, [])
+    recordServerTripTimestamp(trip.id, trip.updatedAt)
+    if (!cache.trips.some(t => t.id === trip.id)) {
+      cache.trips = [...cache.trips, trip]
+      commit()
+    }
+    return { kind: 'found', trip }
+  } catch (error) {
+    if (!live()) return { kind: 'cancelled' }
+    console.error('[yatraflow] shared trip fetch failed', error)
+    return { kind: 'failed' }
   }
-  if (!row) return null
-  // B3 (round 10) — provenance. A preview for another trip is not this link's
-  // answer, so the gate says the link is dead instead of previewing a stranger.
-  if (typeof row.id !== 'string' || row.id.toLowerCase() !== tripId.toLowerCase()) return null
-  const trip = rowToTrip(row, [])
-  recordServerTripTimestamp(trip.id, trip.updatedAt)
-  if (!cache.trips.some(t => t.id === trip.id)) {
-    cache.trips = [...cache.trips, trip]
-    commit()
-  }
-  return trip
+}
+
+export async function fetchSharedTrip(tripId: ID, allowInvitePreview = false): Promise<Trip | null> {
+  const result = await readSharedTrip(tripId, allowInvitePreview)
+  return result.kind === 'found' ? result.trip : null
 }
 
 /**

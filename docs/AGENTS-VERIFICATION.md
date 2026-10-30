@@ -43,7 +43,7 @@ Browser checks must accept this floor instead of requiring an exact zero.
 
 **The page sampler follows the final route root.** A lazy route can replace a loading screen after one frame. The sampler starts a new record for that page. It still checks every block in the final page.
 
-**The default STE check reads the whole branch, not only unstaged edits.** `npm run lint:ste` compares the tree with the merge base of `origin/test`, so committed and uncommitted lines both count. In a pull request, it uses the target branch instead. Run `git fetch origin test` first. A new file must be staged (`git add -N`) before the check sees it. The check exits 2 when it cannot run. That covers a shallow clone with no merge base (run `git fetch --unshallow`) and a missing base branch under CI. Outside CI, a missing `origin/test` falls back to `origin/main`, then to `HEAD~1`, and a warning names the base used. Exit 0 passes, and exit 1 means a rule is broken. The directory `docs/consistency/` is exempt from the diff runs, because it holds planning notes written before these rules. An explicit `--file` still checks the file you name.
+**The default STE check reads the whole branch, not only unstaged edits.** `npm run lint:ste` compares the tree with the merge base of `origin/test`, so committed and uncommitted lines both count. In a pull request, it uses the target branch instead. Run `git fetch origin test` first. A new file must be staged (`git add -N`) before the check sees it. The check exits 2 when it cannot run. That covers a shallow clone with no merge base (run `git fetch --unshallow`) and a missing base branch under CI. Outside CI, a missing `origin/test` falls back to `origin/main`, then to `HEAD~1`, and a warning names the base used. Exit 0 passes, and exit 1 means a rule is broken. The directory `docs/consistency/` is exempt from the diff runs, because it holds planning notes written before these rules. The check compares legacy CSS with the extraction commit. It checks new and edited lines. It checks all lines if that commit is missing. An explicit `--file` checks the whole file you name.
 
 The check once read only unstaged edits, so a commit made it inspect zero lines and always pass. If the checked count is zero, read the base named in the verdict before you trust the pass.
 
@@ -179,6 +179,14 @@ Hard rules (each learned the hard way — do not relearn them):
   operations: change the CSS, run the ratchet, and only reach for
   `UPDATE_DESIGN_SYSTEM_BASELINE=1` when it is actually red — then still prove the finding
   names are identical in and out.
+- **A CSS check reads the source graph, never the entry file alone (learned
+  2026-10-29).** `src/styles.css` imports modules during the CSS migration. A
+  check that reads only the entry file stops seeing moved rules, and it stays
+  green while it does. Use `scripts/css-source-graph.mjs`: `readCssSource()`
+  returns the flattened cascade, and `loadCssGraph()` returns records with
+  file, line and conditional context. `node scripts/css-source-graph.mjs`
+  prints the fingerprint over every file in the graph. A remote import is
+  refused. A missing import or a cycle fails with its path.
 - **The ratchet parses each selector's OWN declaration pair — it never walks
   the cascade (learned 2026-09-22).** A `:root` override can fix a contrast
   finding on screen while the baseline keeps it forever: `.day-warn-pill`

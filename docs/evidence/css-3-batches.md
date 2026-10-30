@@ -977,3 +977,71 @@ The hero's reduced-motion rule moved with the family. It still declares `animati
 
 Rollback: move the thirteen rules back to sections 02, 04 and 12. Restore the shared `.hero, .plan-bench` selector. Remove the module and its import. Re-key the appearance baseline to the legacy file.
 
+## B11: the pill navigation
+
+Inventory only. The batch did not move a rule, and this section records why.
+
+### The family is three components under one scope
+
+The plan named `.pill-nav`. The trace found 26 selector matches in five files. They do not style one component. They style three other components from inside a `.pill-nav` scope.
+
+| Selector | Matches | What it reaches |
+|---|---|---|
+| `.pill-nav` | 1 | the rail: relative flex, 2px gap, `--pill-gap` |
+| `.pill-nav > *` | 1 | stacking above the glider |
+| `.pill-glider` | 2 | the sliding highlight, plus its dark tint |
+| `.pill-nav .nav-link.active`, `.tab-btn.active`, `.clickable-chip.on-teal` | 6 | clears the active fill so the glider shows through |
+| `[data-theme='dark'] .pill-nav …` | 3 | dark ink on the active item |
+| `.clickable-chip.on-teal`, `.on-saffron` | 3 | teal and saffron ink, plus the saffron glider tint |
+| `…:focus-visible` | 3 | the focus ring, in place of the cleared fill |
+| `.clickable-chip.on-teal .tab-count` | 1 | the count pill background |
+| `.pill-nav .pill-ink-row .tab-btn`, `.nav-link` | 3 | the workspace rail's ink row |
+| `.yf-page .yf-tabbar .pill-glider` | 2 | the workspace glider tint and its reduced-motion reset |
+
+The tokens inside those selectors — `.nav-link`, `.tab-btn`, `.clickable-chip` — belong to other families. An owner for `.pill-nav` claims rules that paint another component's ink, fill and focus ring. That is a contract question about the glider, not a file move.
+
+### What a signed-out page can reach
+
+The probe is `dev/_css3-probe-pill.mjs`. It counts the family on the two routes that render the top navigation.
+
+| Route | Width | `.pill-nav` | `.pill-glider` | `.nav-link` in rail | `.tab-btn` | `.clickable-chip` | `.pill-ink-row` |
+|---|---|---|---|---|---|---|---|
+| `/` | 1440 | 1 | 1 | 1 | 0 | 0 | 0 |
+| `/` | 390 | 1 | 1 | 1 | 0 | 0 | 0 |
+| `/explore` | 1440 | 1 | 1 | 1 | 0 | 0 | 0 |
+| `/explore` | 390 | 1 | 1 | 1 | 0 | 0 | 0 |
+
+One rail renders, and it holds one link. The teal and saffron chip states, the count pill, the ink row and the workspace glider never render. Two thirds of the family is unreachable without a session.
+
+### Why the batch stops here
+
+`/trips` sends a signed-out visitor to the Landing page, and no source file offers a dev sign-in path. The tab rail, the ink row and every chip state stay unreachable. So does the Board.
+
+The family cannot be declared owned and moved in part. An owner claims every rule that names the class, so a partial move fails the gate. A move of the unreachable rules without a reading is a guess.
+
+The batch needs one thing first: a measurement path into a signed-in workspace. The instrument is ready for it. `dev/_css3-page-compare.mjs` already enumerates a live DOM, swaps a stylesheet and compares. It needs a case that a session can open.
+
+### Interrupted switching and rapid reversal
+
+These need the same session. A glider that is mid-transition when the active item changes, and a reversal during that transition, are behaviour questions. The geometry is `left`, `top`, `width` and `height` with `--motion-med` and `--ease-glide`. A test reads the glider box after an interrupt, then after a reversal.
+
+No such reading exists yet, so this batch makes no claim about it.
+
+## Remaining legacy responsibilities
+
+These files are unowned on purpose. Each entry names what still lives there and why.
+
+| Responsibility | Where | Why it stays |
+|---|---|---|
+| `.board*`, 150 rules over 29 classes | `01`, `02`, `04`, `06`, `16` | Five cascade positions, and no signed-out route renders the Board. |
+| `.pill-nav` and `.pill-glider`, 26 matches | `01`, `02`, `16`, `17` | The states that define it need a workspace session. |
+| `.trip-head-card`, 13 rules | `02`, `04`, `13` | No source file renders it. The family is unreachable. |
+| Unreachable `.itin-card` overrides, 18 rules | `11` | `.trips-page` renders `.mt-card`. No file applies `.explore-grid.as-list`. |
+| Page cards and grids, `.mt-card` and `.mt-grid` | `09` | Not yet a batch. |
+| The trip workspace, `.yf-*` | `14`, `16` | Not yet a batch. |
+| Explore page furniture, `.ex-*` | `10`, `11` | Not yet a batch. |
+| Print, map and MapLibre surfaces | `02`, `03`, `08` | Not yet a batch. |
+
+The styling exceptions stay recorded in the map, not in this table: 128 appearance keys and one variable exception. `check:css` fails on a stale key, so the figure cannot drift.
+
+

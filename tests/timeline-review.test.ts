@@ -208,3 +208,34 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     expect(tab).toMatch(/const route = it\.changesCity && it\.from && it\.place \? `\$\{it\.from\} → \$\{it\.place\}` : it\.place/)
   })
 })
+
+describe('the timeline blocks cascade in, like the Overview beside them', () => {
+  // The tab renders inside TripWorkspace's `tab-panel`, one level down from the
+  // page root, so the shared `.page-enter > *` cascade never reached the
+  // toolbar, the ribbon or a day card: measured in the browser, every one of
+  // them went from opacity 0 to 1 between two frames while the Overview's cards
+  // stepped in. The tab owns a `page-enter` wrapper for its own blocks instead
+  // of restating the cascade — one owner, so the stagger stays the house's.
+  it('wraps the toolbar, the ribbon and the day list in the shared cascade', () => {
+    const open = tab.indexOf('<div className="page-enter">')
+    expect(open, 'the tab has no `page-enter` wrapper').toBeGreaterThan(-1)
+    // Anchor on the wrapper's own close: the modals follow it, so the block
+    // between them is exactly what the cascade owns.
+    const close = tab.indexOf('      </div>\n\n      <StopEditor')
+    expect(close, 'the wrapper does not close before the modals').toBeGreaterThan(open)
+    const wrapped = tab.slice(open, close)
+    expect(wrapped).toMatch(/className="row-between tl-head"/)
+    expect(wrapped).toMatch(/className="tl-ribbon"/)
+    expect(wrapped).toMatch(/\{days\.map\(day => \(/)
+  })
+
+  it('leaves the modals outside it, so an opened sheet is not re-entered', () => {
+    // The editor and the move sheet are siblings of the wrapper, not children:
+    // they animate on their own open, and a second entrance would play on every
+    // render of the list beneath them.
+    const afterWrap = tab.slice(tab.indexOf('      <StopEditor'))
+    expect(afterWrap).toMatch(/<StopEditor/)
+    expect(afterWrap).toMatch(/<MoveStopModal/)
+    expect(afterWrap).not.toMatch(/<div className="page-enter">/)
+  })
+})

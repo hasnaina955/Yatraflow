@@ -34,12 +34,12 @@ describe('Papercut motion foundation', () => {
     }
   })
 
-  it('pins the cool palette and shared role aliases', () => {
+  it('pins the Linen palette and shared role aliases', () => {
     const light = [
-      '--pw-paper: #F0F8F6', '--pw-sunken: #E0EBE9', '--pw-soft: #EAF3F2',
-      '--pw-card: #FCFEFD', '--pw-line: #D3DEDC', '--pw-line-soft: #DCE7E6',
-      '--pw-ink: #142329', '--pw-ink-2: #45565D', '--pw-ink-3: #556972',
-      '--pw-ink-4: #79929E',
+      '--pw-paper: #F8F5F0', '--pw-sunken: #ECE7DE', '--pw-soft: #F2EDE4',
+      '--pw-card: #FEFDFB', '--pw-line: #DFDBD1', '--pw-line-soft: #E8E4DB',
+      '--pw-ink: #22201E', '--pw-ink-2: #57524C', '--pw-ink-3: #6B645C',
+      '--pw-ink-4: #8C857B',
     ]
     const dark = [
       '--pw-paper: #0C1420', '--pw-sunken: #101B2B', '--pw-soft: #182740',
@@ -48,12 +48,15 @@ describe('Papercut motion foundation', () => {
       '--pw-ink-3: #8FA0B5', '--pw-ink-4: #5F757F',
     ]
     for (const value of [...light, ...dark]) expect(css).toContain(value)
-    expect(css).toContain('--shadow-navy-rgb: 20, 56, 66')
+    expect(css).toContain('--shadow-navy-rgb: 34, 32, 30')
     expect(css).toContain('--font-serif: var(--font-display)')
     expect(css).toContain('--font-hand: var(--font-body)')
     expect(css).toContain('--pw-display-xl: 700 56px/1.04 var(--font-display)')
     expect(css).toContain('--pw-body: 500 15px/1.5 var(--font-body)')
     expect(css).not.toMatch(/#FBF5EA|#F3E6D3|#FFFDF8|rgba\(96,\s*60,\s*24/)
+    // The cool-mist neutrals must not come back: Linen replaced them, and a
+    // half-migrated file would read as cool paper with warm ink.
+    expect(css).not.toMatch(/#F0F8F6|#E0EBE9|#EAF3F2|#FCFEFD|#D3DEDC|#DCE7E6/)
   })
 
   it('pins six stagger items and holds later items on step five', () => {

@@ -23,7 +23,7 @@ export function setTheme(dark: boolean): void {
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
     document.querySelectorAll('meta[name="theme-color"]').forEach(m =>
-      m.setAttribute('content', dark ? '#0C1420' : '#F0F8F6'))
+      m.setAttribute('content', dark ? '#0C1420' : '#F8F5F0'))
   }
   void setNativeTheme(dark)
   emit()

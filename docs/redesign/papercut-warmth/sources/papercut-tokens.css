@@ -1,19 +1,20 @@
 /* Papercut warmth tokens — 28 Oct 2026. Spacing rungs and motion values decided; not yet in src/styles.css. */
 :root {
-  /* papercut warmth — colour */
-  --pw-paper: #F0F8F6;
-  --pw-sunken: #E0EBE9;
-  --pw-soft: #EAF3F2;
-  --pw-card: #FCFEFD;
+  /* papercut warmth — colour, on the Linen surface palette (Option A of the
+     surface-palette board). Only the neutrals move; every hue stays. */
+  --pw-paper: #F8F5F0;
+  --pw-sunken: #ECE7DE;
+  --pw-soft: #F2EDE4;
+  --pw-card: #FEFDFB;
   --pw-raised: #FFFFFF;
-  --pw-line: #D3DEDC;
-  --pw-line-soft: #DCE7E6;
-  --pw-ink: #142329;
-  --pw-ink-2: #45565D;
-  --pw-ink-3: #556972;
-  --pw-ink-4: #79929E;
+  --pw-line: #DFDBD1;
+  --pw-line-soft: #E8E4DB;
+  --pw-ink: #22201E;
+  --pw-ink-2: #57524C;
+  --pw-ink-3: #6B645C;
+  --pw-ink-4: #8C857B;
   --pw-on-sea: #FFFFFF;
-  --pw-on-marigold: #142329;
+  --pw-on-marigold: #22201E;
   --pw-sea-900: #0B3F44;
   --pw-sea-700: #0B5F67;
   --pw-lagoon-600: #0D8D82;
@@ -73,10 +74,10 @@
   --ease-exit: cubic-bezier(.4,0,1,1);         /* exits only */
   --ease-settle: cubic-bezier(.34,1.32,.64,1); /* small pops only: stamps, pins, badges, 48px or smaller */
   /* elevation */
-  --elev-press: 0 1px 2px rgba(20,56,66,.12);
-  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24);
-  --elev-2: 0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34);
-  --elev-3: 0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55);
+  --elev-press: 0 1px 2px rgba(34,32,30,.12);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(34,32,30,.05), 0 18px 36px -20px rgba(34,32,30,.24);
+  --elev-2: 0 2px 4px rgba(34,32,30,.06), 0 16px 30px -14px rgba(34,32,30,.34);
+  --elev-3: 0 4px 10px rgba(30,26,22,.08), 0 32px 60px -28px rgba(30,26,22,.55);
   --glow-sea: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6);
   --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
   --icon-stroke: 1.9; --icon-stroke-sm: 1.9;

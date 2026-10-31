@@ -79,8 +79,8 @@
   --yf-atmos-mint: rgba(124, 225, 207, 0.20);
   --yf-atmos-peach: rgba(255, 179, 107, 0.16);
   --yf-surface: #FFFFFF;
-  --yf-border: #DCE7E1;
-  --yf-text-muted: #566A6C;
+  --yf-border: #E8E4DB;
+  --yf-text-muted: #6B645C;
   --yf-glass: rgba(255, 255, 255, 0.58);        /* level-2 overlay (map/board panels) */
   --yf-nav-glass: rgba(255, 255, 255, 0.58);    /* nav pill — user-decided (AGENTS rule 9) */
   --yf-glass-border: rgba(255, 255, 255, 0.65);
@@ -495,24 +495,27 @@
 /* from src/styles/legacy/15-overview.css */
 /* Papercut foundations */
 :root {
-  /* colour */
-  --pw-paper: #F0F8F6;
-  --pw-sunken: #E0EBE9;
-  --pw-soft: #EAF3F2;
-  --pw-card: #FCFEFD;
+  /* colour — the Linen surface palette ("Option A", the surface-palette board).
+     Linen keeps the artboard's warmth but takes most of the yellow out, so the
+     neutrals read as soft charcoal rather than brown. Only the neutrals move:
+     teal, marigold, the status hues and the time bar are unchanged. */
+  --pw-paper: #F8F5F0;
+  --pw-sunken: #ECE7DE;
+  --pw-soft: #F2EDE4;
+  --pw-card: #FEFDFB;
   --pw-raised: #FFFFFF;
-  --pw-line: #D3DEDC;
-  --pw-line-soft: #DCE7E6;
+  --pw-line: #DFDBD1;
+  --pw-line-soft: #E8E4DB;
   /* Glass over a photo: the day-cover control and its edge. A near-white fill
      at 78% keeps the label legible on a bright photo without hiding it. */
-  --pw-glass: rgba(252, 254, 253, .78);
+  --pw-glass: rgba(254, 253, 251, .78);
   --pw-glass-edge: rgba(255, 255, 255, .8);
-  --pw-ink: #142329;
-  --pw-ink-2: #45565D;
-  --pw-ink-3: #556972;
-  --pw-ink-4: #79929E;
+  --pw-ink: #22201E;
+  --pw-ink-2: #57524C;
+  --pw-ink-3: #6B645C;
+  --pw-ink-4: #8C857B;
   --pw-on-sea: #FFFFFF;
-  --pw-on-marigold: #142329;
+  --pw-on-marigold: #22201E;
   --pw-on-bloom: #FFFFFF;
   --pw-sea-900: #0B3F44;
   --pw-sea-700: #0B5F67;
@@ -595,11 +598,13 @@
   --ease-settle: cubic-bezier(.34, 1.32, .64, 1);
   --stagger-step: 60ms;
 
-  /* elevation */
-  --elev-press: 0 1px 2px rgba(20,56,66,.12);
-  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24);
-  --elev-2: 0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34);
-  --elev-3: 0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55);
+  /* elevation — the tint follows the surface palette. A cool blue-teal shadow
+     under Linen's warm paper read as dirt rather than shade, so the tint is the
+     same warm charcoal the ink uses. */
+  --elev-press: 0 1px 2px rgba(34,32,30,.12);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(34,32,30,.05), 0 18px 36px -20px rgba(34,32,30,.24);
+  --elev-2: 0 2px 4px rgba(34,32,30,.06), 0 16px 30px -14px rgba(34,32,30,.34);
+  --elev-3: 0 4px 10px rgba(30,26,22,.08), 0 32px 60px -28px rgba(30,26,22,.55);
   --glow-sea: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6);
   --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
   --icon-stroke: 1.9;
@@ -719,7 +724,7 @@
   --ink-amber: var(--pw-marigold-ink);
   --ink-ok: var(--pw-ok);
   --ink-coral: var(--pw-risk);
-  --shadow-navy-rgb: 20, 56, 66;
+  --shadow-navy-rgb: 34, 32, 30;
   --shadow-sm: var(--elev-press);
   --shadow: var(--elev-1);
   --shadow-soft: var(--elev-1);

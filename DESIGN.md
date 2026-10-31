@@ -2,17 +2,17 @@
 name: YatraFlow
 description: Calm Travel Intelligence, papercut edition, for India trips that work in the real world.
 colors:
-  paper: "#F0F8F6"
-  sunken: "#E0EBE9"
-  soft: "#EAF3F2"
-  card: "#FCFEFD"
+  paper: "#F8F5F0"
+  sunken: "#ECE7DE"
+  soft: "#F2EDE4"
+  card: "#FEFDFB"
   raised: "#FFFFFF"
-  line: "#D3DEDC"
-  line-soft: "#DCE7E6"
-  ink: "#142329"
-  ink-2: "#45565D"
-  ink-3: "#556972"
-  ink-4: "#79929E"
+  line: "#DFDBD1"
+  line-soft: "#E8E4DB"
+  ink: "#22201E"
+  ink-2: "#57524C"
+  ink-3: "#6B645C"
+  ink-4: "#8C857B"
   sea-900: "#0B3F44"
   sea-700: "#0B5F67"
   lagoon-600: "#0D8D82"
@@ -204,7 +204,7 @@ verb; marigold carries money and attention; status hues carry only state. Colour
 semantic before it is decorative.
 
 **Key Characteristics:**
-- Adopted foundation surfaces use cool paper (`#F0F8F6`), never yellow or brown paper. They carry no grain texture.
+- Adopted foundation surfaces use Linen paper (`#F8F5F0`). It is a warm ground with most of the yellow taken out. It reads as soft paper, not brown. These surfaces carry no grain texture.
 - One brand family: deep sea `#0B5F67` for primary fills that carry white text (7.4:1),
   lagoon `#0D8D82` for progress, focus and free-day marks. Every teal derives from lagoon.
 - **Marigold = paid, teal = free or yours.** The rule holds on every page that sells.
@@ -229,23 +229,23 @@ both themes. Each token has a night twin under the same name.
 ### Surfaces
 | Token | Light | Night | Use |
 |---|---|---|---|
-| `--pw-paper` | `#F0F8F6` | `#0C1420` | Page ground (alias `--bg`) |
-| `--pw-sunken` | `#E0EBE9` | `#101B2B` | Tracks, segmented wells, quiet chips (`--bg-soft`) |
-| `--pw-soft` | `#EAF3F2` | `#182740` | Hover fills, inline panels, collapsed rows |
-| `--pw-card` | `#FCFEFD` | `#16233A` | Cards and sheets (`--card`) |
+| `--pw-paper` | `#F8F5F0` | `#0C1420` | Page ground (alias `--bg`) |
+| `--pw-sunken` | `#ECE7DE` | `#101B2B` | Tracks, segmented wells, quiet chips (`--bg-soft`) |
+| `--pw-soft` | `#F2EDE4` | `#182740` | Hover fills, inline panels, collapsed rows |
+| `--pw-card` | `#FEFDFB` | `#16233A` | Cards and sheets (`--card`) |
 | `--pw-raised` | `#FFFFFF` | `#1A2A44` | Stop cards inside a day card |
-| `--pw-line` | `#D3DEDC` | `#27395A` | Control borders, dividers (`--line`) |
-| `--pw-line-soft` | `#DCE7E6` | `#1E3050` | Card borders, dashed rules |
+| `--pw-line` | `#DFDBD1` | `#27395A` | Control borders, dividers (`--line`) |
+| `--pw-line-soft` | `#E8E4DB` | `#1E3050` | Card borders, dashed rules |
 
 Higher means lighter at night: page, sunken, card, raised each step up in brightness,
 so a card lifts with light rather than with a border.
 
 ### Ink
-- **Ink** `#142329` / night `#E8EFF5`: titles, body, figures (`--text`).
-- **Ink 2** `#45565D` / `#ADBCCF`: meta lines, secondary text (`--text-2`).
-- **Ink 3** `#556972` / `#8FA0B5`: labels, captions, axis text (`--text-3`). 5.7:1 on card light, 5.9:1 night.
-- **Ink 4** `#79929E` / `#5F757F`: chevrons, disabled marks, dots. 3.0:1, **never text**.
-- **On sea** `#FFFFFF` / `#0A1622` and **on marigold** `#142329` / `#1A1408`: labels on filled buttons.
+- **Ink** `#22201E` / night `#E8EFF5`: titles, body, figures (`--text`).
+- **Ink 2** `#57524C` / `#ADBCCF`: meta lines, secondary text (`--text-2`).
+- **Ink 3** `#6B645C` / `#8FA0B5`: labels, captions, axis text (`--text-3`). 5.7:1 on card light, 5.9:1 night.
+- **Ink 4** `#8C857B` / `#5F757F`: chevrons, disabled marks, dots. 3.0:1, **never text**.
+- **On sea** `#FFFFFF` / `#0A1622` and **on marigold** `#22201E` / `#1A1408`: labels on filled buttons.
 
 ### Sea and lagoon (primary)
 - **Deep sea** `#0B5F67` (night `#3FB8AC`, with a dark label): primary buttons, selected
@@ -355,8 +355,8 @@ properties.
 ## Elevation & Depth
 
 Four levels and two glows, one recipe each, so a card never invents its own shadow. The
-shadow hue is a teal ink (`rgb 20, 56, 66`), replacing the old navy `--shadow-navy-rgb`.
-A 1px light top edge on resting cards makes them read as cut card stock.
+shadow hue follows the surface palette. On Linen it is the ink's warm charcoal (`rgb 34, 32, 30`),
+carried by `--shadow-navy-rgb`. A 1px light top edge on resting cards makes them read as cut card stock.
 
 | Token | Light | Night | Use |
 |---|---|---|---|

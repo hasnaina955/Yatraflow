@@ -65,7 +65,7 @@
    a raised capsule rather than a flat fill. */
 .tabbar .pill-glider { box-shadow: var(--glow-sea); }
 /* The timeline toolbar's day-scope switch is a SUNKEN TRACK, not the nav glass:
-   the artboard draws `padding: 4px; background: #E0EBE9` with the selected
+   the artboard draws a 4px inset on the sunken track with the selected
    segment in card white on top. */
 .tl-toolbar .view-pillbar .pill-glider { background: var(--pw-card); box-shadow: var(--elev-press); }
 /* inside a pill nav the glider paints the active background — the items don't

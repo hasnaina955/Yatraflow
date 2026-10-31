@@ -2217,7 +2217,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .tl-toolbar .mode-pillbar,
 .tl-toolbar .view-pillbar { flex-wrap: nowrap; }
 /* The day-scope switch is a SUNKEN TRACK, not a glass pill: the artboard draws
-   `padding: 4px; background: #E0EBE9` with the selected segment in card white
+   `padding: 4px` on the sunken track with the selected segment in card white
    on top of it. The shared .view-pillbar paints the nav glass instead (a
    translucent white with a border and --shadow-soft), which read as a floating
    pill sitting inside the toolbar rather than a track cut into it. */

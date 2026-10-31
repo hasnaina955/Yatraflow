@@ -1702,17 +1702,19 @@ div.mx-crow {
   .yf-page .yf-trip-title { font-size: 28px; }
 }
 
-/* P12 Papercut palette */
+/* P12 Papercut palette — the Linen surface palette, the same neutrals as
+   tokens.css. This block re-declares them on the overview scope, so it has to
+   move with the source or the page falls back to cool mist. */
 .ovw.ovw {
-  --pw-paper: #F0F8F6;
-  --pw-sunken: #E0EBE9;
-  --pw-soft: #EAF3F2;
-  --pw-card: #FCFEFD;
-  --pw-line: #D3DEDC;
-  --pw-line-soft: #DCE7E6;
-  --pw-ink: #142329;
-  --pw-ink-2: #45565D;
-  --pw-ink-3: #556972;
+  --pw-paper: #F8F5F0;
+  --pw-sunken: #ECE7DE;
+  --pw-soft: #F2EDE4;
+  --pw-card: #FEFDFB;
+  --pw-line: #DFDBD1;
+  --pw-line-soft: #E8E4DB;
+  --pw-ink: #22201E;
+  --pw-ink-2: #57524C;
+  --pw-ink-3: #6B645C;
   --pw-sea: #0B5F67;
   --pw-on-sea: #FFFFFF;
   --pw-lagoon: #DDF1EE;

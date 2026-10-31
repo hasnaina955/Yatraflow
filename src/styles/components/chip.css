@@ -8,10 +8,13 @@
    stay where they are until the shared-control batch moves them. */
 
 /* ---------- Chips & badges ---------- */
+/* Padding, weight and height are the artboard's: `padding: 4px 10px` with
+   `font-weight: 700`. The chip was 5px/12px at weight 600, which measured 31px
+   tall against the artboard's ~25px and read lighter than the label beside it. */
 .chip {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 700;
   background: var(--bg-soft); color: var(--text-2);
   border: 1px solid transparent;
 }

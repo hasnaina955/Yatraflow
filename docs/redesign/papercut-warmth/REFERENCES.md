@@ -38,15 +38,16 @@ The SHA256 value covers the full file.
 | `docs/redesign/papercut-warmth/sources/README.md` | `README.md` | 2090 | `8BB47F78474BFFF1FA334EE60854F802E389DBE3C728EA09A6B5E3D00584936C` | Supplied doc-set guide |
 | `docs/redesign/papercut-warmth/sources/DESIGN_TOKENS.md` | `DESIGN_TOKENS.md` | 40931 | `1095C098CE64660A7421AE253FDF4BCB3956233D3FEEF1C5E041C5BED4E7B979` | Supplied token reference |
 | `docs/redesign/papercut-warmth/sources/papercut-section.md` | `papercut-section.md` | 14447 | `3B4770555CD6F127C76791BFA06958DB2E1C828B04E56490ECCA3F69BD2E90F2` | Supplied token section |
-| `docs/redesign/papercut-warmth/sources/papercut-tokens.css` | `papercut-tokens.css` | 4070 | `1018106216CBC1314D3BF8D6FAA70AAF8E0623FFA63F7DD427347D206BF9AD55` | Supplied token CSS |
+| `docs/redesign/papercut-warmth/sources/papercut-tokens.css` | `papercut-tokens.css` | 4189 | `815151577D1C97A25B45771D10CFBF3500019BF3BDD7CBA3278EB5493C0B0A71` | Supplied token CSS, updated to the Linen surface palette |
 
 ## Foundation decisions
 
-The foundation uses the completed cool palette.
-The light ground is paper `#F0F8F6`.
-The light sunken, soft and card surfaces are `#E0EBE9`, `#EAF3F2` and `#FCFEFD`.
-The light lines are `#D3DEDC` and `#DCE7E6`.
-The light inks are `#142329`, `#45565D`, `#556972` and `#79929E`.
+The foundation uses the Linen surface palette.
+The light ground is paper `#F8F5F0`.
+The light sunken, soft and card surfaces are `#ECE7DE`, `#F2EDE4` and `#FEFDFB`.
+The light lines are `#DFDBD1` and `#E8E4DB`.
+The light inks are `#22201E`, `#57524C`, `#6B645C` and `#8C857B`.
+Linen replaced the earlier cool-mist neutrals. The teal, marigold and status hues did not change.
 The dark grounds are `#0C1420`, `#101B2B`, `#182740`, `#16233A` and `#1A2A44`.
 The dark lines are `#27395A` and `#1E3050`.
 The dark inks are `#E8EFF5`, `#ADBCCF`, `#8FA0B5` and `#5F757F`.

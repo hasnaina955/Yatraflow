@@ -63,16 +63,16 @@ describe('P12 — the static steps moved out of the style attribute', () => {
     }
   })
 
-  it('the six survivors are the data-driven ones, and the baseline agrees', () => {
+  it('the four survivors are the data-driven ones, and the baseline agrees', () => {
     const properties = [...day.matchAll(/style=\{\{\s*([a-zA-Z-]+)\s*:/g)].map(m => m[1])
-    expect(properties).toHaveLength(6)
-    // A weight, a width, one budget template and three drag transforms: all
-    // read the trip, the day simulation or a drag.
-    expect(properties.filter(p => p === 'flexGrow')).toHaveLength(1)
-    expect(properties.filter(p => p === 'width')).toHaveLength(1)
+    expect(properties).toHaveLength(4)
+    // One budget template and three drag transforms: all read the day simulation
+    // or a drag. The dwell chart's `flexGrow` went with the chart itself — its
+    // bars were unlabelled and read as a smudge — and the day-progress bar's
+    // `width` went with that bar, which the five-segment time budget replaced.
     expect(properties.filter(p => p === 'gridTemplateColumns')).toHaveLength(1)
     expect(properties.filter(p => p === 'transform')).toHaveLength(3)
-    expect(baseline.pageFiles['src/pages/trip/timeline/DaySection.tsx'].inlineStyle).toBe(6)
+    expect(baseline.pageFiles['src/pages/trip/timeline/DaySection.tsx'].inlineStyle).toBe(4)
     expect(baseline.pageFiles['src/pages/trip/timeline/DaySection.tsx'].EmptyState).toBe(0)
   })
 

@@ -222,8 +222,10 @@
 /* The cover is one full-width sheet. Its media is clipped inside the sheet,
    while the sheet itself keeps tooltips visible above it. */
 .yf-page .yf-trip-head {
-  --pw-cover-ink: #FCFEFD;
-  --pw-cover-ink-soft: rgb(252 254 253 / .9);
+  /* Ink over a photo, so it is the palette's near-white card tone, not a fixed
+     hex: on Linen that is a warm white rather than a cool one. */
+  --pw-cover-ink: var(--pw-card);
+  --pw-cover-ink-soft: color-mix(in srgb, var(--pw-card) 90%, transparent);
   position: relative;
   display: block;
   height: 260px;
@@ -575,8 +577,10 @@
 }
 
 .yf-page .yf-tabbar .tab-btn {
-  min-height: 44px;
-  padding: 0 var(--space-6);
+  /* The artboard's tabs are 38px with `padding: 0 16px` inside a 6px inset, so
+     the whole rail measures 50px. 44px tabs made the capsule 58px. */
+  min-height: 38px;
+  padding: 0 16px;
   color: var(--pw-ink);
   font-size: 14px;
   font-weight: 600;

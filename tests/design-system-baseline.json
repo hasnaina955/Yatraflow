@@ -126,7 +126,6 @@
     ".board-col-count — font-size: 10.5px",
     ".board-pulse .pulse-label — font-size: 10.5px",
     ".day-badge small — font-size: 9px",
-    ".day-kind — font-size: 10.5px",
     ".day-slot-cand-nm > span — font-size: 10.5px",
     ".day-slot-hint — font-size: 10.5px",
     ".day-slot-missed — font-size: 10px",

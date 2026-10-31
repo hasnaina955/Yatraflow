@@ -161,7 +161,8 @@ const trip: Trip = {
       title: 'South Goa',
       stops: [
         stop('colva', 'Colva beach', 15.2754, 73.9228, 0, 'beach'),
-        stop('night-2', 'Night in Colva', 15.2754, 73.9228, 1, 'hotel', 'Colva'),
+        stop('lunch-colva', 'Lunch on the way', 15.3106, 73.9144, 1, 'food', 'Colva road'),
+        stop('night-2', 'Night in Colva', 15.2754, 73.9228, 2, 'hotel', 'Colva'),
       ],
     },
     {

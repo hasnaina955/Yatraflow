@@ -13,17 +13,17 @@ const URL = process.env.PAPERCUT_URL ?? `http://127.0.0.1:${PORT}/dev/papercut-t
 const EVIDENCE = join(ROOT, '.verify-evidence', 'papercut-motion')
 const EXPECTED_PALETTE = {
   light: {
-    '--pw-paper': '#F0F8F6',
-    '--pw-sunken': '#E0EBE9',
-    '--pw-soft': '#EAF3F2',
-    '--pw-card': '#FCFEFD',
+    '--pw-paper': '#F8F5F0',
+    '--pw-sunken': '#ECE7DE',
+    '--pw-soft': '#F2EDE4',
+    '--pw-card': '#FEFDFB',
     '--pw-raised': '#FFFFFF',
-    '--pw-line': '#D3DEDC',
-    '--pw-line-soft': '#DCE7E6',
-    '--pw-ink': '#142329',
-    '--pw-ink-2': '#45565D',
-    '--pw-ink-3': '#556972',
-    '--pw-ink-4': '#79929E',
+    '--pw-line': '#DFDBD1',
+    '--pw-line-soft': '#E8E4DB',
+    '--pw-ink': '#22201E',
+    '--pw-ink-2': '#57524C',
+    '--pw-ink-3': '#6B645C',
+    '--pw-ink-4': '#8C857B',
     '--pw-sea-700': '#0B5F67',
     '--pw-lagoon-600': '#0D8D82',
     '--pw-marigold-500': '#F2A33A',
@@ -197,7 +197,7 @@ const inspectFoundation = ({ expected, reduced }) => {
   const shadowAliases = { '--shadow': '--elev-1', '--shadow-soft': '--elev-1', '--shadow-card': '--elev-1', '--shadow-card-hover': '--elev-2' }
   const shadows = Object.fromEntries(Object.keys(shadowAliases).map(name => [name, token(name)]))
   const ring = token('--ring').replace(/\s+/g, ' ')
-  const elevationOk = shadowHue === '20, 56, 66' && Object.entries(shadowAliases).every(([name, elevation]) => shadows[name] === token(elevation)) && ring === `0 0 0 3PX ${expected['--pw-lagoon-600']}`
+  const elevationOk = shadowHue === '34, 32, 30' && Object.entries(shadowAliases).every(([name, elevation]) => shadows[name] === token(elevation)) && ring === `0 0 0 3PX ${expected['--pw-lagoon-600']}`
 
   return { tokens, paletteOk, motion, motionOk, pairs, contrastsOk, fonts, fontsOk, shadowHue, shadows, ring, elevationOk }
 }

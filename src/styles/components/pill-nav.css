@@ -60,6 +60,14 @@
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
+/* The workspace trip tabs carry the artboard's `--glow-sea` on the active pill:
+   an inner top highlight plus a short drop shadow, so the selected tab reads as
+   a raised capsule rather than a flat fill. */
+.tabbar .pill-glider { box-shadow: var(--glow-sea); }
+/* The timeline toolbar's day-scope switch is a SUNKEN TRACK, not the nav glass:
+   the artboard draws a 4px inset on the sunken track with the selected
+   segment in card white on top. */
+.tl-toolbar .view-pillbar .pill-glider { background: var(--pw-card); box-shadow: var(--elev-press); }
 /* inside a pill nav the glider paints the active background — the items don't
    (no background AND no glow on the item itself: a shadow that pops on/off on
    the chip while the glider glides is exactly the two-step switch feel the

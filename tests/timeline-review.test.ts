@@ -89,7 +89,10 @@ describe('the provider pitfall is answered by one viewport gate (#421)', () => {
   })
 
   it('gates the two provider-backed extras on it — and nothing else', () => {
-    expect(day).toMatch(/\{!collapsed && \(!reviewMode \|\| inView\) && <DayWeatherChip/)
+    // The weather chip moved inside the collapse: it lands asynchronously and
+    // grew the header 18px in a single frame when it did. The viewport gate is
+    // unchanged — it still waits for the day to be near the screen.
+    expect(day).toMatch(/\{\(!reviewMode \|\| inView\) && <DayWeatherChip/)
     expect(day).toMatch(/ordered\.length > 0 \|\| \(reviewMode && !inView\)/)
     expect(day).toMatch(/\[editable, open, trip, ordered\.length, reviewMode, inView, facts\.prevPoint, facts\.homeCenter, facts\.assumptions\.mode\]/)
     // What the day shows from its own resolved facts is never gated: every stop
@@ -120,6 +123,44 @@ describe('review keeps every editing affordance (#421)', () => {
   })
 })
 
+describe('a stop card carries one menu, not a row of buttons', () => {
+  it('folds edit, status, move-day and delete into the ⋯ disclosure', () => {
+    const at = day.indexOf('<div className="stop-actions">')
+    expect(at, 'missing anchor: stop-actions').toBeGreaterThan(-1)
+    const actions = day.slice(at, day.indexOf('{i < ordered.length - 1', at))
+    expect(actions).toContain('className="stop-more"')
+    for (const label of ['Edit', 'Mark maybe', 'Move to another day', 'Delete']) {
+      expect(actions, label).toContain(label)
+    }
+    // The reorder arrows stay inline: they are the keyboard alternative to drag.
+    expect(actions).toContain('className="move-btns"')
+    // And the seven-button row is gone — no bare icon-btn on the card.
+    expect(actions).not.toMatch(/<button className="icon-btn" onClick=\{\(\) => onEdit/)
+  })
+
+  it('styles the menu so its labels never wrap and it clears the next card', () => {
+    expect(css).toMatch(/\.stop-more-menu > button \{[^}]*white-space: nowrap/)
+    expect(css).toMatch(/\.stop-card:has\(\.stop-more\[open\]\) \{ position: relative; z-index:/)
+  })
+})
+
+describe('a stop card leads with the artboard duotone tile', () => {
+  it('draws one 48px tile per stop, tinted by its kind', () => {
+    expect(day).toContain('className={`stop-tile tile-${kind}`}')
+    // Seven kinds, seven glyphs: colour alone would fail a greyscale print.
+    for (const glyph of ['Utensils', 'BedDouble', 'Fuel', 'Armchair', 'Mountain', 'Car', 'Landmark']) {
+      expect(day, glyph).toContain(`<${glyph} size={22}`)
+    }
+  })
+
+  it('pairs each tint with its own ink, and sizes the tile to the artboard', () => {
+    expect(css).toMatch(/\.stop-tile \{\s*\n\s*width: 48px; height: 48px;/)
+    // The artboard's exact duotone pairs: #DDF1EE/#0B5F67 and #FBE7C6/#8A4F0E.
+    expect(css).toMatch(/\.tile-viewpoint \{ background: var\(--pw-lagoon-100\); color: var\(--pw-sea-700\); \}/)
+    expect(css).toMatch(/\.tile-activity \{ background: var\(--pw-marigold-100\); color: var\(--pw-marigold-ink\); \}/)
+  })
+})
+
 describe('review mode is a continuous read, oriented by the day rail (#421)', () => {
   it('marks the root and the card so the CSS can hand the sticky rung over', () => {
     expect(tab).toMatch(/<div className=\{reviewAll \? 'tl-root-review' : undefined\}>/)
@@ -130,22 +171,27 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     // Measured: a review-mode header is 193–309px tall (its clocks, chips,
     // warnings and actions), so sticking it would cost a fifth of a phone's
     // screen to say one word. The compact rail is the mode's own label row.
-    expect(css).toMatch(/\.tl-root-review \.tl-total-strip \{ position: static; \}/)
-    expect(css).toMatch(/\.tl-root-review \.day-rail \{\r?\n  position: sticky;/)
+    // PW-08 folded the totals strip and the rail into one ribbon, so the rung
+    // moves as one surface: in review the totals column drops out and what is
+    // left is the compact rail.
+    expect(css).toMatch(/\.tl-root-review \.tl-ribbon-total \{ display: none; \}/)
+    expect(css).toMatch(/\.tl-root-review \.tl-ribbon \{\r?\n  position: sticky;/)
     expect(css).toMatch(/top: calc\(12px \+ var\(--nav-h\) \+ 10px \+ var\(--safe-area-inset-top, env\(safe-area-inset-top, 0px\)\)\);/)
     expect(css).not.toMatch(/\.day-review \.day-header \{[^}]*position: sticky/)
   })
 
   it('marks the day the reader is in, and grows the rail for any trip length', () => {
-    expect(tab).toMatch(/\(days\.length >= 4 \|\| reviewAll\) && \(/)
+    // PW-08: the ribbon is the trip's own header, so it renders for every trip
+    // length — the old rail's "4+ days or review" gate retired with it.
+    expect(tab).not.toMatch(/days\.length >= 4 \|\| reviewAll/)
     expect(tab).toMatch(/aria-current=\{current \? 'true' : undefined\}/)
     // MR7 renamed the loop variable: the rail renders the derived strip now, so
     // the item is `it` and its index is `it.dayIndex`. MR9 marks the day the
     // reader is in on both modes: the day in view in review, the open day
-    // otherwise.
+    // otherwise. PW-08 renders the same loop as ribbon cards.
     expect(tab).toMatch(/const current = reviewAll \? currentDay === it\.dayIndex : openDayIndex === it\.dayIndex/)
     expect(tab).toMatch(/if \(el\.getBoundingClientRect\(\)\.top - line <= 1\) best = idx/)
-    expect(css).toMatch(/\.day-rail-card\[aria-current='true'\] \{/)
+    expect(css).toMatch(/\.tl-ribbon-card\[aria-current='true'\] \{/)
   })
 
   it('renders the rail from the tested strip, and marks the day the route moves on (MR7)', () => {
@@ -153,9 +199,43 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     // lib/dayStrip.ts with its own tests, and a second copy here is how the
     // marker would drift onto the wrong day.
     expect(tab).toMatch(/const dayStrip = useMemo\(\(\) => dayStripItems\(days\), \[days\]\)/)
-    expect(tab).toMatch(/\{dayStrip\.map\(it => \{/)
-    // The transit marker belongs to the day the city CHANGES, so it renders
-    // inside the map, before that day's card — never after the last card.
-    expect(tab).toMatch(/\{it\.changesCity && \(\s*<span className="day-rail-transit"/)
+    // PW-08 renders the ribbon from that same strip: `ribbonDays` adds only the
+    // display facts (date label, km, tone, planned share) and never re-derives
+    // the boundary, so there is still exactly one copy of the logic.
+    expect(tab).toMatch(/const ribbonDays = useMemo\(\(\) => dayStrip\.map\(it => \{/)
+    // PW-08: the transit marker no longer needs its own glyph — the day that
+    // changes city spells the route in the card, so the boundary is the label.
+    expect(tab).toMatch(/const route = it\.changesCity && it\.from && it\.place \? `\$\{it\.from\} → \$\{it\.place\}` : it\.place/)
+  })
+})
+
+describe('the timeline blocks cascade in, like the Overview beside them', () => {
+  // The tab renders inside TripWorkspace's `tab-panel`, one level down from the
+  // page root, so the shared `.page-enter > *` cascade never reached the
+  // toolbar, the ribbon or a day card: measured in the browser, every one of
+  // them went from opacity 0 to 1 between two frames while the Overview's cards
+  // stepped in. The tab owns a `page-enter` wrapper for its own blocks instead
+  // of restating the cascade — one owner, so the stagger stays the house's.
+  it('wraps the toolbar, the ribbon and the day list in the shared cascade', () => {
+    const open = tab.indexOf('<div className="page-enter">')
+    expect(open, 'the tab has no `page-enter` wrapper').toBeGreaterThan(-1)
+    // Anchor on the wrapper's own close: the modals follow it, so the block
+    // between them is exactly what the cascade owns.
+    const close = tab.indexOf('      </div>\n\n      <StopEditor')
+    expect(close, 'the wrapper does not close before the modals').toBeGreaterThan(open)
+    const wrapped = tab.slice(open, close)
+    expect(wrapped).toMatch(/className="row-between tl-head"/)
+    expect(wrapped).toMatch(/className="tl-ribbon"/)
+    expect(wrapped).toMatch(/\{days\.map\(day => \(/)
+  })
+
+  it('leaves the modals outside it, so an opened sheet is not re-entered', () => {
+    // The editor and the move sheet are siblings of the wrapper, not children:
+    // they animate on their own open, and a second entrance would play on every
+    // render of the list beneath them.
+    const afterWrap = tab.slice(tab.indexOf('      <StopEditor'))
+    expect(afterWrap).toMatch(/<StopEditor/)
+    expect(afterWrap).toMatch(/<MoveStopModal/)
+    expect(afterWrap).not.toMatch(/<div className="page-enter">/)
   })
 })

@@ -116,20 +116,48 @@
 /* ---------- Timeline ---------- */
 /* M4: the day is a near-opaque soft card (doc §6.3 — readability before transparency). */
 .day-section {
-  margin-bottom: 22px;
+  /* The artboard stacks the list on one 16px rhythm, the same gap its own
+     container uses. This was 22px here plus 22px on the sibling rule below,
+     which is the kind of doubled margin that reads as uneven against the 16px
+     gaps everywhere else. One value, one place. */
+  margin-bottom: var(--space-7);
   background: var(--pw-card);
   border: 1.5px solid var(--pw-line);
   border-radius: var(--radius-lg);
-  padding: 18px 20px 14px;
+  /* The artboard's folded card is 16px top and bottom, not 18/14: the asymmetry
+     came from the body's own bottom padding, which a folded day does not have. */
+  padding: 16px 20px;
   box-shadow: var(--elev-1);
 }
+/* The artboard raises the OPEN day one tier: its border turns to the sea tint
+   and its shadow deepens to --elev-2, so the day the reader is in lifts off
+   the list. A folded day keeps --elev-1 and the plain line. */
 /* Items align to the TOP of the row, never to its centre. The middle block's
    height changes with the collapse — the route chain is collapsed-only and the
    stats line re-wraps as the chips come and go — and a centred sibling is
    re-positioned by every one of those changes: the chevron and the day badge
    jumped up to 32px on the click, before the body had moved a pixel. Each item's
    position must be independent of its siblings'. */
-.day-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.day-header { display: flex; align-items: flex-start; gap: var(--space-9); margin-bottom: 12px; flex-wrap: wrap; }
+/* A folded day has no body, so the header's 12px bottom margin is dead space
+   under the last row. The artboard's folded card is 16px padding on all sides
+   with the header flush to it; removing the margin makes the box symmetric. */
+.day-closed > .day-header { margin-bottom: 0; }
+/* The lead group is the collapsed day's thumbnail plus its date badge. On an
+   open day the thumbnail is absent and the group collapses to just the badge.
+   The artboard measures 22px between the thumbnail, the badge, the title block
+   and the fold control — one gap, used three times. */
+.day-badge-lead { display: flex; align-items: center; gap: var(--space-9); flex: none; }
+.day-thumb {
+  width: 84px; height: 60px; flex: none;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--pw-raised);
+  /* A collapsed row is vertically centred on its thumbnail, not on the badge. */
+  display: block;
+}
+.day-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.day-thumb-emoji { display: flex; align-items: center; justify-content: center; font-size: 26px; }
 .day-badge {
   width: 46px; height: 46px; border-radius: 16px; flex: 0 0 auto;
   background: var(--yf-navy); color: #fff;
@@ -139,13 +167,16 @@
 .day-badge small { font-size: 9px; text-transform: uppercase; opacity: .75; letter-spacing: .08em; }
 .day-badge b { font-size: 18px; font-weight: 800; line-height: 1.1; }
 .stop-card {
-  display: flex; gap: 12px;
+  display: flex; gap: 12px; align-items: flex-start;
   background: var(--pw-card); border: 1px solid var(--pw-line);
-  border-radius: var(--radius-lg); padding: 14px 16px;
+  border-radius: var(--radius-lg); padding: 14px 10px 14px 14px;
   box-shadow: var(--elev-1);
   transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .stop-card:hover { border-color: var(--pw-route); }
+/* A card whose ⋯ menu is open must paint above the card below it: the menu
+   hangs past the card's own box, and both sit in the same stacking context. */
+.stop-card:has(.stop-more[open]) { position: relative; z-index: var(--z-strip); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
    pointer engine carries the real row instead) */
 .stop-card.status-rejected { border-style: dashed; }
@@ -159,10 +190,27 @@
 .stop-num.cat-travel { background: var(--pw-sunken); color: var(--pw-ink-2); }
 .stop-num.cat-food { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
 .stop-num.cat-hotel { background: var(--pw-sunken); color: var(--pw-ink-2); }
-.stop-main { flex: 1; min-width: 0; }
-.stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; }
+.stop-main { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: flex-start; }
+.stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; min-width: 0; }
+.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; min-width: 0; }
 .stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 13px; color: var(--pw-ink-2); font-weight: 500; }
+/* The artboard's 48px duotone tile: a tinted square holding the stop kind's
+   glyph in a darker ink of the same hue. Every tint pairs a 100-step fill with
+   its 700-step ink, so the pair holds its contrast in both themes. */
+.stop-tile {
+  width: 48px; height: 48px; flex: none;
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pw-lagoon-100); color: var(--pw-sea-700);
+}
+.stop-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.stop-tile.tile-viewpoint { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
+.stop-tile.tile-activity { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.stop-tile.tile-food { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.stop-tile.tile-stay { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-tile.tile-drive { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-tile.tile-fuel { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-tile.tile-rest { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
 .stop-desc { font-size: 13px; color: var(--pw-ink-2); margin-top: 6px; }
 /* Clamped stop-card descriptions (issue #3): clamp to 2 lines + "Show more" toggle. */
 .clamp-wrap { position: relative; }
@@ -195,7 +243,7 @@
   cursor: pointer;
 }
 .clamp-toggle:hover { text-decoration: underline; }
-.stop-actions { display: flex; flex-direction: row; gap: 2px; align-items: center; align-self: flex-start; }
+.stop-actions { display: flex; flex-direction: row; gap: 2px; align-items: center; align-self: center; flex: none; }
 /* Board cards: the keyboard alternative to dragging sits under the card body. */
 
 .move-btns { display: flex; flex-direction: row; gap: 0; }
@@ -416,10 +464,14 @@
 }
 .tl-time.tl-dep { font-family: var(--font-body); font-size: 11.5px; font-weight: 600; color: var(--pw-ink-3); background: none; border-color: transparent; }
 /* The line sits in the middle of the ring's own column, so the stop rail and
-   the travel-leg rail share one x and the ring is centred on both. */
-.tl-line { grid-column: 2; grid-row: 1 / span 3; justify-self: center; height: 100%; width: 3px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--pw-route) 0 4px, transparent 4px 9px); }
+   the travel-leg rail share one x and the ring is centred on both.
+   Thickness and dash are the artboard's: 3px wide, a 5px dash with a 4px gap
+   (its `linear-gradient(#9FD9CF 55%, transparent 55%)` at `background-size:
+   3px 9px`). The dash was 4px with a 5px gap, which read as a finer, busier
+   line than the artboard's. */
+.tl-line { grid-column: 2; grid-row: 1 / span 3; justify-self: center; height: 100%; width: 3px; min-height: 12px; border-radius: 2px; background: repeating-linear-gradient(var(--pw-route) 0 5px, transparent 5px 9px); }
 .tl-gutter-leg { padding: 0; min-height: 26px; }
-.tl-line-leg { grid-column: 2; justify-self: center; flex: none; width: 2px; height: 100%; min-height: 26px; }
+.tl-line-leg { grid-column: 2; justify-self: center; flex: none; width: 3px; height: 100%; min-height: 26px; background: repeating-linear-gradient(var(--pw-route) 0 5px, transparent 5px 9px); }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-drop-line {
   grid-column: 2; color: var(--ink-amber); background: var(--warn-soft);
@@ -433,12 +485,12 @@
 
 /* ---------- Day header: collapse, rename, progress, sparkline, suggestions ---------- */
 .day-collapse {
-  border: 1px solid var(--line); background: var(--bg-soft); cursor: pointer; flex: 0 0 auto;
-  color: var(--text-2); width: 28px; height: 28px; padding: 0; border-radius: 999px;
+  border: 0; background: var(--teal-soft); cursor: pointer; flex: 0 0 auto;
+  color: var(--text-2); width: 40px; height: 40px; padding: 0; border-radius: 999px;
   display: grid; place-items: center;
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
-.day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.day-collapse:hover { color: var(--teal-deep); background: color-mix(in srgb, var(--teal-soft) 70%, var(--teal-deep) 10%); }
 /* The chevron and the body are one gesture: at --t-fast/180ms the arrow settled
    ~90ms before the body did, so the row read as two separate movements. */
 .day-collapse-icon { transition: transform var(--motion-slower) var(--ease-resize); }
@@ -461,9 +513,13 @@
    already say). Names wrap instead of truncating; the full chain rides in
    the title tooltip. */
 .day-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+/* The artboard's chip is sentence case at 12px/700 with 4px 10px padding. Ours
+   was 10.5px/600 in uppercase, which shrank the label and shouted it at the
+   same time — the opposite of the quiet badge the artboard draws. The tint is
+   unchanged, so the chip still carries its kind by colour. */
 .day-kind {
-  flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: .07em;
-  text-transform: uppercase; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+  flex: 0 0 auto; font-size: 12px; font-weight: 700; letter-spacing: normal;
+  text-transform: none; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
 }
 /* teal on teal tint: 4.57:1 light / 6.64:1 dark — passes AA at 10.5px semibold */
 .day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
@@ -483,10 +539,22 @@
 .day-route-stop { white-space: normal; overflow-wrap: anywhere; }
 .day-route-text { white-space: nowrap; }
 .day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
-/* Dimmed pipe for the day-header stats line — quieter than a mid-dot at
-   12px and easier to track across a long line. (Separator is a graphic:
-   text-3 at .65 stays above the 3:1 non-text floor on both themes.) */
-.stat-sep { color: var(--text-3); opacity: .65; padding: 0 5px; }
+/* Mid-dot between the day-header's facts, as the artboard draws it. It is a
+   graphic, so it needs the 3:1 non-text floor rather than the text one; ink-4
+   clears both themes. */
+.stat-sep { color: var(--pw-ink-4); opacity: 1; padding: 0 6px; }
+/* The header's one stats line, set to the artboard's measure: 14px on the
+   second ink. It was 12.5px muted, which read as a footnote rather than as
+   the day's summary. */
+/* The artboard sets the facts line at weight 400 in the second ink. At 500 it
+   read a step heavier than the title it sits under, which pulled the eye off
+   the day name. */
+.day-header .small.muted.num { font-size: 14px; font-weight: 400; color: var(--pw-ink-2); }
+/* The title block's own stack. The artboard puts 6px between the title row and
+   the stats line; without a gap of its own the block leaned on the header's row
+   gap and left the stats 8px low. Scoped to the header so `.tl-stop-flex` keeps
+   the exact declarations the P12 test pins. */
+.day-header .tl-stop-flex { display: flex; flex-direction: column; gap: 6px; }
 /* Stay days retain full text contrast; their kind chip carries the distinction. */
 
 
@@ -515,7 +583,9 @@
 .day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slower) var(--ease-resize); }
 .day-body-clip.open { grid-template-rows: 1fr; }
 .day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slower); }
-.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
+/* The artboard puts 16px between the header and the first row of the body. The
+   clip opened flush, so the tools row touched the stats line. */
+.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; padding-top: var(--space-7); }
 @media (prefers-reduced-motion: reduce) {
   .day-body-clip, .day-body-clip-inner { transition: none; }
 }
@@ -538,42 +608,155 @@
 }
 .chip-btn:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
 
-/* ---------- M4: trip-total strip, day-jump rail, stop-kind markers ---------- */
-/* Sticky glass strip mirroring the floating pill nav — the trip's totals stay
-   in view while scrolling long timelines. */
-.tl-total-strip {
-  position: sticky;
-  top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-  z-index: var(--z-strip);
-  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
-  background: var(--yf-glass);
-  border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
-  border-radius: var(--radius); padding: 9px 16px; margin-bottom: 16px;
+/* ---------- PW-08: the trip ribbon (totals + day rail, one card) ---------- */
+/* The strip and the jump rail were two stacked bars answering one question:
+   "what is this trip, and which day am I in". The ribbon is the mockup's
+   answer — the totals become a fixed left column, the days a route line that
+   runs beside them, and the two share one border instead of two. The days are
+   the rail: same jump, same current-day marker, richer card. */
+.tl-ribbon {
+  display: flex; align-items: stretch; gap: 22px;
+  padding: 16px 20px; margin-bottom: 16px;
+  background: var(--card);
+  border: 1.5px solid var(--line-soft);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
-  font-size: 12.5px; font-weight: 600; color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
-.tl-total-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--teal-deep); }
-.tl-total-dot { color: var(--text-3); }
-.tl-total-warn {
-  margin-left: auto;
+.tl-ribbon-total {
+  width: 210px; flex: none;
+  display: flex; flex-direction: column; gap: 4px;
+  padding-inline-end: 22px;
+  border-inline-end: 1px dashed var(--line);
+}
+.tl-ribbon-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.tl-ribbon-figure {
+  font-family: var(--font-display);
+  font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text);
+}
+.tl-ribbon-sub { font-size: 13px; color: var(--text-2); }
+/* The ribbon's type is compact display copy, not prose. The app's 1.55 body
+   leading adds 19px of air across the column and pushes the whole bar taller
+   than the source, so these three carry their own leading. */
+.tl-ribbon-eyebrow, .tl-ribbon-figure, .tl-ribbon-sub,
+.tl-ribbon-card-day, .tl-ribbon-card-place, .tl-ribbon-card-meta { line-height: 1.2; }
+/* The attention pill is a state, not a second heading: it sits under the
+   figure, never at the row's end where the old strip put it. */
+.tl-ribbon-alert {
+  margin-top: 4px; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--radius-pill);
   background: var(--yf-amber-100); color: var(--ink-amber);
-  border-radius: 999px; padding: 3px 11px;
-  font-size: 11.5px; font-weight: 700;
+  font-size: 12px; font-weight: 700; line-height: 1.25;
+  cursor: pointer;
+  list-style: none;
 }
-.day-rail { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.day-rail-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); flex: 0 0 auto; }
-.day-rail-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: thin; }
-.day-rail-chip {
-  border: 1px solid var(--line); background: var(--card); color: var(--text-2);
-  border-radius: 12px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; white-space: nowrap; flex: 0 0 auto;
-  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+.tl-ribbon-alert::-webkit-details-marker { display: none; }
+/* The trip-wide warning pill is the ribbon's own disclosure. Closed, it is the
+   one-line summary the artboard's totals column has room for. Open, the items
+   hang under the pill inside that column, so nothing above the first day card
+   grows. */
+.tl-ribbon-warn { display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
+.tl-ribbon-warn > .warn-list { margin-top: 2px; }
+.tl-ribbon-warn .warn-item { padding: 8px 10px; }
+.tl-ribbon-days {
+  flex: 1; min-width: 0; position: relative;
+  display: flex; align-items: center; gap: 22px;
 }
-.day-rail-chip:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
-.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--ink-amber); font-weight: 700; }
-.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--ink-amber); }
+/* The route line is the ribbon's spine: it runs behind the cards from the
+   first day to the last, ending in the trip's destination dot. */
+.tl-ribbon-line {
+  position: absolute; left: 0; right: 14px; top: 50%;
+  height: 3px; transform: translateY(-50%);
+  background: var(--pw-route-line, var(--pw-route)); border-radius: var(--radius-pill);
+}
+.tl-ribbon-line-end {
+  position: absolute; right: 0; top: 50%;
+  width: 12px; height: 12px; transform: translateY(-50%);
+  border-radius: var(--radius-pill); background: var(--pw-marigold-500);
+}
+.tl-ribbon-card {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 10px 12px; text-align: start; cursor: pointer;
+  background: var(--pw-soft);
+  border: 1.5px solid transparent; border-radius: var(--radius-sm);
+  color: var(--text-2);
+  transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.tl-ribbon-card:hover { border-color: var(--teal); }
+.tl-ribbon-card[aria-current='true'] {
+  background: var(--pw-lagoon-100); border-color: var(--pw-lagoon-600);
+}
+/* The last card stops short of the edge so the route's destination dot —
+   the line's own terminus — stays visible beside it, as the mockup draws it. */
+.tl-ribbon-card:last-of-type { margin-inline-end: 28px; }
+.tl-ribbon-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; width: 100%;
+}
+.tl-ribbon-card-day {
+  font-size: 12px; font-weight: 700; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-ribbon-card[aria-current='true'] .tl-ribbon-card-day { color: var(--pw-sea-700); }
+/* The state dot: one mark, three meanings. The label is the accessible name,
+   so colour is never the only carrier. */
+.tl-ribbon-dot {
+  width: 8px; height: 8px; flex: none;
+  border-radius: var(--radius-pill); background: var(--ok);
+}
+.tl-ribbon-dot.warn { background: var(--yf-amber); }
+.tl-ribbon-dot.risk { background: var(--danger); }
+.tl-ribbon-card-place {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tl-ribbon-card-meta {
+  font-size: 12px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-ribbon-card-bar {
+  display: block; width: 100%; height: 4px; margin-top: 4px;
+  background: var(--pw-sunken); border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.tl-ribbon-card-bar > span {
+  display: block; height: 4px;
+  background: var(--pw-lagoon-600); border-radius: var(--radius-pill);
+}
+.tl-ribbon-card[aria-current='true'] .tl-ribbon-card-bar { background: var(--card); }
+/* Below the phone breakpoint the two halves cannot share a row: the totals
+   become a header band and the days scroll sideways, as the old rail did. */
+@media (max-width: 900px) {
+  .tl-ribbon { flex-direction: column; gap: 14px; padding: 14px 16px; }
+  .tl-ribbon-total {
+    width: auto; padding-inline-end: 0; padding-bottom: 12px;
+    border-inline-end: 0; border-bottom: 1px dashed var(--line);
+  }
+  /* The days scroll sideways here, so a spine pinned to the box would slide
+     out of step with the cards it is meant to join. Drop it and let the cards
+     carry the sequence. */
+  .tl-ribbon-line, .tl-ribbon-line-end { display: none; }
+  .tl-ribbon-days {
+    gap: 12px; overflow-x: auto; padding: 2px;
+    scrollbar-width: thin;
+    /* Cards snap to the edge so the strip never rests showing half a card. */
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 2px;
+  }
+  .tl-ribbon-card { flex: 0 0 auto; min-width: 150px; max-width: 210px; scroll-snap-align: start; }
+  .tl-ribbon-card:last-of-type { margin-inline-end: 0; }
+}
+@media (pointer: coarse), (max-width: 720px) {
+  .tl-ribbon-card { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-ribbon-card { transition: none; }
+}
 /* Warning state inside the affected day's header (doc §6.3). */
 .day-warn-pill {
   align-self: flex-start;
@@ -614,34 +797,27 @@
 @media (max-width: 720px) { .day-dwell-chip { display: none; } }
 
 /* ---------- Review mode: every day open, one continuous scroll (#421) ---------- */
-/* Orientation comes from the day-jump rail, which is sticky here and marks the
-   day at the top of the viewport — NOT from the day header: measured at 390 /
-   900 / 1440 px, a header carrying the day's clocks, chips, warnings and its
-   own actions is 193–309 px tall, and a control panel stuck to the viewport
+/* Orientation comes from the ribbon's day row, which is sticky here and marks
+   the day at the top of the viewport — NOT from the day header: measured at
+   390 / 900 / 1440 px, a header carrying the day's clocks, chips, warnings and
+   its own actions is 193–309 px tall, and a control panel stuck to the viewport
    costs a fifth of a phone's screen to say one word. So the header stays in
-   flow, continuity carries the boundaries, and the compact rail (one row, the
-   mode's own navigation) takes the sticky rung from the trip-total strip. */
-.tl-root-review .tl-total-strip { position: static; }
-.tl-root-review .day-rail {
+   flow, continuity carries the boundaries, and the ribbon takes the sticky
+   rung: its totals column scrolls away, its day row stays. */
+.tl-root-review .tl-ribbon {
   position: sticky;
   top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   /* above the day cards, below a carried row (.tl-row.is-carried is 6) */
   z-index: 2;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
   padding: 8px 12px;
-  box-shadow: var(--shadow-soft);
 }
-/* Which day you are in: the card whose day has scrolled past the sticky
-   line. The marker is the BORDER plus the weight, so the warn tint cannot
-   replace it — the tint is the day's own state and stays next to the marker. */
-.day-rail-card.warn[aria-current='true'] {
-  border-color: var(--teal);
-  background: var(--yf-amber-100);
-  color: var(--ink-amber);
-  font-weight: 800;
-}
+/* A stuck ribbon would otherwise hold 160px of totals over a phone screen to
+   say one word; in review the totals column is not the point, the day row is. */
+.tl-root-review .tl-ribbon-total { display: none; }
+/* Which day you are in: the card whose day has scrolled past the sticky line.
+   The marker is the BORDER plus the weight, so the state dot cannot replace
+   it — the dot is the day's own state and stays next to the marker. */
+.tl-root-review .tl-ribbon-card[aria-current='true'] { font-weight: 800; }
 
 /* ---------- Between-stop insertion (#422) ---------- */
 /* The control belongs to the leg between two stops and is revealed on hover
@@ -664,10 +840,11 @@
 @media (prefers-reduced-motion: reduce) {
   .leg-insert { transition: none; }
 }
-/* Stop-kind markers: a coloured spine on the card + a small type tag.
-   Tag text stays --text-2 on soft tinted backgrounds so both themes keep
-   AA contrast; the spine carries the hue. */
-.stop-card[class*='kind-'] { border-left: 4px solid var(--kind-c, var(--line)); padding-left: 12px; }
+/* Stop-kind markers: the 48px duotone tile carries the kind.
+   A 4px coloured spine used to sit on the card's left edge. The artboard draws
+   no spine — the kind lives in the tile — and the spine read as a stray
+   bracket clamped inside the card's rounded corner. The per-kind hue is still
+   declared, because the rail ring and the kind tag read it. */
 .stop-card.kind-drive { --kind-c: var(--yf-coral); }
 .stop-card.kind-stay { --kind-c: var(--ok-500); }
 .stop-card.kind-food { --kind-c: var(--yf-amber); }
@@ -893,12 +1070,6 @@
 
 .tab-count { background: var(--teal-soft); color: var(--teal-deep); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
 /* The pill nav's count-badge fill is owned by components/pill-nav-02.css. */
-/* Editable day title — a real button (keyboard-reachable rename), styled as
-   the heading it replaces. */
-.day-title-btn { border: none; background: none; padding: 0; cursor: pointer;
-  font: inherit; font-weight: 700; color: var(--text); border-radius: 6px; text-align: left; }
-.day-title-btn:hover { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 3px; }
-[data-theme='dark'] .day-title-btn:hover { color: var(--teal); }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 10px; }
 
@@ -1954,57 +2125,106 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 [data-theme='dark'] .locked-cta { background: rgba(11,20,35,.55); }
 
 /* Consistent vertical rhythm between stacked cards & sections */
-.day-section + .day-section { margin-top: 22px; }
+/* The sibling margin duplicated the one above; a single margin-bottom on
+   .day-section now spaces the list. */
 .card h3 + hr.divider, .card h2 + hr.divider { margin-top: 12px; }
 
 /* ===== PW-07: the open day reads as one Papercut card =====
    The date badge replaces the navy "Day N" tile, and the header gains the
    mockup's time-budget bar. Values come from the day simulation; the bar never
-   invents a "waiting" segment the engine does not measure. */
-.day-section:not(.day-closed) { border-color: var(--pw-route); }
+   invents a "waiting" segment the engine does not measure.
+   The open day also lifts one elevation tier: the artboard gives it the sea
+   border and --elev-2, while a folded day keeps --elev-1 and the plain line. */
+.day-section:not(.day-closed) { border-color: var(--pw-route); box-shadow: var(--elev-2); }
 .day-badge-date {
   width: 56px;
-  height: 66px;
-  gap: 1px;
-  border: 1px solid var(--pw-line);
+  /* Natural height, as the artboard has it: 8px padding, then the weekday,
+     numeral and month at their own line heights. A fixed 66px clipped the
+     stack and left the month riding the card's bottom edge. */
+  height: auto;
+  padding: 8px 0;
+  gap: 0;
+  border: 1px solid var(--pw-glass-edge);
   border-radius: var(--radius);
-  background: var(--pw-raised);
+  /* The artboard's own recipe, shared with the open day's badge so the two
+     states read as one component: a near-opaque warm fill that lifts on
+     --elev-2 with a light edge. */
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, .96) 0%,
+    color-mix(in srgb, var(--pw-soft) 90%, transparent) 100%);
   color: var(--pw-ink);
-  box-shadow: var(--elev-press);
+  box-shadow: var(--elev-2);
 }
 .day-badge-date .day-badge-wd {
   font: var(--pw-kicker);
-  letter-spacing: .12em;
+  /* The artboard tracks the weekday at 0.1em, not 0.12em. */
+  letter-spacing: .1em;
   color: var(--pw-marigold-ink);
 }
 .day-badge-date b {
   font: var(--pw-display-m);
+  font-size: 25px;
   line-height: 1;
 }
 .day-badge-date .day-badge-mon {
   font: var(--pw-kicker);
+  font-size: 11px;
   font-weight: 600;
   color: var(--pw-ink-2);
 }
 .day-number {
   font: var(--pw-caption);
+  /* The artboard sets "Day 2" at 12px/700 in the sea ink; --pw-caption is 600. */
+  font-weight: 700;
   color: var(--pw-sea-700);
   white-space: nowrap;
 }
-.day-title-row h3,
-.day-title-btn {
+.day-title-row h3 {
   font: var(--pw-display-s);
   letter-spacing: -.01em;
 }
+/* The title is plain text; the pencil beside it renames. A title that was
+   itself the trigger swapped the day name for a focused input, which pushed
+   the heart and the chip onto a second row. */
+.day-title-text {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.day-rename-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--pw-ink-2);
+  cursor: pointer;
+}
+.day-rename-btn:hover { background: var(--pw-soft); color: var(--pw-sea-700); }
+/* The artboard steps the folded row's type down: its title is 16.5px against
+   the open day's 22px, and its facts line is 13px against 14px. Without this
+   the folded card carried the open day's scale, which read as heavy and made
+   the row taller than the artboard's 105px. */
+.day-closed .day-title-row h3 { font-size: 16.5px; }
+.day-closed .day-header .small.muted.num { font-size: 13px; }
+/* The bar and its key begin on the title block's own left edge: the badge plus
+   the same 22px gap the header uses. Measured against the artboard, that is the
+   badge's width plus one row gap, so both are ladder values here. */
 .day-budget {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-2));
+  margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-9));
 }
 .day-budget-bar {
   display: grid;
-  gap: var(--space-2);
+  gap: 4px;
   height: 12px;
 }
 .day-budget-bar > span {
@@ -2012,28 +2232,410 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   border-radius: var(--radius-pill);
 }
 .db-drive { background: var(--pw-time-drive); }
+.db-halt { background: var(--pw-lagoon-300); }
 .db-dwell { background: var(--pw-time-stop); }
-.db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route); }
+/* The artboard's fifth segment: time spent waiting for a fixed commitment to
+   come due. `--pw-time-wait` already existed in both themes for exactly this
+   bucket and had no consumer until now. Amber is the same hue the clash and
+   attention states use, which is honest — waiting is slack the plan could have
+   spent, not time well used. */
+.db-wait { background: var(--pw-time-wait); }
+.db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route-line); }
 .day-budget-key {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3) var(--space-7);
-  font: var(--pw-meta);
+  gap: var(--space-3) 18px;
+  font: 400 12.5px/1.4 var(--font-body);
   color: var(--pw-ink-2);
 }
 .day-budget-key .db-dot {
   display: inline-block;
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   flex: none;
-  margin-inline-end: var(--space-3);
+  margin-inline-end: 6px;
   border-radius: var(--radius-pill);
   vertical-align: 0;
 }
 .day-section:not(.day-closed) .day-progress { display: none; }
+
+/* ===== The timeline toolbar: ONE pill, as the artboard draws it =====
+   Sits between the heading and the ribbon. The artboard's geometry: a 6px
+   inset, a 36px control, a 1px rule between the two groups, and the action end
+   pinned right. `flex-wrap` is off: below 720px the pill scrolls horizontally
+   rather than stacking into the wall of buttons this replaced. */
+.tl-head { align-items: center; }
+.tl-toolbar {
+  display: flex;
+  align-items: center;
+  /* The artboard spaces the groups 16px apart and insets the pill 6px top and
+     bottom, 8px at the start. The app used one 4px gap and a flat 6px inset,
+     which crowded the separator against the switches. */
+  gap: var(--space-4);
+  padding: 6px 6px 6px 8px;
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-pill);
+  max-width: 100%;
+  /* The artboard's toolbar is one full-width pill: the day-scope switch sits at
+     the start and the actions at the far end, the same edge-to-edge bar as the
+     ribbon under it. Left to shrink, the pill hugged its content and floated at
+     the right of an empty row, which read as a stray control rather than the
+     top of the section. */
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tl-toolbar::-webkit-scrollbar { display: none; }
+/* The day-scope switch is a SUNKEN TRACK, not a glass pill: the artboard draws
+   `padding: 4px` on the sunken track with the selected segment in card white
+   on top of it. The shared .view-pillbar paints the nav glass instead (a
+   translucent white with a border and --shadow-soft), which read as a floating
+   pill sitting inside the toolbar rather than a track cut into it. */
+.tl-toolbar .view-pillbar {
+  padding: 4px;
+  background: var(--pw-sunken);
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.tl-toolbar .tab-btn { height: 36px; font-size: 13px; }
+/* The selected segment is card white with a 700-weight label, as the artboard
+   draws it. The glider's paint lives in pill-nav.css, which owns that element. */
+.tl-toolbar .view-pillbar .tab-btn.active { color: var(--pw-ink); font-weight: 700; }
+.tl-toolbar-sep { width: 1px; height: 24px; flex: none; background: var(--pw-line); margin-inline: 8px; }
+.tl-toolbar-end { display: flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; padding-inline-start: var(--space-3); }
+.tl-toolbar .btn-sm { height: 36px; }
+/* The artboard's editing control is a SWITCH with its hint underneath, not a
+   two-segment pill: "Editing on" and "Review" as peers read as two modes to
+   choose between rather than one state to turn off. */
+.tl-edit-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px 0 8px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--pw-ink);
+  text-align: start;
+  cursor: pointer;
+}
+.tl-edit-track {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--pw-line);
+  transition: background var(--t-fast) var(--ease-out);
+}
+.tl-edit-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  box-shadow: var(--elev-press);
+  transition: left var(--t-fast) var(--ease-out);
+}
+.tl-edit-switch[aria-checked="true"] .tl-edit-track { background: var(--pw-sea-700); }
+.tl-edit-switch[aria-checked="true"] .tl-edit-knob { left: 19px; }
+.tl-edit-copy { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.tl-edit-label { font-size: 13px; font-weight: 700; }
+.tl-edit-hint { font-size: 12px; font-weight: 500; color: var(--pw-ink-3); }
+/* The artboard splits the primary action: "Add stop to Day N" plus a chevron
+   that picks the day. The single button always added to the day you were in,
+   with no way to say otherwise. */
+.tl-add-split { display: flex; align-items: center; border-radius: var(--radius-pill); overflow: hidden; flex: none; }
+.tl-add-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 16px;
+  border: 0;
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+  font: 700 14px/1 var(--font-body);
+  cursor: pointer;
+}
+.tl-add-main:disabled { opacity: .5; cursor: not-allowed; }
+.tl-add-day {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 40px;
+  border: 0;
+  border-inline-start: 1px solid rgba(255,255,255,.35);
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+  cursor: pointer;
+}
+.tl-add-day[aria-expanded="true"] { background: var(--pw-sea-900); }
+.tl-add-day-menu {
+  position: fixed;
+  top: var(--menu-top, 0);
+  right: var(--menu-right, 0);
+  z-index: var(--z-notif);
+  min-width: 210px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-2);
+}
+.tl-add-day-menu > button {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--pw-ink);
+  font: 600 13px/1 var(--font-body);
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tl-add-day-menu > button:hover { background: var(--pw-soft); }
+/* The ⋯ menu. The panel is PORTALED to <body> (ToolbarMenu), because the
+   toolbar scrolls horizontally on a phone and an absolutely-positioned panel
+   inside a scroll container is clipped by it — the menu opened and then painted
+   under the ribbon with nothing clickable. A portaled panel is out of flow, so
+   its position comes from inline `top`/`right` measured off the trigger. */
+.tl-more-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--pw-lagoon-50);
+  color: var(--pw-ink-2);
+  cursor: pointer;
+}
+.tl-more-btn[aria-expanded="true"] { color: var(--pw-sea-700); background: var(--pw-soft); }
+.tl-more-btn-menu {
+  position: fixed;
+  top: var(--menu-top, 0);
+  right: var(--menu-right, 0);
+  z-index: var(--z-notif);
+  min-width: 190px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-2);
+}
+.tl-more-btn-menu > button {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--pw-ink);
+  font: 600 13px/1 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+}
+.tl-more-btn-menu > button:hover { background: var(--pw-soft); }
+/* A stop card's ⋯ menu — the same disclosure the timeline toolbar uses, so a
+   card and the toolbar do not teach two different menu idioms. It opens to the
+   inline-end and upward-inset, because the last card on a day sits at the
+   bottom of the viewport. */
+.stop-more { position: relative; flex: none; }
+.stop-more > summary { list-style: none; cursor: pointer; }
+.stop-more > summary::-webkit-details-marker { display: none; }
+.stop-more[open] > summary { background: var(--bg-soft); color: var(--text); }
+.stop-more-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-strip);
+  min-width: 200px;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-2);
+}
+.stop-more-menu > button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--pw-ink);
+  font: 600 13px/1 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+  /* The icon must not shrink and the label must not wrap: a 36px row with a
+     wrapping label breaks "Move to another day" over four lines. */
+  white-space: nowrap;
+}
+.stop-more-menu > button > svg { flex: none; }
+.stop-more-menu > button:hover { background: var(--pw-soft); }
+.stop-more-menu > button.danger { color: var(--danger); }
+.stop-more-menu > button.danger:hover { background: var(--danger-soft); }
+@media (max-width: 900px) {
+  .tl-head { flex-wrap: wrap; gap: var(--space-5); }
+  .tl-toolbar { width: 100%; }
+}
+
+/* The artboard puts the collapse control at the RIGHT of the header, after the
+   title block, so the eye reads date → title → state → fold. `order` moves it
+   there without moving it in the DOM, which keeps the tab order starting at the
+   fold control (the first thing a keyboard user wants on a folded day). */
+.day-header > .day-collapse { order: 2; margin-inline-start: auto; }
+
+/* The day's own cover strip. 132px, top corners matching the card, and a veil
+   that runs white at the bottom so the header can sit over the photo without
+   losing its type. The header pulls up 34px into it (see .day-section > .day-header),
+   which is what lets the date badge overlap the image. */
+.day-cover {
+  position: relative;
+  height: 132px;
+  /* The card's own padding would inset the photo, so the cover cancels it and
+     runs edge to edge. Its radius is the card's INNER radius (outer minus the
+     1.5px border) so the photo's corner follows the card's curve instead of
+     being clipped square by it. The cancel must match .day-section's padding
+     exactly, or the photo insets by the difference. */
+  margin: -16px -20px 0;
+  border-radius: calc(var(--radius-lg) - 1.5px) calc(var(--radius-lg) - 1.5px) 0 0;
+  overflow: hidden;
+  background: var(--pw-raised);
+}
+.day-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 70%;
+}
+.day-cover-veil {
+  position: absolute;
+  inset: 0;
+  /* The header's title and stats sit in the lower third of this 132px band, and
+     they are dark ink. A fade that only reached card colour at 100% left the
+     title over mid-tone sand and sky, where contrast fell to roughly 2:1. The
+     fade now starts higher and reaches near-solid white by 78%, so the band
+     under the text is always light — on a bright beach and on a dark fort wall
+     alike. */
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0) 26%,
+    color-mix(in srgb, var(--pw-card) 72%, transparent) 58%,
+    var(--pw-card) 78%,
+    var(--pw-card) 100%);
+}
+.day-cover-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--pw-glass-edge);
+  background: var(--pw-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  color: var(--pw-ink);
+  font: 700 12px/1 var(--font-body);
+  cursor: pointer;
+}
+.day-cover-btn:disabled { opacity: .6; cursor: default; }
+.day-cover-clear {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--pw-glass-edge);
+  background: var(--pw-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  color: var(--pw-ink-2);
+  cursor: pointer;
+}
+/* The two controls ride one row at the photo's top corner. They are wrapped in
+   a flex row so their placement comes from their real widths: pinning the clear
+   button at a guessed `inset-inline-end` put it on top of "Change day cover". */
+.day-cover-tools {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* A day with a photo lifts its header into it, exactly as the artboard does.
+   The 34px is the artboard's own overlap, not a rhythm choice, so it rides the
+   ladder's 32px rung plus the 2px hairline rather than inventing a value. */
+.day-section > .day-cover + .day-header {
+  margin-top: calc(-1 * (var(--space-12) + var(--space-1)));
+  position: relative;
+}
+/* An open day with a cover keeps its badge clear of the photo's top edge. The
+   artboard draws that badge larger than a folded day's — 62px wide with a 30px
+   numeral — and lifts it 30px out of the header's own flow so it straddles the
+   photo's bottom edge. The header stays top-aligned (see the design-system
+   test): only the badge moves. */
+.day-section > .day-cover + .day-header .day-badge {
+  position: relative;
+  /* The artboard lifts the badge 30px out of the header flow; 32px is the
+     ladder rung above it, and the 2px difference is invisible under the veil. */
+  margin-top: calc(-1 * var(--space-12));
+  /* The base .day-badge is a fixed 46x46 square. On a cover the date stack needs
+     its own height, so this drops the square and lets the content set it. */
+  width: auto;
+  height: auto;
+  justify-content: flex-start;
+}
+.day-section > .day-cover + .day-header .day-badge-date {
+  /* The artboard's 62px, rounded to the ladder so the budget's offset can be
+     expressed as tokens instead of a one-off pixel value. */
+  width: var(--space-16);
+  /* Natural height, as the artboard has it. A fixed height clamped the weekday,
+     numeral and month stack, and the month spilled past the card's bottom edge. */
+  height: auto;
+  padding: 8px 0 10px;
+  /* Same fill, edge and elevation as the folded badge — only the width and the
+     numeral step up, so the two states read as one component. */
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, .96) 0%,
+    color-mix(in srgb, var(--pw-soft) 90%, transparent) 100%);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  border-color: var(--pw-glass-edge);
+  box-shadow: var(--elev-2);
+}
+.day-section > .day-cover + .day-header .day-badge-date b { font-size: 30px; }
+.day-section > .day-cover + .day-header .day-badge-date .day-badge-wd { font-size: 11px; }
+.day-section > .day-cover + .day-header .day-badge-date .day-badge-mon { font-size: 11px; }
 @media (max-width: 720px) {
   .day-budget { margin-inline-start: 0; }
-  .day-badge-date { width: 46px; height: 56px; }
+  .day-badge-date { width: 46px; height: auto; }
   .day-badge-date b { font-size: 24px; }
   .day-title-row h3,
   .day-title-btn { font-size: 19px; }
@@ -2055,6 +2657,10 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   border: 1px solid var(--pw-line);
   border-radius: var(--radius-lg);
   padding: var(--space-7);
+  /* The artboard lifts every aside panel with --elev-1. Without it the Day
+     Brief, Needs Attention and Day Tools panels sat flat on the page while the
+     cards beside them floated, which read as unfinished rather than calm. */
+  box-shadow: var(--elev-1);
 }
 .brief-kicker {
   font: var(--pw-kicker);
@@ -2146,6 +2752,9 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   background: var(--pw-card);
   color: var(--pw-marigold-ink);
   font-family: var(--font-display);
+  /* The artboard sets 10px here, but 11px is this project's type floor (see
+     tests/design-system.test.ts). The ring's STROKE is what the artboard fixes
+     at 3px, and that is matched. */
   font-size: 11px;
   font-weight: 800;
   z-index: 1;
@@ -2154,5 +2763,181 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .tl-rail-num.cat-hotel { border-color: var(--pw-sea-700); color: var(--pw-sea-700); }
 @media (max-width: 720px) {
   .tl-gutter { grid-template-columns: 66px 23px; }
+}
+
+/* PW-08: a drive day keeps its fixed clock visible. The badge counts the
+   day's commitments; the stop pill names the clock on the stop it governs.
+   The risk tone is always backed by the word "clash", so colour is never the
+   only signal. */
+.day-fixed-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--pw-sea-900);
+  color: var(--pw-on-sea);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.day-fixed-badge.tight {
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+}
+.day-fixed-badge.risk { background: var(--pw-risk); }
+
+.stop-fixed-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--pw-sea-900);
+  color: var(--pw-on-sea);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stop-fixed-pill.is-tight {
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+}
+.stop-fixed-pill.is-clash { background: var(--pw-risk); }
+
+.fixed-times-card { display: flex; flex-direction: column; }
+.fixed-times-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.fixed-times-count {
+  padding: var(--space-1) var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--pw-ok-100);
+  color: var(--pw-ok);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.fixed-times-count.risk {
+  background: var(--pw-risk-100);
+  color: var(--pw-risk);
+}
+.fixed-times-count.tight {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+.fixed-times-list { display: flex; flex-direction: column; }
+.fixed-time-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px dashed var(--pw-line);
+}
+.fixed-time-row:first-child { padding-top: 0; border-top: 0; }
+.fixed-time-mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  background: var(--pw-ok-100);
+  color: var(--pw-ok);
+}
+.fixed-time-row.is-tight .fixed-time-mark {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+.stop-fixed-pill.is-invalid {
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+}
+.fixed-time-row.is-clash .fixed-time-mark {
+  background: var(--pw-risk-100);
+  color: var(--pw-risk);
+}
+.fixed-time-row.is-invalid .fixed-time-mark {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+.fixed-time-row.is-unlinked .fixed-time-mark,
+.fixed-time-row.is-anchor .fixed-time-mark {
+  background: var(--pw-soft);
+  color: var(--pw-ink-2);
+}
+.fixed-time-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.fixed-time-copy b {
+  font-size: 13.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.fixed-time-copy > span {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--pw-ink-2);
+}
+.fixed-time-copy .fixed-time-note { color: var(--pw-ink-3); }
+.fixed-time-row.is-clash .fixed-time-copy b { color: var(--pw-risk); }
+.fixed-time-link { margin-top: var(--space-2); }
+
+/* ---- Timeline toolbar, phone (the artboard's compact row) ----
+   The artboard drops the toolbar pill on a phone: the day-scope switch and the
+   edit switch become two separate rounded controls with no card behind them,
+   and Add stop leaves the toolbar for a floating button above the bottom nav.
+   The scrolling pill this replaces held 942px of content in a 381px box, so
+   "Add stop" began off screen — a control you have to swipe to find is not a
+   control. Declared last so it wins over the desktop rules above on order. */
+.tl-add-fab {
+  display: none;
+  position: fixed;
+  right: calc(16px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+  bottom: calc(92px + var(--bottom-ui-offset));
+  z-index: var(--z-ai-fab);
+  height: 52px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+  font: 700 15px/1 var(--font-body);
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--glow-sea);
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .tl-toolbar {
+    overflow-x: visible;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .tl-toolbar-sep { display: none; }
+  .tl-toolbar .view-pillbar { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; }
+  .tl-toolbar .view-pillbar .tab-btn { flex: 1 1 auto; justify-content: center; padding: 0 10px; }
+  .tl-edit-switch { height: 44px; padding: 0 12px 0 8px; gap: 8px; background: var(--pw-soft); }
+  .tl-edit-hint { display: none; }
+  .tl-edit-label { font-size: 13px; }
+  .tl-edit-track { width: 34px; height: 20px; }
+  .tl-edit-knob { width: 14px; height: 14px; }
+  .tl-edit-switch[aria-checked="true"] .tl-edit-knob { left: 17px; }
+  .tl-toolbar-end { display: none; }
+  .tl-add-fab { display: flex; }
 }
 

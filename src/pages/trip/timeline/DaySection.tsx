@@ -10,9 +10,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Heart } from 'lucide-react'
 import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
 import {
-  ArrowRight, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
-  Copy, Droplets, ExternalLink, Flag, Lock, MapPin,
-  MoveHorizontal, MoreHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, 
+  ArrowRight, Armchair, BedDouble, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
+  Copy, Droplets, ExternalLink, Flag, Fuel, Landmark, Lock, MapPin, Mountain,
+  MoveHorizontal, MoreHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, Utensils,
 } from 'lucide-react'
 import type { ChangeEvent } from 'react'
 import type { Trip, ItineraryStop, ItineraryDay } from '../../../data/types'
@@ -33,7 +33,7 @@ import { fixedRowsFor, fixedStopIdsOf, waitingMinutesFor, worstFixedTone } from 
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
 import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
-import { stopPresentation } from '../../../lib/stopKind'
+import { stopPresentation, type StopKind } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
 import { Chip, Modal, toast, useReorder } from '../../../components/ui'
 import { StateBlock } from '../../../components/page/StateBlock'
@@ -85,6 +85,48 @@ function useDayCover(day: ItineraryDay, trip: Pick<Trip, 'id' | 'coverEmoji' | '
     })
   }, [day.coverImageUrl, day.index, day.title, day.stops, trip])
 }
+/**
+ * The stop's kind, drawn as the artboard's duotone tile icon. Each kind gets a
+ * distinct glyph so the tile reads by shape as well as by tint — colour alone
+ * would fail for a colour-blind reader and in a greyscale print.
+ */
+function StopKindIcon({ kind }: { kind: StopKind }) {
+  switch (kind) {
+    case 'food': return <Utensils size={22} aria-hidden />
+    case 'stay': return <BedDouble size={22} aria-hidden />
+    case 'fuel': return <Fuel size={22} aria-hidden />
+    case 'rest': return <Armchair size={22} aria-hidden />
+    case 'viewpoint': return <Mountain size={22} aria-hidden />
+    case 'drive': return <Car size={22} aria-hidden />
+    default: return <Landmark size={22} aria-hidden />
+  }
+}
+
+/**
+ * A collapsed day's thumbnail: the artboard's 84x60 crop at the start of the
+ * row. It reads the same cover plan as the open day's band, so folding and
+ * unfolding a day shows one picture rather than two different places.
+ */
+function DayThumb({ day, trip }: {
+  day: ItineraryDay
+  trip: Pick<Trip, 'id' | 'coverEmoji' | 'destinations' | 'startLocation'> | undefined
+}) {
+  const plan = useDayCover(day, trip)
+  if (!coverAttemptsFor(plan).length) return null
+  return (
+    <span className="day-thumb" aria-hidden="true">
+      <CoverMedia
+        plan={plan}
+        ratio="84:60"
+        sizes="84px"
+        className="day-thumb-img"
+        emojiClassName="day-thumb-img day-thumb-emoji"
+        alt=""
+      />
+    </span>
+  )
+}
+
 /**
  * The day's cover strip: a photo for THIS day, a 34px "Change day cover"
  * control over it, and the white-to-transparent gradient that lets the header
@@ -722,10 +764,14 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
 
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
-      {/* The cover is a SIBLING of the header, not its background: the header
-          pulls up into it by 34px so the date badge overlaps the photo, and a
-          background image could not be overlapped by its own child. */}
-      <DayCover day={day} trip={trip ?? dayCover} editable={editable && !collapsed} onSetCover={onSetCover} />
+      {/* The artboard splits the cover in two. An OPEN day draws the 132px
+          gradient band, and the header pulls up into it so the date badge
+          overlaps the photo. A COLLAPSED day draws only an 84x60 thumbnail at
+          the start of its row — the full band on a folded card turned four
+          days into four banners and buried the list. The cover is a SIBLING of
+          the header, not its background: a background image could not be
+          overlapped by its own child. */}
+      {!collapsed && <DayCover day={day} trip={trip ?? dayCover} editable={editable} onSetCover={onSetCover} />}
       <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
@@ -738,16 +784,19 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           <ChevronDown size={16} aria-hidden className="day-collapse-icon" />
         </button>
         )}
-        <div className={`day-badge${dayDate ? ' day-badge-date' : ''}`}>
-          {dayDate ? (
-            <>
-              <span className="day-badge-wd">{dayDate.wd}</span>
-              <b>{dayDate.d}</b>
-              <span className="day-badge-mon">{dayDate.mon}</span>
-            </>
-          ) : (
-            <><small>Day</small><b>{day.index + 1}</b></>
-          )}
+        <div className="day-badge-lead">
+          {collapsed && <DayThumb day={day} trip={trip ?? dayCover} />}
+          <div className={`day-badge${dayDate ? ' day-badge-date' : ''}`}>
+            {dayDate ? (
+              <>
+                <span className="day-badge-wd">{dayDate.wd}</span>
+                <b>{dayDate.d}</b>
+                <span className="day-badge-mon">{dayDate.mon}</span>
+              </>
+            ) : (
+              <><small>Day</small><b>{day.index + 1}</b></>
+            )}
+          </div>
         </div>
         <div className="tl-stop-flex">
           <div className="day-title-row">
@@ -1049,6 +1098,14 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   className={`stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
                 >
               <div className="stop-main">
+                {/* The artboard leads a stop with a 48px duotone tile: a tinted
+                    square holding the kind's own icon in a darker ink of the
+                    same hue. It gives the eye the stop's type before it reads
+                    the title, which is what lets the title stay plain. */}
+                <span className={`stop-tile tile-${kind}`} aria-hidden="true">
+                  <StopKindIcon kind={kind} />
+                </span>
+                <div className="stop-body">
                 <div className="stop-toprow">
                   <span className="stop-title">{s.title}</span>
                   {/* MR8: save the experience. The heart is a real button, not a
@@ -1103,6 +1160,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                 {s.description && <ClampedText className="stop-desc">{s.description}</ClampedText>}
                 {s.notes && <ClampedText className="stop-desc muted"><InlineIcon icon={PenLine} size={12} gap={3} />{s.notes}</ClampedText>}
                 {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="small" onClick={e => { e.preventDefault(); openExternal(s.sourceUrl!) }}>Source <InlineIcon icon={ExternalLink} size={11} gap={0} className="tl-source-gap" /></a>}
+                </div>
               </div>
               {editable && (
                 <div className="stop-actions">

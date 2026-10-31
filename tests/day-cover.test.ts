@@ -37,12 +37,21 @@ describe('a day carries its own cover photo', () => {
     expect(day).toMatch(/sceneIndex: day\.index/)
   })
 
-  it('lifts the header into the photo the way the artboard does', () => {
+  it('gives the open day the 132px band and the folded day only a thumbnail', () => {
     // A closed card is denied the whole `trip` for render cost, so the cover
     // falls back to the small slice of it passed as `dayCover`.
-    expect(day).toMatch(/<DayCover day=\{day\} trip=\{trip \?\? dayCover\}/)
-    // The "Change day cover" controls belong to the open day, as in the
-    // artboard: a folded card carries only its photo and its chevron.
-    expect(day).toMatch(/editable=\{editable && !collapsed\}/)
+    // The artboard splits the cover in two: the open day draws the full band
+    // with "Change day cover" over it, and a folded day draws an 84x60
+    // thumbnail at the start of its row. The band on a folded card turned four
+    // days into four banners and buried the list.
+    expect(day).toMatch(/\{!collapsed && <DayCover day=\{day\} trip=\{trip \?\? dayCover\}/)
+    expect(day).toMatch(/\{collapsed && <DayThumb day=\{day\} trip=\{trip \?\? dayCover\} \/>\}/)
+    // Both read ONE plan, so folding a day cannot swap the picture.
+    expect(day).toMatch(/function DayThumb[\s\S]*?const plan = useDayCover\(day, trip\)/)
+  })
+
+  it('draws the thumbnail at the artboard size', () => {
+    const css = readFileSync(new URL('../src/styles/legacy/02-select-and-print.css', import.meta.url), 'utf8')
+    expect(css).toMatch(/\.day-thumb \{\s*\n\s*width: 84px; height: 60px;/)
   })
 })

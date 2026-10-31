@@ -130,6 +130,19 @@
    jumped up to 32px on the click, before the body had moved a pixel. Each item's
    position must be independent of its siblings'. */
 .day-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+/* The lead group is the collapsed day's thumbnail plus its date badge. On an
+   open day the thumbnail is absent and the group collapses to just the badge. */
+.day-badge-lead { display: flex; align-items: center; gap: 14px; flex: none; }
+.day-thumb {
+  width: 84px; height: 60px; flex: none;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--pw-raised);
+  /* A collapsed row is vertically centred on its thumbnail, not on the badge. */
+  display: block;
+}
+.day-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.day-thumb-emoji { display: flex; align-items: center; justify-content: center; font-size: 26px; }
 .day-badge {
   width: 46px; height: 46px; border-radius: 16px; flex: 0 0 auto;
   background: var(--yf-navy); color: #fff;
@@ -139,7 +152,7 @@
 .day-badge small { font-size: 9px; text-transform: uppercase; opacity: .75; letter-spacing: .08em; }
 .day-badge b { font-size: 18px; font-weight: 800; line-height: 1.1; }
 .stop-card {
-  display: flex; gap: 12px;
+  display: flex; gap: 12px; align-items: flex-start;
   background: var(--pw-card); border: 1px solid var(--pw-line);
   border-radius: var(--radius-lg); padding: 14px 16px;
   box-shadow: var(--elev-1);
@@ -162,10 +175,27 @@
 .stop-num.cat-travel { background: var(--pw-sunken); color: var(--pw-ink-2); }
 .stop-num.cat-food { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
 .stop-num.cat-hotel { background: var(--pw-sunken); color: var(--pw-ink-2); }
-.stop-main { flex: 1; min-width: 0; }
-.stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; }
+.stop-main { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: flex-start; }
+.stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; min-width: 0; }
+.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; min-width: 0; }
 .stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 13px; color: var(--pw-ink-2); font-weight: 500; }
+/* The artboard's 48px duotone tile: a tinted square holding the stop kind's
+   glyph in a darker ink of the same hue. Every tint pairs a 100-step fill with
+   its 700-step ink, so the pair holds its contrast in both themes. */
+.stop-tile {
+  width: 48px; height: 48px; flex: none;
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pw-lagoon-100); color: var(--pw-sea-700);
+}
+.stop-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.stop-tile.tile-viewpoint { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
+.stop-tile.tile-activity { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.stop-tile.tile-food { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.stop-tile.tile-stay { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-tile.tile-drive { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-tile.tile-fuel { background: var(--pw-sunken); color: var(--pw-ink-2); }
+.stop-tile.tile-rest { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
 .stop-desc { font-size: 13px; color: var(--pw-ink-2); margin-top: 6px; }
 /* Clamped stop-card descriptions (issue #3): clamp to 2 lines + "Show more" toggle. */
 .clamp-wrap { position: relative; }
@@ -198,7 +228,7 @@
   cursor: pointer;
 }
 .clamp-toggle:hover { text-decoration: underline; }
-.stop-actions { display: flex; flex-direction: row; gap: 2px; align-items: center; align-self: flex-start; }
+.stop-actions { display: flex; flex-direction: row; gap: 2px; align-items: center; align-self: center; flex: none; }
 /* Board cards: the keyboard alternative to dragging sits under the card body. */
 
 .move-btns { display: flex; flex-direction: row; gap: 0; }

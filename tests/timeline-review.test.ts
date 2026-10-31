@@ -144,6 +144,23 @@ describe('a stop card carries one menu, not a row of buttons', () => {
   })
 })
 
+describe('a stop card leads with the artboard duotone tile', () => {
+  it('draws one 48px tile per stop, tinted by its kind', () => {
+    expect(day).toContain('className={`stop-tile tile-${kind}`}')
+    // Seven kinds, seven glyphs: colour alone would fail a greyscale print.
+    for (const glyph of ['Utensils', 'BedDouble', 'Fuel', 'Armchair', 'Mountain', 'Car', 'Landmark']) {
+      expect(day, glyph).toContain(`<${glyph} size={22}`)
+    }
+  })
+
+  it('pairs each tint with its own ink, and sizes the tile to the artboard', () => {
+    expect(css).toMatch(/\.stop-tile \{\s*\n\s*width: 48px; height: 48px;/)
+    // The artboard's exact duotone pairs: #DDF1EE/#0B5F67 and #FBE7C6/#8A4F0E.
+    expect(css).toMatch(/\.tile-viewpoint \{ background: var\(--pw-lagoon-100\); color: var\(--pw-sea-700\); \}/)
+    expect(css).toMatch(/\.tile-activity \{ background: var\(--pw-marigold-100\); color: var\(--pw-marigold-ink\); \}/)
+  })
+})
+
 describe('review mode is a continuous read, oriented by the day rail (#421)', () => {
   it('marks the root and the card so the CSS can hand the sticky rung over', () => {
     expect(tab).toMatch(/<div className=\{reviewAll \? 'tl-root-review' : undefined\}>/)

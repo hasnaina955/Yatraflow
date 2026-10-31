@@ -4537,6 +4537,7 @@ function coherentDay(value: unknown): value is ItineraryDay {
   if (!nonEmptyString(day.id) || !finiteNumber(day.index)) return false
   if (day.title !== undefined && typeof day.title !== 'string') return false
   if (day.startTime !== undefined && typeof day.startTime !== 'string') return false
+  if (day.coverImageUrl !== undefined && typeof day.coverImageUrl !== 'string') return false
   return Array.isArray(day.stops) && day.stops.every(coherentStop)
 }
 

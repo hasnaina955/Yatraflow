@@ -144,7 +144,7 @@
     "src/pages/trip/timeline/DaySection.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 6,
+      "inlineStyle": 4,
       "rawH1": 0
     },
     "src/pages/trip/timeline/DaySpark.tsx": {
@@ -180,7 +180,7 @@
     "src/pages/trip/TimelineTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 3,
+      "inlineStyle": 2,
       "rawH1": 0
     },
     "src/pages/trip/TripSettingsForm.tsx": {

@@ -266,6 +266,12 @@ export interface ItineraryDay {
    * the 08:30 planning default in the schedule; unset keeps the default.
    */
   startTime?: string
+  /**
+   * The day's own cover image. Optional: a day without one draws its header
+   * on the card surface, so an older row needs no backfill. Days live inside
+   * the trip's JSONB, so this adds no column.
+   */
+  coverImageUrl?: string
   stops: ItineraryStop[]
 }
 

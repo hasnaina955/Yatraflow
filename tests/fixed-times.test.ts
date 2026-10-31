@@ -2,7 +2,7 @@
 // simulated arrival the timeline prints. These tests pin the five honest
 // states, the stale-link rule and the optimiser's stop-id handoff.
 import { describe, it, expect } from 'vitest'
-import { fixedRowsFor, fixedStopIdsOf, worstFixedTone } from '../src/lib/fixedTimes'
+import { fixedRowsFor, fixedStopIdsOf, waitingMinutesFor, worstFixedTone } from '../src/lib/fixedTimes'
 import type { FixedCommitment, ItineraryStop } from '../src/data/types'
 
 const stops = [{ id: 's1' }, { id: 's2' }] as ItineraryStop[]
@@ -51,6 +51,46 @@ describe('fixedRowsFor', () => {
     const [row] = fixedRowsFor(schedule, [fc({ stopId: 's1', time: 'noonish' })])
     expect(row.tone).toBe('invalid')
     expect(row.spareMin).toBeNull()
+  })
+})
+
+describe('waitingMinutesFor', () => {
+  it('counts the spare time before a single commitment', () => {
+    const rows = fixedRowsFor(schedule, [fc({ stopId: 's1', time: '11:00' })])
+    expect(waitingMinutesFor(rows)).toBe(60)
+  })
+
+  it('does not double-count two commitments whose spares overlap', () => {
+    // Arriving at 10:00 for an 11:00 commitment and again at 12:10 for a 13:00
+    // one is 60 + 50 minutes of spare by row, but the second spare is measured
+    // from a clock that already contains the first. The honest total is the
+    // elapsed idle time: 10:00 → 11:00, then 12:10 → 13:00.
+    const rows = fixedRowsFor(schedule, [
+      fc({ id: 'a', stopId: 's1', time: '11:00' }),
+      fc({ id: 'b', stopId: 's2', time: '13:00' }),
+    ])
+    expect(rows.map(r => r.spareMin)).toEqual([60, 50])
+    expect(waitingMinutesFor(rows)).toBe(110)
+  })
+
+  it('never counts the same minute twice when a spare swallows the next one', () => {
+    // Both commitments are due at 11:00 from an arrival of 10:00: the 60 spare
+    // minutes are one wait, not two.
+    const rows = fixedRowsFor(schedule, [
+      fc({ id: 'a', stopId: 's1', time: '11:00' }),
+      fc({ id: 'b', stopId: 's1', time: '11:00' }),
+    ])
+    expect(waitingMinutesFor(rows)).toBe(60)
+  })
+
+  it('ignores a late arrival — a clash is not waiting', () => {
+    const rows = fixedRowsFor(schedule, [fc({ stopId: 's2', time: '12:00' })])
+    expect(waitingMinutesFor(rows)).toBe(0)
+  })
+
+  it('reports nothing when a commitment has no honest clock', () => {
+    const rows = fixedRowsFor(schedule, [fc({ time: 'noonish' }), fc({ id: 'none' })])
+    expect(waitingMinutesFor(rows)).toBe(0)
   })
 })
 

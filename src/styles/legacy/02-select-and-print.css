@@ -146,6 +146,9 @@
   transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .stop-card:hover { border-color: var(--pw-route); }
+/* A card whose ⋯ menu is open must paint above the card below it: the menu
+   hangs past the card's own box, and both sit in the same stacking context. */
+.stop-card:has(.stop-more[open]) { position: relative; z-index: var(--z-strip); }
 /* (dead: the HTML5-drag ghost slot styling this served is retired — the
    pointer engine carries the real row instead) */
 .stop-card.status-rejected { border-style: dashed; }
@@ -483,10 +486,14 @@
 .day-route-stop { white-space: normal; overflow-wrap: anywhere; }
 .day-route-text { white-space: nowrap; }
 .day-route-sep, .day-route-more { color: var(--text-3); white-space: nowrap; }
-/* Dimmed pipe for the day-header stats line — quieter than a mid-dot at
-   12px and easier to track across a long line. (Separator is a graphic:
-   text-3 at .65 stays above the 3:1 non-text floor on both themes.) */
-.stat-sep { color: var(--text-3); opacity: .65; padding: 0 5px; }
+/* Mid-dot between the day-header's facts, as the artboard draws it. It is a
+   graphic, so it needs the 3:1 non-text floor rather than the text one; ink-4
+   clears both themes. */
+.stat-sep { color: var(--pw-ink-4); opacity: 1; padding: 0 6px; }
+/* The header's one stats line, set to the artboard's measure: 14px on the
+   second ink. It was 12.5px muted, which read as a footnote rather than as
+   the day's summary. */
+.day-header .small.muted.num { font-size: 14px; color: var(--pw-ink-2); }
 /* Stay days retain full text contrast; their kind chip carries the distinction. */
 
 
@@ -2110,6 +2117,12 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .db-drive { background: var(--pw-time-drive); }
 .db-halt { background: var(--pw-lagoon-300); }
 .db-dwell { background: var(--pw-time-stop); }
+/* The artboard's fifth segment: time spent waiting for a fixed commitment to
+   come due. `--pw-time-wait` already existed in both themes for exactly this
+   bucket and had no consumer until now. Amber is the same hue the clash and
+   attention states use, which is honest — waiting is slack the plan could have
+   spent, not time well used. */
+.db-wait { background: var(--pw-time-wait); }
 .db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route-line); }
 .day-budget-key {
   display: flex;
@@ -2128,6 +2141,227 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   vertical-align: 0;
 }
 .day-section:not(.day-closed) .day-progress { display: none; }
+
+/* ===== The timeline toolbar: ONE pill, as the artboard draws it =====
+   Sits between the heading and the ribbon. The artboard's geometry: a 6px
+   inset, a 36px control, a 1px rule between the two groups, and the action end
+   pinned right. `flex-wrap` is off: below 720px the pill scrolls horizontally
+   rather than stacking into the wall of buttons this replaced. */
+.tl-head { align-items: center; }
+.tl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-pill);
+  max-width: 100%;
+  /* The artboard's toolbar is one full-width pill: the day-scope switch sits at
+     the start and the actions at the far end, the same edge-to-edge bar as the
+     ribbon under it. Left to shrink, the pill hugged its content and floated at
+     the right of an empty row, which read as a stray control rather than the
+     top of the section. */
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tl-toolbar::-webkit-scrollbar { display: none; }
+/* On a phone the pill keeps ONE row and scrolls, as the artboard's rail does.
+   Left to wrap, the two inner pillbars stacked into a block and pushed
+   "+ Add stop" off the right edge of the screen. */
+.tl-toolbar > * { flex: none; }
+.tl-toolbar .mode-pillbar,
+.tl-toolbar .view-pillbar { flex-wrap: nowrap; }
+.tl-toolbar .tab-btn { height: 36px; font-size: 13px; }
+.tl-toolbar-sep { width: 1px; height: 24px; flex: none; background: var(--pw-line); margin-inline: var(--space-2); }
+.tl-toolbar-end { display: flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; padding-inline-start: var(--space-3); }
+.tl-toolbar .btn-sm { height: 36px; }
+/* The ⋯ menu. A <details> so the open state needs no JS, and the panel opens
+   upward-inset on a phone rather than off the right edge. */
+.tl-more { position: relative; flex: none; }
+.tl-more-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-soft);
+  color: var(--pw-ink-2);
+  cursor: pointer;
+  list-style: none;
+}
+.tl-more-btn::-webkit-details-marker { display: none; }
+.tl-more[open] > .tl-more-btn { color: var(--pw-sea-700); }
+.tl-more-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-strip);
+  min-width: 190px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-2);
+}
+.tl-more-menu > button {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--pw-ink);
+  font: 600 13px/1 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+}
+.tl-more-menu > button:hover { background: var(--pw-soft); }
+/* A stop card's ⋯ menu — the same disclosure the timeline toolbar uses, so a
+   card and the toolbar do not teach two different menu idioms. It opens to the
+   inline-end and upward-inset, because the last card on a day sits at the
+   bottom of the viewport. */
+.stop-more { position: relative; flex: none; }
+.stop-more > summary { list-style: none; cursor: pointer; }
+.stop-more > summary::-webkit-details-marker { display: none; }
+.stop-more[open] > summary { background: var(--bg-soft); color: var(--text); }
+.stop-more-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-strip);
+  min-width: 200px;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-2);
+}
+.stop-more-menu > button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--pw-ink);
+  font: 600 13px/1 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+  /* The icon must not shrink and the label must not wrap: a 36px row with a
+     wrapping label breaks "Move to another day" over four lines. */
+  white-space: nowrap;
+}
+.stop-more-menu > button > svg { flex: none; }
+.stop-more-menu > button:hover { background: var(--pw-soft); }
+.stop-more-menu > button.danger { color: var(--danger); }
+.stop-more-menu > button.danger:hover { background: var(--danger-soft); }
+@media (max-width: 900px) {
+  .tl-head { flex-wrap: wrap; gap: var(--space-5); }
+  .tl-toolbar { width: 100%; }
+}
+
+/* The artboard puts the collapse control at the RIGHT of the header, after the
+   title block, so the eye reads date → title → state → fold. `order` moves it
+   there without moving it in the DOM, which keeps the tab order starting at the
+   fold control (the first thing a keyboard user wants on a folded day). */
+.day-header > .day-collapse { order: 2; margin-inline-start: auto; }
+
+/* The day's own cover strip. 132px, top corners matching the card, and a veil
+   that runs white at the bottom so the header can sit over the photo without
+   losing its type. The header pulls up 34px into it (see .day-section > .day-header),
+   which is what lets the date badge overlap the image. */
+.day-cover {
+  position: relative;
+  height: 132px;
+  /* The card's own padding would inset the photo, so the cover cancels it and
+     runs edge to edge. Its radius is the card's INNER radius (outer minus the
+     1.5px border) so the photo's corner follows the card's curve instead of
+     being clipped square by it. */
+  margin: -18px -20px 0;
+  border-radius: calc(var(--radius-lg) - 1.5px) calc(var(--radius-lg) - 1.5px) 0 0;
+  overflow: hidden;
+  background: var(--pw-raised);
+}
+.day-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 70%;
+}
+.day-cover-veil {
+  position: absolute;
+  inset: 0;
+  /* The header's title and stats sit in the lower third of this 132px band, and
+     they are dark ink. A fade that only reached card colour at 100% left the
+     title over mid-tone sand and sky, where contrast fell to roughly 2:1. The
+     fade now starts higher and reaches near-solid white by 78%, so the band
+     under the text is always light — on a bright beach and on a dark fort wall
+     alike. */
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0) 26%,
+    color-mix(in srgb, var(--pw-card) 72%, transparent) 58%,
+    var(--pw-card) 78%,
+    var(--pw-card) 100%);
+}
+.day-cover-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--pw-glass-edge);
+  background: var(--pw-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  color: var(--pw-ink);
+  font: 700 12px/1 var(--font-body);
+  cursor: pointer;
+}
+.day-cover-btn:disabled { opacity: .6; cursor: default; }
+.day-cover-clear {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--pw-glass-edge);
+  background: var(--pw-glass);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  color: var(--pw-ink-2);
+  cursor: pointer;
+}
+/* The two controls ride one row at the photo's top corner. They are wrapped in
+   a flex row so their placement comes from their real widths: pinning the clear
+   button at a guessed `inset-inline-end` put it on top of "Change day cover". */
+.day-cover-tools {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* A day with a photo lifts its header into it, exactly as the artboard does.
+   The 34px is the artboard's own overlap, not a rhythm choice, so it rides the
+   ladder's 32px rung plus the 2px hairline rather than inventing a value. */
+.day-section > .day-cover + .day-header {
+  margin-top: calc(-1 * (var(--space-12) + var(--space-1)));
+  position: relative;
+}
+/* An open day with a cover keeps its badge clear of the photo's top edge. */
+.day-section > .day-cover + .day-header .day-badge { position: relative; }
 @media (max-width: 720px) {
   .day-budget { margin-inline-start: 0; }
   .day-badge-date { width: 46px; height: 56px; }

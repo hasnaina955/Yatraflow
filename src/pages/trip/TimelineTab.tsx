@@ -40,6 +40,7 @@ import { InlineIcon } from '../../components/icons'
 import {
   
   Eye, 
+  MoreHorizontal,
   PenLine,   TriangleAlert, 
 } from 'lucide-react'
 import type { Trip, ItineraryStop } from '../../data/types'
@@ -157,6 +158,15 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // Sorted once per trip change — a stable array of stable day references so
   // the memoized DaySections below only re-render when their own data changes.
   const days = useMemo(() => [...trip.days].sort((a, b) => a.index - b.index), [trip.days])
+  // What a day cover needs from the trip, and nothing more. The whole `trip` is
+  // withheld from a closed day on purpose — the memo only re-renders a card
+  // whose own data changed — so the cover takes these three scalars instead.
+  // Without them a closed day's cover had no region evidence at all and fell
+  // back to the neutral scene.
+  const dayCoverHint = useMemo(
+    () => ({ id: trip.id, coverEmoji: trip.coverEmoji, destinations: trip.destinations, startLocation: trip.startLocation }),
+    [trip.id, trip.coverEmoji, trip.destinations, trip.startLocation],
+  )
   // MR7: what the day strip shows — the place each day sits in, and the day the
   // route moves on. Pure and unit-tested in lib/dayStrip.ts.
   const dayStrip = useMemo(() => dayStripItems(days), [days])
@@ -618,6 +628,15 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     toast('Day renamed')
   }, [previewOpen])
 
+  /** Set or clear a day's own cover photo. Days ride the trip's JSONB, so this
+   *  is a plain field write — no migration, and a cleared cover leaves the
+   *  uploaded object in the bucket (a publication may still point at it). */
+  const handleSetCover = useCallback((dayIndex: number, url: string | undefined) => {
+    if (refuseWhileStaged(previewOpen)) return
+    const { trip } = latest.current
+    updateTrip(trip.id, { days: trip.days.map(d => d.index === dayIndex ? { ...d, coverImageUrl: url || undefined } : d) })
+  }, [previewOpen])
+
   /** Duplicate this day's stops onto the next day (base-camp style planning). */
   const handleCopyDay = useCallback((dayIndex: number) => {
     latest.current.applyChange(draft => {
@@ -722,63 +741,62 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
 
   return (
     <div className={reviewAll ? 'tl-root-review' : undefined}>
-      <div className="row-between" style={{ marginBottom: 16 }}>
-        <div className="tl-head-copy">
-          <h2>Day-by-day timeline</h2>
-          {/* key={mode} crossfades the copy; min-height in CSS reserves the
-              two-line block so switching modes never shifts the layout. */}
-          <p key={mode} className="muted small tl-mode-copy">{mode === 'plan'
-            ? 'Drag stops to reorder within a day — or drop them onto another day to move them there. On touch devices: press and hold a stop, then drag it. Every change shows its impact before saving.'
-            : 'Read-only study view — clocks, costs and risks without the edit handles. Switch to Plan mode to make changes.'}</p>
-        </div>
-        {/* The tools row renders for read-only viewers too (#421): the view
-            switch is a reading aid, so gating it on being an editor would hide
-            it exactly where reviewing matters most. */}
-        <div className="row tl-head-tools" style={{ gap: 8 }}>
-          {editable && (
-          <>
-          {onOpenBoard && (
-            <button className="btn btn-outline btn-sm" onClick={onOpenBoard} title="Arrange stops across days with the route in view">Open in Board →</button>
-          )}
-          {/* Same mechanic and surface as the workspace tab rail: a glass
-              capsule whose glider paints the active side (PillNav + tab-btn),
-              so switching modes animates exactly like Board→Map→Timeline. */}
-          <PillNav className="mode-pillbar" role="group" aria-label="Timeline mode" activeKey={mode}>
-            <button type="button" data-pill-key="plan" className={`tab-btn${mode === 'plan' ? ' active' : ''}`}
-              onClick={() => changeMode('plan')} aria-pressed={mode === 'plan'}>
-              <PenLine size={14} aria-hidden />Plan
-            </button>
-            <button type="button" data-pill-key="inspect" className={`tab-btn${mode === 'inspect' ? ' active' : ''}`}
-              onClick={() => changeMode('inspect')} aria-pressed={mode === 'inspect'}
-              title="Study the day without changing it">
-              <Eye size={14} aria-hidden />Review
-            </button>
-          </PillNav>
-          </>
-          )}
-          {/* Which days are rendered (#421) — per trip, saved beside the trip's
-              own view prefs. Two pillbars on purpose: Plan/Inspect answers "what
-              may I do" (a global capability), this answers "which days am I
-              looking at", and folding the two together would take editing away
-              from the reviewer who just spotted something to fix. */}
+      <div className="row-between tl-head" style={{ marginBottom: 16 }}>
+        {/* The artboard has no section heading here: the toolbar pill IS the top
+            of the timeline. A 21px "Day-by-day timeline" above a toolbar whose
+            first control already says "Day by day" was the same words twice,
+            stacked — and it pushed the plan itself down the page. */}
+        <div className="tl-head-copy" />
+        {/* The mockup's toolbar is ONE pill: a day-scope switch on the left, then
+            the actions, then a ⋯ menu. This was six separate controls — Open in
+            Board, Plan/Review, One day/All days, Add stop — which read as a wall
+            of buttons above the plan instead of a toolbar. The ⋯ menu holds the
+            two things you reach for once a session, so the row stays short. */}
+        <div className="tl-toolbar" role="toolbar" aria-label="Timeline view and actions">
           <PillNav className="view-pillbar" role="group" aria-label="Days shown" activeKey={reviewAll ? 'all' : 'one'}>
             <button type="button" data-pill-key="one" className={`tab-btn${reviewAll ? '' : ' active'}`}
               onClick={() => setReview(false)} aria-pressed={!reviewAll}
-              title="One day at a time — the accordion, and the day you were last in">One day</button>
+              title="One day at a time — the accordion, and the day you were last in">Day by day</button>
             <button type="button" data-pill-key="all" className={`tab-btn${reviewAll ? ' active' : ''}`}
               onClick={() => setReview(true)} aria-pressed={reviewAll}
-              title="Every day expanded in order, each day's header following you down">All days</button>
-
+              title="Every day expanded in order, each day's header following you down">Whole trip</button>
           </PillNav>
+          <span className="tl-toolbar-sep" aria-hidden="true" />
           {editable && (
-          <>
-          {/* Stays rendered in both modes (disabled + dimmed in Inspect) so
-              toggling never reflows the header — that reflow was the jerk. */}
-          <button className="btn btn-primary btn-sm" disabled={mode !== 'plan'}
-            title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
-            onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>+ Add stop</button>
-          </>
+            <PillNav className="mode-pillbar" role="group" aria-label="Timeline mode" activeKey={mode}>
+              <button type="button" data-pill-key="plan" className={`tab-btn${mode === 'plan' ? ' active' : ''}`}
+                onClick={() => changeMode('plan')} aria-pressed={mode === 'plan'}>
+                <PenLine size={14} aria-hidden />Editing on
+              </button>
+              <button type="button" data-pill-key="inspect" className={`tab-btn${mode === 'inspect' ? ' active' : ''}`}
+                onClick={() => changeMode('inspect')} aria-pressed={mode === 'inspect'}
+                title="Study the day without changing it">
+                <Eye size={14} aria-hidden />Review
+              </button>
+            </PillNav>
           )}
+          <div className="tl-toolbar-end">
+            {editable && (
+              <button className="btn btn-primary btn-sm" disabled={mode !== 'plan'}
+                title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
+                onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>+ Add stop</button>
+            )}
+            <details className="tl-more">
+              <summary className="tl-more-btn" aria-label="More timeline options" title="More timeline options">
+                <MoreHorizontal size={18} aria-hidden />
+              </summary>
+              <div className="tl-more-menu" role="menu">
+                {onOpenBoard && (
+                  <button type="button" role="menuitem" onClick={onOpenBoard}>
+                    Open in Board
+                  </button>
+                )}
+                <button type="button" role="menuitem" onClick={() => window.print()}>
+                  Print day sheets
+                </button>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
 
@@ -839,7 +857,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
       )}
 
       {days.map(day => (
-        <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} facts={cards.byDay.get(day.index)!} editable={planEditable} open={reviewAll || openDayIndex === day.index} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
+        <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} editable={planEditable} open={reviewAll || openDayIndex === day.index} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
           onAdd={handleAdd}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -848,6 +866,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           onMoveBetweenDays={setMoveModalStop}
           onMoveStopIn={handleMoveStopInto}
           onRenameDay={handleRenameDay}
+          onSetCover={handleSetCover}
           onCopyDay={handleCopyDay}
           onAddQuickStop={handleAddQuickStop}
           onSetDayStart={handleSetDayStart}

@@ -108,7 +108,9 @@ describe('the surfaces that must not race a preview (#334)', () => {
   it('day rename, ride start and status flips are refused while a preview is open', () => {
     const src = readFileSync(new URL('../src/pages/trip/TimelineTab.tsx', import.meta.url), 'utf8')
     const guards = src.match(/if \(refuseWhileStaged\(previewOpen\)\) return/g) ?? []
-    expect(guards).toHaveLength(3) // rename, ride start AND status flip — all write the committed row
+    // rename, ride start, status flip AND the day cover — all four write the
+    // committed row directly, so all four refuse while a preview is open.
+    expect(guards).toHaveLength(4)
     // One spelling of the refusal AND one home for it: since #424 the surfaces
     // import the rule from lib/mutationLifecycle instead of pasting the message,
     // so a drift has nowhere to hide.

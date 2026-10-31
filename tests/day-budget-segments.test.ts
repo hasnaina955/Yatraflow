@@ -13,9 +13,26 @@ describe('the day time bar draws only measured segments', () => {
     expect(day).toMatch(/const budgetStops = Math\.max\(0, budgetDwell - budgetHalts\)/)
   })
 
-  it('never invents a waiting segment', () => {
-    expect(day).not.toMatch(/budgetWait/)
-    expect(day).not.toMatch(/db-wait/)
+  // The bar originally had no waiting segment, because the simulation keeps no
+  // separate "waiting" total. That was half right: no total existed, but the
+  // fixed-time read model already computes `spareMin` per commitment — the same
+  // number the rail prints as "At the jetty with 55 min to spare". So the
+  // segment is real data, and it must come from `waitingMinutesFor`, which
+  // walks the commitments in time order so two spares cannot double-count.
+  it('draws the waiting segment from the fixed-time read model, never from a sum of spares', () => {
+    expect(day).toMatch(/waitingMinutesFor\(fixedRows\)/)
+    expect(day).not.toMatch(/reduce\(\(sum, r\) => sum \+ Math\.max\(0, r\.spareMin/)
+    expect(day).toMatch(/\{ cls: 'db-wait', minutes: budgetWait \}/)
+    expect(day).toMatch(/\{budgetWait > 0 && <span><i className="db-dot db-wait"/)
+  })
+
+  it('gives the waiting segment its own theme token in both themes', () => {
+    // The file carries several dark blocks, so assert on the declarations
+    // themselves: the light amber, then the lifted dark one.
+    expect(tokens).toMatch(/--pw-time-wait:\s*#F2A33A/)
+    expect(tokens).toMatch(/--pw-time-wait:\s*#F5B04E/)
+    const css = readFileSync(new URL('../src/styles/legacy/02-select-and-print.css', import.meta.url), 'utf8')
+    expect(css).toMatch(/\.db-wait\s*\{\s*background:\s*var\(--pw-time-wait\)/)
   })
 
   it('draws the halt segment and its key only when a halt exists', () => {
@@ -24,7 +41,7 @@ describe('the day time bar draws only measured segments', () => {
   })
 
   it('keeps the segments summing to the day window', () => {
-    expect(day).toMatch(/const budgetFree = Math\.max\(0, budgetWindow - budgetDrive - budgetDwell\)/)
+    expect(day).toMatch(/const budgetFree = Math\.max\(0, budgetWindow - budgetDrive - budgetDwell - budgetWait\)/)
   })
 })
 

@@ -89,7 +89,10 @@ describe('the provider pitfall is answered by one viewport gate (#421)', () => {
   })
 
   it('gates the two provider-backed extras on it — and nothing else', () => {
-    expect(day).toMatch(/\{!collapsed && \(!reviewMode \|\| inView\) && <DayWeatherChip/)
+    // The weather chip moved inside the collapse: it lands asynchronously and
+    // grew the header 18px in a single frame when it did. The viewport gate is
+    // unchanged — it still waits for the day to be near the screen.
+    expect(day).toMatch(/\{\(!reviewMode \|\| inView\) && <DayWeatherChip/)
     expect(day).toMatch(/ordered\.length > 0 \|\| \(reviewMode && !inView\)/)
     expect(day).toMatch(/\[editable, open, trip, ordered\.length, reviewMode, inView, facts\.prevPoint, facts\.homeCenter, facts\.assumptions\.mode\]/)
     // What the day shows from its own resolved facts is never gated: every stop
@@ -117,6 +120,27 @@ describe('review keeps every editing affordance (#421)', () => {
   it('hides the per-day disclosure in review, where the mode owns openness', () => {
     expect(day).toMatch(/\{!reviewMode && \(\r?\n        <button ref=\{collapseRef\} className="day-collapse"/)
     expect(day).toMatch(/const collapsed = !open/)
+  })
+})
+
+describe('a stop card carries one menu, not a row of buttons', () => {
+  it('folds edit, status, move-day and delete into the ⋯ disclosure', () => {
+    const at = day.indexOf('<div className="stop-actions">')
+    expect(at, 'missing anchor: stop-actions').toBeGreaterThan(-1)
+    const actions = day.slice(at, day.indexOf('{i < ordered.length - 1', at))
+    expect(actions).toContain('className="stop-more"')
+    for (const label of ['Edit', 'Mark maybe', 'Move to another day', 'Delete']) {
+      expect(actions, label).toContain(label)
+    }
+    // The reorder arrows stay inline: they are the keyboard alternative to drag.
+    expect(actions).toContain('className="move-btns"')
+    // And the seven-button row is gone — no bare icon-btn on the card.
+    expect(actions).not.toMatch(/<button className="icon-btn" onClick=\{\(\) => onEdit/)
+  })
+
+  it('styles the menu so its labels never wrap and it clears the next card', () => {
+    expect(css).toMatch(/\.stop-more-menu > button \{[^}]*white-space: nowrap/)
+    expect(css).toMatch(/\.stop-card:has\(\.stop-more\[open\]\) \{ position: relative; z-index:/)
   })
 })
 

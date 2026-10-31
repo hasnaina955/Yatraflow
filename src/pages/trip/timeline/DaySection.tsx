@@ -4,7 +4,7 @@
 // between the shell and this module; treat it as load-bearing (see the memo notes).
 // ============ Trip workspace — Timeline tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
-// Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
+// Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow,
 // MoveStopModal and ClampedText — the whole timeline hot path.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
@@ -12,9 +12,10 @@ import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
 import {
   ArrowRight, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Droplets, ExternalLink, Flag, Lock, MapPin,
-  MoveHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, 
+  MoveHorizontal, MoreHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, 
 } from 'lucide-react'
-import type { Trip, ItineraryStop } from '../../../data/types'
+import type { ChangeEvent } from 'react'
+import type { Trip, ItineraryStop, ItineraryDay } from '../../../data/types'
 import {
   minutesToHM, hmToMinutes, formatInr,
   computeCategoryBias, optimizeDayOrder, roadScaleRatio, measuredLegCount, optimiseKmLabel, scheduleRowsById,
@@ -24,11 +25,11 @@ import { distanceStatLabel, roadStateOf, type RoadState } from '../../../lib/roa
 import type { RoadStatus } from '../../../lib/tripRoad'
 import { sameDaySectionProps, type DayCardFacts, type DayTotals } from '../../../lib/dayCards'
 import type { LegEstimate, ScheduleWarning, OptimizeDayResult } from '../../../lib/engine'
-import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../../lib/daySummary'
+import { stayDaySummary } from '../../../lib/daySummary'
 import { insertionSlotBetween } from '../../../lib/stopOrder'
 import { insertionWhere } from '../../../lib/labels'
 import { isDriveDay } from '../../../lib/ridePlan'
-import { fixedRowsFor, fixedStopIdsOf, worstFixedTone } from '../../../lib/fixedTimes'
+import { fixedRowsFor, fixedStopIdsOf, waitingMinutesFor, worstFixedTone } from '../../../lib/fixedTimes'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
 import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
@@ -37,6 +38,129 @@ import { statusLabel } from '../../../lib/labels'
 import { Chip, Modal, toast, useReorder } from '../../../components/ui'
 import { StateBlock } from '../../../components/page/StateBlock'
 import { Select } from '../../../components/Select'
+import { COVER_TYPES, coverFileError, uploadCover } from '../../../lib/coverUpload'
+import { CoverMedia } from '../../../components/CoverMedia'
+import { coverAttemptsFor } from '../../../lib/coverAttempts'
+import { coverPlanFor, type CoverPlan } from '../../../lib/regionArt'
+import { regionFor } from '../../../lib/tripsPage'
+import { sizedCoverUrl } from '../../../lib/tripThumb'
+import { currentUser } from '../../../store/store'
+
+/**
+ * The day's cover plan: the traveller's own upload when there is one, else the
+ * generated scene for where the day goes.
+ *
+ * The day gets its own `regionArt` plan rather than a live Wikipedia lookup.
+ * A lookup was the obvious idea and it failed in practice: 9 of 10 real stop
+ * names ("Panaji market", "Colva beach", "Candolim beach") resolve to nothing,
+ * and the one that did resolve — "South Goa" — returned a district locator MAP,
+ * which the card drew as a 132px band of cartography. The generated scenes are
+ * local, always available, and the same artwork the trip's own cover uses, so a
+ * day card and its trip header never disagree about what a place looks like.
+ */
+function useDayCover(day: ItineraryDay, trip: Pick<Trip, 'id' | 'coverEmoji' | 'destinations' | 'startLocation'> | undefined): CoverPlan {
+  return useMemo(() => {
+    const places = day.stops.filter(s => !s.auto).map(s => s.title.trim()).filter(Boolean)
+    const regionEvidence: string[] = [...(trip?.destinations ?? [])]
+    if (trip?.startLocation) regionEvidence.push(trip.startLocation)
+    return coverPlanFor({
+      // Sized on the way in, like every other cover surface, so a day cover
+      // stored before sizing existed is still requested at the full width.
+      userCover: day.coverImageUrl ? sizedCoverUrl(day.coverImageUrl) : '',
+      fallbackEmoji: trip?.coverEmoji,
+      // The region matcher reads the trip's destinations AND its start place. The
+      // table is deliberately narrow — "Palolem" alone is not "Goa" — but a start
+      // place names the state ("Panaji, Goa"), which resolves a trip whose
+      // destinations are only towns. Trip-level evidence also keeps a day card
+      // and its trip header on the same region's artwork.
+      region: regionFor({ destinations: regionEvidence }),
+      // The day's index picks the scene, so consecutive days step through the
+      // region's family instead of repeating one image. A hash of the day's text
+      // looked nicer but collided: "Panaji market" and "Colva beach" hashed to
+      // the same Goa scene, and two neighbouring days drew the same picture.
+      seed: trip?.id ?? 'day',
+      sceneIndex: day.index,
+      placeCount: Math.max(1, places.length),
+      destinations: places.length ? places : day.title ? [day.title] : [],
+    })
+  }, [day.coverImageUrl, day.index, day.title, day.stops, trip])
+}
+/**
+ * The day's cover strip: a photo for THIS day, a 34px "Change day cover"
+ * control over it, and the white-to-transparent gradient that lets the header
+ * float over the photo. The artboard draws it 132px tall, and the header below
+ * pulls up 34px into it, which is why the cover is a sibling of the header
+ * rather than its background.
+ */
+function DayCover({ day, trip, editable, onSetCover }: {
+  day: ItineraryDay
+  trip: Pick<Trip, 'id' | 'coverEmoji' | 'destinations' | 'startLocation'> | undefined
+  editable: boolean
+  onSetCover: (dayIndex: number, url: string | undefined) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const plan = useDayCover(day, trip)
+
+  const onPick = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const bad = coverFileError(file)
+    if (bad) { toast(bad); return }
+    const me = currentUser()
+    if (!me) { toast('Sign in to add a day cover'); return }
+    setBusy(true)
+    const { url: stored, error } = await uploadCover(me.id, file)
+    setBusy(false)
+    if (error || !stored) { toast(error ?? 'Could not upload that image'); return }
+    onSetCover(day.index, stored)
+    toast('Day cover updated')
+  }, [day.index, onSetCover])
+
+  // A generated scene is always available, so the strip always draws — which is
+  // what the artboard shows: every day has a photo. Only the emoji terminal
+  // state (every image gone) leaves the header on the bare card.
+  if (!coverAttemptsFor(plan).length) return null
+
+  return (
+    <div className="day-cover">
+      <CoverMedia
+        plan={plan}
+        ratio="16:5"
+        sizes="(max-width: 900px) 100vw, 780px"
+        className="day-cover-img"
+        emojiClassName="day-cover-img day-cover-emoji"
+        alt=""
+      />
+      <span aria-hidden="true" className="day-cover-veil" />
+      {editable && (
+        <>
+          <input
+            ref={fileRef} type="file" accept={COVER_TYPES.join(',')} className="sr-only"
+            aria-label={`Choose a cover for Day ${day.index + 1}`}
+            onChange={onPick}
+          />
+          <div className="day-cover-tools">
+            <button
+              type="button" className="day-cover-btn" disabled={busy}
+              onClick={() => fileRef.current?.click()}
+              title="Replace this day’s cover"
+            >
+              {busy ? 'Uploading…' : 'Change day cover'}
+            </button>
+            <button
+              type="button" className="day-cover-clear" onClick={() => onSetCover(day.index, undefined)}
+              aria-label={`Remove the cover for Day ${day.index + 1}`} title="Remove day cover"
+            >
+              <Trash2 size={13} aria-hidden />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 /** Stop options for a commitment link: live stops only, plus the unlink row. */
 /** One leg row's summary. An air sector reads as a flight — a plane glyph, the
@@ -74,7 +198,6 @@ import { fetchDailyWeather, forecastAvailable, isoAddDays, weatherAnchor, wmoInf
 import type { DayWeather } from '../../../lib/weather'
 import { useWeatherRefreshTick } from '../../../hooks/useWeatherRefresh'
 import { TravelPanel } from './TravelPanel'
-import { DaySpark } from './DaySpark'
 
 /** Compact forecast chip for a single trip day (Timeline day headers). */
 function DayWeatherChip({ day, startDate }: { day: Trip['days'][number]; startDate: string }) {
@@ -146,26 +269,6 @@ function ClampedText({ children, className }: { children: React.ReactNode; class
   )
 }
 
-/** Collapsed-row dwell chart (docs/TIMELINE-PLAN.md Phase 1): one bar per
- *  visible stop, amber on the stop that eats the most of the day. Pure data
- *  from dwellSegments; hides itself when the chart would say nothing. */
-function DwellBars({ day }: { day: Trip['days'][number] }) {
-  const segs = dwellSegments(day)
-  if (!segs) return null
-  return (
-    <span className="dwell-bars" aria-hidden="true">
-      {segs.map(s => (
-        <i
-          key={s.stop.id}
-          className={s.busiest ? 'dwell-bar busiest' : 'dwell-bar'}
-          style={{ flexGrow: s.weight }}
-          title={`${s.stop.title} · ${minutesToHM(s.minutes)} at the stop`}
-        />
-      ))}
-    </span>
-  )
-}
-
 /** Extra frames after the CSS transition ends before the body is unmounted. */
 const COLLAPSE_UNMOUNT_SLACK_MS = 40
 
@@ -226,13 +329,17 @@ function SmoothCollapse({ open, children, fallbackFocus }: { open: boolean; chil
 // (whose travel panel searches against the whole itinerary). A closed card
 // therefore cannot read the trip at all: `trip` is optional, so a `trip.x` on
 // the collapsed path is a compile error rather than a stale render.
-export const DaySection = React.memo(function DaySection({ day, trip, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals }: {
+export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals }: {
   day: Trip['days'][number]
   /** MR8: this trip's saved ids, and the one toggle every heart on the page uses. */
   savedIds: string[]
   onToggleSaved: (id: string) => void
   /** fresh ONLY for the open day — everything else comes from `facts` */
   trip?: Trip
+  /** The cover's own slice of the trip. Present on every card, open or closed,
+   *  because a closed card is denied the whole `trip` for render cost and its
+   *  cover would otherwise lose its region evidence. */
+  dayCover?: Pick<Trip, 'id' | 'coverEmoji' | 'destinations' | 'startLocation'>
   /** the trip-wide slice this card reads, resolved once per trip change */
   facts: DayCardFacts
   editable: boolean
@@ -268,6 +375,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
   /** cross-day drag landed on this day: insert the stop at `position` */
   onMoveStopIn: (stopId: string, fromDayIndex: number, toDayIndex: number, position: number) => void
   onRenameDay: (dayIndex: number, title: string) => void
+  /** set or clear this day's own cover photo (undefined clears it) */
+  onSetCover: (dayIndex: number, url: string | undefined) => void
   onCopyDay: (dayIndex: number) => void
   onAddQuickStop: (dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>) => void
   /** set the day's ride/drive start time (long-ride planner) */
@@ -543,35 +652,26 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
     // and the open flag that decides whether a body exists to show them in.
   }, [editable, open, trip, ordered.length, reviewMode, inView, facts.prevPoint, facts.homeCenter, facts.assumptions.mode])
 
-  // day progress: how much of the realistic window (start–20:00) the plan consumes
   const dayStartHM = day.startTime ?? A.dayStart
-  const startMin = hmToMinutes(dayStartHM)
-  const windowMin = Math.max(1, hmToMinutes(A.dayEnd) - startMin)
-  const used = Math.max(0, Math.min(1, (hmToMinutes(sim.endsAt) - startMin) / windowMin))
   const sev = warnings.some(w => w.severity === 'high') ? 'high' : warnings.some(w => w.severity === 'medium') ? 'medium' : 'ok'
-  // Header stats as segments — rendered with a dimmed pipe separator, which
-  // tracks better across a long line than a cramped mid-dot at 12px.
+  // Header stats as segments, in the artboard's order: what the day holds, how
+  // far, how long driving, then the window — the same reading order as the
+  // mockup's "2 stops · ~140 km · 3h 50m driving · 07:00 → 20:30".
   const statSegments: React.ReactNode[] = isStayDay
     ? [
         `Based in ${journey.startTitle}`,
         ...(visitCount > 0 ? [`${visitCount} visit${visitCount !== 1 ? 's' : ''}`] : []),
+        `${formatHM(journey.startTime, timeFormat)} → ${formatHM(sim.endsAt, timeFormat)}`,
       ]
     : [
-        `${journey.startTitle} → ${journey.endTitle}`,
-        // #671: the stat itself names whose number this is — the measured road
-        // km, or a straight-line estimate while the road is unmeasured. The
-        // wording is the text a screen reader hears, so the distinction is not
-        // a glyph or a colour.
+        ...(visitCount > 0 ? [`${visitCount} stop${visitCount !== 1 ? 's' : ''}`] : []),
+        // #671: the distance stat still names whose number it is.
         distanceStatLabel(journey, roadState),
-        `${hasAirLeg ? 'travel' : 'drive'} ~${minutesToHM(journey.driveMinutes)}`,
-        ...(journey.halts.length > 0 ? [`${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`] : []),
-        ...(visitCount > 0 ? [`${visitCount} visit${visitCount !== 1 ? 's' : ''}`] : []),
-        `start ${formatHM(journey.startTime, timeFormat)} → ends ~${formatHM(sim.endsAt, timeFormat)}`,
+        `${hasAirLeg ? 'travel' : 'drive'} ${minutesToHM(journey.driveMinutes)}`,
+        // The mockup writes the window as a bare clock pair; "start"/"ends ~"
+        // were words the two times already carry.
+        `${formatHM(journey.startTime, timeFormat)} → ${formatHM(sim.endsAt, timeFormat)}`,
       ]
-  // The route chain is only worth a line when the day's PLANNED stops add
-  // something the stats route (start → end) doesn't already say — auto
-  // anchors and single-stop days would just repeat it back.
-  const chainStops = visibleStops(day).filter(s => !s.auto)
 
   // PW-07: the day's own date, derived from the trip start. Manual weekday and
   // month names keep the label stable across locales; the timeline is English.
@@ -587,9 +687,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
   })()
   // The mockup's time budget, from real minutes. Halts are split out of the
   // dwell total because the journey already classifies each point: a food or
-  // rest stop is a `halt`, everything else is a `visit`. There is no "waiting"
-  // segment: spare time before a fixed commitment is free time the plan leaves
-  // open, and the simulation keeps no separate waiting total to draw one from.
+  // rest stop is a `halt`, everything else is a `visit`.
   const budgetWindow = Math.max(1, hmToMinutes(A.dayEnd) - hmToMinutes(dayStartHM))
   const budgetDrive = Math.max(0, Math.min(budgetWindow, sim.totalTravelMinutes))
   const budgetDwell = Math.max(0, Math.min(budgetWindow - budgetDrive, sim.dwellMinutes))
@@ -597,12 +695,22 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
     .filter(p => p.kind === 'halt')
     .reduce((sum, p) => sum + Math.max(0, p.dwellMinutes), 0))
   const budgetStops = Math.max(0, budgetDwell - budgetHalts)
-  const budgetFree = Math.max(0, budgetWindow - budgetDrive - budgetDwell)
+  // Waiting is the spare time a fixed commitment leaves you standing around
+  // for: the same `spareMin` the rail already prints as "At the jetty with 55
+  // min to spare". It is real computed data, not a fifth invented bucket — it
+  // was buried inside Free before this. Only the surplus counts, and overlapping
+  // spares collapse to one cursor, so two commitments cannot double-count.
+  const budgetWait = Math.min(
+    Math.max(0, budgetWindow - budgetDrive - budgetDwell),
+    waitingMinutesFor(fixedRows),
+  )
+  const budgetFree = Math.max(0, budgetWindow - budgetDrive - budgetDwell - budgetWait)
   // Only real segments get a column; a zero-minute drive must not leave a gap.
   const budgetSegments = [
     { cls: 'db-drive', minutes: budgetDrive },
     { cls: 'db-halt', minutes: budgetHalts },
     { cls: 'db-dwell', minutes: budgetStops },
+    { cls: 'db-wait', minutes: budgetWait },
     { cls: 'db-free', minutes: budgetFree },
   ].filter(s => s.minutes > 0)
   // The day's money, split so the lines add up to the total: travel and day
@@ -614,6 +722,10 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
 
   return (
     <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
+      {/* The cover is a SIBLING of the header, not its background: the header
+          pulls up into it by 34px so the date badge overlaps the photo, and a
+          background image could not be overlapped by its own child. */}
+      <DayCover day={day} trip={trip ?? dayCover} editable={editable && !collapsed} onSetCover={onSetCover} />
       <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
@@ -691,120 +803,126 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
               </span>
             )}
           </div>
-          {/* Collapsed extra line: only when it adds something the stats line
-              doesn't already say. Stay days get their quiet "no driving" line;
-              drive days get the stop-name chain when there are ≥2 planned
-              stops. It's a button that opens the day, like the mockup; names
-              wrap rather than truncate (full chain rides in the tooltip).
-              This line is what changes the header's height, so it rides the
-              same collapse as the body, in reverse: growing in as the body
-              folds away, folding away as the body grows. Popping it instead
-              moved every row below the header in a single frame. */}
+          {/* Collapsed extra line. The artboard gives a collapsed day exactly
+              two lines: the title, then one stats line. A third line naming the
+              stops was the loudest clutter in the header — the same names are
+              the first thing the body shows when the day opens, and the stats
+              line already carries the count. A stay day keeps its quiet
+              "no driving" line, which says something the stats cannot. */}
           <SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>
             {isStayDay ? (
               <button type="button" className="day-route" onClick={onCollapseClick} aria-expanded={!collapsed}>
                 <span className="day-route-text">{stayDaySummary(visitCount)}</span>
-              </button>
-            ) : chainStops.length >= 2 ? (
-              <button type="button" className="day-route" onClick={onCollapseClick} aria-expanded={!collapsed} title={routeChain(day)}>
-                {chainStops.slice(0, 5).map((s, i) => (
-                  <React.Fragment key={s.id}>
-                    {i > 0 && <span className="day-route-sep" aria-hidden="true">→</span>}
-                    <span className="day-route-stop">{s.title}</span>
-                  </React.Fragment>
-                ))}
-                {chainStops.length > 5 && <span className="day-route-more">+{chainStops.length - 5} more</span>}
               </button>
             ) : null}
           </SmoothCollapse>
           <div className="small muted num">
             {statSegments.map((seg, i) => (
               <React.Fragment key={i}>
-                {i > 0 && <span className="stat-sep" aria-hidden="true">|</span>}
+                {i > 0 && <span className="stat-sep" aria-hidden="true">·</span>}
                 {seg}
               </React.Fragment>
             ))}
           </div>
-          <div className={`day-progress ${collapsed ? 'compact' : ''}`} title={`${Math.round(used * 100)}% of the ${formatHM(dayStartHM, timeFormat)}–${formatHM(A.dayEnd, timeFormat)} window`}>
-            <div className={`day-progress-fill sev-${sev}`} style={{ width: `${Math.round(used * 100)}%` }} />
-          </div>
-          {/* #421: in review this is a provider call per day — it waits until
-              the day is actually near the viewport (outside review, unchanged). */}
-          {!collapsed && (!reviewMode || inView) && <DayWeatherChip day={day} startDate={facts.startDate} />}
+          {/* The day-progress bar is gone. It drew one unlabeled fill against
+              the day's window, and the five-segment time budget inside the
+              collapse now states the same window split into what actually
+              happened (driving, halts, stops, waiting, free) with a key that
+              names each part. Two bars for one reading is the redundancy the
+              artboard avoids, and the header one also grew the header by 18px
+              in a single frame when a day opened. */}
+          {/* #421: the weather chip is a provider call per day, so it waits
+              until the day is near the viewport. It also lives inside the
+              collapse rather than here: it arrives asynchronously and grew the
+              header by 18px in one frame when it landed (measured 66 → 84.3px),
+              which is a height change no duration can smooth. The artboard's
+              header carries no weather either — the date, the title, the
+              badges, one stats line and the chevron. */}
         </div>
         {/* Per-day cost + time-at-stops: intelligence the engine already
             computes (computeTotals().byDay + simulateDay dwell), surfaced where
             the plan is edited. Hidden while collapsed so a folded day's header
             stays calm. */}
-        {/* The chip renders only for the day it BELONGS to (matched by index):
-            a lookup that finds no bucket shows nothing, never another day's
-            total under this header (#338 — the old positional clamp showed the
-            last day's money on a day with a skipped index). */}
-        {!collapsed && dayTotals != null && dayTotals.dayIndex === day.index && dayTotals.totalInr > 0 && (
-          <span
-            className="day-cost-chip"
-            title={`≈ ${formatInr(dayTotals.transportInr)} travel · ${formatInr(dayTotals.expensesInr)} day costs (incl. entry fees)`}
-          >
-            ≈ {formatInr(dayTotals.totalInr)}
-          </span>
-        )}
-        {!collapsed && sim.dwellMinutes > 0 && (
-          <span className="day-dwell-chip" title="Time at the stops (visits + buffers) — driving time is in the summary line">
-            {minutesToHM(sim.dwellMinutes)} at stops
-          </span>
-        )}
+        {/* The day's money and its time-at-stops already sit in the DAY BRIEF
+            beside this header, as two of its four figures. Repeating them here
+            was the header's loudest redundancy: the same ₹ and the same hours,
+            twice, 400px apart. The brief owns those numbers now; the header
+            keeps what the brief does NOT say — the route, the road, the stops
+            and the window — plus the state that needs acting on. */}
         {sev !== 'ok' && (
           <span className={`day-warn-pill sev-${sev}`} title={warnings.map(w => w.title).join('\n')}>
             <InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}
           </span>
         )}
-        {ordered.filter(s => s.status !== 'rejected').length >= 2 && <DaySpark stops={ordered.filter(s => s.status !== 'rejected')} />}
-        {/* Collapsed-only dwell chart: one bar per stop, amber on the stop
-            that eats the most of the day (mockup P1's "busiest stop"). */}
-        {collapsed && <DwellBars day={day} />}
-        {editable && (
-          <div className="tl-day-tools">
-            {optResult.changed && !isStayDay && (
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setOptPreview(optResult)}
-                title={`Reorder this day's stops to cut crisscrossing — saves ${kmLabel(optResult.beforeKm - optResult.afterKm)} of travel${roadLegs === 0 ? ' (straight-line estimate: the road has not been measured yet)' : ''}`}
-              ><InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise{optResult.beforeKm - optResult.afterKm > 0 ? ` (−${roadLegs === 0 ? '~' : ''}${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km)` : ''}</button>
-            )}
-            {/* #341: a day the optimiser refuses for a reason the user can act
-                on says so, instead of hiding the button as if nothing existed.
-                The tooltip needs the wrapper span — a disabled button fires no
-                pointer events, so its own title would never show. */}
-            {!optResult.changed && (optResult.blocked === 'mid-anchor' || optResult.blocked === 'fixed-time') && !isStayDay && (
-              <span
-                title={optResult.blocked === 'fixed-time'
-                  ? 'A stop carries a fixed time, so the optimiser will not move its clock. Reorder the stops by hand if the day must change.'
-                  : 'The order is fixed by your manually placed waypoints — the optimiser only rewires the middle of a day, and one of those sits mid-day.'}
-                className="tl-fixed-inline"
-              >
-                <button className="btn btn-outline btn-sm" disabled aria-disabled="true">
-                  <InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise
-                </button>
-              </span>
-            )}
-            <button
-              className="btn btn-outline btn-sm"
-              disabled={ordered.length === 0 || !facts.hasNextDay}
-              onClick={() => onCopyDay(day.index)}
-              title={ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
-            ><InlineIcon icon={Copy} size={13} gap={4} />Copy</button>
-            <button className="btn btn-outline btn-sm" onClick={() => onAdd(day.index)}>+ Add here</button>
-          </div>
-        )}
+        {/* The day spark was a small zigzag drawn beside every header with 2+
+            stops. The artboard has nothing there, and the shape carried no
+            reading a traveller could act on — it was decoration in the busiest
+            part of the card. The stops it drew already have their own rail. */}
+        {/* A collapsed day draws two lines and nothing else. Small in-header
+            graphics (the spark, the dwell bars) each carried a tooltip and no
+            visible label, so at a glance they read as smudges beside the title
+            rather than as information. Whatever they encoded — time at each
+            stop — the open day states in words on its own rail. */}
+        {/* The artboard's collapsed card carries ONE control, the chevron: the
+            title, its badges and the stats line, then nothing. Copy and "Add
+            here" sat on every folded day and turned four calm cards into eight
+            buttons. They live inside the collapse now (below), so the folded
+            card is calm AND the buttons ride the open/close instead of growing
+            the header in a single frame. */}
       </div>
 
-      {!collapsed && (
+      {/* The time budget and the day's own tools belong to the OPEN day, and
+          they live INSIDE the collapse so they ride it. Gated on `!collapsed`
+          from the header instead, they appeared in one frame and grew the card
+          by ~50px before the 560ms body had moved a pixel — measured 51.5px in
+          the first frame, which is the "snap then settle" the motion doc names
+          as a defect. Inside the clip they are simply part of the surface that
+          is expanding. */}
+      <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
+      {editable && (
+        <div className="tl-day-tools">
+          {optResult.changed && !isStayDay && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setOptPreview(optResult)}
+              title={`Reorder this day's stops to cut crisscrossing — saves ${kmLabel(optResult.beforeKm - optResult.afterKm)} of travel${roadLegs === 0 ? ' (straight-line estimate: the road has not been measured yet)' : ''}`}
+            ><InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise{optResult.beforeKm - optResult.afterKm > 0 ? ` (−${roadLegs === 0 ? '~' : ''}${Math.round((optResult.beforeKm - optResult.afterKm) * roadRatio)} km)` : ''}</button>
+          )}
+          {/* #341: a day the optimiser refuses for a reason the user can act
+              on says so, instead of hiding the button as if nothing existed.
+              The tooltip needs the wrapper span — a disabled button fires no
+              pointer events, so its own title would never show. */}
+          {!optResult.changed && (optResult.blocked === 'mid-anchor' || optResult.blocked === 'fixed-time') && !isStayDay && (
+            <span
+              title={optResult.blocked === 'fixed-time'
+                ? 'A stop carries a fixed time, so the optimiser will not move its clock. Reorder the stops by hand if the day must change.'
+                : 'The order is fixed by your manually placed waypoints — the optimiser only rewires the middle of a day, and one of those sits mid-day.'}
+              className="tl-fixed-inline"
+            >
+              <button className="btn btn-outline btn-sm" disabled aria-disabled="true">
+                <InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise
+              </button>
+            </span>
+          )}
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={ordered.length === 0 || !facts.hasNextDay}
+            onClick={() => onCopyDay(day.index)}
+            title={ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
+          ><InlineIcon icon={Copy} size={13} gap={4} />Copy</button>
+          {/* The cover control lives on the cover strip itself ("Change day
+              cover"), so the header carries no Cover button: a day without a
+              photo simply has none, exactly as the artboard shows. */}
+          <button className="btn btn-outline btn-sm" onClick={() => onAdd(day.index)}>+ Add here</button>
+        </div>
+      )}
+      {!isStayDay && (
         <div className="day-budget">
           <div
             className="day-budget-bar"
             style={{ gridTemplateColumns: budgetSegments.map(s => `${s.minutes}fr`).join(' ') }}
             role="img"
-            aria-label={`Day ${day.index + 1} time budget, ${formatHM(dayStartHM, timeFormat)} to ${formatHM(A.dayEnd, timeFormat)}: driving ${minutesToHM(budgetDrive)}, halts ${minutesToHM(budgetHalts)}, at stops ${minutesToHM(budgetStops)}, free ${minutesToHM(budgetFree)}`}
+            aria-label={`Day ${day.index + 1} time budget, ${formatHM(dayStartHM, timeFormat)} to ${formatHM(A.dayEnd, timeFormat)}: driving ${minutesToHM(budgetDrive)}, halts ${minutesToHM(budgetHalts)}, at stops ${minutesToHM(budgetStops)}${budgetWait > 0 ? `, waiting ${minutesToHM(budgetWait)}` : ''}, free ${minutesToHM(budgetFree)}`}
           >
             {budgetSegments.map(s => <span key={s.cls} className={s.cls} />)}
           </div>
@@ -812,12 +930,13 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             {budgetDrive > 0 && <span><i className="db-dot db-drive" aria-hidden="true" />Driving {minutesToHM(budgetDrive)}</span>}
             {budgetHalts > 0 && <span><i className="db-dot db-halt" aria-hidden="true" />Halts {minutesToHM(budgetHalts)}</span>}
             {budgetStops > 0 && <span><i className="db-dot db-dwell" aria-hidden="true" />At stops {minutesToHM(budgetStops)}</span>}
+            {budgetWait > 0 && <span><i className="db-dot db-wait" aria-hidden="true" />Waiting {minutesToHM(budgetWait)}</span>}
             <span><i className="db-dot db-free" aria-hidden="true" />Free {minutesToHM(budgetFree)}</span>
           </div>
         </div>
       )}
+      {(!reviewMode || inView) && <DayWeatherChip day={day} startDate={facts.startDate} />}
 
-      <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
       <div className="day-layout">
       <div className="day-main">
       {bodyTrip && <TravelPanel trip={bodyTrip} day={day} editable={editable} journey={journey} suggestionCache={suggestionCache} legCorrections={legCorrections}
@@ -987,16 +1106,39 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
               </div>
               {editable && (
                 <div className="stop-actions">
+                  {/* The artboard gives a stop ONE control: a ⋯ menu. Seven
+                      always-visible buttons per card (save, up, down, edit,
+                      maybe, move-day, delete) put 21 controls on a three-stop
+                      day and were the loudest clutter left in the body. The two
+                      reorder arrows stay inline because they are the keyboard
+                      alternative to dragging; everything else folds away. */}
                   <div className="move-btns">
                     <button className="move-btn" disabled={i === 0} onClick={() => moveUp(i)} aria-label={`Move ${s.title} up`}><ChevronUp size={12} aria-hidden /></button>
                     <button className="move-btn" disabled={i === ordered.length - 1} onClick={() => moveDown(i)} aria-label={`Move ${s.title} down`}><ChevronDown size={12} aria-hidden /></button>
                   </div>
-                  <button className="icon-btn" onClick={() => onEdit(s.id)} aria-label={`Edit ${s.title}`}><Pencil size={14} aria-hidden /></button>
-                  {s.status !== 'confirmed'
-                    ? <button className="icon-btn" title="Mark confirmed" aria-label={`Mark ${s.title} confirmed`} onClick={() => onStatus(s, 'confirmed')}><CircleCheck size={14} aria-hidden /></button>
-                    : <button className="icon-btn" title="Mark maybe" aria-label={`Mark ${s.title} maybe`} onClick={() => onStatus(s, 'maybe')}><CircleHelp size={14} aria-hidden /></button>}
-                  <button className="icon-btn" title="Move to another day" aria-label={`Move ${s.title} to another day`} onClick={() => onMoveBetweenDays(s)}><MoveHorizontal size={14} aria-hidden /></button>
-                  <button className="icon-btn" onClick={() => onDelete(s.id, day.index)} aria-label={`Delete ${s.title}`}><Trash2 size={14} aria-hidden /></button>
+                  <details className="stop-more">
+                    <summary className="icon-btn" aria-label={`More actions for ${s.title}`} title="More actions">
+                      <MoreHorizontal size={16} aria-hidden />
+                    </summary>
+                    <div className="stop-more-menu" role="menu">
+                      <button type="button" role="menuitem" onClick={() => onEdit(s.id)}>
+                        <Pencil size={14} aria-hidden />Edit
+                      </button>
+                      {s.status !== 'confirmed'
+                        ? <button type="button" role="menuitem" onClick={() => onStatus(s, 'confirmed')}>
+                            <CircleCheck size={14} aria-hidden />Mark confirmed
+                          </button>
+                        : <button type="button" role="menuitem" onClick={() => onStatus(s, 'maybe')}>
+                            <CircleHelp size={14} aria-hidden />Mark maybe
+                          </button>}
+                      <button type="button" role="menuitem" onClick={() => onMoveBetweenDays(s)}>
+                        <MoveHorizontal size={14} aria-hidden />Move to another day
+                      </button>
+                      <button type="button" role="menuitem" className="danger" onClick={() => onDelete(s.id, day.index)}>
+                        <Trash2 size={14} aria-hidden />Delete
+                      </button>
+                    </div>
+                  </details>
                 </div>
               )}
               </div>

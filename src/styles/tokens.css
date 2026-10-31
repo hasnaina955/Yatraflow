@@ -503,6 +503,10 @@
   --pw-raised: #FFFFFF;
   --pw-line: #D3DEDC;
   --pw-line-soft: #DCE7E6;
+  /* Glass over a photo: the day-cover control and its edge. A near-white fill
+     at 78% keeps the label legible on a bright photo without hiding it. */
+  --pw-glass: rgba(252, 254, 253, .78);
+  --pw-glass-edge: rgba(255, 255, 255, .8);
   --pw-ink: #142329;
   --pw-ink-2: #45565D;
   --pw-ink-3: #556972;
@@ -611,6 +615,10 @@
   --pw-raised: #1A2A44;
   --pw-line: #27395A;
   --pw-line-soft: #1E3050;
+  /* Dark glass sits on the card, not on the photo, so it is the raised surface
+     at the same 78% and a faint light edge instead of a white one. */
+  --pw-glass: rgba(26, 42, 68, .82);
+  --pw-glass-edge: rgba(232, 239, 245, .18);
   --pw-ink: #E8EFF5;
   --pw-ink-2: #ADBCCF;
   --pw-ink-3: #8FA0B5;

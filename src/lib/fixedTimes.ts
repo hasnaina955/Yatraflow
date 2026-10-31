@@ -71,3 +71,41 @@ export function worstFixedTone(rows: readonly FixedRow[]): FixedTone | null {
   }
   return worst
 }
+
+/**
+ * Minutes genuinely spent waiting for fixed commitments to come due.
+ *
+ * Do not add each row's `spareMin`. Every row measures its spare from its own
+ * arrival, so two commitments later in the day each report a spare that starts
+ * at the same clock, and the total far exceeds the day. This function walks the
+ * commitments in time order and holds one cursor, so it counts each idle minute
+ * once.
+ *
+ * Only surplus counts. A late arrival is a clash, not waiting, so a negative
+ * spare contributes nothing.
+ */
+export function waitingMinutesFor(rows: readonly FixedRow[]): number {
+  const timed = rows
+    .map(r => {
+      const commit = validHM(r.fc.time)
+      const arrival = validHM(r.arrival ?? undefined)
+      return commit != null && arrival != null
+        ? { commit: hmToMinutes(commit), arrival: hmToMinutes(arrival) }
+        : null
+    })
+    .filter((t): t is { commit: number; arrival: number } => t != null)
+    .sort((a, b) => a.commit - b.commit)
+
+  let ready = Number.NEGATIVE_INFINITY
+  let waiting = 0
+  for (const { commit, arrival } of timed) {
+    // You are ready when you reach the stop, but never before you have finished
+    // waiting for the previous commitment.
+    if (arrival > ready) ready = arrival
+    if (commit > ready) {
+      waiting += commit - ready
+      ready = commit
+    }
+  }
+  return waiting
+}

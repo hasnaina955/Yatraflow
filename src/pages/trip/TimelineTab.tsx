@@ -38,10 +38,12 @@ function useSavedSet(tripId: string) {
 }
 import { InlineIcon } from '../../components/icons'
 import {
-  
-  Eye, 
+  AlignJustify,
+  ChevronDown,
   MoreHorizontal,
-  PenLine,   TriangleAlert, 
+  Plus,
+  Rows3,
+  TriangleAlert,
 } from 'lucide-react'
 import type { Trip, ItineraryStop } from '../../data/types'
 import { updateTrip, setStopStatus, useDb, currentUser, userById } from '../../store/store'
@@ -66,6 +68,8 @@ import { refuseWhileStaged, removeStopWithUndo } from '../../lib/mutationLifecyc
 import { kmFromStartForHit } from '../../lib/providers/hits'
 import { insertStopAt, moveStopToDay, moveStopWithinDay, nextOrderInDay, pendingStopId, stopsInOrder } from '../../lib/stopOrder'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
+import { ToolbarMenu } from './timeline/ToolbarMenu'
+import { downloadTripIcs } from '../../lib/ics'
 import { PillNav } from '../../components/PillNav'
 import { DaySection } from './timeline/DaySection'
 import { buildDayCards, reuseDayTotals, reuseWarningGroups, type DayCards, type DayTotals } from '../../lib/dayCards'
@@ -756,48 +760,78 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           <PillNav className="view-pillbar" role="group" aria-label="Days shown" activeKey={reviewAll ? 'all' : 'one'}>
             <button type="button" data-pill-key="one" className={`tab-btn${reviewAll ? '' : ' active'}`}
               onClick={() => setReview(false)} aria-pressed={!reviewAll}
-              title="One day at a time — the accordion, and the day you were last in">Day by day</button>
+              title="One day at a time — the accordion, and the day you were last in">
+              <Rows3 size={15} aria-hidden />Day by day</button>
             <button type="button" data-pill-key="all" className={`tab-btn${reviewAll ? ' active' : ''}`}
               onClick={() => setReview(true)} aria-pressed={reviewAll}
-              title="Every day expanded in order, each day's header following you down">Whole trip</button>
+              title="Every day expanded in order, each day's header following you down">
+              <AlignJustify size={15} aria-hidden />Whole trip</button>
           </PillNav>
           <span className="tl-toolbar-sep" aria-hidden="true" />
           {editable && (
-            <PillNav className="mode-pillbar" role="group" aria-label="Timeline mode" activeKey={mode}>
-              <button type="button" data-pill-key="plan" className={`tab-btn${mode === 'plan' ? ' active' : ''}`}
-                onClick={() => changeMode('plan')} aria-pressed={mode === 'plan'}>
-                <PenLine size={14} aria-hidden />Editing on
-              </button>
-              <button type="button" data-pill-key="inspect" className={`tab-btn${mode === 'inspect' ? ' active' : ''}`}
-                onClick={() => changeMode('inspect')} aria-pressed={mode === 'inspect'}
-                title="Study the day without changing it">
-                <Eye size={14} aria-hidden />Review
-              </button>
-            </PillNav>
+            /* The artboard draws editing as ONE switch, with the hint under its
+               label. The two-segment pill this replaces said "Editing on" and
+               "Review" as peers, which read as two modes to choose between
+               rather than one state to turn off. */
+            <button type="button" role="switch" aria-checked={mode === 'plan'}
+              className="tl-edit-switch" onClick={() => changeMode(mode === 'plan' ? 'inspect' : 'plan')}
+              aria-describedby="tl-edit-hint">
+              <span className="tl-edit-track" aria-hidden="true"><span className="tl-edit-knob" /></span>
+              <span className="tl-edit-copy">
+                <span className="tl-edit-label">{mode === 'plan' ? 'Editing on' : 'Reviewing'}</span>
+                <span className="tl-edit-hint" id="tl-edit-hint">
+                  {mode === 'plan' ? 'Drag to reorder · every change previews before it saves' : 'Read-only · nothing here changes the plan'}
+                </span>
+              </span>
+            </button>
           )}
           <div className="tl-toolbar-end">
             {editable && (
-              <button className="btn btn-primary btn-sm" disabled={mode !== 'plan'}
-                title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
-                onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>+ Add stop</button>
-            )}
-            <details className="tl-more">
-              <summary className="tl-more-btn" aria-label="More timeline options" title="More timeline options">
-                <MoreHorizontal size={18} aria-hidden />
-              </summary>
-              <div className="tl-more-menu" role="menu">
-                {onOpenBoard && (
-                  <button type="button" role="menuitem" onClick={onOpenBoard}>
-                    Open in Board
-                  </button>
-                )}
-                <button type="button" role="menuitem" onClick={() => window.print()}>
-                  Print day sheets
+              <div className="tl-add-split">
+                <button className="tl-add-main" disabled={mode !== 'plan'}
+                  title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
+                  onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>
+                  <Plus size={15} aria-hidden />Add stop to Day {addTargetDay + 1}
                 </button>
+                <ToolbarMenu className="tl-add-day" label="Choose the day to add to"
+                  icon={<ChevronDown size={15} aria-hidden />}>
+                  {close => trip.days.map(d => (
+                    <button key={d.id} type="button" role="menuitem"
+                      onClick={() => { close(); openEditorState({ mode: 'add', dayIndex: d.index }) }}>
+                      Day {d.index + 1}{d.title ? ` · ${d.title}` : ''}
+                    </button>
+                  ))}
+                </ToolbarMenu>
               </div>
-            </details>
+            )}
+            <ToolbarMenu className="tl-more-btn" label="More timeline options" icon={<MoreHorizontal size={18} aria-hidden />}>
+              {close => (
+                <>
+                  {onOpenBoard && (
+                    <button type="button" role="menuitem" onClick={() => { close(); onOpenBoard() }}>
+                      Open in Board
+                    </button>
+                  )}
+                  <button type="button" role="menuitem" onClick={() => { close(); downloadTripIcs(trip) }}>
+                    Export calendar
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { close(); window.print() }}>
+                    Print day sheets
+                  </button>
+                </>
+              )}
+            </ToolbarMenu>
           </div>
         </div>
+        {/* On a phone the artboard moves Add stop out of the toolbar to a
+            floating button above the bottom nav, because the toolbar there is
+            two compact switches with no room for a labelled primary action. */}
+        {editable && mode === 'plan' && (
+          <button type="button" className="tl-add-fab"
+            onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>
+            <Plus size={18} aria-hidden />Add to Day {addTargetDay + 1}
+          </button>
+        )}
       </div>
 
       <section className="tl-ribbon" aria-label="Trip ribbon">

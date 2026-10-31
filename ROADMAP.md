@@ -444,8 +444,9 @@ now 40×40, `.avatar-btn` carries `min-width/min-height: 40px`):
 
 ### M2 — "State honesty & UX"
 All verified fixed (spot-checked 2026-09-11: the AI drawer has the Escape + focus-trap
-contract, and the day title renders as a real `<button className="day-title-btn">` with an
-`aria-label` when editable, `<h3>` only when read-only):
+contract, and the day title renders as plain text with a separate
+`<button className="day-rename-btn">` carrying the `aria-label` when editable, `<h3>` only
+when read-only):
 - ✅ Loading vs empty distinction on My Trips + Explore ("No trips yet" / "Nothing matches"
   rendered before or without data).
 - ✅ Profile save: inline validation + disabled-while-saving (matches CreateTrip).

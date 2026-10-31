@@ -815,18 +815,24 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   if (e.key === 'Escape') { setTitleDraft(day.title ?? ''); setEditingTitle(false) }
                 }}
               />
-            ) : editable ? (
-              <button type="button" className="day-title-btn" onClick={() => { setTitleDraft(day.title ?? ''); setEditingTitle(true) }}
-                title="Click to rename this day"
-                aria-label={`Rename Day ${day.index + 1}`}
-              >
-                {day.title ?? `Day ${day.index + 1}`}
-              </button>
             ) : (
-              <h3>{day.title ?? `Day ${day.index + 1}`}</h3>
+              /* The artboard keeps the title as plain text and renames from a
+                 pencil beside it. A title that was itself the trigger turned one
+                 tap on the day name into a focused input, which pushed the heart
+                 and the day-type chip onto a second row — the header visibly
+                 reflowed while the pointer was still on the title. */
+              <h3 className="day-title-text">{day.title ?? `Day ${day.index + 1}`}</h3>
             )}
-            {/* MR8: save the day. A heart beside the title rather than inside the
-                title button, so saving does not open the rename field. */}
+            {editable && !editingTitle && (
+              <button type="button" className="day-rename-btn"
+                onClick={() => { setTitleDraft(day.title ?? ''); setEditingTitle(true) }}
+                aria-label={`Rename Day ${day.index + 1}`}
+                title="Rename this day">
+                <Pencil size={15} aria-hidden />
+              </button>
+            )}
+            {/* MR8: save the day. A heart beside the title rather than on the
+                pencil, so saving does not open the rename field. */}
             <button
               className={`tl-save-heart${daySaved ? ' on' : ''}`}
               aria-pressed={daySaved}

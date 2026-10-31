@@ -513,9 +513,13 @@
    already say). Names wrap instead of truncating; the full chain rides in
    the title tooltip. */
 .day-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+/* The artboard's chip is sentence case at 12px/700 with 4px 10px padding. Ours
+   was 10.5px/600 in uppercase, which shrank the label and shouted it at the
+   same time — the opposite of the quiet badge the artboard draws. The tint is
+   unchanged, so the chip still carries its kind by colour. */
 .day-kind {
-  flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: .07em;
-  text-transform: uppercase; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+  flex: 0 0 auto; font-size: 12px; font-weight: 700; letter-spacing: normal;
+  text-transform: none; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
 }
 /* teal on teal tint: 4.57:1 light / 6.64:1 dark — passes AA at 10.5px semibold */
 .day-kind.drive { background: var(--teal-soft); color: var(--teal-deep); }
@@ -542,7 +546,10 @@
 /* The header's one stats line, set to the artboard's measure: 14px on the
    second ink. It was 12.5px muted, which read as a footnote rather than as
    the day's summary. */
-.day-header .small.muted.num { font-size: 14px; color: var(--pw-ink-2); }
+/* The artboard sets the facts line at weight 400 in the second ink. At 500 it
+   read a step heavier than the title it sits under, which pulled the eye off
+   the day name. */
+.day-header .small.muted.num { font-size: 14px; font-weight: 400; color: var(--pw-ink-2); }
 /* The title block's own stack. The artboard puts 6px between the title row and
    the stats line; without a gap of its own the block leaned on the header's row
    gap and left the stats 8px low. Scoped to the header so `.tl-stop-flex` keeps
@@ -2156,7 +2163,8 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 }
 .day-badge-date .day-badge-wd {
   font: var(--pw-kicker);
-  letter-spacing: .12em;
+  /* The artboard tracks the weekday at 0.1em, not 0.12em. */
+  letter-spacing: .1em;
   color: var(--pw-marigold-ink);
 }
 .day-badge-date b {
@@ -2172,6 +2180,8 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 }
 .day-number {
   font: var(--pw-caption);
+  /* The artboard sets "Day 2" at 12px/700 in the sea ink; --pw-caption is 600. */
+  font-weight: 700;
   color: var(--pw-sea-700);
   white-space: nowrap;
 }
@@ -2219,7 +2229,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3) 18px;
-  font: 500 12.5px/1.4 var(--font-body);
+  font: 400 12.5px/1.4 var(--font-body);
   color: var(--pw-ink-2);
 }
 .day-budget-key .db-dot {

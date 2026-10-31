@@ -575,8 +575,10 @@
 }
 
 .yf-page .yf-tabbar .tab-btn {
-  min-height: 44px;
-  padding: 0 var(--space-6);
+  /* The artboard's tabs are 38px with `padding: 0 16px` inside a 6px inset, so
+     the whole rail measures 50px. 44px tabs made the capsule 58px. */
+  min-height: 38px;
+  padding: 0 16px;
   color: var(--pw-ink);
   font-size: 14px;
   font-weight: 600;

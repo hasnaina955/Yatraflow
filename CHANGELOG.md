@@ -18,6 +18,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The day card, rail, toolbar and tab rail now measure to the artboard.** Seven measured gaps closed. The Day Brief, Needs Attention and Day Tools panels were flat (`box-shadow: none`). They now carry `--elev-1`. The open day lifts to `--elev-2` with the sea border. A folded day keeps `--elev-1`. A 4px coloured spine sat on every stop card's left edge. The artboard draws no spine, and inside the rounded corner it read as a stray bracket. The rail line is 3px with a 5px dash and a 4px gap. It was 2px with a 4px dash. The toolbar's day-scope switch is now the artboard's sunken `#E0EBE9` track with a card-white selected segment. It was a floating glass pill. Its inset is `6px 6px 6px 8px` with a 16px gap. The trip tabs are 38px with `padding: 0 16px` and a `--glow-sea` active pill. The capsule measures the artboard's 52px instead of 58px. Chips are `4px 10px` at weight 700 instead of `5px 12px` at 600.
 - **The Timeline stop number no longer covers the arrival time.** The ring has its own 23px column and an 8px gap before the time. The row track grows by the same amount. The gap to the stop card stays 12px, or 8px at 640px and below.
 
 ### Changed

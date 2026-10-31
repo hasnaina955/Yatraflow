@@ -33,6 +33,8 @@ export interface DayStripItem {
   /** Where the day sits — its base stop's location — or null when no planned
    *  stop names a place. The day title is never used: it describes an activity. */
   place: string | null
+  /** The previous day that named a place, or null on the first such day. */
+  from: string | null
   /** Stops on the day, rejected ones included: the strip counts what is written. */
   stopCount: number
   /** True when this day's place differs from the previous day's. Day 1 never is. */
@@ -55,17 +57,20 @@ export function dayStripItems(days: ItineraryDay[]): DayStripItem[] {
   // marks a city change against the wrong neighbour is worse than no marker.
   const ordered = [...days].sort((a, b) => a.index - b.index)
   let prevPlace: string | null = null
+  let prevKey: string | null = null
   return ordered.map(day => {
     const place = placeOf(day)
     const key = place ? place.toLowerCase() : null
-    const changesCity = key !== null && prevPlace !== null && key !== prevPlace
+    const changesCity = key !== null && prevKey !== null && key !== prevKey
+    const from = prevPlace
     // Only a day that NAMES a place advances the neighbour. An unnamed day
     // between two named ones must not make the second look like a change.
-    if (key !== null) prevPlace = key
+    if (key !== null) { prevPlace = place; prevKey = key }
     return {
       dayIndex: day.index,
       label: `Day ${day.index + 1}`,
       place,
+      from,
       stopCount: day.stops.length,
       changesCity,
     }

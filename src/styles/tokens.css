@@ -624,6 +624,9 @@
   --pw-lagoon-400: #5CC8BC;
   --pw-lagoon-300: #6CCAB3;
   --pw-route: #2D5E58;
+  /* The ribbon's route line is a 3px rule on the dark shell, not a card border.
+     #2D5E58 measures 2.1:1 there and reads as a smudge; this mint holds 7.8:1. */
+  --pw-route-line: #7FC3B6;
   --pw-lagoon-100: #13302C;
   --pw-lagoon-50: #162A27;
   --pw-marigold-500: #F5B04E;

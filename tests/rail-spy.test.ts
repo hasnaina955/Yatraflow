@@ -52,14 +52,18 @@ describe('P4 — the current-day marker survives the warn skin', () => {
   const css = readCssSource('src/styles.css')
 
   it('gives the warned current card a border marker warn cannot replace', () => {
-    const rule = /\.day-rail-card\.warn\[aria-current='true'\] \{([^}]*)\}/.exec(css)
-    expect(rule, 'warn+current rule missing').not.toBeNull()
-    expect(rule![1]).toContain('border-color: var(--teal)')
-    expect(rule![1]).toContain('font-weight: 800')
+    // PW-08 moved the warn state off the card's own skin and onto the dot, so
+    // the current-day border can no longer be overwritten by a warn rule. The
+    // dot still cannot carry meaning by colour alone: its label says it.
+    const rule = /\.tl-ribbon-card\[aria-current='true'\] \{([^}]*)\}/.exec(css)
+    expect(rule, 'current-day ribbon card rule missing').not.toBeNull()
+    expect(rule![1]).toContain('border-color: var(--pw-lagoon-600)')
+    expect(css).not.toMatch(/\.tl-ribbon-card\.warn/)
+    expect(css).toMatch(/\.tl-ribbon-dot\.warn \{ background: var\(--yf-amber\); \}/)
   })
 
   it('drops the orphaned chip selector the card rename left behind', () => {
-    expect(css).not.toMatch(/\.day-rail-chip\[aria-current/)
+    expect(css).not.toMatch(/\.day-rail-chip/)
   })
 
   it('lands every day-card jump below the measured stack', () => {

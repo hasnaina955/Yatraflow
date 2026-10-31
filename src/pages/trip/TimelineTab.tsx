@@ -7,8 +7,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { dayStripItems } from '../../lib/dayStrip'
 import { loadSavedIds, saveSavedIds, flipSavedId } from '../../lib/uiPrefs'
 import { DAY_START_SETTLE_MS, createDayStartBurst, dayStartAnnouncement } from '../../lib/dayStartBurst'
@@ -46,9 +45,10 @@ import {
 import type { Trip, ItineraryStop } from '../../data/types'
 import { updateTrip, setStopStatus, useDb, currentUser, userById } from '../../store/store'
 import {
-  computeTotals, minutesToHM, formatInr,
+  computeTotals, minutesToHM, formatInr, hmToMinutes,
   collectWarnings, buildJourney, dayRoadPolyline, groupWarnings,
 } from '../../lib/engine'
+import { fixedRowsFor, worstFixedTone } from '../../lib/fixedTimes'
 import type { LegEstimate, ScheduleWarning } from '../../lib/engine'
 import type { RoadStatus } from '../../lib/tripRoad'
 import type { ImpactResult } from '../../lib/impact'
@@ -76,6 +76,17 @@ import { MoveStopModal } from './timeline/MoveStopModal'
 /** Shared empty array so the memoized DaySections' `warnings` prop keeps a
  *  stable reference for days without warnings (`?? []` would defeat the memo). */
 const NO_WARNINGS: ScheduleWarning[] = []
+
+const STRIP_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** "Sat 14" for the ribbon's day line, or null when the trip has no start date. */
+function stripDateLabel(startDate: string, dayIndex: number): string | null {
+  if (!startDate) return null
+  const date = new Date(`${startDate}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return null
+  date.setDate(date.getDate() + dayIndex)
+  return `${STRIP_WEEKDAY[date.getDay()]} ${date.getDate()}`
+}
 
 /** The bottom edge, px, of the bars stuck to the top of the viewport — the
  *  space a jumped-to card must clear (P4). MEASURED, never assumed: the stack
@@ -348,16 +359,16 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // (opening hours lead with a stop title) and silently DROPPED the trip-wide
   // accommodation one (#402).
   const warningsCache = useRef<Map<number, ScheduleWarning[]> | null>(null)
-  const { dayWarnings, tripWideWarnings, warnDayCount } = useMemo(() => {
+  const { dayWarnings, tripWideWarnings } = useMemo(() => {
     const { byDay, tripWide } = groupWarnings(collectWarnings(trip, legCorrections))
     // #347: `groupWarnings` mints a fresh array for every warned day on every
     // trip change — content-equal, ref-different, which re-rendered those days.
     // NO_WARNINGS above only ever saved the days with nothing to warn about.
     const stable = reuseWarningGroups(warningsCache.current, byDay)
     warningsCache.current = stable
-    return { dayWarnings: stable, tripWideWarnings: tripWide, warnDayCount: byDay.size }
+    return { dayWarnings: stable, tripWideWarnings: tripWide }
   }, [trip, legCorrections])
-  // M4: sticky trip-total strip (doc §6.3) — same engine numbers as Overview.
+  // M4: the trip ribbon's totals (doc §6.3) — same engine numbers as Overview.
   const totals = useMemo(() => computeTotals(trip, legCorrections), [trip, legCorrections])
   // computeTotals().byDay mints a fresh object per day on any change, and that
   // object is a day card's cost chip — its identity has to survive (#347).
@@ -378,6 +389,39 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     cardsCache.current = next
     return next
   }, [trip, days, legCorrections])
+
+  // The ribbon's per-day state. Distance is the day's own money slice (the
+  // number its cost chip prints); status reads the same warning groups and the
+  // same fixed rows as the day header, so the dot cannot call a day clear while
+  // its header says otherwise. The bar is the planned share of the day's
+  // window — driving plus time at stops over the hours the day can use.
+  const ribbonDays = useMemo(() => dayStrip.map(it => {
+    const dayFacts = cards.byDay.get(it.dayIndex)
+    const dayTotals = totalsByDay.get(it.dayIndex)
+    const fixed = dayFacts ? worstFixedTone(fixedRowsFor(dayFacts.sim, dayFacts.commitments)) : null
+    const blocked = fixed === 'clash'
+    const warned = (dayWarnings.get(it.dayIndex)?.length ?? 0) > 0 ||
+      (fixed != null && fixed !== 'ok' && fixed !== 'anchor')
+    let planned = 0
+    if (dayFacts) {
+      const window = Math.max(1, hmToMinutes(dayFacts.assumptions.dayEnd) - hmToMinutes(dayFacts.sim.startsAt))
+      const drive = Math.max(0, Math.min(window, dayFacts.sim.totalTravelMinutes))
+      const dwell = Math.max(0, Math.min(window - drive, dayFacts.sim.dwellMinutes))
+      planned = Math.round(((drive + dwell) / window) * 100)
+    }
+    return {
+      ...it,
+      dateLabel: stripDateLabel(trip.startDate, it.dayIndex),
+      km: dayTotals ? Math.round(dayTotals.distanceKm) : null,
+      tone: blocked ? 'risk' : warned ? 'warn' : 'ok',
+      toneLabel: blocked ? 'Blocked' : warned ? 'Needs attention' : 'All clear',
+      planned,
+    }
+  }), [dayStrip, cards, totalsByDay, dayWarnings, trip.startDate])
+  const attentionDays = useMemo(
+    () => ribbonDays.reduce((n, d) => (d.tone === 'ok' ? n : n + 1), 0),
+    [ribbonDays],
+  )
 
   // ---- Review mode's viewport gate (#421) ----
   // In review every day is open, so without a gate the first render would hand
@@ -738,20 +782,44 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         </div>
       </div>
 
-      <div className="tl-total-strip">
-        <span className="tl-total-label">Trip total</span>
-        <span>{Math.round(totals.totalDistanceKm).toLocaleString('en-IN')} km</span>
-        <span className="tl-total-dot" aria-hidden="true">·</span>
-        <span>{minutesToHM(totals.totalTravelMinutes)} {trip.transportMode === 'flight' ? 'in transit' : 'driving'}</span>
-        <span className="tl-total-dot" aria-hidden="true">·</span>
-        <span>{formatInr(totals.totalCostInr)} estimated</span>
-        {warnDayCount > 0 && (
-          <span className="tl-total-warn"><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnDayCount} day{warnDayCount !== 1 ? 's' : ''} need{warnDayCount === 1 ? 's' : ''} attention</span>
-        )}
-        {tripWideWarnings.length > 0 && (
-          <span className="tl-total-warn"><InlineIcon icon={TriangleAlert} size={12} gap={3} />{tripWideWarnings.length} trip-wide warning{tripWideWarnings.length !== 1 ? 's' : ''}</span>
-        )}
-      </div>
+      <section className="tl-ribbon" aria-label="Trip ribbon">
+        <div className="tl-ribbon-total">
+          <span className="tl-ribbon-eyebrow">Trip total</span>
+          <span className="tl-ribbon-figure">{Math.round(totals.totalDistanceKm).toLocaleString('en-IN')} km</span>
+          <span className="tl-ribbon-sub">{minutesToHM(totals.totalTravelMinutes)} {trip.transportMode === 'flight' ? 'in transit' : 'driving'} · {formatInr(totals.totalCostInr)} est.</span>
+          {attentionDays > 0 && (
+            <span className="tl-ribbon-alert"><InlineIcon icon={TriangleAlert} size={12} gap={4} />{attentionDays} day{attentionDays !== 1 ? 's' : ''} need{attentionDays === 1 ? 's' : ''} attention</span>
+          )}
+          {tripWideWarnings.length > 0 && (
+            <span className="tl-ribbon-alert"><InlineIcon icon={TriangleAlert} size={12} gap={4} />{tripWideWarnings.length} trip-wide warning{tripWideWarnings.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <div className="tl-ribbon-days" role="navigation" aria-label="Jump to day">
+          <span className="tl-ribbon-line" aria-hidden="true" />
+          <span className="tl-ribbon-line-end" aria-hidden="true" />
+          {ribbonDays.map(it => {
+            const current = reviewAll ? currentDay === it.dayIndex : openDayIndex === it.dayIndex
+            const route = it.changesCity && it.from && it.place ? `${it.from} → ${it.place}` : it.place
+            return (
+              <button key={`d${it.dayIndex}`} type="button" className="tl-ribbon-card"
+                aria-current={current ? 'true' : undefined}
+                onClick={() => jumpToDay(it.dayIndex)}>
+                <span className="tl-ribbon-card-top">
+                  <span className="tl-ribbon-card-day">{it.label}{it.dateLabel ? ` · ${it.dateLabel}` : ''}</span>
+                  <span className={`tl-ribbon-dot ${it.tone}`} role="img" aria-label={it.toneLabel} />
+                </span>
+                {route && <span className="tl-ribbon-card-place">{route}</span>}
+                <span className="tl-ribbon-card-meta">
+                  {it.stopCount} {it.stopCount === 1 ? 'stop' : 'stops'}{it.km != null ? ` · ${it.km} km` : ''}
+                </span>
+                <span className="tl-ribbon-card-bar" role="img" aria-label={`${it.planned}% of the day planned`}>
+                  <span style={{ width: `${it.planned}%` }} />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
 
       {/* Trip-wide warnings have no day card to live in, so they get their own
           block right after the totals — before it, the regex grouping dropped
@@ -767,47 +835,6 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* #421: in review the rail is the mode's navigation, so it appears for
-          any trip length — and it marks the day you are in as you scroll.
-          MR7: the chip became a card carrying the place that day sits in and a
-          stop count, with a marker on the day the route moves on. The jump and
-          the day-collapse state behind it are untouched — same rail, richer. */}
-      {(days.length >= 4 || reviewAll) && (
-        <div className="day-rail" role="navigation" aria-label="Jump to day">
-          <span className="day-rail-label">Jump to day</span>
-          <div className="day-rail-cards">
-            {dayStrip.map(it => {
-              const hasWarn = (dayWarnings.get(it.dayIndex)?.length ?? 0) > 0
-              const current = reviewAll ? currentDay === it.dayIndex : openDayIndex === it.dayIndex
-              return (
-                <Fragment key={`d${it.dayIndex}`}>
-                  {/* The transit marker belongs to the day the route MOVES on,
-                      so it renders before that day's card, never after the last
-                      one — there is no day 0 boundary to mark. */}
-                  {it.changesCity && (
-                    <span className="day-rail-transit" aria-hidden>
-                      <InlineIcon icon={ArrowRight} size={12} gap={0} />
-                    </span>
-                  )}
-                  <button type="button" className={`day-rail-card${hasWarn ? ' warn' : ''}`}
-                    aria-current={current ? 'true' : undefined}
-                    onClick={() => jumpToDay(it.dayIndex)}>
-                    <span className="day-rail-card-day">
-                      {it.label}
-                      {hasWarn && <InlineIcon icon={TriangleAlert} size={11} gap={0} vAlign="-1px" style={{ marginLeft: 3 }} />}
-                    </span>
-                    {it.place && <span className="day-rail-card-place">{it.place}</span>}
-                    <span className="day-rail-card-meta">
-                      {it.stopCount} {it.stopCount === 1 ? 'stop' : 'stops'}
-                    </span>
-                  </button>
-                </Fragment>
-              )
-            })}
-          </div>
         </div>
       )}
 

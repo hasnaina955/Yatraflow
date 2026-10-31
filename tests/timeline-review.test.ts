@@ -130,22 +130,27 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     // Measured: a review-mode header is 193–309px tall (its clocks, chips,
     // warnings and actions), so sticking it would cost a fifth of a phone's
     // screen to say one word. The compact rail is the mode's own label row.
-    expect(css).toMatch(/\.tl-root-review \.tl-total-strip \{ position: static; \}/)
-    expect(css).toMatch(/\.tl-root-review \.day-rail \{\r?\n  position: sticky;/)
+    // PW-08 folded the totals strip and the rail into one ribbon, so the rung
+    // moves as one surface: in review the totals column drops out and what is
+    // left is the compact rail.
+    expect(css).toMatch(/\.tl-root-review \.tl-ribbon-total \{ display: none; \}/)
+    expect(css).toMatch(/\.tl-root-review \.tl-ribbon \{\r?\n  position: sticky;/)
     expect(css).toMatch(/top: calc\(12px \+ var\(--nav-h\) \+ 10px \+ var\(--safe-area-inset-top, env\(safe-area-inset-top, 0px\)\)\);/)
     expect(css).not.toMatch(/\.day-review \.day-header \{[^}]*position: sticky/)
   })
 
   it('marks the day the reader is in, and grows the rail for any trip length', () => {
-    expect(tab).toMatch(/\(days\.length >= 4 \|\| reviewAll\) && \(/)
+    // PW-08: the ribbon is the trip's own header, so it renders for every trip
+    // length — the old rail's "4+ days or review" gate retired with it.
+    expect(tab).not.toMatch(/days\.length >= 4 \|\| reviewAll/)
     expect(tab).toMatch(/aria-current=\{current \? 'true' : undefined\}/)
     // MR7 renamed the loop variable: the rail renders the derived strip now, so
     // the item is `it` and its index is `it.dayIndex`. MR9 marks the day the
     // reader is in on both modes: the day in view in review, the open day
-    // otherwise.
+    // otherwise. PW-08 renders the same loop as ribbon cards.
     expect(tab).toMatch(/const current = reviewAll \? currentDay === it\.dayIndex : openDayIndex === it\.dayIndex/)
     expect(tab).toMatch(/if \(el\.getBoundingClientRect\(\)\.top - line <= 1\) best = idx/)
-    expect(css).toMatch(/\.day-rail-card\[aria-current='true'\] \{/)
+    expect(css).toMatch(/\.tl-ribbon-card\[aria-current='true'\] \{/)
   })
 
   it('renders the rail from the tested strip, and marks the day the route moves on (MR7)', () => {
@@ -153,9 +158,12 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     // lib/dayStrip.ts with its own tests, and a second copy here is how the
     // marker would drift onto the wrong day.
     expect(tab).toMatch(/const dayStrip = useMemo\(\(\) => dayStripItems\(days\), \[days\]\)/)
-    expect(tab).toMatch(/\{dayStrip\.map\(it => \{/)
-    // The transit marker belongs to the day the city CHANGES, so it renders
-    // inside the map, before that day's card — never after the last card.
-    expect(tab).toMatch(/\{it\.changesCity && \(\s*<span className="day-rail-transit"/)
+    // PW-08 renders the ribbon from that same strip: `ribbonDays` adds only the
+    // display facts (date label, km, tone, planned share) and never re-derives
+    // the boundary, so there is still exactly one copy of the logic.
+    expect(tab).toMatch(/const ribbonDays = useMemo\(\(\) => dayStrip\.map\(it => \{/)
+    // PW-08: the transit marker no longer needs its own glyph — the day that
+    // changes city spells the route in the card, so the boundary is the label.
+    expect(tab).toMatch(/const route = it\.changesCity && it\.from && it\.place \? `\$\{it\.from\} → \$\{it\.place\}` : it\.place/)
   })
 })

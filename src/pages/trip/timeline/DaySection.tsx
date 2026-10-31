@@ -11,7 +11,7 @@ import { Heart } from 'lucide-react'
 import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
 import {
   ArrowRight, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
-  Copy, Droplets, ExternalLink, Flag, MapPin,
+  Copy, Droplets, ExternalLink, Flag, Lock, MapPin,
   MoveHorizontal, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon,   Ticket, Trash2, TriangleAlert, 
 } from 'lucide-react'
 import type { Trip, ItineraryStop } from '../../../data/types'
@@ -28,6 +28,7 @@ import { routeChain, stayDaySummary, dwellSegments, visibleStops } from '../../.
 import { insertionSlotBetween } from '../../../lib/stopOrder'
 import { insertionWhere } from '../../../lib/labels'
 import { isDriveDay } from '../../../lib/ridePlan'
+import { fixedRowsFor, fixedStopIdsOf, worstFixedTone } from '../../../lib/fixedTimes'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
 import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
@@ -62,6 +63,7 @@ function LegSummary({ leg, inrPerKm, mode }: { leg: ScheduledLeg; inrPerKm: numb
 function linkStopOptions(stops: ItineraryStop[]): { value: string; label: string }[] {
   return [{ value: '', label: 'No linked stop' }, ...stops.filter(s => s.status !== 'rejected').map(s => ({ value: String(s.id), label: s.title }))]
 }
+
 import { glideOffsetPx, insertionIndexFor, rowLayoutBoxes, cancelRowSettle, cancelListSettles, settleRow } from '../../../lib/touchDnd'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPois } from '../../../lib/geocode'
@@ -313,6 +315,34 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
   // goes through this map (printModel's accessor), never through the rendered
   // position.
   const simRows = useMemo(() => scheduleRowsById(sim), [sim])
+  const commitmentsToday = facts.commitments
+  // PW-08: one read model for the day's fixed commitments. Every clock comes
+  // from the same simulateDay rows the rail prints, so a stop pill, the fixed
+  // times panel and the engine's conflict warning cannot disagree. A hotel
+  // check-in stays an anchor (the engine skips it for conflicts); it still
+  // shows its clock. A missing link stays unlinked — never another stop's time.
+  const fixedRows = useMemo(() => fixedRowsFor(sim, commitmentsToday), [commitmentsToday, sim])
+  // The optimiser may not rewire a stop that carries a fixed clock. Passing
+  // these ids is what turns the engine's guard on; a day with none keeps the
+  // existing anti-crisscross behaviour unchanged.
+  const fixedStopIds = useMemo(
+    () => fixedStopIdsOf(fixedRows),
+    [fixedRows],
+  )
+  const fixedByStop = useMemo(() => {
+    const byStop = new Map<string, typeof fixedRows>()
+    for (const row of fixedRows) {
+      if (row.fc.stopId == null) continue
+      const key = String(row.fc.stopId)
+      const list = byStop.get(key)
+      if (list) list.push(row)
+      else byStop.set(key, [row])
+    }
+    return byStop
+  }, [fixedRows])
+  const fixedClashes = fixedRows.filter(r => r.tone === 'clash').length
+  const fixedInvalid = fixedRows.filter(r => r.tone === 'invalid').length
+  const fixedTight = fixedRows.some(r => r.tone === 'tight')
   // ---- Optimize day order (anti-crisscross) ----
   // Preview is computed from the CURRENT day snapshot (pure engine call; the
   // helper clones its inputs, so the render-phase memo can't touch the store);
@@ -328,9 +358,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
   // the memo is keyed on that signature instead of on `trip`. The O(n²) sweep
   // used to re-run on every unrelated store commit; the signature changes only
   // when an input really did (#341).
-  const optKey = `${day.index}|${hasNextDay ? 1 : 0}|${optOrigin.lat.toFixed(5)},${optOrigin.lng.toFixed(5)}|${ordered.map(s => `${s.id}:${s.lat.toFixed(5)},${s.lng.toFixed(5)}:${s.orderInDay}:${s.status}:${s.auto ? 1 : 0}:${s.category}`).join('|')}`
+  const optKey = `${day.index}|${hasNextDay ? 1 : 0}|${optOrigin.lat.toFixed(5)},${optOrigin.lng.toFixed(5)}|fixed:${fixedStopIds.join(',')}|${ordered.map(s => `${s.id}:${s.lat.toFixed(5)},${s.lng.toFixed(5)}:${s.orderInDay}:${s.status}:${s.auto ? 1 : 0}:${s.category}`).join('|')}`
   const optResult = useMemo(
-    () => optimizeDayOrder(optOrigin, ordered, { hasNextDay }),
+    () => optimizeDayOrder(optOrigin, ordered, { hasNextDay, fixedStopIds }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- optKey IS the read set
     [optKey],
   )
@@ -469,7 +499,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
     prevRects.current = now
   }, [ordered, listId])
   useLayoutEffect(() => () => cancelListSettles(listId), [listId])
-  const commitmentsToday = facts.commitments
 
   // --- Collapsed-by-default accordion (docs/TIMELINE-PLAN.md Phase 1) ---
   // Collapse state lives in TimelineTab (one open day per trip, persisted via
@@ -556,17 +585,24 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
     const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     return { wd: WD[base.getDay()], d: base.getDate(), mon: MO[base.getMonth()] }
   })()
-  // The mockup's time budget, from real minutes: wheel time, time at the
-  // stops, and the free remainder of the day window. The simulation has no
-  // separate "waiting" total, so the bar does not invent one.
+  // The mockup's time budget, from real minutes. Halts are split out of the
+  // dwell total because the journey already classifies each point: a food or
+  // rest stop is a `halt`, everything else is a `visit`. There is no "waiting"
+  // segment: spare time before a fixed commitment is free time the plan leaves
+  // open, and the simulation keeps no separate waiting total to draw one from.
   const budgetWindow = Math.max(1, hmToMinutes(A.dayEnd) - hmToMinutes(dayStartHM))
   const budgetDrive = Math.max(0, Math.min(budgetWindow, sim.totalTravelMinutes))
   const budgetDwell = Math.max(0, Math.min(budgetWindow - budgetDrive, sim.dwellMinutes))
+  const budgetHalts = Math.min(budgetDwell, journey.points
+    .filter(p => p.kind === 'halt')
+    .reduce((sum, p) => sum + Math.max(0, p.dwellMinutes), 0))
+  const budgetStops = Math.max(0, budgetDwell - budgetHalts)
   const budgetFree = Math.max(0, budgetWindow - budgetDrive - budgetDwell)
   // Only real segments get a column; a zero-minute drive must not leave a gap.
   const budgetSegments = [
     { cls: 'db-drive', minutes: budgetDrive },
-    { cls: 'db-dwell', minutes: budgetDwell },
+    { cls: 'db-halt', minutes: budgetHalts },
+    { cls: 'db-dwell', minutes: budgetStops },
     { cls: 'db-free', minutes: budgetFree },
   ].filter(s => s.minutes > 0)
   // The day's money, split so the lines add up to the total: travel and day
@@ -645,6 +681,15 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             <span className={`day-kind ${dayType.toLowerCase()}`}>
               {hasAirLeg ? 'Flight day' : dayType === 'STAY' ? 'Stay day' : dayType === 'DRIVE' ? 'Drive day' : 'Drive + local'}
             </span>
+            {fixedRows.length > 0 && (
+              <span
+                className={`day-fixed-badge${fixedClashes > 0 ? ' risk' : fixedTight || fixedInvalid > 0 ? ' tight' : ''}`}
+                title={fixedRows.map(r => `${r.fc.title} at ${formatHM(r.fc.time, timeFormat)}`).join('\n')}
+              >
+                <InlineIcon icon={Lock} size={11} gap={4} />
+                {fixedRows.length} fixed time{fixedRows.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
           {/* Collapsed extra line: only when it adds something the stats line
               doesn't already say. Stay days get their quiet "no driving" line;
@@ -730,8 +775,13 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
                 on says so, instead of hiding the button as if nothing existed.
                 The tooltip needs the wrapper span — a disabled button fires no
                 pointer events, so its own title would never show. */}
-            {!optResult.changed && optResult.blocked === 'mid-anchor' && !isStayDay && (
-              <span title="The order is fixed by your manually placed waypoints — the optimiser only rewires the middle of a day, and one of those sits mid-day." className="tl-fixed-inline">
+            {!optResult.changed && (optResult.blocked === 'mid-anchor' || optResult.blocked === 'fixed-time') && !isStayDay && (
+              <span
+                title={optResult.blocked === 'fixed-time'
+                  ? 'A stop carries a fixed time, so the optimiser will not move its clock. Reorder the stops by hand if the day must change.'
+                  : 'The order is fixed by your manually placed waypoints — the optimiser only rewires the middle of a day, and one of those sits mid-day.'}
+                className="tl-fixed-inline"
+              >
                 <button className="btn btn-outline btn-sm" disabled aria-disabled="true">
                   <InlineIcon icon={RouteIcon} size={13} gap={4} />Optimise
                 </button>
@@ -754,13 +804,14 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             className="day-budget-bar"
             style={{ gridTemplateColumns: budgetSegments.map(s => `${s.minutes}fr`).join(' ') }}
             role="img"
-            aria-label={`Day ${day.index + 1} time budget, ${formatHM(dayStartHM, timeFormat)} to ${formatHM(A.dayEnd, timeFormat)}: driving ${minutesToHM(budgetDrive)}, at stops ${minutesToHM(budgetDwell)}, free ${minutesToHM(budgetFree)}`}
+            aria-label={`Day ${day.index + 1} time budget, ${formatHM(dayStartHM, timeFormat)} to ${formatHM(A.dayEnd, timeFormat)}: driving ${minutesToHM(budgetDrive)}, halts ${minutesToHM(budgetHalts)}, at stops ${minutesToHM(budgetStops)}, free ${minutesToHM(budgetFree)}`}
           >
             {budgetSegments.map(s => <span key={s.cls} className={s.cls} />)}
           </div>
           <div className="day-budget-key">
             {budgetDrive > 0 && <span><i className="db-dot db-drive" aria-hidden="true" />Driving {minutesToHM(budgetDrive)}</span>}
-            {budgetDwell > 0 && <span><i className="db-dot db-dwell" aria-hidden="true" />At stops {minutesToHM(budgetDwell)}</span>}
+            {budgetHalts > 0 && <span><i className="db-dot db-halt" aria-hidden="true" />Halts {minutesToHM(budgetHalts)}</span>}
+            {budgetStops > 0 && <span><i className="db-dot db-dwell" aria-hidden="true" />At stops {minutesToHM(budgetStops)}</span>}
             <span><i className="db-dot db-free" aria-hidden="true" />Free {minutesToHM(budgetFree)}</span>
           </div>
         </div>
@@ -769,21 +820,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
       <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
       <div className="day-layout">
       <div className="day-main">
-      {commitmentsToday.map(fc => (
-        <div key={fc.id} className="warn-item sev-low tl-warn-gap">
-          <span className="warn-icon"><Pin size={13} aria-hidden /></span>
-          <div>
-            <div className="warn-title">{fc.title}</div>
-            <div className="warn-fix">Fixed at {formatHM(fc.time, timeFormat)}{fc.notes ? ` — ${fc.notes}` : ''}</div>
-            {editable && fc.type !== 'hotel-checkin' && (
-              <Select value={fc.stopId ?? ''} aria-label={`Stop the ${fc.title} deadline is checked against`}
-                onChange={val => onLinkCommitment(String(fc.id), day.index, val || null)}
-                options={linkStopOptions(ordered)} />
-            )}
-          </div>
-        </div>
-      ))}
-
       {bodyTrip && <TravelPanel trip={bodyTrip} day={day} editable={editable} journey={journey} suggestionCache={suggestionCache} legCorrections={legCorrections}
         onSetDayStart={onSetDayStart} onAddPlannedHalts={onAddPlannedHalts} />}
 
@@ -909,6 +945,23 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
                     <Heart size={13} aria-hidden fill={stopSaved ? 'currentColor' : 'none'} />
                   </button>
                   <Chip tone={statusTone(s.status)}>{statusLabel(s.status)}</Chip>
+                  {(() => {
+                    const rows = fixedByStop.get(String(s.id))
+                    if (!rows?.length) return null
+                    const worstTone = worstFixedTone(rows) ?? 'ok'
+                    const worst = rows.find(r => r.tone === worstTone) ?? rows[0]
+                    return (
+                      <span
+                        className={`stop-fixed-pill is-${worst.tone}`}
+                        title={rows.map(r => `${r.fc.title} at ${formatHM(r.fc.time, timeFormat)}`).join('\n')}
+                      >
+                        <InlineIcon icon={Lock} size={11} gap={3} />
+                        Fixed {formatHM(worst.fc.time, timeFormat)}
+                        {worst.tone === 'clash' ? ' · clash' : ''}
+                        {rows.length > 1 ? ` +${rows.length - 1}` : ''}
+                      </span>
+                    )
+                  })()}
                   <span className={`stop-kind-tag kind-${kind}`}>{label}</span>
                   {s.priority === 'must-do' && <Chip tone="danger">Must do</Chip>}
                   {s.priority === 'optional' && <Chip tone="saffron">Optional</Chip>}
@@ -1041,6 +1094,63 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
             </dl>
           )}
         </div>
+        {fixedRows.length > 0 && (
+          <div className="brief-card fixed-times-card">
+            <div className="brief-kicker fixed-times-head">
+              <span>Fixed times</span>
+              <span className={`fixed-times-count${fixedClashes > 0 ? ' risk' : fixedInvalid > 0 || fixedTight ? ' tight' : ''}`}>
+                {fixedClashes > 0
+                  ? `${fixedClashes} clash${fixedClashes === 1 ? '' : 'es'}`
+                  : fixedInvalid > 0
+                    ? `${fixedInvalid} invalid`
+                    : fixedTight
+                      ? 'Tight'
+                  : `${fixedRows.length} set`}
+              </span>
+            </div>
+            <div className="fixed-times-list">
+              {fixedRows.map(row => {
+                const { fc, arrival, spareMin, tone } = row
+                const clock = formatHM(fc.time, timeFormat)
+                const status = tone === 'unlinked'
+                  ? 'No stop linked — pick the stop this deadline belongs to.'
+                  : tone === 'invalid'
+                    ? 'This fixed time is not a valid clock. Edit the commitment time.'
+                  : tone === 'anchor'
+                    ? 'Check-in is an anchor. Arriving later is allowed.'
+                    : tone === 'clash'
+                      ? `Clashes — you arrive ~${arrival ? formatHM(arrival, timeFormat) : 'after the fixed time'}.`
+                      : `On time, ${minutesToHM(Math.max(0, spareMin ?? 0))} spare${arrival ? ` — arrive ~${formatHM(arrival, timeFormat)}` : ''}.`
+                return (
+                  <div key={fc.id} className={`fixed-time-row is-${tone}`}>
+                    <span className="fixed-time-mark" aria-hidden="true">
+                      {tone === 'clash' || tone === 'tight' || tone === 'invalid'
+                        ? <TriangleAlert size={15} />
+                        : tone === 'unlinked'
+                          ? <Pin size={15} />
+                          : <CircleCheck size={15} />}
+                    </span>
+                    <div className="fixed-time-copy">
+                      <b>{fc.title} · {clock}</b>
+                      <span>{status}</span>
+                      {fc.notes && <span className="fixed-time-note">{fc.notes}</span>}
+                      {editable && fc.type !== 'hotel-checkin' && (
+                        <div className="fixed-time-link">
+                          <Select
+                            value={fc.stopId ?? ''}
+                            aria-label={`Stop the ${fc.title} deadline is checked against`}
+                            onChange={val => onLinkCommitment(String(fc.id), day.index, val || null)}
+                            options={linkStopOptions(ordered)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
         {warnings.length > 0 && (
           <div className="brief-card">
             <div className="brief-kicker">Needs attention <span className="brief-count">{warnings.length}</span></div>
@@ -1119,7 +1229,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, facts, sav
               // #341: re-derive from the day as it is NOW. A drag or an edit
               // that landed while this dialog was open used to be discarded
               // silently — last write wins over a snapshot nobody re-checked.
-              const fresh = optimizeDayOrder(optOrigin, ordered, { hasNextDay })
+              const fresh = optimizeDayOrder(optOrigin, ordered, { hasNextDay, fixedStopIds })
               const idsOf = (r: OptimizeDayResult) => r.stops.filter(s => s.status !== 'rejected').map(s => s.id).join('|')
               if (!fresh.changed) {
                 setOptPreview(null)

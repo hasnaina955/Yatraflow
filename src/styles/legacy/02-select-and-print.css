@@ -538,42 +538,145 @@
 }
 .chip-btn:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
 
-/* ---------- M4: trip-total strip, day-jump rail, stop-kind markers ---------- */
-/* Sticky glass strip mirroring the floating pill nav — the trip's totals stay
-   in view while scrolling long timelines. */
-.tl-total-strip {
-  position: sticky;
-  top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-  z-index: var(--z-strip);
-  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
-  background: var(--yf-glass);
-  border: 1px solid var(--yf-glass-border);
-  -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.15);
-  border-radius: var(--radius); padding: 9px 16px; margin-bottom: 16px;
+/* ---------- PW-08: the trip ribbon (totals + day rail, one card) ---------- */
+/* The strip and the jump rail were two stacked bars answering one question:
+   "what is this trip, and which day am I in". The ribbon is the mockup's
+   answer — the totals become a fixed left column, the days a route line that
+   runs beside them, and the two share one border instead of two. The days are
+   the rail: same jump, same current-day marker, richer card. */
+.tl-ribbon {
+  display: flex; align-items: stretch; gap: 22px;
+  padding: 16px 20px; margin-bottom: 16px;
+  background: var(--card);
+  border: 1.5px solid var(--line-soft);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
-  font-size: 12.5px; font-weight: 600; color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
-.tl-total-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--teal-deep); }
-.tl-total-dot { color: var(--text-3); }
-.tl-total-warn {
-  margin-left: auto;
+.tl-ribbon-total {
+  width: 210px; flex: none;
+  display: flex; flex-direction: column; gap: 4px;
+  padding-inline-end: 22px;
+  border-inline-end: 1px dashed var(--line);
+}
+.tl-ribbon-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.tl-ribbon-figure {
+  font-family: var(--font-display);
+  font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text);
+}
+.tl-ribbon-sub { font-size: 13px; color: var(--text-2); }
+/* The ribbon's type is compact display copy, not prose. The app's 1.55 body
+   leading adds 19px of air across the column and pushes the whole bar taller
+   than the source, so these three carry their own leading. */
+.tl-ribbon-eyebrow, .tl-ribbon-figure, .tl-ribbon-sub,
+.tl-ribbon-card-day, .tl-ribbon-card-place, .tl-ribbon-card-meta { line-height: 1.2; }
+/* The attention pill is a state, not a second heading: it sits under the
+   figure, never at the row's end where the old strip put it. */
+.tl-ribbon-alert {
+  margin-top: 4px; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--radius-pill);
   background: var(--yf-amber-100); color: var(--ink-amber);
-  border-radius: 999px; padding: 3px 11px;
-  font-size: 11.5px; font-weight: 700;
+  font-size: 12px; font-weight: 700; line-height: 1.25;
 }
-.day-rail { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.day-rail-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); flex: 0 0 auto; }
-.day-rail-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: thin; }
-.day-rail-chip {
-  border: 1px solid var(--line); background: var(--card); color: var(--text-2);
-  border-radius: 12px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; white-space: nowrap; flex: 0 0 auto;
-  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+.tl-ribbon-days {
+  flex: 1; min-width: 0; position: relative;
+  display: flex; align-items: center; gap: 22px;
 }
-.day-rail-chip:hover { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
-.day-rail-chip.warn { background: var(--yf-amber-100); border-color: transparent; color: var(--ink-amber); font-weight: 700; }
-.day-rail-chip.warn:hover { background: var(--saffron-soft); color: var(--ink-amber); }
+/* The route line is the ribbon's spine: it runs behind the cards from the
+   first day to the last, ending in the trip's destination dot. */
+.tl-ribbon-line {
+  position: absolute; left: 0; right: 14px; top: 50%;
+  height: 3px; transform: translateY(-50%);
+  background: var(--pw-route-line, var(--pw-route)); border-radius: var(--radius-pill);
+}
+.tl-ribbon-line-end {
+  position: absolute; right: 0; top: 50%;
+  width: 12px; height: 12px; transform: translateY(-50%);
+  border-radius: var(--radius-pill); background: var(--pw-marigold-500);
+}
+.tl-ribbon-card {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 10px 12px; text-align: start; cursor: pointer;
+  background: var(--pw-soft);
+  border: 1.5px solid transparent; border-radius: var(--radius-sm);
+  color: var(--text-2);
+  transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.tl-ribbon-card:hover { border-color: var(--teal); }
+.tl-ribbon-card[aria-current='true'] {
+  background: var(--pw-lagoon-100); border-color: var(--pw-lagoon-600);
+}
+/* The last card stops short of the edge so the route's destination dot —
+   the line's own terminus — stays visible beside it, as the mockup draws it. */
+.tl-ribbon-card:last-of-type { margin-inline-end: 28px; }
+.tl-ribbon-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; width: 100%;
+}
+.tl-ribbon-card-day {
+  font-size: 12px; font-weight: 700; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-ribbon-card[aria-current='true'] .tl-ribbon-card-day { color: var(--pw-sea-700); }
+/* The state dot: one mark, three meanings. The label is the accessible name,
+   so colour is never the only carrier. */
+.tl-ribbon-dot {
+  width: 8px; height: 8px; flex: none;
+  border-radius: var(--radius-pill); background: var(--ok);
+}
+.tl-ribbon-dot.warn { background: var(--yf-amber); }
+.tl-ribbon-dot.risk { background: var(--danger); }
+.tl-ribbon-card-place {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tl-ribbon-card-meta {
+  font-size: 12px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-ribbon-card-bar {
+  display: block; width: 100%; height: 4px; margin-top: 4px;
+  background: var(--pw-sunken); border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.tl-ribbon-card-bar > span {
+  display: block; height: 4px;
+  background: var(--pw-lagoon-600); border-radius: var(--radius-pill);
+}
+.tl-ribbon-card[aria-current='true'] .tl-ribbon-card-bar { background: var(--card); }
+/* Below the phone breakpoint the two halves cannot share a row: the totals
+   become a header band and the days scroll sideways, as the old rail did. */
+@media (max-width: 900px) {
+  .tl-ribbon { flex-direction: column; gap: 14px; padding: 14px 16px; }
+  .tl-ribbon-total {
+    width: auto; padding-inline-end: 0; padding-bottom: 12px;
+    border-inline-end: 0; border-bottom: 1px dashed var(--line);
+  }
+  /* The days scroll sideways here, so a spine pinned to the box would slide
+     out of step with the cards it is meant to join. Drop it and let the cards
+     carry the sequence. */
+  .tl-ribbon-line, .tl-ribbon-line-end { display: none; }
+  .tl-ribbon-days {
+    gap: 12px; overflow-x: auto; padding: 2px;
+    scrollbar-width: thin;
+    /* Cards snap to the edge so the strip never rests showing half a card. */
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 2px;
+  }
+  .tl-ribbon-card { flex: 0 0 auto; min-width: 150px; max-width: 210px; scroll-snap-align: start; }
+  .tl-ribbon-card:last-of-type { margin-inline-end: 0; }
+}
+@media (pointer: coarse), (max-width: 720px) {
+  .tl-ribbon-card { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-ribbon-card { transition: none; }
+}
 /* Warning state inside the affected day's header (doc §6.3). */
 .day-warn-pill {
   align-self: flex-start;
@@ -614,34 +717,27 @@
 @media (max-width: 720px) { .day-dwell-chip { display: none; } }
 
 /* ---------- Review mode: every day open, one continuous scroll (#421) ---------- */
-/* Orientation comes from the day-jump rail, which is sticky here and marks the
-   day at the top of the viewport — NOT from the day header: measured at 390 /
-   900 / 1440 px, a header carrying the day's clocks, chips, warnings and its
-   own actions is 193–309 px tall, and a control panel stuck to the viewport
+/* Orientation comes from the ribbon's day row, which is sticky here and marks
+   the day at the top of the viewport — NOT from the day header: measured at
+   390 / 900 / 1440 px, a header carrying the day's clocks, chips, warnings and
+   its own actions is 193–309 px tall, and a control panel stuck to the viewport
    costs a fifth of a phone's screen to say one word. So the header stays in
-   flow, continuity carries the boundaries, and the compact rail (one row, the
-   mode's own navigation) takes the sticky rung from the trip-total strip. */
-.tl-root-review .tl-total-strip { position: static; }
-.tl-root-review .day-rail {
+   flow, continuity carries the boundaries, and the ribbon takes the sticky
+   rung: its totals column scrolls away, its day row stays. */
+.tl-root-review .tl-ribbon {
   position: sticky;
   top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   /* above the day cards, below a carried row (.tl-row.is-carried is 6) */
   z-index: 2;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
   padding: 8px 12px;
-  box-shadow: var(--shadow-soft);
 }
-/* Which day you are in: the card whose day has scrolled past the sticky
-   line. The marker is the BORDER plus the weight, so the warn tint cannot
-   replace it — the tint is the day's own state and stays next to the marker. */
-.day-rail-card.warn[aria-current='true'] {
-  border-color: var(--teal);
-  background: var(--yf-amber-100);
-  color: var(--ink-amber);
-  font-weight: 800;
-}
+/* A stuck ribbon would otherwise hold 160px of totals over a phone screen to
+   say one word; in review the totals column is not the point, the day row is. */
+.tl-root-review .tl-ribbon-total { display: none; }
+/* Which day you are in: the card whose day has scrolled past the sticky line.
+   The marker is the BORDER plus the weight, so the state dot cannot replace
+   it — the dot is the day's own state and stays next to the marker. */
+.tl-root-review .tl-ribbon-card[aria-current='true'] { font-weight: 800; }
 
 /* ---------- Between-stop insertion (#422) ---------- */
 /* The control belongs to the leg between two stops and is revealed on hover
@@ -2004,7 +2100,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 }
 .day-budget-bar {
   display: grid;
-  gap: var(--space-2);
+  gap: 4px;
   height: 12px;
 }
 .day-budget-bar > span {
@@ -2012,21 +2108,22 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   border-radius: var(--radius-pill);
 }
 .db-drive { background: var(--pw-time-drive); }
+.db-halt { background: var(--pw-lagoon-300); }
 .db-dwell { background: var(--pw-time-stop); }
-.db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route); }
+.db-free { background: var(--pw-time-free); border: 1px solid var(--pw-route-line); }
 .day-budget-key {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3) var(--space-7);
-  font: var(--pw-meta);
+  gap: var(--space-3) 18px;
+  font: 500 12.5px/1.4 var(--font-body);
   color: var(--pw-ink-2);
 }
 .day-budget-key .db-dot {
   display: inline-block;
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   flex: none;
-  margin-inline-end: var(--space-3);
+  margin-inline-end: 6px;
   border-radius: var(--radius-pill);
   vertical-align: 0;
 }
@@ -2155,4 +2252,132 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 @media (max-width: 720px) {
   .tl-gutter { grid-template-columns: 66px 23px; }
 }
+
+/* PW-08: a drive day keeps its fixed clock visible. The badge counts the
+   day's commitments; the stop pill names the clock on the stop it governs.
+   The risk tone is always backed by the word "clash", so colour is never the
+   only signal. */
+.day-fixed-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--pw-sea-900);
+  color: var(--pw-on-sea);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.day-fixed-badge.tight {
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+}
+.day-fixed-badge.risk { background: var(--pw-risk); }
+
+.stop-fixed-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--pw-sea-900);
+  color: var(--pw-on-sea);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stop-fixed-pill.is-tight {
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+}
+.stop-fixed-pill.is-clash { background: var(--pw-risk); }
+
+.fixed-times-card { display: flex; flex-direction: column; }
+.fixed-times-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.fixed-times-count {
+  padding: var(--space-1) var(--space-4a);
+  border-radius: var(--radius-pill);
+  background: var(--pw-ok-100);
+  color: var(--pw-ok);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.fixed-times-count.risk {
+  background: var(--pw-risk-100);
+  color: var(--pw-risk);
+}
+.fixed-times-count.tight {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+.fixed-times-list { display: flex; flex-direction: column; }
+.fixed-time-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px dashed var(--pw-line);
+}
+.fixed-time-row:first-child { padding-top: 0; border-top: 0; }
+.fixed-time-mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  background: var(--pw-ok-100);
+  color: var(--pw-ok);
+}
+.fixed-time-row.is-tight .fixed-time-mark {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+.stop-fixed-pill.is-invalid {
+  background: var(--pw-marigold-500);
+  color: var(--pw-on-marigold);
+}
+.fixed-time-row.is-clash .fixed-time-mark {
+  background: var(--pw-risk-100);
+  color: var(--pw-risk);
+}
+.fixed-time-row.is-invalid .fixed-time-mark {
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+}
+.fixed-time-row.is-unlinked .fixed-time-mark,
+.fixed-time-row.is-anchor .fixed-time-mark {
+  background: var(--pw-soft);
+  color: var(--pw-ink-2);
+}
+.fixed-time-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.fixed-time-copy b {
+  font-size: 13.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.fixed-time-copy > span {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--pw-ink-2);
+}
+.fixed-time-copy .fixed-time-note { color: var(--pw-ink-3); }
+.fixed-time-row.is-clash .fixed-time-copy b { color: var(--pw-risk); }
+.fixed-time-link { margin-top: var(--space-2); }
 

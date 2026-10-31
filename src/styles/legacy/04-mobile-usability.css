@@ -109,7 +109,7 @@ main:focus { outline: none; }
    interactive control (UI audit F-12; state matrix in DESIGN_TOKENS.md).
    .skip-link is pre-wired for the F-08 skip link; .yf-map-pin gets an extra
    outline-offset below so the ring clears the map tiles. */
-.icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
+.icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .tl-ribbon-card:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
@@ -1824,9 +1824,8 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .tab-btn { padding: 12px 15px; }
   .vote-btn { width: 44px; height: 38px; min-width: 40px; min-height: 40px; }
   .day-badge { width: 40px; height: 40px; }
-  /* M4: a sticky trip-total strip would eat the small viewport — flatten it. */
-  .tl-total-strip { position: static; }
-  .day-rail-chip { padding: 9px 14px; }
+  /* PW-08: the ribbon is not sticky in this mode — it stacks and scrolls. */
+  .tl-ribbon { position: static; }
   .day-section { padding: 14px 14px 10px; }
   /* Long-press drag & drop: the row must not text-select or pop the OS
      callout while the hold timer runs; a pressing row reads as "grabbed". */

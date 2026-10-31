@@ -206,7 +206,7 @@ html.native-shell {
 .eyebrow { color: var(--yf-text-muted); }
 /* Kicker unification: one recipe for every micro-label role. */
 @media screen {
-  .pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-total-label, .day-rail-label,
+  .pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-ribbon-eyebrow,
   .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k,
   .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose,
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
@@ -230,7 +230,7 @@ html.native-shell {
 
 /* Mobile touch-target floor: the remaining sub-40px controls (review round 2). */
 @media (max-width: 720px) {
-  .day-rail-chip, .map-day-chip, .map-legend-toggle, .chip-btn { min-height: 40px; }
+  .tl-ribbon-card, .map-day-chip, .map-legend-toggle, .chip-btn { min-height: 40px; }
   .route-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .yf-maplibre .yf-map-ctrls button { min-width: 40px; min-height: 40px; }
 }
 

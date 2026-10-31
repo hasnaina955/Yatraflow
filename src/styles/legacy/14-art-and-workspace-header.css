@@ -321,8 +321,7 @@
 .tabbar .tab-btn.active { font-weight: 700; }
 .yf-page[data-compact='true'] .yf-tabbar { margin-bottom: 12px; }
 
-.tl-trip-wide-warn { margin-top: 10px; }
-.tl-trip-wide-warn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.tl-ribbon-warn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
 
 @media (max-width: 720px) {
   .container.yf-workspace { padding-left: 16px; padding-right: 16px; }

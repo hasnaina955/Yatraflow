@@ -809,7 +809,28 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
             <span className="tl-ribbon-alert"><InlineIcon icon={TriangleAlert} size={12} gap={4} />{attentionDays} day{attentionDays !== 1 ? 's' : ''} need{attentionDays === 1 ? 's' : ''} attention</span>
           )}
           {tripWideWarnings.length > 0 && (
-            <span className="tl-ribbon-alert"><InlineIcon icon={TriangleAlert} size={12} gap={4} />{tripWideWarnings.length} trip-wide warning{tripWideWarnings.length !== 1 ? 's' : ''}</span>
+            /* The artboard has nothing between the ribbon and the first day, so
+               the trip-wide warnings ride the ribbon's own pill instead of a
+               separate band. The pill is the summary; opening it shows the
+               titles and fixes. Nothing above the first day card grows until a
+               reader asks for it. */
+            <details className="tl-ribbon-warn" id="timeline-trip-wide" tabIndex={-1}>
+              <summary className="tl-ribbon-alert">
+                <InlineIcon icon={TriangleAlert} size={12} gap={4} />
+                {tripWideWarnings.length} trip-wide warning{tripWideWarnings.length !== 1 ? 's' : ''}
+              </summary>
+              <div className="warn-list" role="note" aria-label="Trip-wide warnings">
+                {tripWideWarnings.map(w => (
+                  <div key={w.code + w.title} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'low' ? 'sev-low' : ''}`}>
+                    <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>
+                    <div>
+                      <div className="warn-title">{w.title}</div>
+                      <div className="warn-fix">{w.fix}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
         </div>
         <div className="tl-ribbon-days" role="navigation" aria-label="Jump to day">
@@ -838,23 +859,6 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           })}
         </div>
       </section>
-
-      {/* Trip-wide warnings have no day card to live in, so they get their own
-          block right after the totals — before it, the regex grouping dropped
-          them from this tab entirely (#402). */}
-      {tripWideWarnings.length > 0 && (
-        <div id="timeline-trip-wide" tabIndex={-1} className="warn-list tl-trip-wide-warn" role="note" aria-label="Trip-wide warnings">
-          {tripWideWarnings.map(w => (
-            <div key={w.code + w.title} className={`warn-item ${w.severity === 'high' ? 'sev-high' : w.severity === 'low' ? 'sev-low' : ''}`}>
-              <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>
-              <div>
-                <div className="warn-title">{w.title}</div>
-                <div className="warn-fix">{w.fix}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {days.map(day => (
         <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} editable={planEditable} open={reviewAll || openDayIndex === day.index} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}

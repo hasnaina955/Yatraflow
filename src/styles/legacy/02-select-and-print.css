@@ -531,6 +531,11 @@
    second ink. It was 12.5px muted, which read as a footnote rather than as
    the day's summary. */
 .day-header .small.muted.num { font-size: 14px; color: var(--pw-ink-2); }
+/* The title block's own stack. The artboard puts 6px between the title row and
+   the stats line; without a gap of its own the block leaned on the header's row
+   gap and left the stats 8px low. Scoped to the header so `.tl-stop-flex` keeps
+   the exact declarations the P12 test pins. */
+.day-header .tl-stop-flex { display: flex; flex-direction: column; gap: 6px; }
 /* Stay days retain full text contrast; their kind chip carries the distinction. */
 
 
@@ -625,7 +630,17 @@
   padding: 4px 10px; border-radius: var(--radius-pill);
   background: var(--yf-amber-100); color: var(--ink-amber);
   font-size: 12px; font-weight: 700; line-height: 1.25;
+  cursor: pointer;
+  list-style: none;
 }
+.tl-ribbon-alert::-webkit-details-marker { display: none; }
+/* The trip-wide warning pill is the ribbon's own disclosure. Closed, it is the
+   one-line summary the artboard's totals column has room for. Open, the items
+   hang under the pill inside that column, so nothing above the first day card
+   grows. */
+.tl-ribbon-warn { display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
+.tl-ribbon-warn > .warn-list { margin-top: 2px; }
+.tl-ribbon-warn .warn-item { padding: 8px 10px; }
 .tl-ribbon-days {
   flex: 1; min-width: 0; position: relative;
   display: flex; align-items: center; gap: 22px;
@@ -2419,8 +2434,35 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   margin-top: calc(-1 * (var(--space-12) + var(--space-1)));
   position: relative;
 }
-/* An open day with a cover keeps its badge clear of the photo's top edge. */
-.day-section > .day-cover + .day-header .day-badge { position: relative; }
+/* An open day with a cover keeps its badge clear of the photo's top edge. The
+   artboard draws that badge larger than a folded day's — 62px wide with a 30px
+   numeral — and lifts it 30px out of the header's own flow so it straddles the
+   photo's bottom edge. The header stays top-aligned (see the design-system
+   test): only the badge moves. */
+.day-section > .day-cover + .day-header .day-badge {
+  position: relative;
+  /* The artboard lifts the badge 30px out of the header flow; 32px is the
+     ladder rung above it, and the 2px difference is invisible under the veil. */
+  margin-top: calc(-1 * var(--space-12));
+  /* The base .day-badge is a fixed 46x46 square. On a cover the date stack needs
+     its own height, so this drops the square and lets the content set it. */
+  width: auto;
+  height: auto;
+  justify-content: flex-start;
+}
+.day-section > .day-cover + .day-header .day-badge-date {
+  width: 62px;
+  /* Natural height, as the artboard has it. A fixed 72px clamped the weekday,
+     numeral and month stack, and the month spilled past the card's bottom edge. */
+  height: auto;
+  padding: 8px 0 10px;
+  background: color-mix(in srgb, var(--pw-card) 82%, transparent);
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  backdrop-filter: blur(var(--yf-blur-chip));
+  border-color: var(--pw-glass-edge);
+  box-shadow: var(--elev-2);
+}
+.day-section > .day-cover + .day-header .day-badge-date b { font-size: 30px; }
 @media (max-width: 720px) {
   .day-budget { margin-inline-start: 0; }
   .day-badge-date { width: 46px; height: 56px; }

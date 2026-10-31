@@ -20,9 +20,11 @@ const countTopLevel = (selector: string) => [...topLevel.matchAll(new RegExp(`^\
 
 describe('P12 — the panels sit on the shared card skin', () => {
   it('every panel renders through Surface, and none is a bare section', () => {
-    // Five, not four: the Mixed driving answer became its own panel in 2026-10-19,
-    // so it can sit next to the mode panel without a wheel it may never use.
-    expect([...code.matchAll(/<Surface as="section" className="tsx-card/g)]).toHaveLength(5)
+    // Seven: the artboard's six sections (name, dates, group, travel, people,
+    // archive) plus the Mixed driving answer, which became its own panel in
+    // 2026-10-19 so it can sit next to the mode panel without a wheel it may
+    // never use. The archive panel renders for the owner only.
+    expect([...code.matchAll(/<Surface as="section" className="tsx-card/g)]).toHaveLength(7)
     expect(code).not.toMatch(/<section className="tsx-card/)
     expect(code).toContain("import { Surface } from '../../components/page/Surface'")
   })

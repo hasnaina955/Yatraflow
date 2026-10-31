@@ -1202,10 +1202,9 @@
   box-shadow: var(--shadow-sm);
 }
 .tsx-head {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  gap: 2px 14px;
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 .tsx-no {
   grid-row: 1 / span 2;
@@ -1215,13 +1214,13 @@
   font-family: var(--bench-mono, monospace); font-size: 13px; font-weight: 700;
 }
 .tsx-q {
-  margin: 0; align-self: center;
+  margin: 0;
   font-family: var(--font-display);
   font-size: 16.5px; font-weight: 700; letter-spacing: -.012em; line-height: 1.25;
   color: var(--text);
 }
 .tsx-ans {
-  justify-self: end; align-self: center;
+  margin-inline-start: auto; align-self: flex-start;
   display: inline-flex; align-items: baseline; gap: 6px;
   font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums;
   font-size: 12.5px; font-weight: 700; color: var(--teal-deep);
@@ -1230,7 +1229,6 @@
   white-space: nowrap;
 }
 .tsx-a {
-  grid-column: 2 / 3;
   margin: 1px 0 0;
   font-size: 13px; line-height: 1.5; color: var(--text-3);
   max-width: 62ch;

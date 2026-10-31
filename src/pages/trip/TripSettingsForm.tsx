@@ -5,12 +5,12 @@
 // before it is saved. The sticky save bar spans both columns.
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ChevronDown, ChevronUp, MapPin, Pencil, Sparkles, TriangleAlert, X,
+  CalendarDays, ChevronDown, ChevronUp, MapPin, Pencil, Sparkles, TriangleAlert, Users, X,
 } from 'lucide-react'
 import type { Trip, TransportMode } from '../../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES, STAY_STYLES } from '../../data/types'
-import { updateTrip, reconcileDays, tripWriteVerdict } from '../../store/store'
-import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, formatInr, isFuelEconomyMode, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
+import { updateTrip, reconcileDays, tripWriteVerdict, membersOf, roleOf, trashTrip, restoreTrashedTrip, useSessionUserId, useUsers } from '../../store/store'
+import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, computeTotals, formatInr, isFuelEconomyMode, minutesToHM, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { settingsPreview } from '../../lib/settingsPreview'
 import type { LegEstimate } from '../../lib/engine'
 import { healthBandClass, healthBandTone } from '../../lib/healthBand'
@@ -21,7 +21,7 @@ import { transportPolicy } from '../../lib/transportPolicy'
 import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
 import { defaultVehicleProfile, parseCapacityL, parseVehicleEconomy } from '../../lib/vehicleProfile'
 import { zipDests, splitDests, renameDest, type DestPair } from '../../lib/destPairs'
-import { Field, RangeDial, StickyFormBar, toast } from '../../components/ui'
+import { Field, RangeDial, StickyFormBar, toast, undoToast } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DateRangeCalendar } from '../../components/DateRangeCalendar'
 import { PillNav } from '../../components/PillNav'
@@ -258,6 +258,71 @@ export function settingsAreDirty(patch: Partial<Trip>, trip: Trip): boolean {
     .some(k => !sameSavedValue(patch[k], base[k]))
 }
 
+/** The saved fields this draft would change, named. The nav rail and the
+ *  preview panel both read this, so "2 unsaved changes" and the two marked
+ *  sections come from one answer instead of two counts that can drift. */
+export function settingsDirtyFields(patch: Partial<Trip>, trip: Trip): (keyof Trip)[] {
+  const base = settingsBaselinePatch(trip)
+  return (Object.keys(patch) as (keyof Trip)[]).filter(k => !sameSavedValue(patch[k], base[k]))
+}
+
+/** Which section owns each saved field. A field with no row here still counts
+ *  as a change; it just does not mark a section. */
+const SECTION_OF_FIELD: Partial<Record<keyof Trip, string>> = {
+  name: 'identity',
+  coverImageUrl: 'identity',
+  coverEmoji: 'identity',
+  startDate: 'dates',
+  endDate: 'dates',
+  startLocation: 'dates',
+  startLocationCoords: 'dates',
+  destinations: 'dates',
+  destinationCoords: 'dates',
+  roundTrip: 'dates',
+  travellers: 'group',
+  budgetPerPersonInr: 'group',
+  stayStyle: 'group',
+  transportMode: 'travel',
+  travelStyle: 'travel',
+  drivesPart: 'travel',
+  driverCount: 'travel',
+  fuelEconomyKmL: 'travel',
+  fuelPricePerL: 'travel',
+  vehicleProfile: 'travel',
+  hasVulnerable: 'travel',
+  driveAfterDinnerMin: 'travel',
+}
+
+/** The two letters an avatar stack shows when there is no photo: the first
+ *  letter of the first two words, so "Has9 Naina" reads "HN". */
+function initialsOf(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+}
+
+/** The day cards the artboard draws: one per day of the grid this save would
+ *  write, each with the stops it already carries. A day past the trip's own
+ *  length is new, so it reads "New · empty" before the save instead of
+ *  pretending the write already happened. */
+function dayGrid(startDate: string, existing: Trip['days'], total: number): {
+  key: string; dow: string; dayOfMonth: string; stops: number; isNew: boolean
+}[] {
+  const start = new Date(`${startDate}T00:00:00`)
+  if (Number.isNaN(start.getTime())) return []
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  return Array.from({ length: total }, (_, i) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + i)
+    return {
+      key: `${i}`,
+      dow: DOW[date.getDay()].toUpperCase(),
+      dayOfMonth: String(date.getDate()),
+      stops: (existing[i]?.stops ?? []).filter(s => s.status !== 'rejected').length,
+      isNew: i >= existing.length,
+    }
+  })
+}
+
+
 /** null and undefined are the same "not set" — the row writes nulls where the
  *  write mapping writes undefined, and calling that a change pins the bar
  *  open for ever. */
@@ -305,6 +370,10 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
    *  blocking days as plain text when no workspace is wired up. */
   onOpenDay?: (dayIndex: number) => void
 }) {
+  /** The signed-in member, read once at the top so the owner-only section and
+   *  the avatar stack resolve against the same person. */
+  const meId = useSessionUserId()
+  const users = useUsers()
   /** #704: the last write the server did not keep. Shown beside the Save button; the draft stays. */
   const [writeErr, setWriteErr] = useState<string | null>(null)
   /** #704: true from the Save click until the server answers. Save stays disabled meanwhile. */
@@ -347,9 +416,6 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
    *  are untouched by construction (renameDest rebuilds nothing). */
   const [renamingDest, setRenamingDest] = useState<number | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
-  /** V2: the hero's rename-and-cover disclosure. Presentation only — the
-   *  name Field and CoverImagePicker below write the same draft. */
-  const [identityOpen, setIdentityOpen] = useState(false)
 
   function addDest(name: string, coords: { lat: number; lng: number } | null) {
     const clean = name.trim()
@@ -425,10 +491,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
   // (engine.ts `economy && price`); with the price set and no mileage the ₹/L
   // is silently unused. Say so instead of letting the bill read the blended rate.
   const priceIgnored = priceSet && !ecoSet
-  // V2 derived values: the road string for the hero, the stopped-day count
-  // for the day meter, and the engine's read over the trip AS DRAFTED (the
-  // validated patch and reconciled days drive the preview).
-  const road = [f.startLocation, ...dests.map(d => d.name)].filter(Boolean).join(' → ')
+  // V2 derived values: the stopped-day count for the day grid, and the
+  // engine's read over the trip AS DRAFTED (the validated patch and
+  // reconciled days drive the preview).
   const daysWithStops = trip.days.filter(d => d.stops.some(s => s.status !== 'rejected')).length
   const preview = useMemo(() => {
     const valid = settingsDryRun(f, dests, startPin, trip)
@@ -440,6 +505,138 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
   }, [trip, f, dests, startPin, legCorrections])
   const engineRead = preview?.health
   const topWarning = engineRead?.warnings[0]
+
+  // The nav rail's edit marks and the preview panel's count come from ONE
+  // list of changed fields, so the two can never disagree.
+  const dirtyFields = dry.ok ? settingsDirtyFields(dry.patch, trip) : []
+  const editedSections = new Set(dirtyFields.map(k => SECTION_OF_FIELD[k]).filter(Boolean) as string[])
+  const dirtyCount = dirtyFields.length
+  const grid = dayGrid(f.startDate, trip.days, dayCount)
+  const tripTotals = computeTotals(trip)
+  const members = membersOf(trip)
+  const role = roleOf(trip, meId)
+  const editors = members.filter(m => m.role === 'owner' || m.role === 'editor').length
+  const nameOf = (userId: string) => users.find(u => u.id === userId)?.profile.name ?? 'Member'
+
+  // The sticky preview panel. It sits last in the grid, after every section,
+  // so the artboard's three columns hold their shape on any section count.
+  const saveAside = (
+    <aside className="tset-aside" aria-label="What changes when you save">
+      {/* #408: the preview shows what WOULD happen — including a save that
+          would be refused. A "Preview" that hides the refusal is a guess,
+          not a preview; the reason and the blocking days (linked to their
+          timeline day) sit at the top, from the same dry run the Save
+          button runs. */}
+      {!dry.ok && (
+        <div className="bench-receipt card ts-receipt-refusal" role="status">
+          <span className="bench-stamp" aria-hidden="true">Would be refused</span>
+          <div className="bench-receipt-head">
+            <span className="bench-receipt-kicker">Save preview</span>
+          </div>
+          <p className="err-text ts-warn-note set-receipt-reason">{dry.reason}</p>
+          <BlockedDayLinks blocked={dry.blocked} onOpenDay={onOpenDay} />
+        </div>
+      )}
+      <div className="tset-savecard">
+        <div className="tset-save-head">
+          <span className="tset-dot" aria-hidden="true" />
+          <span className="disp tset-save-title">{dirtyCount === 0 ? 'No unsaved changes' : `${dirtyCount} unsaved change${dirtyCount === 1 ? '' : 's'}`}</span>
+        </div>
+        <p className="tset-save-sub">Here is what happens to the plan when you save.</p>
+        {/* The three diffs the artboard asks for, each read from the same
+            dry run and preview the Save button uses, so a diff can never
+            promise something the write refuses. An arrow appears only when a
+            save is actually pending: the panel must not draw "4 days → 5
+            days" under a title that says nothing will be saved. */}
+        <div className="tset-diff">
+          <span className="tset-diff-lbl">Days</span>
+          <b>{canSave && dayDelta
+            ? <><span className="tset-was">{trip.days.length} days</span> → {dayCount} days</>
+            : `${dayCount} day${dayCount === 1 ? '' : 's'}`}</b>
+          <span>{canSave && dayDelta
+            ? dayDeltaLabel
+            : dayDelta
+              ? `The dates cover ${dayCount} days; the plan holds ${trip.days.length}.`
+              : 'The dates and the day grid already agree.'}</span>
+        </div>
+        <div className="tset-diff">
+          <span className="tset-diff-lbl">Budget</span>
+          <b>{canSave && clampedBudget !== trip.budgetPerPersonInr
+            ? <><span className="tset-was">{formatInr(trip.budgetPerPersonInr)}</span> → {formatInr(clampedBudget)} each</>
+            : `${formatInr(clampedBudget)} each`}</b>
+          <span>{formatInr(clampedBudget * travellers)} for the group.</span>
+        </div>
+        {engineRead && (
+          <div className={`tset-diff${topWarning ? '' : ' is-good'}`}>
+            <span className="tset-diff-lbl">{topWarning ? 'Engine' : 'Good news'}</span>
+            <b>{topWarning ? topWarning.title : 'The plan reads clean'}</b>
+            <span>{topWarning ? topWarning.detail : 'No warnings against the engine’s assumptions.'}</span>
+          </div>
+        )}
+        {/* #413: a viewer used to get a vanished bar under disabled inputs —
+            permissioned read as broken. The bar renders for everyone; a
+            viewer gets it disabled with the reason said out loud. */}
+        {!editable && (
+          <span className="ts-savebar-note hint-text" role="status">
+            <InlineIcon icon={TriangleAlert} size={12} gap={3} />Only editors can change trip settings — ask an editor on this trip, or duplicate it to edit your own copy.
+          </span>
+        )}
+        {savingSettings && (
+          <div className="set-save-state">
+            <StateBlock kind="loading" size="compact" title="Saving your settings." />
+          </div>
+        )}
+        {writeErr && <span className="err-text" role="alert">{writeErr}</span>}
+        <div className="tset-save-actions">
+          <button className="btn btn-primary tset-save-btn" disabled={!canSave || savingSettings}
+            title={canSave ? undefined : dry.ok ? 'No changes' : dry.reason} onClick={() => {
+            if (!dry.ok) return
+            if (dry.startCoordsDropped) setStartNotice(START_DROPPED)
+            setWriteErr(null)
+            if (updateTrip(trip.id, dry.patch)) {
+              ownSaveRef.current = true
+              const verdict = tripWriteVerdict(trip.id)
+              if (verdict) {
+                setSavingSettings(true)
+                void verdict.then(saved => {
+                  setSavingSettings(false)
+                  if (saved) toast('Trip settings updated')
+                  else setWriteErr(TRIP_SETTINGS_NOT_SAVED)
+                })
+              }
+            }
+          }}>{savingSettings ? 'Saving…' : 'Save changes'}</button>
+          <button type="button" className="tset-discard" disabled={!dirtyCount || savingSettings}
+            onClick={() => reseedFrom(trip)}>Discard</button>
+        </div>
+        <span className="tset-save-foot">Saving applies these settings to everyone on the trip.</span>
+      </div>
+
+      {/* the engine's read — recomputed from this form as you type. Band
+          word, number and bar derive from one call (lib/healthBand), so
+          they cannot drift apart. */}
+      {engineRead && (
+        <div className="tset-glance" aria-label="The engine's read of these settings">
+          <span className="tset-nav-lbl">The plan at a glance</span>
+          {preview?.estimated && <p className="muted small">Route changes need fresh road measurements after saving.</p>}
+          <div className="tset-glance-grid">
+            <div className="tset-stat"><span className="tset-stat-v">{tripTotals.totalDistanceKm > 0 ? `${Math.round(tripTotals.totalDistanceKm)} km` : '–'}</span><span className="tset-stat-k">road measured</span></div>
+            <div className="tset-stat"><span className="tset-stat-v">{minutesToHM(tripTotals.totalTravelMinutes)}</span><span className="tset-stat-k">driving</span></div>
+            <div className="tset-stat"><span className="tset-stat-v">{tripTotals.stopCount} stops</span><span className="tset-stat-k">on {daysWithStops} of {dayCount} days</span></div>
+            <div className="tset-stat"><span className="tset-stat-v">{formatInr(tripTotals.totalCostInr)}</span><span className="tset-stat-k">plan total, estimate</span></div>
+          </div>
+          <div className="tset-read">
+            <span className="tset-diff-lbl">The engine&apos;s read</span>
+            <span className={`chip chip-${healthBandTone(engineRead.band)}`}>{engineRead.band}</span>
+            <div className="health-big set-read-gap">
+              <div className={`health-num-big ${healthBandClass(engineRead.band)} set-read-score`}>{engineRead.score}</div>
+              <div className="health-bar set-read-bar"><i className={healthBandClass(engineRead.band)} style={{ width: `${engineRead.score}%` }} /></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </aside>
+  )
 
   return (
     <div className="ts-form tsx-form">
@@ -455,61 +652,54 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
           onTakeTheirs={() => reseedFrom(trip)}
         />
       )}
-      {/* ---------- the hero: the trip at a glance ---------- */}
-      <section className="tsx-hero" aria-label="This trip at a glance">
-        <div className="tsx-hero-top">
-          <span className="tsx-hero-cover" aria-hidden="true" />
-          <div className="tsx-hero-id">
-            <h2 className="tsx-hero-name">{f.name || 'Untitled trip'}</h2>
-            <p className="tsx-hero-sub">
-              <b>{road}</b>
-              {' '}· {f.startDate && f.endDate ? `${f.startDate} → ${f.endDate}` : 'dates not set'} · {travellers} travelling
-            </p>
-          </div>
-          {editable && (
-            <button type="button" className="tsx-hero-edit" aria-expanded={identityOpen} onClick={() => setIdentityOpen(o => !o)}>
-              <Sparkles size={13} aria-hidden />Rename &amp; cover
-            </button>
-          )}
-        </div>
-        <div className="tsx-hero-stats">
-          <div className="tsx-stat"><span className="tsx-stat-k">Group budget</span><span className="tsx-stat-v">{formatInr(clampedBudget * travellers)}<small>{formatInr(clampedBudget)} / head</small></span></div>
-          <div className="tsx-stat"><span className="tsx-stat-k">Days</span><span className="tsx-stat-v">{dayCount}<small>{daysWithStops} with stops</small></span></div>
-          <div className="tsx-stat"><span className="tsx-stat-k">Machine</span><span className="tsx-stat-v">{cap(f.transportMode)}<small>{MODE_SPEED[f.transportMode] ?? 40} km/h avg</small></span></div>
-          {/* A passenger mode has no wheel, so the stat row shows its size instead of
-              a stale driver count the trip does not own (2026-10-19). */}
-          {showsDriving
-            ? <div className="tsx-stat"><span className="tsx-stat-k">Wheel</span><span className="tsx-stat-v">{(f.driverCount ?? 1) === 1 ? '1 driver' : `${f.driverCount} drivers`}<small>{f.hasVulnerable ? 'infants / seniors' : 'everyone adult'}</small></span></div>
-            : <div className="tsx-stat"><span className="tsx-stat-k">Travellers</span><span className="tsx-stat-v">{f.travellers}<small>travelling</small></span></div>}
-        </div>
-      </section>
+      <div className="tset-grid">
+        {/* The artboard's short nav: one long page, six sections, and the two
+            that carry unsaved edits say so. Every item is an in-page anchor,
+            so it works with no JavaScript and keeps the URL. */}
+        <nav className="tset-nav" aria-label="Settings sections">
+          <span className="tset-nav-lbl">Trip settings</span>
+          {([['identity', 'Name & cover'], ['dates', 'Dates & days'], ['group', 'Group & budget'],
+            ['travel', 'How you travel'], ['people', 'People & sharing'], ['danger', 'Archive or delete']] as const)
+            .map(([key, label]) => (
+              <a key={key} href={`#tset-${key}`} className={`tset-nav-item${editedSections.has(key) ? ' is-edited' : ''}`}>
+                {label}
+                {editedSections.has(key) && <i aria-hidden="true">!</i>}
+              </a>
+            ))}
+        </nav>
 
-      {editable && identityOpen && (
-        <Surface as="section" className="tsx-card tsx-card--identity" aria-label="Trip name and cover">
-          <h3 className="tsx-q">Rename &amp; cover</h3>
-          <div className="bench-pair">
-            <Field label="Trip name">
-              <input className="input" disabled={!editable} value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} />
-            </Field>
-            <Field label="Cover image">
-              <CoverImagePicker trip={trip} editable={editable} />
-              <p className="hint-text">Pick a popular photo of your destination, paste your own image URL, or leave it to the emoji.</p>
-            </Field>
-          </div>
-          <p className="hint-text">The cover is what a shared itinerary previews with.</p>
-        </Surface>
-      )}
+        <div className="tset-main">
 
-      <div className="tsx-band">
-        <div className="tsx-band-main">
-
-          {/* ---------- Q1 · the road & the days ---------- */}
-          <Surface as="section" className="tsx-card" aria-label="Where does it go, and for how many days">
+          {/* ---------- Name & cover ---------- */}
+          <Surface as="section" className="tsx-card" id="tset-identity" aria-label="Trip name and cover">
             <header className="tsx-head">
-              <span className="tsx-no" aria-hidden="true">01</span>
-              <h3 className="tsx-q">Where does it go, and for how many days?</h3>
+              <span className="tsx-ico" aria-hidden="true"><Sparkles size={18} /></span>
+              <span className="tsx-head-copy">
+                <h3 className="tsx-q">Name &amp; cover</h3>
+                <p className="tsx-a">What the group and anyone you share with will see first.</p>
+              </span>
+            </header>
+            <div className="bench-pair">
+              <Field label="Trip name">
+                <input className="input" disabled={!editable} maxLength={60} value={f.name}
+                  onChange={e => setF(x => ({ ...x, name: e.target.value }))} />
+              </Field>
+              <Field label="Cover image">
+                <CoverImagePicker trip={trip} editable={editable} />
+              </Field>
+            </div>
+            <p className="hint-text">Shared links and WhatsApp previews use the cover.</p>
+          </Surface>
+
+          {/* ---------- Dates & days ---------- */}
+          <Surface as="section" className="tsx-card" id="tset-dates" aria-label="Where does it go, and for how many days">
+            <header className="tsx-head">
+              <span className="tsx-ico" aria-hidden="true"><CalendarDays size={18} /></span>
+              <span className="tsx-head-copy">
+                <h3 className="tsx-q">Dates &amp; days</h3>
+                <p className="tsx-a">Where it starts and ends, and how many days you have.</p>
+              </span>
               <span className="tsx-ans">{dayCount} day{dayCount === 1 ? '' : 's'} · {dests.length} stop{dests.length === 1 ? '' : 's'} en route</span>
-              <p className="tsx-a">The road is the trip&apos;s spine — every other tab measures along it. Arrows reorder, × removes, search adds. The day grid follows the dates.</p>
             </header>
             {/* #411: the strip renders the pair array — rename edits the chip
                 in place, the pin travels with its name by construction. */}
@@ -556,7 +746,6 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                   </span>
                 </Fragment>
               ))}
-              <span className="tsx-road" aria-hidden="true" />
             </div>
             <div className="bench-pair">
               <Field label="Starting location">
@@ -602,13 +791,26 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 hint={dayDeltaLabel}
                 onChange={({ startDate, endDate }) => { setF(x => ({ ...x, startDate, endDate })) }}
               />
-              <div>
-                <span className="label set-daygrid-label">Day grid</span>
-                <div className="tsx-dm-track" role="img" aria-label={`${daysWithStops} of ${dayCount} days carry stops`}>
-                  <i className="tsx-dm-fill" style={{ width: `${dayCount ? Math.round((daysWithStops / dayCount) * 100) : 0}%` }} />
-                </div>
-                <p className="tsx-dm-note"><b>{daysWithStops} of {dayCount}</b> days carry stops{dayDelta && dayDelta > 0 ? ` · ${dayDelta} empty at the tail` : ''}</p>
+            </div>
+            {/* The artboard's "your days" grid: each day as a real day, with
+                the stops it already carries, so a date change shows which days
+                gain or lose. `dayPlan` is the reconciled grid, so an added day
+                reads "New · empty" before the save — the same shape the save
+                will write. */}
+            <div className="field">
+              <span className="flab">Your days</span>
+              <div className="tset-daygrid">
+                {grid.map(d => (
+                  <div key={d.key} className={`tset-day${d.isNew ? ' is-new' : ''}`}>
+                    <span className="tset-day-dow">{d.dow}</span>
+                    <b className="tset-day-num">{d.dayOfMonth}</b>
+                    <em className="tset-day-stops">
+                      {d.isNew ? 'New · empty' : `${d.stops} stop${d.stops === 1 ? '' : 's'}`}
+                    </em>
+                  </div>
+                ))}
               </div>
+              <span className="hint-text">{dayDeltaLabel}. Existing stops stay on their dates.</span>
             </div>
             {/* #408: the refusal lives here, inline, where the dates are —
                 with the blocking days linked to their timeline day. It is
@@ -620,20 +822,17 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 <BlockedDayLinks blocked={dry.blocked} onOpenDay={onOpenDay} />
               </div>
             )}
-            <footer className="tsx-settled">
-              <span className="tsx-fact"><span className="tsx-fact-k">Road</span><b>{road}</b></span>
-              <span className="tsx-fact"><span className="tsx-fact-k">Days</span><b>{dayCount}</b></span>
-              <span className="tsx-fact"><span className="tsx-fact-k">Days with stops</span><b>{daysWithStops} of {dayCount}</b></span>
-            </footer>
           </Surface>
 
-          {/* ---------- Q2 · the party & the money ---------- */}
-          <Surface as="section" className="tsx-card" aria-label="Who is going, and how do they split the money">
+          {/* ---------- Group & budget ---------- */}
+          <Surface as="section" className="tsx-card" id="tset-group" aria-label="Who is going, and how do they split the money">
             <header className="tsx-head">
-              <span className="tsx-no" aria-hidden="true">02</span>
-              <h3 className="tsx-q">Who is going, and how do they split the money?</h3>
+              <span className="tsx-ico" aria-hidden="true"><Users size={18} /></span>
+              <span className="tsx-head-copy">
+                <h3 className="tsx-q">Group &amp; budget</h3>
+                <p className="tsx-a">Rooms, per-head splits and the Budget tab all read these.</p>
+              </span>
               <span className="tsx-ans">{travellers} {travellers === 1 ? 'person' : 'people'} · {formatInr(clampedBudget * travellers)} group</span>
-              <p className="tsx-a">Rooms and per-head splits follow the headcount. Budget preference prices the bed; it never touches the road.</p>
             </header>
             <div className="bench-pair">
               <div className="bench-block">
@@ -674,7 +873,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
               </div>
             </div>
             <div className="bench-block">
-              <span className="bench-eyebrow">Budget preference</span>
+              <span className="bench-eyebrow">Spending style</span>
               <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
                 {STAY_STYLES.map(s => (
                   <button key={s} type="button" data-pill-key={s} disabled={!editable}
@@ -685,104 +884,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                   </button>
                 ))}
               </PillNav>
-              <p className="bench-hint">Prices the bed: ₹1,200 / ₹3,200 / ₹8,000 per room per night (2 guests per room). Shows up honestly on the Budget tab when you have hotel stops.</p>
+              <p className="bench-hint">Changes which stays and restaurants the app suggests first. Prices the bed at {formatInr(STAY_RATE_PER_NIGHT[f.stayStyle])} per room per night.</p>
             </div>
-            <footer className="tsx-settled">
-              <span className="tsx-fact"><span className="tsx-fact-k">Party</span><b>{travellers} travelling</b></span>
-              <span className="tsx-fact"><span className="tsx-fact-k">Per head</span><b>{formatInr(clampedBudget)}</b></span>
-              <span className="tsx-fact"><span className="tsx-fact-k">Group</span><b>{formatInr(clampedBudget * travellers)}</b></span>
-              <span className="tsx-fact"><span className="tsx-fact-k">Bed</span><b>{formatInr(STAY_RATE_PER_NIGHT[f.stayStyle])} / night</b></span>
-            </footer>
           </Surface>
-        </div>
-
-        {/* ---------- the bill + the engine's read ---------- */}
-        <aside className="tsx-aside" aria-label="Live preview of these settings">
-          {/* #408: the preview shows what WOULD happen — including a save that
-              would be refused. A "Preview" that hides the refusal is a guess,
-              not a preview; the reason and the blocking days (linked to their
-              timeline day) sit at the top of the receipt, from the same dry
-              run the Save button runs. */}
-          {!dry.ok && (
-            <div className="bench-receipt card ts-receipt-refusal" role="status">
-              <span className="bench-stamp" aria-hidden="true">Would be refused</span>
-              <div className="bench-receipt-head">
-                <span className="bench-receipt-kicker">Save preview</span>
-              </div>
-              <p className="err-text ts-warn-note set-receipt-reason">{dry.reason}</p>
-              <BlockedDayLinks blocked={dry.blocked} onOpenDay={onOpenDay} />
-            </div>
-          )}
-          <div className="bench-receipt card">
-            <span className="bench-barcode" aria-hidden="true" />
-            <span className="bench-stamp" aria-hidden="true">Preview</span>
-            <div className="bench-receipt-head">
-              <span className="bench-receipt-kicker">Trip settings bill</span>
-              <span className="bench-receipt-date">{f.startDate && f.endDate ? `${f.startDate} → ${f.endDate}` : 'Dates not set'}</span>
-            </div>
-            <div className="ts-receipt-name">{f.name || 'Untitled trip'}</div>
-            <div className="bench-meta-row">
-              {modeIcon(f.transportMode)}
-              <span>{cap(f.transportMode)} · {travellers} travelling · {cap(f.travelStyle)}</span>
-            </div>
-            <div className="bench-total" aria-live="polite">
-              <div className="bench-total-label">Group budget</div>
-              <div className="bench-total-main">{formatInr(clampedBudget * travellers)}</div>
-              <span className="bench-total-sub">{formatInr(clampedBudget)} / head · split {travellers} way{travellers === 1 ? '' : 's'} · {dayCount} day{dayCount === 1 ? '' : 's'}</span>
-            </div>
-            <div className="bench-receipt-lines">
-              <div className="bench-line">
-                <div className="bench-line-head"><span>Day grid</span><b>{dayCount} days</b></div>
-                <span className="bench-line-formula">{dayDeltaLabel} on save</span>
-              </div>
-              <div className="bench-line">
-                <div className="bench-line-head"><span>Cost math</span><b>{fuelMode ? 'Fuel' : 'Default rates'}</b></div>
-                <span className="bench-line-formula">
-                  {fuelMode
-                    ? (ecoSet && priceSet
-                      ? `${ecoNum} km/L × ₹${priceNum}/L${f.roundTrip ? ' · round trip billed twice' : ' · one way'}`
-                      : `Defaults (≈${ecoVal} km/L · ₹${FUEL_PRICE_INR_PER_L}/L) until you set mileage and price`)
-                    : `Per-km fare for ${cap(f.transportMode)}`}
-                </span>
-              </div>
-            </div>
-            <div className="bench-receipt-rules" />
-            <p className="bench-fineprint">
-              Saving applies these settings to everyone on the trip · budgets, pacing and cost math recompute from mode, economy and dates
-            </p>
-          </div>
-
-          {/* the engine's read — the space under the bill, recomputed from
-              this form as you type. Band word, number and bar derive from one
-              call (lib/healthBand), so they cannot drift apart. */}
-          {engineRead ? <div className="tsx-read" aria-label="The engine's read of these settings">
-            {preview?.estimated && <p className="muted">Estimate: route changes need fresh road measurements after saving.</p>}
-            <div className="tsx-read-head">
-              <span className="tsx-read-kicker">The engine&apos;s read</span>
-              <span className={`chip chip-${healthBandTone(engineRead.band)}`}>{engineRead.band}</span>
-            </div>
-            <div className="health-big set-read-gap">
-              <div className={`health-num-big ${healthBandClass(engineRead.band)} set-read-score`}>{engineRead.score}</div>
-              <div className="health-bar set-read-bar"><i className={healthBandClass(engineRead.band)} style={{ width: `${engineRead.score}%` }} /></div>
-            </div>
-            <ul className="health-reasons set-read-reasons">
-              {topWarning
-                ? <li><b>{topWarning.title}.</b> {topWarning.detail}</li>
-                : <li>No warnings — the plan reads clean against the engine&apos;s assumptions.</li>}
-              {engineRead.warnings.length > 1 && <li className="muted">+{engineRead.warnings.length - 1} more on the Overview tab.</li>}
-            </ul>
-            <div className="tsx-read-facts">
-              <span className="tsx-fact"><span className="tsx-fact-k">Days with stops</span><b>{daysWithStops} of {dayCount}</b></span>
-              <span className="tsx-fact"><span className="tsx-fact-k">Avg speed</span><b>{MODE_SPEED[f.transportMode] ?? 40} km/h</b></span>
-              <span className={`tsx-fact${!dry.ok ? ' tsx-fact--warn' : ''}`}>
-                <span className="tsx-fact-k">Day grid on save</span>
-                <b>{dayDelta === null ? '—' : dayDelta === 0 ? 'unchanged' : dayDelta > 0 ? `+${dayDelta} empty` : `${dayDelta} cut`}</b>
-              </span>
-            </div>
-            <p className="tsx-read-note">Recomputed from this form as you type. The day grid itself follows the save.</p>
-          </div> : <p role="status">{!dry.ok ? dry.reason : 'Check the settings to preview this plan.'}</p>}
-        </aside>
-      </div>
 
       {/* ---------- Q3 · the machine ---------- */}
       {/* Mixed asks whenever the trip IS Mixed, not only while unanswered
@@ -805,12 +909,14 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
           </div>
         </Surface>
       )}
-      <Surface as="section" className="tsx-card tsx-card--machine" aria-label={showsDriving ? 'What moves you, and who is behind the wheel' : 'What moves you'}>
+      <Surface as="section" className="tsx-card tsx-card--machine" id="tset-travel" aria-label={showsDriving ? 'What moves you, and who is behind the wheel' : 'What moves you'}>
         <header className="tsx-head">
-          <span className="tsx-no" aria-hidden="true">03</span>
-          <h3 className="tsx-q">{showsDriving ? 'What moves you, and who is behind the wheel?' : 'What moves you?'}</h3>
+          <span className="tsx-ico" aria-hidden="true">{modeIcon(f.transportMode)}</span>
+          <span className="tsx-head-copy">
+            <h3 className="tsx-q">How you travel</h3>
+            <p className="tsx-a">The mode decides the cost math and which dials exist below.</p>
+          </span>
           <span className="tsx-ans">{cap(f.transportMode)}{showsDriving ? ` · ${(f.driverCount ?? 1) === 1 ? '1 driver' : `${f.driverCount} drivers`}` : ''} · {fuelMode ? 'fuel math' : 'fare math'}</span>
-          <p className="tsx-a">The mode decides the cost math (fuel for car, rental and motorcycle; fares otherwise) and which dials exist below. Travel style tunes stop frequency and suggestions — it never touches pricing.</p>
         </header>
         {/* Transport mode — bench mode grid */}
         <div className="bench-block bench-mode-block">
@@ -858,7 +964,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 {(f.driverCount ?? 1) === 1 ? 'One driver' : `${f.driverCount} drivers`}
               </span>
             </div>
-            <div className="bench-line" role="group" aria-label="Drivers sharing the wheel">
+            <div className="tset-choice-row" role="group" aria-label="Drivers sharing the wheel">
               {[1, 2, 3].map(n => (
                 <button key={n} type="button" className={`bench-crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
                   aria-pressed={(f.driverCount ?? 1) === n} disabled={!editable}
@@ -869,7 +975,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
               ))}
               <span className="bench-hint">Rotating drivers buy hours; one driver keeps the solo cap.</span>
             </div>
-            <div className="bench-line" role="group" aria-label="Who is aboard">
+            <div className="tset-choice-row" role="group" aria-label="Who is aboard">
               <button type="button" className={`bench-crew-btn${!f.hasVulnerable ? ' on' : ''}`}
                 aria-pressed={!f.hasVulnerable} disabled={!editable}
                 title="Everyone adult — full-length driving days"
@@ -879,7 +985,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 title="Infants or seniors aboard — shorter days, earlier dinner"
                 onClick={() => setF(x => ({ ...x, hasVulnerable: true }))}>Infants / seniors</button>
             </div>
-            <div className="bench-line" role="group" aria-label="Dinner and driving">
+            <div className="tset-choice-row" role="group" aria-label="Dinner and driving">
               <button type="button" className={`bench-crew-btn${f.driveAfterDinner ? ' on' : ''}`}
                 aria-pressed={f.driveAfterDinner} disabled={!editable}
                 title="Halt for dinner, then keep going within the allowance and the night end"
@@ -969,6 +1075,70 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
         </footer>
       </Surface>
 
+          {/* ---------- People & sharing ---------- */}
+          <Surface as="section" className="tsx-card" id="tset-people" aria-label="People and sharing">
+            <header className="tsx-head">
+              <span className="tsx-ico" aria-hidden="true"><Users size={18} /></span>
+              <span className="tsx-head-copy">
+                <h3 className="tsx-q">People &amp; sharing</h3>
+                <p className="tsx-a">Who can see this trip, and who can change it.</p>
+              </span>
+            </header>
+            <div className="tset-people">
+              <span className="tset-stack" aria-hidden="true">
+                {members.slice(0, 4).map((m, i) => (
+                  <span key={m.userId} className={`tset-av tset-av--${i % 4}`}>
+                    {initialsOf(nameOf(m.userId))}
+                  </span>
+                ))}
+              </span>
+              <span className="tset-people-copy">
+                <b>{members.length} member{members.length === 1 ? '' : 's'} · {editors} can edit</b>
+                <span>{trip.visibility === 'public' ? 'Public — anyone with the link can read it' : 'Link sharing off'}</span>
+              </span>
+            </div>
+          </Surface>
+
+          {/* ---------- Archive or delete ----------
+              Owner only, as the artboard says. Archive has no API yet, so the
+              card says so instead of offering a button that would do nothing;
+              trash is real and carries its undo. */}
+          {role === 'owner' && (
+            <Surface as="section" className="tsx-card tsx-card--danger" id="tset-danger" aria-label="Archive or delete">
+              <header className="tsx-head">
+                <span className="tsx-ico" aria-hidden="true"><TriangleAlert size={18} /></span>
+                <span className="tsx-head-copy">
+                  <h3 className="tsx-q">Archive or delete</h3>
+                  <p className="tsx-a">Only the owner sees this section.</p>
+                </span>
+              </header>
+              <div className="tset-danger-pair">
+                <div className="tset-danger-cell">
+                  <b>Archive</b>
+                  <span>Not built yet — the trip stays where it is.</span>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled>Archive</button>
+                </div>
+                <div className="tset-danger-cell tset-danger-cell--trash">
+                  <b>Move to trash</b>
+                  <span>Restorable for 30 days, then gone.</span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+                    trashTrip(trip)
+                    undoToast(`Moved “${trip.name}” to trash`, () => {
+                      restoreTrashedTrip(trip)
+                      toast(`Restored “${trip.name}”`)
+                    })
+                  }}>Move to trash</button>
+                </div>
+              </div>
+            </Surface>
+          )}
+        </div>
+
+        {saveAside}
+      </div>
+
+      {/* The save bar stays for a keyboard user who scrolled past the panel:
+          the same verbs, reachable from anywhere on the page. */}
       <StickyFormBar show>
         {/* #413: a viewer used to get a vanished bar under disabled inputs —
             permissioned read as broken. The bar renders for everyone; a

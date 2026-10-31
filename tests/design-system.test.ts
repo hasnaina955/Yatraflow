@@ -209,7 +209,10 @@ describe('kicker casing: sentence case in source, uppercase via CSS', () => {
 
   it('keeps the decorative stamps CSS-uppercased too', () => {
     expect(source('src/components/PlanBench.tsx')).toContain('>Estimate</span>')
-    expect(source('src/pages/trip/TripSettingsForm.tsx')).toContain('>Preview</span>')
+    // The settings bill and its "Preview" stamp became the artboard's save
+    // panel. The refusal stamp stays: it is the one state the panel must say
+    // out loud, and it keeps the same sentence-case source.
+    expect(source('src/pages/trip/TripSettingsForm.tsx')).toContain('>Would be refused</span>')
     expect(css).toMatch(/\.bench-stamp \{[^}]*text-transform: uppercase/)
   })
 

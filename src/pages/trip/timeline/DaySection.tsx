@@ -858,13 +858,13 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
               the first thing the body shows when the day opens, and the stats
               line already carries the count. A stay day keeps its quiet
               "no driving" line, which says something the stats cannot. */}
-          <SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>
-            {isStayDay ? (
+          {isStayDay && (
+            <SmoothCollapse open={collapsed} fallbackFocus={collapseRef}>
               <button type="button" className="day-route" onClick={onCollapseClick} aria-expanded={!collapsed}>
                 <span className="day-route-text">{stayDaySummary(visitCount)}</span>
               </button>
-            ) : null}
-          </SmoothCollapse>
+            </SmoothCollapse>
+          )}
           <div className="small muted num">
             {statSegments.map((seg, i) => (
               <React.Fragment key={i}>

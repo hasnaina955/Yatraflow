@@ -116,11 +116,17 @@
 /* ---------- Timeline ---------- */
 /* M4: the day is a near-opaque soft card (doc §6.3 — readability before transparency). */
 .day-section {
-  margin-bottom: 22px;
+  /* The artboard stacks the list on one 16px rhythm, the same gap its own
+     container uses. This was 22px here plus 22px on the sibling rule below,
+     which is the kind of doubled margin that reads as uneven against the 16px
+     gaps everywhere else. One value, one place. */
+  margin-bottom: var(--space-7);
   background: var(--pw-card);
   border: 1.5px solid var(--pw-line);
   border-radius: var(--radius-lg);
-  padding: 18px 20px 14px;
+  /* The artboard's folded card is 16px top and bottom, not 18/14: the asymmetry
+     came from the body's own bottom padding, which a folded day does not have. */
+  padding: 16px 20px;
   box-shadow: var(--elev-1);
 }
 /* The artboard raises the OPEN day one tier: its border turns to the sea tint
@@ -132,10 +138,16 @@
    re-positioned by every one of those changes: the chevron and the day badge
    jumped up to 32px on the click, before the body had moved a pixel. Each item's
    position must be independent of its siblings'. */
-.day-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.day-header { display: flex; align-items: flex-start; gap: var(--space-9); margin-bottom: 12px; flex-wrap: wrap; }
+/* A folded day has no body, so the header's 12px bottom margin is dead space
+   under the last row. The artboard's folded card is 16px padding on all sides
+   with the header flush to it; removing the margin makes the box symmetric. */
+.day-closed > .day-header { margin-bottom: 0; }
 /* The lead group is the collapsed day's thumbnail plus its date badge. On an
-   open day the thumbnail is absent and the group collapses to just the badge. */
-.day-badge-lead { display: flex; align-items: center; gap: 14px; flex: none; }
+   open day the thumbnail is absent and the group collapses to just the badge.
+   The artboard measures 22px between the thumbnail, the badge, the title block
+   and the fold control — one gap, used three times. */
+.day-badge-lead { display: flex; align-items: center; gap: var(--space-9); flex: none; }
 .day-thumb {
   width: 84px; height: 60px; flex: none;
   border-radius: var(--radius-sm);
@@ -473,12 +485,12 @@
 
 /* ---------- Day header: collapse, rename, progress, sparkline, suggestions ---------- */
 .day-collapse {
-  border: 1px solid var(--line); background: var(--bg-soft); cursor: pointer; flex: 0 0 auto;
-  color: var(--text-2); width: 28px; height: 28px; padding: 0; border-radius: 999px;
+  border: 0; background: var(--teal-soft); cursor: pointer; flex: 0 0 auto;
+  color: var(--text-2); width: 40px; height: 40px; padding: 0; border-radius: 999px;
   display: grid; place-items: center;
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
-.day-collapse:hover { background: var(--teal-soft); color: var(--teal-deep); }
+.day-collapse:hover { color: var(--teal-deep); background: color-mix(in srgb, var(--teal-soft) 70%, var(--teal-deep) 10%); }
 /* The chevron and the body are one gesture: at --t-fast/180ms the arrow settled
    ~90ms before the body did, so the row read as two separate movements. */
 .day-collapse-icon { transition: transform var(--motion-slower) var(--ease-resize); }
@@ -564,7 +576,9 @@
 .day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slower) var(--ease-resize); }
 .day-body-clip.open { grid-template-rows: 1fr; }
 .day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slower); }
-.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; }
+/* The artboard puts 16px between the header and the first row of the body. The
+   clip opened flush, so the tools row touched the stats line. */
+.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; padding-top: var(--space-7); }
 @media (prefers-reduced-motion: reduce) {
   .day-body-clip, .day-body-clip-inner { transition: none; }
 }
@@ -2110,7 +2124,8 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 [data-theme='dark'] .locked-cta { background: rgba(11,20,35,.55); }
 
 /* Consistent vertical rhythm between stacked cards & sections */
-.day-section + .day-section { margin-top: 22px; }
+/* The sibling margin duplicated the one above; a single margin-bottom on
+   .day-section now spaces the list. */
 .card h3 + hr.divider, .card h2 + hr.divider { margin-top: 12px; }
 
 /* ===== PW-07: the open day reads as one Papercut card =====
@@ -2122,13 +2137,22 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .day-section:not(.day-closed) { border-color: var(--pw-route); box-shadow: var(--elev-2); }
 .day-badge-date {
   width: 56px;
-  height: 66px;
-  gap: 1px;
-  border: 1px solid var(--pw-line);
+  /* Natural height, as the artboard has it: 8px padding, then the weekday,
+     numeral and month at their own line heights. A fixed 66px clipped the
+     stack and left the month riding the card's bottom edge. */
+  height: auto;
+  padding: 8px 0;
+  gap: 0;
+  border: 1px solid var(--pw-glass-edge);
   border-radius: var(--radius);
-  background: var(--pw-raised);
+  /* The artboard's own recipe, shared with the open day's badge so the two
+     states read as one component: a near-opaque warm fill that lifts on
+     --elev-2 with a light edge. */
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, .96) 0%,
+    color-mix(in srgb, var(--pw-soft) 90%, transparent) 100%);
   color: var(--pw-ink);
-  box-shadow: var(--elev-press);
+  box-shadow: var(--elev-2);
 }
 .day-badge-date .day-badge-wd {
   font: var(--pw-kicker);
@@ -2137,10 +2161,12 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 }
 .day-badge-date b {
   font: var(--pw-display-m);
+  font-size: 25px;
   line-height: 1;
 }
 .day-badge-date .day-badge-mon {
   font: var(--pw-kicker);
+  font-size: 11px;
   font-weight: 600;
   color: var(--pw-ink-2);
 }
@@ -2154,11 +2180,21 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   font: var(--pw-display-s);
   letter-spacing: -.01em;
 }
+/* The artboard steps the folded row's type down: its title is 16.5px against
+   the open day's 22px, and its facts line is 13px against 14px. Without this
+   the folded card carried the open day's scale, which read as heavy and made
+   the row taller than the artboard's 105px. */
+.day-closed .day-title-row h3,
+.day-closed .day-title-btn { font-size: 16.5px; }
+.day-closed .day-header .small.muted.num { font-size: 13px; }
+/* The bar and its key begin on the title block's own left edge: the badge plus
+   the same 22px gap the header uses. Measured against the artboard, that is the
+   badge's width plus one row gap, so both are ladder values here. */
 .day-budget {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-2));
+  margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-9));
 }
 .day-budget-bar {
   display: grid;
@@ -2361,8 +2397,9 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   /* The card's own padding would inset the photo, so the cover cancels it and
      runs edge to edge. Its radius is the card's INNER radius (outer minus the
      1.5px border) so the photo's corner follows the card's curve instead of
-     being clipped square by it. */
-  margin: -18px -20px 0;
+     being clipped square by it. The cancel must match .day-section's padding
+     exactly, or the photo insets by the difference. */
+  margin: -16px -20px 0;
   border-radius: calc(var(--radius-lg) - 1.5px) calc(var(--radius-lg) - 1.5px) 0 0;
   overflow: hidden;
   background: var(--pw-raised);
@@ -2451,21 +2488,29 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   justify-content: flex-start;
 }
 .day-section > .day-cover + .day-header .day-badge-date {
-  width: 62px;
-  /* Natural height, as the artboard has it. A fixed 72px clamped the weekday,
+  /* The artboard's 62px, rounded to the ladder so the budget's offset can be
+     expressed as tokens instead of a one-off pixel value. */
+  width: var(--space-16);
+  /* Natural height, as the artboard has it. A fixed height clamped the weekday,
      numeral and month stack, and the month spilled past the card's bottom edge. */
   height: auto;
   padding: 8px 0 10px;
-  background: color-mix(in srgb, var(--pw-card) 82%, transparent);
+  /* Same fill, edge and elevation as the folded badge — only the width and the
+     numeral step up, so the two states read as one component. */
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, .96) 0%,
+    color-mix(in srgb, var(--pw-soft) 90%, transparent) 100%);
   -webkit-backdrop-filter: blur(var(--yf-blur-chip));
   backdrop-filter: blur(var(--yf-blur-chip));
   border-color: var(--pw-glass-edge);
   box-shadow: var(--elev-2);
 }
 .day-section > .day-cover + .day-header .day-badge-date b { font-size: 30px; }
+.day-section > .day-cover + .day-header .day-badge-date .day-badge-wd { font-size: 11px; }
+.day-section > .day-cover + .day-header .day-badge-date .day-badge-mon { font-size: 11px; }
 @media (max-width: 720px) {
   .day-budget { margin-inline-start: 0; }
-  .day-badge-date { width: 46px; height: 56px; }
+  .day-badge-date { width: 46px; height: auto; }
   .day-badge-date b { font-size: 24px; }
   .day-title-row h3,
   .day-title-btn { font-size: 19px; }

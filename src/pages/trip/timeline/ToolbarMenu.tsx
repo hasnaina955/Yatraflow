@@ -39,7 +39,7 @@ export function ToolbarMenu({ label, className, icon, children }: {
     panel.style.setProperty('--menu-right', `${Math.max(8, window.innerWidth - r.right)}px`)
   }, [])
 
-  const close = useCallback(() => setOpen(false), [])
+  const close = useCallback(() => { setOpen(false) }, [])
 
   // A portaled panel is out of flow, so it needs the trigger's viewport rect
   // before it can be placed. The panel does not exist until the open render

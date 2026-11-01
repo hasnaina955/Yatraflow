@@ -1745,7 +1745,7 @@ body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
 
 @media (max-width: 440px) {
   body:has(.tset-grid) .yf-page .yf-trip-head {
-    height: 360px;
+    height: 380px;
   }
 }
 

@@ -600,6 +600,18 @@
   margin-inline-start: 20px;
   background: linear-gradient(180deg, var(--line), var(--text-3));
 }
+.tsx-card .tsx-route .tsx-node--return { border-style: dashed; background: var(--pw-soft); }
+.tsx-return-marker {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font: var(--pw-kicker);
+  letter-spacing: var(--pw-kicker-tracking);
+  text-transform: uppercase;
+}
 
 /* A row of choice buttons. `.bench-line` is the receipt's own column stack, so
    reusing it here stretched every button to the full column width in the
@@ -649,9 +661,9 @@
   color: var(--pw-on-sea);
   background: var(--pw-sea-700);
 }
-.tset-av--1 { background: var(--pw-lagoon-600); }
-.tset-av--2 { background: var(--pw-bloom-500); }
-.tset-av--3 { background: var(--pw-time-stop); }
+.tset-av--1 { background: var(--pw-lagoon-600); color: var(--pw-on-lagoon); }
+.tset-av--2 { background: var(--pw-bloom-500); color: var(--pw-on-bloom); }
+.tset-av--3 { background: var(--pw-time-stop); color: var(--pw-on-time-stop); }
 .tset-people-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .tset-people-copy span { font: var(--pw-caption); color: var(--pw-ink-3); }
 
@@ -942,6 +954,7 @@
    value, and a changed field pushes its old date to the right edge. */
 .tset-when-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .tset-when-ico { flex: none; color: var(--pw-ink-3); }
+.tset-when-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tset-when-was { margin-inline-start: auto; flex: none; }
 
 /* The artboard's mode card: a stacked icon, name and prose sublabel in a
@@ -1014,6 +1027,16 @@
 .tset-budget-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .tset-budget-sum { font: var(--pw-caption); color: var(--pw-ink-2); }
 .tset-budget-sum b { font: var(--pw-title); font-size: 20px; color: var(--pw-ink); }
+.tset-budget-exact { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.tset-budget-exact > label { font: var(--pw-caption); color: var(--pw-ink-2); }
+.tset-budget-exact .inp {
+  width: 132px;
+  height: 40px;
+  margin-inline-start: auto;
+  padding: 0 10px;
+  gap: 6px;
+}
+.tset-budget-exact .inp > span { flex: none; color: var(--pw-ink-3); }
 /* The dial's plan marker: the artboard's risk-coloured hairline at what the
    plan already costs per head. It sits on the shared track, centred on its own
    left edge, and it never takes a pointer event — the thumb is the control. */

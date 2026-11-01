@@ -24,6 +24,7 @@ const EDITOR_ID = 'fixture-editor'
 // A third member, so the stack proves the mockup's three-circle case: the
 // reported bug was three circles in one pale mint reading as a single block.
 const VIEWER_ID = 'fixture-viewer'
+const SECOND_VIEWER_ID = 'fixture-second-viewer'
 
 const params = new URLSearchParams(location.search)
 const THEME = params.get('theme') === 'dark' ? 'dark' : 'light'
@@ -45,6 +46,11 @@ const ROAD = params.get('road') ?? 'ok'
 // surface can be measured without a session. The workspace validates the key
 // itself and falls back to overview, so a bad value cannot make the fixture lie.
 const TAB = params.get('tab') ?? 'overview'
+const MEMBER_COUNT = params.get('members') === '4' ? 4 : 3
+const ROUND_TRIP = params.get('roundTrip') === '1'
+const BUDGET = Number(params.get('budget') ?? 16000)
+const PACE = params.get('pace') ?? 'relaxed'
+const LONG_END = params.get('end') === 'long'
 
 const stop = (
   id: string,
@@ -87,6 +93,11 @@ const users: CachedUser[] = [
     kind: 'public',
     profile: { name: 'Viewer Three', isCreator: false, creatorAvailable: true },
   },
+  {
+    id: SECOND_VIEWER_ID,
+    kind: 'public',
+    profile: { name: 'Traveller Four', isCreator: false, creatorAvailable: true },
+  },
 ]
 
 const COVERS: Record<string, Pick<Trip, 'coverEmoji' | 'coverImageUrl'>> = {
@@ -117,7 +128,11 @@ const trip: Trip = {
   startLocationCoords: { lat: 15.4909, lng: 73.8278 },
   destinations: PLACE
     ? [PLACE]
-    : params.get('scene') === 'goa' ? ['Goa'] : ['Candolim', 'Colva', 'Palolem'],
+    : params.get('scene') === 'goa'
+      ? ['Goa']
+      : ['Candolim', 'Colva', LONG_END
+        ? 'Palolem Beach, Canacona, South Goa Coastal Extension near Cotigao Wildlife Sanctuary'
+        : 'Palolem'],
   destinationCoords: [
     { lat: 15.5185, lng: 73.7628 },
     { lat: 15.2754, lng: 73.9228 },
@@ -127,9 +142,9 @@ const trip: Trip = {
   endDate: '2026-11-06',
   travellers: 2,
   transportMode: MODE as Trip['transportMode'],
-  roundTrip: false,
-  budgetPerPersonInr: 16000,
-  travelStyle: 'relaxed',
+  roundTrip: ROUND_TRIP,
+  budgetPerPersonInr: Number.isFinite(BUDGET) && BUDGET >= 0 ? BUDGET : 16000,
+  travelStyle: PACE as Trip['travelStyle'],
   stayStyle: 'comfort',
   fixedCommitments: [
     { id: 'commitment-1', title: 'Hotel check-in', type: 'hotel-checkin', dayIndex: 1, time: '15:00', stopId: 'night-1' },
@@ -183,6 +198,9 @@ const trip: Trip = {
     { userId: OWNER_ID, role: 'owner', joinedAt: 1 },
     { userId: EDITOR_ID, role: 'editor', joinedAt: 2 },
     { userId: VIEWER_ID, role: 'viewer', joinedAt: 3 },
+    ...(MEMBER_COUNT === 4
+      ? [{ userId: SECOND_VIEWER_ID, role: 'viewer' as const, joinedAt: 4 }]
+      : []),
   ],
   ...COVERS[COVER] ?? COVERS.art,
   visibility: 'private',

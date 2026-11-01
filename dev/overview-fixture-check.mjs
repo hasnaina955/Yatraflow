@@ -64,6 +64,20 @@ function rectScript(selector) {
   }
 }
 
+function contrastRatio(foreground, background) {
+  const channels = value => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+  const luminance = value => {
+    const [r, g, b] = channels(value).map(channel => {
+      const unit = channel / 255
+      return unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4
+    })
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const a = luminance(foreground)
+  const b = luminance(background)
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
 async function inspect(page) {
   return page.evaluate((selectors) => {
     const read = (selector) => {
@@ -612,14 +626,14 @@ try {
   // The settings grid, type, aside rhythm, title wrapping and coarse-pointer
   // route tools all have measured artboard values. This pass reads the rendered
   // page, not the source CSS.
-  for (const width of [390, 1440]) {
+  for (const width of [390, 721, 800, 960, 1024, 1440]) {
     const context = await browser.newContext({
       viewport: { width, height: 1000 },
       hasTouch: width === 390,
       isMobile: width === 390,
     })
     const page = await context.newPage()
-    await page.goto(`${URL}?theme=light&mode=rental&long=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.goto(`${URL}?theme=light&mode=rental&long=1&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.tset-grid', { timeout: 15_000 })
     await page.evaluate(() => document.fonts.ready)
     await page.waitForTimeout(500)
@@ -680,23 +694,83 @@ try {
       }))
       const avatarBoxes = avatars.map(avatar => box(avatar))
       const avatarFills = avatars.map(avatar => style(avatar).backgroundColor)
+      const avatarPairs = avatars.map(avatar => ({
+        initials: (avatar.textContent || '').trim(),
+        color: style(avatar).color,
+        background: style(avatar).backgroundColor,
+      }))
       const navBadge = document.createElement('i')
       navBadge.textContent = '1'
       navItem.append(navBadge)
       const navCount = style(navBadge).fontSize
       navBadge.remove()
 
+      const paceButtons = [...pace.querySelectorAll('.seg-btn')]
+      const paceBox = pace.getBoundingClientRect()
+      const activePace = pace.querySelector('.seg-btn.on')
+      const activePaceBox = activePace?.getBoundingClientRect()
+      const initialPace = {
+        scrollLeft: pace.scrollLeft,
+        activeText: (activePace?.textContent || '').trim(),
+        activeVisible: !!activePaceBox
+          && activePaceBox.left >= paceBox.left - 1
+          && activePaceBox.right <= paceBox.right + 1,
+      }
+      const activeTab = tabs.querySelector('[aria-selected="true"]')
+      const activeTabBox = activeTab?.getBoundingClientRect()
+      const tabsBoxForVisibility = tabs.getBoundingClientRect()
+      const activeTabVisible = !!activeTabBox
+        && activeTabBox.left >= tabsBoxForVisibility.left - 1
+        && activeTabBox.right <= tabsBoxForVisibility.right + 1
+
       // The pace rail must reach its last option without changing the page
       // width. Scroll it to its own end before reading the final button.
       pace.scrollLeft = pace.scrollWidth
-      const paceButtons = [...pace.querySelectorAll('.seg-btn')]
       const lastPace = paceButtons.at(-1)?.getBoundingClientRect()
-      const paceBox = pace.getBoundingClientRect()
 
       // Scroll the route into view once, then hit-test every control. A
       // two-frame wait lets the browser apply the instant scroll before the
       // point lookup.
       const route = document.querySelector('.tsx-route')
+      const routeNodes = [...route.querySelectorAll('.tsx-node')]
+      const returnNode = route.querySelector('.tsx-node--return')
+      const startNode = route.querySelector('.tsx-node--start')
+      const datesCard = document.getElementById('tset-dates')
+      const fieldLabel = text => [...datesCard.querySelectorAll('.label, .flab')]
+        .find(node => (node.textContent || '').trim() === text)
+      const destinationLabel = [...datesCard.querySelectorAll('.label, .flab')]
+        .find(node => (node.textContent || '').trim().startsWith('Destinations ('))
+      const endsField = [...datesCard.querySelectorAll('.field')]
+        .find(field => field.querySelector('.flab')?.textContent?.trim() === 'Ends')
+      const startsField = [...datesCard.querySelectorAll('.field')]
+        .find(field => field.querySelector('.flab')?.textContent?.trim() === 'Starts')
+      const endsValue = endsField?.querySelector('.tset-when-value')
+      const startsValue = startsField?.querySelector('.tset-when-value')
+      const roundTrip = datesCard.querySelector('.tog[role="switch"]')
+      const sectionBox = box(datesCard)
+      const sectionChildren = [route, destinationLabel?.closest('.field'), startsField, endsField,
+        datesCard.querySelector('.tset-daygrid'), roundTrip].filter(Boolean).map(box)
+      const sectionWithinCard = sectionChildren.every(child => (
+        child.x >= sectionBox.x - 1
+        && child.right <= sectionBox.right + 1
+        && child.y >= sectionBox.y - 1
+        && child.bottom <= sectionBox.bottom + 1
+      ))
+      const routeSummary = {
+        storedCount: routeNodes.filter(node => node !== startNode && node !== returnNode).length,
+        numberedCount: routeNodes.filter(node => node !== startNode).length,
+        returnText: (returnNode?.querySelector('.tsx-node-name')?.textContent || '').trim(),
+        returnMarker: (returnNode?.querySelector('.tsx-return-marker')?.textContent || '').trim(),
+        returnButtons: returnNode?.querySelectorAll('button').length ?? 0,
+        startText: (startNode?.textContent || '').trim(),
+        destinationLabel: (destinationLabel?.textContent || '').trim(),
+        startingLabel: (fieldLabel('Starting location')?.textContent || '').trim(),
+        startsText: (startsValue?.textContent || '').trim(),
+        endsText: (endsValue?.textContent || '').trim(),
+        dayCount: datesCard.querySelectorAll('.tset-day').length,
+        roundTripChecked: roundTrip?.getAttribute('aria-checked'),
+        sectionWithinCard,
+      }
       route.scrollIntoView({ block: 'center', behavior: 'instant' })
       await new Promise(resolve => setTimeout(resolve, 200))
       const routeControls = [...document.querySelectorAll('.tsx-node > button, .tsx-node-tools button')]
@@ -783,6 +857,7 @@ try {
         avatars: {
           boxes: avatarBoxes,
           fills: avatarFills,
+          pairs: avatarPairs,
           overlaps: avatarBoxes.slice(1).map((avatar, index) => (
             +(avatarBoxes[index].right - avatar.x).toFixed(2)
           )),
@@ -807,10 +882,17 @@ try {
           clientWidth: pace.clientWidth,
           scrollWidth: pace.scrollWidth,
           scrollLeft: pace.scrollLeft,
+          initial: initialPace,
           lastVisible: !!lastPace
             && lastPace.left >= paceBox.left - 1
             && lastPace.right <= paceBox.right + 1,
         },
+        tabbar: {
+          scrollLeft: tabs.scrollLeft,
+          activeVisible: activeTabVisible,
+          activeText: (activeTab?.textContent || '').trim(),
+        },
+        routeSummary,
         routeControls: routeBoxes,
         routeOverlaps: overlaps,
       }
@@ -824,18 +906,23 @@ try {
     if (settings.title.ink.width > settings.title.clientWidth + 1) fail('the title ink leaves its box')
     if (settings.titleTabGap < 8) fail(`the title is ${settings.titleTabGap}px from the tab rail`)
     if (settings.membersTabGap < 4) fail(`the member row is ${settings.membersTabGap}px from the tab rail`)
-    const allowedLines = width <= 720 ? 4 : 2
+    const allowedLines = 4
     if (+settings.title.lineClamp !== allowedLines) fail(`the title line limit is ${settings.title.lineClamp}, expected ${allowedLines}`)
-    if (width > 720) {
+    const expectedTitleSize = width <= 720 ? '28px' : width <= 1023 ? '32px' : '40px'
+    if (settings.title.fontSize !== expectedTitleSize) fail(`the title font is ${settings.title.fontSize}, expected ${expectedTitleSize}`)
+    if (width === 1440) {
       if (Math.abs(settings.container.contentWidth - 1180) > 1) fail(`content width is ${settings.container.contentWidth}`)
       if (Math.abs(settings.grid.width - 1180) > 1) fail(`settings grid is ${settings.grid.width}`)
       if (Math.abs(settings.columns.nav.width - 216) > 1) fail(`nav column is ${settings.columns.nav.width}`)
       if (Math.abs(settings.columns.main.width - 616) > 1) fail(`middle column is ${settings.columns.main.width}`)
       if (Math.abs(settings.columns.aside.width - 316) > 1) fail(`aside column is ${settings.columns.aside.width}`)
-      if (settings.driverPair.columns.length !== 2) fail('driver and pace are not two columns')
-    } else {
+    }
+    const expectedDriverColumns = width <= 860 ? 1 : 2
+    if (settings.driverPair.columns.length !== expectedDriverColumns) {
+      fail(`driver and pace have ${settings.driverPair.columns.length} columns, expected ${expectedDriverColumns}`)
+    }
+    if (width <= 720) {
       if (!settings.coarse) fail('the phone context did not report a coarse pointer')
-      if (settings.driverPair.columns.length !== 1) fail('driver and pace are not one column')
       if (settings.routeControls.some(control => control.width < 43.99 || control.height < 43.99)) {
         fail('a route-editor control is under 44px')
       }
@@ -862,6 +949,9 @@ try {
     }
     if (settings.avatars.overlaps.some(overlap => Math.abs(overlap - 8) > 0.5)) fail('the avatar overlap is not 8px')
     if (new Set(settings.avatars.fills).size !== settings.avatars.boxes.length) fail('the avatar tones are not distinct')
+    if (settings.avatars.pairs.some(pair => contrastRatio(pair.color, pair.background) < 4.5)) {
+      fail("an avatar's initials do not clear 4.5:1")
+    }
     if (settings.days.boxes.some(day => Math.abs(day.box.height - 72) > 0.5)) fail('a day tile is not 72px tall')
     if (settings.days.regularBoxes.some(day => day.borderWidth !== '0px')) fail('a regular day tile has a border')
     if (settings.days.boxes.some(day => day.stopsSize !== '11px')) fail('a day-stop line is not 11px')
@@ -872,6 +962,55 @@ try {
     if (settings.pace.count !== 10) fail(`the pace segment holds ${settings.pace.count} styles`)
     if (settings.pace.scrollWidth <= settings.pace.clientWidth) fail('the pace segment does not need its own scroll')
     if (!settings.pace.lastVisible) fail('the last pace style is not reachable')
+    if (!settings.pace.initial.activeVisible) fail('the initial pace style is not visible')
+    if (!settings.tabbar.activeVisible) fail('the active workspace tab is not visible')
+    if (settings.routeSummary.storedCount !== 3) fail(`the route stores ${settings.routeSummary.storedCount} destinations`)
+    if (settings.routeSummary.numberedCount !== 4) fail(`the route shows ${settings.routeSummary.numberedCount} numbered rows`)
+    if (settings.routeSummary.destinationLabel !== 'Destinations (4)') {
+      fail(`the destination count reads ${settings.routeSummary.destinationLabel}`)
+    }
+    if (settings.routeSummary.startingLabel !== 'Starting location') fail('the Starting location label is missing')
+    if (settings.routeSummary.startText !== 'Panaji, Goa') fail(`the route starts at ${settings.routeSummary.startText}`)
+    if (settings.routeSummary.returnText !== 'Panaji, Goa') fail(`the return row reads ${settings.routeSummary.returnText}`)
+    if (settings.routeSummary.returnMarker !== 'Return') fail('the return row has no Return marker')
+    if (settings.routeSummary.returnButtons !== 0) fail('the derived return row has controls')
+    if (!settings.routeSummary.endsText.includes('Panaji, Goa')) fail(`Ends reads ${settings.routeSummary.endsText}`)
+    if (!settings.routeSummary.startsText.includes('Panaji, Goa')) fail(`Starts reads ${settings.routeSummary.startsText}`)
+    if (settings.routeSummary.dayCount !== 5) fail(`the day grid holds ${settings.routeSummary.dayCount} days`)
+    if (settings.routeSummary.roundTripChecked !== 'true') fail('the round-trip switch is not on')
+    if (!settings.routeSummary.sectionWithinCard) fail('a Dates & days control leaves its card')
+
+    if (width === 390 || width === 1440) {
+      const roundTripToggle = page.locator('#tset-dates .tog[role="switch"]')
+      await roundTripToggle.click()
+      await page.waitForFunction(() => !document.querySelector('.tsx-node--return'))
+      const off = await page.evaluate(() => {
+        const card = document.getElementById('tset-dates')
+        const label = [...card.querySelectorAll('.label, .flab')]
+          .find(node => (node.textContent || '').trim().startsWith('Destinations ('))
+        const ends = [...card.querySelectorAll('.field')]
+          .find(field => field.querySelector('.flab')?.textContent?.trim() === 'Ends')
+          ?.querySelector('.tset-when-value')
+        return {
+          label: (label?.textContent || '').trim(),
+          ends: (ends?.textContent || '').trim(),
+          checked: card.querySelector('.tog[role="switch"]')?.getAttribute('aria-checked'),
+        }
+      })
+      if (off.label !== 'Destinations (3)') fail(`one-way count reads ${off.label}`)
+      if (!off.ends.includes('Palolem')) fail(`one-way Ends reads ${off.ends}`)
+      if (off.checked !== 'false') fail('the round-trip switch did not turn off')
+      await roundTripToggle.click()
+      await page.waitForFunction(() => !!document.querySelector('.tsx-node--return'))
+      const on = await page.evaluate(() => ({
+        label: [...document.querySelectorAll('#tset-dates .label, #tset-dates .flab')]
+          .find(node => (node.textContent || '').trim().startsWith('Destinations ('))
+          ?.textContent?.trim(),
+        checked: document.querySelector('#tset-dates .tog[role="switch"]')?.getAttribute('aria-checked'),
+      }))
+      if (on.label !== 'Destinations (4)') fail(`round-trip count restored as ${on.label}`)
+      if (on.checked !== 'true') fail('the round-trip switch did not turn back on')
+    }
 
     records.push({ name: `settings-${width}`, settings })
     await page.evaluate(() => {
@@ -880,6 +1019,204 @@ try {
       if (pace) pace.scrollLeft = 0
     })
     await page.screenshot({ path: join(OUT, `settings-${width}.png`), fullPage: true })
+    await context.close()
+  }
+
+  // ---- Avatar tone pairs ----
+  // The three-member stack exercises lagoon. The fourth row exercises
+  // time-stop. Each theme resolves its own semantic ink.
+  for (const theme of ['light', 'dark']) {
+    for (const memberCount of [3, 4]) {
+      const context = await browser.newContext({
+        viewport: { width: 390, height: 1000 },
+        hasTouch: true,
+        isMobile: true,
+      })
+      const page = await context.newPage()
+      await page.goto(`${URL}?theme=${theme}&mode=rental&members=${memberCount}&tab=settings`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.tset-av', { timeout: 15_000 })
+      await page.evaluate(() => document.fonts.ready)
+      await page.waitForTimeout(300)
+      const avatars = await page.evaluate(() => {
+        const read = element => {
+          const style = getComputedStyle(element)
+          return {
+            initials: (element.textContent || '').trim(),
+            color: style.color,
+            background: style.backgroundColor,
+          }
+        }
+        return [...document.querySelectorAll('.tset-av')].map(read)
+      })
+      const problems = []
+      if (avatars.length !== memberCount) problems.push(`expected ${memberCount} avatars, saw ${avatars.length}`)
+      if (avatars.some(avatar => !avatar.initials)) problems.push('an avatar has no initials')
+      if (avatars.some(avatar => contrastRatio(avatar.color, avatar.background) < 4.5)) {
+        problems.push('an avatar tone falls under 4.5:1')
+      }
+      if (problems.length) geometryFailures.push({
+        case: `settings-avatars-${memberCount}-${theme}`,
+        reason: problems.join('; '),
+        avatars,
+      })
+      await page.locator('.tsx-card--people').scrollIntoViewIfNeeded()
+      await page.screenshot({ path: join(OUT, `settings-avatars-${memberCount}-${theme}.png`) })
+      records.push({ name: `settings-avatars-${memberCount}-${theme}`, avatars })
+      await context.close()
+    }
+  }
+
+  // ---- Budget reaches zero from the ordinary artboard scale ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&budget=16000&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#tset-budget-exact', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const readBudget = () => page.evaluate(() => {
+      const exact = document.querySelector('#tset-budget-exact')
+      const range = document.querySelector('.yf-range[aria-label="Budget per person in rupees"]')
+      return {
+        readout: (document.querySelector('.tset-budget-sum b')?.textContent || '').trim(),
+        exact: exact?.value,
+        min: exact?.getAttribute('min'),
+        rangeMin: range?.getAttribute('min'),
+        rangeValue: range?.value,
+      }
+    })
+    const before = await readBudget()
+    await page.locator('#tset-budget-exact').fill('0')
+    await page.waitForFunction(() => (
+      (document.querySelector('.tset-budget-sum b')?.textContent || '').trim() === '₹0'
+    ))
+    const zero = await readBudget()
+    const problems = []
+    if (before.readout !== '₹16,000') problems.push(`started at ${before.readout}`)
+    if (before.rangeMin !== '5000') problems.push(`the ordinary scale starts at ${before.rangeMin}`)
+    if (zero.readout !== '₹0' || zero.exact !== '0') problems.push('the exact field did not reach zero')
+    if (zero.rangeMin !== '0' || zero.rangeValue !== '0') problems.push('the range did not follow zero')
+    if (zero.min !== '0') problems.push(`the exact field floor is ${zero.min}`)
+    if (problems.length) geometryFailures.push({ case: 'settings-budget-zero', reason: problems.join('; '), before, zero })
+    await page.evaluate(() => document.querySelector('.tset-budget-exact')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-budget-zero.png') })
+
+    await page.goto(`${URL}?theme=light&mode=rental&budget=0&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#tset-budget-exact', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const saved = await readBudget()
+    if (saved.readout !== '₹0' || saved.exact !== '0' || saved.rangeMin !== '0' || saved.rangeValue !== '0') {
+      geometryFailures.push({ case: 'settings-budget-saved-zero', reason: 'a stored zero did not reopen at zero', saved })
+    }
+    await page.evaluate(() => document.querySelector('.tset-budget-exact')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-budget-saved-zero.png') })
+    records.push({ name: 'settings-budget-zero', before, zero, saved })
+    await context.close()
+  }
+
+  // ---- A stored last pace style is visible before any pointer input ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&pace=creator&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.tset-pace-seg', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const readPace = () => page.evaluate(() => {
+      const rail = document.querySelector('.tset-pace-seg')
+      const active = rail.querySelector('.seg-btn.on')
+      const railBox = rail.getBoundingClientRect()
+      const activeBox = active?.getBoundingClientRect()
+      return {
+        activeText: (active?.textContent || '').trim(),
+        scrollLeft: +rail.scrollLeft.toFixed(2),
+        scrollWidth: rail.scrollWidth,
+        clientWidth: rail.clientWidth,
+        activeVisible: !!activeBox
+          && activeBox.left >= railBox.left - 1
+          && activeBox.right <= railBox.right + 1,
+      }
+    })
+    const initial = await readPace()
+    if (initial.activeText !== 'Creator' || initial.scrollLeft <= 0 || !initial.activeVisible) {
+      geometryFailures.push({ case: 'settings-pace-last-active', reason: 'the stored last style was hidden on load', initial })
+    }
+    await page.evaluate(() => document.querySelector('.tset-pace-seg')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-pace-last-active.png') })
+    await page.evaluate(() => {
+      document.querySelector('.tset-pace-seg [data-pill-key="relaxed"]')?.click()
+    })
+    await page.waitForFunction(() => (
+      (document.querySelector('.tset-pace-seg .seg-btn.on')?.textContent || '').trim() === 'Relaxed'
+    ))
+    const changed = await readPace()
+    if (changed.activeText !== 'Relaxed' || !changed.activeVisible || changed.scrollLeft >= initial.scrollLeft) {
+      geometryFailures.push({ case: 'settings-pace-active-change', reason: 'the active style did not scroll back into view', initial, changed })
+    }
+    await page.evaluate(() => document.querySelector('.tset-pace-seg')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-pace-active-change.png') })
+    records.push({ name: 'settings-pace-last-active', initial, changed })
+    await context.close()
+  }
+
+  // ---- A long Ends value stays inside its fixed-height field ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&roundTrip=0&end=long&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#tset-dates', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    const ends = await page.evaluate(() => {
+      const field = [...document.querySelectorAll('#tset-dates .field')]
+        .find(node => node.querySelector('.flab')?.textContent?.trim() === 'Ends')
+      const value = field?.querySelector('.tset-when-value')
+      const input = value?.parentElement
+      const valueBox = value?.getBoundingClientRect()
+      const inputBox = input?.getBoundingClientRect()
+      const style = value ? getComputedStyle(value) : null
+      return {
+        text: (value?.textContent || '').trim(),
+        clientWidth: value?.clientWidth,
+        scrollWidth: value?.scrollWidth,
+        clientHeight: value?.clientHeight,
+        scrollHeight: value?.scrollHeight,
+        whiteSpace: style?.whiteSpace,
+        overflow: style?.overflow,
+        textOverflow: style?.textOverflow,
+        withinBox: !!valueBox && !!inputBox
+          && valueBox.top >= inputBox.top - 1
+          && valueBox.bottom <= inputBox.bottom + 1,
+      }
+    })
+    const problems = []
+    if (!ends.text.includes('Cotigao')) problems.push('the long destination is missing')
+    if (ends.whiteSpace !== 'nowrap' || ends.overflow !== 'hidden' || ends.textOverflow !== 'ellipsis') {
+      problems.push('the Ends value is not truncated')
+    }
+    if (!ends.withinBox) problems.push('the Ends text leaves its field')
+    if (ends.scrollHeight > ends.clientHeight + 1) problems.push('the Ends text wraps vertically')
+    if (ends.scrollWidth <= ends.clientWidth) problems.push('the long Ends fixture did not overflow')
+    if (problems.length) geometryFailures.push({ case: 'settings-long-ends', reason: problems.join('; '), ends })
+    await page.locator('#tset-dates .tset-when-pair').scrollIntoViewIfNeeded()
+    await page.screenshot({ path: join(OUT, 'settings-long-ends.png') })
+    records.push({ name: 'settings-long-ends', ends })
     await context.close()
   }
 

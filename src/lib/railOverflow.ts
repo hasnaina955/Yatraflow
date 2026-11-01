@@ -20,3 +20,25 @@ export function railOverflow(scrollLeft: number, scrollWidth: number, clientWidt
   if (scrollLeft >= max - EDGE_EPSILON) return 'end'
   return 'middle'
 }
+
+/**
+ * The scroll offset that puts one item inside a horizontal rail. Coordinates
+ * are content-box offsets from the rail's scroll origin. A rail that already
+ * shows the item keeps its current position.
+ */
+export function railScrollToReveal(
+  scrollLeft: number,
+  scrollWidth: number,
+  clientWidth: number,
+  itemLeft: number,
+  itemRight: number,
+): number {
+  const max = Math.max(0, scrollWidth - clientWidth)
+  const current = Math.max(0, Math.min(max, scrollLeft))
+  if (max <= EDGE_EPSILON) return current
+  if (itemLeft < current) return Math.max(0, Math.min(max, Math.floor(itemLeft)))
+  if (itemRight > current + clientWidth) {
+    return Math.max(0, Math.min(max, Math.ceil(itemRight - clientWidth)))
+  }
+  return current
+}

@@ -181,13 +181,35 @@ describe('P12 — the measured artboard gaps stay closed', () => {
     expect(css).toContain('.tset-day.is-new { border: 1.5px dashed var(--pw-marigold-500); background: var(--pw-card); }')
   })
 
-  it('the title wraps within a bounded height and the route tools grow on touch', () => {
+  it('each avatar tone carries an ink that clears its own fill', () => {
+    expect(css).toContain('.tset-av--1 { background: var(--pw-lagoon-600); color: var(--pw-on-lagoon); }')
+    expect(css).toContain('.tset-av--2 { background: var(--pw-bloom-500); color: var(--pw-on-bloom); }')
+    expect(css).toContain('.tset-av--3 { background: var(--pw-time-stop); color: var(--pw-on-time-stop); }')
+  })
+
+  it('the title wraps within a bounded height at every settings width', () => {
     expect(css).toContain('body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {')
-    expect(css).toContain('-webkit-line-clamp: 2;')
     expect(css).toContain('-webkit-line-clamp: 4;')
+    expect(css).toContain('@media (min-width: 721px) and (max-width: 1023px)')
+    expect(css).toContain('body:has(.tset-grid) .yf-page .yf-trip-head {')
+    expect(css).toContain('height: 384px;')
     expect(css).toContain('@media (pointer: coarse) {')
     expect(css).toMatch(/\.tsx-node > button,\s*\.tsx-node-tools button \{/)
     expect(css).toMatch(/\.tsx-node > button,[\s\S]*?width: 44px;\s*height: 44px;/)
+  })
+
+  it('the route keeps stored stops editable and the return row read-only', () => {
+    expect(code).toContain('const routeSummary = settingsRouteSummary(dests, f.startLocation, fuelMode && f.roundTrip)')
+    expect(code).toContain('<Field label={`Destinations (${routeSummary.destinationCount})`}')
+    expect(code).toContain('{routeSummary.returnPlace !== null && (')
+    expect(code).toContain('<span className="tsx-node tsx-node--return"')
+    expect(code).toContain('<span className="tsx-return-marker">Return</span>')
+    expect(code).not.toContain("addDest(routeSummary.returnPlace")
+  })
+
+  it('the date read-back truncates instead of spilling out of its box', () => {
+    expect(code).toContain('<span className="tset-when-value" title=')
+    expect(css).toContain('.tset-when-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }')
   })
 
   it('the driver and pace pair responds and the pace track scrolls', () => {

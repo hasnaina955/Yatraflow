@@ -318,13 +318,45 @@ function fmtTripDay(iso: string): string {
   return `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`
 }
 
-/** The place the route ends at, from the draft that is on screen. */
-export function settingsEndPlace(destinations: readonly { name: string }[], startLocation: string): string {
+export interface SettingsRouteSummary {
+  destinationCount: number
+  returnPlace: string | null
+  endPlace: string
+}
+
+/** The route as the draft shows it. The return row is derived from the round
+ *  trip switch; it is never a stored destination. */
+export function settingsRouteSummary(
+  destinations: readonly { name: string }[],
+  startLocation: string,
+  showReturn: boolean,
+): SettingsRouteSummary {
+  let lastDestination = ''
   for (let i = destinations.length - 1; i >= 0; i--) {
     const name = destinations[i]?.name.trim()
-    if (name) return name
+    if (name) {
+      lastDestination = name
+      break
+    }
   }
-  return startLocation.trim() || 'No destination yet'
+  const start = startLocation.trim()
+  const endPlace = showReturn
+    ? start || lastDestination || 'No destination yet'
+    : lastDestination || start || 'No destination yet'
+  return {
+    destinationCount: destinations.length + (showReturn ? 1 : 0),
+    returnPlace: showReturn ? endPlace : null,
+    endPlace,
+  }
+}
+
+/** The place the route ends at, from the draft that is on screen. */
+export function settingsEndPlace(
+  destinations: readonly { name: string }[],
+  startLocation: string,
+  roundTrip = false,
+): string {
+  return settingsRouteSummary(destinations, startLocation, roundTrip).endPlace
 }
 
 export const TYPICAL_BUDGET_MIN_INR = 5_000
@@ -656,8 +688,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
     : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
   const dayGridHint = settingsDayGridHint(dayDelta, dayDeltaLabel, !dry.ok)
-  const endPlace = settingsEndPlace(dests, f.startLocation)
   const fuelMode = isFuelEconomyMode(f.transportMode)
+  const routeSummary = settingsRouteSummary(dests, f.startLocation, fuelMode && f.roundTrip)
+  const endPlace = routeSummary.endPlace
   // One shared answer for every surface (2026-10-19). `showsDrivingControls`
   // gates what renders; `driving` gates what the planner keeps, so an
   // unanswered Mixed keeps its stored preferences while hiding the dials.
@@ -1001,28 +1034,30 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   <span className="tsx-road" aria-hidden="true" />
                   <span className="tsx-node">
                     <span className="tsx-node-ord" aria-hidden="true">{i + 1}</span>
-                    {renamingDest === i ? (
-                      <input
-                        className="input input--compact"
-                        aria-label={`Rename ${d.name}`}
-                        autoFocus
-                        value={renameDraft}
-                        onChange={e => setRenameDraft(e.target.value)}
-                        onBlur={() => commitRename(i)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') commitRename(i)
-                          if (e.key === 'Escape') { setRenamingDest(null); setRenameDraft('') }
-                        }}
-                      />
-                    ) : (
-                      <>
-                        {d.name}
-                        {d.lat != null && d.lng != null && <span className="dest-pin" aria-hidden>📍</span>}
-                        {editable && (
-                          <button type="button" aria-label={`Rename ${d.name}`}
-                            onClick={() => { setRenamingDest(i); setRenameDraft(d.name) }}><Pencil size={13} aria-hidden /></button>
-                        )}
-                      </>
+                    <span className="tsx-node-name">
+                      {renamingDest === i ? (
+                        <input
+                          className="input input--compact"
+                          aria-label={`Rename ${d.name}`}
+                          autoFocus
+                          value={renameDraft}
+                          onChange={e => setRenameDraft(e.target.value)}
+                          onBlur={() => commitRename(i)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') commitRename(i)
+                            if (e.key === 'Escape') { setRenamingDest(null); setRenameDraft('') }
+                          }}
+                        />
+                      ) : (
+                        <>
+                          {d.name}
+                          {d.lat != null && d.lng != null && <span className="dest-pin" aria-hidden>📍</span>}
+                        </>
+                      )}
+                    </span>
+                    {renamingDest !== i && editable && (
+                      <button type="button" aria-label={`Rename ${d.name}`}
+                        onClick={() => { setRenamingDest(i); setRenameDraft(d.name) }}><Pencil size={13} aria-hidden /></button>
                     )}
                     <span className="tsx-node-tools">
                       <button type="button" aria-label={`Move ${d.name} earlier`} disabled={!editable || i === 0}
@@ -1037,6 +1072,16 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   </span>
                 </Fragment>
               ))}
+              {routeSummary.returnPlace !== null && (
+                <>
+                  <span className="tsx-road" aria-hidden="true" />
+                  <span className="tsx-node tsx-node--return" aria-label={`Return: ${routeSummary.returnPlace}`}>
+                    <span className="tsx-node-ord" aria-hidden="true">{dests.length + 1}</span>
+                    <span className="tsx-node-name">{routeSummary.returnPlace}</span>
+                    <span className="tsx-return-marker">Return</span>
+                  </span>
+                </>
+              )}
             </div>
             <div className="bench-pair">
               <Field label="Starting location">
@@ -1063,7 +1108,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 />
                 {startNotice && <p className="hint-text set-start-notice" role="status">{startNotice}</p>}
               </Field>
-              <Field label={`Destinations (${dests.length})`} hint="Search to add — arrows reorder the route">
+              <Field label={`Destinations (${routeSummary.destinationCount})`} hint="Search to add — arrows reorder saved stops">
                 <LocationInput
                   value={destInput}
                   onChange={setDestInput}
@@ -1092,7 +1137,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 <span className="flab">Starts</span>
                 <div className={`inp${f.startDate !== trip.startDate ? ' changed' : ''}`}>
                   <CalendarDays size={14} aria-hidden className="tset-when-ico" />
-                  <span>{fmtTripDay(f.startDate)} · {f.startLocation || 'No start yet'}</span>
+                  <span className="tset-when-value" title={`${fmtTripDay(f.startDate)} · ${f.startLocation || 'No start yet'}`}>
+                    {fmtTripDay(f.startDate)} · {f.startLocation || 'No start yet'}
+                  </span>
                   {f.startDate !== trip.startDate && (
                     <span className="tset-was tset-when-was">{fmtTripDay(trip.startDate)}</span>
                   )}
@@ -1102,7 +1149,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 <span className="flab">Ends</span>
                 <div className={`inp${f.endDate !== trip.endDate ? ' changed' : ''}`}>
                   <CalendarDays size={14} aria-hidden className="tset-when-ico" />
-                  <span>{fmtTripDay(f.endDate)} · {endPlace}</span>
+                  <span className="tset-when-value" title={`${fmtTripDay(f.endDate)} · ${endPlace}`}>
+                    {fmtTripDay(f.endDate)} · {endPlace}
+                  </span>
                   {f.endDate !== trip.endDate && (
                     <span className="tset-was tset-when-was">{fmtTripDay(trip.endDate)}</span>
                   )}
@@ -1215,6 +1264,18 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   <span>{budgetScale.minLabel}</span>
                   <span className="tset-scale-plan">Current plan {formatInr(planPerPerson)} each</span>
                   <span>{budgetScale.maxLabel}</span>
+                </div>
+                <div className="tset-budget-exact">
+                  <label htmlFor="tset-budget-exact">Exact amount</label>
+                  <div className="inp">
+                    <span aria-hidden="true">₹</span>
+                    <input id="tset-budget-exact" type="number" inputMode="numeric" min={0} max={300000} step={1}
+                      disabled={!editable} value={clampedBudget}
+                      onChange={e => {
+                        const next = Number(e.target.value)
+                        setF(x => ({ ...x, budget: Number.isFinite(next) ? Math.max(0, Math.min(300000, next)) : 0 }))
+                      }} />
+                  </div>
                 </div>
                 <p className="bench-hint">The Budget tab’s pacing tile reads this target.</p>
               </div>

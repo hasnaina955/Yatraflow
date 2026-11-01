@@ -6,20 +6,48 @@ import {
   SPENDING_STYLE_HINT,
   settingsBudgetScale,
   settingsDayGridHint,
+  settingsDryRun,
   settingsEndPlace,
   settingsPeopleSummary,
+  settingsRouteSummary,
   spendingStyleLabel,
+  formFromTrip,
 } from '../src/pages/trip/TripSettingsForm'
+import { zipDests } from '../src/lib/destPairs'
+import { seedData } from '../src/data/seed'
+import type { Trip } from '../src/data/types'
 
 const source = readFileSync(join(process.cwd(), 'src/pages/trip/TripSettingsForm.tsx'), 'utf8')
   .replace(/\r\n/g, '\n')
 
 describe('Trip settings artboard copy and controls', () => {
-  it('ends at the last destination, then the start location, then an honest empty state', () => {
+  it('ends at the last destination one way, and at the start on a round trip', () => {
     expect(settingsEndPlace([{ name: 'Kochi' }, { name: 'Alleppey' }], 'Kochi')).toBe('Alleppey')
+    expect(settingsEndPlace([{ name: 'Kochi' }, { name: 'Alleppey' }], 'Kochi', true)).toBe('Kochi')
     expect(settingsEndPlace([{ name: 'Kochi' }, { name: '  ' }], 'Kochi')).toBe('Kochi')
     expect(settingsEndPlace([], 'Kochi')).toBe('Kochi')
     expect(settingsEndPlace([], '  ')).toBe('No destination yet')
+    expect(settingsEndPlace([{ name: '  ' }], '  ', true)).toBe('No destination yet')
+  })
+
+  it('counts the derived return row without adding a stored destination', () => {
+    const destinations = [{ name: 'Candolim' }, { name: 'Colva' }, { name: 'Palolem' }]
+    expect(settingsRouteSummary(destinations, 'Panaji, Goa', false)).toEqual({
+      destinationCount: 3,
+      returnPlace: null,
+      endPlace: 'Palolem',
+    })
+    expect(settingsRouteSummary(destinations, 'Panaji, Goa', true)).toEqual({
+      destinationCount: 4,
+      returnPlace: 'Panaji, Goa',
+      endPlace: 'Panaji, Goa',
+    })
+    expect(destinations).toHaveLength(3)
+    expect(settingsRouteSummary([], '', true)).toEqual({
+      destinationCount: 1,
+      returnPlace: 'No destination yet',
+      endPlace: 'No destination yet',
+    })
   })
 
   it('uses the artboard budget range for a normal plan and falls back outside it', () => {
@@ -47,6 +75,12 @@ describe('Trip settings artboard copy and controls', () => {
       'marker={{ value: planPerPerson, label: `Current plan ${formatInr(planPerPerson)} each` }}',
     )
     expect(source).toContain('const budgetScale = settingsBudgetScale(clampedBudget, planPerPerson)')
+  })
+
+  it('offers an exact amount field with no low-value floor', () => {
+    expect(source).toContain('id="tset-budget-exact" type="number" inputMode="numeric" min={0} max={300000} step={1}')
+    expect(source).toContain("Math.max(0, Math.min(300000, next))")
+    expect(settingsBudgetScale(0, 16_000)).toMatchObject({ min: 0, max: 300_000, isTypical: false })
   })
 
   it('shows Shoestring, Balanced and Comfort without changing the stored style values', () => {
@@ -96,5 +130,25 @@ describe('Trip settings artboard copy and controls', () => {
     expect(source).toContain('{TRAVEL_STYLES.map(s => (')
     expect(source).toContain('{[2, 3].map(n => (')
     expect(source).toContain('className="vehicle-profile-form"')
+  })
+
+  it('keeps round-trip save semantics and the dry-run patch unchanged', () => {
+    const trip = structuredClone(seedData.trips[0]) as Trip
+    const dry = (roundTrip: boolean, transportMode: Trip['transportMode'] = 'car') => {
+      const row = { ...trip, transportMode }
+      return settingsDryRun(
+        { ...formFromTrip(row), roundTrip },
+        zipDests(row.destinations, row.destinationCoords),
+        null,
+        row,
+      )
+    }
+    const on = dry(true)
+    const off = dry(false)
+    const passenger = dry(true, 'train')
+    if (!on.ok || !off.ok || !passenger.ok) throw new Error('expected valid settings')
+    expect(on.patch.roundTrip).toBe(true)
+    expect(off.patch.roundTrip).toBe(false)
+    expect(passenger.patch.roundTrip).toBeUndefined()
   })
 })

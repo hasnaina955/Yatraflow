@@ -6,7 +6,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import {
-  AlignLeft, CalendarDays, CarFront, ChevronDown, ChevronUp, MapPin, Pencil, Plus, Share2, Trash2, TriangleAlert, Users, X,
+  AlignLeft, CalendarDays, Car, CarFront, ChevronDown, ChevronUp, MapPin, Pencil, Plus, Share2, Trash2, TriangleAlert, Users, X,
 } from 'lucide-react'
 import type { Trip, TransportMode } from '../../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES, STAY_STYLES } from '../../data/types'
@@ -15,7 +15,6 @@ import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, computeTota
 import { settingsPreview } from '../../lib/settingsPreview'
 import type { LegEstimate } from '../../lib/engine'
 import { healthBandClass, healthBandTone } from '../../lib/healthBand'
-import { STAY_RATE_PER_NIGHT } from '../../lib/rates'
 import { cap } from '../../lib/labels'
 import { InlineIcon, modeIcon } from '../../components/icons'
 import { transportPolicy } from '../../lib/transportPolicy'
@@ -319,6 +318,83 @@ function fmtTripDay(iso: string): string {
   return `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`
 }
 
+/** The place the route ends at, from the draft that is on screen. */
+export function settingsEndPlace(destinations: readonly { name: string }[], startLocation: string): string {
+  for (let i = destinations.length - 1; i >= 0; i--) {
+    const name = destinations[i]?.name.trim()
+    if (name) return name
+  }
+  return startLocation.trim() || 'No destination yet'
+}
+
+export const TYPICAL_BUDGET_MIN_INR = 5_000
+export const TYPICAL_BUDGET_MAX_INR = 40_000
+export const FALLBACK_BUDGET_MAX_INR = 300_000
+
+export interface SettingsBudgetScale {
+  min: number
+  max: number
+  step: number
+  minLabel: string
+  maxLabel: string
+  isTypical: boolean
+}
+
+/** Keep the artboard's readable budget range for ordinary plans. Values outside
+ *  it keep the older wide scale so an existing budget is still editable. */
+export function settingsBudgetScale(budget: number, planPerPerson: number): SettingsBudgetScale {
+  const inTypicalRange =
+    Number.isFinite(budget) && Number.isFinite(planPerPerson) &&
+    budget >= TYPICAL_BUDGET_MIN_INR && budget <= TYPICAL_BUDGET_MAX_INR &&
+    planPerPerson >= TYPICAL_BUDGET_MIN_INR && planPerPerson <= TYPICAL_BUDGET_MAX_INR
+  if (inTypicalRange) {
+    return {
+      min: TYPICAL_BUDGET_MIN_INR,
+      max: TYPICAL_BUDGET_MAX_INR,
+      step: 500,
+      minLabel: formatInr(TYPICAL_BUDGET_MIN_INR),
+      maxLabel: formatInr(TYPICAL_BUDGET_MAX_INR),
+      isTypical: true,
+    }
+  }
+  return {
+    min: 0,
+    max: FALLBACK_BUDGET_MAX_INR,
+    step: 500,
+    minLabel: '₹0',
+    maxLabel: '₹3L',
+    isTypical: false,
+  }
+}
+
+const SPENDING_STYLE_LABEL: Record<SettingsFormState['stayStyle'], string> = {
+  budget: 'Shoestring',
+  comfort: 'Balanced',
+  luxury: 'Comfort',
+}
+
+export function spendingStyleLabel(style: SettingsFormState['stayStyle']): string {
+  return SPENDING_STYLE_LABEL[style]
+}
+
+export const SPENDING_STYLE_HINT = 'Changes which stays and restaurants the app suggests first.'
+export const NEW_DAY_HINT = 'Existing stops stay on their dates. The new day starts empty, ready to plan.'
+
+export function settingsDayGridHint(dayDelta: number | null, dayDeltaLabel: string, saveRefused: boolean): string {
+  if (!saveRefused && dayDelta !== null && dayDelta > 0) return NEW_DAY_HINT
+  return `${dayDeltaLabel}. Existing stops stay on their dates.`
+}
+
+export function settingsPeopleSummary(
+  memberCount: number,
+  editorCount: number,
+  visibility: Trip['visibility'],
+): string {
+  const memberLabel = `${memberCount} member${memberCount === 1 ? '' : 's'}`
+  const sharingLabel = visibility === 'public' ? 'link sharing on' : 'link sharing off'
+  return `${memberLabel} · ${editorCount} can edit · ${sharingLabel}`
+}
+
 /** The day cards the artboard draws: one per day of the grid this save would
  *  write, each with the stops it already carries. A day past the trip's own
  *  length is new, so it reads "New · empty" before the save instead of
@@ -579,6 +655,8 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     : dayDelta === 0 ? 'Day count unchanged'
     : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
     : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
+  const dayGridHint = settingsDayGridHint(dayDelta, dayDeltaLabel, !dry.ok)
+  const endPlace = settingsEndPlace(dests, f.startLocation)
   const fuelMode = isFuelEconomyMode(f.transportMode)
   // One shared answer for every surface (2026-10-19). `showsDrivingControls`
   // gates what renders; `driving` gates what the planner keeps, so an
@@ -632,6 +710,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
    *  this, so "over target" is a measurement, not a warning we invented. */
   const planPerPerson = Math.round(tripTotals.totalCostInr / Math.max(1, travellers))
   const planOverPerPerson = Math.max(0, planPerPerson - clampedBudget)
+  const budgetScale = settingsBudgetScale(clampedBudget, planPerPerson)
   /** Two to a room, rounded up, in the artboard's words. A solo traveller gets
    *  one room, and one room is never "1 rooms". */
   const rooms = Math.max(1, Math.ceil(travellers / 2))
@@ -641,6 +720,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
   const members = membersOf(trip)
   const role = roleOf(trip, meId)
   const editors = members.filter(m => m.role === 'owner' || m.role === 'editor').length
+  const peopleCopy = settingsPeopleSummary(members.length, editors, trip.visibility)
   const nameOf = (userId: string) => users.find(u => u.id === userId)?.profile.name ?? 'Member'
   /** The current cover, resolved through the shared plan so the strip shows
    *  exactly what a shared link and a WhatsApp preview will show: the upload,
@@ -1022,7 +1102,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 <span className="flab">Ends</span>
                 <div className={`inp${f.endDate !== trip.endDate ? ' changed' : ''}`}>
                   <CalendarDays size={14} aria-hidden className="tset-when-ico" />
-                  <span>{fmtTripDay(f.endDate)}</span>
+                  <span>{fmtTripDay(f.endDate)} · {endPlace}</span>
                   {f.endDate !== trip.endDate && (
                     <span className="tset-was tset-when-was">{fmtTripDay(trip.endDate)}</span>
                   )}
@@ -1047,7 +1127,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   </div>
                 ))}
               </div>
-              <span className="hint-text">{dayDeltaLabel}. Existing stops stay on their dates.</span>
+              <span className="hint-text">{dayGridHint}</span>
             </div>
             {/* The artboard puts the return leg with the dates, because it is a
                 property of the shape of the trip, not of the vehicle. The row
@@ -1124,7 +1204,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 {/* The artboard's plan marker rides the dial's own track, so the
                     target is read against what the trip already costs. The same
                     figure is printed in the scale line below. */}
-                <RangeDial value={clampedBudget} min={0} max={300000} step={500}
+                <RangeDial value={clampedBudget} min={budgetScale.min} max={budgetScale.max} step={budgetScale.step}
                   fmt={v => formatInr(v)} ariaLabel="Budget per person in rupees"
                   disabled={!editable} onChange={v => setF(x => ({ ...x, budget: v }))}
                   marker={{ value: planPerPerson, label: `Current plan ${formatInr(planPerPerson)} each` }} />
@@ -1132,9 +1212,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                     cost per head in the middle so the target is read against
                     what the trip already costs — not against an empty axis. */}
                 <div className="tset-scale" aria-hidden="true">
-                  <span>₹0</span>
+                  <span>{budgetScale.minLabel}</span>
                   <span className="tset-scale-plan">Current plan {formatInr(planPerPerson)} each</span>
-                  <span>₹3L</span>
+                  <span>{budgetScale.maxLabel}</span>
                 </div>
                 <p className="bench-hint">The Budget tab’s pacing tile reads this target.</p>
               </div>
@@ -1156,11 +1236,11 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                     aria-pressed={f.stayStyle === s}
                     className={`seg-btn${f.stayStyle === s ? ' on' : ''}`}
                     onClick={() => setF(x => ({ ...x, stayStyle: s }))}>
-                    {cap(s)}
+                    {spendingStyleLabel(s)}
                   </button>
                 ))}
               </PillNav>
-              <span className="hint-text">Changes which stays and restaurants the app suggests first. Prices the bed at {formatInr(STAY_RATE_PER_NIGHT[f.stayStyle])} per room per night.</span>
+              <span className="hint-text">{SPENDING_STYLE_HINT}</span>
             </div>
           </Surface>
 
@@ -1187,7 +1267,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
       )}
       <Surface as="section" className="tsx-card tsx-card--machine" id="tset-travel" aria-label={showsDriving ? 'What moves you, and who is behind the wheel' : 'What moves you'}>
         <header className="tsx-head">
-          <span className="tsx-ico" aria-hidden="true">{modeIcon(f.transportMode)}</span>
+          <span className="tsx-ico" aria-hidden="true"><Car size={18} /></span>
           <span className="tsx-head-copy">
             <h3 className="tsx-q">How you travel</h3>
             <p className="tsx-a">Sets drive times, rest breaks and fuel cost.</p>
@@ -1235,45 +1315,47 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             with 2 or 3 drivers keeps that number, and the planner reads it. */}
         {showsDriving && (
           <div className="bench-block">
-            <div className="field">
-              <span className="flab">Who&apos;s driving</span>
-              <PillNav className="seg" role="group" aria-label="Drivers sharing the wheel"
-                activeKey={(f.driverCount ?? 1) === 1 ? 'one' : 'turns'}>
-                <button type="button" data-pill-key="one" disabled={!editable}
-                  aria-pressed={(f.driverCount ?? 1) === 1}
-                  className={`seg-btn${(f.driverCount ?? 1) === 1 ? ' on' : ''}`}
-                  onClick={() => setF(x => ({ ...x, driverCount: undefined }))}>One driver</button>
-                <button type="button" data-pill-key="turns" disabled={!editable}
-                  aria-pressed={(f.driverCount ?? 1) > 1}
-                  className={`seg-btn${(f.driverCount ?? 1) > 1 ? ' on' : ''}`}
-                  onClick={() => setF(x => ({ ...x, driverCount: f.driverCount ?? 2 }))}>Take turns</button>
-              </PillNav>
-              <span className="hint-text">Taking turns allows up to 9 h a day; one driver caps at 6 h.</span>
-              {/* A party that already rotates keeps its own number, so the
-                  choice is still reachable after "Take turns" is picked. */}
-              {(f.driverCount ?? 1) > 1 && (
-                <div className="tset-choice-row" role="group" aria-label="How many drivers rotate">
-                  {[2, 3].map(n => (
-                    <button key={n} type="button" className={`bench-crew-btn${f.driverCount === n ? ' on' : ''}`}
-                      aria-pressed={f.driverCount === n} disabled={!editable}
-                      onClick={() => setF(x => ({ ...x, driverCount: n }))}>{n} drivers</button>
+            <div className="tset-driver-pace-pair">
+              <div className="field">
+                <span className="flab">Who&apos;s driving</span>
+                <PillNav className="seg" role="group" aria-label="Drivers sharing the wheel"
+                  activeKey={(f.driverCount ?? 1) === 1 ? 'one' : 'turns'}>
+                  <button type="button" data-pill-key="one" disabled={!editable}
+                    aria-pressed={(f.driverCount ?? 1) === 1}
+                    className={`seg-btn${(f.driverCount ?? 1) === 1 ? ' on' : ''}`}
+                    onClick={() => setF(x => ({ ...x, driverCount: undefined }))}>One driver</button>
+                  <button type="button" data-pill-key="turns" disabled={!editable}
+                    aria-pressed={(f.driverCount ?? 1) > 1}
+                    className={`seg-btn${(f.driverCount ?? 1) > 1 ? ' on' : ''}`}
+                    onClick={() => setF(x => ({ ...x, driverCount: f.driverCount ?? 2 }))}>Take turns</button>
+                </PillNav>
+                <span className="hint-text">Taking turns allows up to 9 h a day; one driver caps at 6 h.</span>
+                {/* A party that already rotates keeps its own number, so the
+                    choice is still reachable after "Take turns" is picked. */}
+                {(f.driverCount ?? 1) > 1 && (
+                  <div className="tset-choice-row" role="group" aria-label="How many drivers rotate">
+                    {[2, 3].map(n => (
+                      <button key={n} type="button" className={`bench-crew-btn${f.driverCount === n ? ' on' : ''}`}
+                        aria-pressed={f.driverCount === n} disabled={!editable}
+                        onClick={() => setF(x => ({ ...x, driverCount: n }))}>{n} drivers</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="field">
+                <span className="flab">Pace</span>
+                <PillNav className="seg tset-pace-seg" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
+                  {TRAVEL_STYLES.map(s => (
+                    <button key={s} type="button" data-pill-key={s} disabled={!editable}
+                      aria-pressed={f.travelStyle === s}
+                      className={`seg-btn${f.travelStyle === s ? ' on' : ''}`}
+                      onClick={() => setF(x => ({ ...x, travelStyle: s }))}>
+                      {cap(s)}
+                    </button>
                   ))}
-                </div>
-              )}
-            </div>
-            <div className="field">
-              <span className="flab">Pace</span>
-              <PillNav className="seg" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
-                {TRAVEL_STYLES.map(s => (
-                  <button key={s} type="button" data-pill-key={s} disabled={!editable}
-                    aria-pressed={f.travelStyle === s}
-                    className={`seg-btn${f.travelStyle === s ? ' on' : ''}`}
-                    onClick={() => setF(x => ({ ...x, travelStyle: s }))}>
-                    {cap(s)}
-                  </button>
-                ))}
-              </PillNav>
-              <span className="hint-text">Relaxed leaves 2 h free and ends days by 8 pm; packed pushes further. It never touches pricing.</span>
+                </PillNav>
+                <span className="hint-text">Relaxed leaves 2 h free and ends days by 8 pm; packed pushes further. It never touches pricing.</span>
+              </div>
             </div>
             <div className="tset-tog-pair">
               <button type="button" className={`tog${f.hasVulnerable ? ' on' : ''}`}
@@ -1376,10 +1458,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             </span>
             <span className="tset-people-copy">
               <b className="tset-people-title">People &amp; sharing</b>
-              <span>
-                {members.length} member{members.length === 1 ? '' : 's'} · {editors} can edit · {' '}
-                {trip.visibility === 'public' ? 'link sharing on' : 'link sharing off'}
-              </span>
+              <span>{peopleCopy}</span>
             </span>
             {onOpenShare && (
               <button type="button" className="tset-manage" onClick={onOpenShare}>Manage in Share</button>

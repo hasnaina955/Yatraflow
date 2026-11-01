@@ -467,6 +467,8 @@
   border-radius: var(--radius-lg);
   background: var(--pw-card);
   box-shadow: var(--elev-1);
+  animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards;
+  animation-delay: 0s;
 }
 .tset-nav-lbl {
   display: block;
@@ -533,7 +535,6 @@
 /* The settings body enters left-to-right: the rail, then the six question
    cards, then the two aside cards. The global nth-child index supplies the
    card order; the +1 offset gives the rail the first beat. */
-.tset-nav { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; animation-delay: 0s; }
 .tset-aside > * { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
 .tset-aside > :nth-child(1) { animation-delay: calc(var(--stagger-step) * 5); }
 .tset-aside > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 6); }

@@ -526,16 +526,15 @@
    as a same-element compound (R5). It wins over the tab's own card rule in any
    order, because a compound outranks a single class. The panel entrance rides
    on the same rule, so no second `.tsx-card` selector exists. */
-.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); animation: cardIn var(--motion-med) var(--ease-out) var(--stagger-step) backwards; }
+.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
 .yf-surface.tsx-card:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 2); }
 .yf-surface.tsx-card:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 3); }
 .yf-surface.tsx-card:nth-of-type(4) { animation-delay: calc(var(--stagger-step) * 4); }
 /* The settings body enters left-to-right: the rail, then the six question
    cards, then the two aside cards. The global nth-child index supplies the
    card order; the +1 offset gives the rail the first beat. */
-.tset-nav { animation: cardIn var(--motion-med) var(--ease-out) var(--stagger-step) backwards; animation-delay: 0s; }
-.tset-main > .yf-surface.tsx-card:nth-of-type(n) { animation-delay: calc(var(--stagger-step) * (var(--stagger-index) + 1)); }
-.tset-aside > * { animation: cardIn var(--motion-med) var(--ease-out) var(--stagger-step) backwards; }
+.tset-nav { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; animation-delay: 0s; }
+.tset-aside > * { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
 .tset-aside > :nth-child(1) { animation-delay: calc(var(--stagger-step) * 5); }
 .tset-aside > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 6); }
 

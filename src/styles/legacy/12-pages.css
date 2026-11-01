@@ -1222,6 +1222,11 @@
 
 
 /* ===== P12: Timeline and Map states ===== */
+/* The timeline's day cards are cards, not generic page blocks. They keep the
+   page-enter clock and stagger, but use the same rise-and-scale entrance as
+   the Overview cards beside them. */
+.page-enter > .day-section { animation-name: cardIn; }
+
 /* The map's "no confirmed stops" state moves onto the shared StateBlock, so it
    carries the shared role for an empty read and the shared compact skin. The
    two hint lines under the map keep their own markup: they are hints, not

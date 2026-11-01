@@ -229,6 +229,10 @@ describe('the timeline blocks cascade in, like the Overview beside them', () => 
     expect(wrapped).toMatch(/\{days\.map\(day => \(/)
   })
 
+  it('gives the day cards the Overview card entrance, not the generic page rise', () => {
+    expect(css).toContain('.page-enter > .day-section { animation-name: cardIn; }')
+  })
+
   it('leaves the modals outside it, so an opened sheet is not re-entered', () => {
     // The editor and the move sheet are siblings of the wrapper, not children:
     // they animate on their own open, and a second entrance would play on every

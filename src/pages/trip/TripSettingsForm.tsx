@@ -4,12 +4,13 @@
 // bubbles) and a live "settings bill" receipt on the right mirrors every choice
 // before it is saved. The sticky save bar spans both columns.
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import {
-  CalendarDays, ChevronDown, ChevronUp, MapPin, Pencil, Sparkles, TriangleAlert, Users, X,
+  AlignLeft, CalendarDays, CarFront, ChevronDown, ChevronUp, MapPin, Pencil, Plus, Share2, Sparkles, Trash2, TriangleAlert, Users, X,
 } from 'lucide-react'
 import type { Trip, TransportMode } from '../../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES, STAY_STYLES } from '../../data/types'
-import { updateTrip, reconcileDays, tripWriteVerdict, membersOf, roleOf, trashTrip, restoreTrashedTrip, useSessionUserId, useUsers } from '../../store/store'
+import { currentUser, updateTrip, reconcileDays, tripWriteVerdict, membersOf, roleOf, trashTrip, restoreTrashedTrip, useSessionUserId, useUsers } from '../../store/store'
 import { FUEL_PRICE_INR_PER_L, DEFAULT_FUEL_ECONOMY_KML, MODE_SPEED, computeTotals, formatInr, isFuelEconomyMode, minutesToHM, parseFuelEconomyKmL, isImplausibleFuelEconomy, parseFuelPricePerL } from '../../lib/engine'
 import { settingsPreview } from '../../lib/settingsPreview'
 import type { LegEstimate } from '../../lib/engine'
@@ -18,7 +19,7 @@ import { STAY_RATE_PER_NIGHT } from '../../lib/rates'
 import { cap } from '../../lib/labels'
 import { InlineIcon, modeIcon } from '../../components/icons'
 import { transportPolicy } from '../../lib/transportPolicy'
-import { CREW_CHIPS, CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
+import { CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
 import { defaultVehicleProfile, parseCapacityL, parseVehicleEconomy } from '../../lib/vehicleProfile'
 import { zipDests, splitDests, renameDest, type DestPair } from '../../lib/destPairs'
 import { Field, RangeDial, StickyFormBar, toast, undoToast } from '../../components/ui'
@@ -28,7 +29,11 @@ import { PillNav } from '../../components/PillNav'
 import { LocationInput, pickLabel } from '../../components/LocationInput'
 import type { StartPin } from '../../lib/startPin'
 import { coordsForText, pinMatchesText } from '../../lib/startPin'
-import { CoverImagePicker } from '../../components/CoverImagePicker'
+import { CoverMedia } from '../../components/CoverMedia'
+import { COVER_TYPES, coverFileError, uploadCover } from '../../lib/coverUpload'
+import { fetchFirstAvailableThumb, pickTripQueryCandidates, sizedCoverUrl } from '../../lib/tripThumb'
+import { coverPlanFor } from '../../lib/regionArt'
+import { regionFor } from '../../lib/tripsPage'
 import { RemoteEditBanner } from '../../components/RemoteEditBanner'
 import { Surface } from '../../components/page/Surface'
 import { StateBlock } from '../../components/page/StateBlock'
@@ -266,6 +271,10 @@ export function settingsDirtyFields(patch: Partial<Trip>, trip: Trip): (keyof Tr
   return (Object.keys(patch) as (keyof Trip)[]).filter(k => !sameSavedValue(patch[k], base[k]))
 }
 
+/** The six sections, in page order. The nav rail and the scroll-spy both read
+ *  this list, so a section cannot appear in one and not the other. */
+const SECTIONS = ['identity', 'dates', 'group', 'travel', 'people', 'danger'] as const
+
 /** Which section owns each saved field. A field with no row here still counts
  *  as a change; it just does not mark a section. */
 const SECTION_OF_FIELD: Partial<Record<keyof Trip, string>> = {
@@ -297,6 +306,17 @@ const SECTION_OF_FIELD: Partial<Record<keyof Trip, string>> = {
  *  letter of the first two words, so "Has9 Naina" reads "HN". */
 function initialsOf(name: string): string {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+}
+
+/** "Sat 14 Nov" for a stored ISO day, the artboard's own shape. The date is
+ *  parsed at midnight local so a stored day never slides back one day in a
+ *  timezone behind UTC. An unparseable or missing day reads "Not set". */
+function fmtTripDay(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`)
+  if (!iso || Number.isNaN(d.getTime())) return 'Not set'
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`
 }
 
 /** The day cards the artboard draws: one per day of the grid this save would
@@ -361,7 +381,28 @@ function BlockedDayLinks({ blocked, onOpenDay }: { blocked?: number[]; onOpenDay
 /** #704: the line a refused settings save shows. The edit stays in the cache and the durable queue, and the queue retries it. */
 const TRIP_SETTINGS_NOT_SAVED = 'Settings not saved. They stay here, and the app will retry.'
 
-export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: {
+/** How many route photos the cover strip shows beside the current cover and
+ *  the upload tile. The artboard draws three beside a wide current slot; the
+ *  strip never grows past them, because the tiles are a choice, not a gallery. */
+const COVER_THUMB_SLOTS = 3
+
+/** The one-line sublabel under each mode card. It is prose on purpose: the
+ *  artboard says what a mode costs you in the day, where the bare km/h number
+ *  this replaced said nothing a traveller could act on. The speed it quotes is
+ *  `MODE_SPEED`'s own number, written out — the planner still reads the table,
+ *  so the two cannot disagree about the mode, only about how it is said. */
+const MODE_NOTE: Record<TransportMode, string> = {
+  car: '~42 km/h on hills',
+  rental: '~42 km/h, plus the day rate',
+  motorcycle: '~44 km/h, more breaks',
+  train: 'Fares, not fuel',
+  bus: 'Fares, fixed times',
+  flight: 'Fares, airport transfers',
+  taxi: '~38 km/h, metered',
+  mixed: 'A blend of the modes',
+}
+
+export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, onOpenShare }: {
   trip: Trip
   editable: boolean
   legCorrections?: Record<string, LegEstimate>
@@ -369,6 +410,10 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
    *  mechanism the Map tab's day links use. Optional: the form renders the
    *  blocking days as plain text when no workspace is wired up. */
   onOpenDay?: (dayIndex: number) => void
+  /** The artboard's People strip defers member management to the Share tab
+   *  ("Manage in Share"). Optional: the button stays hidden when the host
+   *  cannot switch tabs. */
+  onOpenShare?: () => void
 }) {
   /** The signed-in member, read once at the top so the owner-only section and
    *  the avatar stack resolve against the same person. */
@@ -416,6 +461,64 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
    *  are untouched by construction (renameDest rebuilds nothing). */
   const [renamingDest, setRenamingDest] = useState<number | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
+  /** True while a picked photo is being resized and stored. The upload tile
+   *  says so in its own label, so the strip needs no second status line. */
+  const [coverBusy, setCoverBusy] = useState(false)
+  /** The strip's own refusal. It is cleared by the next successful pick, so a
+   *  stale "that image is 12 MB" never outlives the photo that replaced it. */
+  const [coverMsg, setCoverMsg] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  /** The route's own places, as photos. One lookup per stop, headline first,
+   *  resolved through the same Wikipedia cache the picker's auto button uses.
+   *  A stop with no photo simply contributes no tile. */
+  const [coverThumbs, setCoverThumbs] = useState<{ key: string; label: string; url: string }[]>([])
+  useEffect(() => {
+    let alive = true
+    // A long route must not turn one page open into a dozen lookups. The strip
+    // shows four tiles, so the first candidates are the ones worth asking for.
+    const wanted = pickTripQueryCandidates(trip).slice(0, COVER_THUMB_SLOTS + 2)
+    void Promise.all(wanted.map(async query => {
+      const url = await fetchFirstAvailableThumb([query])
+      return url ? { key: query, label: query, url } : null
+    })).then(found => {
+      if (!alive) return
+      const seen = new Set<string>()
+      setCoverThumbs(found.filter((t): t is { key: string; label: string; url: string } => {
+        if (!t || seen.has(t.url)) return false
+        seen.add(t.url)
+        return true
+      }).slice(0, COVER_THUMB_SLOTS))
+    })
+    return () => { alive = false }
+    // The strip follows the places the trip names, not the draft: a stop typed
+    // into the route editor has no photo until it is saved.
+  }, [trip])
+  /** The one writer for this control. It is the same call the picker makes —
+   *  sized on the way in, and undefined clears back to the artwork — so the
+   *  strip adds no second write path. */
+  function setCoverUrl(url: string | undefined) {
+    updateTrip(trip.id, { coverImageUrl: url ? sizedCoverUrl(url) : undefined })
+    setCoverMsg('')
+  }
+  async function onCoverFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // Reset first: picking the same file twice must still fire a change event.
+    e.target.value = ''
+    if (!file) return
+    const refusal = coverFileError(file)
+    if (refusal) { setCoverMsg(refusal); return }
+    const me = currentUser()
+    if (!me) { setCoverMsg('Sign in again to upload an image.'); return }
+    setCoverMsg('')
+    setCoverBusy(true)
+    try {
+      // The uploader owns the object, not the trip owner: the bucket's policies
+      // read the first path segment as the uploader's id.
+      const { url, error } = await uploadCover(me.id, file)
+      if (error || !url) { setCoverMsg(error ?? 'Upload failed.'); return }
+      setCoverUrl(url)
+    } finally { setCoverBusy(false) }
+  }
 
   function addDest(name: string, coords: { lat: number; lng: number } | null) {
     const clean = name.trim()
@@ -511,12 +614,61 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
   const dirtyFields = dry.ok ? settingsDirtyFields(dry.patch, trip) : []
   const editedSections = new Set(dirtyFields.map(k => SECTION_OF_FIELD[k]).filter(Boolean) as string[])
   const dirtyCount = dirtyFields.length
+  /** How many saved fields each section carries, so the rail's badge can show
+   *  the count the artboard shows rather than a bare mark. */
+  const editedPerSection = new Map<string, number>()
+  for (const field of dirtyFields) {
+    const section = SECTION_OF_FIELD[field]
+    if (section) editedPerSection.set(section, (editedPerSection.get(section) ?? 0) + 1)
+  }
   const grid = dayGrid(f.startDate, trip.days, dayCount)
   const tripTotals = computeTotals(trip)
+  /** What the plan already costs each head, read from the engine's own total
+   *  and split by the party being drafted. The budget dial is read against
+   *  this, so "over target" is a measurement, not a warning we invented. */
+  const planPerPerson = Math.round(tripTotals.totalCostInr / Math.max(1, travellers))
+  const planOverPerPerson = Math.max(0, planPerPerson - clampedBudget)
+  /** Two to a room, rounded up, in the artboard's words. A solo traveller gets
+   *  one room, and one room is never "1 rooms". */
+  const rooms = Math.max(1, Math.ceil(travellers / 2))
+  const roomsLine = rooms === 1
+    ? '1 room'
+    : `${rooms} rooms at 2 a room`
   const members = membersOf(trip)
   const role = roleOf(trip, meId)
   const editors = members.filter(m => m.role === 'owner' || m.role === 'editor').length
   const nameOf = (userId: string) => users.find(u => u.id === userId)?.profile.name ?? 'Member'
+  /** The current cover, resolved through the shared plan so the strip shows
+   *  exactly what a shared link and a WhatsApp preview will show: the upload,
+   *  else the artwork for these places, else the saved emoji. */
+  const coverPlan = coverPlanFor({
+    userCover: trip.coverImageUrl ? sizedCoverUrl(trip.coverImageUrl) : '',
+    fallbackEmoji: trip.coverEmoji,
+    region: regionFor(trip),
+    seed: trip.id,
+    placeCount: trip.destinations?.length ?? 0,
+    destinations: trip.destinations,
+    startLocation: trip.startLocation,
+  })
+
+  /** The artboard marks the section you are looking at, not just the ones you
+   *  edited. One observer over the six section anchors; the first one whose top
+   *  crosses the reading line wins, so the mark follows the scroll. */
+  const [activeSection, setActiveSection] = useState<string>('identity')
+  useEffect(() => {
+    const sections = SECTIONS
+      .map(id => document.getElementById(`tset-${id}`))
+      .filter((el): el is HTMLElement => el !== null)
+    if (sections.length === 0) return
+    const seen = new Map<string, boolean>()
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) seen.set(e.target.id.replace('tset-', ''), e.isIntersecting)
+      const first = SECTIONS.find(id => seen.get(id))
+      if (first) setActiveSection(first)
+    }, { rootMargin: '-96px 0px -60% 0px', threshold: 0 })
+    sections.forEach(el => io.observe(el))
+    return () => io.disconnect()
+  }, [])
 
   // The sticky preview panel. It sits last in the grid, after every section,
   // so the artboard's three columns hold their shape on any section count.
@@ -564,7 +716,11 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
           <b>{canSave && clampedBudget !== trip.budgetPerPersonInr
             ? <><span className="tset-was">{formatInr(trip.budgetPerPersonInr)}</span> → {formatInr(clampedBudget)} each</>
             : `${formatInr(clampedBudget)} each`}</b>
-          <span>{formatInr(clampedBudget * travellers)} for the group.</span>
+          {/* The same computed delta the group card shows, in the panel's own
+              words, so the two can never tell different stories about cost. */}
+          <span>{planOverPerPerson > 0
+            ? `${formatInr(clampedBudget * travellers)} for the group. You’re ${formatInr(planOverPerPerson)} a head over.`
+            : `${formatInr(clampedBudget * travellers)} for the group.`}</span>
         </div>
         {engineRead && (
           <div className={`tset-diff${topWarning ? '' : ' is-good'}`}>
@@ -658,14 +814,22 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
             so it works with no JavaScript and keeps the URL. */}
         <nav className="tset-nav" aria-label="Settings sections">
           <span className="tset-nav-lbl">Trip settings</span>
-          {([['identity', 'Name & cover'], ['dates', 'Dates & days'], ['group', 'Group & budget'],
-            ['travel', 'How you travel'], ['people', 'People & sharing'], ['danger', 'Archive or delete']] as const)
-            .map(([key, label]) => (
-              <a key={key} href={`#tset-${key}`} className={`tset-nav-item${editedSections.has(key) ? ' is-edited' : ''}`}>
-                {label}
-                {editedSections.has(key) && <i aria-hidden="true">!</i>}
-              </a>
-            ))}
+          {([['identity', 'Name & cover', AlignLeft], ['dates', 'Dates & days', CalendarDays], ['group', 'Group & budget', Users],
+            ['travel', 'How you travel', CarFront], ['people', 'People & sharing', Share2], ['danger', 'Archive or delete', Trash2]] as const)
+            .map(([key, label, Icon]) => {
+              const edited = editedSections.has(key)
+              const count = editedPerSection.get(key) ?? 0
+              return (
+                <a key={key} href={`#tset-${key}`}
+                  className={`tset-nav-item${edited ? ' is-edited' : ''}${key === 'danger' ? ' is-danger' : ''}`}
+                  aria-current={activeSection === key ? 'true' : undefined}>
+                  <Icon size={16} aria-hidden />
+                  {label}
+                  {edited && <i aria-hidden="true">{count}</i>}
+                  {edited && <span className="sr-only">, {count} unsaved</span>}
+                </a>
+              )
+            })}
         </nav>
 
         <div className="tset-main">
@@ -679,16 +843,56 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 <p className="tsx-a">What the group and anyone you share with will see first.</p>
               </span>
             </header>
-            <div className="bench-pair">
-              <Field label="Trip name">
-                <input className="input" disabled={!editable} maxLength={60} value={f.name}
+            {/* The artboard's name field: the counter rides INSIDE the input,
+                right-aligned, so the limit is visible while typing. */}
+            <div className="field">
+              <label className="flab" htmlFor="tset-name">Trip name</label>
+              <div className={`inp${f.name !== trip.name ? ' changed' : ''}`}>
+                <input id="tset-name" disabled={!editable} maxLength={60} value={f.name}
                   onChange={e => setF(x => ({ ...x, name: e.target.value }))} />
-              </Field>
-              <Field label="Cover image">
-                <CoverImagePicker trip={trip} editable={editable} />
-              </Field>
+                <span className="inp-count">{f.name.length} / 60</span>
+              </div>
             </div>
-            <p className="hint-text">Shared links and WhatsApp previews use the cover.</p>
+            {/* The cover strip: the current cover wide on the left, then the
+                route's own places as thumbnails, then the upload tile. A thumb
+                click sets that photo as the cover through the same writer the
+                picker's own buttons use — no new write path. The current tile
+                is a div, not a button: it holds the cover itself, and a control
+                inside a control is one tap target too many. */}
+            <div className="field">
+              <span className="flab">Cover</span>
+              <div className="tset-coverstrip" role="group" aria-label="Cover choices">
+                <div className={`tset-cover-slot tset-cover-slot--now${trip.coverImageUrl ? ' is-upload' : ''}`}>
+                  <CoverMedia plan={coverPlan} ratio="16:10" sizes="(min-width: 1180px) 380px, 92vw" className="tset-cover-img" emojiClassName="tset-cover-emoji" alt="" />
+                  <span className="tset-cover-now">{trip.coverImageUrl ? 'Your photo' : 'Artwork'}</span>
+                </div>
+                {coverThumbs.map(c => (
+                  <button key={c.key} type="button" className="tset-cover-slot"
+                    aria-label={`Use the ${c.label} photo`} title={c.label}
+                    disabled={!editable} onClick={() => setCoverUrl(c.url)}>
+                    <img src={c.url} alt="" loading="lazy" />
+                  </button>
+                ))}
+                {editable && (
+                  <button type="button" className="tset-cover-add" disabled={coverBusy}
+                    onClick={() => fileRef.current?.click()}>
+                    <Plus size={20} aria-hidden />{coverBusy ? 'Uploading…' : 'Your photo'}
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept={COVER_TYPES.join(',')} className="sr-only"
+                  aria-hidden="true" tabIndex={-1} onChange={onCoverFile} />
+              </div>
+              {coverMsg && <p className="err-text" role="status">{coverMsg}</p>}
+              {/* The picker's "Use artwork" is the one action the strip would
+                  otherwise lose: it is how a traveller goes back to the
+                  generated scene without uploading anything. It writes through
+                  the same setter, with no URL. */}
+              {editable && trip.coverImageUrl && (
+                <button type="button" className="tset-cover-clear" disabled={coverBusy}
+                  onClick={() => setCoverUrl(undefined)}>Use artwork</button>
+              )}
+              <p className="hint-text">Picked from the places on your route. Shared links and WhatsApp previews use it.</p>
+            </div>
           </Surface>
 
           {/* ---------- Dates & days ---------- */}
@@ -699,7 +903,6 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 <h3 className="tsx-q">Dates &amp; days</h3>
                 <p className="tsx-a">Where it starts and ends, and how many days you have.</p>
               </span>
-              <span className="tsx-ans">{dayCount} day{dayCount === 1 ? '' : 's'} · {dests.length} stop{dests.length === 1 ? '' : 's'} en route</span>
             </header>
             {/* #411: the strip renders the pair array — rename edits the chip
                 in place, the pin travels with its name by construction. */}
@@ -792,6 +995,32 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 onChange={({ startDate, endDate }) => { setF(x => ({ ...x, startDate, endDate })) }}
               />
             </div>
+            {/* The artboard reads the range back as two plain fields, so the
+                chosen dates are legible without opening the calendar. A field
+                whose draft moved from the saved row shows the old date struck
+                through beside it — the same "before → after" the aside gives. */}
+            <div className="tset-when-pair">
+              <div className="field">
+                <span className="flab">Starts</span>
+                <div className={`inp${f.startDate !== trip.startDate ? ' changed' : ''}`}>
+                  <CalendarDays size={14} aria-hidden className="tset-when-ico" />
+                  <span>{fmtTripDay(f.startDate)} · {f.startLocation || 'No start yet'}</span>
+                  {f.startDate !== trip.startDate && (
+                    <span className="tset-was tset-when-was">{fmtTripDay(trip.startDate)}</span>
+                  )}
+                </div>
+              </div>
+              <div className="field">
+                <span className="flab">Ends</span>
+                <div className={`inp${f.endDate !== trip.endDate ? ' changed' : ''}`}>
+                  <CalendarDays size={14} aria-hidden className="tset-when-ico" />
+                  <span>{fmtTripDay(f.endDate)}</span>
+                  {f.endDate !== trip.endDate && (
+                    <span className="tset-was tset-when-was">{fmtTripDay(trip.endDate)}</span>
+                  )}
+                </div>
+              </div>
+            </div>
             {/* The artboard's "your days" grid: each day as a real day, with
                 the stops it already carries, so a date change shows which days
                 gain or lose. `dayPlan` is the reconciled grid, so an added day
@@ -812,6 +1041,22 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
               </div>
               <span className="hint-text">{dayDeltaLabel}. Existing stops stay on their dates.</span>
             </div>
+            {/* The artboard puts the return leg with the dates, because it is a
+                property of the shape of the trip, not of the vehicle. The row
+                renders only for a mode that prices fuel, which is the only
+                case the write reads it in (settingsDryRun writes roundTrip as
+                undefined otherwise). */}
+            {fuelMode && (
+              <button type="button" className={`tog${f.roundTrip ? ' on' : ''}`}
+                role="switch" aria-checked={f.roundTrip} disabled={!editable}
+                onClick={() => setF(x => ({ ...x, roundTrip: !x.roundTrip }))}>
+                <span className="sw" aria-hidden="true" />
+                <span className="tog-copy">
+                  <b>Round trip</b>
+                  <span>Drive back to {f.startLocation || 'the start'} at the end. Adds the return to time and fuel.</span>
+                </span>
+              </button>
+            )}
             {/* #408: the refusal lives here, inline, where the dates are —
                 with the blocking days linked to their timeline day. It is
                 derived from the shared dry run, so the receipt above/beside
@@ -832,25 +1077,25 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 <h3 className="tsx-q">Group &amp; budget</h3>
                 <p className="tsx-a">Rooms, per-head splits and the Budget tab all read these.</p>
               </span>
-              <span className="tsx-ans">{travellers} {travellers === 1 ? 'person' : 'people'} · {formatInr(clampedBudget * travellers)} group</span>
             </header>
-            <div className="bench-pair">
-              <div className="bench-block">
-                <div className="bench-block-head">
-                  <span className="bench-eyebrow">Travellers</span>
-                  <span className="bench-block-value">{travellers}</span>
+            <div className="tset-group-pair">
+              <div className="field">
+                <span className="flab">Travellers</span>
+                {/* The artboard's stepper. `CREW_CHIPS` is still the set of
+                    counts the dials round to, so a tap lands on the same
+                    numbers the old chip row offered; the typed field below
+                    stays for a party past 10. */}
+                <div className="tset-stepper" role="group" aria-label="Number of travellers">
+                  <button type="button" aria-label="One fewer" disabled={!editable || travellers <= CREW_MIN}
+                    onClick={() => setF(x => ({ ...x, travellers: clampCrew(travellers - 1) }))}>−</button>
+                  <b className="disp" aria-live="polite">{travellers}</b>
+                  <button type="button" aria-label="One more" disabled={!editable || travellers >= CREW_MAX}
+                    onClick={() => setF(x => ({ ...x, travellers: clampCrew(travellers + 1) }))}>+</button>
                 </div>
-                <div className="bench-crew" role="group" aria-label="Number of travellers">
-                  {CREW_CHIPS.map(n => (
-                    <button key={n} type="button" className={`bench-crew-btn${travellers === n ? ' on' : ''}`}
-                      aria-pressed={travellers === n} disabled={!editable}
-                      onClick={() => setF(x => ({ ...x, travellers: n }))}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                {/* A party bigger than the chips needs a way in — Create Trip has
-                    the same field, so the two surfaces accept the same range. */}
+                <span className="hint-text">{roomsLine}</span>
+                {/* A party bigger than the stepper's easy range needs a way in —
+                    Create Trip has the same field, so the two surfaces accept
+                    the same range. */}
                 <div className="bench-line set-bench-line-top">
                   <label className="bench-hint" htmlFor="ts-crew-custom">More than 10? </label>
                   <input id="ts-crew-custom" className="input mono set-bench-total-cap" type="number" inputMode="numeric"
@@ -858,33 +1103,56 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                     onChange={e => setF(x => ({ ...x, travellers: clampCrew(Number(e.target.value)) }))} />
                   <span className="bench-hint">up to {CREW_MAX}</span>
                 </div>
-                <p className="bench-hint">Rooms and per-head splits follow this count.</p>
               </div>
-              <div className="bench-block">
-                <div className="bench-block-head">
-                  <span className="bench-eyebrow">Budget / person</span>
-                  <span className="bench-block-value">{formatInr(clampedBudget)}</span>
+              <div className="field">
+                <div className="tset-budget-head">
+                  <span className="flab">Budget per person</span>
+                  <span className="tset-budget-sum">
+                    <b className="disp">{formatInr(clampedBudget)}</b>
+                    {' '}
+                    <span>· {formatInr(clampedBudget * travellers)} for the group</span>
+                  </span>
                 </div>
+                {/* The artboard's plan marker rides the dial's own track, so the
+                    target is read against what the trip already costs. The same
+                    figure is printed in the scale line below. */}
                 <RangeDial value={clampedBudget} min={0} max={300000} step={500}
                   fmt={v => formatInr(v)} ariaLabel="Budget per person in rupees"
-                  disabled={!editable} onChange={v => setF(x => ({ ...x, budget: v }))} />
-                <div className="bench-scale-ends" aria-hidden="true"><span>₹0</span><span>₹3L</span></div>
+                  disabled={!editable} onChange={v => setF(x => ({ ...x, budget: v }))}
+                  marker={{ value: planPerPerson, label: `Current plan ${formatInr(planPerPerson)} each` }} />
+                {/* The artboard's scale: both ends named, and the plan's own
+                    cost per head in the middle so the target is read against
+                    what the trip already costs — not against an empty axis. */}
+                <div className="tset-scale" aria-hidden="true">
+                  <span>₹0</span>
+                  <span className="tset-scale-plan">Current plan {formatInr(planPerPerson)} each</span>
+                  <span>₹3L</span>
+                </div>
                 <p className="bench-hint">The Budget tab’s pacing tile reads this target.</p>
               </div>
             </div>
-            <div className="bench-block">
-              <span className="bench-eyebrow">Spending style</span>
-              <PillNav className="tabbar" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
+            {/* Over budget is a real, computed delta — never a guess. The strip
+                appears only when the plan actually costs more per head than the
+                target being set. */}
+            {planOverPerPerson > 0 && (
+              <p className="tset-over" role="status">
+                <InlineIcon icon={TriangleAlert} size={14} gap={6} />
+                The plan already costs <b>{formatInr(planOverPerPerson)} a head more</b> than this target. Budget will show where to trim.
+              </p>
+            )}
+            <div className="field">
+              <span className="flab">Spending style</span>
+              <PillNav className="seg" role="group" aria-label="Budget preference" activeKey={f.stayStyle}>
                 {STAY_STYLES.map(s => (
                   <button key={s} type="button" data-pill-key={s} disabled={!editable}
                     aria-pressed={f.stayStyle === s}
-                    className={`tab-btn${f.stayStyle === s ? ' active' : ''}`}
+                    className={`seg-btn${f.stayStyle === s ? ' on' : ''}`}
                     onClick={() => setF(x => ({ ...x, stayStyle: s }))}>
                     {cap(s)}
                   </button>
                 ))}
               </PillNav>
-              <p className="bench-hint">Changes which stays and restaurants the app suggests first. Prices the bed at {formatInr(STAY_RATE_PER_NIGHT[f.stayStyle])} per room per night.</p>
+              <span className="hint-text">Changes which stays and restaurants the app suggests first. Prices the bed at {formatInr(STAY_RATE_PER_NIGHT[f.stayStyle])} per room per night.</span>
             </div>
           </Surface>
 
@@ -916,9 +1184,10 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
             <h3 className="tsx-q">How you travel</h3>
             <p className="tsx-a">The mode decides the cost math and which dials exist below.</p>
           </span>
-          <span className="tsx-ans">{cap(f.transportMode)}{showsDriving ? ` · ${(f.driverCount ?? 1) === 1 ? '1 driver' : `${f.driverCount} drivers`}` : ''} · {fuelMode ? 'fuel math' : 'fare math'}</span>
         </header>
-        {/* Transport mode — bench mode grid */}
+        {/* Transport mode — bench mode grid. The sublabel is prose, not the raw
+            speed number: "~40 km/h on hills" says what the mode costs a day,
+            where a bare "42" was a number nobody could act on. */}
         <div className="bench-block bench-mode-block">
           <span className="bench-eyebrow">How you travel</span>
           <div className="bench-mode-grid" role="group" aria-label="Transport mode">
@@ -946,82 +1215,103 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                   }))
                 }}>
                 {modeIcon(m)}
-                <span className="bench-mode-name">{cap(m)}</span>
-                <span className="bench-mode-speed" aria-hidden="true">{MODE_SPEED[m] ?? 40}</span>
+                <b className="bench-mode-name">{cap(m)}</b>
+                <span className="bench-mode-speed">{MODE_NOTE[m] ?? `~${MODE_SPEED[m] ?? 40} km/h`}</span>
               </button>
             ))}
           </div>
           <p className="bench-hint">Car and motorcycle switch cost math to fuel: distance ÷ economy × pump price.</p>
         </div>
-        {/* Who's driving — party + dinner pace (#142). Gated on the CONTROL
-            answer, not the planner's: a Mixed trip nobody has answered shows
-            the question instead of dials for a setting nobody has set. */}
+        {/* Who's driving — the artboard's two-option segment over the stored
+            count (#142). "Take turns" is every count above one: a trip stored
+            with 2 or 3 drivers keeps that number, and the planner reads it. */}
         {showsDriving && (
           <div className="bench-block">
-            <div className="bench-block-head">
-              <span className="bench-eyebrow">Who&apos;s driving</span>
-              <span className="bench-block-value">
-                {(f.driverCount ?? 1) === 1 ? 'One driver' : `${f.driverCount} drivers`}
-              </span>
+            <div className="field">
+              <span className="flab">Who&apos;s driving</span>
+              <PillNav className="seg" role="group" aria-label="Drivers sharing the wheel"
+                activeKey={(f.driverCount ?? 1) === 1 ? 'one' : 'turns'}>
+                <button type="button" data-pill-key="one" disabled={!editable}
+                  aria-pressed={(f.driverCount ?? 1) === 1}
+                  className={`seg-btn${(f.driverCount ?? 1) === 1 ? ' on' : ''}`}
+                  onClick={() => setF(x => ({ ...x, driverCount: undefined }))}>One driver</button>
+                <button type="button" data-pill-key="turns" disabled={!editable}
+                  aria-pressed={(f.driverCount ?? 1) > 1}
+                  className={`seg-btn${(f.driverCount ?? 1) > 1 ? ' on' : ''}`}
+                  onClick={() => setF(x => ({ ...x, driverCount: f.driverCount ?? 2 }))}>Take turns</button>
+              </PillNav>
+              <span className="hint-text">Taking turns allows up to 9 h a day; one driver caps at 6 h.</span>
+              {/* A party that already rotates keeps its own number, so the
+                  choice is still reachable after "Take turns" is picked. */}
+              {(f.driverCount ?? 1) > 1 && (
+                <div className="tset-choice-row" role="group" aria-label="How many drivers rotate">
+                  {[2, 3].map(n => (
+                    <button key={n} type="button" className={`bench-crew-btn${f.driverCount === n ? ' on' : ''}`}
+                      aria-pressed={f.driverCount === n} disabled={!editable}
+                      onClick={() => setF(x => ({ ...x, driverCount: n }))}>{n} drivers</button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="tset-choice-row" role="group" aria-label="Drivers sharing the wheel">
-              {[1, 2, 3].map(n => (
-                <button key={n} type="button" className={`bench-crew-btn${(f.driverCount ?? 1) === n ? ' on' : ''}`}
-                  aria-pressed={(f.driverCount ?? 1) === n} disabled={!editable}
-                  title={n === 1 ? 'One driver — the honest solo cap' : `${n} drivers rotate — the day earns real hours`}
-                  onClick={() => setF(x => ({ ...x, driverCount: n === 1 ? undefined : n }))}>
-                  {n}
-                </button>
-              ))}
-              <span className="bench-hint">Rotating drivers buy hours; one driver keeps the solo cap.</span>
+            <div className="field">
+              <span className="flab">Pace</span>
+              <PillNav className="seg" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
+                {TRAVEL_STYLES.map(s => (
+                  <button key={s} type="button" data-pill-key={s} disabled={!editable}
+                    aria-pressed={f.travelStyle === s}
+                    className={`seg-btn${f.travelStyle === s ? ' on' : ''}`}
+                    onClick={() => setF(x => ({ ...x, travelStyle: s }))}>
+                    {cap(s)}
+                  </button>
+                ))}
+              </PillNav>
+              <span className="hint-text">Relaxed leaves 2 h free and ends days by 8 pm; packed pushes further. It never touches pricing.</span>
             </div>
-            <div className="tset-choice-row" role="group" aria-label="Who is aboard">
-              <button type="button" className={`bench-crew-btn${!f.hasVulnerable ? ' on' : ''}`}
-                aria-pressed={!f.hasVulnerable} disabled={!editable}
-                title="Everyone adult — full-length driving days"
-                onClick={() => setF(x => ({ ...x, hasVulnerable: undefined }))}>Everyone adult</button>
-              <button type="button" className={`bench-crew-btn${f.hasVulnerable ? ' on' : ''}`}
-                aria-pressed={!!f.hasVulnerable} disabled={!editable}
-                title="Infants or seniors aboard — shorter days, earlier dinner"
-                onClick={() => setF(x => ({ ...x, hasVulnerable: true }))}>Infants / seniors</button>
+            <div className="tset-tog-pair">
+              <button type="button" className={`tog${f.hasVulnerable ? ' on' : ''}`}
+                role="switch" aria-checked={!!f.hasVulnerable} disabled={!editable}
+                onClick={() => setF(x => ({ ...x, hasVulnerable: x.hasVulnerable ? undefined : true }))}>
+                <span className="sw" aria-hidden="true" />
+                <span className="tog-copy">
+                  <b>Infants or seniors along</b>
+                  <span>Shorter legs, a break every 90 min</span>
+                </span>
+              </button>
+              <button type="button" className={`tog${f.driveAfterDinner ? ' on' : ''}`}
+                role="switch" aria-checked={f.driveAfterDinner} disabled={!editable}
+                onClick={() => setF(x => ({ ...x, driveAfterDinner: !x.driveAfterDinner }))}>
+                <span className="sw" aria-hidden="true" />
+                <span className="tog-copy">
+                  <b>Drive after dinner</b>
+                  <span>Allows legs that end after 9 pm</span>
+                </span>
+              </button>
             </div>
-            <div className="tset-choice-row" role="group" aria-label="Dinner and driving">
-              <button type="button" className={`bench-crew-btn${f.driveAfterDinner ? ' on' : ''}`}
-                aria-pressed={f.driveAfterDinner} disabled={!editable}
-                title="Halt for dinner, then keep going within the allowance and the night end"
-                onClick={() => setF(x => ({ ...x, driveAfterDinner: !f.driveAfterDinner }))}>Drive after dinner</button>
-            </div>
-            <p className="bench-hint">The split verdict and the travel clock re-derive from these — meals, halts and the honest daily cap all move.</p>
           </div>
         )}
-        <div className="bench-block">
-          <span className="bench-eyebrow">Travel style</span>
-          <PillNav className="tabbar" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
-            {TRAVEL_STYLES.map(s => (
-              <button key={s} type="button" data-pill-key={s} disabled={!editable}
-                aria-pressed={f.travelStyle === s}
-                className={`tab-btn${f.travelStyle === s ? ' active' : ''}`}
-                onClick={() => setF(x => ({ ...x, travelStyle: s }))}>
-                {cap(s)}
-              </button>
-            ))}
-          </PillNav>
-          <p className="bench-hint">Tunes stop frequency and the kind of places suggested — relaxed stops sooner, packed pushes further. It never touches pricing.</p>
-        </div>
         {/* Fuel + vehicle — only for self-drive modes */}
         {fuelMode && (
           <>
-            <div className="bench-block bench-fuel-pair">
-              <div className="bench-fuel-col">
-                <span className="bench-eyebrow">Your mileage</span>
-                <span className="bench-fuel-value">{ecoSet ? `${ecoNum} km/L` : 'Not set'}</span>
+            {/* The artboard reads both fuel dials back as plain fields with the
+                unit inside, so the number is legible beside the slider that set
+                it. The slider below still writes the same draft value. */}
+            <div className="tset-when-pair">
+              <div className="field">
+                <span className="flab">Mileage</span>
+                <div className="inp">
+                  <span>{ecoSet ? `${ecoNum}` : 'Not set'}</span>
+                  <span className="tset-inp-unit">km per litre</span>
+                </div>
                 <RangeDial value={ecoVal} min={2} max={80} step={0.5}
                   fmt={v => `${v} km/L`} ariaLabel="Fuel economy in kilometres per litre"
                   disabled={!editable} onChange={v => setF(x => ({ ...x, fuelEconomy: String(v) }))} />
               </div>
-              <div className="bench-fuel-col">
-                <span className="bench-eyebrow">Fuel price</span>
-                <span className="bench-fuel-value">{priceSet ? `₹${priceNum}/L` : `₹${FUEL_PRICE_INR_PER_L}/L default`}</span>
+              <div className="field">
+                <span className="flab">Fuel price</span>
+                <div className="inp">
+                  <span>{priceSet ? `₹${priceNum}` : `₹${FUEL_PRICE_INR_PER_L} default`}</span>
+                  <span className="tset-inp-unit">per litre</span>
+                </div>
                 <RangeDial value={priceVal} min={50} max={250} step={0.5}
                   fmt={v => `₹${v}/L`} ariaLabel="Fuel price in rupees per litre"
                   disabled={!editable} onChange={v => setF(x => ({ ...x, fuelPrice: String(v) }))} />
@@ -1037,12 +1327,6 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 <InlineIcon icon={TriangleAlert} size={12} gap={3} />Your fuel price is unused until you set a mileage — the bill is pricing the blended {cap(f.transportMode)} rate instead.
               </p>
             )}
-            <button type="button" className={`bench-toggle${f.roundTrip ? ' on' : ''}`}
-              aria-pressed={f.roundTrip} disabled={!editable}
-              aria-label={`Round trip${f.roundTrip ? ' — the return to start is included in transport costs' : ' — off, one-way costs only'}`}
-              onClick={() => setF(x => ({ ...x, roundTrip: !x.roundTrip }))}>
-              Round trip{f.roundTrip ? ' — return included' : ''}
-            </button>
             <div className="vehicle-profile-form">
               <div className="form-row">
                 <Field label="Vehicle type">
@@ -1067,36 +1351,31 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
             </div>
           </>
         )}
-        <footer className="tsx-settled">
-          <span className="tsx-fact"><span className="tsx-fact-k">Mode</span><b>{cap(f.transportMode)}</b></span>
-          <span className="tsx-fact"><span className="tsx-fact-k">Avg speed</span><b>{MODE_SPEED[f.transportMode] ?? 40} km/h</b></span>
-          <span className="tsx-fact"><span className="tsx-fact-k">Cost math</span><b>{fuelMode ? 'Fuel' : 'Fares'}</b></span>
-          <span className="tsx-fact"><span className="tsx-fact-k">Return</span><b>{fuelMode ? (f.roundTrip ? 'included' : 'one way') : '—'}</b></span>
-        </footer>
       </Surface>
 
-          {/* ---------- People & sharing ---------- */}
-          <Surface as="section" className="tsx-card" id="tset-people" aria-label="People and sharing">
-            <header className="tsx-head">
-              <span className="tsx-ico" aria-hidden="true"><Users size={18} /></span>
-              <span className="tsx-head-copy">
-                <h3 className="tsx-q">People &amp; sharing</h3>
-                <p className="tsx-a">Who can see this trip, and who can change it.</p>
+          {/* ---------- People & sharing ----------
+              The artboard's one-row strip: the stack, who can edit, and the
+              one verb that belongs to another tab. "Manage in Share" is the
+              only way to add or remove a member, so the strip defers to it
+              rather than growing a second member list that could disagree. */}
+          <Surface as="section" className="tsx-card tsx-card--people" id="tset-people" aria-label="People and sharing">
+            <span className="tset-stack" aria-hidden="true">
+              {members.slice(0, 4).map((m, i) => (
+                <span key={m.userId} className={`tset-av tset-av--${i % 4}`}>
+                  {initialsOf(nameOf(m.userId))}
+                </span>
+              ))}
+            </span>
+            <span className="tset-people-copy">
+              <b className="tset-people-title">People &amp; sharing</b>
+              <span>
+                {members.length} member{members.length === 1 ? '' : 's'} · {editors} can edit · {' '}
+                {trip.visibility === 'public' ? 'link sharing on' : 'link sharing off'}
               </span>
-            </header>
-            <div className="tset-people">
-              <span className="tset-stack" aria-hidden="true">
-                {members.slice(0, 4).map((m, i) => (
-                  <span key={m.userId} className={`tset-av tset-av--${i % 4}`}>
-                    {initialsOf(nameOf(m.userId))}
-                  </span>
-                ))}
-              </span>
-              <span className="tset-people-copy">
-                <b>{members.length} member{members.length === 1 ? '' : 's'} · {editors} can edit</b>
-                <span>{trip.visibility === 'public' ? 'Public — anyone with the link can read it' : 'Link sharing off'}</span>
-              </span>
-            </div>
+            </span>
+            {onOpenShare && (
+              <button type="button" className="tset-manage" onClick={onOpenShare}>Manage in Share</button>
+            )}
           </Surface>
 
           {/* ---------- Archive or delete ----------
@@ -1116,12 +1395,12 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections }: 
                 <div className="tset-danger-cell">
                   <b>Archive</b>
                   <span>Not built yet — the trip stays where it is.</span>
-                  <button type="button" className="btn btn-ghost btn-sm" disabled>Archive</button>
+                  <button type="button" className="tset-danger-btn" disabled title="Archive is not built yet">Archive</button>
                 </div>
                 <div className="tset-danger-cell tset-danger-cell--trash">
                   <b>Move to trash</b>
                   <span>Restorable for 30 days, then gone.</span>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+                  <button type="button" className="tset-danger-btn tset-danger-btn--trash" onClick={() => {
                     trashTrip(trip)
                     undoToast(`Moved “${trip.name}” to trash`, () => {
                       restoreTrashedTrip(trip)

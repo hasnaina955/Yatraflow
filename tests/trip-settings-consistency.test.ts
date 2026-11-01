@@ -52,7 +52,11 @@ describe('P12 — the panels sit on the shared card skin', () => {
 
 describe('P12 — the section titles read R20', () => {
   it('the shared rule is the R20 one, as a descendant so no second .tsx-q exists', () => {
-    expect(css).toMatch(/\.tsx-card \.tsx-q \{ font-family: var\(--font-body\); font-size: 18px; font-weight: 800; line-height: 1\.3; letter-spacing: 0; color: var\(--text\); \}/)
+    // The 28-Oct typography ruling: Sora carries every section and card title,
+    // and `--pw-title` is that face at 18/700. The rule takes the token rather
+    // than restating four values. `.tsx-q` is used by this page alone, so the
+    // move could not restyle another tab.
+    expect(css).toMatch(/\.tsx-card \.tsx-q \{ font: var\(--pw-title\); letter-spacing: var\(--pw-title-tracking\); color: var\(--text\); \}/)
     // One top-level `.tsx-q` rule in the whole sheet: the original. A second
     // would be a duplicate-selector violation. The 760px restatement does not
     // count: the gate reads top-level rules only, and the descendant selector

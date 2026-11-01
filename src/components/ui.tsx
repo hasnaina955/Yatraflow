@@ -960,8 +960,14 @@ export function Odometer({ value, animate, label }: { value: string; animate: bo
 
 /** Slider dial with a value bubble while dragging - ports the bench's
  *  BenchRange onto the shared .yf-range track (--fill). The caller renders the
- *  big readout (bench-block-value) and end labels (bench-scale-ends). */
-export function RangeDial({ value, min, max, step, fmt, ariaLabel, disabled, onChange }: {
+ *  big readout (bench-block-value) and end labels (bench-scale-ends).
+ *
+ *  `marker` is a second, decorative position on the same track - the settings
+ *  budget dial uses it for what the plan already costs per head, so the target
+ *  is read against a real number. It is positioned from the value, never from
+ *  a fixed offset, and it is aria-hidden: the same figure is printed in the
+ *  scale line beside the dial. */
+export function RangeDial({ value, min, max, step, fmt, ariaLabel, disabled, onChange, marker }: {
   value: number
   min: number
   max: number
@@ -970,10 +976,12 @@ export function RangeDial({ value, min, max, step, fmt, ariaLabel, disabled, onC
   ariaLabel: string
   disabled?: boolean
   onChange: (v: number) => void
+  marker?: { value: number; label: string }
 }) {
   const [dragging, setDragging] = useState(false)
   const fill = ((value - min) / (max - min)) * 100
   const bubbleLeft = Math.min(90, Math.max(10, fill))
+  const markerAt = marker ? Math.min(100, Math.max(0, ((marker.value - min) / (max - min)) * 100)) : null
   return (
     <div className="bench-slider">
       {dragging && (
@@ -988,6 +996,9 @@ export function RangeDial({ value, min, max, step, fmt, ariaLabel, disabled, onC
         onPointerUp={() => setDragging(false)}
         onPointerCancel={() => setDragging(false)}
         onChange={e => onChange(Number(e.target.value))} />
+      {markerAt !== null && (
+        <span className="yf-range-marker" style={{ left: `${markerAt}%` }} aria-hidden="true" title={marker?.label} />
+      )}
     </div>
   )
 }

@@ -515,6 +515,8 @@
   font: var(--pw-caption);
   font-style: normal;
 }
+/* The artboard separates the destructive row from the five settings rows. */
+.tset-nav-divider { height: 1px; margin: var(--space-3) var(--space-4); background: var(--pw-line); }
 
 .tset-main { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 
@@ -544,6 +546,19 @@
   gap: 18px;
   background: var(--pw-card);
   border-color: var(--pw-line);
+}
+/* The dates card marks a moved range in the artboard's warm border. The pill
+   is the state hook, so the card needs no second class. */
+.tset-main > .yf-surface.tsx-card:has(.tset-changed) { border-color: var(--pw-marigold-300); }
+.tset-changed {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font: var(--pw-caption);
+  font-weight: 700;
 }
 
 /* The cover strip: the artboard keeps the name full-width, then a labelled row
@@ -608,7 +623,7 @@
   transition: border-color var(--motion-fast) var(--ease-paper), background var(--motion-fast) var(--ease-paper);
 }
 .tset-day-dow { font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); color: var(--pw-marigold-ink); }
-.tset-day-num { font: var(--pw-figure); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
+.tset-day-num { font: 700 18px/1.25 var(--font-display); letter-spacing: var(--pw-title-tracking); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
 .tset-day-stops { font: var(--pw-caption); font-style: normal; color: var(--pw-ink-2); }
 .tset-day.is-new { border: 1.5px dashed var(--pw-marigold-500); background: var(--pw-card); }
 .tset-day.is-new .tset-day-stops { color: var(--pw-marigold-ink); font-weight: 700; }
@@ -635,7 +650,6 @@
 .tset-av--2 { background: var(--pw-bloom-500); }
 .tset-av--3 { background: var(--pw-time-stop); }
 .tset-people-copy { display: flex; flex-direction: column; gap: 1px; }
-.tset-people-copy b { font: var(--pw-ui); color: var(--pw-ink); }
 .tset-people-copy span { font: var(--pw-caption); color: var(--pw-ink-3); }
 
 /* Archive or delete: owner only. The trash half carries the risk colour, the
@@ -733,7 +747,7 @@
   border-radius: var(--radius-sm);
   background: var(--pw-paper);
 }
-.tset-stat-v { font: var(--pw-display-s); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
+.tset-stat-v { font: 700 19px/1.2 var(--font-display); letter-spacing: var(--pw-title-tracking); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
 .tset-stat-k { font: var(--pw-caption); color: var(--pw-ink-3); }
 .tset-read { display: flex; flex-direction: column; gap: var(--space-2); }
 
@@ -1060,7 +1074,7 @@
 
 /* The people strip is one row, as the artboard draws it: the stack, the copy
    column that takes the slack, and the one button that belongs to Share. */
-.yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }
+.tset-main > .yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }
 .tset-people-title { font: var(--pw-title); color: var(--pw-ink); }
 .tset-manage {
   flex: none;

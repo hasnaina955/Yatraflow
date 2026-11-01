@@ -129,3 +129,29 @@ describe('P12 — the motion is the catalog motion', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.yf-surface\.tsx-card \{ animation: none; \}/)
   })
 })
+
+describe('P12 — the measured artboard gaps stay closed', () => {
+  it('a moved date range marks the card and the rail keeps its divider', () => {
+    expect(code).toContain('const datesChanged = f.startDate !== trip.startDate || f.endDate !== trip.endDate')
+    expect(code).toContain('{datesChanged && <span className="tset-changed">Changed</span>}')
+    expect(css).toContain('.tset-main > .yf-surface.tsx-card:has(.tset-changed) { border-color: var(--pw-marigold-300); }')
+    expect(code).toContain("{key === 'danger' && <span className=\"tset-nav-divider\" aria-hidden=\"true\" />}")
+    expect(css).toContain('.tset-nav-divider { height: 1px;')
+  })
+
+  it('the People strip outranks the base card and copy rules', () => {
+    expect(css).toContain('.tset-main > .yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }')
+    expect(css).toContain('.tset-people-title { font: var(--pw-title); color: var(--pw-ink); }')
+    expect(css).not.toContain('.tset-people-copy b {')
+  })
+
+  it('the day number and the glance value keep the artboard type scale', () => {
+    expect(css).toContain('.tset-day-num { font: 700 18px/1.25 var(--font-display);')
+    expect(css).toContain('.tset-stat-v { font: 700 19px/1.2 var(--font-display);')
+  })
+
+  it('the current cover tile and the travel copy read as the artboard says', () => {
+    expect(code).toContain('<span className="tset-cover-now">Current</span>')
+    expect(code).toContain('<p className="tsx-a">Sets drive times, rest breaks and fuel cost.</p>')
+  })
+})

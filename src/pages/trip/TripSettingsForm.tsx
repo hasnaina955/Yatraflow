@@ -6,7 +6,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import {
-  AlignLeft, CalendarDays, CarFront, ChevronDown, ChevronUp, MapPin, Pencil, Plus, Share2, Sparkles, Trash2, TriangleAlert, Users, X,
+  AlignLeft, CalendarDays, CarFront, ChevronDown, ChevronUp, MapPin, Pencil, Plus, Share2, Trash2, TriangleAlert, Users, X,
 } from 'lucide-react'
 import type { Trip, TransportMode } from '../../data/types'
 import { TRANSPORT_MODES, TRAVEL_STYLES, STAY_STYLES } from '../../data/types'
@@ -444,6 +444,10 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     const target = Math.round((e.getTime() - s.getTime()) / 86400000) + 1
     return target - trip.days.length
   })()
+  /** The artboard marks the dates card as changed when either date moves. The
+   *  same comparison drives the two struck old values below, so the pill and
+   *  the fields cannot disagree. */
+  const datesChanged = f.startDate !== trip.startDate || f.endDate !== trip.endDate
   const [startPin, setStartPinState] = useState<StartPin | null>(
     trip.startLocationCoords ? { coords: trip.startLocationCoords, label: trip.startLocation } : null,
   )
@@ -820,14 +824,17 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               const edited = editedSections.has(key)
               const count = editedPerSection.get(key) ?? 0
               return (
-                <a key={key} href={`#tset-${key}`}
-                  className={`tset-nav-item${edited ? ' is-edited' : ''}${key === 'danger' ? ' is-danger' : ''}`}
-                  aria-current={activeSection === key ? 'true' : undefined}>
-                  <Icon size={16} aria-hidden />
-                  {label}
-                  {edited && <i aria-hidden="true">{count}</i>}
-                  {edited && <span className="sr-only">, {count} unsaved</span>}
-                </a>
+                <Fragment key={key}>
+                  {key === 'danger' && <span className="tset-nav-divider" aria-hidden="true" />}
+                  <a href={`#tset-${key}`}
+                    className={`tset-nav-item${edited ? ' is-edited' : ''}${key === 'danger' ? ' is-danger' : ''}`}
+                    aria-current={activeSection === key ? 'true' : undefined}>
+                    <Icon size={16} aria-hidden />
+                    {label}
+                    {edited && <i aria-hidden="true">{count}</i>}
+                    {edited && <span className="sr-only">, {count} unsaved</span>}
+                  </a>
+                </Fragment>
               )
             })}
         </nav>
@@ -837,7 +844,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
           {/* ---------- Name & cover ---------- */}
           <Surface as="section" className="tsx-card" id="tset-identity" aria-label="Trip name and cover">
             <header className="tsx-head">
-              <span className="tsx-ico" aria-hidden="true"><Sparkles size={18} /></span>
+              <span className="tsx-ico" aria-hidden="true"><AlignLeft size={18} /></span>
               <span className="tsx-head-copy">
                 <h3 className="tsx-q">Name &amp; cover</h3>
                 <p className="tsx-a">What the group and anyone you share with will see first.</p>
@@ -862,9 +869,9 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             <div className="field">
               <span className="flab">Cover</span>
               <div className="tset-coverstrip" role="group" aria-label="Cover choices">
-                <div className={`tset-cover-slot tset-cover-slot--now${trip.coverImageUrl ? ' is-upload' : ''}`}>
+                <div className="tset-cover-slot tset-cover-slot--now">
                   <CoverMedia plan={coverPlan} ratio="16:10" sizes="(min-width: 1180px) 380px, 92vw" className="tset-cover-img" emojiClassName="tset-cover-emoji" alt="" />
-                  <span className="tset-cover-now">{trip.coverImageUrl ? 'Your photo' : 'Artwork'}</span>
+                  <span className="tset-cover-now">Current</span>
                 </div>
                 {coverThumbs.map(c => (
                   <button key={c.key} type="button" className="tset-cover-slot"
@@ -903,6 +910,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 <h3 className="tsx-q">Dates &amp; days</h3>
                 <p className="tsx-a">Where it starts and ends, and how many days you have.</p>
               </span>
+              {datesChanged && <span className="tset-changed">Changed</span>}
             </header>
             {/* #411: the strip renders the pair array — rename edits the chip
                 in place, the pin travels with its name by construction. */}
@@ -1182,7 +1190,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
           <span className="tsx-ico" aria-hidden="true">{modeIcon(f.transportMode)}</span>
           <span className="tsx-head-copy">
             <h3 className="tsx-q">How you travel</h3>
-            <p className="tsx-a">The mode decides the cost math and which dials exist below.</p>
+            <p className="tsx-a">Sets drive times, rest breaks and fuel cost.</p>
           </span>
         </header>
         {/* Transport mode — bench mode grid. The sublabel is prose, not the raw
@@ -1385,7 +1393,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
           {role === 'owner' && (
             <Surface as="section" className="tsx-card tsx-card--danger" id="tset-danger" aria-label="Archive or delete">
               <header className="tsx-head">
-                <span className="tsx-ico" aria-hidden="true"><TriangleAlert size={18} /></span>
+                <span className="tsx-ico" aria-hidden="true"><Trash2 size={18} /></span>
                 <span className="tsx-head-copy">
                   <h3 className="tsx-q">Archive or delete</h3>
                   <p className="tsx-a">Only the owner sees this section.</p>

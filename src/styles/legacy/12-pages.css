@@ -513,6 +513,8 @@
   background: var(--pw-marigold-100);
   color: var(--pw-marigold-ink);
   font: var(--pw-caption);
+  font-size: 11px;
+  font-weight: 800;
   font-style: normal;
 }
 /* The artboard separates the destructive row from the five settings rows. */
@@ -530,12 +532,10 @@
 .yf-surface.tsx-card:nth-of-type(4) { animation-delay: calc(var(--stagger-step) * 4); }
 
 /* R20 / the 28-Oct typography ruling: Sora carries every section and card
-   title. `--pw-title` is that face at 18/700, so the title takes the token
-   rather than restating the four values. `.tsx-q` is used by this page alone —
-   the other card titles read `.bud-card-title` or their own class — so moving
-   it here cannot restyle another tab. A descendant selector, so it adds no
-   second `.tsx-q` rule to the sheet and still outranks the single-class rule. */
-.tsx-card .tsx-q { font: var(--pw-title); letter-spacing: var(--pw-title-tracking); color: var(--text); }
+   title. The settings artboard draws these titles at 19px. The token keeps the
+   Sora face, weight, line height and tracking. `.tsx-q` is used by this page
+   alone, so the size override cannot restyle another tab. */
+.tsx-card .tsx-q { font: var(--pw-title); font-size: 19px; letter-spacing: var(--pw-title-tracking); color: var(--text); }
 
 /* The artboard's own card recipe: 24px corners, 22px of padding and an 18px
    rhythm between blocks. The shared `.tsx-card` is 18px/20px-22px-18px, so the
@@ -615,16 +615,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
-  padding: 8px 4px 10px;
-  border: 1px solid var(--pw-line);
+  height: 72px;
+  min-height: 72px;
+  padding: 6px 4px;
+  border: 0;
   border-radius: var(--radius-sm);
   background: var(--pw-paper);
   transition: border-color var(--motion-fast) var(--ease-paper), background var(--motion-fast) var(--ease-paper);
 }
 .tset-day-dow { font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); color: var(--pw-marigold-ink); }
 .tset-day-num { font: 700 18px/1.25 var(--font-display); letter-spacing: var(--pw-title-tracking); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
-.tset-day-stops { font: var(--pw-caption); font-style: normal; color: var(--pw-ink-2); }
+.tset-day-stops { font: 400 11px/1.4 var(--font-body); font-style: normal; color: var(--pw-ink-2); }
 .tset-day.is-new { border: 1.5px dashed var(--pw-marigold-500); background: var(--pw-card); }
 .tset-day.is-new .tset-day-stops { color: var(--pw-marigold-ink); font-weight: 700; }
 
@@ -637,8 +640,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-pill);
   border: 2px solid var(--pw-card);
   font: var(--pw-caption);
@@ -649,7 +652,7 @@
 .tset-av--1 { background: var(--pw-lagoon-600); }
 .tset-av--2 { background: var(--pw-bloom-500); }
 .tset-av--3 { background: var(--pw-time-stop); }
-.tset-people-copy { display: flex; flex-direction: column; gap: 1px; }
+.tset-people-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .tset-people-copy span { font: var(--pw-caption); color: var(--pw-ink-3); }
 
 /* Archive or delete: owner only. The trash half carries the risk colour, the
@@ -675,11 +678,11 @@
 /* The sticky preview: the save panel and the plan-at-a-glance card. The save
    panel carries the marigold edge the artboard gives it — the same hue as the
    dot in its head — because it is the one card that changes state. */
-.tset-aside { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.tset-aside { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: 14px; }
 .tset-savecard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 12px;
   padding: 18px;
   border: 1px solid var(--pw-marigold-300);
   border-radius: var(--radius-lg);
@@ -694,13 +697,13 @@
   border-radius: var(--radius-pill);
   background: var(--pw-marigold-500);
 }
-.tset-save-title { font: var(--pw-title); color: var(--pw-ink); }
+.tset-save-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }
 .tset-save-sub { margin: -4px 0 0; font: var(--pw-meta); color: var(--pw-ink-3); }
 .tset-diff {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 10px 12px;
+  gap: 4px;
+  padding: 12px;
   border: 1px solid var(--pw-line-soft);
   border-radius: var(--radius-sm);
   background: var(--pw-paper);
@@ -711,7 +714,7 @@
 .tset-diff b { font: var(--pw-ui); color: var(--pw-ink); }
 .tset-diff > span:last-child { font: var(--pw-caption); color: var(--pw-ink-3); }
 .tset-was { color: var(--pw-ink-4); text-decoration: line-through; }
-.tset-save-actions { display: flex; gap: var(--space-2); margin-top: 2px; }
+.tset-save-actions { display: flex; gap: 8px; margin-top: 2px; }
 .tset-save-btn { flex: 1; }
 .tset-discard {
   height: 44px;
@@ -731,14 +734,14 @@
 .tset-glance {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: 10px;
+  padding: 16px 18px;
   border: 1px solid var(--pw-line);
   border-radius: var(--radius-lg);
   background: var(--pw-card);
   box-shadow: var(--elev-1);
 }
-.tset-glance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.tset-glance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tset-stat {
   display: flex;
   flex-direction: column;
@@ -808,6 +811,7 @@
   border-radius: var(--radius-pill);
   background: var(--pw-card);
   font: var(--pw-caption);
+  font-size: 11px;
   font-weight: 700;
   color: var(--pw-sea-700);
 }
@@ -885,7 +889,7 @@
 
 /* The field's own label. `.field` already owns the column and its gap, so this
    is the type only. */
-.flab { font: var(--pw-ui); font-weight: 700; color: var(--pw-ink); }
+.flab { font: 700 13px/1.4 var(--font-body); color: var(--pw-ink); }
 
 /* The artboard's switch row: a pill track, a knob, and a two-line label. The
    whole row is the control, so the label is part of the tap target. */
@@ -1041,6 +1045,10 @@
   color: var(--pw-risk);
 }
 .tset-over b { font-weight: 700; }
+/* The driver answer and the ten-style pace control share one row on desktop.
+   The pace track scrolls sideways so every style stays reachable on a phone. */
+.tset-driver-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.tset-driver-pace-pair > .field { min-width: 0; }
 /* The artboard's segment: one pill track, the chosen option on a raised card.
    `.seg-btn` is the option; `PillNav` supplies the arrow-key roving. The track
    wraps because the pace list holds ten options — an unwrapped ten-option row
@@ -1071,11 +1079,20 @@
 .seg-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
 .seg-btn.on { background: var(--pw-card); color: var(--pw-ink); font-weight: 700; box-shadow: var(--elev-press); }
 .seg-btn:disabled { opacity: .55; cursor: not-allowed; }
+.tset-pace-seg {
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pw-line) transparent;
+}
+.tset-pace-seg .seg-btn { flex: 0 0 auto; }
 
 /* The people strip is one row, as the artboard draws it: the stack, the copy
    column that takes the slack, and the one button that belongs to Share. */
 .tset-main > .yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }
-.tset-people-title { font: var(--pw-title); color: var(--pw-ink); }
+.tset-people-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }
 .tset-manage {
   flex: none;
   height: 40px;
@@ -1138,6 +1155,19 @@
   /* The group row and the two read-back pairs are two columns of a 343px card
      at 390px: each column would be 160px and the budget figure overflows it. */
   .tset-group-pair, .tset-when-pair, .tset-tog-pair { grid-template-columns: minmax(0, 1fr); }
+  .tset-driver-pace-pair { grid-template-columns: minmax(0, 1fr); }
+  /* The 34px avatar stack, the copy and the Share verb no longer fit one
+     phone row. Keep the avatar and copy together, then give the verb its own
+     full-width row. */
+  .tset-main > .yf-surface.tsx-card--people {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px 14px;
+  }
+  .tset-main > .yf-surface.tsx-card--people .tset-manage {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
   .tset-budget-head { flex-direction: column; align-items: flex-start; gap: 2px; }
   .tset-main .bench-mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* Five columns of a 104px strip at 390px leaves each tile 48px wide. The

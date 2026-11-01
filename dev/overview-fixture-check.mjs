@@ -6,7 +6,8 @@ import { chromium } from 'playwright-core'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUT = join(ROOT, '.verify-evidence', 'overview-fixture')
-const URL = 'http://localhost:5178/dev/overview-fixture.html'
+const URL = process.env.OVERVIEW_FIXTURE_URL ?? 'http://localhost:5178/dev/overview-fixture.html'
+const SETTINGS_ONLY = process.env.OVERVIEW_FIXTURE_ONLY === 'settings'
 
 const CASES = [
   { name: 'desktop-light', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference', mode: 'car' },
@@ -315,6 +316,7 @@ const errors = []
 const geometryFailures = []
 
 try {
+  if (!SETTINGS_ONLY) {
   for (const testCase of CASES) {
     const context = await browser.newContext({
       viewport: { width: testCase.width, height: testCase.height },
@@ -604,7 +606,284 @@ try {
       }
     }
   }
+  }
 
+  // ---- Trip Settings geometry ----
+  // The settings grid, type, aside rhythm, title wrapping and coarse-pointer
+  // route tools all have measured artboard values. This pass reads the rendered
+  // page, not the source CSS.
+  for (const width of [390, 1440]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 1000 },
+      hasTouch: width === 390,
+      isMobile: width === 390,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&long=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.tset-grid', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    await page.evaluate(() => {
+      document.getAnimations().forEach(animation => {
+        try { animation.finish() } catch {}
+      })
+    })
+    const settings = await page.evaluate(async () => {
+      const box = element => {
+        const rect = element.getBoundingClientRect()
+        return {
+          x: +rect.x.toFixed(2),
+          y: +rect.y.toFixed(2),
+          width: +rect.width.toFixed(2),
+          height: +rect.height.toFixed(2),
+          bottom: +rect.bottom.toFixed(2),
+          right: +rect.right.toFixed(2),
+        }
+      }
+      const style = element => getComputedStyle(element)
+      const container = document.querySelector('.container.yf-workspace')
+      const grid = document.querySelector('.tset-grid')
+      const nav = grid.querySelector('.tset-nav')
+      const navItem = nav.querySelector('.tset-nav-item')
+      const main = grid.querySelector('.tset-main')
+      const aside = grid.querySelector('.tset-aside')
+      const head = document.querySelector('.yf-trip-head')
+      const title = document.querySelector('.yf-trip-title')
+      const tabs = document.querySelector('.yf-tabbar')
+      const members = document.querySelector('.yf-members')
+      const titleStyle = style(title)
+      const titleRange = document.createRange()
+      titleRange.selectNodeContents(title)
+      const titleInk = titleRange.getBoundingClientRect()
+      const titleBox = box(title)
+      const headBox = box(head)
+      const tabsBox = box(tabs)
+      const membersBox = box(members)
+      const containerBox = box(container)
+      const gridBox = box(grid)
+      const columnBoxes = { nav: box(nav), main: box(main), aside: box(aside) }
+      const titleTabGap = +(tabs.getBoundingClientRect().top - title.getBoundingClientRect().bottom).toFixed(2)
+      const membersTabGap = +(tabs.getBoundingClientRect().top - members.getBoundingClientRect().bottom).toFixed(2)
+      const containerStyle = style(container)
+      const pace = document.querySelector('.tset-pace-seg')
+      const driverPair = document.querySelector('.tset-driver-pace-pair')
+      const avatars = [...document.querySelectorAll('.tset-av')]
+      const days = [...document.querySelectorAll('.tset-day')]
+      const newDay = days.find(day => day.classList.contains('is-new'))
+      const gridGap = style(document.querySelector('.tset-glance-grid')).gap
+      const dayNumbers = days.map(day => ({
+        box: box(day),
+        borderWidth: style(day).borderTopWidth,
+        borderStyle: style(day).borderTopStyle,
+        background: style(day).backgroundColor,
+        stopsSize: style(day.querySelector('.tset-day-stops')).fontSize,
+      }))
+      const avatarBoxes = avatars.map(avatar => box(avatar))
+      const avatarFills = avatars.map(avatar => style(avatar).backgroundColor)
+      const navBadge = document.createElement('i')
+      navBadge.textContent = '1'
+      navItem.append(navBadge)
+      const navCount = style(navBadge).fontSize
+      navBadge.remove()
+
+      // The pace rail must reach its last option without changing the page
+      // width. Scroll it to its own end before reading the final button.
+      pace.scrollLeft = pace.scrollWidth
+      const paceButtons = [...pace.querySelectorAll('.seg-btn')]
+      const lastPace = paceButtons.at(-1)?.getBoundingClientRect()
+      const paceBox = pace.getBoundingClientRect()
+
+      // Scroll the route into view once, then hit-test every control. A
+      // two-frame wait lets the browser apply the instant scroll before the
+      // point lookup.
+      const route = document.querySelector('.tsx-route')
+      route.scrollIntoView({ block: 'center', behavior: 'instant' })
+      await new Promise(resolve => setTimeout(resolve, 200))
+      const routeControls = [...document.querySelectorAll('.tsx-node > button, .tsx-node-tools button')]
+      const routeBoxes = routeControls.map(control => {
+        const rect = control.getBoundingClientRect()
+        const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        return {
+          label: control.getAttribute('aria-label'),
+          width: +rect.width.toFixed(2),
+          height: +rect.height.toFixed(2),
+          x: +rect.left.toFixed(2),
+          y: +rect.top.toFixed(2),
+          right: +rect.right.toFixed(2),
+          bottom: +rect.bottom.toFixed(2),
+          hit: !!at && control.contains(at),
+        }
+      })
+      const overlaps = []
+      for (let i = 0; i < routeBoxes.length; i++) {
+        for (let j = i + 1; j < routeBoxes.length; j++) {
+          const a = routeBoxes[i]
+          const b = routeBoxes[j]
+          const overlapX = Math.min(a.right, b.right) - Math.max(a.x, b.x)
+          const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.y, b.y)
+          if (overlapX > 0.1 && overlapY > 0.1) overlaps.push({ a: i, b: j, overlapX, overlapY })
+        }
+      }
+
+      return {
+        viewport: [innerWidth, innerHeight],
+        coarse: matchMedia('(pointer: coarse)').matches,
+        document: [document.documentElement.scrollWidth, document.documentElement.clientWidth],
+        container: {
+          box: containerBox,
+          contentWidth: +(container.getBoundingClientRect().width
+            - parseFloat(containerStyle.paddingLeft)
+            - parseFloat(containerStyle.paddingRight)).toFixed(2),
+        },
+        grid: gridBox,
+        columns: columnBoxes,
+        title: {
+          box: titleBox,
+          text: (title.textContent || '').trim(),
+          clientWidth: title.clientWidth,
+          scrollWidth: title.scrollWidth,
+          clientHeight: title.clientHeight,
+          scrollHeight: title.scrollHeight,
+          fontSize: titleStyle.fontSize,
+          lineHeight: titleStyle.lineHeight,
+          lineClamp: titleStyle.webkitLineClamp || titleStyle.lineClamp,
+          whiteSpace: titleStyle.whiteSpace,
+          ink: {
+            width: +titleInk.width.toFixed(2),
+            height: +titleInk.height.toFixed(2),
+            top: +titleInk.top.toFixed(2),
+            bottom: +titleInk.bottom.toFixed(2),
+          },
+        },
+        head: headBox,
+        tabs: tabsBox,
+        members: membersBox,
+        titleTabGap,
+        membersTabGap,
+        type: {
+          section: style(document.querySelector('.tsx-q')).fontSize,
+          subSize: style(document.querySelector('.tsx-a')).fontSize,
+          subWeight: style(document.querySelector('.tsx-a')).fontWeight,
+          label: style(document.querySelector('.flab')).fontSize,
+          saveTitle: style(document.querySelector('.tset-save-title')).fontSize,
+          peopleTitle: style(document.querySelector('.tset-people-title')).fontSize,
+          navCount,
+          currentCover: style(document.querySelector('.tset-cover-now')).fontSize,
+        },
+        aside: {
+          gap: style(aside).gap,
+          saveGap: style(document.querySelector('.tset-savecard')).gap,
+          diffPadding: style(document.querySelector('.tset-diff')).padding,
+          diffGap: style(document.querySelector('.tset-diff')).gap,
+          actionsGap: style(document.querySelector('.tset-save-actions')).gap,
+          glancePadding: style(document.querySelector('.tset-glance')).padding,
+          glanceGap: style(document.querySelector('.tset-glance')).gap,
+          glanceGridGap: gridGap,
+        },
+        avatars: {
+          boxes: avatarBoxes,
+          fills: avatarFills,
+          overlaps: avatarBoxes.slice(1).map((avatar, index) => (
+            +(avatarBoxes[index].right - avatar.x).toFixed(2)
+          )),
+        },
+        days: {
+          boxes: dayNumbers,
+          regularBoxes: dayNumbers.filter((_, index) => !days[index].classList.contains('is-new')),
+          newDay: newDay ? {
+            borderWidth: style(newDay).borderTopWidth,
+            borderStyle: style(newDay).borderTopStyle,
+            background: style(newDay).backgroundColor,
+          } : null,
+        },
+        driverPair: {
+          columns: style(driverPair).gridTemplateColumns.split(' ').filter(Boolean),
+          gap: style(driverPair).gap,
+        },
+        pace: {
+          wrap: style(pace).flexWrap,
+          overflowX: style(pace).overflowX,
+          count: paceButtons.length,
+          clientWidth: pace.clientWidth,
+          scrollWidth: pace.scrollWidth,
+          scrollLeft: pace.scrollLeft,
+          lastVisible: !!lastPace
+            && lastPace.left >= paceBox.left - 1
+            && lastPace.right <= paceBox.right + 1,
+        },
+        routeControls: routeBoxes,
+        routeOverlaps: overlaps,
+      }
+    })
+
+    const fail = reason => geometryFailures.push({ case: `settings-${width}`, reason, settings })
+    if (settings.document[0] > settings.document[1]) fail('the page scrolls sideways')
+    if (!settings.title.text.includes('Beaches, Forts and Family Adventures')) fail('the full title text is missing')
+    if (settings.title.scrollWidth > settings.title.clientWidth + 1) fail('the title truncates horizontally')
+    if (settings.title.scrollHeight > settings.title.clientHeight + 1) fail('the title truncates vertically')
+    if (settings.title.ink.width > settings.title.clientWidth + 1) fail('the title ink leaves its box')
+    if (settings.titleTabGap < 8) fail(`the title is ${settings.titleTabGap}px from the tab rail`)
+    if (settings.membersTabGap < 4) fail(`the member row is ${settings.membersTabGap}px from the tab rail`)
+    const allowedLines = width <= 720 ? 4 : 2
+    if (+settings.title.lineClamp !== allowedLines) fail(`the title line limit is ${settings.title.lineClamp}, expected ${allowedLines}`)
+    if (width > 720) {
+      if (Math.abs(settings.container.contentWidth - 1180) > 1) fail(`content width is ${settings.container.contentWidth}`)
+      if (Math.abs(settings.grid.width - 1180) > 1) fail(`settings grid is ${settings.grid.width}`)
+      if (Math.abs(settings.columns.nav.width - 216) > 1) fail(`nav column is ${settings.columns.nav.width}`)
+      if (Math.abs(settings.columns.main.width - 616) > 1) fail(`middle column is ${settings.columns.main.width}`)
+      if (Math.abs(settings.columns.aside.width - 316) > 1) fail(`aside column is ${settings.columns.aside.width}`)
+      if (settings.driverPair.columns.length !== 2) fail('driver and pace are not two columns')
+    } else {
+      if (!settings.coarse) fail('the phone context did not report a coarse pointer')
+      if (settings.driverPair.columns.length !== 1) fail('driver and pace are not one column')
+      if (settings.routeControls.some(control => control.width < 43.99 || control.height < 43.99)) {
+        fail('a route-editor control is under 44px')
+      }
+      if (settings.routeControls.some(control => !control.hit)) fail('a route-editor hit test missed its control')
+      if (settings.routeOverlaps.length) fail('route-editor hit areas overlap')
+    }
+    if (settings.type.section !== '19px') fail(`section title is ${settings.type.section}`)
+    if (settings.type.subSize !== '12.5px' || settings.type.subWeight !== '400') fail('section subcopy is not 12.5/400')
+    if (settings.type.label !== '13px') fail(`field label is ${settings.type.label}`)
+    if (settings.type.saveTitle !== '17px') fail(`save title is ${settings.type.saveTitle}`)
+    if (settings.type.peopleTitle !== '17px') fail(`People title is ${settings.type.peopleTitle}`)
+    if (settings.type.navCount !== '11px') fail(`nav count is ${settings.type.navCount}`)
+    if (settings.type.currentCover !== '11px') fail(`Current cover pill is ${settings.type.currentCover}`)
+    if (settings.aside.gap !== '14px') fail(`aside gap is ${settings.aside.gap}`)
+    if (settings.aside.saveGap !== '12px') fail(`save-card gap is ${settings.aside.saveGap}`)
+    if (settings.aside.diffPadding !== '12px') fail(`diff padding is ${settings.aside.diffPadding}`)
+    if (settings.aside.diffGap !== '4px') fail(`diff gap is ${settings.aside.diffGap}`)
+    if (settings.aside.actionsGap !== '8px') fail(`save actions gap is ${settings.aside.actionsGap}`)
+    if (settings.aside.glancePadding !== '16px 18px') fail(`glance padding is ${settings.aside.glancePadding}`)
+    if (settings.aside.glanceGap !== '10px') fail(`glance gap is ${settings.aside.glanceGap}`)
+    if (settings.aside.glanceGridGap !== '8px') fail(`glance grid gap is ${settings.aside.glanceGridGap}`)
+    if (settings.avatars.boxes.some(avatar => Math.abs(avatar.width - 34) > 0.5 || Math.abs(avatar.height - 34) > 0.5)) {
+      fail('an avatar is not 34px')
+    }
+    if (settings.avatars.overlaps.some(overlap => Math.abs(overlap - 8) > 0.5)) fail('the avatar overlap is not 8px')
+    if (new Set(settings.avatars.fills).size !== settings.avatars.boxes.length) fail('the avatar tones are not distinct')
+    if (settings.days.boxes.some(day => Math.abs(day.box.height - 72) > 0.5)) fail('a day tile is not 72px tall')
+    if (settings.days.regularBoxes.some(day => day.borderWidth !== '0px')) fail('a regular day tile has a border')
+    if (settings.days.boxes.some(day => day.stopsSize !== '11px')) fail('a day-stop line is not 11px')
+    if (!settings.days.newDay || settings.days.newDay.borderStyle !== 'dashed') fail('the new day lost its dashed border')
+    if (settings.driverPair.gap !== '14px') fail(`driver/pace gap is ${settings.driverPair.gap}`)
+    if (settings.pace.wrap !== 'nowrap') fail('the pace segment wraps')
+    if (settings.pace.overflowX !== 'auto') fail('the pace segment does not scroll')
+    if (settings.pace.count !== 10) fail(`the pace segment holds ${settings.pace.count} styles`)
+    if (settings.pace.scrollWidth <= settings.pace.clientWidth) fail('the pace segment does not need its own scroll')
+    if (!settings.pace.lastVisible) fail('the last pace style is not reachable')
+
+    records.push({ name: `settings-${width}`, settings })
+    await page.evaluate(() => {
+      scrollTo(0, 0)
+      const pace = document.querySelector('.tset-pace-seg')
+      if (pace) pace.scrollLeft = 0
+    })
+    await page.screenshot({ path: join(OUT, `settings-${width}.png`), fullPage: true })
+    await context.close()
+  }
+
+  if (!SETTINGS_ONLY) {
   // ---- The failure chain, one controlled cause per case ----
   // Each case blocks a different thing and asserts what the slot shows next.
   // The renderer walks one candidate at a time, so these prove the order rather
@@ -826,6 +1105,7 @@ try {
   records.push({ name: 'keyboard-and-fold', disclosure, before, after, folded, unfolded })
   await page.screenshot({ path: join(OUT, 'keyboard-and-fold.png') })
   await context.close()
+  }
 } finally {
   await browser.close()
 }

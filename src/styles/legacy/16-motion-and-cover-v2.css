@@ -215,6 +215,13 @@
   max-width: 1180px;
 }
 
+/* The settings artboard is 1180px of content inside the shared 20px gutters.
+   The container's border box is 1220px. The :has guard keeps Board
+   and Map on their own width rules. */
+.container.yf-workspace.yf-workspace:has(.tset-grid) {
+  max-width: 1220px;
+}
+
 .container.yf-workspace.yf-workspace[data-wide='true'] {
   max-width: 1720px;
 }
@@ -1699,6 +1706,46 @@
   .yf-page .yf-cover-content > .yf-tabbar {
     animation: none;
     transition: none;
+  }
+}
+
+/* Settings titles wrap instead of disappearing behind an ellipsis. Desktop
+   allows two lines. The phone allows four lines because the long-trip fixture
+   is wider than two phone lines. The taller cover keeps the tab rail clear. */
+body:has(.tset-grid) .yf-page .yf-trip-head {
+  height: 304px;
+}
+
+body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+  display: -webkit-box;
+  width: min(100%, 900px);
+  height: auto;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+@media (max-width: 720px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 352px;
+  }
+
+  body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+    width: 100%;
+    font-size: 28px;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+  }
+}
+
+@media (max-width: 440px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 360px;
   }
 }
 

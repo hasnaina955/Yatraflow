@@ -1230,7 +1230,7 @@
 }
 .tsx-a {
   margin: 1px 0 0;
-  font-size: 13px; line-height: 1.5; color: var(--text-3);
+  font-size: 12.5px; font-weight: 400; line-height: 1.4; color: var(--text-3);
   max-width: 62ch;
 }
 .tsx-a b { color: var(--text-2); font-weight: 700; }
@@ -1284,6 +1284,20 @@
 .tsx-node-tools button:hover:not(:disabled) { background: var(--bg-soft); color: var(--text); }
 .tsx-node-tools button:focus-visible { outline: none; box-shadow: var(--ring); }
 .tsx-node-tools button:disabled { opacity: .3; cursor: not-allowed; }
+/* A coarse pointer needs a full tap target on the route editor. The node may
+   wrap, because three 44px tools and a 44px rename control do not fit beside a
+   destination name in a phone-width card. */
+@media (pointer: coarse) {
+  .tsx-node { flex-wrap: wrap; row-gap: var(--space-2); }
+  .tsx-node > button,
+  .tsx-node-tools button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .tsx-node-tools { flex: none; gap: 0; margin-left: auto; }
+}
 .tsx-road {
   flex: none; width: 26px; height: 2px; border-radius: 1px;
   background: linear-gradient(90deg, var(--line), var(--text-3));

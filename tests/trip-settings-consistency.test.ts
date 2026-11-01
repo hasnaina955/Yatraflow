@@ -117,6 +117,11 @@ describe('P12 — the motion is the catalog motion', () => {
   it('the panel entrance uses the tokens and no raw duration', () => {
     expect(css).toMatch(/\.yf-surface\.tsx-card \{[^}]*animation: cardIn var\(--motion-med\) var\(--ease-out\) var\(--stagger-step\) backwards;/)
     expect(css).not.toMatch(/\.yf-surface\.tsx-card \{[^}]*\d+ms/)
+    expect(css).toContain('.tset-nav { animation: cardIn var(--motion-med) var(--ease-out) var(--stagger-step) backwards; animation-delay: 0s; }')
+    expect(css).toContain('.tset-main > .yf-surface.tsx-card:nth-of-type(n) { animation-delay: calc(var(--stagger-step) * (var(--stagger-index) + 1)); }')
+    expect(css).toContain('.tset-aside > * { animation: cardIn var(--motion-med) var(--ease-out) var(--stagger-step) backwards; }')
+    expect(css).toContain('.tset-aside > :nth-child(1) { animation-delay: calc(var(--stagger-step) * 5); }')
+    expect(css).toContain('.tset-aside > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 6); }')
   })
 
   it('no second .tsx-card rule exists at the top level, so the sheet keeps one selector per rule', () => {
@@ -125,6 +130,7 @@ describe('P12 — the motion is the catalog motion', () => {
 
   it('a reduced-motion user gets no panel entrance', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.yf-surface\.tsx-card \{ animation: none; \}/)
+    expect(css).toContain('.tset-nav, .tset-aside > * { animation: none; }')
   })
 })
 

@@ -203,7 +203,9 @@ describe('P12 — the measured artboard gaps stay closed', () => {
     expect(code).toContain('<Field label={`Destinations (${routeSummary.destinationCount})`}')
     expect(code).toContain('{routeSummary.returnPlace !== null && (')
     expect(code).toContain('<span className="tsx-node tsx-node--return"')
+    expect(code).toContain('<span className="dest-pin" aria-hidden>📍</span>')
     expect(code).toContain('<span className="tsx-return-marker">Return</span>')
+    expect(code).toContain('id="tset-start-location"')
     expect(code).not.toContain("addDest(routeSummary.returnPlace")
   })
 

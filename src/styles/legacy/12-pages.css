@@ -600,7 +600,6 @@
   margin-inline-start: 20px;
   background: linear-gradient(180deg, var(--line), var(--text-3));
 }
-.tsx-card .tsx-route .tsx-node--return { border-style: dashed; background: var(--pw-soft); }
 .tsx-return-marker {
   flex: none;
   margin-inline-start: auto;

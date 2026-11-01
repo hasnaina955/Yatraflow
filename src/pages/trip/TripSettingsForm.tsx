@@ -340,12 +340,13 @@ export function settingsRouteSummary(
     }
   }
   const start = startLocation.trim()
-  const endPlace = showReturn
-    ? start || lastDestination || 'No destination yet'
+  const hasReturn = showReturn && !!start
+  const endPlace = hasReturn
+    ? start
     : lastDestination || start || 'No destination yet'
   return {
-    destinationCount: destinations.length + (showReturn ? 1 : 0),
-    returnPlace: showReturn ? endPlace : null,
+    destinationCount: destinations.length + (hasReturn ? 1 : 0),
+    returnPlace: hasReturn ? start : null,
     endPlace,
   }
 }
@@ -1078,6 +1079,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   <span className="tsx-node tsx-node--return" aria-label={`Return: ${routeSummary.returnPlace}`}>
                     <span className="tsx-node-ord" aria-hidden="true">{dests.length + 1}</span>
                     <span className="tsx-node-name">{routeSummary.returnPlace}</span>
+                    <span className="dest-pin" aria-hidden>📍</span>
                     <span className="tsx-return-marker">Return</span>
                   </span>
                 </>
@@ -1086,6 +1088,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             <div className="bench-pair">
               <Field label="Starting location">
                 <LocationInput
+                  id="tset-start-location"
                   value={f.startLocation}
                   onChange={v => {
                     setF(x => ({ ...x, startLocation: v }))

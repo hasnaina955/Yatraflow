@@ -44,9 +44,14 @@ describe('Trip settings artboard copy and controls', () => {
     })
     expect(destinations).toHaveLength(3)
     expect(settingsRouteSummary([], '', true)).toEqual({
-      destinationCount: 1,
-      returnPlace: 'No destination yet',
+      destinationCount: 0,
+      returnPlace: null,
       endPlace: 'No destination yet',
+    })
+    expect(settingsRouteSummary([{ name: 'Palolem' }], '', true)).toEqual({
+      destinationCount: 1,
+      returnPlace: null,
+      endPlace: 'Palolem',
     })
   })
 

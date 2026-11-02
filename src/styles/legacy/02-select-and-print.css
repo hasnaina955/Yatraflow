@@ -972,16 +972,7 @@
 
 
 
-/* ---------- M6: Budget / Decisions / Share / Suggestions hierarchy (CTI §6.6–6.9) ---------- */
-.budget-hero {
-  background: linear-gradient(120deg, #143f4c, #112c4c);
-  color: #fff; border-radius: var(--radius-lg); padding: 18px 20px;
-  box-shadow: var(--shadow-soft); margin-bottom: 14px;
-}
-.budget-hero-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bde1da; }
-.budget-hero-num { font-variant-numeric: tabular-nums; font-size: 40px; font-weight: 800; font-family: var(--font-display); margin-top: 2px; }
-.budget-hero-sub { font-size: 13px; color: #d2e7e3; margin-top: 2px; }
-.budget-hero-pct { font-size: 12.5px; font-weight: 700; color: #ffcc74; margin-top: 8px; }
+/* ---------- M6: Decisions / Share / Suggestions hierarchy (CTI §6.6–6.9) ---------- */
 .gi-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .share-intent {
   display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .08em;
@@ -990,8 +981,6 @@
 .share-intent--teal { background: var(--teal-soft); color: var(--teal-deep); }
 .share-intent--saffron { background: var(--saffron-soft); color: var(--ink-amber); }
 .share-intent--info { background: var(--info-soft); color: var(--text-2); }
-[data-theme='dark'] .budget-hero { background: linear-gradient(120deg, #0e2f39, #0c1e35); }
-[data-theme='dark'] .budget-hero-sub { color: #9fc4bf; }
 
 
 /* ---------- Impact preview ---------- */
@@ -1294,9 +1283,9 @@
 
 /* Demo CTA band — a forced-dark surface in BOTH themes: its gradient stops
    must be literals, not theme-flipping tokens (--gray-900 turns near-white in
-   dark mode and stranded the white text). Same rule as .budget-hero. The
-   open-road photo sits under a .92 navy scrim (and under the base gradient as
-   the load-failure floor), so white copy stays AA over any underlying image. */
+   dark mode and stranded the white text). The open-road photo sits under a
+   .92 navy scrim (and under the base gradient as the load-failure floor), so
+   white copy stays AA over any underlying image. */
 .cta-band {
   text-align: center; padding: 42px 26px; border-radius: 22px;
   background:
@@ -1603,22 +1592,6 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 .feed-item:last-child { border-bottom: none; }
 .feed-time { color: var(--text-3); font-size: 11.5px; white-space: nowrap; margin-left: auto; flex-shrink: 0; }
 
-/* ---------- Budget ---------- */
-.budget-bars { display: flex; flex-direction: column; gap: 11px; }
-.budget-bar-row { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
-.budget-bar-track { height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; }
-.budget-bar-fill {
-  height: 100%; border-radius: 999px; transition: width var(--t-slow) var(--ease-out);
-  position: relative; overflow: hidden;
-}
-/* A sheen sweeping across each budget bar via left-position keyframes.
-   Rendering cost is unmeasured. Reduced-motion users get a static bar. */
-.budget-bar-fill::after {
-  content: ''; position: absolute; top: 0; bottom: 0; width: 42%;
-  background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
-  animation: barSheen 2.6s var(--ease-out) infinite;
-}
-@keyframes barSheen { from { left: -42%; } to { left: 108%; } }
 /* display:block + overflow-x keeps the tabular layout (anonymous table box)
    but lets 5–6-column tables scroll on a phone instead of clipping the page. */
 .compare-table { display: block; width: 100%; border-collapse: collapse; font-size: 13.5px; overflow-x: auto; -webkit-overflow-scrolling: touch; }

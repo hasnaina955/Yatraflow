@@ -116,7 +116,6 @@
     "padding: 9px"
   ],
   "subPixelType": [
-    ".balance-who .avatar — font-size: 10px",
     ".bench-mode-speed — font-size: 10.5px",
     ".bench-scale — font-size: 10px",
     ".bench-scale-ends — font-size: 10.5px",
@@ -135,7 +134,6 @@
     ".day-slot-val small — font-size: 10px",
     ".day-slot-vote-lead — font-size: 10.5px",
     ".day-slot-win — font-size: 10px",
-    ".daybar-over — font-size: 10px",
     ".fp-chip — font-size: 9.5px",
     ".fp-delta span — font-size: 8.5px",
     ".fp-tip span — font-size: 10.5px",

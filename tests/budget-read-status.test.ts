@@ -215,7 +215,10 @@ describe('#383 — the Budget tab branches on the read, not on the array', () =>
     // failure branch did not exist. Same shape as the pages #364 pinned.
     const failed = src.indexOf("emptyCopyFor('failed', 'expenses', retryExpenses)")
     const loading = src.indexOf('Loading expenses…')
-    const empty = src.indexOf('No expense lines yet')
+    // PW-13: the glance card is allowed to say "No expense lines yet" above
+    // the read. The marker is the empty StateBlock itself, which may render
+    // only after the read succeeded.
+    const empty = src.indexOf('<StateBlock kind="empty" size="compact" title="No expense lines yet"')
     expect(failed).toBeGreaterThan(-1)
     expect(loading).toBeGreaterThan(-1)
     expect(empty).toBeGreaterThan(-1)
@@ -317,17 +320,36 @@ describe('#384 — settling is owner/editor only, on both paths', () => {
 // ================= #384 — the code says what it does =================
 
 describe('#384 — the gate exists in the code, not only in a comment', () => {
-  it('both settle writers check the house rule', () => {
+  it('every expense writer checks the house rule', () => {
     const src = read('../src/store/store.ts')
-    // One gate per writer — the settle and the reopen it undoes.
-    expect(src.match(/if \(!canEdit\(roleOf\(t, by\)\)\) return/g)?.length ?? 0).toBe(2)
+    const bodyOf = (name: string) => {
+      const start = src.indexOf(`export function ${name}(`)
+      expect(start, `${name} must exist`).toBeGreaterThan(-1)
+      const end = src.indexOf('\n}', start)
+      expect(end, `${name} must close at column zero`).toBeGreaterThan(start)
+      return src.slice(start, end)
+    }
+    for (const name of [
+      'addExpense', 'deleteExpense', 'restoreExpense', 'updateExpense',
+      'markExpenseSettled', 'markExpenseUnsettled',
+    ]) {
+      expect(bodyOf(name), `${name} must check the acting role`)
+        .toContain('if (!canEdit(roleOf(t, by))) return')
+    }
   })
 
   it('the tab gates the affordance and requires the session on both paths', () => {
     const src = read('../src/pages/trip/BudgetTab.tsx')
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     expect(src).toMatch(/canEdit\(roleOf\(trip, me\.id\)\)/)
-    // Settle and reopen each check the session before calling the store.
-    expect(src.match(/if \(!me\?\.id\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    // Settle and reopen each check the session immediately before their call.
+    const guarded = (call: string) => {
+      const at = code.indexOf(call)
+      expect(at, `${call} must exist`).toBeGreaterThan(-1)
+      return code.slice(Math.max(0, at - 120), at)
+    }
+    expect(guarded('markExpenseSettled(trip.id, e.id, me.id)')).toContain('if (!me?.id) return')
+    expect(guarded('markExpenseUnsettled(trip.id, e.id, me.id)')).toContain('if (!me?.id) return')
     // The reopen call carries the session id — the old two-arg call is gone.
     expect(src).toMatch(/markExpenseUnsettled\(trip\.id, e\.id, me\.id\)/)
   })

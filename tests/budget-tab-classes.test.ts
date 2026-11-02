@@ -128,7 +128,7 @@ describe('PW-13 — one owner for the Budget family', () => {
       'metric-strip', 'daybars', 'daybar-fill', 'catbars', 'cat-chip',
       'budget-bars', 'budget-bar-fill', 'budget-hero', 'budget-hero-label', 'balance-row', 'balance-who',
     ]) {
-      expect(sheet, `.${dead} is a retired budget selector`).not.toMatch(new RegExp(`\\.${dead}[\\s,{:]`))
+      expect(sheet, `.${dead} is a retired budget selector`).not.toContain(`.${dead}`)
     }
   })
 })

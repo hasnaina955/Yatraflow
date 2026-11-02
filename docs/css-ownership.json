@@ -144,7 +144,9 @@
         "tone-bloom",
         "lg"
       ],
-      "variables": []
+      "variables": [
+        "--avatar-ring"
+      ]
     },
     {
       "id": "dialog",

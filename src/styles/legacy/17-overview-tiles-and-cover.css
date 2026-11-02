@@ -11,7 +11,7 @@
   display: grid;
   flex: 1;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -20,7 +20,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding: var(--space-2) var(--space-4a);
+  padding: var(--space-3) var(--space-4a);
   border-radius: var(--radius-sm);
   line-height: 1.25;
 }
@@ -43,9 +43,25 @@
   font-weight: 800;
 }
 
+/* On a phone, reserve two label lines so the values share one baseline. */
+@media (max-width: 480px) {
+  .ovw2-tile-label {
+    min-height: 2lh;
+  }
+}
+
 /* The height profile. The SVG fills the content box, and its geometry comes
    from elevationPlot.ts, so every pixel here is a real sample. */
+/* Route-card colour tokens, scoped to the card: the Linen artboard values in
+   light and a dark pair in the same order of light and shade. They stay out of
+   tokens.css, which the shared token owners edit. */
 .ovw-elev {
+  --ovw-sky-top: #FBE3D2;
+  --ovw-hill-far: #F2D3D9;
+  --ovw-hill-near: #CFE6DE;
+  --ovw-land-top: #6CCAB3;
+  --ovw-land-bottom: #2EB1A6;
+  --ovw-centre: #FEE0B2;
   position: relative;
   overflow: hidden;
   border: 1px solid var(--pw-line-soft);
@@ -53,40 +69,80 @@
   background: var(--pw-paper);
 }
 
+:root[data-theme='dark'] .ovw-elev {
+  --ovw-sky-top: color-mix(in srgb, var(--pw-marigold-500) 16%, var(--pw-paper));
+  --ovw-hill-far: color-mix(in srgb, var(--yf-purple) 22%, var(--pw-paper));
+  --ovw-hill-near: color-mix(in srgb, var(--pw-lagoon-600) 20%, var(--pw-paper));
+  --ovw-land-top: color-mix(in srgb, var(--pw-lagoon-600) 55%, var(--pw-paper));
+  --ovw-land-bottom: color-mix(in srgb, var(--pw-lagoon-600) 80%, var(--pw-paper));
+  --ovw-centre: var(--pw-paper);
+}
+
 .ovw-elev-svg { display: block; width: 100%; }
 
-.ovw-elev-sky-top { stop-color: var(--pw-lagoon-50); }
+.ovw-elev-sky-top { stop-color: var(--ovw-sky-top); }
 .ovw-elev-sky-bottom { stop-color: var(--pw-paper); }
-.ovw-elev-land-top { stop-color: var(--pw-lagoon-600); }
-.ovw-elev-land-bottom { stop-color: color-mix(in srgb, var(--pw-lagoon-600) 42%, var(--pw-card)); }
+.ovw-elev-land-top { stop-color: var(--ovw-land-top); }
+.ovw-elev-land-bottom { stop-color: var(--ovw-land-bottom); }
 
-.ovw-elev-sun { fill: var(--pw-marigold-500); opacity: .55; }
-.ovw-elev-area { opacity: .55; }
+.ovw-elev-sun { fill: var(--pw-marigold-500); opacity: .85; }
+.ovw-elev-sun-halo { fill: var(--pw-marigold-500); opacity: .12; }
+.ovw-elev-hill-far { fill: var(--ovw-hill-far); opacity: .75; }
+.ovw-elev-hill-near { fill: var(--ovw-hill-near); }
+.ovw-elev-area { opacity: 1; }
 
 .ovw-elev-line {
   fill: none;
   stroke: var(--pw-ink);
-  stroke-width: 2.5;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The dashed centre runs over the ink line, as on the Linen artboard. */
+.ovw-elev-line-centre {
+  fill: none;
+  stroke: var(--ovw-centre);
+  stroke-width: 1.2px;
+  stroke-dasharray: 3 4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .ovw-elev-base { stroke: var(--pw-line); stroke-width: 1; }
 
+/* Stops: a cream fill with a saffron ring. The start is a filled sea dot and
+   the end is a filled saffron dot. */
 .ovw-elev-dot {
   fill: var(--pw-card);
-  stroke: var(--pw-sea-700);
-  stroke-width: 2;
+  stroke: var(--pw-marigold-500);
+  stroke-width: 2.5px;
 }
 
-.ovw-elev-dot.is-start,
-.ovw-elev-dot.is-destination { stroke: var(--pw-marigold-500); }
+.ovw-elev-dot.is-start {
+  fill: var(--pw-sea-700);
+  stroke: var(--pw-card);
+  stroke-width: 2px;
+}
+
+.ovw-elev-dot.is-destination {
+  fill: var(--pw-marigold-500);
+  stroke: var(--pw-card);
+  stroke-width: 2px;
+}
 
 .ovw-elev-name {
   fill: var(--pw-ink);
   font-family: var(--font-body);
   font-size: 11px;
   font-weight: 700;
+}
+
+.ovw-elev-height {
+  fill: var(--pw-ink-2);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .ovw-elev-axis {
@@ -101,7 +157,7 @@
 .ovw-elev-peak-title {
   fill: var(--pw-ink);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -112,36 +168,48 @@
   font-weight: 700;
 }
 
+/* The true-shape inset. Its path is the real route projected into a small box,
+   so the shape is real and the inset carries no height. Linen: a 124 px card
+   with 6 px padding, a 112 x 96 drawing and a north-up caption. */
 .ovw-elev-inset {
   position: absolute;
-  top: var(--space-5);
-  left: var(--space-7);
+  top: 10px;
+  left: 39%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  width: max-content;
-  padding: var(--space-2);
+  box-sizing: border-box;
+  width: 124px;
+  padding: 6px;
   border: 1px solid var(--pw-line-soft);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--pw-card) 92%, transparent);
-  box-shadow: var(--elev-1);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--pw-card) 90%, transparent);
+  backdrop-filter: blur(var(--yf-blur-chip));
+  -webkit-backdrop-filter: blur(var(--yf-blur-chip));
+  box-shadow: var(--elev-2);
   pointer-events: none;
 }
 
+.ovw-elev-inset-svg {
+  display: block;
+  width: 112px;
+  height: 96px;
+}
+
+.ovw-elev-inset-grid { fill: none; stroke: var(--pw-line); stroke-width: .8px; }
+
 .ovw-elev-inset span {
-  padding-inline: var(--space-2);
-  color: var(--pw-ink-3);
+  color: var(--pw-ink-2);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: .02em;
   white-space: nowrap;
 }
 
 .ovw-elev-inset-case {
   fill: none;
   stroke: var(--pw-card);
-  stroke-width: 5.5;
+  stroke-width: 5.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -149,10 +217,14 @@
 .ovw-elev-inset-line {
   fill: none;
   stroke: var(--pw-sea-700);
-  stroke-width: 2.4;
+  stroke-width: 2.6px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+.ovw-elev-inset-start { fill: var(--pw-sea-700); stroke: var(--pw-card); stroke-width: 1.5px; }
+.ovw-elev-inset-n { fill: var(--pw-sunken); }
+.ovw-elev-inset-n-text { fill: var(--pw-ink-2); font-family: var(--font-body); font-size: 11px; font-weight: 800; }
 
 .ovw-elev-note {
   margin: 0;
@@ -196,17 +268,14 @@
   opacity: .7;
 }
 
-/* In elevation mode the stop row carries its own height, so the name and the
-   meta share the column as two lines instead of one squeezed line. */
+/* Linen: the name and its day share one line. A 31 px row cannot hold two lines. */
 .ovw2 .ovw-stoplist.is-elevated .ovw-stop-name {
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   line-height: 1.25;
 }
 
 .ovw2 .ovw-stoplist.is-elevated .ovw-stop-name small {
-  margin-inline-start: 0;
+  margin-inline-start: var(--space-3);
 }
 
 /* ===== P12 Overview: source layout — right stack, group strip, weather row ===== */
@@ -233,10 +302,10 @@
 
 .yf-surface.ovw-block.ovw2-strip {
   display: grid;
-  grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
   gap: var(--space-6);
   align-items: center;
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-6) var(--space-7a);
   border-color: var(--pw-line-soft);
   border-radius: var(--radius-lg);
   background: var(--pw-card);
@@ -246,14 +315,14 @@
 .ovw2-strip-head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .ovw2-strip-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-5);
+  gap: var(--space-4a);
   min-width: 0;
 }
 
@@ -268,7 +337,10 @@
 }
 
 .ovw2-strip-tile.is-decisions { background: var(--pw-marigold-100); }
-.ovw2-strip-tile.is-activity { display: block; }
+.ovw2-strip-tile.is-activity {
+  display: block;
+  background: var(--pw-paper);
+}
 
 .ovw2-strip-copy {
   display: flex;
@@ -279,12 +351,15 @@
 
 .ovw2-strip-copy b {
   color: var(--pw-ink);
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .ovw2-strip-copy small {
   color: var(--pw-ink-2);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .ovw2-strip-kicker {
@@ -634,4 +709,146 @@
    fold still collapses the same box. */
 @media (max-width: 720px) {
   .yf-page[data-compact='false'] .yf-members { margin-top: var(--space-7); }
+}
+
+/* ===== P12 Overview: lower region polish (Linen mockup) =====
+   Loads last and takes the .ovw2 scope, so it beats the earlier .ovw2 rules for
+   next-up and weather in 16-motion-and-cover-v2.css. Colours come from the
+   Overview tokens; --pw-sand is defined in 15-overview.css for both themes. */
+.ovw2 .ovw-card.ovw2-commitments {
+  padding: var(--space-7a);
+}
+
+:root[data-theme='dark'] .ovw2 .ovw-next {
+  --ovw-next-line: #2A4F49;
+}
+
+.ovw2 .ovw-next-date {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-sm);
+  background: var(--pw-card);
+  color: var(--pw-sea-700);
+}
+
+.ovw2 .ovw-next-date > span {
+  color: var(--pw-sea-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.ovw2 .ovw-next-date b {
+  color: var(--pw-sea-700);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ovw2 .ovw-next-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ovw2 .ovw-next-copy > .ovw-next-kicker {
+  color: var(--pw-sea-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ovw2 .ovw-next-copy > b {
+  display: block;
+  color: var(--pw-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ovw2 .ovw-next-copy > span:last-child {
+  color: var(--pw-ink-2);
+  font-size: 12px;
+}
+
+/* Weather: each day tile takes the forecast tint, dry sand or wet lagoon. */
+.ovw2 .ovw-wx-cell b {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (min-width: 721px) {
+  .ovw2-wx-row {
+    grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+  }
+}
+
+/* The group strip: a 120px label column beside the tiles, as in the mockup. */
+.ovw2-strip-tile.is-members {
+  background: var(--pw-sunken);
+}
+
+.ovw2-strip-chip {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--pw-marigold-300);
+  color: var(--pw-marigold-ink);
+}
+
+/* Invite and Review decisions read as text links. They keep their 44px touch floor. */
+.ovw2-strip-head .ovw-btn,
+.ovw2-strip-tile.is-decisions .ovw-btn {
+  min-height: 44px;
+  margin-inline-start: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--pw-sea-700);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ovw2-strip-tile.is-decisions .ovw-btn {
+  color: var(--pw-marigold-ink);
+  font-size: 11px;
+}
+
+.ovw2-strip-head .ovw-btn:hover,
+.ovw2-strip-tile.is-decisions .ovw-btn:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+@media (pointer: fine) {
+  .ovw2-strip-head .ovw-btn,
+  .ovw2-strip-tile.is-decisions .ovw-btn {
+    min-height: 24px;
+  }
+}
+
+/* Member avatars: 30px circles that overlap by 9px, ringed in the tile colour. */
+.ovw2-strip .ovw-avatars .avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px var(--pw-sunken);
+}
+
+.ovw2-strip .ovw-avatars .avatar + .avatar {
+  margin-inline-start: -9px;
 }

@@ -38,7 +38,7 @@ The SHA256 value covers the full file.
 | `docs/redesign/papercut-warmth/sources/README.md` | `README.md` | 2090 | `8BB47F78474BFFF1FA334EE60854F802E389DBE3C728EA09A6B5E3D00584936C` | Supplied doc-set guide |
 | `docs/redesign/papercut-warmth/sources/DESIGN_TOKENS.md` | `DESIGN_TOKENS.md` | 40931 | `1095C098CE64660A7421AE253FDF4BCB3956233D3FEEF1C5E041C5BED4E7B979` | Supplied token reference |
 | `docs/redesign/papercut-warmth/sources/papercut-section.md` | `papercut-section.md` | 14447 | `3B4770555CD6F127C76791BFA06958DB2E1C828B04E56490ECCA3F69BD2E90F2` | Supplied token section |
-| `docs/redesign/papercut-warmth/sources/papercut-tokens.css` | `papercut-tokens.css` | 4189 | `815151577D1C97A25B45771D10CFBF3500019BF3BDD7CBA3278EB5493C0B0A71` | Supplied token CSS, updated to the Linen surface palette |
+| `docs/redesign/papercut-warmth/sources/papercut-tokens.css` | `papercut-tokens.css` | 4189 | `942A3680647B4372881B0AB252601BBC284143CB94B771E8B97F3E787E6E78AE` | Supplied token CSS, updated to the Linen surface palette. Light shadows use the warm umber of the Linen artboards (2026-11-02). |
 
 ## Foundation decisions
 

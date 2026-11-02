@@ -215,12 +215,12 @@ export function OverviewRouteCard({
   return (
     <>
       <div className="ovw-head">
-        <h2 className="ovw-title" id="ovw-route-title">{showElevation ? 'Route heights' : 'Route'}</h2>
+        <h2 className="ovw-title" id="ovw-route-title">{showElevation ? 'The road, by height' : 'Route'}</h2>
         <div className="ovw-head-meta">
           <span className={`ovw-route-caption ${showElevation ? 'is-elevation' : `is-${summary.state}`}`}>
             {showElevation ? 'Illustrative elevation' : summary.caption}
           </span>
-          {onOpenMap && <button type="button" className="ovw-link" onClick={openGenericMap}>Open map</button>}
+          {onOpenMap && <button type="button" className="ovw-link" onClick={openGenericMap}>Open map <span aria-hidden="true">→</span></button>}
         </div>
       </div>
 

@@ -518,13 +518,33 @@
 
 /* ===== P12 Overview: route card and flat terrain ===== */
 .ovw-route {
+  --ovw-route-line: #E2DDD4;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
+:root[data-theme='dark'] .ovw-route {
+  --ovw-route-line: var(--pw-line-soft);
+}
+
+/* The card border colour reads --ovw-route-line in 16-motion-and-cover-v2.css. */
+
 .ovw-route .ovw-head {
   margin-bottom: 0;
+}
+
+/* The Linen head: a 20 px title and a 13.5 px open-map link. */
+.ovw-route .ovw-head .ovw-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 23px;
+  letter-spacing: -0.2px;
+}
+
+.ovw-route .ovw-link {
+  font-size: 13.5px;
+  font-weight: 700;
 }
 
 .ovw-route > .ovw-route-empty {
@@ -660,7 +680,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 1;
-  animation: ovwRoadDraw var(--motion-slow) var(--ease-out) backwards;
+  animation: ovwRoadDraw var(--motion-slow) var(--ease-paper) backwards;
   animation-delay: calc(var(--stagger-step) * var(--i, 0));
 }
 
@@ -670,7 +690,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 1;
-  animation: ovwRoadDraw var(--motion-slow) var(--ease-out) backwards;
+  animation: ovwRoadDraw var(--motion-slow) var(--ease-paper) backwards;
   animation-delay: calc(var(--stagger-step) * var(--i, 0));
 }
 
@@ -849,7 +869,7 @@
 .ovw-stoplist {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--space-9);
+  column-gap: 18px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -901,18 +921,18 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 2px solid var(--yf-teal-600);
+  border: 2px solid var(--pw-marigold-500);
   border-radius: 50%;
   background: var(--card);
-  color: var(--ink-teal);
+  color: var(--pw-ink);
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 800;
 }
 
 .ovw-stoplist .is-start .ovw-stop-pin {
-  border-color: var(--teal-deep);
-  background: var(--teal-deep);
+  border-color: var(--pw-sea-700);
+  background: var(--pw-sea-700);
   color: var(--card);
 }
 
@@ -921,32 +941,33 @@
 }
 
 .ovw-stoplist .is-end .ovw-stop-pin {
-  border-color: var(--yf-saffron);
-  background: var(--yf-saffron);
-  color: var(--btn-accent-fg);
+  border-color: var(--pw-marigold-500);
+  background: var(--pw-marigold-500);
+  color: var(--pw-ink);
 }
 
 .ovw-stop-name {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 12.5px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ovw-stop-name small {
   margin-inline-start: var(--space-3);
-  color: var(--text-2);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--pw-ink-3);
+  font-size: 12.5px;
+  font-weight: 400;
 }
 
 .ovw-stop-km,
 .ovw-stop-t {
-  color: var(--text-2);
-  font-size: 12px;
+  color: var(--pw-ink-3);
+  font-size: 12.5px;
+  font-weight: 400;
   text-align: end;
   white-space: nowrap;
 }
@@ -957,6 +978,15 @@
 
 .ovw-stop-t {
   min-width: 66px;
+}
+
+/* A mouse or trackpad gets the Linen rows (31 px) and pins (18 px). A touch
+   screen keeps the 44 px row and the 22 px pin, so the tap target never
+   shrinks. The numerals stay at 11 px, the type floor. */
+@media (pointer: fine) {
+  .ovw-stop-btn { min-height: 31px; padding-block: 6px; }
+  .ovw-stop-pin { width: 18px; height: 18px; }
+  .ovw-route .ovw-link { min-height: 18px; }
 }
 
 /* ===== P12 Overview: day matrix ===== */
@@ -975,18 +1005,18 @@
 }
 
 .mx {
-  min-width: 560px;
+  min-width: 520px;
   padding: 2px 0;
 }
 
 .mx-row {
   display: grid;
-  /* 50px holds the longest part label ("Stretch", 49.1px at the 11px floor), so
-     no two headings touch. The 42px chip stays centred in its column, and the
-     day column keeps enough room for a two-place route name. */
-  grid-template-columns: minmax(0, 1fr) repeat(6, 50px) 46px;
+  /* Mockup grid: 42px part columns, a 34px Filled column and 6px gaps. The
+     11px header floor makes "Stretch" wider than its column, so the proof
+     checks that no two headings touch. */
+  grid-template-columns: minmax(0, 1fr) repeat(6, 42px) 34px;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .mx-row.is-head {
@@ -1044,7 +1074,7 @@
 .mx-daybtn {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-5);
   width: 100%;
   min-height: 44px;
   padding: 0;
@@ -1138,13 +1168,13 @@
 
 .mx-cell[data-state='auto'] .mx-chip {
   background: var(--pw-lagoon-100);
-  box-shadow: inset 0 0 0 1.5px var(--pw-lagoon-400);
+  border: 1.5px dashed var(--pw-lagoon-400);
   color: var(--pw-sea-700);
 }
 
 .mx-cell[data-state='empty'] .mx-chip {
   background: var(--pw-marigold-100);
-  box-shadow: inset 0 0 0 1.5px var(--pw-marigold-300);
+  border: 1.5px solid var(--pw-marigold-300);
   color: var(--pw-marigold-ink);
 }
 
@@ -1204,7 +1234,7 @@
 
 .mx-dash {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .mx-total {
@@ -1214,7 +1244,7 @@
   min-height: 44px;
   color: var(--pw-ink);
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -1222,8 +1252,9 @@
   font-style: normal;
 }
 
+/* The thinnest day is named in the head meta, so the row total keeps the ink colour. */
 .mx-total.is-thin {
-  color: var(--pw-marigold-ink);
+  color: var(--pw-ink);
 }
 
 /* The key names all four marks, then points at the cells. */
@@ -1250,16 +1281,70 @@
 
 .mx-key .k-a {
   background: var(--pw-lagoon-100);
-  box-shadow: inset 0 0 0 1.5px var(--pw-lagoon-400);
+  border: 1.5px dashed var(--pw-lagoon-400);
 }
 
 .mx-key .k-e {
   background: var(--pw-marigold-100);
-  box-shadow: inset 0 0 0 1.5px var(--pw-marigold-300);
+  border: 1.5px solid var(--pw-marigold-300);
 }
 
 .mx-key .k-n {
   background: var(--pw-sunken);
+}
+
+/* The today row: the mockup's tinted row, a sea day badge and a "Today" pill.
+   SlotMatrix marks it only when today falls inside the trip. */
+.mx-row.is-today {
+  border-radius: var(--radius-sm);
+  background: var(--pw-lagoon-50);
+  box-shadow: 0 0 0 5px var(--pw-lagoon-50);
+}
+
+.mx-row.is-today .mx-daycol {
+  background: var(--pw-lagoon-50);
+}
+
+.mx-row.is-today .mx-place {
+  color: var(--pw-sea-700);
+}
+
+.mx-row.is-today .mx-thumb-n {
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+}
+
+.mx-today {
+  flex: none;
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--pw-lagoon-100);
+  color: var(--pw-sea-700);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ovw-head-meta .ovw-thin {
+  color: var(--pw-marigold-ink);
+  font-weight: 700;
+}
+
+/* The chip lifts 1px on hover, as the mockup does. */
+.mx-btn:hover .mx-chip {
+  transform: translateY(-1px);
+  box-shadow: var(--elev-2);
+}
+
+/* Fine pointers get the mockup's 34px rows. Touch keeps the 44px hit floor. */
+@media (pointer: fine) {
+  .mx-day,
+  .mx-daybtn,
+  .mx-cell,
+  .mx-btn,
+  .mx-total {
+    min-height: 34px;
+  }
 }
 
 .mx-compact {
@@ -1724,6 +1809,7 @@ div.mx-crow {
   --pw-ok-soft: #E2F0E8;
   --pw-risk: #B23A2E;
   --pw-risk-soft: #FBEDEA;
+  --pw-sand: #FBF1DF;
   --bg: var(--pw-paper);
   --bg-soft: var(--pw-sunken);
   --card: var(--pw-card);
@@ -1774,6 +1860,7 @@ div.mx-crow {
   --pw-ok-soft: #17291E;
   --pw-risk: #F08A7A;
   --pw-risk-soft: #3A1C18;
+  --pw-sand: #2B2415;
   --shadow-card: var(--elev-1);
 }
 

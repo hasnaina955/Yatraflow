@@ -9,7 +9,7 @@
 // Every figure is still the engine's or the settlement lib's. This file adds
 // presentation and two read-only views (the ledger filter, the chart split).
 // The five direct writers keep the shared staged-change refusal.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   BedDouble, Car, Check, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
@@ -31,7 +31,7 @@ import { sliceState, emptyCopyFor } from '../../lib/readState'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase as baseTitleCase } from '../../lib/labels'
-import { avatarToneFor, type AvatarTone } from '../../lib/avatarTone'
+import { avatarToneFor, assignAvatarTones, type AvatarTone } from '../../lib/avatarTone'
 import { Avatar, Chip, Field, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
 import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
@@ -66,12 +66,23 @@ function titleCase(c: string): string { return CAT_LABEL[c as ExpenseCategory] ?
 /** One solid tone per person, for every avatar this tab draws.
  *
  *  The mockup paints each participant a solid brand chip instead of the pale
- *  mint default, so the money rows read as people. The tone comes from the
- *  member's identity, never from their row index, so a person keeps one colour
- *  when the rows reorder. The expense ledger (F3's region) calls this same
- *  helper, so the table's payer chip matches the balance chip above it. */
-function toneFor(user?: { id?: string; profile?: { name?: string } } | null): AvatarTone {
-  return avatarToneFor(user?.id ?? user?.profile?.name)
+ *  mint default, so the money rows read as people. The tone must also match the
+ *  header's member stack, which assigns tones across the whole cast: a lone
+ *  hash cannot promise that two people differ, and it could paint one person two
+ *  colours on one page. So this reads the stack's own assignment — same members,
+ *  same order — and falls back to the lone hash only for an identity the trip
+ *  does not hold. */
+function toneMapFor(members: { userId: ID }[]): Map<string, AvatarTone> {
+  const tones = assignAvatarTones(members.map(member => member.userId))
+  return new Map(members.map((member, index) => [member.userId, tones[index]]))
+}
+
+type ToneUser = { id?: string; profile?: { name?: string } } | null | undefined
+
+/** The member's assigned tone, or the lone-identity tone for a non-member. */
+function toneFrom(toneMap: Map<string, AvatarTone>, user: ToneUser): AvatarTone {
+  const assigned = user?.id ? toneMap.get(user.id) : undefined
+  return assigned ?? avatarToneFor(user?.id ?? user?.profile?.name)
 }
 
 interface FormState {
@@ -270,6 +281,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   const db = useDb()
   const me = currentUser(db)
   const members = trip.members ?? []
+  // One tone per person, from the same assignment the header's member stack
+  // reads, so a colour means one person everywhere on this page.
+  const toneMap = useMemo(() => toneMapFor(trip.members ?? []), [trip.members])
+  const toneFor = (user: ToneUser) => toneFrom(toneMap, user)
   const [editingId, setEditingId] = useState<ID | null>(null)
   const [adding, setAdding] = useState(false)
   const [lineFilter, setLineFilter] = useState<'all' | 'open' | 'settled'>('all')
@@ -398,8 +413,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   const chartTargetY = PLOT.top + PLOT_H - (Math.min(dayTarget, maxDay) / maxDay) * PLOT_H
   const chartTicks = [1, 0.75, 0.5, 0.25, 0].map(f => ({ f, value: maxDay * f, y: PLOT.top + PLOT_H * (1 - f) }))
   // A target that lands on a grid tick would print the same rupee value twice.
-  // The dashed line and the card note still name it; skip the duplicate label.
-  const targetHasTick = chartTicks.some(tick => Math.abs(tick.y - chartTargetY) < 12)
+  // The comparison is on the VALUE, not on pixels: a tick 200 rupees away from
+  // the target is not the target, and bolding it claimed otherwise.
+  const targetHasTick = chartTicks.some(tick => Math.abs(Math.round(tick.value) - Math.round(dayTarget)) <= 1)
   const chartColW = PLOT_W / Math.max(1, days.length)
   const chartBarW = Math.min(58, chartColW * 0.56)
 
@@ -439,7 +455,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               {formatInr(totals.costPerPersonInr)} each · {trip.travellers} traveller{trip.travellers === 1 ? '' : 's'}
               {hasTarget
                 ? perPersonDeltaPct !== 0 && <> · <b className={perPersonDeltaPct > 0 ? 'bud-delta-bad' : 'bud-delta-ok'}>{perPersonDeltaPct > 0 ? '+' : '−'}{Math.abs(perPersonDeltaPct)}%</b></>
-                : ' · no per-person target yet'}
+                : ' · no per‑person target yet'}
             </span>
           </div>
           {hasTarget ? (
@@ -559,8 +575,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           <div className="bud-card-head">
             <h3 className="bud-card-title">Cost per day</h3>
             <p className="bud-card-note">
-              <span className="bud-chart-hint-wide">Hover or tap a day for the split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
-              <span className="bud-chart-hint-narrow">Tap a day for the split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+              <span className="bud-chart-hint-wide">Focus or tap a day for the split · every value is in the table below · dashed line is the{chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+              <span className="bud-chart-hint-narrow">Open the table below for every day’s split · dashed line is the{chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
             </p>
           </div>
           {chartCats.length > 0 && (
@@ -579,7 +595,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                     <title>Cost per day</title>
                     <desc>{`Each column stacks one day's spend by category. The dashed line marks the ${chartTargetLabel}. Every value is also written in the table below the chart.`}</desc>
                     {chartTicks.map(t => {
-                      const onTarget = targetHasTick && Math.abs(t.y - chartTargetY) < 12
+                      // Only the tick that IS the target carries the weight.
+                      const onTarget = dayTarget > 0 && Math.abs(Math.round(t.value) - Math.round(dayTarget)) <= 1
                       return (
                         <g key={t.f}>
                           <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
@@ -805,7 +822,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                       </div>
                       {balances.map(b => {
                         const bal = Math.abs(b.bal) <= 0.5 ? 0 : b.bal
-                        const width = (Math.abs(bal) / maxBalance) * 50
+                        // 42, not 50: the round cap adds 8px of radius, so the
+                        // longest bar still ends inside the track.
+                        const width = (Math.abs(bal) / maxBalance) * 42
                         return (
                           <div key={b.id} className="bud-bal-row">
                             <span className="bud-bal-who"><Avatar user={b.user} tone={toneFor(b.user)} /> {nameOf(b.user)}</span>
@@ -814,8 +833,11 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                               <svg viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
                                 <line className="bud-bal-even" x1="50" x2="50" y1="0" y2="16" />
                                 {bal !== 0 && (
-                                  <rect className={bal > 0 ? 'bud-bal-bar pos' : 'bud-bal-bar neg'}
-                                    x={bal > 0 ? 50 : 50 - width} y="0" width={Math.max(1.5, width)} height="16" rx="4" />
+                                  // A stroked line, not a filled rect: `vector-effect:
+                                  // non-scaling-stroke` keeps the 4px caps round at any
+                                  // column width, where a stretched rect drew ellipses.
+                                  <line className={`bud-bal-bar ${bal > 0 ? 'pos' : 'neg'}`}
+                                    x1={bal > 0 ? 50 : 50 - width} x2={bal > 0 ? 50 + width : 50} y1="8" y2="8" />
                                 )}
                               </svg>
                             </span>
@@ -859,7 +881,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                               <span className="num muted small">{formatInr(lineTotal(e, trip.travellers))}</span>
                               <button
                                 type="button"
-                                className="btn btn-sm settled-btn"
+                                className="btn btn-sm btn-outline settled-btn"
                                 aria-label={`Mark ${e.label} settled`}
                                 onClick={() => {
                                   if (refuseWhileStaged(previewOpen)) return
@@ -1036,6 +1058,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               body="Add the big ones first (stay, fuel, food)." />
           </div>
         ) : (
+            <div className="bud-ledger-scroll">
             <table className="compare-table bud-lines-table" tabIndex={0} aria-label="Expense lines">
               <thead>
                 <tr>
@@ -1121,6 +1144,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 })}
               </tbody>
             </table>
+            </div>
           )}
         {expensesRead === 'ready' && trip.expenses.length > 0 && (
           <p className="bud-lines-foot">

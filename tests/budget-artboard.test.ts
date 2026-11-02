@@ -111,7 +111,9 @@ describe('PW-13 — no design-tool control or mockup palette leaks in', () => {
   })
 
   it('uses the existing spend tokens, never the mockup hexes', () => {
-    for (const token of ['--cat-transport', '--cat-accommodation', '--cat-food', '--cat-activities']) {
+    // The family now takes one --pw-cat-* pair in both themes, so the night hue
+    // is the mockup's own and no --cat-* override is needed.
+    for (const token of ['--pw-cat-transport', '--pw-cat-stays', '--pw-cat-food', '--pw-cat-activity']) {
       expect(css, token).toContain(token)
     }
     expect(css).not.toMatch(/#008C7F|#3168C4|#CF5A2C|#A04CA8|#F0F8F6|#E0EBE9|#EAF3F2|#FCFEFD|#D3DEDC|#DCE7E6/i)

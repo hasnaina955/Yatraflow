@@ -1,20 +1,16 @@
 /* Budget tab — PW-13, the artboard's one budget family.
    Owns the glance strip, the day chart, the category table, the balances, the
    optional card and the ledger. Category hue comes from the --pw-cat-* tokens in
-   the light theme and the --cat-* tokens at night. */
+   both themes, so the night palette is the mockup's own. */
 
 /* ---- category hues (one token per class) ----
-   Light: the mockup's four series hues, which already exist as --pw-cat-*.
-   Night: the app's --cat-* hues stay, because the DarkTheme export does not show
-   the mockup hues. The four remaining categories keep --cat-* in both themes. */
+   The mockup's four series hues exist as --pw-cat-*, and the theme block already
+   carries the night set, so one token pair serves both themes. The four other
+   categories keep --cat-* in both themes. */
 .bud-cat--transport { --bud-cat: var(--pw-cat-transport); }
 .bud-cat--accommodation { --bud-cat: var(--pw-cat-stays); }
 .bud-cat--food { --bud-cat: var(--pw-cat-food); }
 .bud-cat--activities { --bud-cat: var(--pw-cat-activity); }
-[data-theme='dark'] .bud-cat--transport { --bud-cat: var(--cat-transport); }
-[data-theme='dark'] .bud-cat--accommodation { --bud-cat: var(--cat-accommodation); }
-[data-theme='dark'] .bud-cat--food { --bud-cat: var(--cat-food); }
-[data-theme='dark'] .bud-cat--activities { --bud-cat: var(--cat-activities); }
 .bud-cat--entry-fees { --bud-cat: var(--cat-entry-fees); }
 .bud-cat--tolls-parking { --bud-cat: var(--cat-tolls-parking); }
 .bud-cat--local-travel { --bud-cat: var(--cat-local-travel); }
@@ -22,7 +18,10 @@
 
 /* ---- page and grids ---- */
 .bud-page { display: flex; flex-direction: column; gap: var(--space-7); min-width: 0; }
-.bud-grid { display: grid; gap: var(--space-7); align-items: start; }
+/* Cards in a row share one height, as the mockup draws them: a short card keeps
+   its content at the top and leaves the rest of the row's box empty, instead of
+   leaving a hole beside its taller neighbour. */
+.bud-grid { display: grid; gap: var(--space-7); align-items: stretch; }
 .bud-grid-charts, .bud-grid-mid { grid-template-columns: 1.2fr 1fr; }
 .bud-panel {
   padding: var(--space-8); background: var(--card);
@@ -41,8 +40,12 @@
   border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg);
   box-shadow: var(--elev-1);
 }
-.bud-glance-main { display: flex; flex-direction: column; gap: var(--space-4a); }
+.bud-glance-main { display: flex; flex-direction: column; gap: var(--space-4a); padding-top: 18px; }
 .bud-glance-tile { display: flex; flex-direction: column; gap: var(--space-3); padding: 18px; }
+/* The hero's head centred its kicker against a taller pill, and the hero padded
+   2px more than a tile, so its kicker sat 5px lower than its three siblings. One
+   top padding and one top-aligned head put all four kickers on the same line. */
+.bud-glance-main .bud-glance-head { align-items: flex-start; }
 .bud-glance-kitty { background: var(--pw-lagoon-50); border-color: var(--pw-route); }
 .bud-glance-kitty .bud-kicker,
 .bud-glance-kitty .bud-glance-sub { color: var(--pw-sea-700); }
@@ -164,8 +167,8 @@
    --pw-line so the panel still reads as elevation over the night card. */
 .bud-tip {
   --bud-tip-surface: #22201E; --bud-tip-ink: #F8F5F0; --bud-tip-muted: #ADBCCF;
-  position: absolute; z-index: var(--z-raised); left: 50%; bottom: calc(100% + var(--space-2));
-  transform: translateX(-50%); width: max-content; max-width: 220px;
+  position: absolute; z-index: var(--z-raised); left: calc(100% + var(--space-3)); top: 0;
+  width: max-content; max-width: 220px;
   display: flex; flex-direction: column; gap: var(--space-1);
   padding: var(--space-4a) var(--space-5); border-radius: var(--radius-sm);
   border: 0;
@@ -175,8 +178,11 @@
 }
 [data-theme='dark'] .bud-tip { --bud-tip-surface: var(--pw-line); }
 .bud-hit:hover .bud-tip, .bud-hit:focus .bud-tip { opacity: 1; }
-.bud-hit:first-child .bud-tip { left: 0; transform: none; }
-.bud-hit:last-child .bud-tip { left: auto; right: 0; transform: none; }
+/* The read-out opens beside its day, never over it: a popover above the column
+   hid the column's own value label and, on day 1, the card heading. A day near
+   the right edge opens to the left instead. */
+.bud-hit:nth-last-child(2) .bud-tip,
+.bud-hit:last-child .bud-tip { left: auto; right: calc(100% + var(--space-3)); }
 .bud-tip span { display: flex; align-items: center; gap: var(--space-3); }
 .bud-tip b { margin-left: auto; }
 .bud-tip .bud-swatch { width: 9px; height: 9px; }
@@ -193,6 +199,11 @@
   font-weight: 600; color: var(--text-3);
 }
 .bud-table-view summary:hover, .bud-method summary:hover { color: var(--text-2); }
+/* The three disclosure toggles take the page's focus ring, like every other
+   control here: the browser's 1px default was the only outline left on the tab. */
+.bud-table-view > summary:focus-visible,
+.bud-method > summary:focus-visible,
+.settled-history > summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-mark); }
 .bud-data-table, .bud-cat-table { margin-top: var(--space-3); }
 /* The table is wider than a phone. This box owns the scroll and the focus
    ring, so the page root never overflows and every column is reachable. */
@@ -208,8 +219,10 @@
 .bud-data-table th, .bud-data-table td,
 .bud-cat-table th, .bud-cat-table td { border-bottom: 1px dashed var(--pw-line-soft); }
 .bud-cat-table tfoot th, .bud-cat-table tfoot td { border-bottom: 0; font-weight: 700; }
-/* The mockup's row rhythm: tight cells, a muted share column, weighted money. */
-.bud-cat-table th, .bud-cat-table td { padding: var(--space-4) var(--space-2); }
+/* The mockup's row rhythm: tight cells, a muted share column, weighted money.
+   The category names print in sentence case, as the mockup writes them; the
+   legacy table recipe uppercased every cell. */
+.bud-cat-table th, .bud-cat-table td { padding: var(--space-4) var(--space-2); text-transform: none; }
 .bud-cat-table tbody td:nth-child(3),
 .bud-cat-table tfoot td:nth-child(3) { font-size: 12.5px; font-weight: 400; color: var(--text-3); }
 .bud-cat-table tbody td:nth-child(4),
@@ -217,7 +230,9 @@
 .bud-cat-table tfoot td:nth-child(4),
 .bud-cat-table tfoot td:nth-child(5) { font-weight: 700; }
 .bud-cat-table-wrap { overflow-x: auto; }
-.bud-cat-table { min-width: 360px; }
+/* The table fills the card: the mockup's rows run to the card's inner edge, and a
+   shrink-wrapped table left a dead strip at its right. */
+.bud-cat-table { min-width: 360px; width: 100%; }
 .bud-cat-table:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* ---- category table + insight ---- */
@@ -259,7 +274,7 @@
 .bud-crew-invite { margin: var(--space-2) 0 0; }
 .bud-crew-status { margin: var(--space-2) 0 var(--space-4); }
 .bud-bal-head, .bud-bal-row {
-  display: grid; grid-template-columns: minmax(96px, 120px) minmax(0, 1fr) 96px;
+  display: grid; grid-template-columns: minmax(120px, 148px) minmax(0, 1fr) 96px;
   gap: var(--space-4a); align-items: center;
 }
 .bud-bal-head {
@@ -277,19 +292,30 @@
 .bud-bal-who {
   display: inline-flex; align-items: center; gap: var(--space-4);
   min-width: 0; font-size: 13.5px; font-weight: 700;
+  /* A name is one line: "Viewer Three" wrapped under itself at 120px. */
+  white-space: nowrap;
 }
-.bud-bal-track { display: block; height: 16px; min-width: 0; }
+/* HTML bars, not an SVG: a `preserveAspectRatio="none"` viewBox scales with the
+   column, which is what turned the 4px caps into ellipses. A div keeps the radius
+   it declares at every width. The track owns the even line. */
+.bud-bal-track {
+  display: block; position: relative; height: 16px; min-width: 0;
+  border-radius: var(--radius-mark);
+}
 .bud-bal-track svg { display: block; width: 100%; height: 16px; }
-/* The mockup draws no centre rule; the bar itself carries the direction. The
-   element stays in the markup as the even-line contract the tests pin, and it
-   paints nothing. */
-.bud-bal-even { display: none; }
+/* The even line is the zero the bars measure from. The mockup draws none, but a
+   bar with no centre on it cannot say which side of settled a row is on. */
+.bud-bal-even { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+/* A stroked line, not a filled rect: the viewBox stretches with the column, which
+   drew the rect's rx=4 caps as long ellipses. A non-scaling stroke keeps its 16px
+   width and its round cap round at every width. */
 .bud-bal-bar {
-  transform-box: fill-box; transform-origin: left center;
+  stroke-width: 16; stroke-linecap: round; vector-effect: non-scaling-stroke;
+  transform-box: view-box; transform-origin: 50% 50%;
   animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;
 }
-.bud-bal-bar.pos { fill: var(--pw-cat-stays); }
-.bud-bal-bar.neg { fill: var(--pw-cat-food); transform-origin: right center; }
+.bud-bal-bar.pos { stroke: var(--pw-cat-stays); }
+.bud-bal-bar.neg { stroke: var(--pw-cat-food); }
 .bud-bal-row:nth-child(2) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 1); }
 .bud-bal-row:nth-child(3) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 2); }
 .bud-bal-row:nth-child(4) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 3); }
@@ -408,6 +434,11 @@
    The row is a 46px card with a 6px gap and a 12px radius, and no rule between
    rows. A table row cannot paint a radius, so the outer cells carry it. */
 .bud-lines .bud-lines-table { margin-top: var(--space-4); }
+/* The phone's table is wider than the card, so this box owns the sideways
+   scroll. The fade on its right edge is the cue that more columns follow: the
+   row controls used to sit past the card with nothing to say so. The fade is a
+   mask, so it never paints over the last column once the box is scrolled. */
+.bud-ledger-scroll { max-width: 100%; }
 .bud-lines .bud-lines-table > thead > tr > th,
 .bud-lines .bud-lines-table > tbody > tr > th,
 .bud-lines .bud-lines-table > tbody > tr > td {
@@ -579,6 +610,14 @@
     margin-top: var(--space-2); font-size: 13px;
   }
   .bud-line-amount-inline b { font-variant-numeric: tabular-nums; }
+  /* The ledger scrolls sideways on a phone; the fading right edge says so. The
+     table keeps its own overflow for legacy consumers, so inside this box it
+     hands the scroll over — one scroller, one cue. */
+  .bud-ledger-scroll {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, rgb(0 0 0 / 1) calc(100% - 28px), rgb(0 0 0 / 0) 100%);
+  }
+  .bud-ledger-scroll > .bud-lines-table { overflow: visible; }
   /* The name field owns its row. Four columns squeezed it to 68px inside a
      275px row; the amount, Add and the options control sit under it. */
   .quick-add-row { grid-template-columns: minmax(0, 1fr) auto auto; }
@@ -591,10 +630,26 @@
   }
 }
 
+/* A finger needs 44x44: the filters, the summary toggles, the ledger's row
+   controls, the settle buttons and the text links all reach it here. The button
+   scale is set through its documented variable; the icon and link controls only
+   carry a size floor, so the shared recipes keep their own paint. */
 @media (pointer: coarse) {
-  .bud-filter { min-height: 44px; }
+  .bud-page .btn { --btn-min-height: 44px; }
+  .bud-filter { min-height: 44px; min-width: 44px; }
   .bud-hit { min-width: 40px; }
-  .bud-table-view summary { min-height: 40px; padding: 10px 0; }
+  .bud-table-view summary,
+  .bud-method summary,
+  .settled-history summary { min-height: 44px; padding: 12px 0; }
+  /* Sizing only, through the page's own containers: the shared icon control keeps
+     its own paint, and this module never names it. */
+  .bud-row-actions > button,
+  .settled-row > button { width: 44px; height: 44px; }
+}
+/* Only the real table has columns; the phone's block box does not. The action
+   column widens to hold two 44px controls and their gap. */
+@media (min-width: 721px) and (pointer: coarse) {
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(7) { width: 108px; }
 }
 
 /* ---------- Entrance: one cascade, owned by the page body ----------
@@ -606,9 +661,11 @@
    `div[role="tabpanel"]:has(> .bud-page)` takes that block fade off this tab only; other
    tabs keep theirs. The body's blocks and their parts carry the entrance instead. A wrapper that cascades its parts
    (`.bud-glance`, `.bud-grid`) carries none, so no element fades twice. Steps are
-   the 60ms `--stagger-step`, capped at six (360ms). The sequence settles inside
-   about 0.9s. The state banners and the edit bar are opted out: they are states,
-   not entrance content. Top level, not in a media query, so the design-system
+   the 60ms `--stagger-step`, capped at six (360ms). The blocks land as before, and
+   the parts inside each card trail from the card's own step, so the contents of a
+   card arrive one after another for about another half second. The sequence
+   settles inside about 1.2s. The state banners and the edit bar are opted out: they
+   are states, not entrance content. Top level, not in a media query, so the design-system
    gates can read it. The reduced-motion opt-out is the block at the end. */
 div[role="tabpanel"]:has(> .bud-page) { animation: none; }
 .bud-page > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
@@ -648,14 +705,135 @@ div[role="tabpanel"]:has(> .bud-page) { animation: none; }
 .bud-grid-mid .bud-bal-row:nth-child(2) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 4); }
 .bud-grid-mid .bud-bal-row:nth-child(3) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 5); }
 .bud-grid-mid .bud-bal-row:nth-child(n+4) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 6); }
+
+/* ---- Inner cascade: the parts inside a card, one after another ----------
+   The cards keep their own step and the parts inside them trail from it, from
+   the same `--stagger-step`: `calc(var(--stagger-step) * (base + N))`, where
+   `base` is the card's own step. Each inner cascade is container-owned and
+   takes at most six inner steps, then a catch-all. Rows and blocks rise with
+   `pageRise`, and labels carry `fadeIn`, so a label never moves. */
+
+/* (a) Glance hero: the total, then the track, then the kicker and pill, then the foot. */
+.bud-glance-main > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
+.bud-glance-main > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 4); }
+.bud-glance-main > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 1); }
+.bud-glance-main > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 5); }
+/* The caption is a label: it fades once the track has grown (its step plus 560ms). */
+.bud-glance-main .bud-target-caption {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1 + var(--motion-slower));
+}
+
+/* (b) "Where the money goes": one category row at a time, then the total row. */
+.bud-cat-card .bud-cat-table > tbody > tr {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(2) { animation-delay: calc(var(--stagger-step) * (2 + 1)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(3) { animation-delay: calc(var(--stagger-step) * (2 + 2)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(4) { animation-delay: calc(var(--stagger-step) * (2 + 3)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(5) { animation-delay: calc(var(--stagger-step) * (2 + 4)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(6) { animation-delay: calc(var(--stagger-step) * (2 + 5)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * (2 + 6)); }
+.bud-cat-card .bud-cat-table > tfoot > tr {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * (2 + 5));
+}
+
+/* (c) "Who paid": the balance rows one by one, then the transfers. */
+.bud-balances > * {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 3);
+}
+.bud-balances > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * (3 + 1)); }
+.bud-balances > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * (3 + 2)); }
+.bud-balances > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * (3 + 3)); }
+.bud-balances > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * (3 + 4)); }
+.bud-balances > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * (3 + 5)); }
+.bud-balances > *:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * (3 + 6)); }
+/* The transfers follow the rows: the card's step, then three row steps. */
+.bud-transfers > * {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * (3 + 3));
+}
+.bud-transfers > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * (3 + 4)); }
+.bud-transfers > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * (3 + 5)); }
+.bud-transfers > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * (3 + 6)); }
+.bud-transfers > *:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * (3 + 6)); }
+
+/* (d) A day's total and its label fade once that bar has grown: the bar's own
+   step plus `--motion-slower`. Axis ticks follow the last bar. */
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(1) .bud-bar-total,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(1) .bud-day-name,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(1) .bud-day-date {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2 + var(--motion-slower));
+}
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(2) .bud-bar-total,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(2) .bud-day-name,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(2) .bud-day-date {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 3 + var(--motion-slower));
+}
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(3) .bud-bar-total,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(3) .bud-day-name,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(3) .bud-day-date {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 4 + var(--motion-slower));
+}
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(4) .bud-bar-total,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(4) .bud-day-name,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(4) .bud-day-date {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 5 + var(--motion-slower));
+}
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(n+5) .bud-bar-total,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(n+5) .bud-day-name,
+.bud-chart-card .bud-bars .bud-day-group:nth-of-type(n+5) .bud-day-date {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 6 + var(--motion-slower));
+}
+.bud-chart-card .bud-axis-label,
+.bud-chart-card .bud-target-text {
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 6 + var(--motion-slower));
+}
+
+/* (e) The legend items, one by one, inside the chart card's step. */
+.bud-chart-card .bud-legend > li {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+.bud-chart-card .bud-legend > li:nth-child(2) { animation-delay: calc(var(--stagger-step) * (2 + 1)); }
+.bud-chart-card .bud-legend > li:nth-child(3) { animation-delay: calc(var(--stagger-step) * (2 + 2)); }
+.bud-chart-card .bud-legend > li:nth-child(4) { animation-delay: calc(var(--stagger-step) * (2 + 3)); }
+.bud-chart-card .bud-legend > li:nth-child(5) { animation-delay: calc(var(--stagger-step) * (2 + 4)); }
+.bud-chart-card .bud-legend > li:nth-child(6) { animation-delay: calc(var(--stagger-step) * (2 + 5)); }
+.bud-chart-card .bud-legend > li:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * (2 + 6)); }
+
 /* The expense list lands last, as one panel (`.bud-lines`, step 5). Its rows and the
-   optional-line rows carry no cascade of their own: a filter re-mounts rows, and a
-   re-mounted row would replay the entrance. Measured: the "Settled" filter brings one
-   row back with `pageRise`. Per-row stagger needs a mount-gated class in BudgetTab. */
+   optional-line rows carry no cascade of their own: a filter click or an optional
+   toggle re-mounts rows, and a re-mounted row would replay the entrance. Measured:
+   Open, Settled and All each re-mount the ledger rows (3, 2, 1 back to 3) and the
+   optional toggle re-mounts the optional card, and none of them starts a
+   `pageRise`. Per-row stagger there needs a mount-gated class in BudgetTab. The
+   state banners and the edit bar carry none either. */
 
 @media (prefers-reduced-motion: reduce) {
   .bud-page > *,
   .bud-glance > *,
   .bud-grid-charts > *,
-  .bud-grid-mid > * { animation: none; }
+  .bud-grid-mid > *,
+  .bud-glance-main > *,
+  .bud-glance-main .bud-target-caption,
+  .bud-cat-card .bud-cat-table > tbody > tr,
+  .bud-cat-card .bud-cat-table > tfoot > tr,
+  .bud-balances > *,
+  .bud-transfers > *,
+  .bud-chart-card .bud-bars .bud-day-group .bud-bar-total,
+  .bud-chart-card .bud-bars .bud-day-group .bud-day-name,
+  .bud-chart-card .bud-bars .bud-day-group .bud-day-date,
+  .bud-chart-card .bud-axis-label,
+  .bud-chart-card .bud-target-text,
+  .bud-chart-card .bud-legend > li { animation: none; }
 }

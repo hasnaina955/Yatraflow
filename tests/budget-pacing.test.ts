@@ -106,7 +106,7 @@ describe('#381 — the tab speaks estimate headroom, not cash', () => {
     expect(src).toMatch(/Set a per-person target to measure this estimate/)
     // The strip's per-person meta says there is no target rather than
     // printing a red negative or a +% over zero.
-    expect(src).toMatch(/no per-person target yet/)
+    expect(src).toMatch(/no per‑person target yet/)
     // The old "Group budget" label overstated a planning estimate.
     expect(src).not.toMatch(/Group budget/)
   })

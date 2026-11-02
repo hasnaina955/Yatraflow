@@ -197,8 +197,8 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
 
   it('gives the coarse pointer the 44px control floor', () => {
     const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
-    expect(coarse).toContain('.bud-filter { min-height: 44px; }')
-    expect(coarse).toContain('.bud-table-view summary { min-height: 40px; padding: 10px 0; }')
+    expect(coarse).toContain('.bud-filter { min-height: 44px; min-width: 44px; }')
+    expect(coarse).toContain('.settled-history summary { min-height: 44px; padding: 12px 0; }')
     // A flex summary drops the native disclosure marker.
     expect(coarse).not.toContain('.bud-table-view summary { display: flex;')
   })

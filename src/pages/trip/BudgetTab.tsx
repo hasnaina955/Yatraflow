@@ -30,7 +30,8 @@ import { amountRefusal } from '../../lib/expenseAmount'
 import { sliceState, emptyCopyFor } from '../../lib/readState'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
-import { titleCase } from '../../lib/labels'
+import { titleCase as baseTitleCase } from '../../lib/labels'
+import { avatarToneFor, type AvatarTone } from '../../lib/avatarTone'
 import { Avatar, Chip, Field, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
 import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
@@ -56,6 +57,22 @@ function fmtNeg(n: number): string { return `−${formatInr(-n)}` }
 
 /** The category class that carries the validated spend hue. */
 function catClass(c: ExpenseCategory): string { return `bud-cat--${c}` }
+
+/** The one category the mockup names differently. */
+const CAT_LABEL: Partial<Record<ExpenseCategory, string>> = { accommodation: 'Stays' }
+/** Category label as the budget surfaces print it. */
+function titleCase(c: string): string { return CAT_LABEL[c as ExpenseCategory] ?? baseTitleCase(c) }
+
+/** One solid tone per person, for every avatar this tab draws.
+ *
+ *  The mockup paints each participant a solid brand chip instead of the pale
+ *  mint default, so the money rows read as people. The tone comes from the
+ *  member's identity, never from their row index, so a person keeps one colour
+ *  when the rows reorder. The expense ledger (F3's region) calls this same
+ *  helper, so the table's payer chip matches the balance chip above it. */
+function toneFor(user?: { id?: string; profile?: { name?: string } } | null): AvatarTone {
+  return avatarToneFor(user?.id ?? user?.profile?.name)
+}
 
 interface FormState {
   label: string; amount: string; category: ExpenseCategory
@@ -438,7 +455,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 )}
                 <line className="bud-target-mark" x1={targetMarkPct} x2={targetMarkPct} y1="0" y2="12" />
               </svg>
-              <span className="bud-target-caption">Target {formatInr(groupTarget)} · {pctUsed}% of the target{pctUsed > 100 ? ' — over budget' : ''}</span>
+              <span className="bud-target-caption">Target {formatInr(groupTarget)}</span>
             </div>
           ) : (
             <div className="bud-target-wrap">
@@ -542,8 +559,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           <div className="bud-card-head">
             <h3 className="bud-card-title">Cost per day</h3>
             <p className="bud-card-note">
-              <span className="bud-chart-hint-wide">Focus or tap a day for the split · every value is in the table below · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
-              <span className="bud-chart-hint-narrow">Open the table below for every day’s split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+              <span className="bud-chart-hint-wide">Hover or tap a day for the split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+              <span className="bud-chart-hint-narrow">Tap a day for the split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
             </p>
           </div>
           {chartCats.length > 0 && (
@@ -558,15 +575,20 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               <div className="bud-plot-scroll" ref={dayBarsRef} data-motion-paused={!visible || !daysInView}>
                 <div className="bud-plot">
                   <svg className="bud-plot-svg" viewBox={`0 0 ${PLOT.w} ${PLOT.h}`} role="img"
-                    aria-label={`Cost per day. ${days.map(d => `${d.label} ${formatInr(d.totalInr)}`).join('; ')}. Dashed line is the ${chartTargetLabel} at ${formatInr(dayTarget)}.`}>
+                    aria-label={`Cost per day. ${days.map(d => `${d.label} ${formatInr(d.totalInr)}`).join('; ')}. Dashed line is the ${chartTargetLabel} at ${formatInr(dayTarget)}. The axis runs from ${formatInr(0)} to ${formatInr(Math.round(maxDay))}.`}>
                     <title>Cost per day</title>
                     <desc>{`Each column stacks one day's spend by category. The dashed line marks the ${chartTargetLabel}. Every value is also written in the table below the chart.`}</desc>
-                    {chartTicks.map(t => (
-                      <g key={t.f}>
-                        <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
-                        <text className="bud-axis-label" x={PLOT.left - 8} y={t.y + 4} textAnchor="end">{formatInr(Math.round(t.value))}</text>
-                      </g>
-                    ))}
+                    {chartTicks.map(t => {
+                      const onTarget = targetHasTick && Math.abs(t.y - chartTargetY) < 12
+                      return (
+                        <g key={t.f}>
+                          <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
+                          <text className={onTarget ? 'bud-axis-label is-on' : 'bud-axis-label'} x={PLOT.left - 8} y={t.y + 4} textAnchor="end">
+                            {formatInr(Math.round(t.value))}
+                          </text>
+                        </g>
+                      )
+                    })}
                     {dayTarget > 0 && (
                       <g className="bud-target-group">
                         <line className="bud-target-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={chartTargetY} y2={chartTargetY} />
@@ -716,7 +738,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 <p className="bud-insight">
                   <span aria-hidden="true">i</span>
                   <span>
-                    {titleCase(topCat[0])} is the biggest share at {topCatShare}%.
+                    Biggest share: {titleCase(topCat[0])} at {topCatShare}%.
                     {biggestLine && biggestLine.expense.category === topCat[0] && <> {biggestLine.expense.label} alone is {biggestShare}% of the trip.</>}
                   </span>
                 </p>
@@ -786,14 +808,14 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                         const width = (Math.abs(bal) / maxBalance) * 50
                         return (
                           <div key={b.id} className="bud-bal-row">
-                            <span className="bud-bal-who"><Avatar user={b.user} /> {nameOf(b.user)}</span>
+                            <span className="bud-bal-who"><Avatar user={b.user} tone={toneFor(b.user)} /> {nameOf(b.user)}</span>
                             <span className="bud-bal-track" role="img"
                               aria-label={bal === 0 ? `${nameOf(b.user)} is settled` : bal > 0 ? `${nameOf(b.user)} gets back ${formatInr(bal)}` : `${nameOf(b.user)} owes ${formatInr(-bal)}`}>
                               <svg viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
                                 <line className="bud-bal-even" x1="50" x2="50" y1="0" y2="16" />
                                 {bal !== 0 && (
                                   <rect className={bal > 0 ? 'bud-bal-bar pos' : 'bud-bal-bar neg'}
-                                    x={bal > 0 ? 50 : 50 - width} y="3" width={Math.max(1.5, width)} height="10" rx="2" />
+                                    x={bal > 0 ? 50 : 50 - width} y="0" width={Math.max(1.5, width)} height="16" rx="4" />
                                 )}
                               </svg>
                             </span>
@@ -812,7 +834,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                         <p className="bud-transfer-head"><b>Simplest way to settle</b> · {transfers.length} payment{transfers.length === 1 ? '' : 's'}</p>
                         {transfers.map((t, i) => (
                           <div key={`${t.from.id}-${t.to.id}-${i}`} className="bud-transfer-row">
-                            <Avatar user={t.from.user} />
+                            <Avatar user={t.from.user} tone={toneFor(t.from.user)} />
                             <span>{nameOf(t.from.user)} → {nameOf(t.to.user)}</span>
                             <b>{formatInr(t.amount)}</b>
                           </div>
@@ -904,10 +926,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 </pattern>
               </defs>
               <rect className="bud-essential-fill" x="0" y="0"
-                width={Math.max(0, (totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="2" />
+                width={Math.max(0, (totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="4" />
               {totals.optionalInr > 0 && (
                 <rect className="bud-optional-fill" x={(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100} y="0"
-                  width={Math.max(0.6, (totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="2" />
+                  width={Math.max(0.6, (totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="4" />
               )}
             </svg>
           </div>
@@ -920,17 +942,20 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               <ul className="bud-optional-list">
                 {optionalLines.map(e => (
                   <li key={e.id} className="bud-optional-row">
-                    <span className="bud-optional-check" aria-hidden="true"><Check size={12} /></span>
+                    <span className="bud-optional-check" aria-hidden="true"><Check size={14} /></span>
                     <span className="bud-optional-name">{e.label} <span className="muted">· {expenseDayLabel(trip, e)}</span></span>
                     <b>{formatInr(lineTotal(e, trip.travellers))}</b>
                   </li>
                 ))}
               </ul>
               <p className="bud-optional-result">
-                Without {optionalLines.length === 1 ? 'that line' : `those ${optionalLines.length}`}: <b>{formatInr(withoutOptional)}</b>
-                {hasTarget && <> — {withoutOptionalRoom >= 0
-                  ? <>{formatInr(withoutOptionalRoom)} under target</>
-                  : <>{formatInr(-withoutOptionalRoom)} over target</>}</>}
+                <Check size={20} aria-hidden="true" />
+                <span>
+                  Without {optionalLines.length === 1 ? 'that line' : `those ${optionalLines.length}`}: <b>{formatInr(withoutOptional)}</b>
+                  {hasTarget && <> — {withoutOptionalRoom >= 0
+                    ? <>{formatInr(withoutOptionalRoom)} under target</>
+                    : <>{formatInr(-withoutOptionalRoom)} over target</>}</>}
+                </span>
               </p>
             </>
           ) : (
@@ -961,7 +986,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
       <Surface className="card bud-panel bud-lines">
         <div className="bud-card-head">
           <div>
-            <h3 className="bud-card-title">Expense lines{expensesRead === 'ready' && trip.expenses.length > 0 ? ` · ${trip.expenses.length}` : ''}</h3>
+            <h3 className="bud-card-title">Expense lines</h3>
             <p className="bud-card-note">Amounts are group totals unless marked per person. Tag who paid to settle up above.</p>
           </div>
           <div className="bud-line-tools">
@@ -974,7 +999,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               ))}
             </div>
             {editable && canWrite && (
-              <button type="button" className="btn btn-primary btn-sm" aria-expanded={adding}
+              <button type="button" className="btn btn-primary" aria-expanded={adding}
                 onClick={() => setAdding(v => !v)}>
                 {adding ? 'Close capture' : '+ Add expense'}
               </button>
@@ -1052,7 +1077,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                       </th>
                       <td>{expenseDayLabel(trip, e)}</td>
                       <td>{payer
-                        ? <span className="bud-payer"><Avatar user={payer} /> {payer.profile.name}</span>
+                        ? <span className="bud-payer"><Avatar user={payer} tone={toneFor(payer)} /> {payer.profile.name}</span>
                         : <span className="bud-payer bud-payer-kitty">Shared kitty</span>}</td>
                       <td className="num">{formatInr(lineTotal(e, trip.travellers))}</td>
                       <td>
@@ -1097,6 +1122,17 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               </tbody>
             </table>
           )}
+        {expensesRead === 'ready' && trip.expenses.length > 0 && (
+          <p className="bud-lines-foot">
+            Showing {shownExpenses.length} of {trip.expenses.length} lines
+            {lineFilter !== 'all' && (
+              <>
+                {' · '}
+                <button type="button" className="link-btn teal" onClick={() => setLineFilter('all')}>Show all lines</button>
+              </>
+            )}
+          </p>
+        )}
         {expensesRead === 'ready' && trip.expenses.length > 0 && shownExpenses.length === 0 && (
           <p className="hint-text bud-empty-line">
             No {lineFilter === 'settled' ? 'settled' : 'open'} lines. <button className="link-btn teal" onClick={() => setLineFilter('all')}>Show all lines</button>

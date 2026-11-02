@@ -75,7 +75,7 @@ describe('PW-13 — the category table names its own populations', () => {
 
   it('lists every category with its own share and a text insight', () => {
     expect(code).toContain('aria-label={`Category shares: ')
-    expect(code).toContain('is the biggest share at')
+    expect(code).toContain('Biggest share: {titleCase(topCat[0])} at {topCatShare}%.')
     expect(code).toContain('<tfoot>')
   })
 })

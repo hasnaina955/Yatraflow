@@ -1,13 +1,20 @@
 /* Budget tab — PW-13, the artboard's one budget family.
    Owns the glance strip, the day chart, the category table, the balances, the
-   optional card and the ledger. Category hue comes from the existing
-   --cat-* tokens, so the chart joins the app's validated spend palette. */
+   optional card and the ledger. Category hue comes from the --pw-cat-* tokens in
+   the light theme and the --cat-* tokens at night. */
 
-/* ---- category hues (one token per class, both themes) ---- */
-.bud-cat--transport { --bud-cat: var(--cat-transport); }
-.bud-cat--accommodation { --bud-cat: var(--cat-accommodation); }
-.bud-cat--food { --bud-cat: var(--cat-food); }
-.bud-cat--activities { --bud-cat: var(--cat-activities); }
+/* ---- category hues (one token per class) ----
+   Light: the mockup's four series hues, which already exist as --pw-cat-*.
+   Night: the app's --cat-* hues stay, because the DarkTheme export does not show
+   the mockup hues. The four remaining categories keep --cat-* in both themes. */
+.bud-cat--transport { --bud-cat: var(--pw-cat-transport); }
+.bud-cat--accommodation { --bud-cat: var(--pw-cat-stays); }
+.bud-cat--food { --bud-cat: var(--pw-cat-food); }
+.bud-cat--activities { --bud-cat: var(--pw-cat-activity); }
+[data-theme='dark'] .bud-cat--transport { --bud-cat: var(--cat-transport); }
+[data-theme='dark'] .bud-cat--accommodation { --bud-cat: var(--cat-accommodation); }
+[data-theme='dark'] .bud-cat--food { --bud-cat: var(--cat-food); }
+[data-theme='dark'] .bud-cat--activities { --bud-cat: var(--cat-activities); }
 .bud-cat--entry-fees { --bud-cat: var(--cat-entry-fees); }
 .bud-cat--tolls-parking { --bud-cat: var(--cat-tolls-parking); }
 .bud-cat--local-travel { --bud-cat: var(--cat-local-travel); }
@@ -34,15 +41,18 @@
   border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg);
   box-shadow: var(--elev-1);
 }
-.bud-glance-main { display: flex; flex-direction: column; gap: var(--space-3); }
-.bud-glance-tile { display: flex; flex-direction: column; gap: var(--space-2); }
+.bud-glance-main { display: flex; flex-direction: column; gap: var(--space-4a); }
+.bud-glance-tile { display: flex; flex-direction: column; gap: var(--space-3); padding: 18px; }
 .bud-glance-kitty { background: var(--pw-lagoon-50); border-color: var(--pw-route); }
+.bud-glance-kitty .bud-kicker,
+.bud-glance-kitty .bud-glance-sub { color: var(--pw-sea-700); }
 .bud-glance-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .bud-kicker {
-  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--text-3);
 }
-.bud-glance-figure { display: flex; align-items: baseline; gap: var(--space-5); flex-wrap: wrap; }
+/* One line, as the mockup: the total and its per-head share never stack. */
+.bud-glance-figure { display: flex; align-items: baseline; gap: var(--space-5); flex-wrap: nowrap; }
 .bud-glance-num {
   font-family: var(--font-display); font-size: 38px; font-weight: 700; line-height: 1;
   letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--text);
@@ -58,7 +68,7 @@
 /* ---- pills ---- */
 .bud-pill {
   display: inline-flex; align-items: center; border-radius: var(--radius-pill);
-  padding: var(--space-2) var(--space-4a); font-size: 11.5px; font-weight: 700;
+  padding: var(--space-2) var(--space-4a); font-size: 12px; font-weight: 700; line-height: 1.25;
   white-space: nowrap;
 }
 .bud-pill-ok { background: var(--pw-ok-100); color: var(--pw-ok); }
@@ -78,23 +88,25 @@
 .bud-track-fill.soft { fill: var(--pw-route); }
 .bud-track-fill.is-over { fill: var(--pw-risk); }
 .bud-target-mark { stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.bud-target-caption { font-size: 12.5px; color: var(--text-2); }
+.bud-target-caption { font-size: 11px; font-weight: 700; color: var(--text); text-align: end; }
 
 /* ---- card heads and legends ---- */
 .bud-card-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: var(--space-5); flex-wrap: wrap; margin-bottom: var(--space-5);
 }
+/* R20: card titles are Plus Jakarta Sans 800 at 18px/1.3. The mockup draws Sora
+   700, but the ruling outranks the artboard, so this keeps the repo rule. */
 .bud-card-title {
   margin: 0; font-family: var(--font-body); font-size: 18px; font-weight: 800;
   line-height: 1.3; letter-spacing: 0; color: var(--text);
 }
-.bud-card-note { margin: 0; max-width: 46ch; font-size: 12.5px; color: var(--text-3); }
+.bud-card-note { margin: 0; max-width: 60ch; font-size: 12.5px; color: var(--text-3); }
 .bud-chart-hint-narrow { display: none; }
 .bud-legend {
   display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-6);
   margin: 0 0 var(--space-4); padding: 0; list-style: none;
-  font-size: 12.5px; color: var(--text-2);
+  font-size: 12.5px; font-weight: 400; color: var(--text);
 }
 .bud-legend li { display: inline-flex; align-items: center; gap: var(--space-3); }
 .bud-swatch { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-mark); background: var(--bud-cat); flex: none; }
@@ -104,17 +116,25 @@
 .bud-plot-scroll { overflow: visible; }
 .bud-plot { position: relative; min-width: 0; }
 .bud-plot-svg { display: block; width: 100%; height: auto; overflow: visible; }
-.bud-grid-line { stroke: var(--pw-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.bud-grid-line { stroke: var(--pw-line-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .bud-axis-label { fill: var(--text-3); font-family: var(--font-body); font-size: 11px; }
+/* The tick the target line lands on is the one the mockup bolds. `is-on` is a
+   registered modifier, so the ownership map needs no new entry. */
+.bud-axis-label.is-on { fill: var(--text); font-weight: 700; }
 .bud-target-line {
   stroke: var(--text); stroke-width: 2; stroke-dasharray: 5 5; opacity: .55;
   vector-effect: non-scaling-stroke;
 }
 .bud-target-text { fill: var(--text); font-family: var(--font-body); font-size: 11px; font-weight: 700; }
-.bud-bar-total { fill: var(--text); font-family: var(--font-body); font-size: 12.5px; font-weight: 700; }
+/* A halo in the card tone keeps the total legible over a coloured segment,
+   standing in for the mockup's pill behind the figure. */
+.bud-bar-total {
+  fill: var(--text); font-family: var(--font-body); font-size: 12.5px; font-weight: 700;
+  paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round;
+}
 .bud-bar-total.is-over { fill: var(--pw-risk); }
-.bud-day-name { fill: var(--text); font-family: var(--font-body); font-size: 11.5px; font-weight: 700; }
-.bud-day-date { fill: var(--text-3); font-family: var(--font-body); font-size: 11px; }
+.bud-day-name { fill: var(--text); font-family: var(--font-body); font-size: 12.5px; font-weight: 700; }
+.bud-day-date { fill: var(--text-3); font-family: var(--font-body); font-size: 11.5px; font-weight: 400; }
 .bud-stack {
   transform-box: fill-box; transform-origin: 50% 100%;
   animation: bud-bars-in var(--motion-slower) var(--ease-paper) backwards;
@@ -138,16 +158,22 @@
 }
 .bud-hit { position: relative; border-radius: var(--radius-sm); }
 .bud-hit:focus-visible { outline: none; box-shadow: var(--ring); }
+/* The day read-out floats over the bars, so it always sits on the mockup's dark
+   popover, in both themes. No theme-stable inverse pair exists (--pw-ink flips at
+   night), so the light pair is pinned; the night theme lifts the surface to
+   --pw-line so the panel still reads as elevation over the night card. */
 .bud-tip {
+  --bud-tip-surface: #22201E; --bud-tip-ink: #F8F5F0; --bud-tip-muted: #ADBCCF;
   position: absolute; z-index: var(--z-raised); left: 50%; bottom: calc(100% + var(--space-2));
   transform: translateX(-50%); width: max-content; max-width: 220px;
   display: flex; flex-direction: column; gap: var(--space-1);
   padding: var(--space-4a) var(--space-5); border-radius: var(--radius-sm);
-  border: 1px solid var(--pw-line);
-  background: var(--card); color: var(--text); font-size: 12px;
+  border: 0;
+  background: var(--bud-tip-surface); color: var(--bud-tip-ink); font-size: 12px;
   box-shadow: var(--elev-2);
   opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-paper);
 }
+[data-theme='dark'] .bud-tip { --bud-tip-surface: var(--pw-line); }
 .bud-hit:hover .bud-tip, .bud-hit:focus .bud-tip { opacity: 1; }
 .bud-hit:first-child .bud-tip { left: 0; transform: none; }
 .bud-hit:last-child .bud-tip { left: auto; right: 0; transform: none; }
@@ -155,8 +181,8 @@
 .bud-tip b { margin-left: auto; }
 .bud-tip .bud-swatch { width: 9px; height: 9px; }
 .bud-tip em {
-  font-style: normal; color: var(--text-3); margin-top: var(--space-1); padding-top: var(--space-2);
-  border-top: 1px solid var(--pw-line-soft);
+  font-style: normal; color: var(--bud-tip-muted); margin-top: var(--space-1); padding-top: var(--space-2);
+  border-top: 1px solid rgb(255 255 255 / .12);
 }
 .bud-note { margin: var(--space-4) 0 0; font-size: 12.5px; color: var(--text-3); }
 
@@ -182,11 +208,26 @@
 .bud-data-table th, .bud-data-table td,
 .bud-cat-table th, .bud-cat-table td { border-bottom: 1px dashed var(--pw-line-soft); }
 .bud-cat-table tfoot th, .bud-cat-table tfoot td { border-bottom: 0; font-weight: 700; }
+/* The mockup's row rhythm: tight cells, a muted share column, weighted money. */
+.bud-cat-table th, .bud-cat-table td { padding: var(--space-4) var(--space-2); }
+.bud-cat-table tbody td:nth-child(3),
+.bud-cat-table tfoot td:nth-child(3) { font-size: 12.5px; font-weight: 400; color: var(--text-3); }
+.bud-cat-table tbody td:nth-child(4),
+.bud-cat-table tbody td:nth-child(5),
+.bud-cat-table tfoot td:nth-child(4),
+.bud-cat-table tfoot td:nth-child(5) { font-weight: 700; }
 .bud-cat-table-wrap { overflow-x: auto; }
 .bud-cat-table { min-width: 360px; }
 .bud-cat-table:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* ---- category table + insight ---- */
+/* The ledger keeps the tinted icon chip. In the "Where the money goes" table the
+   mockup wants a flat series dot, so that scope alone drops the box and the glyph. */
+.bud-cat-table .bud-line-cat {
+  width: 12px; height: 12px; border-radius: var(--radius-mark);
+  background: var(--bud-cat);
+}
+.bud-cat-table .bud-line-cat svg { display: none; }
 .bud-line-cat {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 22px; height: 22px; border-radius: var(--radius-xs);
@@ -197,14 +238,21 @@
   display: flex; align-items: flex-start; gap: var(--space-4a);
   margin: var(--space-4) 0 0; padding: var(--space-4a) var(--space-5);
   border-radius: var(--radius-sm); background: var(--pw-lagoon-50);
-  color: var(--pw-sea-900); font-size: 12.5px;
+  color: var(--pw-sea-900); font-size: 12.5px; font-weight: 400;
 }
 .bud-insight > span:first-child {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 20px; height: 20px; border-radius: var(--radius-pill);
+  width: 18px; height: 18px; border-radius: var(--radius-pill);
+  border: 1.5px solid var(--pw-sea-700);
   background: var(--pw-lagoon-100); color: var(--pw-sea-700);
   font-size: 12px; font-weight: 800;
 }
+
+/* Block 3 headings follow the mockup's Sora recipe — 18/700 with the tighter
+   tracking. Scoped to this grid so the glance and chart cards keep their own
+   heading rule; the base `.bud-card-title` recipe is untouched. */
+.bud-grid-mid .bud-card-title { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
+.bud-grid-mid .bud-card-note { font-weight: 400; }
 
 /* ---- balances ---- */
 .bud-balances { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-4); }
@@ -221,14 +269,21 @@
 .bud-bal-head > span:nth-child(2) { display: grid; grid-template-columns: 1fr 1fr; }
 .bud-bal-head > span:nth-child(2) span:first-child { text-align: right; padding-right: var(--space-4a); }
 .bud-bal-head > span:nth-child(2) span:last-child { padding-left: var(--space-4a); }
-.bud-bal-row { padding: var(--space-2) 0; }
+.bud-bal-row { padding: var(--space-4) 0; }
+/* 28px is the mockup's chip size in both the balances and the payment rows.
+   Width and height are the avatar's documented sizing points, so the page
+   sizes the chip and the shared component keeps its own fills. */
+.bud-bal-who .avatar, .bud-transfer-row .avatar { width: 28px; height: 28px; }
 .bud-bal-who {
   display: inline-flex; align-items: center; gap: var(--space-4);
   min-width: 0; font-size: 13.5px; font-weight: 700;
 }
 .bud-bal-track { display: block; height: 16px; min-width: 0; }
 .bud-bal-track svg { display: block; width: 100%; height: 16px; }
-.bud-bal-even { stroke: var(--pw-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+/* The mockup draws no centre rule; the bar itself carries the direction. The
+   element stays in the markup as the even-line contract the tests pin, and it
+   paints nothing. */
+.bud-bal-even { display: none; }
 .bud-bal-bar {
   transform-box: fill-box; transform-origin: left center;
   animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;
@@ -246,19 +301,19 @@
 }
 .bud-bal-amount b { font-size: 12.5px; font-weight: 700; color: var(--text); }
 .bud-bal-pos, .bud-bal-neg { color: var(--text); }
-.bud-bal-note { font-size: 11.5px; color: var(--text-3); }
+.bud-bal-note { font-size: 12px; font-weight: 400; color: var(--text-3); }
 
 /* ---- settlement ---- */
 .bud-transfers {
-  display: flex; flex-direction: column; gap: var(--space-2);
+  display: flex; flex-direction: column; gap: var(--space-4);
   margin-top: var(--space-5); padding-top: var(--space-4);
   border-top: 1px dashed var(--pw-line);
 }
-.bud-transfer-head { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.bud-transfer-head { margin: 0; font-size: 13px; color: var(--text); }
 .bud-transfer-row {
   display: flex; align-items: center; gap: var(--space-4a);
   padding: var(--space-4a) var(--space-5); border-radius: var(--radius-sm);
-  background: var(--pw-lagoon-50); font-size: 13px;
+  background: var(--pw-soft); font-size: 13px;
 }
 .bud-transfer-row b { margin-left: auto; font-variant-numeric: tabular-nums; }
 .bud-transfer-note { margin: var(--space-2) 0 0; }
@@ -291,10 +346,12 @@
 .bud-hatch-base { fill: var(--pw-sunken); }
 .bud-hatch-line { stroke: var(--pw-ink-3); stroke-width: 2; }
 .bud-optional-split {
-  display: flex; justify-content: space-between; gap: var(--space-4);
-  margin-top: var(--space-3); font-size: 12.5px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-4);
+  margin-top: var(--space-5); font-size: 12.5px;
 }
-.bud-optional-key { color: var(--text-2); }
+/* The optional total wears the Activities hue, the same series colour the
+   charts paint, so the key and the hatched segment read as one thing. */
+.bud-optional-key { color: var(--pw-cat-activity); }
 .bud-optional-list {
   display: flex; flex-direction: column; gap: var(--space-1);
   margin: var(--space-4) 0 0; padding: 0; list-style: none;
@@ -306,39 +363,101 @@
 }
 .bud-optional-check {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 20px; height: 20px; border-radius: var(--radius-pill);
-  background: var(--pw-lagoon-100); color: var(--pw-sea-700);
+  width: 20px; height: 20px; border-radius: var(--radius-xs);
+  background: var(--pw-sea-700); color: var(--pw-on-sea);
 }
 .bud-optional-name { min-width: 0; overflow-wrap: anywhere; }
 .bud-optional-row b { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.bud-optional-result { margin: var(--space-3) 0 0; font-size: 12.5px; color: var(--text-2); }
-.bud-optional-result b { color: var(--text); }
+/* The result reads as a verdict, not a footnote: the mockup's green banner,
+   its 20px check, and the same ok pair the Settled pill already uses. The
+   "Remove from plan" button the mockup pairs with it needs a write path this
+   card does not have, so the banner carries the sentence alone. */
+.bud-optional-result {
+  display: flex; align-items: center; gap: var(--space-4a);
+  margin: var(--space-4) 0 0; padding: var(--space-5);
+  border-radius: var(--radius-sm); background: var(--pw-ok-100);
+  color: var(--pw-ok); font-size: 13px;
+}
+.bud-optional-result svg { flex: none; }
+.bud-optional-result b { color: inherit; }
 .bud-watch-row { align-items: flex-start; gap: var(--space-4); margin-top: var(--space-5); }
 .bud-watch-status { margin-top: var(--space-3); }
 
 /* ---- ledger ---- */
 .bud-lines { padding-bottom: var(--space-8); }
 .bud-line-tools { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+/* The mockup's filters are 34px pills on the field fill, not a sunken segmented
+   track. All three app states stay: each one filters real records, and the
+   mockup's two labels ("All days", "Paid · estimate") describe a day range and a
+   status group, which is not the same filter. */
 .bud-filter-group {
-  display: inline-flex; padding: var(--space-1); border-radius: var(--radius-pill);
-  background: var(--pw-sunken);
+  display: inline-flex; gap: var(--space-4); border-radius: var(--radius-pill);
 }
 .bud-filter {
-  border: 0; background: transparent; border-radius: var(--radius-pill);
-  padding: var(--space-2) var(--space-4a); font-size: 12.5px; font-weight: 600;
+  border: 0; background: var(--pw-soft); border-radius: var(--radius-pill);
+  min-height: 34px; padding: 0 var(--space-5); font-size: 12.5px; font-weight: 700;
   color: var(--text-2);
 }
-.bud-filter.is-on { background: var(--card); color: var(--text); font-weight: 700; box-shadow: var(--elev-press); }
+.bud-filter.is-on { background: var(--card); color: var(--text); box-shadow: var(--elev-press); }
 .bud-filter:focus-visible { outline: none; box-shadow: var(--ring); }
-.bud-lines-table { margin-top: var(--space-4); }
-.bud-lines-table td { vertical-align: middle; }
+/* The shared legacy table recipe sets display:block, which shrink-wraps the
+   columns to their intrinsic width and left a 396px dead strip inside the panel.
+   Above the phone the ledger's table is a real table and fills its card. The
+   phone keeps the legacy block box: it also owns the sideways scroll, and a
+   fixed table would grow to the sum of its column widths inside a 300px card.
+   The row is a 46px card with a 6px gap and a 12px radius, and no rule between
+   rows. A table row cannot paint a radius, so the outer cells carry it. */
+.bud-lines .bud-lines-table { margin-top: var(--space-4); }
+.bud-lines .bud-lines-table > thead > tr > th,
+.bud-lines .bud-lines-table > tbody > tr > th,
+.bud-lines .bud-lines-table > tbody > tr > td {
+  padding: var(--space-4a) var(--space-5);
+  border-bottom: 0; vertical-align: middle;
+}
+.bud-lines .bud-lines-table > thead > tr > th { line-height: 1.2; }
+/* The actions cell carries two 40px controls. With no block padding the row is
+   set by the 26px category tile plus its 10px inset, which is the mockup's 46px
+   — and the buttons still have 3px of clearance on each side. */
+.bud-lines .bud-lines-table > tbody > tr > :last-child {
+  padding-inline: 0 var(--space-4); padding-block: 0;
+}
+@media (min-width: 721px) {
+  .bud-lines .bud-lines-table {
+    display: table; width: 100%; table-layout: fixed;
+    border-collapse: separate; border-spacing: 0 var(--space-3);
+  }
+  .bud-lines .bud-lines-table > tbody > tr > :first-child {
+    border-start-start-radius: var(--radius-sm); border-end-start-radius: var(--radius-sm);
+  }
+  .bud-lines .bud-lines-table > tbody > tr > :last-child {
+    border-start-end-radius: var(--radius-sm); border-end-end-radius: var(--radius-sm);
+  }
+  /* Fixed columns hand the width back to What and keep the actions compact. The
+     mockup has six columns; this table keeps its two row controls in a seventh,
+     narrow one instead of hiding them behind a hover. */
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(1) { width: 38px; }
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(3) { width: 96px; }
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(4) { width: 140px; }
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(5) { width: 112px; }
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(6) { width: 104px; }
+  .bud-lines .bud-lines-table > thead > tr > th:nth-child(7) { width: 92px; }
+}
+/* The day and payer cells read as support, the amount and the line name carry
+   the weight, all as the mockup draws them. The amount is the fifth column; it
+   is addressed by position because num belongs to the legacy table recipe,
+   not to this module. */
+.bud-lines .bud-lines-table > tbody > tr > td { color: var(--text-2); font-weight: 400; }
+.bud-lines .bud-lines-table > tbody > tr > :nth-child(5) {
+  color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums;
+}
 /* The What cell is a row header, so it names the amount and status cells.
    It keeps the cell look of a body row rather than the column-head style. */
 .bud-lines-table tbody th {
   text-align: left; text-transform: none; letter-spacing: 0;
   font-size: 13.5px; font-weight: 400; color: var(--text);
 }
-.bud-lines-table tbody tr:hover { background: var(--pw-lagoon-50); }
+.bud-lines .bud-lines-table > tbody > tr:hover > * { background: var(--pw-soft); }
+.bud-lines .bud-line-name { font-weight: 700; }
 .bud-line-name {
   display: inline-flex; align-items: center; gap: var(--space-3);
   flex-wrap: wrap; font-weight: 600;
@@ -349,6 +468,40 @@
 .bud-payer-kitty { color: var(--text-3); }
 .bud-row-actions { display: inline-flex; gap: var(--space-1); }
 .bud-empty-line { margin: var(--space-4) 0 0; }
+
+/* ---- ledger detail, scoped to this panel ----
+   This panel's own rules only. The category tile, the title and the pill are
+   shared with the chart cards, so each of those is scoped to `.bud-lines`. */
+/* The mockup's card head is a Sora title at 700 with a −0.01em track. */
+.bud-lines .bud-card-title {
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -.01em;
+}
+/* The mockup's head is the title and the tools only. The sentence stays — it
+   carries the "group total" rule — but it no longer wraps to two lines and
+   pushes the table down 19px. */
+.bud-lines .bud-card-note { max-width: none; }
+/* A 26px category tile; the glyph inside fills it. */
+.bud-lines .bud-line-cat { width: 26px; height: 26px; }
+.bud-lines .bud-line-cat > svg { width: 14px; height: 14px; }
+/* 12px status ink, as the mockup draws every pill. */
+.bud-lines .bud-pill { font-size: 12px; }
+/* A 22px payer chip, as the mockup draws the table's chip. This is sizing
+   only: the fill, the ink and the initials belong to the avatar, and a page
+   may not restyle them. (The mockup's 9px initials are the component's 11px
+   here: `font-size` is avatar appearance, not page placement.) */
+.bud-lines .bud-payer .avatar { width: 22px; height: 22px; }
+/* The mockup's primary control is 34px at 12.5/700 with no glow. It sets the
+   button's documented variables; the shared control keeps its own recipe. */
+.bud-lines .bud-line-tools > .btn {
+  --btn-font-size: 12.5px; --btn-weight: 700;
+  --btn-padding: 0 var(--space-5); --btn-min-height: 34px;
+}
+/* The mockup's footer line: the count, and the way back to every line. The link
+   keeps the shared link's own weight, as the empty-line hint beside it does. */
+.bud-lines-foot {
+  margin: var(--space-3) 0 0; padding-inline: var(--space-5);
+  font-size: 12.5px; color: var(--text-3);
+}
 
 /* ---- capture and editor (moved from the legacy budget block) ---- */
 .quick-add {
@@ -392,6 +545,8 @@
   .bud-glance-main { grid-column: auto; }
   .bud-glance-num { font-size: 32px; }
   .bud-glance-num.sm { font-size: 24px; }
+  /* A phone card is too narrow for one line, so the figure wraps there. */
+  .bud-glance-figure { flex-wrap: wrap; }
   .bud-bal-head { display: none; }
   .bud-bal-row {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -401,7 +556,7 @@
   .bud-bal-who { grid-area: who; }
   .bud-bal-track { grid-area: bar; }
   .bud-bal-amount { grid-area: amount; }
-  .bud-plot-scroll { overflow-x: auto; padding-bottom: var(--space-4); }
+  .bud-plot-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: var(--space-4); }
   .bud-plot { min-width: 540px; }
   .bud-tip { display: none; }
   .bud-chart-hint-wide { display: none; }
@@ -424,11 +579,20 @@
     margin-top: var(--space-2); font-size: 13px;
   }
   .bud-line-amount-inline b { font-variant-numeric: tabular-nums; }
-  .quick-add-row { grid-template-columns: minmax(0, 1fr) 90px auto auto; }
+  /* The name field owns its row. Four columns squeezed it to 68px inside a
+     275px row; the amount, Add and the options control sit under it. */
+  .quick-add-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .quick-add-row > :first-child { grid-column: 1 / -1; }
+  /* The block table cannot show the row-card gap, so it keeps a rule between
+     rows instead. */
+  .bud-lines .bud-lines-table > tbody > tr > th,
+  .bud-lines .bud-lines-table > tbody > tr > td {
+    border-bottom: 1px solid var(--pw-line-soft);
+  }
 }
 
 @media (pointer: coarse) {
-  .bud-filter { min-height: 40px; }
+  .bud-filter { min-height: 44px; }
   .bud-hit { min-width: 40px; }
   .bud-table-view summary { min-height: 40px; padding: 10px 0; }
 }

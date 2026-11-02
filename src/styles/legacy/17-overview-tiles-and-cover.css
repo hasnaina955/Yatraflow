@@ -500,6 +500,40 @@
     overflow-x: auto;
     padding-bottom: var(--space-2);
   }
+
+  /* Invite and Review decisions are text links. A button centres its text by default,
+     so each link starts at the left edge of its title. */
+  .ovw2-strip-head .ovw-btn,
+  .ovw2-strip-tile.is-decisions .ovw-btn {
+    margin-inline: 0;
+    justify-content: flex-start;
+    text-align: start;
+  }
+
+  /* The icon sits on the title row, not the middle of the tile. */
+  .ovw2-strip-tile.is-decisions {
+    align-items: flex-start;
+  }
+
+  /* A touch link keeps its 44 px target. Its empty half-line moves into the tile's
+     padding, so the link sits close under its title. */
+  @media (pointer: coarse) {
+    .ovw2-strip-tile.is-decisions .ovw-btn {
+      margin-block: -8px -12px;
+    }
+  }
+
+  /* Weather labels wrap inside their cell. The row keeps its own horizontal scroll. */
+  .ovw2 .ovw-wx-day {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* The Open-Meteo credit stays on one line. */
+  .ovw-weather .ovw-head-meta {
+    white-space: nowrap;
+  }
 }
 
 /* The Overview keeps the product 44 px floor on every control, including the

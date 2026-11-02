@@ -884,11 +884,14 @@
 }
 
 .ovw-stoplist.is-long {
-  max-height: 176px;
+  /* Five whole rows at a mouse pointer: 32 px, then 33 px each. The box ends on a row
+     edge, so no row is cut in half. */
+  max-height: 164px;
   padding-inline-end: var(--space-2);
   overflow-y: auto;
   align-content: start;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  /* The fade sits in the last row's bottom padding, so it does not dim that row's text. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 8px), transparent);
 }
 
 .ovw-stop-btn {
@@ -991,6 +994,11 @@
      two-digit stop number on both sides. (A 1.5 px ring rounds to 1 px at 1x.) Touch keeps 22 px. */
   .ovw-stop-pin { width: 20px; height: 20px; }
   .ovw-route .ovw-link { min-height: 18px; }
+}
+
+/* A touch screen gets 44 px rows (45 px after the first two). Four whole rows: 179 px. */
+@media (pointer: coarse) {
+  .ovw-stoplist.is-long { max-height: 179px; }
 }
 
 /* ===== P12 Overview: day matrix ===== */
@@ -1644,8 +1652,23 @@ div.mx-crow {
     border-top: 1px solid var(--line);
   }
 
+  /* One column at the phone width. Fine pointer: 8 rows (32 px, then 33 px) = 263 px.
+     Coarse: 6 rows (44 px, then 45 px) = 269 px. */
   .ovw-stoplist.is-long {
-    max-height: 264px;
+    max-height: 263px;
+  }
+
+  @media (pointer: coarse) {
+    .ovw-stoplist.is-long { max-height: 269px; }
+  }
+
+  /* A matrix label gets two lines on a phone, so its destination is not cut. */
+  .mx-place {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .ovw-stop-btn {

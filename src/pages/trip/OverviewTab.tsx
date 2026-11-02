@@ -1237,7 +1237,7 @@ function SlotMatrix({
                       />
                       <span className="mx-thumb-n">{day.index + 1}</span>
                     </span>
-                    <span className="mx-place">{overviewPinText(dayPlaceLabel(trip, day.index), 18)}</span>
+                    <span className="mx-place">{overviewPinText(dayPlaceLabel(trip, day.index), 40)}</span>
                   </span>
                   {kinds.map(kind => {
                     const slot = slotFor(slots, kind.key)

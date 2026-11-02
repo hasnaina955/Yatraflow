@@ -503,6 +503,8 @@
   --pw-sunken: #ECE7DE;
   --pw-soft: #F2EDE4;
   --pw-card: #FEFDFB;
+  /* Ink over a cover photo. Light keeps the card white, so the light theme is unchanged. */
+  --pw-on-cover: #FEFDFB;
   --pw-raised: #FFFFFF;
   --pw-line: #DFDBD1;
   --pw-line-soft: #E8E4DB;
@@ -619,6 +621,8 @@
   --pw-sunken: #101B2B;
   --pw-soft: #182740;
   --pw-card: #16233A;
+  /* The DarkTheme artboard's "On cover photos" ink: near-white, so text on a photo stays light. */
+  --pw-on-cover: #F4F8FC;
   --pw-raised: #1A2A44;
   --pw-line: #27395A;
   --pw-line-soft: #1E3050;

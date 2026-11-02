@@ -42,3 +42,14 @@ describe('ROADMAP status section stays pinned to the shipped version', () => {
     expect(snapshot).toBeGreaterThanOrEqual(release)
   })
 })
+
+describe('ROADMAP idea ids stay unique', () => {
+  // Four ids (I-84, I-87, I-88, I-89) once named two ideas each. A cross-reference
+  // such as "I-88" then pointed at the wrong row. Take the next free number.
+  it('gives every idea-bank row its own I-number', () => {
+    const ids = [...roadmap.matchAll(/^\| (I-[0-9]+) \|/gm)].map((m) => m[1])
+    expect(ids.length, 'the idea bank must keep its I-numbered rows').toBeGreaterThan(50)
+    const repeated = ids.filter((id, index) => ids.indexOf(id) !== index)
+    expect([...new Set(repeated)]).toEqual([])
+  })
+})

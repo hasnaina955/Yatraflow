@@ -432,3 +432,66 @@
   .bud-hit { min-width: 40px; }
   .bud-table-view summary { min-height: 40px; padding: 10px 0; }
 }
+
+/* ---------- Entrance: one cascade, owned by the page body ----------
+   Mockup order (the Linen Budget mockup): the hero total and its target track, then the
+   three glance tiles, then the two chart cards, then the balances and the
+   optional-lines card, then the expense list. The app had none of this. The page
+   root's page-enter class gave the tab panel that holds the body one fade, and that
+   fade started at nth-child 6 (300ms), so every block arrived together.
+   `div[role="tabpanel"]:has(> .bud-page)` takes that block fade off this tab only; other
+   tabs keep theirs. The body's blocks and their parts carry the entrance instead. A wrapper that cascades its parts
+   (`.bud-glance`, `.bud-grid`) carries none, so no element fades twice. Steps are
+   the 60ms `--stagger-step`, capped at six (360ms). The sequence settles inside
+   about 0.9s. The state banners and the edit bar are opted out: they are states,
+   not entrance content. Top level, not in a media query, so the design-system
+   gates can read it. The reduced-motion opt-out is the block at the end. */
+div[role="tabpanel"]:has(> .bud-page) { animation: none; }
+.bud-page > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
+.bud-page > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.bud-page > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.bud-page > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.bud-page > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.bud-page > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+.bud-page > *:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * 6); }
+.bud-page > .bud-glance,
+.bud-page > .bud-grid,
+.bud-page > .bud-read,
+.bud-page > .bud-editor-actions { animation: none; }
+.bud-page > .bud-lines { animation-delay: calc(var(--stagger-step) * 5); }
+
+/* Glance: the hero first, then the three tiles. */
+.bud-glance > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
+.bud-glance > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.bud-glance > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.bud-glance > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.bud-glance > :nth-child(1) .bud-track-fill,
+.bud-glance > :nth-child(2) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 1); }
+.bud-glance > :nth-child(3) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 2); }
+.bud-glance > :nth-child(4) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 3); }
+
+/* Chart cards, then the balances and optional-lines card. Each bar starts with its card. */
+.bud-grid-charts > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; animation-delay: calc(var(--stagger-step) * 2); }
+.bud-grid-mid > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; animation-delay: calc(var(--stagger-step) * 3); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(1) .bud-stack { animation-delay: calc(var(--stagger-step) * 2); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(2) .bud-stack { animation-delay: calc(var(--stagger-step) * 3); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(3) .bud-stack { animation-delay: calc(var(--stagger-step) * 4); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(4) .bud-stack { animation-delay: calc(var(--stagger-step) * 5); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(n+5) .bud-stack { animation-delay: calc(var(--stagger-step) * 6); }
+.bud-grid-charts .bud-share-bar { animation-delay: calc(var(--stagger-step) * 2); }
+.bud-grid-mid .bud-essential-bar { animation-delay: calc(var(--stagger-step) * 3); }
+.bud-grid-mid .bud-bal-row:nth-child(1) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 3); }
+.bud-grid-mid .bud-bal-row:nth-child(2) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 4); }
+.bud-grid-mid .bud-bal-row:nth-child(3) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 5); }
+.bud-grid-mid .bud-bal-row:nth-child(n+4) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 6); }
+/* The expense list lands last, as one panel (`.bud-lines`, step 5). Its rows and the
+   optional-line rows carry no cascade of their own: a filter re-mounts rows, and a
+   re-mounted row would replay the entrance. Measured: the "Settled" filter brings one
+   row back with `pageRise`. Per-row stagger needs a mount-gated class in BudgetTab. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bud-page > *,
+  .bud-glance > *,
+  .bud-grid-charts > *,
+  .bud-grid-mid > * { animation: none; }
+}

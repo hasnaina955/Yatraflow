@@ -956,11 +956,13 @@
   white-space: nowrap;
 }
 
-.ovw-stop-name small {
-  margin-inline-start: var(--space-3);
+/* The meta column: "Day N · km" or "Day N · height". It is never clipped. */
+.ovw-stop-meta {
   color: var(--pw-ink-3);
   font-size: 12.5px;
   font-weight: 400;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .ovw-stop-km,
@@ -985,7 +987,9 @@
    shrinks. The numerals stay at 11 px, the type floor. */
 @media (pointer: fine) {
   .ovw-stop-btn { min-height: 31px; padding-block: 6px; }
-  .ovw-stop-pin { width: 18px; height: 18px; }
+  /* A 20 px pin on a fine pointer. Its 2 px ring leaves 16 px inside, which clears a
+     two-digit stop number on both sides. (A 1.5 px ring rounds to 1 px at 1x.) Touch keeps 22 px. */
+  .ovw-stop-pin { width: 20px; height: 20px; }
   .ovw-route .ovw-link { min-height: 18px; }
 }
 
@@ -1330,12 +1334,6 @@
   font-weight: 700;
 }
 
-/* The chip lifts 1px on hover, as the mockup does. */
-.mx-btn:hover .mx-chip {
-  transform: translateY(-1px);
-  box-shadow: var(--elev-2);
-}
-
 /* Fine pointers get the mockup's 34px rows. Touch keeps the 44px hit floor. */
 @media (pointer: fine) {
   .mx-day,
@@ -1476,19 +1474,11 @@ div.mx-crow {
   font-size: 12px;
 }
 
-.ovw-wx-cell.wet {
-  background: var(--teal-soft);
-}
-
 .ovw-wx-cell > svg {
   grid-row: 1 / span 3;
   width: 22px;
   height: 22px;
   color: var(--ink-amber);
-}
-
-.ovw-wx-cell.wet > svg {
-  color: var(--ink-teal);
 }
 
 .ovw-wx-cell b {
@@ -1528,7 +1518,7 @@ div.mx-crow {
      keeps its state colour, so the mark still says what the day holds. */
   .mx-btn:hover .mx-chip {
     transform: translateY(-1px);
-    box-shadow: var(--elev-press);
+    box-shadow: var(--elev-2);
   }
 
   .mx-daybtn:hover .mx-place {

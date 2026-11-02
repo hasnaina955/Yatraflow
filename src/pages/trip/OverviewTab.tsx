@@ -339,6 +339,7 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
                   <button
                     type="button"
                     className="ovw-more-btn"
+                    aria-label={showAllWarnings ? 'Show fewer warnings' : `Show all ${rankedWarnings.length} warnings`}
                     aria-expanded={showAllWarnings}
                     aria-controls="ovw-needs-list"
                     onClick={() => setShowAllWarnings(value => !value)}
@@ -815,7 +816,7 @@ function WeatherCard({
                   <span className="ovw-wx-day">
                     {dayNum >= 0 ? `Day ${dayNum + 1}` : w.date} · {wet ? `Rain ${w.rainChancePct}%` : info.label}
                   </span>
-                  <span className="ovw-wx-temp">{Math.round(w.tempMinC)}° / {Math.round(w.tempMaxC)}°</span>
+                  <span className="ovw-wx-temp">{Math.round(w.tempMaxC)}° / {Math.round(w.tempMinC)}°</span>
                 </span>
               </div>
             )

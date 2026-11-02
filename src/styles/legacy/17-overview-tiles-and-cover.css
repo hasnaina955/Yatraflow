@@ -268,14 +268,10 @@
   opacity: .7;
 }
 
-/* Linen: the name and its day share one line. A 31 px row cannot hold two lines. */
+/* Linen: the name is alone in its column. Its day and height sit in the meta column. */
 .ovw2 .ovw-stoplist.is-elevated .ovw-stop-name {
   min-width: 0;
   line-height: 1.25;
-}
-
-.ovw2 .ovw-stoplist.is-elevated .ovw-stop-name small {
-  margin-inline-start: var(--space-3);
 }
 
 /* ===== P12 Overview: source layout — right stack, group strip, weather row ===== */

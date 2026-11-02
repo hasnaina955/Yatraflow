@@ -1080,15 +1080,19 @@
 .ovw2-issue .ovw-sev {
   min-height: 0;
   padding: 0;
+  gap: 0;
   border-radius: 0;
   background: transparent;
   font-size: 12.5px;
   font-weight: 700;
 }
 
+/* One normal space either side of the dot. The margins sit on the dot, so the
+   sentence has no flex gap and no non-breaking spaces. */
 .ovw2-issue .ovw-sev::after {
   color: var(--pw-ink-2);
-  content: '\00a0·\00a0';
+  content: '·';
+  margin-inline: 0.3em;
 }
 
 .ovw2-issue.is-high .ovw-sev {
@@ -1159,6 +1163,13 @@
 
 /* The mockup's Fix button is 34px tall with a fine pointer. Touch keeps 44px. */
 @media (pointer: fine) {
+  /* A 24 px hit height for a fine pointer (WCAG 2.2 target size). Touch keeps 44 px.
+     The Open map link at 44 px made the route header 44 px tall; the plot sat 22 px low. */
+  .ovw2 .ovw-more-btn,
+  .ovw2 .ovw-link {
+    min-height: 24px;
+  }
+
   .ovw2 .ovw2-fix {
     min-height: 34px;
     font-size: 12.5px;
@@ -1208,6 +1219,7 @@
 .ovw2-route .ovw-head {
   align-items: baseline;
   margin-bottom: 0;
+  min-height: 24px;
 }
 
 .ovw2-route .ovw-head-meta {
@@ -1393,9 +1405,9 @@
   column-gap: 18px;
 }
 
-/* Linen rows: a solid hairline between rows, as on the artboard. */
+/* Linen rows: a dashed hairline between rows, as on the artboard. */
 .ovw2 .ovw-stoplist > li {
-  border-top: 1px solid var(--pw-line-soft);
+  border-top: 1px dashed var(--pw-line-soft);
 }
 
 .ovw2 .ovw-stoplist > li:nth-child(-n + 2) {
@@ -1410,12 +1422,12 @@
   border-radius: var(--radius-sm);
 }
 
-.ovw2 .ovw-stop-km,
+.ovw2 .ovw-stop-meta,
 .ovw2 .ovw-stop-t {
   grid-column: 3;
 }
 
-.ovw2 .ovw-stop-km {
+.ovw2 .ovw-stop-meta {
   min-width: 0;
 }
 
@@ -1425,12 +1437,6 @@
 
 .ovw2 .ovw-stop-name {
   font-size: 12.5px;
-}
-
-.ovw2 .ovw-stop-name small {
-  margin-inline-start: var(--space-3);
-  font-size: 12.5px;
-  font-weight: 400;
 }
 
 .ovw2 .ovw-stop-pin {
@@ -1574,8 +1580,9 @@
   color: var(--pw-marigold-ink);
 }
 
+/* Rain cells carry the teal ink, as the artboard's "Rain 70%" does. */
 .ovw2 .ovw-wx-cell.wet > svg {
-  color: var(--pw-marigold-ink);
+  color: var(--pw-sea-700);
 }
 
 @media (max-width: 960px) {

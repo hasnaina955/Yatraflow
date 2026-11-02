@@ -433,17 +433,15 @@ export function OverviewRouteCard({
           const facts = legFacts(row)
           const isActive = activeRows.includes(row.key)
           const height = stopElevation.get(row.key)
+          // The right column reads "Day N · km" as the artboard does, or "Day N · height m" on the elevation view.
+          const km = row.arrivingLeg ? `${row.arrivingLeg.distanceKm.toLocaleString('en-IN')} km${row.arrivingLeg.estimated ? ' (est.)' : ''}` : null
+          const tail = height != null ? `${Math.round(height).toLocaleString('en-IN')} m` : km
+          const stopMeta = tail ? `${overviewRouteRowMeta(row)} · ${tail}` : overviewRouteRowMeta(row)
           const body = (
             <>
               <span className="ovw-stop-pin" aria-hidden="true">{stopNumbers.get(row.key)}</span>
-              <span className="ovw-stop-name">
-                {row.title}
-                <small>
-                  {overviewRouteRowMeta(row)}
-                  {height != null ? ` · ${Math.round(height).toLocaleString('en-IN')} m` : ''}
-                </small>
-              </span>
-              <span className="ovw-stop-km">{row.arrivingLeg ? `${row.arrivingLeg.distanceKm.toLocaleString('en-IN')} km${row.arrivingLeg.estimated ? ' (est.)' : ''}` : ''}</span>
+              <span className="ovw-stop-name">{row.title}</span>
+              <span className="ovw-stop-meta">{stopMeta}</span>
               <span className="ovw-stop-t">{row.arrivingLeg ? `${minutesToHM(row.arrivingLeg.durationMinutes)}${row.arrivingLeg.estimated ? ' (est.)' : ''}` : ''}</span>
             </>
           )
@@ -460,6 +458,7 @@ export function OverviewRouteCard({
                 <button
                   type="button"
                   className={`ovw-stop-btn${isActive ? ' is-hl' : ''}`}
+                  title={row.title}
                   aria-label={`${row.title}. ${overviewRouteRowMeta(row)}.${facts ? ` ${facts} from the previous stop.` : ''} Opens the Map.`}
                   onClick={() => onOpenMap(pinAction(row))}
                   onMouseEnter={() => activateRow(row)}
@@ -470,7 +469,7 @@ export function OverviewRouteCard({
                   {body}
                 </button>
               ) : (
-                <div className={`ovw-stop-btn${isActive ? ' is-hl' : ''}`} onMouseEnter={() => activateRow(row)} onMouseLeave={clearActive}>
+                <div className={`ovw-stop-btn${isActive ? ' is-hl' : ''}`} title={row.title} onMouseEnter={() => activateRow(row)} onMouseLeave={clearActive}>
                   {body}
                 </div>
               )}

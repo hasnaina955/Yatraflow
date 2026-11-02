@@ -365,6 +365,7 @@
         "bud-stack",
         "bud-state",
         "bud-swatch",
+        "bud-table-scroll",
         "bud-table-view",
         "bud-target-caption",
         "bud-target-group",

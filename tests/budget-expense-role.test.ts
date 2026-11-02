@@ -37,6 +37,7 @@ import type { Expense } from '../src/data/types'
 _setTripWriteDebounceMs(0)
 
 let seq = 0
+const EDITOR = 'role-editor'
 const VIEWER = 'role-viewer'
 
 function tripWithLine(): { tripId: string; line: Expense; ownerId: string } {
@@ -44,7 +45,11 @@ function tripWithLine(): { tripId: string; line: Expense; ownerId: string } {
   const trip = duplicateTrip(seedData.trips[0], ownerId)
   addExpense(trip.id, { label: 'Probe line', category: 'food', amountInr: 500 }, ownerId)
   const stored = tripById(trip.id)!
-  stored.members = [...(stored.members ?? []), { userId: VIEWER, role: 'viewer', joinedAt: 1 }]
+  stored.members = [
+    ...(stored.members ?? []),
+    { userId: EDITOR, role: 'editor', joinedAt: 1 },
+    { userId: VIEWER, role: 'viewer', joinedAt: 2 },
+  ]
   const line = stored.expenses.find(e => e.label === 'Probe line')!
   return { tripId: trip.id, line, ownerId }
 }
@@ -53,18 +58,22 @@ const lineNow = (tripId: string, id: string) => tripById(tripId)!.expenses.find(
 const lineCount = (tripId: string) => tripById(tripId)!.expenses.length
 
 describe('PW-13 — an expense write needs the acting user’s edit right', () => {
-  it('the owner and an editor path still write', () => {
+  it('the owner and an editor can write', () => {
     const { tripId, line, ownerId } = tripWithLine()
     expect(updateExpense(tripId, line.id, { amountInr: 900 }, ownerId)).toBe('applied')
     expect(lineNow(tripId, line.id)?.amountInr).toBe(900)
+    expect(updateExpense(tripId, line.id, { label: 'Edited by the editor' }, EDITOR)).toBe('applied')
+    expect(lineNow(tripId, line.id)?.label).toBe('Edited by the editor')
     const beforeAdd = lineCount(tripId)
     addExpense(tripId, { label: 'Second line', category: 'food', amountInr: 100 }, ownerId)
     expect(lineCount(tripId)).toBe(beforeAdd + 1)
     const edited = lineNow(tripId, line.id)!
     deleteExpense(tripId, line.id, ownerId)
     expect(lineNow(tripId, line.id)).toBeUndefined()
-    restoreExpense(tripId, edited, 0, ownerId)
+    expect(restoreExpense(tripId, edited, 0, ownerId)).toBe('applied')
     expect(lineNow(tripId, line.id)?.amountInr).toBe(900)
+    expect(lineNow(tripId, line.id)?.label).toBe('Edited by the editor')
+    expect(restoreExpense(tripId, edited, 0, ownerId)).toBe('duplicate')
   })
 
   it('a viewer is refused on add, edit, delete and restore', () => {
@@ -79,12 +88,19 @@ describe('PW-13 — an expense write needs the acting user’s edit right', () =
     expect(lineNow(tripId, line.id)).toBeDefined()
 
     deleteExpense(tripId, line.id, ownerId)
-    restoreExpense(tripId, line, 0, VIEWER)
+    expect(restoreExpense(tripId, line, 0, VIEWER)).toBe('refused')
+    expect(lineNow(tripId, line.id)).toBeUndefined()
+  })
+
+  it('an Undo after a role downgrade is refused, so it cannot claim success', () => {
+    const { tripId, line, ownerId } = tripWithLine()
+    deleteExpense(tripId, line.id, ownerId)
+    expect(restoreExpense(tripId, line, 0, VIEWER)).toBe('refused')
     expect(lineNow(tripId, line.id)).toBeUndefined()
   })
 
   it('a session-less caller is refused by the same gate', () => {
-    const { tripId, line } = tripWithLine()
+    const { tripId, line, ownerId } = tripWithLine()
     const before = lineCount(tripId)
     addExpense(tripId, { label: 'No session', category: 'food', amountInr: 100 }, null)
     expect(lineCount(tripId)).toBe(before)
@@ -92,6 +108,9 @@ describe('PW-13 — an expense write needs the acting user’s edit right', () =
     expect(lineNow(tripId, line.id)?.amountInr).toBe(500)
     deleteExpense(tripId, line.id, null)
     expect(lineNow(tripId, line.id)).toBeDefined()
+    deleteExpense(tripId, line.id, ownerId)
+    expect(restoreExpense(tripId, line, 0, null)).toBe('refused')
+    expect(lineNow(tripId, line.id)).toBeUndefined()
   })
 
   it('a missing line is still reported before the role refusal', () => {

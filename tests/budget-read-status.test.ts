@@ -320,11 +320,22 @@ describe('#384 — settling is owner/editor only, on both paths', () => {
 // ================= #384 — the code says what it does =================
 
 describe('#384 — the gate exists in the code, not only in a comment', () => {
-  it('both settle writers check the house rule', () => {
+  it('every expense writer checks the house rule', () => {
     const src = read('../src/store/store.ts')
-    // One gate per settle writer, and the expense writers now share the same
-    // gate (pinned in budget-expense-role.test.ts).
-    expect(src.match(/if \(!canEdit\(roleOf\(t, by\)\)\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    const bodyOf = (name: string) => {
+      const start = src.indexOf(`export function ${name}(`)
+      expect(start, `${name} must exist`).toBeGreaterThan(-1)
+      const end = src.indexOf('\n}', start)
+      expect(end, `${name} must close at column zero`).toBeGreaterThan(start)
+      return src.slice(start, end)
+    }
+    for (const name of [
+      'addExpense', 'deleteExpense', 'restoreExpense', 'updateExpense',
+      'markExpenseSettled', 'markExpenseUnsettled',
+    ]) {
+      expect(bodyOf(name), `${name} must check the acting role`)
+        .toContain('if (!canEdit(roleOf(t, by))) return')
+    }
   })
 
   it('the tab gates the affordance and requires the session on both paths', () => {

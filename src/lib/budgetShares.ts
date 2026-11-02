@@ -2,8 +2,9 @@
 // A category table cannot print three 33% rows under a 100% footer. Rounding
 // each share on its own loses or gains a point, so the displayed shares use
 // largest remainder: every value keeps its integer floor, and the leftover
-// points go to the largest fractions. The sum is always `total`, so the footer
-// can be derived from the rows instead of hardcoded.
+// points go to the largest fractions. The sum is always `total` when at least
+// one value is positive; an all-zero or unreadable set returns zeros, because
+// there is no share to give.
 export function largestRemainderShares(values: number[], total = 100): number[] {
   const safe = values.map(value => (Number.isFinite(value) && value > 0 ? value : 0))
   const sum = safe.reduce((acc, value) => acc + value, 0)

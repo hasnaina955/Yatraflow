@@ -21,7 +21,7 @@ import { EXPENSE_CATEGORIES } from '../../data/types'
 import {
   addExpense, deleteExpense, restoreExpense, updateExpense,
   markExpenseSettled, markExpenseUnsettled,
-  currentUser, userById, useDb, canEdit, roleOf, resumeSync,
+  currentUser, userById, useDb, canEdit, roleOf, resumeSync, tripById,
 } from '../../store/store'
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
 import { splitDaySpend } from '../../lib/budgetDaySplit'
@@ -225,7 +225,7 @@ const PLOT = { w: 600, h: 300, left: 58, right: 10, top: 26, bottom: 46 }
 const PLOT_W = PLOT.w - PLOT.left - PLOT.right
 const PLOT_H = PLOT.h - PLOT.top - PLOT.bottom
 
-export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings }: {
+export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings }: {
   trip: Trip
   totals: ReturnType<typeof computeTotals>
   editable: boolean
@@ -233,6 +233,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
    *  below writes the committed row directly, so each refuses instead of
    *  landing under the preview (#334, same policy as the timeline's). */
   previewOpen?: boolean
+  /** The workspace's live staged flag. A deferred Undo can outlive this
+   *  component's remount, so it reads the parent ref, not a local copy. */
+  stagedRef?: { current: unknown }
   /** Opens the workspace's Settings tab, where the per-person target lives.
    *  Optional: a Budget tab rendered outside the workspace still gets the
    *  textual prompt for a missing target, just without the link. */
@@ -254,16 +257,12 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const [adding, setAdding] = useState(false)
   const [lineFilter, setLineFilter] = useState<'all' | 'open' | 'settled'>('all')
   const [watchOptional, setWatchOptional] = useState<boolean>(() => loadFlag('optional_watch', false))
-  // The live right and the live staged flag, read at Undo time. A deferred
-  // callback closes over the render that raised the toast, so it must read
-  // these refs instead of the captured props.
+  // The parent's staged ref is stable across a role remount. A standalone
+  // render falls back to a local copy, which is enough when nothing unmounts.
   const canWrite = !!me?.id && canEdit(roleOf(trip, me.id))
-  const previewOpenRef = useRef(!!previewOpen)
-  const canWriteRef = useRef(canWrite)
-  const meIdRef = useRef<ID | undefined>(me?.id)
-  useEffect(() => { previewOpenRef.current = !!previewOpen }, [previewOpen])
-  useEffect(() => { canWriteRef.current = canWrite }, [canWrite])
-  useEffect(() => { meIdRef.current = me?.id }, [me?.id])
+  const fallbackStagedRef = useRef(!!previewOpen)
+  useEffect(() => { fallbackStagedRef.current = !!previewOpen }, [previewOpen])
+  const liveStagedRef = stagedRef ?? fallbackStagedRef
 
   const groupTarget = trip.budgetPerPersonInr * trip.travellers
   // #381: a zero target is a degenerate state, not an overspend. Gate every
@@ -389,14 +388,21 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
 
   return (
     <div className="bud-page">
-      {/* A failed refresh that kept rows says so once, above the cards. The
-          panels keep their own rooms below, so a read with no rows still gets
-          the failed block where the line would have been (#383, #704). */}
+      {/* A kept read says so once, above the cards. Reading is
+          stale-while-revalidate; failed adds the retry. The panels keep their
+          own rooms below, so a read with no rows still gets the failed block
+          where the line would have been (#383, #704). */}
       {expensesRead === 'failed' && trip.expenses.length > 0 && (
         <div className="bud-read">
           <StateBlock kind="kept" size="compact" title="Couldn’t refresh expense lines"
             body="These figures are the last read. Nothing is missing from your account — try again."
             actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
+        </div>
+      )}
+      {expensesRead === 'reading' && trip.expenses.length > 0 && (
+        <div className="bud-read">
+          <StateBlock kind="kept" size="compact" title="Refreshing expense lines"
+            body="These figures are the last read. They update when the refresh lands." />
         </div>
       )}
 
@@ -472,7 +478,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
             <span className="bud-mini-track is-unread" aria-hidden="true" />
           ) : (
             <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
-              aria-label={`${settledPct}% of the expense lines is marked settled${ledgerKept ? ' (last read)' : ''}`}>
+              aria-label={`${settledPct}% of recorded spend is marked settled${ledgerKept ? ' (last read)' : ''}`}>
               <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
               <rect className="bud-track-fill" x="0" y="0" width={Math.max(0, settledPct)} height="8" rx="4" />
             </svg>
@@ -482,7 +488,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
               ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
               : trip.expenses.length === 0
                 ? 'No expense lines yet'
-                : <>{settledPct}% of the expense lines · {settledExpenses.length} of {trip.expenses.length} line{trip.expenses.length === 1 ? '' : 's'} marked settled</>}
+                : <>{settledPct}% of recorded spend · {settledExpenses.length} of {trip.expenses.length} line{trip.expenses.length === 1 ? '' : 's'} marked settled</>}
           </span>
           <span className="bud-glance-foot strong">
             {ledgerUnread
@@ -500,7 +506,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
             <span className="bud-mini-track is-unread" aria-hidden="true" />
           ) : (
             <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
-              aria-label={`${kittyPct}% of the expense lines sits in untagged lines${ledgerKept ? ' (last read)' : ''}`}>
+              aria-label={`${kittyPct}% of recorded spend sits in untagged lines${ledgerKept ? ' (last read)' : ''}`}>
               <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
               <rect className="bud-track-fill soft" x="0" y="0" width={Math.max(0, kittyPct)} height="8" rx="4" />
             </svg>
@@ -513,7 +519,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                 : <>{kittyLines.length} untagged line{kittyLines.length === 1 ? '' : 's'} · no one is owed</>}
           </span>
           <span className="bud-glance-foot strong">
-            {ledgerUnread ? '—' : ledgerTotal > 0 ? <>{kittyPct}% of the expense lines</> : 'Nothing on the ledger'}
+            {ledgerUnread ? '—' : ledgerTotal > 0 ? <>{kittyPct}% of recorded spend</> : 'Nothing on the ledger'}
           </span>
         </article>
 
@@ -621,27 +627,29 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
               )}
               <details className="bud-table-view">
                 <summary>Table view of cost per day</summary>
-                <table className="compare-table bud-data-table" tabIndex={0} aria-labelledby="bud-day-table-caption">
-                  <caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Day</th>
-                      {chartCats.map(c => <th key={c} scope="col" className="num">{titleCase(c)}</th>)}
-                      <th scope="col" className="num">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {days.map((d, i) => (
-                      <tr key={d.dayIndex}>
-                        <th scope="row">Day {i + 1}{d.dateLabel ? ` · ${d.dateLabel}` : ''}</th>
-                        {chartCats.map(c => (
-                          <td key={c} className="num">{formatInr(d.segments.find(s => s.category === c)?.amount ?? 0)}</td>
-                        ))}
-                        <td className="num"><b>{formatInr(d.totalInr)}</b></td>
+                <div className="bud-table-scroll" tabIndex={0} role="region" aria-labelledby="bud-day-table-caption">
+                  <table className="compare-table bud-data-table">
+                    <caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Day</th>
+                        {chartCats.map(c => <th key={c} scope="col" className="num">{titleCase(c)}</th>)}
+                        <th scope="col" className="num">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {days.map((d, i) => (
+                        <tr key={d.dayIndex}>
+                          <th scope="row">Day {i + 1}{d.dateLabel ? ` · ${d.dateLabel}` : ''}</th>
+                          {chartCats.map(c => (
+                            <td key={c} className="num">{formatInr(d.segments.find(s => s.category === c)?.amount ?? 0)}</td>
+                          ))}
+                          <td className="num"><b>{formatInr(d.totalInr)}</b></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </details>
             </>
           ) : (
@@ -1063,13 +1071,19 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                             const idx = trip.expenses.findIndex(x => x.id === e.id)
                             deleteExpense(trip.id, e.id, me?.id ?? null)
                             undoToast(`Removed “${e.label}”`, () => {
-                              // The toast can outlive the right it was raised
-                              // under. Read the live flag and role, not the
-                              // render's captured props.
-                              if (refuseWhileStaged(previewOpenRef.current)) return
-                              if (!canWriteRef.current) { toast('You can no longer edit this trip.', 'err'); return }
-                              restoreExpense(trip.id, e, idx, meIdRef.current ?? null)
-                              toast(`Restored “${e.label}”`)
+                              // The toast can outlive this tab. Read the live
+                              // staged flag, trip, account and role instead of
+                              // the render that raised it.
+                              if (refuseWhileStaged(!!liveStagedRef.current)) return
+                              const liveTrip = tripById(trip.id)
+                              const liveMe = currentUser()
+                              const liveCanWrite = !!liveTrip && !!liveMe?.id
+                                && canEdit(roleOf(liveTrip, liveMe.id))
+                              if (!liveCanWrite) { toast('You can no longer edit this trip.', 'err'); return }
+                              const outcome = restoreExpense(trip.id, e, idx, liveMe.id)
+                              if (outcome === 'applied') toast(`Restored “${e.label}”`)
+                              else if (outcome === 'duplicate') toast(`“${e.label}” is already back on the trip.`)
+                              else toast(`“${e.label}” was not restored — you can no longer edit this trip.`, 'err')
                             })
                           }}><Trash2 size={14} /></button>
                         </span>

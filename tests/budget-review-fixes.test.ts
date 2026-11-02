@@ -5,7 +5,8 @@
 // shapes a refactor can quietly drop:
 //   - the editor disappears when the live right does, and every writer gets
 //     the acting user;
-//   - a deferred Undo reads live refs rather than the render that raised it;
+//   - a deferred Undo reads live state and the workspace's staged ref rather
+//     than the render that raised it;
 //   - the What cell is a row header, the day table is a focusable scroll
 //     target, and the optional list is not a clipped scroll box;
 //   - the phone hint points at the table instead of a hidden tooltip.
@@ -42,9 +43,32 @@ describe('PW-13 review — editor downgrade', () => {
 
 describe('PW-13 review — the deferred Undo reads live state', () => {
   it('refuses a staged preview and a lost role at Undo time', () => {
-    expect(code).toContain('if (refuseWhileStaged(previewOpenRef.current)) return')
-    expect(code).toContain('if (!canWriteRef.current)')
-    expect(code).toContain('restoreExpense(trip.id, e, idx, meIdRef.current ?? null)')
+    expect(code).toContain('if (refuseWhileStaged(!!liveStagedRef.current)) return')
+    expect(code).toContain('const liveTrip = tripById(trip.id)')
+    expect(code).toContain('const liveMe = currentUser()')
+    expect(code).toContain('const liveCanWrite = !!liveTrip && !!liveMe?.id')
+    expect(code).toContain('if (!liveCanWrite)')
+    expect(code).toContain('const outcome = restoreExpense(')
+    expect(code).toContain("if (outcome === 'applied') toast(")
+    expect(code).not.toContain('canWriteRef.current')
+    expect(code).not.toContain('meIdRef.current')
+  })
+
+  it('uses the workspace stage ref so the check survives a remount', () => {
+    const workspace = read('../src/pages/TripWorkspace.tsx')
+    expect(workspace).toContain('stagedRef={pendingRef}')
+  })
+
+  it('checks the staged flag before restoring and toasts success only on applied', () => {
+    const start = code.indexOf('undoToast(`Removed')
+    const undo = code.slice(start, code.indexOf('}}><Trash2', start))
+    const stagedAt = undo.indexOf('refuseWhileStaged(!!liveStagedRef.current)')
+    const restoreAt = undo.indexOf('const outcome = restoreExpense(')
+    const appliedAt = undo.indexOf("if (outcome === 'applied') toast(")
+    expect(stagedAt).toBeGreaterThan(-1)
+    expect(restoreAt).toBeGreaterThan(stagedAt)
+    expect(appliedAt).toBeGreaterThan(restoreAt)
+    expect(undo).not.toMatch(/restoreExpense\([^\n]*\)\s*\n\s*toast\(`Restored/)
   })
 })
 
@@ -61,8 +85,22 @@ describe('PW-13 review — table semantics and optional scrolling', () => {
   })
 
   it('gives the day table a labelled focusable scroll target', () => {
-    expect(code).toContain('className="compare-table bud-data-table" tabIndex={0} aria-labelledby="bud-day-table-caption"')
+    expect(code).toContain('className="bud-table-scroll" tabIndex={0} role="region" aria-labelledby="bud-day-table-caption"')
+    expect(code).toContain('className="compare-table bud-data-table"')
+    expect(code).not.toContain('bud-data-table" tabIndex={0}')
     expect(code).toContain('<caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>')
+    expect(css).toContain('.bud-table-scroll')
+    expect(css).toContain('.bud-table-scroll:focus { outline: none; box-shadow: var(--ring); }')
+  })
+
+  it('names the share as recorded spend, not a line count', () => {
+    expect(code).toContain('% of recorded spend')
+    expect(code).not.toContain('% of the expense lines')
+  })
+
+  it('says a kept read is refreshing while it revalidates', () => {
+    expect(code).toContain('title="Refreshing expense lines"')
+    expect(code).toContain('These figures are the last read.')
   })
 })
 
@@ -74,7 +112,8 @@ describe('PW-13 review — the narrow chart copy points at the table', () => {
     expect(css).toContain('.bud-chart-hint-wide { display: none; }')
   })
 
-  it('gives the table summary the coarse-pointer floor', () => {
-    expect(css).toContain('.bud-table-view summary { display: flex; align-items: center; min-height: 40px; }')
+  it('gives the table summary the coarse-pointer floor without dropping its marker', () => {
+    expect(css).toContain('.bud-table-view summary { min-height: 40px; padding: 10px 0; }')
+    expect(css).not.toContain('.bud-table-view summary { display: flex;')
   })
 })

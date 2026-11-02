@@ -169,9 +169,9 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
   })
 
   it('resets the shared card step inside the Budget grids', () => {
-    const rule = css.slice(css.indexOf('.bud-glance > .card + .card'), css.indexOf('.bud-grid > .card + .card'))
-    expect(rule).toContain('.bud-glance > .card + .card')
-    expect(css).toContain('.bud-grid > .card + .card { margin-top: 0; }')
+    // The shared `.card + .card` step is real; this reset must own it back.
+    expect(sheet).toMatch(/\.card \+ \.card \{[^}]*margin-top:/)
+    expect(css).toMatch(/\.bud-glance > \.card \+ \.card,\s*\.bud-grid > \.card \+ \.card \{ margin-top: 0; \}/)
   })
 
   it('pairs every animated class with a reduced-motion opt-out', () => {
@@ -190,6 +190,8 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
   it('gives the coarse pointer the 40px control floor', () => {
     const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
     expect(coarse).toContain('.bud-filter { min-height: 40px; }')
-    expect(coarse).toContain('.bud-table-view summary { display: flex; align-items: center; min-height: 40px; }')
+    expect(coarse).toContain('.bud-table-view summary { min-height: 40px; padding: 10px 0; }')
+    // A flex summary drops the native disclosure marker.
+    expect(coarse).not.toContain('.bud-table-view summary { display: flex;')
   })
 })

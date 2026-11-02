@@ -168,7 +168,12 @@
 }
 .bud-table-view summary:hover, .bud-method summary:hover { color: var(--text-2); }
 .bud-data-table, .bud-cat-table { margin-top: var(--space-3); }
-.bud-data-table:focus { outline: none; box-shadow: var(--ring); }
+/* The table is wider than a phone. This box owns the scroll and the focus
+   ring, so the page root never overflows and every column is reachable. */
+.bud-table-scroll {
+  max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.bud-table-scroll:focus { outline: none; box-shadow: var(--ring); }
 .bud-data-table th[scope='row'] { white-space: nowrap; }
 .bud-data-table th, .bud-data-table td,
 .bud-cat-table th, .bud-cat-table td { border-bottom: 1px dashed var(--pw-line-soft); }
@@ -421,5 +426,5 @@
 @media (pointer: coarse) {
   .bud-filter { min-height: 40px; }
   .bud-hit { min-width: 40px; }
-  .bud-table-view summary { display: flex; align-items: center; min-height: 40px; }
+  .bud-table-view summary { min-height: 40px; padding: 10px 0; }
 }

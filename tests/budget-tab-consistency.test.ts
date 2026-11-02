@@ -196,6 +196,11 @@ describe('P12/PW-13 — the money did not move', () => {
     expect(code).not.toContain('stillToPay')
   })
 
+  it('names the settled share as recorded spend, not a line count', () => {
+    expect(code).toContain('% of recorded spend')
+    expect(code).not.toContain('% of the expense lines')
+  })
+
   it('the chart prints exact rupees, and the category footer is derived', () => {
     expect(code).not.toContain('formatInrShort')
     expect(code).toContain('formatInr(Math.round(t.value))')

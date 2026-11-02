@@ -4128,19 +4128,24 @@ export function restoreMember(tripId: ID, member: TripMember): void {
   fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: member.userId, role: member.role, joined_at: member.joinedAt }))
 }
 
+/** What an Undo restore did, so the toast speaks the truth. */
+export type ExpenseRestoreOutcome = 'applied' | 'refused' | 'duplicate'
+
 /** Re-insert a deleted expense line — powers Undo on expense deletion.
  *  Undo can fire after a realtime downgrade, so the acting user must still
  *  hold the edit right. The gate is the one the settle writers use. */
-export function restoreExpense(tripId: ID, expense: Expense, index: number, by: ID | null): void {
+export function restoreExpense(tripId: ID, expense: Expense, index: number, by: ID | null): ExpenseRestoreOutcome {
   const t = tripById(tripId)
-  if (!t || t.expenses.some(x => x.id === expense.id)) return
-  if (!canEdit(roleOf(t, by))) return
+  if (!t) return 'refused'
+  if (!canEdit(roleOf(t, by))) return 'refused'
+  if (t.expenses.some(x => x.id === expense.id)) return 'duplicate'
   // #382: Undo replays a captured line, and a line the writers would refuse
   // today must not come back through the back door. One rule, everywhere.
   const v = amountVerdict(expense.amountInr)
-  if (!v.ok) { toast(amountRefusal(expense.amountInr)!, 'err'); return }
+  if (!v.ok) { toast(amountRefusal(expense.amountInr)!, 'err'); return 'refused' }
   mutateTrip(tripId, draft => { draft.expenses.splice(Math.min(index, draft.expenses.length), 0, expense) }, { touch: false })
   void persistTripField(tripId, tripById(tripId)!)
+  return 'applied'
 }
 
 export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {

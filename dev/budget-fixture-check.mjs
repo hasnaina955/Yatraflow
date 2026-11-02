@@ -21,6 +21,7 @@ const CASES = [
   { name: 'phone-dark', kind: 'ledger', width: 390, height: 900, theme: 'dark', reducedMotion: 'no-preference' },
   { name: 'desktop-reduced', kind: 'ledger', width: 1440, height: 1000, theme: 'light', reducedMotion: 'reduce' },
   { name: 'desktop-reading', kind: 'state', read: 'reading', empty: true, width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'desktop-reading-kept', kind: 'state', read: 'reading', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
   { name: 'desktop-failed-kept', kind: 'state', read: 'failed', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
   { name: 'desktop-failed-unread', kind: 'state', read: 'failed', empty: true, width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
   { name: 'desktop-empty', kind: 'state', empty: true, width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
@@ -105,6 +106,7 @@ async function inspect(page) {
         settledSub: settledTile?.querySelector('.bud-glance-sub')?.textContent?.trim() ?? null,
         kittySub: kittyTile?.querySelector('.bud-glance-sub')?.textContent?.trim() ?? null,
         settledFoot: settledTile?.querySelector('.bud-glance-foot')?.textContent?.trim() ?? null,
+        kittyFoot: kittyTile?.querySelector('.bud-glance-foot')?.textContent?.trim() ?? null,
         unreadTracks: document.querySelectorAll('.bud-mini-track.is-unread').length,
         miniTrackRoleImgs: document.querySelectorAll('.bud-mini-track[role="img"]').length,
         zeroAria: [...document.querySelectorAll('.bud-glance [aria-label]')]
@@ -116,7 +118,17 @@ async function inspect(page) {
         retryButtons: [...document.querySelectorAll('button')].filter(button => button.textContent?.trim() === 'Try again').length,
         chartRendered: !!document.querySelector('.bud-plot-svg'),
       },
-      summaryHeight: document.querySelector('.bud-table-view summary')?.getBoundingClientRect().height ?? null,
+      summary: (() => {
+        const element = document.querySelector('.bud-table-view summary')
+        if (!element) return null
+        const computed = getComputedStyle(element)
+        return {
+          height: +element.getBoundingClientRect().height.toFixed(1),
+          display: computed.display,
+          listStyleType: computed.listStyleType,
+          marker: getComputedStyle(element, '::marker').content,
+        }
+      })(),
       panels: document.querySelectorAll('.bud-panel').length,
       panel: rectOf('.bud-panel'),
       chart: {
@@ -214,17 +226,27 @@ try {
     if (testCase.width < 720) {
       await page.getByText('Table view of cost per day').click()
       await page.waitForTimeout(150)
-      const table = page.locator('.bud-data-table')
+      const table = page.locator('.bud-table-scroll')
       await table.scrollIntoViewIfNeeded()
       await table.focus()
       await page.waitForTimeout(200)
       metrics.chart.keyboard = await table.evaluate(element => {
         const computed = getComputedStyle(element)
+        const maxScroll = element.scrollWidth - element.clientWidth
+        element.scrollLeft = maxScroll
+        const totalHeader = [...element.querySelectorAll('thead th')].at(-1)
+        const box = element.getBoundingClientRect()
+        const last = totalHeader?.getBoundingClientRect()
         return {
           active: document.activeElement === element,
           focusVisible: element.matches(':focus-visible'),
           shadow: computed.boxShadow,
           height: +element.getBoundingClientRect().height.toFixed(1),
+          pageOverflow: document.documentElement.scrollWidth - innerWidth,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          maxScroll,
+          lastColumnReachable: !!last && last.right <= box.right + 1 && last.left >= box.left - 1,
         }
       })
       await page.screenshot({ path: join(OUT, `${name}-table.png`) })
@@ -275,6 +297,8 @@ try {
       if (metrics.optional.marks < 1) failures.push({ case: name, reason: 'the optional list did not render' })
       if (!metrics.optional.note?.startsWith('Read-only')) failures.push({ case: name, reason: 'the optional list does not say it is read-only' })
       if (metrics.ledger.rows !== 3) failures.push({ case: name, reason: `expected 3 ledger rows, saw ${metrics.ledger.rows}`, ledger: metrics.ledger })
+      if (!metrics.read.settledSub?.includes('% of recorded spend')) failures.push({ case: name, reason: 'the settled share is not named as recorded spend', read: metrics.read })
+      if (metrics.read.settledSub?.includes('% of the expense lines')) failures.push({ case: name, reason: 'the settled share still reads as a line count', read: metrics.read })
       if (metrics.optionalList) {
         if (metrics.optionalList.maxHeight !== 'none') failures.push({ case: name, reason: `the optional list is capped at ${metrics.optionalList.maxHeight}` })
         if (metrics.optionalList.overflowY !== 'visible') failures.push({ case: name, reason: `the optional list scrolls (${metrics.optionalList.overflowY})` })
@@ -282,12 +306,25 @@ try {
     }
 
     if (testCase.read === 'reading') {
-      if (!metrics.read.settledSub?.includes('Reading the expense lines…')) failures.push({ case: name, reason: 'the settled card does not use loading copy', read: metrics.read })
-      if (!metrics.read.kittySub?.includes('Reading the expense lines…')) failures.push({ case: name, reason: 'the kitty card does not use loading copy', read: metrics.read })
-      if (metrics.read.unreadTracks !== 2) failures.push({ case: name, reason: `expected 2 unread tracks, saw ${metrics.read.unreadTracks}` })
-      if (metrics.read.miniTrackRoleImgs !== 0) failures.push({ case: name, reason: 'an unread track still announces a percentage', read: metrics.read })
-      if (metrics.read.zeroAria) failures.push({ case: name, reason: 'an unread card announces 0%', read: metrics.read })
-      if (!metrics.read.ledgerState?.includes('Loading expenses…')) failures.push({ case: name, reason: 'the ledger is not loading', read: metrics.read })
+      if (testCase.empty) {
+        if (!metrics.read.settledSub?.includes('Reading the expense lines…')) failures.push({ case: name, reason: 'the settled card does not use loading copy', read: metrics.read })
+        if (!metrics.read.kittySub?.includes('Reading the expense lines…')) failures.push({ case: name, reason: 'the kitty card does not use loading copy', read: metrics.read })
+        if (metrics.read.unreadTracks !== 2) failures.push({ case: name, reason: `expected 2 unread tracks, saw ${metrics.read.unreadTracks}` })
+        if (metrics.read.miniTrackRoleImgs !== 0) failures.push({ case: name, reason: 'an unread track still announces a percentage', read: metrics.read })
+        if (metrics.read.zeroAria) failures.push({ case: name, reason: 'an unread card announces 0%', read: metrics.read })
+        if (!metrics.read.ledgerState?.includes('Loading expenses…')) failures.push({ case: name, reason: 'the ledger is not loading', read: metrics.read })
+      } else {
+        // Stale while revalidating: the cards show the last read, and a note
+        // above them says a refresh is in flight.
+        if (!metrics.read.settledSub?.includes('% of recorded spend')) failures.push({ case: name, reason: 'the kept settled card is missing its last read', read: metrics.read })
+        if (!metrics.read.kittyFoot?.includes('% of recorded spend')) failures.push({ case: name, reason: 'the kept kitty share is not recorded spend', read: metrics.read })
+        if (metrics.read.unreadTracks !== 0) failures.push({ case: name, reason: 'kept rows are hidden behind unread tracks' })
+        if (metrics.read.miniTrackRoleImgs !== 2) failures.push({ case: name, reason: 'the kept tracks are not announced', read: metrics.read })
+        if (metrics.read.lastReadAria !== 2) failures.push({ case: name, reason: 'the kept tracks do not say last read', read: metrics.read })
+        if (!metrics.read.topKept?.includes('Refreshing expense lines')) failures.push({ case: name, reason: 'the refreshing note is missing', read: metrics.read })
+        if (!metrics.read.topKept?.includes('last read')) failures.push({ case: name, reason: 'the refreshing note does not name the stale values', read: metrics.read })
+        if (!metrics.read.ledgerState?.includes('Loading expenses…')) failures.push({ case: name, reason: 'the ledger is not refreshing', read: metrics.read })
+      }
       if (!metrics.read.chartRendered) failures.push({ case: name, reason: 'the plan chart disappeared while reading' })
     }
     if (testCase.read === 'failed') {
@@ -300,7 +337,8 @@ try {
         if (metrics.read.retryButtons < 2) failures.push({ case: name, reason: `expected 2 retry controls, saw ${metrics.read.retryButtons}` })
       } else {
         // A failed refresh that kept its rows shows the last read, and says so.
-        if (!metrics.read.settledSub?.includes('% of the expense lines')) failures.push({ case: name, reason: 'the kept settled card is missing its last read', read: metrics.read })
+        if (!metrics.read.settledSub?.includes('% of recorded spend')) failures.push({ case: name, reason: 'the kept settled card is missing its last read', read: metrics.read })
+        if (!metrics.read.kittyFoot?.includes('% of recorded spend')) failures.push({ case: name, reason: 'the kept kitty share is not recorded spend', read: metrics.read })
         if (metrics.read.unreadTracks !== 0) failures.push({ case: name, reason: 'kept rows are hidden behind unread tracks' })
         if (metrics.read.miniTrackRoleImgs !== 2) failures.push({ case: name, reason: 'the kept tracks are not announced', read: metrics.read })
         if (metrics.read.lastReadAria !== 2) failures.push({ case: name, reason: 'the kept tracks do not say last read', read: metrics.read })
@@ -319,12 +357,33 @@ try {
       if (!metrics.read.chartRendered) failures.push({ case: name, reason: 'the plan chart disappeared on an empty ledger' })
     }
     if (testCase.width < 720) {
-      if (metrics.summaryHeight == null || metrics.summaryHeight < 39.5) {
-        failures.push({ case: name, reason: `the table summary is ${metrics.summaryHeight}px tall` })
+      if (!metrics.summary || metrics.summary.height < 39.5) {
+        failures.push({ case: name, reason: `the table summary is ${metrics.summary?.height}px tall` })
+      }
+      if (metrics.summary?.display !== 'list-item') {
+        failures.push({ case: name, reason: `the summary lost its list-item marker (${metrics.summary?.display})` })
+      }
+      if (metrics.summary?.listStyleType === 'none') {
+        failures.push({ case: name, reason: 'the summary has no marker style' })
+      }
+      if (metrics.summary?.marker === 'none') {
+        failures.push({ case: name, reason: 'the summary marker content is none' })
       }
       if (!metrics.chart.keyboard?.active) failures.push({ case: name, reason: 'the day table cannot take keyboard focus', keyboard: metrics.chart.keyboard })
       if (metrics.chart.keyboard?.shadow === 'none') {
         failures.push({ case: name, reason: 'the focused day table has no ring', keyboard: metrics.chart.keyboard })
+      }
+      if (metrics.chart.keyboard?.pageOverflow > 1) {
+        failures.push({ case: name, reason: `the open table overflows the page by ${metrics.chart.keyboard.pageOverflow}px`, keyboard: metrics.chart.keyboard })
+      }
+      if (!(metrics.chart.keyboard?.scrollWidth > metrics.chart.keyboard?.clientWidth + 1)) {
+        failures.push({ case: name, reason: 'the day table is not a real scroll box', keyboard: metrics.chart.keyboard })
+      }
+      if (!(metrics.chart.keyboard?.maxScroll > 0)) {
+        failures.push({ case: name, reason: 'the day table has nowhere to scroll', keyboard: metrics.chart.keyboard })
+      }
+      if (!metrics.chart.keyboard?.lastColumnReachable) {
+        failures.push({ case: name, reason: 'the Total column is not reachable', keyboard: metrics.chart.keyboard })
       }
     }
 

@@ -1,13 +1,18 @@
 // ============ Trip workspace — Budget tab ============
-// v0.36 redesign: everything attributed, nothing sparse. A four-tile metric
-// strip answers "are we over?" in one glance; per-day bars stack each day's
-// expenses + drive against the daily average; expense lines gain an inline
-// quick-add, in-place editing (updateExpense) and a paid-by tag that powers a
-// who-paid/who-owes balances card with the simplest settlement.
-import { useRef, useState } from 'react'
+// PW-13: the Budget artboard, drawn on real trip money. A four-card glance
+// strip answers "are we over?"; the cost-per-day chart stacks each day's spend
+// by category against a day target; the category card splits share, group and
+// each; the who-paid card draws balances around an even line and keeps the
+// settlement; the essential/optional card carries the optional watch; the
+// expense lines stay the one ledger, with capture, inline edit and delete.
+//
+// Every figure is still the engine's or the settlement lib's. This file adds
+// presentation and two read-only views (the ledger filter, the chart split).
+// The five direct writers keep the shared staged-change refusal.
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
-  BedDouble, Car, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
+  BedDouble, Car, Check, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
   RotateCcw, Ticket, TrainFront, Trash2, Utensils,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -16,37 +21,41 @@ import { EXPENSE_CATEGORIES } from '../../data/types'
 import {
   addExpense, deleteExpense, restoreExpense, updateExpense,
   markExpenseSettled, markExpenseUnsettled,
-  currentUser, userById, useDb, canEdit, roleOf, resumeSync,
+  currentUser, userById, useDb, canEdit, roleOf, resumeSync, tripById,
 } from '../../store/store'
 import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
+import { splitDaySpend } from '../../lib/budgetDaySplit'
+import { largestRemainderShares } from '../../lib/budgetShares'
 import { amountRefusal } from '../../lib/expenseAmount'
 import { sliceState, emptyCopyFor } from '../../lib/readState'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
 import { titleCase } from '../../lib/labels'
-import { Avatar, Chip, Field, StatTile, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
+import { Avatar, Chip, Field, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
 import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
 import { refuseWhileStaged } from '../../lib/mutationLifecycle'
 
 // ================= Budget tab =================
 
-/** Category → icon + bar color (color tokens live in styles.css so themes
- *  can retune them; the icon set mirrors CatIcon's language). */
-const CAT_META: Record<ExpenseCategory, { icon: LucideIcon; color: string }> = {
-  transport: { icon: Car, color: 'var(--cat-transport)' },
-  accommodation: { icon: BedDouble, color: 'var(--cat-accommodation)' },
-  food: { icon: Utensils, color: 'var(--cat-food)' },
-  activities: { icon: Mountain, color: 'var(--cat-activities)' },
-  'entry-fees': { icon: Ticket, color: 'var(--cat-entry-fees)' },
-  'tolls-parking': { icon: Fuel, color: 'var(--cat-tolls-parking)' },
-  'local-travel': { icon: TrainFront, color: 'var(--cat-local-travel)' },
-  'emergency-buffer': { icon: LifeBuoy, color: 'var(--cat-emergency-buffer)' },
+/** Category → icon. The bar and chip colours come from the `.bud-cat--*`
+ *  classes in the budget stylesheet, so both themes read one token family. */
+const CAT_META: Record<ExpenseCategory, { icon: LucideIcon }> = {
+  transport: { icon: Car },
+  accommodation: { icon: BedDouble },
+  food: { icon: Utensils },
+  activities: { icon: Mountain },
+  'entry-fees': { icon: Ticket },
+  'tolls-parking': { icon: Fuel },
+  'local-travel': { icon: TrainFront },
+  'emergency-buffer': { icon: LifeBuoy },
 }
-
 
 /** −₹6,168 with a real minus sign — formatInr alone renders "₹-6,168". */
 function fmtNeg(n: number): string { return `−${formatInr(-n)}` }
+
+/** The category class that carries the validated spend hue. */
+function catClass(c: ExpenseCategory): string { return `bud-cat--${c}` }
 
 interface FormState {
   label: string; amount: string; category: ExpenseCategory
@@ -163,7 +172,60 @@ function ExpenseFormFields({ trip, members, form, setForm }: {
  *  only — nothing in the trip changes when it's crossed. */
 const OPTIONAL_WATCH_PCT = 20
 
-export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings }: {
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** A day's date, derived from the trip start. Manual names keep it stable. */
+function dayDateLabel(startDate: string, index: number): string {
+  if (!startDate) return ''
+  const base = new Date(`${startDate}T00:00:00`)
+  if (Number.isNaN(base.getTime())) return ''
+  base.setDate(base.getDate() + index)
+  return `${WEEKDAYS[base.getDay()]} ${base.getDate()} ${MONTHS[base.getMonth()]}`
+}
+
+interface DayChartRow {
+  dayIndex: number
+  label: string
+  dateLabel: string
+  title?: string
+  totalInr: number
+  segments: { category: ExpenseCategory; amount: number }[]
+}
+
+/** The chart rows: the pure split, plus the label the day card carries. */
+function chartRows(trip: Trip, totals: ReturnType<typeof computeTotals>): DayChartRow[] {
+  return splitDaySpend(trip, totals).map((row, i) => {
+    const day = trip.days.find(d => d.index === row.dayIndex)
+    return {
+      ...row,
+      label: `Day ${i + 1}`,
+      dateLabel: dayDateLabel(trip.startDate, row.dayIndex),
+      title: day?.title,
+    }
+  })
+}
+
+/** The day a line belongs to, as the ledger prints it. */
+function expenseDayLabel(trip: Trip, e: Expense): string {
+  const day = typeof e.dayIndex === 'number' && Number.isFinite(e.dayIndex)
+    ? trip.days.find(d => d.index === e.dayIndex)
+    : e.stopId !== undefined
+      ? trip.days.find(d => d.stops.some(s => s.id === e.stopId))
+      : undefined
+  return day ? `Day ${day.index + 1}` : 'Whole trip'
+}
+
+function lineTotal(e: Expense, travellers: number): number {
+  return e.amountInr * (e.perPerson ? travellers : 1)
+}
+
+/** The chart's fixed drawing box. Its own scale keeps every label legible. */
+const PLOT = { w: 600, h: 300, left: 58, right: 10, top: 26, bottom: 46 }
+const PLOT_W = PLOT.w - PLOT.left - PLOT.right
+const PLOT_H = PLOT.h - PLOT.top - PLOT.bottom
+
+export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings }: {
   trip: Trip
   totals: ReturnType<typeof computeTotals>
   editable: boolean
@@ -171,6 +233,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
    *  below writes the committed row directly, so each refuses instead of
    *  landing under the preview (#334, same policy as the timeline's). */
   previewOpen?: boolean
+  /** The workspace's live staged flag. A deferred Undo can outlive this
+   *  component's remount, so it reads the parent ref, not a local copy. */
+  stagedRef?: { current: unknown }
   /** Opens the workspace's Settings tab, where the per-person target lives.
    *  Optional: a Budget tab rendered outside the workspace still gets the
    *  textual prompt for a missing target, just without the link. */
@@ -179,17 +244,25 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const visible = usePageVisible()
   const dayBarsRef = useRef<HTMLDivElement>(null)
   const categoryBarsRef = useRef<HTMLDivElement>(null)
-  const heroRef = useRef<HTMLDivElement>(null)
   const optionalBarsRef = useRef<HTMLDivElement>(null)
+  const balancesRef = useRef<HTMLDivElement>(null)
   const daysInView = useInView(dayBarsRef)
   const categoriesInView = useInView(categoryBarsRef)
-  const heroInView = useInView(heroRef)
   const optionalInView = useInView(optionalBarsRef)
+  const balancesInView = useInView(balancesRef)
   const db = useDb()
   const me = currentUser(db)
   const members = trip.members ?? []
   const [editingId, setEditingId] = useState<ID | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [lineFilter, setLineFilter] = useState<'all' | 'open' | 'settled'>('all')
   const [watchOptional, setWatchOptional] = useState<boolean>(() => loadFlag('optional_watch', false))
+  // The parent's staged ref is stable across a role remount. A standalone
+  // render falls back to a local copy, which is enough when nothing unmounts.
+  const canWrite = !!me?.id && canEdit(roleOf(trip, me.id))
+  const fallbackStagedRef = useRef(!!previewOpen)
+  useEffect(() => { fallbackStagedRef.current = !!previewOpen }, [previewOpen])
+  const liveStagedRef = stagedRef ?? fallbackStagedRef
 
   const groupTarget = trip.budgetPerPersonInr * trip.travellers
   // #381: a zero target is a degenerate state, not an overspend. Gate every
@@ -212,8 +285,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const retryExpenses = () => { void resumeSync() }
   // #384: settle/reopen is owner/editor only — the store enforces it (the
   // real guard), and the affordance matches so a viewer never sees a control
-  // whose write would be refused.
-  const canSettle = !!me?.id && canEdit(roleOf(trip, me.id))
+  // whose write would be refused. The expense writers share the same right.
+  const canSettle = canWrite
   // Pacing: the dial's ESTIMATE headroom — how much room the plan still has
   // per remaining day without blowing the group target. Settled payments are
   // deliberately not fed in (#381, decided 2026-09-25: relabel, don't re-plumb
@@ -223,19 +296,51 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   // lump, so the tile branches to a lump label rather than a daily one.
   const pacing = safeToSpendPerDay(trip, totals.totalCostInr)
 
-  // Per-day bars: over the daily average by >15% = amber, with one nudge.
-  const days = totals.byDay
-  const avg = totals.costPerDayInr
-  const maxDay = Math.max(avg, ...days.map(d => d.totalInr), 1)
-  const overAvg = trip.days.length > 1
-    ? days.filter(d => d.totalInr > avg * 1.15).sort((a, b) => b.totalInr - a.totalInr)[0]
-    : undefined
+  const days = chartRows(trip, totals)
+  const dayTarget = hasTarget ? groupTarget / Math.max(1, trip.days.length) : totals.costPerDayInr
+  const maxDay = Math.max(dayTarget, ...days.map(d => d.totalInr), 1)
+  const chartCats = EXPENSE_CATEGORIES.filter(c => days.some(d => d.segments.some(s => s.category === c)))
+  const overDay = days
+    .filter(d => dayTarget > 0 && d.totalInr > dayTarget * 1.15)
+    .sort((a, b) => b.totalInr - a.totalInr)[0]
 
   const cats = EXPENSE_CATEGORIES
     .map(c => [c, totals.byCategory[c] ?? 0] as const)
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1])
-  const maxCat = cats.length ? cats[0][1] : 1
+  const topCat = cats[0]
+  // Displayed shares use largest remainder, so the rows can never sum to
+  // 99 or 101 under a hardcoded footer.
+  const catShares = largestRemainderShares(cats.map(([, v]) => v))
+  const catShareTotal = catShares.reduce((sum, share) => sum + share, 0)
+  const topCatShare = catShares[0] ?? 0
+  // The ledger's own rows, as the glance cards report them. The settled card
+  // measures the EXPENSE LINES, never the planning estimate: the engine's
+  // transport and lodging are not a ledger balance.
+  const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
+  const settledTotal = linesTotal(settledExpenses, trip.travellers)
+  const ledgerTotal = linesTotal(trip.expenses, trip.travellers)
+  const openLedgerExpenses = trip.expenses.filter(e => !e.settled)
+  const openLedgerTotal = linesTotal(openLedgerExpenses, trip.travellers)
+  const settledPct = ledgerTotal > 0 ? Math.min(100, Math.round((settledTotal / ledgerTotal) * 100)) : 0
+  const kittyLines = trip.expenses.filter(e => !e.paidBy)
+  const kittyTotal = linesTotal(kittyLines, trip.travellers)
+  const kittyPct = ledgerTotal > 0 ? Math.round((kittyTotal / ledgerTotal) * 100) : 0
+  const biggestLine = trip.expenses
+    .map(e => ({ expense: e, total: lineTotal(e, trip.travellers) }))
+    .filter(line => Number.isFinite(line.total))
+    .sort((a, b) => b.total - a.total)[0]
+  const biggestShare = biggestLine && totals.totalCostInr > 0 ? Math.round((biggestLine.total / totals.totalCostInr) * 100) : 0
+  // The read verdict branches explicitly. A missing ledger is "reading" or
+  // "failed", never a zero; kept rows may still print their last read.
+  const ledgerReady = expensesRead === 'ready'
+  const ledgerReading = expensesRead === 'reading'
+  const ledgerKept = !ledgerReady && trip.expenses.length > 0
+  const ledgerUnread = !ledgerReady && !ledgerKept
+  const optionalLines = trip.expenses.filter(e => e.optional)
+  const withoutOptional = totals.totalCostInr - totals.optionalInr
+  const withoutOptionalRoom = groupTarget - withoutOptional
+  const shownExpenses = trip.expenses.filter(e => lineFilter === 'all' ? true : lineFilter === 'settled' ? !!e.settled : !e.settled)
 
   // I-19 — the balances measure the OPEN lines: fair share = open crew-tagged
   // total ÷ accounts, credited to whoever fronted those same lines. #548: the
@@ -248,7 +353,6 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   // lib/settlement.ts (unit-tested there; the component is presentation only).
   // Newest-settled first in the history so the last action is on top.
   const openExpenses = trip.expenses.filter(e => !e.settled)
-  const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
   // I-6 nudge: only tagged lines move money between people, so both the "still
   // to square up" count and the card's fair share are over those alone (an
   // untagged shared-kitty line owes nobody anything, and a payer who has left
@@ -258,7 +362,6 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const memberIds = members.map(m => m.userId)
   const openPayable = openTaggedLines(trip.expenses, memberIds)
   const openPayableTotal = linesTotal(openPayable, trip.travellers)
-  const settledTotal = linesTotal(settledExpenses, trip.travellers)
   const balances = computeBalances(members, trip.expenses, trip.travellers, userById)
   const fairShare = fairSharePerHead(members.length, openPayableTotal)
   const tagged = openPayable.length > 0
@@ -268,408 +371,738 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
     ? ` Your ${trip.travellers} travellers share it across ${members.length} account${members.length === 1 ? '' : 's'}.`
     : ''
   const transfers = settleBalances(balances)
+  const maxBalance = Math.max(1, ...balances.map(b => Math.abs(b.bal)))
   const nameOf = (u: CachedUser | undefined) => u?.profile.name ?? 'Traveller'
 
+  const targetScale = Math.max(100, pctUsed)
+  const targetFillPct = Math.min(100, (pctUsed / targetScale) * 100)
+  const targetMarkPct = (100 / targetScale) * 100
+  const chartTargetLabel = hasTarget ? 'day target' : 'daily average'
+  const chartTargetY = PLOT.top + PLOT_H - (Math.min(dayTarget, maxDay) / maxDay) * PLOT_H
+  const chartTicks = [1, 0.75, 0.5, 0.25, 0].map(f => ({ f, value: maxDay * f, y: PLOT.top + PLOT_H * (1 - f) }))
+  // A target that lands on a grid tick would print the same rupee value twice.
+  // The dashed line and the card note still name it; skip the duplicate label.
+  const targetHasTick = chartTicks.some(tick => Math.abs(tick.y - chartTargetY) < 12)
+  const chartColW = PLOT_W / Math.max(1, days.length)
+  const chartBarW = Math.min(58, chartColW * 0.56)
+
   return (
-    <div>
-      <div className="metric-strip" role="group" aria-label="Budget at a glance">
-        <StatTile label="Per person" value={formatInr(totals.costPerPersonInr)}
-          sub={<>{hasTarget ? (<>target {formatInr(trip.budgetPerPersonInr)}{' '}
-            {perPersonDeltaPct !== 0 && <b className={perPersonDeltaPct > 0 ? 'metric-bad' : 'metric-good'}>{perPersonDeltaPct > 0 ? '+' : '−'}{Math.abs(perPersonDeltaPct)}%</b>}</>) : 'no per-person target yet'}</>} />
-        <StatTile label="Per day" value={formatInr(totals.costPerDayInr)}
-          sub={<>across {trip.days.length} {trip.days.length === 1 ? 'day' : 'days'}</>} />
-        {hasTarget ? (
-          <StatTile label="Remaining vs target"
-            value={<span className={remaining < 0 ? 'metric-bad' : 'metric-good'}>{remaining < 0 ? fmtNeg(remaining) : formatInr(remaining)}</span>}
-            sub={<>group target {formatInr(groupTarget)}</>} />
-        ) : (
-          <StatTile label="Remaining vs target" value="—" sub="no group target set" />
-        )}
-        {hasTarget ? (
-          <StatTile label="Estimate vs target" value={`${pctUsed}%`}
-            sub={<>{formatInr(totals.totalCostInr)} of {formatInr(groupTarget)}</>} />
-        ) : (
-          <StatTile label="Estimate vs target" value="—" sub="set a per-person target to measure" />
-        )}
-        {pacing ? (
-          pacing.daysLeft === 0 ? (
-            <StatTile label="Budget headroom"
-              value={<span className={pacing.perDayInr < 0 ? 'metric-bad' : ''}>{pacing.perDayInr < 0 ? <>{formatInr(-pacing.perDayInr)} over</> : <>{formatInr(pacing.perDayInr)} left</>}</span>}
-              sub="trip over · the whole lump, not a daily rate" />
-          ) : (
-            <StatTile label="Budget headroom / day"
-              value={<span className={pacing.perDayInr < 0 ? 'metric-bad' : ''}>{formatInr(pacing.perDayInr)}</span>}
-              sub={<>{formatInr(pacing.perPersonPerDayInr)} per person · {pacing.daysLeft} day{pacing.daysLeft !== 1 ? 's' : ''} left · of the estimate</>} />
-          )
-        ) : (
-          <StatTile label="Budget headroom / day" value="—"
-            sub={<>{Number.isFinite(totals.totalCostInr)
-              ? 'Set a per-person target to start pacing'
-              : 'Pacing needs a readable spend figure — fix or remove the line that broke it'}</>} />
-        )}
-      </div>
+    <div className="bud-page">
+      {/* A kept read says so once, above the cards. Reading is
+          stale-while-revalidate; failed adds the retry. The panels keep their
+          own rooms below, so a read with no rows still gets the failed block
+          where the line would have been (#383, #704). */}
+      {expensesRead === 'failed' && trip.expenses.length > 0 && (
+        <div className="bud-read">
+          <StateBlock kind="kept" size="compact" title="Couldn’t refresh expense lines"
+            body="These figures are the last read. Nothing is missing from your account — try again."
+            actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
+        </div>
+      )}
+      {expensesRead === 'reading' && trip.expenses.length > 0 && (
+        <div className="bud-read">
+          <StateBlock kind="kept" size="compact" title="Refreshing expense lines"
+            body="These figures are the last read. They update when the refresh lands." />
+        </div>
+      )}
 
-      {/* Capture bar sits above everything — an expense should take one
-          glance at the metrics and one row, not a hunt for the right card. */}
-      {editable && <QuickAdd trip={trip} members={members} meId={me?.id} topline previewOpen={previewOpen} />}
-
-      <div className="two-col">
-        <div>
-          <Surface className="card bud-panel">
-            <h3 className="bud-card-title">Cost per day</h3>
-            <p className="hint-text bud-card-lead">
-              Day expenses + that day’s drive{avg > 0 && <> · <span className="avg-key" aria-hidden /> tick = daily average ({formatInr(avg)})</>}{avg > 0 && <> · <span className="daybar-over" aria-hidden>▲</span> = over the average</>}
-            </p>
-            <div className="daybars" ref={dayBarsRef} data-motion-paused={!visible || !daysInView}>
-              {days.map(d => {
-                const over = avg > 0 && d.totalInr > avg * 1.15
-                return (
-                  <div key={d.dayIndex} className="daybar-row">
-                    <span className="daybar-label">Day {d.dayIndex + 1}</span>
-                    <div className="daybar-track">
-                      <div className="daybar-fill" style={{ width: `${(d.totalInr / maxDay) * 100}%`, background: over ? 'var(--saffron)' : 'var(--teal)' }} />
-                      {avg > 0 && <span className="daybar-avg" style={{ left: `${(avg / maxDay) * 100}%` }} aria-hidden />}
-                    </div>
-                    <span className="daybar-meta">
-                      <b>{formatInr(d.totalInr)}</b>
-                      {/* shape cue so "over average" isn't fill-colour-only */}
-                      {over && <><span className="daybar-over" aria-hidden>▲</span><span className="sr-only">above the daily average</span></>}
-                      <span className="muted">{d.stops} {d.stops === 1 ? 'stop' : 'stops'} · {Math.round(d.distanceKm)} km</span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-            {overAvg && (
-              <p className="hint-text bud-hint-note">
-                Day {overAvg.dayIndex + 1} runs {Math.round(((overAvg.totalInr - avg) / avg) * 100)}% over the daily average — trim an optional line or shorten the drive.
-              </p>
+      <section className="bud-glance" role="group" aria-label="Budget at a glance">
+        <article className="card bud-glance-main">
+          <div className="bud-glance-head">
+            <span className="bud-kicker">{hasTarget ? 'Trip estimate' : 'Estimate so far'}</span>
+            {hasTarget && Math.abs(remaining) >= 1 && (
+              <span className={`bud-pill ${remaining > 0 ? 'bud-pill-ok' : 'bud-pill-risk'}`}>
+                {remaining > 0 ? <>{formatInr(remaining)} under target</> : <>{formatInr(-remaining)} over target</>}
+              </span>
             )}
-          </Surface>
-
-          <Surface className="card bud-panel">
-            <h3 className="bud-card-title">Where the money goes</h3>
-            <p className="hint-text bud-card-lead">
-              {A.kmPerLiter
-                ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price — actual consumption varies'}).</>
-                : <>All figures are estimates in INR. Transport is derived from route distance × ₹{A.inrPerKm}/km for {trip.transportMode}.</>}
-              {totals.lodgingNights > 0 && (
-                <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
-              )}
-            </p>
-            <div className="budget-bars catbars" ref={categoryBarsRef} data-motion-paused={!visible || !categoriesInView}>
-              {cats.map(([c, v]) => {
-                const meta = CAT_META[c]
-                const Icon = meta.icon
-                return (
-                  <div key={c} className="budget-bar-row">
-                    <span className="cat-name">
-                      <span className="cat-chip" style={{ background: `color-mix(in srgb, ${meta.color} 15%, transparent)` }}>
-                        <Icon size={13} style={{ color: meta.color }} aria-hidden />
-                      </span>
-                      {titleCase(c)}
-                    </span>
-                    <div className="budget-bar-track">
-                      <div className="budget-bar-fill" style={{ width: `${(v / maxCat) * 100}%`, background: meta.color }} />
-                    </div>
-                    <b className="num">{formatInr(v)}</b>
-                  </div>
-                )
-              })}
+          </div>
+          <div className="bud-glance-figure">
+            <span className="bud-glance-num">{formatInr(totals.totalCostInr)}</span>
+            <span className="bud-glance-each">
+              {formatInr(totals.costPerPersonInr)} each · {trip.travellers} traveller{trip.travellers === 1 ? '' : 's'}
+              {hasTarget
+                ? perPersonDeltaPct !== 0 && <> · <b className={perPersonDeltaPct > 0 ? 'bud-delta-bad' : 'bud-delta-ok'}>{perPersonDeltaPct > 0 ? '+' : '−'}{Math.abs(perPersonDeltaPct)}%</b></>
+                : ' · no per-person target yet'}
+            </span>
+          </div>
+          {hasTarget ? (
+            <div className="bud-target-wrap">
+              <svg className="bud-target-track" viewBox="0 0 100 12" preserveAspectRatio="none" role="img"
+                aria-label={`Estimate ${formatInr(totals.totalCostInr)} against a ${formatInr(groupTarget)} target, ${pctUsed}% of the target`}>
+                <rect className="bud-track" x="0" y="0" width="100" height="12" rx="6" />
+                <rect className="bud-track-fill"
+                  x="0" y="0" width={Math.max(1, pctUsed > 100 ? targetMarkPct : targetFillPct)} height="12" rx="6" />
+                {pctUsed > 100 && (
+                  <rect className="bud-track-fill is-over"
+                    x={targetMarkPct} y="0" width={Math.max(0.5, 100 - targetMarkPct)} height="12" rx="6" />
+                )}
+                <line className="bud-target-mark" x1={targetMarkPct} x2={targetMarkPct} y1="0" y2="12" />
+              </svg>
+              <span className="bud-target-caption">Target {formatInr(groupTarget)} · {pctUsed}% of the target{pctUsed > 100 ? ' — over budget' : ''}</span>
             </div>
-          </Surface>
-
-          <Surface className="card bud-panel">
-            <div className="row-between">
-              <h3 className="bud-card-title">Expense lines{expensesRead === 'ready' && trip.expenses.length > 0 ? ` · ${trip.expenses.length}` : ''}</h3>
+          ) : (
+            <div className="bud-target-wrap">
+              <p className="bud-glance-sub">Set a per-person target to measure this estimate{onOpenSettings && <> · <button className="link-btn teal" onClick={onOpenSettings}>Open Trip settings →</button></>}</p>
             </div>
-            <hr className="divider" />
-            {/* #383: the three states, in the order that makes the bug
-                impossible — the failure branch first (it is the only one that
-                offers a way back), then loading, and only then the genuine
-                empty copy. Branching data-only on a slice that can fail is
-                what printed the friendly empty copy over a dropped connection.
-                Each is its own compact block (R22), so the roles are the shared
-                ones: a failed read is an alert, a pending read is a status. */}
-            {expensesRead !== 'ready' ? (
-              expensesRead === 'failed' ? (() => {
-                const copy = emptyCopyFor('failed', 'expenses', retryExpenses)
-                return (
-                  <div className="bud-state">
-                    <StateBlock kind="failed" size="compact" title={copy.title} body={copy.body}
-                      actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
-                  </div>
-                )
-              })() : (
-                <div className="bud-state">
-                  <StateBlock kind="loading" size="compact" title="Loading expenses…" />
-                </div>
+          )}
+          <div className="bud-glance-foot">
+            {pacing ? (
+              pacing.daysLeft === 0 ? (
+                <span>
+                  <b>Budget headroom</b>{' '}
+                  <span className={pacing.perDayInr < 0 ? 'bud-delta-bad' : 'bud-delta-ok'}>
+                    {pacing.perDayInr < 0 ? <>{formatInr(-pacing.perDayInr)} over</> : <>{formatInr(pacing.perDayInr)} left</>}
+                  </span>{' '}· trip over · the whole lump, not a daily rate
+                </span>
+              ) : (
+                <span>
+                  <b>Budget headroom / day</b>{' '}
+                  <span className={pacing.perDayInr < 0 ? 'bud-delta-bad' : 'bud-delta-ok'}>{formatInr(pacing.perDayInr)}</span>
+                  {' '}· {formatInr(pacing.perPersonPerDayInr)} per person · {pacing.daysLeft} day{pacing.daysLeft !== 1 ? 's' : ''} left · of the estimate
+                </span>
               )
-            ) : trip.expenses.length === 0 ? (
-              <div className="bud-state">
-                <StateBlock kind="empty" size="compact" title="No expense lines yet"
-                  body="Add the big ones first (stay, fuel, food)." />
-              </div>
             ) : (
-                <table className="compare-table expense-table" tabIndex={0} aria-label="Expense lines">
-                  <thead><tr><th>Line</th><th>Paid by</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
-                  <tbody>
-                    {trip.expenses.map(e => {
-                      const meta = CAT_META[e.category]
-                      const Icon = meta.icon
-                      const payer = e.paidBy ? userById(e.paidBy) : undefined
-                      return editingId === e.id ? (
-                        <tr key={e.id}>
-                          <td colSpan={4}>
-                            <ExpenseEditor trip={trip} members={members} expense={e} onDone={() => setEditingId(null)} previewOpen={previewOpen} />
-                          </td>
+              <span>
+                <b>Budget headroom / day</b> — {Number.isFinite(totals.totalCostInr)
+                  ? 'Set a per-person target to start pacing'
+                  : 'Pacing needs a readable spend figure — fix or remove the line that broke it'}
+              </span>
+            )}
+          </div>
+        </article>
+
+        <article className="card bud-glance-tile">
+          <span className="bud-kicker">Settled so far</span>
+          <span className="bud-glance-num sm">{ledgerUnread ? '—' : formatInr(settledTotal)}</span>
+          {ledgerUnread ? (
+            <span className="bud-mini-track is-unread" aria-hidden="true" />
+          ) : (
+            <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+              aria-label={`${settledPct}% of recorded spend is marked settled${ledgerKept ? ' (last read)' : ''}`}>
+              <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
+              <rect className="bud-track-fill" x="0" y="0" width={Math.max(0, settledPct)} height="8" rx="4" />
+            </svg>
+          )}
+          <span className="bud-glance-sub">
+            {ledgerUnread
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
+              : trip.expenses.length === 0
+                ? 'No expense lines yet'
+                : <>{settledPct}% of recorded spend · {settledExpenses.length} of {trip.expenses.length} line{trip.expenses.length === 1 ? '' : 's'} marked settled</>}
+          </span>
+          <span className="bud-glance-foot strong">
+            {ledgerUnread
+              ? '—'
+              : trip.expenses.length === 0
+                ? 'Nothing on the ledger'
+                : <>{formatInr(openLedgerTotal)} still open across {openLedgerExpenses.length} line{openLedgerExpenses.length === 1 ? '' : 's'}</>}
+          </span>
+        </article>
+
+        <article className="card bud-glance-tile bud-glance-kitty">
+          <span className="bud-kicker">Shared kitty spend</span>
+          <span className="bud-glance-num sm">{ledgerUnread ? '—' : formatInr(kittyTotal)}</span>
+          {ledgerUnread ? (
+            <span className="bud-mini-track is-unread" aria-hidden="true" />
+          ) : (
+            <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+              aria-label={`${kittyPct}% of recorded spend sits in untagged lines${ledgerKept ? ' (last read)' : ''}`}>
+              <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
+              <rect className="bud-track-fill soft" x="0" y="0" width={Math.max(0, kittyPct)} height="8" rx="4" />
+            </svg>
+          )}
+          <span className="bud-glance-sub">
+            {ledgerUnread
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
+              : kittyLines.length === 0
+                ? 'No untagged lines.'
+                : <>{kittyLines.length} untagged line{kittyLines.length === 1 ? '' : 's'} · no one is owed</>}
+          </span>
+          <span className="bud-glance-foot strong">
+            {ledgerUnread ? '—' : ledgerTotal > 0 ? <>{kittyPct}% of recorded spend</> : 'Nothing on the ledger'}
+          </span>
+        </article>
+
+        <article className="card bud-glance-tile">
+          <span className="bud-kicker">Biggest line</span>
+          <span className="bud-glance-num sm">{ledgerUnread || !biggestLine ? '—' : formatInr(biggestLine.total)}</span>
+          <span className="bud-glance-sub">
+            {ledgerUnread
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines')
+              : biggestLine
+                ? <>{biggestLine.expense.label} · {expenseDayLabel(trip, biggestLine.expense)}</>
+                : 'No expense lines yet'}
+          </span>
+          <span className="bud-glance-foot strong">{ledgerUnread || !biggestLine ? '—' : <>{biggestShare}% of the trip</>}</span>
+        </article>
+      </section>
+
+      <div className="bud-grid bud-grid-charts">
+        <Surface className="card bud-panel bud-chart-card">
+          <div className="bud-card-head">
+            <h3 className="bud-card-title">Cost per day</h3>
+            <p className="bud-card-note">
+              <span className="bud-chart-hint-wide">Focus or tap a day for the split · every value is in the table below · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+              <span className="bud-chart-hint-narrow">Open the table below for every day’s split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+            </p>
+          </div>
+          {chartCats.length > 0 && (
+            <ul className="bud-legend" aria-label="Cost categories">
+              {chartCats.map(c => (
+                <li key={c}><i className={`bud-swatch ${catClass(c)}`} aria-hidden="true" />{titleCase(c)}</li>
+              ))}
+            </ul>
+          )}
+          {days.length > 0 && maxDay > 0 ? (
+            <>
+              <div className="bud-plot-scroll" ref={dayBarsRef} data-motion-paused={!visible || !daysInView}>
+                <div className="bud-plot">
+                  <svg className="bud-plot-svg" viewBox={`0 0 ${PLOT.w} ${PLOT.h}`} role="img"
+                    aria-label={`Cost per day. ${days.map(d => `${d.label} ${formatInr(d.totalInr)}`).join('; ')}. Dashed line is the ${chartTargetLabel} at ${formatInr(dayTarget)}.`}>
+                    <title>Cost per day</title>
+                    <desc>{`Each column stacks one day's spend by category. The dashed line marks the ${chartTargetLabel}. Every value is also written in the table below the chart.`}</desc>
+                    {chartTicks.map(t => (
+                      <g key={t.f}>
+                        <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
+                        <text className="bud-axis-label" x={PLOT.left - 8} y={t.y + 4} textAnchor="end">{formatInr(Math.round(t.value))}</text>
+                      </g>
+                    ))}
+                    {dayTarget > 0 && (
+                      <g className="bud-target-group">
+                        <line className="bud-target-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={chartTargetY} y2={chartTargetY} />
+                        {!targetHasTick && <text className="bud-target-text" x={PLOT.left + 2} y={chartTargetY - 6}>{formatInr(Math.round(dayTarget))}</text>}
+                      </g>
+                    )}
+                    <g className="bud-bars">
+                      {days.map((d, i) => {
+                        const cx = PLOT.left + chartColW * (i + 0.5)
+                        const barTop = PLOT.top + PLOT_H - (d.totalInr / maxDay) * PLOT_H
+                        let cursor = PLOT.top + PLOT_H
+                        return (
+                          <g key={d.dayIndex} className="bud-day-group">
+                            <g className="bud-stack">
+                              {d.segments.map(s => {
+                                const h = Math.max(1, (s.amount / maxDay) * PLOT_H)
+                                const y = cursor - h
+                                cursor = y - 2
+                                return <rect key={s.category} className={`bud-seg ${catClass(s.category)}`}
+                                  x={cx - chartBarW / 2} y={y} width={chartBarW} height={h} rx="2" />
+                              })}
+                            </g>
+                            {d.totalInr > 0 && (
+                              <text className={d.totalInr > dayTarget && dayTarget > 0 ? 'bud-bar-total is-over' : 'bud-bar-total'}
+                                x={cx} y={barTop - 8} textAnchor="middle">{formatInr(d.totalInr)}</text>
+                            )}
+                            <text className="bud-day-name" x={cx} y={PLOT.h - 22} textAnchor="middle">Day {i + 1}</text>
+                            {d.dateLabel && <text className="bud-day-date" x={cx} y={PLOT.h - 8} textAnchor="middle">{d.dateLabel}</text>}
+                          </g>
+                        )
+                      })}
+                    </g>
+                  </svg>
+                  <div className="bud-hits">
+                    {days.map(d => {
+                      const over = dayTarget > 0 && d.totalInr > dayTarget
+                      return (
+                        <div key={d.dayIndex} tabIndex={0} role="group"
+                          className={over ? 'bud-hit is-over' : 'bud-hit'}
+                          aria-label={`${d.label}${d.title ? `, ${d.title}` : ''}, ${formatInr(d.totalInr)}${dayTarget > 0 ? (over ? `, ${formatInr(d.totalInr - dayTarget)} over the day target` : ', within the day target') : ''}`}>
+                          <span className="bud-tip" aria-hidden="true">
+                            <b>{d.label}{d.title ? ` · ${d.title}` : ''}</b>
+                            {d.segments.map(s => (
+                              <span key={s.category}><i className={`bud-swatch ${catClass(s.category)}`} />{titleCase(s.category)}<b>{formatInr(s.amount)}</b></span>
+                            ))}
+                            <em>Total {formatInr(d.totalInr)}{dayTarget > 0 ? (over ? ` · ${formatInr(d.totalInr - dayTarget)} over the ${chartTargetLabel}` : ` · within the ${chartTargetLabel}`) : ''}</em>
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+              {overDay && (
+                <p className="bud-note">
+                  {overDay.label} runs {Math.round(((overDay.totalInr - dayTarget) / Math.max(1, dayTarget)) * 100)}% over the {chartTargetLabel} — trim an optional line or shorten the drive.
+                </p>
+              )}
+              <details className="bud-table-view">
+                <summary>Table view of cost per day</summary>
+                <div className="bud-table-scroll" tabIndex={0} role="region" aria-labelledby="bud-day-table-caption">
+                  <table className="compare-table bud-data-table">
+                    <caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Day</th>
+                        {chartCats.map(c => <th key={c} scope="col" className="num">{titleCase(c)}</th>)}
+                        <th scope="col" className="num">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {days.map((d, i) => (
+                        <tr key={d.dayIndex}>
+                          <th scope="row">Day {i + 1}{d.dateLabel ? ` · ${d.dateLabel}` : ''}</th>
+                          {chartCats.map(c => (
+                            <td key={c} className="num">{formatInr(d.segments.find(s => s.category === c)?.amount ?? 0)}</td>
+                          ))}
+                          <td className="num"><b>{formatInr(d.totalInr)}</b></td>
                         </tr>
-                      ) : (
-                        <tr key={e.id}>
-                          <td>
-                            <span className="exp-line">
-                              <span className="cat-chip sm" style={{ background: `color-mix(in srgb, ${meta.color} 15%, transparent)` }}>
-                                <Icon size={12} style={{ color: meta.color }} aria-hidden />
-                              </span>
-                              {e.label}
-                            </span>
-                            {e.perPerson && <span className="chip chip-info bud-line-chip">per person</span>}
-                            {e.optional && <span className="chip chip-saffron bud-line-chip">optional</span>}
-                          </td>
-                          <td>{payer
-                            ? <span className="payer-cell"><Avatar user={payer} /> {payer.profile.name}</span>
-                            : <span className="muted">Shared kitty</span>}</td>
-                          <td className="num">{formatInr(e.amountInr * (e.perPerson ? trip.travellers : 1))}</td>
-                          <td>{editable && (
-                            <span className="row-actions">
-                              <button className="icon-btn" aria-label={`Edit ${e.label}`} onClick={() => setEditingId(e.id)}><Pencil size={14} /></button>
-                              <button className="icon-btn" aria-label={`Delete ${e.label}`} onClick={() => {
-                                // #334: a direct write while a preview is open would
-                                // make Keep refuse (stale base) — refuse it here instead.
-                                if (refuseWhileStaged(previewOpen)) return
-                                const idx = trip.expenses.findIndex(x => x.id === e.id)
-                                deleteExpense(trip.id, e.id)
-                                undoToast(`Removed “${e.label}”`, () => {
-                                  restoreExpense(trip.id, e, idx)
-                                  toast(`Restored “${e.label}”`)
-                                })
-                              }}><Trash2 size={14} /></button>
-                            </span>
-                          )}</td>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </>
+          ) : (
+            <p className="hint-text bud-empty-line">No days to chart yet — add a day to the plan.</p>
+          )}
+        </Surface>
+
+        <Surface className="card bud-panel bud-cat-card">
+          <div className="bud-card-head">
+            <h3 className="bud-card-title">Where the money goes</h3>
+            <span className="bud-card-note">Group totals and the per-traveller share</span>
+          </div>
+          {cats.length > 0 ? (
+            <>
+              <div ref={categoryBarsRef} data-motion-paused={!visible || !categoriesInView}>
+                <svg className="bud-share-bar" viewBox="0 0 100 16" preserveAspectRatio="none" role="img"
+                  aria-label={`Category shares: ${cats.map(([c], i) => `${titleCase(c)} ${catShares[i]}%`).join(', ')}`}>
+                  {cats.map(([c, v], i) => {
+                    const before = cats.slice(0, i).reduce((a, [, x]) => a + x, 0)
+                    const start = (before / Math.max(1, totals.totalCostInr)) * 100
+                    const width = (v / Math.max(1, totals.totalCostInr)) * 100
+                    return <rect key={c} className={`bud-seg ${catClass(c)}`} x={start} y="0" width={Math.max(0.6, width)} height="16" rx="2" />
+                  })}
+                </svg>
+              </div>
+              <div className="bud-cat-table-wrap">
+                <table className="compare-table bud-cat-table" tabIndex={0}>
+                  <caption className="sr-only">Where the money goes, by category</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" aria-label="Category colour" />
+                      <th scope="col">Category</th>
+                      <th scope="col" className="num">Share</th>
+                      <th scope="col" className="num">Group</th>
+                      <th scope="col" className="num">Per traveller</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cats.map(([c, v], i) => {
+                      const Icon = CAT_META[c].icon
+                      return (
+                        <tr key={c}>
+                          <td><span className={`bud-line-cat ${catClass(c)}`} aria-hidden="true"><Icon size={12} /></span></td>
+                          <th scope="row">{titleCase(c)}</th>
+                          <td className="num">{catShares[i]}%</td>
+                          <td className="num">{formatInr(v)}</td>
+                          <td className="num">{formatInr(v / Math.max(1, trip.travellers))}</td>
                         </tr>
                       )
                     })}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td />
+                      <th scope="row">Total</th>
+                      <td className="num">{catShareTotal}%</td>
+                      <td className="num"><b>{formatInr(totals.totalCostInr)}</b></td>
+                      <td className="num"><b>{formatInr(totals.costPerPersonInr)}</b></td>
+                    </tr>
+                  </tfoot>
                 </table>
+              </div>
+              {topCat && (
+                <p className="bud-insight">
+                  <span aria-hidden="true">i</span>
+                  <span>
+                    {titleCase(topCat[0])} is the biggest share at {topCatShare}%.
+                    {biggestLine && biggestLine.expense.category === topCat[0] && <> {biggestLine.expense.label} alone is {biggestShare}% of the trip.</>}
+                  </span>
+                </p>
               )}
-            <p className="hint-text bud-hint-note">
-              Amounts are group totals unless marked per person. Tag who paid to settle up below.
-            </p>
-          </Surface>
-        </div>
+              <details className="bud-method">
+                <summary>How these estimates are made</summary>
+                <p className="bud-card-note">
+                  {A.kmPerLiter
+                    ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price — actual consumption varies'}).</>
+                    : <>All figures are estimates in INR. Transport is derived from route distance × ₹{A.inrPerKm}/km for {trip.transportMode}.</>}
+                  {totals.lodgingNights > 0 && (
+                    <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
+                  )}
+                </p>
+              </details>
+            </>
+          ) : (
+            <StateBlock kind="empty" size="compact" title="No spend yet" body="Add an expense or a stay to see where the money goes." />
+          )}
+        </Surface>
+      </div>
 
-        <div>
-          {/* #381: a zero target used to read as a red −₹total under a "₹0 group
-              target", with a Trim action that trimmed toward nothing. The hero
-              now renders only against a real target; otherwise the planning
-              estimate shows beside the ask, and pacing waits for a number to
-              pace against. */}
-          <div className="budget-hero" ref={heroRef} data-motion-paused={!visible || !heroInView}>
-            {hasTarget ? (
-              <>
-                <span className="budget-hero-label">Group budget</span>
-                <div className="budget-hero-num">{formatInr(totals.totalCostInr)}</div>
-                <div className="budget-hero-sub">
-                  {remaining < 0
-                    ? <><b>{formatInr(-remaining)} over</b> the {formatInr(groupTarget)} group target · {formatInr(totals.costPerPersonInr)}/person · {formatInr(totals.costPerDayInr)}/day</>
-                    : <><b>{formatInr(remaining)} under</b> the {formatInr(groupTarget)} group target · {formatInr(totals.costPerPersonInr)}/person · {formatInr(totals.costPerDayInr)}/day</>}
-                </div>
-                <div className="budget-bar-track bud-hero-meter">
-                  <div className="budget-bar-fill" style={{ width: `${Math.min(100, pctUsed)}%`, background: pctUsed > 100 ? 'var(--coral)' : pctUsed > 85 ? 'var(--saffron)' : 'var(--teal)' }} />
-                </div>
-                <div className="budget-hero-pct">
-                  {pctUsed}% of group budget{pctUsed > 100 ? ' — over budget' : pctUsed > 85 ? ' — getting close' : ''}
-                </div>
-                {remaining < 0
-                  ? <span className="budget-hero-action warn">Trim {formatInr(-remaining)} to hit target</span>
-                  : <span className="budget-hero-action ok">{formatInr(remaining)} headroom — room for one more stop</span>}
-              </>
-            ) : (
-              <>
-                <span className="budget-hero-label">Estimate so far</span>
-                <div className="budget-hero-num">{formatInr(totals.totalCostInr)}</div>
-                <div className="budget-hero-sub">
-                  Set a per-person target to start pacing{onOpenSettings && <> · <button className="link-btn teal" onClick={onOpenSettings}>Open Trip settings →</button></>}
-                </div>
-              </>
-            )}
+      <div className="bud-grid bud-grid-mid">
+        <Surface className="card bud-panel bud-crew-card">
+          <div className="bud-card-head">
+            <h3 className="bud-card-title">Who paid · who owes</h3>
+            <span className="bud-card-note">Split equally over the open tagged lines</span>
           </div>
-
-          {trip.travellers >= 2 && (
-            <Surface className="card bud-crew-card bud-panel">
-              <h3 className="bud-card-title">Who paid · who owes</h3>
-              {/* #383: the balances read the same list the ledger does — one
-                  status, both consumers. A failed read must not print as a
-                  settled-up crew or an empty split. */}
-              {expensesRead !== 'ready' && (
-                expensesRead === 'failed' ? (() => {
-                  const copy = emptyCopyFor('failed', 'expense lines', retryExpenses)
-                  return (
-                    <div className="bud-state">
-                      <StateBlock kind="failed" size="compact" title={copy.title} body={copy.body}
-                        actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
+          {/* #383: the balances read the same list the ledger does — one
+              status, both consumers. A failed read must not print as a
+              settled-up crew or an empty split. */}
+          {expensesRead !== 'ready' && (
+            expensesRead === 'failed' ? (() => {
+              const copy = emptyCopyFor('failed', 'expense lines', retryExpenses)
+              return (
+                <div className="bud-state">
+                  <StateBlock kind="failed" size="compact" title={copy.title} body={copy.body}
+                    actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
+                </div>
+              )
+            })() : (
+              <div className="bud-state">
+                <StateBlock kind="loading" size="compact" title="Loading expense lines…" />
+              </div>
+            )
+          )}
+          {expensesRead === 'ready' && (members.length < 2
+            ? <p className="hint-text bud-crew-invite">{tagged && <>Fair share is {formatInr(fairShare)} {sharePer}. </>}Invite your crew from the Share tab, then tag who paid on expense lines — who owes whom shows up here.</p>
+            : <>
+                <p className="hint-text bud-crew-status">
+                  {tagged
+                    ? <>Fair share is {formatInr(fairShare)} {sharePer}, counted over the {openPayable.length} open tagged line{openPayable.length !== 1 ? 's' : ''}.
+                      {splitNote}
+                    </>
+                    : settledExpenses.length > 0
+                      ? <>Every tagged line is squared up — nothing left to split.</>
+                      : <>Nothing to split yet — tag who paid on expense lines and balances appear here. The estimates above are your planning figure, not a debt.</>}
+                </p>
+                {tagged && (
+                  <>
+                    <div className="bud-balances" ref={balancesRef} data-motion-paused={!visible || !balancesInView}>
+                      <div className="bud-bal-head" aria-hidden="true">
+                        <span /><span><span>← owes</span><span>gets back →</span></span><span />
+                      </div>
+                      {balances.map(b => {
+                        const bal = Math.abs(b.bal) <= 0.5 ? 0 : b.bal
+                        const width = (Math.abs(bal) / maxBalance) * 50
+                        return (
+                          <div key={b.id} className="bud-bal-row">
+                            <span className="bud-bal-who"><Avatar user={b.user} /> {nameOf(b.user)}</span>
+                            <span className="bud-bal-track" role="img"
+                              aria-label={bal === 0 ? `${nameOf(b.user)} is settled` : bal > 0 ? `${nameOf(b.user)} gets back ${formatInr(bal)}` : `${nameOf(b.user)} owes ${formatInr(-bal)}`}>
+                              <svg viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
+                                <line className="bud-bal-even" x1="50" x2="50" y1="0" y2="16" />
+                                {bal !== 0 && (
+                                  <rect className={bal > 0 ? 'bud-bal-bar pos' : 'bud-bal-bar neg'}
+                                    x={bal > 0 ? 50 : 50 - width} y="3" width={Math.max(1.5, width)} height="10" rx="2" />
+                                )}
+                              </svg>
+                            </span>
+                            <span className="bud-bal-amount">
+                              <b className={bal === 0 ? 'muted' : bal > 0 ? 'bud-bal-pos' : 'bud-bal-neg'}>
+                                {bal === 0 ? 'Settled' : bal > 0 ? `+${formatInr(bal)}` : fmtNeg(bal)}
+                              </b>
+                              <span className="bud-bal-note">{bal === 0 ? 'even' : bal > 0 ? 'gets back' : 'owes'}</span>
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
-                  )
-                })() : (
-                  <div className="bud-state">
-                    <StateBlock kind="loading" size="compact" title="Loading expense lines…" />
-                  </div>
-                )
-              )}
-              {expensesRead === 'ready' && (members.length < 2
-                ? <p className="hint-text bud-crew-invite">{tagged && <>Fair share is {formatInr(fairShare)} {sharePer}. </>}Invite your crew from the Share tab, then tag who paid on expense lines — who owes whom shows up here.</p>
-                : <>
-                    <p className="hint-text bud-crew-status">
-                      {tagged
-                        ? <>Fair share is {formatInr(fairShare)} {sharePer}, counted over the {openPayable.length} open tagged line{openPayable.length !== 1 ? 's' : ''}.
-                          {splitNote}
-                        </>
-                        : settledExpenses.length > 0
-                          ? <>Every tagged line is squared up — nothing left to split.</>
-                          : <>Nothing to split yet — tag who paid on expense lines and balances appear here. The estimates above are your planning figure, not a debt.</>}
-                    </p>
-                    {tagged && (
-                      <>
-                        <div className="balances">
-                          {balances.map(b => (
-                            <div key={b.id} className="balance-row">
-                              <span className="balance-who"><Avatar user={b.user} /> {nameOf(b.user)}</span>
-                              {Math.abs(b.bal) <= 0.5
-                                ? <span className="muted small">Settled</span>
-                                : b.bal > 0
-                                  ? <span className="balance-pos">gets {formatInr(b.bal)}</span>
-                                  : <span className="balance-neg">owes {formatInr(-b.bal)}</span>}
+                    {transfers.length > 0 && (
+                      <div className="bud-transfers">
+                        <p className="bud-transfer-head"><b>Simplest way to settle</b> · {transfers.length} payment{transfers.length === 1 ? '' : 's'}</p>
+                        {transfers.map((t, i) => (
+                          <div key={`${t.from.id}-${t.to.id}-${i}`} className="bud-transfer-row">
+                            <Avatar user={t.from.user} />
+                            <span>{nameOf(t.from.user)} → {nameOf(t.to.user)}</span>
+                            <b>{formatInr(t.amount)}</b>
+                          </div>
+                        ))}
+                        <p className="hint-text bud-transfer-note">The app records money per expense line. Move the money outside the app, then mark each line settled below.</p>
+                      </div>
+                    )}
+                    {openPayable.length > 0 && (
+                      <p className="hint-text bud-hint-note">
+                        <b>{formatInr(openPayableTotal)}</b> across {openPayable.length} tagged line{openPayable.length !== 1 ? 's' : ''} still to square up — mark each settled as the money moves.
+                      </p>
+                    )}
+                    {canSettle && openExpenses.length > 0 && (
+                      <div className="settled-strip bud-settle-strip">
+                        <span className="hint-text bud-settle-lead">
+                          <b>Settle up:</b> mark a line squared up — it leaves the balances and moves to the settled history below.
+                        </span>
+                        <div className="settled-list">
+                          {openExpenses.map(e => (
+                            <div key={e.id} className="settled-row">
+                              <span className="settled-label">{e.label}</span>
+                              <span className="num muted small">{formatInr(lineTotal(e, trip.travellers))}</span>
+                              <button
+                                type="button"
+                                className="btn btn-sm settled-btn"
+                                aria-label={`Mark ${e.label} settled`}
+                                onClick={() => {
+                                  if (refuseWhileStaged(previewOpen)) return
+                                  if (!me?.id) return
+                                  // #384: the store re-checks the role — this
+                                  // is the affordance, not the guard. The
+                                  // handler stays synchronous, so there is
+                                  // no busy state to keep honest.
+                                  markExpenseSettled(trip.id, e.id, me.id)
+                                  toast(`Marked “${e.label}” settled`)
+                                }}
+                              >Mark settled</button>
                             </div>
                           ))}
                         </div>
-                        {transfers.length > 0 && (
-                          <p className="hint-text bud-hint-note">
-                            <b>Simplest settlement:</b> {transfers.map(t => `${nameOf(t.from.user)} → ${nameOf(t.to.user)} ${formatInr(t.amount)}`).join(' · ')}
-                          </p>
-                        )}
-                        {openPayable.length > 0 && (
-                          <p className="hint-text bud-hint-note">
-                            <b>{formatInr(openPayableTotal)}</b> across {openPayable.length} tagged line{openPayable.length !== 1 ? 's' : ''} still to square up — mark each settled as the money moves.
-                          </p>
-                        )}
-                        {canSettle && openExpenses.length > 0 && (
-                          <div className="settled-strip bud-settle-strip">
-                            <span className="hint-text bud-settle-lead">
-                              <b>Settle up:</b> mark a line squared up — it leaves the balances and moves to the settled history below.
-                            </span>
-                            <div className="settled-list">
-                              {openExpenses.map(e => (
-                                <div key={e.id} className="settled-row">
-                                  <span className="settled-label">{e.label}</span>
-                                  <span className="num muted small">{formatInr(e.amountInr * (e.perPerson ? trip.travellers : 1))}</span>
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm settled-btn"
-                                    aria-label={`Mark ${e.label} settled`}
-                                    onClick={() => {
-                                      if (refuseWhileStaged(previewOpen)) return
-                                      if (!me?.id) return
-                                      // #384: the store re-checks the role — this
-                                      // is the affordance, not the guard. The
-                                      // handler stays synchronous, so there is
-                                      // no busy state to keep honest.
-                                      markExpenseSettled(trip.id, e.id, me.id)
-                                      toast(`Marked “${e.label}” settled`)
-                                    }}
-                                  >Mark settled</button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {settledExpenses.length > 0 && (
-                          <details className="settled-history">
-                            <summary>{settledExpenses.length} settled · {formatInr(settledTotal)} already squared up</summary>
-                            <div className="settled-list">
-                              {settledExpenses.map(e => (
-                                <div key={e.id} className="settled-row is-done">
-                                  <span className="settled-label">{e.label}</span>
-                                  <span className="num muted small">{formatInr(e.amountInr * (e.perPerson ? trip.travellers : 1))}</span>
-                                  {canSettle && (
-                                    <button
-                                      type="button"
-                                      className="icon-btn"
-                                      aria-label={`Reopen ${e.label}`}
-                                      onClick={() => {
-                                        if (refuseWhileStaged(previewOpen)) return
-                                        // #384: the reopen path now requires the
-                                        // session too — the hole the settle path
-                                        // already closed.
-                                        if (!me?.id) return
-                                        markExpenseUnsettled(trip.id, e.id, me.id)
-                                        toast(`Reopened “${e.label}”`)
-                                      }}
-                                    ><RotateCcw size={14} /></button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        )}
-                      </>
+                      </div>
                     )}
-                  </>)}
-            </Surface>
-          )}
+                    {settledExpenses.length > 0 && (
+                      <details className="settled-history">
+                        <summary>{settledExpenses.length} settled · {formatInr(settledTotal)} already squared up</summary>
+                        <div className="settled-list">
+                          {settledExpenses.map(e => (
+                            <div key={e.id} className="settled-row is-done">
+                              <span className="settled-label">{e.label}</span>
+                              <span className="num muted small">{formatInr(lineTotal(e, trip.travellers))}</span>
+                              {canSettle && (
+                                <button
+                                  type="button"
+                                  className="icon-btn"
+                                  aria-label={`Reopen ${e.label}`}
+                                  onClick={() => {
+                                    if (refuseWhileStaged(previewOpen)) return
+                                    // #384: the reopen path now needs the
+                                    // session too — the hole the settle path
+                                    // already closed.
+                                    if (!me?.id) return
+                                    markExpenseUnsettled(trip.id, e.id, me.id)
+                                    toast(`Reopened “${e.label}”`)
+                                  }}
+                                ><RotateCcw size={14} /></button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </>
+                )}
+              </>)}
+        </Surface>
 
-          {/* The offset between the two right-hand cards follows the crew card:
-              R4 does not apply to it (the two steps are fixed, not measured),
-              so the step is a class and the condition stays in the markup. */}
-          <Surface className={`card bud-panel${trip.travellers >= 2 ? ' bud-panel-gap' : ''}`}>
+        <Surface className="card bud-panel bud-optional-card">
+          <div className="bud-card-head">
             <h3 className="bud-card-title">Essential vs optional</h3>
-            <hr className="divider" />
-            <div className="budget-bars" ref={optionalBarsRef} data-motion-paused={!visible || !optionalInView}>
-              <div className="budget-bar-row">
-                <span>Essential</span>
-                <div className="budget-bar-track"><div className="budget-bar-fill bud-essential-fill" style={{ width: `${(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100}%` }} /></div>
-                <b className="num">{formatInr(totals.essentialInr)}</b>
-              </div>
-              <div className="budget-bar-row">
-                <span>Optional</span>
-                <div className="budget-bar-track"><div className="budget-bar-fill bud-optional-fill" style={{ width: `${(totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100}%` }} /></div>
-                <b className="num">{formatInr(totals.optionalInr)}</b>
-              </div>
-            </div>
-            <p className="hint-text bud-hint-note">Optional includes buffers & shopping that you can trim to save.</p>
-            {/* Optional-spend watch (user ask, P1-E follow-up): a TIP, not a
-                change — opt-in, session-persistent, never edits anything. */}
-            <div className="row-between bud-watch-row">
-              <span className="small muted">A soft line at 20% of the estimate — tips only, nothing changes.</span>
-              <button
-                className={`btn btn-sm ${watchOptional ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => { const next = !watchOptional; setWatchOptional(next); saveFlag('optional_watch', next) }}
-                aria-pressed={watchOptional}
-              >
-                {watchOptional ? 'Watching optional' : 'Watch optional spends'}
-              </button>
-            </div>
-            {watchOptional && totals.totalCostInr > 0 && (() => {
-              const pct = (totals.optionalInr / totals.totalCostInr) * 100
-              return (
-                <p className={`small bud-watch-status ${pct > OPTIONAL_WATCH_PCT ? 'dayplanner-red' : 'muted'}`} role="status">
-                  Optional watch: {formatInr(totals.optionalInr)} — {Math.round(pct)}% of the estimate,{' '}
-                  {pct > OPTIONAL_WATCH_PCT ? `over the ${OPTIONAL_WATCH_PCT}% soft line. Trimming one optional line brings it back under.` : `inside the ${OPTIONAL_WATCH_PCT}% soft line.`}
-                </p>
-              )
-            })()}
-          </Surface>
-        </div>
+            <span className="bud-card-note">Read-only: the optional flag lives on each line</span>
+          </div>
+          <div ref={optionalBarsRef} data-motion-paused={!visible || !optionalInView}>
+            <svg className="bud-essential-bar" viewBox="0 0 100 16" preserveAspectRatio="none" role="img"
+              aria-label={`Essential ${formatInr(totals.essentialInr)}, optional ${formatInr(totals.optionalInr)}`}>
+              <defs>
+                <pattern id="bud-optional-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <rect className="bud-hatch-base" x="0" y="0" width="6" height="6" />
+                  <line className="bud-hatch-line" x1="0" y1="0" x2="0" y2="6" />
+                </pattern>
+              </defs>
+              <rect className="bud-essential-fill" x="0" y="0"
+                width={Math.max(0, (totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="2" />
+              {totals.optionalInr > 0 && (
+                <rect className="bud-optional-fill" x={(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100} y="0"
+                  width={Math.max(0.6, (totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="2" />
+              )}
+            </svg>
+          </div>
+          <div className="bud-optional-split">
+            <span><b>Essential {formatInr(totals.essentialInr)}</b> <span className="muted">stays, fuel, meals</span></span>
+            <span><b className={totals.optionalInr > 0 ? 'bud-optional-key' : 'muted'}>Optional {formatInr(totals.optionalInr)}</b></span>
+          </div>
+          {optionalLines.length > 0 ? (
+            <>
+              <ul className="bud-optional-list">
+                {optionalLines.map(e => (
+                  <li key={e.id} className="bud-optional-row">
+                    <span className="bud-optional-check" aria-hidden="true"><Check size={12} /></span>
+                    <span className="bud-optional-name">{e.label} <span className="muted">· {expenseDayLabel(trip, e)}</span></span>
+                    <b>{formatInr(lineTotal(e, trip.travellers))}</b>
+                  </li>
+                ))}
+              </ul>
+              <p className="bud-optional-result">
+                Without {optionalLines.length === 1 ? 'that line' : `those ${optionalLines.length}`}: <b>{formatInr(withoutOptional)}</b>
+                {hasTarget && <> — {withoutOptionalRoom >= 0
+                  ? <>{formatInr(withoutOptionalRoom)} under target</>
+                  : <>{formatInr(-withoutOptionalRoom)} over target</>}</>}
+              </p>
+            </>
+          ) : (
+            <p className="hint-text bud-empty-line">No optional lines. Mark a line optional in its editor to test what the plan costs without it.</p>
+          )}
+          <div className="row-between bud-watch-row">
+            <span className="small muted">A soft line at {OPTIONAL_WATCH_PCT}% of the estimate — tips only, nothing changes.</span>
+            <button
+              className={`btn btn-sm ${watchOptional ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => { const next = !watchOptional; setWatchOptional(next); saveFlag('optional_watch', next) }}
+              aria-pressed={watchOptional}
+            >
+              {watchOptional ? 'Watching optional' : 'Watch optional spends'}
+            </button>
+          </div>
+          {watchOptional && totals.totalCostInr > 0 && (() => {
+            const pct = (totals.optionalInr / totals.totalCostInr) * 100
+            return (
+              <p className={`small bud-watch-status ${pct > OPTIONAL_WATCH_PCT ? 'dayplanner-red' : 'muted'}`} role="status">
+                Optional watch: {formatInr(totals.optionalInr)} — {Math.round(pct)}% of the estimate,{' '}
+                {pct > OPTIONAL_WATCH_PCT ? `over the ${OPTIONAL_WATCH_PCT}% soft line. Trimming one optional line brings it back under.` : `inside the ${OPTIONAL_WATCH_PCT}% soft line.`}
+              </p>
+            )
+          })()}
+        </Surface>
       </div>
+
+      <Surface className="card bud-panel bud-lines">
+        <div className="bud-card-head">
+          <div>
+            <h3 className="bud-card-title">Expense lines{expensesRead === 'ready' && trip.expenses.length > 0 ? ` · ${trip.expenses.length}` : ''}</h3>
+            <p className="bud-card-note">Amounts are group totals unless marked per person. Tag who paid to settle up above.</p>
+          </div>
+          <div className="bud-line-tools">
+            <div className="bud-filter-group" role="group" aria-label="Filter expense lines">
+              {(['all', 'open', 'settled'] as const).map(f => (
+                <button key={f} type="button" className={lineFilter === f ? 'bud-filter is-on' : 'bud-filter'}
+                  aria-pressed={lineFilter === f} onClick={() => setLineFilter(f)}>
+                  {f === 'all' ? 'All' : f === 'open' ? 'Open' : 'Settled'}
+                </button>
+              ))}
+            </div>
+            {editable && canWrite && (
+              <button type="button" className="btn btn-primary btn-sm" aria-expanded={adding}
+                onClick={() => setAdding(v => !v)}>
+                {adding ? 'Close capture' : '+ Add expense'}
+              </button>
+            )}
+          </div>
+        </div>
+        {editable && canWrite && adding && (
+          <QuickAdd trip={trip} members={members} meId={me?.id} canWrite={canWrite} previewOpen={previewOpen} />
+        )}
+        {/* #383: the three states, in the order that makes the bug
+            impossible — the failure branch first (it is the only one that
+            offers a way back), then loading, and only then the genuine
+            empty copy. Branching data-only on a slice that can fail is
+            what printed the friendly empty copy over a dropped connection.
+            Each is its own compact block (R22), so the roles are the shared
+            ones: a failed read is an alert, a pending read is a status. */}
+        {expensesRead !== 'ready' ? (
+          expensesRead === 'failed' ? (() => {
+            const copy = emptyCopyFor('failed', 'expenses', retryExpenses)
+            return (
+              <div className="bud-state">
+                <StateBlock kind="failed" size="compact" title={copy.title} body={copy.body}
+                  actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
+              </div>
+            )
+          })() : (
+            <div className="bud-state">
+              <StateBlock kind="loading" size="compact" title="Loading expenses…" />
+            </div>
+          )
+        ) : trip.expenses.length === 0 ? (
+          <div className="bud-state">
+            <StateBlock kind="empty" size="compact" title="No expense lines yet"
+              body="Add the big ones first (stay, fuel, food)." />
+          </div>
+        ) : (
+            <table className="compare-table bud-lines-table" tabIndex={0} aria-label="Expense lines">
+              <thead>
+                <tr>
+                  <th scope="col" aria-label="Category" />
+                  <th scope="col">What</th>
+                  <th scope="col">Day</th>
+                  <th scope="col">Paid by</th>
+                  <th scope="col" className="num">Amount</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {shownExpenses.map(e => {
+                  const Icon = CAT_META[e.category].icon
+                  const payer = e.paidBy ? userById(e.paidBy) : undefined
+                  return editingId === e.id && editable && canWrite ? (
+                    <tr key={e.id}>
+                      <td colSpan={7}>
+                        <ExpenseEditor trip={trip} members={members} expense={e} onDone={() => setEditingId(null)}
+                          meId={me?.id} canWrite={canWrite} previewOpen={previewOpen} />
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={e.id}>
+                      <td><span className={`bud-line-cat ${catClass(e.category)}`} aria-hidden="true"><Icon size={12} /></span></td>
+                      <th scope="row">
+                        <span className="bud-line-name">
+                          {e.label}
+                          {e.perPerson && <span className="chip chip-info bud-line-chip">per person</span>}
+                          {e.optional && <span className="chip chip-saffron bud-line-chip">optional</span>}
+                        </span>
+                        <span className="bud-line-amount-inline">
+                          <b>{formatInr(lineTotal(e, trip.travellers))}</b>
+                          <span className={e.settled ? 'bud-pill bud-pill-ok' : 'bud-pill bud-pill-quiet'}>
+                            {e.settled ? 'Settled' : 'Estimate'}
+                          </span>
+                        </span>
+                      </th>
+                      <td>{expenseDayLabel(trip, e)}</td>
+                      <td>{payer
+                        ? <span className="bud-payer"><Avatar user={payer} /> {payer.profile.name}</span>
+                        : <span className="bud-payer bud-payer-kitty">Shared kitty</span>}</td>
+                      <td className="num">{formatInr(lineTotal(e, trip.travellers))}</td>
+                      <td>
+                        <span className={e.settled ? 'bud-pill bud-pill-ok' : 'bud-pill bud-pill-quiet'}>
+                          {e.settled ? 'Settled' : 'Estimate'}
+                        </span>
+                      </td>
+                      <td>{editable && canWrite && (
+                        <span className="bud-row-actions">
+                          <button className="icon-btn" aria-label={`Edit ${e.label}`} onClick={() => setEditingId(e.id)}><Pencil size={14} /></button>
+                          <button className="icon-btn" aria-label={`Delete ${e.label}`} onClick={() => {
+                            // #334: a direct write while a preview is open would
+                            // make Keep refuse (stale base) — refuse it here instead.
+                            if (refuseWhileStaged(previewOpen)) return
+                            if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
+                            const idx = trip.expenses.findIndex(x => x.id === e.id)
+                            const deleteOutcome = deleteExpense(trip.id, e.id, me?.id ?? null)
+                            if (deleteOutcome === 'refused') { toast('You can no longer edit this trip.', 'err'); return }
+                            if (deleteOutcome === 'no-such-line') { toast('That line is no longer on the trip.', 'err'); return }
+                            undoToast(`Removed “${e.label}”`, () => {
+                              // The toast can outlive this tab. Read the live
+                              // staged flag, trip, account and role instead of
+                              // the render that raised it.
+                              if (refuseWhileStaged(!!liveStagedRef.current)) return
+                              const liveTrip = tripById(trip.id)
+                              const liveMe = currentUser()
+                              const liveCanWrite = !!liveTrip && !!liveMe?.id
+                                && canEdit(roleOf(liveTrip, liveMe.id))
+                              if (!liveCanWrite) { toast('You can no longer edit this trip.', 'err'); return }
+                              const outcome = restoreExpense(trip.id, e, idx, liveMe.id)
+                              if (outcome === 'applied') toast(`Restored “${e.label}”`)
+                              else if (outcome === 'duplicate') toast(`“${e.label}” is already back on the trip.`)
+                              else if (outcome === 'invalid') return
+                              else toast(`“${e.label}” was not restored — you can no longer edit this trip.`, 'err')
+                            })
+                          }}><Trash2 size={14} /></button>
+                        </span>
+                      )}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        {expensesRead === 'ready' && trip.expenses.length > 0 && shownExpenses.length === 0 && (
+          <p className="hint-text bud-empty-line">
+            No {lineFilter === 'settled' ? 'settled' : 'open'} lines. <button className="link-btn teal" onClick={() => setLineFilter('all')}>Show all lines</button>
+          </p>
+        )}
+      </Surface>
     </div>
   )
 }
@@ -678,7 +1111,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
 
 const EMPTY_FORM: FormState = { label: '', amount: '', category: 'food', perPerson: false, optional: false, paidBy: '', attachStop: '' }
 
-function QuickAdd({ trip, members, meId, topline, previewOpen }: { trip: Trip; members: { userId: ID }[]; meId?: ID; topline?: boolean; previewOpen?: boolean }) {
+function QuickAdd({ trip, members, meId, canWrite, previewOpen }: { trip: Trip; members: { userId: ID }[]; meId?: ID; canWrite: boolean; previewOpen?: boolean }) {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, paidBy: meId ?? '' })
   const [more, setMore] = useState(false)
 
@@ -686,15 +1119,20 @@ function QuickAdd({ trip, members, meId, topline, previewOpen }: { trip: Trip; m
     e.preventDefault()
     // Refused BEFORE validation so the typed line survives for the retry.
     if (refuseWhileStaged(previewOpen)) return
+    if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
-    addExpense(trip.id, patchOf(form))
-    setForm(f => ({ ...f, label: '', amount: '' }))
-    toast('Expense added')
+    const addOutcome = addExpense(trip.id, patchOf(form), meId ?? null)
+    if (addOutcome === 'applied') {
+      setForm(f => ({ ...f, label: '', amount: '' }))
+      toast('Expense added')
+    } else if (addOutcome === 'refused') {
+      toast('You can no longer edit this trip.', 'err')
+    }
   }
 
   return (
-    <form className={`quick-add${topline ? ' topline' : ''}`} onSubmit={submit}>
+    <form className="quick-add" onSubmit={submit}>
       <div className="quick-add-row">
         <input className="input" placeholder="What was it — e.g. Houseboat boarding" aria-label="Expense name" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
         <input className="input qa-amount" type="number" min={0} placeholder="₹" aria-label="Amount in rupees" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
@@ -712,11 +1150,13 @@ function QuickAdd({ trip, members, meId, topline, previewOpen }: { trip: Trip; m
   )
 }
 
-function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
+function ExpenseEditor({ trip, members, expense, onDone, meId, canWrite, previewOpen }: {
   trip: Trip
   members: { userId: ID }[]
   expense: Expense
   onDone: () => void
+  meId?: ID
+  canWrite: boolean
   previewOpen?: boolean
 }) {
   const [form, setForm] = useState<FormState>(stateFromExpense(expense))
@@ -731,6 +1171,7 @@ function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
     // Refused before the save (and before onDone) so the editor stays open
     // with the edits intact for the retry (#334).
     if (refuseWhileStaged(previewOpen)) return
+    if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
     // #829: the store reports what it did. The editor used to announce a save
@@ -739,7 +1180,7 @@ function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
     // amount was still on screen. Only an applied write earns the success
     // sentence and the close. A refusal keeps the editor open, exactly as the
     // two branches above do, because the typed values are the retry.
-    const outcome = updateExpense(trip.id, expense.id, changedFields(form, openedWith.current))
+    const outcome = updateExpense(trip.id, expense.id, changedFields(form, openedWith.current), meId ?? null)
     if (outcome === 'no-such-line') {
       toast('That expense is no longer on this trip — it was not saved.', 'err')
       return

@@ -207,7 +207,7 @@ html.native-shell {
 /* Kicker unification: one recipe for every micro-label role. */
 @media screen {
   .pulse-bar .pulse-label, .day-badge small, .tps-label, .tl-ribbon-eyebrow,
-  .stop-kind-tag, .board-pulse .pulse-label, .budget-hero-label, .share-intent, .impact-cell .k,
+  .stop-kind-tag, .board-pulse .pulse-label, .share-intent, .impact-cell .k,
   .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose,
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
   .ticker-item .t-tag, .board-stop-kicker, .creator-badge, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
@@ -418,10 +418,7 @@ html.native-shell {
 
 /* Stage 2: local workspace refinements; no token or animation-strategy changes. */
 .overview-head { margin-bottom: 16px; }
-.expense-table:focus-visible { outline: none; box-shadow: var(--ring); }
 .compare-table:focus-visible { outline: none; box-shadow: var(--ring); }
-[data-motion-paused='true'] .budget-bar-fill::after,
-[data-motion-paused='true'] .daybar-fill::after,
 [data-motion-paused='true'] .yf-map-pin-idea,
 [data-motion-paused='true'] .yf-live-pulse,
 [data-motion-paused='true'] .ticker-track { animation-play-state: paused; }

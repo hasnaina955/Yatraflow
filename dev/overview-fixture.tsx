@@ -48,9 +48,20 @@ const ROAD = params.get('road') ?? 'ok'
 const TAB = params.get('tab') ?? 'overview'
 const MEMBER_COUNT = params.get('members') === '4' ? 4 : 3
 const ROUND_TRIP = params.get('roundTrip') === '1'
-const BUDGET = Number(params.get('budget') ?? 16000)
+const BUDGET_PER_PERSON = Number(params.get('budget') ?? 16000)
 const PACE = params.get('pace') ?? 'relaxed'
 const LONG_END = params.get('end') === 'long'
+// PW-13: `budget=tagged` gives the two fixture expenses a payer and one settled
+// record, so the balances card and the settled history have something to draw.
+// The default keeps every other surface's fixture data unchanged.
+const BUDGET_TAGGED = params.get('budget') === 'tagged'
+// PW-13 review states. `read` drives the trips slice verdict, so the Budget
+// glance cards can be measured as reading, failed or ready. `empty` keeps the
+// plan but removes the ledger lines. `categories` adds wide-ledger lines so
+// the phone day table has to scroll past four or more category columns.
+const READ = params.get('read') ?? 'ready'
+const EMPTY_LEDGER = params.get('empty') === '1'
+const WIDE = Number(params.get('categories') ?? 0) >= 4
 
 const stop = (
   id: string,
@@ -143,7 +154,9 @@ const trip: Trip = {
   travellers: 2,
   transportMode: MODE as Trip['transportMode'],
   roundTrip: ROUND_TRIP,
-  budgetPerPersonInr: Number.isFinite(BUDGET) && BUDGET >= 0 ? BUDGET : 16000,
+  budgetPerPersonInr: Number.isFinite(BUDGET_PER_PERSON) && BUDGET_PER_PERSON >= 0
+    ? BUDGET_PER_PERSON
+    : 16000,
   travelStyle: PACE as Trip['travelStyle'],
   stayStyle: 'comfort',
   fixedCommitments: [
@@ -190,9 +203,17 @@ const trip: Trip = {
       ],
     },
   ],
-  expenses: [
-    { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800 },
-    { id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000 },
+  expenses: EMPTY_LEDGER ? [] : [
+    { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800, ...(BUDGET_TAGGED ? { paidBy: OWNER_ID } : {}) },
+    {
+      id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000,
+      ...(BUDGET_TAGGED ? { paidBy: EDITOR_ID, settled: { by: OWNER_ID, at: 1 } } : {}),
+    },
+    ...(BUDGET_TAGGED ? [{ id: 'expense-3', label: 'Sunset cruise', category: 'activities' as const, amountInr: 1800, optional: true }] : []),
+    ...(WIDE ? [
+      { id: 'expense-wide-1', label: 'Meals', category: 'food' as const, amountInr: 2400, paidBy: OWNER_ID },
+      { id: 'expense-wide-2', label: 'Temple entry', category: 'entry-fees' as const, amountInr: 600, paidBy: EDITOR_ID },
+    ] : []),
   ],
   members: [
     { userId: OWNER_ID, role: 'owner', joinedAt: 1 },
@@ -371,7 +392,11 @@ db.notifications = []
 db.published = []
 db.sessionUserId = OWNER_ID
 db.ready = true
-db.sliceReads = { decisions: 'ok', activity: 'ok' }
+db.sliceReads = READ === 'reading'
+  ? { decisions: 'ok', activity: 'ok' }
+  : READ === 'failed'
+    ? { decisions: 'ok', activity: 'ok', trips: 'failed' }
+    : { decisions: 'ok', activity: 'ok', trips: 'ok' }
 
 document.documentElement.dataset.theme = THEME
 

@@ -182,7 +182,6 @@
     .shr-state,
     .tl-state,
     .tm-state,
-    .bud-state,
     .ex-page .ex-clear:not([data-presence='exit']),
     .trips-page .ex-clear[style*='visible']:not([data-presence='exit'])
   ):not([data-presence='exit']) {

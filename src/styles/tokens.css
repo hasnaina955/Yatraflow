@@ -517,6 +517,8 @@
   --pw-on-sea: #FFFFFF;
   --pw-on-marigold: #22201E;
   --pw-on-bloom: #FFFFFF;
+  --pw-on-lagoon: #15120F;
+  --pw-on-time-stop: #22201E;
   --pw-sea-900: #0B3F44;
   --pw-sea-700: #0B5F67;
   --pw-lagoon-600: #0D8D82;
@@ -631,6 +633,8 @@
   --pw-on-sea: #0A1622;
   --pw-on-marigold: #1A1408;
   --pw-on-bloom: #2B0E16;
+  --pw-on-lagoon: #0A1622;
+  --pw-on-time-stop: #0A1622;
   --pw-sea-900: #E3F4F0;
   --pw-sea-700: #3FB8AC;
   --pw-lagoon-600: #3FB8AC;

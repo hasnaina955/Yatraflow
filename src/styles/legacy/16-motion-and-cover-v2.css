@@ -214,6 +214,13 @@
   max-width: 1180px;
 }
 
+/* The settings artboard is 1180px of content inside the shared 20px gutters.
+   The container's border box is 1220px. The :has guard keeps Board
+   and Map on their own width rules. */
+.container.yf-workspace.yf-workspace:has(.tset-grid) {
+  max-width: 1220px;
+}
+
 .container.yf-workspace.yf-workspace[data-wide='true'] {
   max-width: 1720px;
 }
@@ -1698,6 +1705,55 @@
   .yf-page .yf-cover-content > .yf-tabbar {
     animation: none;
     transition: none;
+  }
+}
+
+/* Settings titles wrap instead of disappearing behind an ellipsis. Four lines
+   cover the long-trip fixture at every width. The 721-1023px band gets a
+   smaller title and a taller cover, because 40px type needs three lines there
+   and the member row otherwise reaches the tab rail. */
+body:has(.tset-grid) .yf-page .yf-trip-head {
+  height: 304px;
+}
+
+body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+  display: -webkit-box;
+  width: min(100%, 900px);
+  height: auto;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+@media (min-width: 721px) and (max-width: 1023px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 384px;
+  }
+
+  body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 720px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 352px;
+  }
+
+  body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+    width: 100%;
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 440px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 380px;
   }
 }
 

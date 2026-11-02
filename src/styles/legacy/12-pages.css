@@ -404,20 +404,334 @@
 .yf-surface.gin-panel { border-radius: var(--radius); box-shadow: var(--shadow-card); }
 
 /* ===== P12: Trip settings tab ===== */
-/* The settings panels render through the shared Surface, so the card skin is
-   restated as a same-element compound (R5). It wins over the tab's own card
-   rule in any order, because a compound outranks a single class. The panel
-   entrance rides on the same rule, so no second `.tsx-card` selector exists. */
-.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); animation: cardIn var(--motion-med) var(--ease-out) var(--stagger-step) backwards; }
+/* The three-column body of the settings artboard: a short nav rail, the
+   sections, and the sticky preview panel. The workspace shell above this page
+   owns the hero and the tab rail, so the grid starts at the sections. */
+.tset-grid {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr) 316px;
+  gap: var(--space-7);
+  align-items: start;
+}
+
+/* The nav is the artboard's jump list. It is an anchor list, not a tablist:
+   every section is on the page at once, and the marks say which carry edits. */
+.tset-nav {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: var(--elev-1);
+  animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards;
+  animation-delay: 0s;
+}
+.tset-nav-lbl {
+  display: block;
+  padding: 6px 12px 8px;
+  font: var(--pw-kicker);
+  letter-spacing: var(--pw-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--pw-ink-3);
+}
+.tset-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font: var(--pw-ui);
+  color: var(--pw-ink-2);
+  text-decoration: none;
+  transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper);
+}
+.tset-nav-item:hover { background: var(--pw-soft); color: var(--pw-ink); }
+.tset-nav-item:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.tset-nav-item svg { flex: none; color: var(--pw-ink-3); }
+.tset-nav-item.is-edited { color: var(--pw-sea-700); font-weight: 700; }
+.tset-nav-item.is-edited svg { color: var(--pw-sea-700); }
+/* The artboard paints the archive row in the risk hue and sets it apart with a
+   rule, because it is the one row that cannot be undone by a Save. */
+.tset-nav-item.is-danger { color: var(--pw-risk); }
+.tset-nav-item.is-danger svg { color: var(--pw-risk); }
+.tset-nav-item.is-danger:hover { background: var(--pw-risk-100); color: var(--pw-risk); }
+/* The section you are reading carries the lagoon fill, the same one the
+   artboard gives its current row. */
+.tset-nav-item[aria-current='true'] { background: var(--pw-lagoon-100); color: var(--pw-sea-700); font-weight: 700; }
+.tset-nav-item[aria-current='true'] svg { color: var(--pw-sea-700); }
+.tset-nav-item i {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font: var(--pw-caption);
+  font-size: 11px;
+  font-weight: 800;
+  font-style: normal;
+}
+/* The artboard separates the destructive row from the five settings rows. */
+.tset-nav-divider { height: 1px; margin: var(--space-3) var(--space-4); background: var(--pw-line); }
+
+.tset-main { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+
+/* The panels render through the shared Surface, so the card skin is restated
+   as a same-element compound (R5). It wins over the tab's own card rule in any
+   order, because a compound outranks a single class. The panel entrance rides
+   on the same rule, so no second `.tsx-card` selector exists. */
+.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
 .yf-surface.tsx-card:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 2); }
 .yf-surface.tsx-card:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 3); }
 .yf-surface.tsx-card:nth-of-type(4) { animation-delay: calc(var(--stagger-step) * 4); }
+/* The settings body enters left-to-right: the rail, then the six question
+   cards, then the two aside cards. The global nth-child index supplies the
+   card order; the +1 offset gives the rail the first beat. */
+.tset-aside > * { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
+.tset-aside > :nth-child(1) { animation-delay: calc(var(--stagger-step) * 5); }
+.tset-aside > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 6); }
 
-/* R20: the section titles read like every other card title. Plus Jakarta Sans
-   800, 18px, line-height 1.3, the body text colour. They were the display
-   family at 16.5px/700. A descendant selector, so it adds no second `.tsx-q`
-   rule to the sheet and still outranks the single-class rule. */
-.tsx-card .tsx-q { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: 0; color: var(--text); }
+/* R20 / the 28-Oct typography ruling: Sora carries every section and card
+   title. The settings artboard draws these titles at 19px. The token keeps the
+   Sora face, weight, line height and tracking. `.tsx-q` is used by this page
+   alone, so the size override cannot restyle another tab. */
+.tsx-card .tsx-q { font: var(--pw-title); font-size: 19px; letter-spacing: var(--pw-title-tracking); color: var(--text); }
+
+/* The artboard's own card recipe: 24px corners, 22px of padding and an 18px
+   rhythm between blocks. The shared `.tsx-card` is 18px/20px-22px-18px, so the
+   compound restates the three values this page measured. */
+.tset-main > .yf-surface.tsx-card {
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  gap: 18px;
+  background: var(--pw-card);
+  border-color: var(--pw-line);
+}
+/* The dates card marks a moved range in the artboard's warm border. The pill
+   is the state hook, so the card needs no second class. */
+.tset-main > .yf-surface.tsx-card:has(.tset-changed) { border-color: var(--pw-marigold-300); }
+.tset-changed {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font: var(--pw-caption);
+  font-weight: 700;
+}
+
+/* The cover strip: the artboard keeps the name full-width, then a labelled row
+   of cover choices under it. */
+.tset-cover { display: flex; flex-direction: column; gap: 8px; }
+.tset-cover-lbl { font-size: 13px; font-weight: 700; color: var(--pw-ink); }
+
+/* The section head's icon tile and its copy column. The head row itself is the
+   shared `.tsx-head` in 08-map-review.css, which this page also owns. */
+.tsx-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--pw-soft);
+  color: var(--pw-ink-2);
+}
+.tsx-head-copy { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.tsx-head-copy .tsx-q { margin: 0; }
+
+/* The route strip in the artboard's middle column. The shared `.tsx-route` is
+   a horizontal run, which wrapped into orphaned dashes at 530px. Here each stop
+   takes its own row and the road mark turns into the row's leading edge, so
+   the chain still reads top to bottom. */
+.tsx-card .tsx-route {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: var(--space-3);
+}
+.tsx-card .tsx-route .tsx-node { width: 100%; }
+.tsx-card .tsx-route .tsx-node-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tsx-card .tsx-route .tsx-road {
+  width: 2px;
+  height: 14px;
+  margin-inline-start: 20px;
+  background: linear-gradient(180deg, var(--line), var(--text-3));
+}
+.tsx-return-marker {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-100);
+  color: var(--pw-marigold-ink);
+  font: var(--pw-kicker);
+  letter-spacing: var(--pw-kicker-tracking);
+  text-transform: uppercase;
+}
+
+/* A row of choice buttons. `.bench-line` is the receipt's own column stack, so
+   reusing it here stretched every button to the full column width in the
+   artboard's narrower middle column. */
+.tset-choice-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+
+/* The day grid: one card per day this save would write. The artboard centres
+   each tile, paints the weekday in marigold ink and the number in the display
+   face. A day past the trip's own length is dashed marigold, so a new day
+   reads as pending, not saved. */
+.tset-daygrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
+.tset-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 72px;
+  min-height: 72px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--pw-paper);
+  transition: border-color var(--motion-fast) var(--ease-paper), background var(--motion-fast) var(--ease-paper);
+}
+.tset-day-dow { font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); color: var(--pw-marigold-ink); }
+.tset-day-num { font: 700 18px/1.25 var(--font-display); letter-spacing: var(--pw-title-tracking); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
+.tset-day-stops { font: 400 11px/1.4 var(--font-body); font-style: normal; color: var(--pw-ink-2); }
+.tset-day.is-new { border: 1.5px dashed var(--pw-marigold-500); background: var(--pw-card); }
+.tset-day.is-new .tset-day-stops { color: var(--pw-marigold-ink); font-weight: 700; }
+
+/* The people row: the avatar stack, then who can edit and whether the link
+   is public. */
+.tset-people { display: flex; align-items: center; gap: var(--space-3); }
+.tset-stack { display: inline-flex; flex: none; }
+.tset-stack > * + * { margin-inline-start: -8px; }
+.tset-av {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--pw-card);
+  font: var(--pw-caption);
+  font-weight: 800;
+  color: var(--pw-on-sea);
+  background: var(--pw-sea-700);
+}
+.tset-av--1 { background: var(--pw-lagoon-600); color: var(--pw-on-lagoon); }
+.tset-av--2 { background: var(--pw-bloom-500); color: var(--pw-on-bloom); }
+.tset-av--3 { background: var(--pw-time-stop); color: var(--pw-on-time-stop); }
+.tset-people-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tset-people-copy span { font: var(--pw-caption); color: var(--pw-ink-3); }
+
+/* Archive or delete: owner only. The trash half carries the risk colour, the
+   archive half the calm one, and archive is disabled while it has no API. */
+.yf-surface.tsx-card--danger { border-color: var(--pw-risk-100); }
+.tsx-card--danger .tsx-ico { background: var(--pw-risk-100); color: var(--pw-risk); }
+.tset-danger-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.tset-danger-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-sm);
+  background: var(--pw-card);
+}
+.tset-danger-cell b { font: var(--pw-ui); color: var(--pw-ink); }
+.tset-danger-cell span { font: var(--pw-caption); color: var(--pw-ink-3); }
+.tset-danger-cell .btn { margin-top: 6px; }
+.tset-danger-cell--trash b, .tset-danger-cell--trash span { color: var(--pw-risk); }
+
+/* The sticky preview: the save panel and the plan-at-a-glance card. The save
+   panel carries the marigold edge the artboard gives it — the same hue as the
+   dot in its head — because it is the one card that changes state. */
+.tset-aside { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: 14px; }
+.tset-savecard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--pw-marigold-300);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: var(--elev-1);
+}
+.tset-save-head { display: flex; align-items: center; gap: 10px; }
+.tset-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--pw-marigold-500);
+}
+.tset-save-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }
+.tset-save-sub { margin: -4px 0 0; font: var(--pw-meta); color: var(--pw-ink-3); }
+.tset-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--pw-line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--pw-paper);
+}
+.tset-diff.is-good { background: var(--pw-lagoon-50); border-color: var(--pw-lagoon-100); }
+.tset-diff-lbl { font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); text-transform: uppercase; color: var(--pw-ink-3); }
+.tset-diff.is-good .tset-diff-lbl { color: var(--pw-sea-700); }
+.tset-diff b { font: var(--pw-ui); color: var(--pw-ink); }
+.tset-diff > span:last-child { font: var(--pw-caption); color: var(--pw-ink-3); }
+.tset-was { color: var(--pw-ink-4); text-decoration: line-through; }
+.tset-save-actions { display: flex; gap: 8px; margin-top: 2px; }
+.tset-save-btn { flex: 1; }
+.tset-discard {
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  font: var(--pw-ui);
+  color: var(--pw-ink-2);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper);
+}
+.tset-discard:hover:not(:disabled) { background: var(--pw-soft); border-color: var(--pw-line); }
+.tset-discard:disabled { opacity: .5; cursor: not-allowed; }
+.tset-save-foot { font: var(--pw-caption); color: var(--pw-ink-3); text-align: center; }
+
+.tset-glance {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  box-shadow: var(--elev-1);
+}
+.tset-glance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tset-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--pw-paper);
+}
+.tset-stat-v { font: 700 19px/1.2 var(--font-display); letter-spacing: var(--pw-title-tracking); color: var(--pw-ink); font-variant-numeric: tabular-nums; }
+.tset-stat-k { font: var(--pw-caption); color: var(--pw-ink-3); }
+.tset-read { display: flex; flex-direction: column; gap: var(--space-2); }
 
 /* Static values that were inline. Each is the value the inline style used. The
    names avoid the health-band vocabulary: tests/health-band.test.ts reads every
@@ -435,11 +749,445 @@
 /* The in-flight save is its own answer, so it gets its own block. */
 .set-save-state { margin-top: 2px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .yf-surface.tsx-card { animation: none; }
+/* The artboard's cover strip: the current cover wide on the left, then up to
+   three route photos, then the upload tile — five columns exactly. A trip with
+   fewer photos leaves the trailing columns empty rather than wrapping, and the
+   thumbnail cap in the form is what keeps the count inside the template. */
+.tset-coverstrip {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  height: 104px;
+}
+.tset-cover-slot {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--pw-soft);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper);
+}
+.tset-cover-slot:disabled { cursor: not-allowed; opacity: .6; }
+.tset-cover-slot:hover:not(:disabled) { border-color: var(--pw-line); }
+.tset-cover-slot:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+/* The current cover carries the lagoon ring the artboard draws around it, so
+   "which one is in use" reads without the pill. */
+.tset-cover-slot--now { cursor: default; border-color: var(--pw-lagoon-600); box-shadow: 0 0 0 3px var(--pw-lagoon-100); }
+.tset-cover-slot--now:hover { border-color: var(--pw-lagoon-600); }
+.tset-cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* The route photos are bare <img> elements inside their buttons, so without
+   this they paint at their natural width and spill out of the slot. */
+.tset-cover-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tset-cover-emoji { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 34px; }
+.tset-cover-now {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  font: var(--pw-caption);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pw-sea-700);
+}
+/* The upload tile is the only dashed edge in the strip, so it reads as an
+   action rather than a fifth photo. */
+.tset-cover-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 1.5px dashed var(--pw-line);
+  border-radius: var(--radius-sm);
+  background: var(--pw-paper);
+  font: var(--pw-caption);
+  font-weight: 700;
+  color: var(--pw-ink-2);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper);
+}
+.tset-cover-add:hover:not(:disabled) { border-color: var(--pw-lagoon-600); color: var(--pw-sea-700); }
+.tset-cover-add:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.tset-cover-add:disabled { cursor: progress; opacity: .6; }
+/* Going back to the generated scene is a quiet third verb, not a peer of the
+   tiles. It sits under the strip as a link. */
+.tset-cover-clear {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--pw-caption);
+  font-weight: 700;
+  color: var(--pw-sea-700);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.tset-cover-clear:disabled { cursor: progress; opacity: .6; }
+
+/* The artboard's field control: one bordered box that holds the input and its
+   trailing unit, so the character counter rides INSIDE the field. It is a page
+   control here, not the shared `.input`: the shared control's 44px floor and
+   full border are for a bare input, and this one has to wrap two children. */
+.inp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  width: 100%;
+  border: 1.5px solid var(--pw-line);
+  border-radius: var(--radius-sm);
+  background: var(--pw-card);
+  font: 600 14.5px/1.4 var(--font-body);
+  color: var(--pw-ink);
+}
+.inp:focus-within { border-color: var(--pw-lagoon-600); box-shadow: 0 0 0 3px var(--pw-lagoon-100); }
+.inp > input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+.inp > input:disabled { cursor: not-allowed; }
+/* The marigold edge marks a field whose draft differs from the saved row — the
+   same signal the nav rail's count gives, on the control itself. */
+.inp.changed { border-color: var(--pw-marigold-500); box-shadow: var(--elev-press); }
+.inp-count { flex: none; font: var(--pw-caption); color: var(--pw-ink-3); font-variant-numeric: tabular-nums; }
+
+/* The field's own label. `.field` already owns the column and its gap, so this
+   is the type only. */
+.flab { font: 700 13px/1.4 var(--font-body); color: var(--pw-ink); }
+
+/* The artboard's switch row: a pill track, a knob, and a two-line label. The
+   whole row is the control, so the label is part of the tap target. */
+.tog {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--pw-paper);
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper);
+}
+.tog:hover:not(:disabled) { background: var(--pw-soft); }
+.tog:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.tog:disabled { cursor: not-allowed; opacity: .6; }
+.tog .sw {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-line);
+  transition: background var(--motion-fast) var(--ease-paper);
+}
+/* The knob slides on the ordinary easing. `--ease-settle` is reserved for the
+   gallery pop (tests/papercut-motion.test.ts), so a switch may not borrow it. */
+.tog .sw::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  box-shadow: var(--elev-press);
+  transition: left var(--motion-fast) var(--ease-paper);
+}
+.tog.on .sw { background: var(--pw-sea-700); }
+.tog.on .sw::after { left: 22px; }
+.tog-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tog-copy b { font: var(--pw-ui); font-weight: 700; color: var(--pw-ink); }
+.tog-copy span { font: var(--pw-caption); color: var(--pw-ink-2); }
+
+/* The two read-back date fields. The icon sits inside the box beside the
+   value, and a changed field pushes its old date to the right edge. */
+.tset-when-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tset-when-ico { flex: none; color: var(--pw-ink-3); }
+.tset-when-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tset-when-was { margin-inline-start: auto; flex: none; }
+
+/* The artboard's mode card: a stacked icon, name and prose sublabel in a
+   wrapping grid. The shared `.bench-mode-btn` is a one-line row with
+   `text-transform: capitalize`, which title-cased the sublabel ("~42 Km/H On
+   Hills") — prose is not a name, so the transform is dropped here. */
+.tset-main .bench-mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tset-main .bench-mode-btn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--pw-card);
+  text-transform: none;
+}
+.tset-main .bench-mode-btn.on { background: var(--pw-lagoon-50); border-color: var(--pw-lagoon-600); box-shadow: 0 0 0 3px var(--pw-lagoon-100); color: var(--pw-ink); }
+.tset-main .bench-mode-name { font: var(--pw-ui); font-weight: 700; color: var(--pw-ink); }
+.tset-main .bench-mode-speed {
+  margin-left: 0;
+  padding: 0;
+  background: none;
+  font: var(--pw-caption);
+  font-weight: 500;
+  color: var(--pw-ink-2);
+  white-space: normal;
+}
+.tset-main .bench-mode-btn.on .bench-mode-speed { background: none; color: var(--pw-ink-2); }
+
+/* The artboard's group row: a fixed 220px traveller column and the budget
+   taking the rest, so the stepper never stretches to the width of a slider. */
+.tset-group-pair { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
+/* The stepper: one pill that holds both buttons and the count, so the three
+   read as a single control. */
+.tset-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-soft);
+}
+.tset-stepper button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pw-ink);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper);
+}
+.tset-stepper button:hover:not(:disabled) { background: var(--pw-lagoon-100); }
+.tset-stepper button:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.tset-stepper button:disabled { opacity: .45; cursor: not-allowed; }
+.tset-stepper b {
+  width: 48px;
+  text-align: center;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pw-ink);
+}
+.tset-budget-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tset-budget-sum { font: var(--pw-caption); color: var(--pw-ink-2); }
+.tset-budget-sum b { font: var(--pw-title); font-size: 20px; color: var(--pw-ink); }
+.tset-budget-exact { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.tset-budget-exact > label { font: var(--pw-caption); color: var(--pw-ink-2); }
+.tset-budget-exact .inp {
+  width: 132px;
+  height: 40px;
+  margin-inline-start: auto;
+  padding: 0 10px;
+  gap: 6px;
+}
+.tset-budget-exact .inp > span { flex: none; color: var(--pw-ink-3); }
+/* The dial's plan marker: the artboard's risk-coloured hairline at what the
+   plan already costs per head. It sits on the shared track, centred on its own
+   left edge, and it never takes a pointer event — the thumb is the control. */
+.yf-range-marker {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 2px;
+  background: var(--pw-risk);
+  pointer-events: none;
+}
+/* The scale's middle mark is the plan's own cost per head, so the target is
+   read against a real number. The risk colour is the artboard's: over target
+   is the one thing this line must say out loud. */
+.tset-scale { display: flex; justify-content: space-between; gap: 8px; font: var(--pw-caption); color: var(--pw-ink-2); }
+.tset-scale-plan { color: var(--pw-risk); font-weight: 700; }
+/* The over-budget strip: a risk-tinted band under the budget dial. */
+.tset-over {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--pw-risk-100);
+  font: var(--pw-meta);
+  color: var(--pw-risk);
+}
+.tset-over b { font-weight: 700; }
+/* The driver answer and the ten-style pace control share one row on desktop.
+   The pace track scrolls sideways so every style stays reachable on a phone. */
+.tset-driver-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.tset-driver-pace-pair > .field { min-width: 0; }
+/* The artboard's segment: one pill track, the chosen option on a raised card.
+   `.seg-btn` is the option; `PillNav` supplies the arrow-key roving. The track
+   wraps because the pace list holds ten options — an unwrapped ten-option row
+   is wider than the middle column and pushed the last three off the card. */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-soft);
+}
+.seg-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: var(--pw-ui);
+  color: var(--pw-ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper);
+}
+.seg-btn:hover:not(:disabled) { color: var(--pw-ink); }
+.seg-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.seg-btn.on { background: var(--pw-card); color: var(--pw-ink); font-weight: 700; box-shadow: var(--elev-press); }
+.seg-btn:disabled { opacity: .55; cursor: not-allowed; }
+.tset-pace-seg {
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pw-line) transparent;
+}
+.tset-pace-seg .seg-btn { flex: 0 0 auto; }
+
+/* The people strip is one row, as the artboard draws it: the stack, the copy
+   column that takes the slack, and the one button that belongs to Share. */
+.tset-main > .yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }
+.tset-people-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }
+.tset-manage {
+  flex: none;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--pw-soft);
+  font: var(--pw-ui);
+  font-weight: 700;
+  color: var(--pw-ink);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper);
+}
+.tset-manage:hover { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
+.tset-manage:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+/* The archive cell's buttons are the artboard's quiet pills, not the page's
+   primary action: archive reads as unavailable, trash as the risky one. */
+.tset-danger-btn {
+  height: 38px;
+  margin-top: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius-pill);
+  background: var(--pw-card);
+  font: var(--pw-caption);
+  font-weight: 700;
+  color: var(--pw-ink-2);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper);
+}
+.tset-danger-btn:hover:not(:disabled) { background: var(--pw-soft); }
+.tset-danger-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.tset-danger-btn:disabled { opacity: .55; cursor: not-allowed; }
+.tset-danger-btn--trash { border-color: var(--pw-risk-100); color: var(--pw-risk); }
+.tset-danger-btn--trash:hover:not(:disabled) { background: var(--pw-risk-100); }
+
+/* The two switches sit side by side, as the artboard draws them, and stack
+   once the column is too narrow to hold two labels. */
+.tset-tog-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* The trailing unit inside a read-back field. */
+.tset-inp-unit { margin-inline-start: auto; flex: none; font: var(--pw-caption); color: var(--pw-ink-2); }
+
+/* Below the artboard's 1440 the three columns stop fitting: the preview panel
+   drops under the sections, and the nav becomes a horizontal strip. */
+@media (max-width: 1180px) {
+  .tset-grid { grid-template-columns: 180px minmax(0, 1fr); }
+  .tset-aside { position: static; grid-column: 1 / -1; }
+}
+@media (max-width: 860px) {
+  .tset-grid { grid-template-columns: minmax(0, 1fr); }
+  .tset-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: var(--space-2);
+  }
+  .tset-nav-lbl, .tset-nav-item i { display: none; }
+  .tset-nav-item { flex: none; white-space: nowrap; }
+  .tset-daygrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* The group row and the two read-back pairs are two columns of a 343px card
+     at 390px: each column would be 160px and the budget figure overflows it. */
+  .tset-group-pair, .tset-when-pair, .tset-tog-pair { grid-template-columns: minmax(0, 1fr); }
+  .tset-driver-pace-pair { grid-template-columns: minmax(0, 1fr); }
+  /* The 34px avatar stack, the copy and the Share verb no longer fit one
+     phone row. Keep the avatar and copy together, then give the verb its own
+     full-width row. */
+  .tset-main > .yf-surface.tsx-card--people {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px 14px;
+  }
+  .tset-main > .yf-surface.tsx-card--people .tset-manage {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .tset-budget-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .tset-main .bench-mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Five columns of a 104px strip at 390px leaves each tile 48px wide. The
+     current cover keeps the wide slot and the rest fall under it. */
+  .tset-coverstrip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 76px;
+    height: auto;
+  }
+  .tset-cover-slot--now { grid-column: 1 / -1; }
+  .tset-danger-pair { grid-template-columns: minmax(0, 1fr); }
+  /* The answer pill sits under the title instead of squeezing it: at 390px a
+     nowrap pill beside an 18px title leaves the title two characters wide. */
+  .tsx-head { flex-wrap: wrap; }
+  .tsx-ans { margin-inline-start: 0; order: 3; width: 100%; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .yf-surface.tsx-card { animation: none; }
+  .tset-nav, .tset-aside > * { animation: none; }
+  .tset-nav-item, .tset-day, .tset-discard { transition: none; }
+}
+
+
 /* ===== P12: Timeline and Map states ===== */
+/* The timeline's day cards are cards, not generic page blocks. They keep the
+   page-enter clock and stagger, but use the same rise-and-scale entrance as
+   the Overview cards beside them. */
+.page-enter > .day-section { animation-name: cardIn; }
+
 /* The map's "no confirmed stops" state moves onto the shared StateBlock, so it
    carries the shared role for an empty read and the shared compact skin. The
    two hint lines under the map keep their own markup: they are hints, not

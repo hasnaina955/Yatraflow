@@ -171,6 +171,12 @@
       "inlineStyle": 2,
       "rawH1": 0
     },
+    "src/pages/trip/timeline/ToolbarMenu.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
     "src/pages/trip/timeline/TravelPanel.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
@@ -186,7 +192,7 @@
     "src/pages/trip/TripSettingsForm.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 4,
+      "inlineStyle": 3,
       "rawH1": 0
     },
     "src/pages/TripCreated.tsx": {

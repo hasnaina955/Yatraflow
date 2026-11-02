@@ -39,6 +39,18 @@ describe('PW-13 review — editor downgrade', () => {
     expect(code).toContain('updateExpense(trip.id, expense.id, changedFields(form, openedWith.current), meId ?? null)')
     expect(code).toContain('deleteExpense(trip.id, e.id, me?.id ?? null)')
   })
+
+  it('only announces add and delete success after the writer applied', () => {
+    expect(code).toContain('const addOutcome = addExpense(trip.id, patchOf(form), meId ?? null)')
+    expect(code).toContain("if (addOutcome === 'applied') {")
+    expect(code).toContain("} else if (addOutcome === 'refused') {")
+    expect(code).toContain('const deleteOutcome = deleteExpense(trip.id, e.id, me?.id ?? null)')
+    expect(code).toContain("if (deleteOutcome === 'refused')")
+    expect(code).toContain("if (deleteOutcome === 'no-such-line')")
+    const noLineAt = code.indexOf("if (deleteOutcome === 'no-such-line')")
+    const undoAt = code.indexOf('undoToast(`Removed', noLineAt)
+    expect(undoAt).toBeGreaterThan(noLineAt)
+  })
 })
 
 describe('PW-13 review — the deferred Undo reads live state', () => {
@@ -50,6 +62,7 @@ describe('PW-13 review — the deferred Undo reads live state', () => {
     expect(code).toContain('if (!liveCanWrite)')
     expect(code).toContain('const outcome = restoreExpense(')
     expect(code).toContain("if (outcome === 'applied') toast(")
+    expect(code).toContain("else if (outcome === 'invalid') return")
     expect(code).not.toContain('canWriteRef.current')
     expect(code).not.toContain('meIdRef.current')
   })
@@ -91,10 +104,13 @@ describe('PW-13 review — table semantics and optional scrolling', () => {
     expect(code).toContain('<caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>')
     expect(css).toContain('.bud-table-scroll')
     expect(css).toContain('.bud-table-scroll:focus { outline: none; box-shadow: var(--ring); }')
+    expect(css).toContain('.bud-table-scroll > .bud-data-table { overflow: visible; }')
   })
 
-  it('names the share as recorded spend, not a line count', () => {
-    expect(code).toContain('% of recorded spend')
+  it('names the share as recorded spend on the money denominator', () => {
+    expect(code).toContain('Math.round((settledTotal / ledgerTotal) * 100)')
+    expect(code).toContain('Math.round((kittyTotal / ledgerTotal) * 100)')
+    expect(code).toContain('{settledPct}% of recorded spend')
     expect(code).not.toContain('% of the expense lines')
   })
 

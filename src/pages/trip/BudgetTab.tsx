@@ -1069,7 +1069,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                             if (refuseWhileStaged(previewOpen)) return
                             if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
                             const idx = trip.expenses.findIndex(x => x.id === e.id)
-                            deleteExpense(trip.id, e.id, me?.id ?? null)
+                            const deleteOutcome = deleteExpense(trip.id, e.id, me?.id ?? null)
+                            if (deleteOutcome === 'refused') { toast('You can no longer edit this trip.', 'err'); return }
+                            if (deleteOutcome === 'no-such-line') { toast('That line is no longer on the trip.', 'err'); return }
                             undoToast(`Removed “${e.label}”`, () => {
                               // The toast can outlive this tab. Read the live
                               // staged flag, trip, account and role instead of
@@ -1083,6 +1085,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                               const outcome = restoreExpense(trip.id, e, idx, liveMe.id)
                               if (outcome === 'applied') toast(`Restored “${e.label}”`)
                               else if (outcome === 'duplicate') toast(`“${e.label}” is already back on the trip.`)
+                              else if (outcome === 'invalid') return
                               else toast(`“${e.label}” was not restored — you can no longer edit this trip.`, 'err')
                             })
                           }}><Trash2 size={14} /></button>
@@ -1119,9 +1122,13 @@ function QuickAdd({ trip, members, meId, canWrite, previewOpen }: { trip: Trip; 
     if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
-    addExpense(trip.id, patchOf(form), meId ?? null)
-    setForm(f => ({ ...f, label: '', amount: '' }))
-    toast('Expense added')
+    const addOutcome = addExpense(trip.id, patchOf(form), meId ?? null)
+    if (addOutcome === 'applied') {
+      setForm(f => ({ ...f, label: '', amount: '' }))
+      toast('Expense added')
+    } else if (addOutcome === 'refused') {
+      toast('You can no longer edit this trip.', 'err')
+    }
   }
 
   return (

@@ -196,7 +196,9 @@ describe('P12/PW-13 — the money did not move', () => {
     expect(code).not.toContain('stillToPay')
   })
 
-  it('names the settled share as recorded spend, not a line count', () => {
+  it('names the settled share as recorded spend on the money denominator', () => {
+    expect(code).toContain('Math.round((settledTotal / ledgerTotal) * 100)')
+    expect(code).toContain('Math.round((kittyTotal / ledgerTotal) * 100)')
     expect(code).toContain('% of recorded spend')
     expect(code).not.toContain('% of the expense lines')
   })

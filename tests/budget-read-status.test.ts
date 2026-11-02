@@ -340,9 +340,16 @@ describe('#384 — the gate exists in the code, not only in a comment', () => {
 
   it('the tab gates the affordance and requires the session on both paths', () => {
     const src = read('../src/pages/trip/BudgetTab.tsx')
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     expect(src).toMatch(/canEdit\(roleOf\(trip, me\.id\)\)/)
-    // Settle and reopen each check the session before calling the store.
-    expect(src.match(/if \(!me\?\.id\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    // Settle and reopen each check the session immediately before their call.
+    const guarded = (call: string) => {
+      const at = code.indexOf(call)
+      expect(at, `${call} must exist`).toBeGreaterThan(-1)
+      return code.slice(Math.max(0, at - 120), at)
+    }
+    expect(guarded('markExpenseSettled(trip.id, e.id, me.id)')).toContain('if (!me?.id) return')
+    expect(guarded('markExpenseUnsettled(trip.id, e.id, me.id)')).toContain('if (!me?.id) return')
     // The reopen call carries the session id — the old two-arg call is gone.
     expect(src).toMatch(/markExpenseUnsettled\(trip\.id, e\.id, me\.id\)/)
   })

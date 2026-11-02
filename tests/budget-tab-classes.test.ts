@@ -170,7 +170,9 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
 
   it('resets the shared card step inside the Budget grids', () => {
     // The shared `.card + .card` step is real; this reset must own it back.
-    expect(sheet).toMatch(/\.card \+ \.card \{[^}]*margin-top:/)
+    const shared = readRule(sheet, '.card + .card')
+    expect(shared.count).toBe(1)
+    expect(shared.body).toContain('margin-top: 14px')
     expect(css).toMatch(/\.bud-glance > \.card \+ \.card,\s*\.bud-grid > \.card \+ \.card \{ margin-top: 0; \}/)
   })
 

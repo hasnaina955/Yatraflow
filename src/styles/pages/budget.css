@@ -173,6 +173,10 @@
 .bud-table-scroll {
   max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
 }
+/* The table keeps its own overflow for legacy consumers, but inside the
+   Budget scroll box it must not create a second scrollbar. The wrapper owns
+   the scroll, so the Total column is reachable at the wrapper's end. */
+.bud-table-scroll > .bud-data-table { overflow: visible; }
 .bud-table-scroll:focus { outline: none; box-shadow: var(--ring); }
 .bud-data-table th[scope='row'] { white-space: nowrap; }
 .bud-data-table th, .bud-data-table td,

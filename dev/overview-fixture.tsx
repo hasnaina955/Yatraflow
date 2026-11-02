@@ -51,9 +51,11 @@ const TAB = params.get('tab') ?? 'overview'
 const BUDGET = params.get('budget') === 'tagged'
 // PW-13 review states. `read` drives the trips slice verdict, so the Budget
 // glance cards can be measured as reading, failed or ready. `empty` keeps the
-// plan but removes the ledger lines.
+// plan but removes the ledger lines. `categories` adds wide-ledger lines so
+// the phone day table has to scroll past four or more category columns.
 const READ = params.get('read') ?? 'ready'
 const EMPTY_LEDGER = params.get('empty') === '1'
+const WIDE = Number(params.get('categories') ?? 0) >= 4
 
 const stop = (
   id: string,
@@ -191,6 +193,10 @@ const trip: Trip = {
       ...(BUDGET ? { paidBy: EDITOR_ID, settled: { by: OWNER_ID, at: 1 } } : {}),
     },
     ...(BUDGET ? [{ id: 'expense-3', label: 'Sunset cruise', category: 'activities' as const, amountInr: 1800, optional: true }] : []),
+    ...(WIDE ? [
+      { id: 'expense-wide-1', label: 'Meals', category: 'food' as const, amountInr: 2400, paidBy: OWNER_ID },
+      { id: 'expense-wide-2', label: 'Temple entry', category: 'entry-fees' as const, amountInr: 600, paidBy: EDITOR_ID },
+    ] : []),
   ],
   members: [
     { userId: OWNER_ID, role: 'owner', joinedAt: 1 },

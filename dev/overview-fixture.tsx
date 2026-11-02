@@ -45,6 +45,10 @@ const ROAD = params.get('road') ?? 'ok'
 // surface can be measured without a session. The workspace validates the key
 // itself and falls back to overview, so a bad value cannot make the fixture lie.
 const TAB = params.get('tab') ?? 'overview'
+// PW-13: `budget=tagged` gives the two fixture expenses a payer and one settled
+// record, so the balances card and the settled history have something to draw.
+// The default keeps every other surface's fixture data unchanged.
+const BUDGET = params.get('budget') === 'tagged'
 
 const stop = (
   id: string,
@@ -176,8 +180,12 @@ const trip: Trip = {
     },
   ],
   expenses: [
-    { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800 },
-    { id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000 },
+    { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800, ...(BUDGET ? { paidBy: OWNER_ID } : {}) },
+    {
+      id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000,
+      ...(BUDGET ? { paidBy: EDITOR_ID, settled: { by: OWNER_ID, at: 1 } } : {}),
+    },
+    ...(BUDGET ? [{ id: 'expense-3', label: 'Sunset cruise', category: 'activities' as const, amountInr: 1800, optional: true }] : []),
   ],
   members: [
     { userId: OWNER_ID, role: 'owner', joinedAt: 1 },
@@ -353,7 +361,7 @@ db.notifications = []
 db.published = []
 db.sessionUserId = OWNER_ID
 db.ready = true
-db.sliceReads = { decisions: 'ok', activity: 'ok' }
+db.sliceReads = { decisions: 'ok', activity: 'ok', trips: 'ok' }
 
 document.documentElement.dataset.theme = THEME
 

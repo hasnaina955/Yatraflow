@@ -215,7 +215,10 @@ describe('#383 — the Budget tab branches on the read, not on the array', () =>
     // failure branch did not exist. Same shape as the pages #364 pinned.
     const failed = src.indexOf("emptyCopyFor('failed', 'expenses', retryExpenses)")
     const loading = src.indexOf('Loading expenses…')
-    const empty = src.indexOf('No expense lines yet')
+    // PW-13: the glance card is allowed to say "No expense lines yet" above
+    // the read. The marker is the empty StateBlock itself, which may render
+    // only after the read succeeded.
+    const empty = src.indexOf('<StateBlock kind="empty" size="compact" title="No expense lines yet"')
     expect(failed).toBeGreaterThan(-1)
     expect(loading).toBeGreaterThan(-1)
     expect(empty).toBeGreaterThan(-1)

@@ -79,7 +79,7 @@ describe('#381 — the tab speaks estimate headroom, not cash', () => {
   const ws = read('../src/pages/TripWorkspace.tsx')
 
   it('the daily tile names its basis — headroom of the estimate, not spent cash', () => {
-    expect(src).toMatch(/label="Budget headroom \/ day"/)
+    expect(src).toMatch(/<b>Budget headroom \/ day<\/b>/)
     expect(src).toMatch(/of the estimate/)
     // The cash-implying labels are gone from the surface entirely.
     expect(src).not.toMatch(/Safe to spend/)
@@ -90,7 +90,7 @@ describe('#381 — the tab speaks estimate headroom, not cash', () => {
     expect(src).toMatch(/pacing\.daysLeft === 0/)
     // The lump label has no slash suffix — the per-day headline must not be
     // reachable in that branch.
-    expect(src).toMatch(/label="Budget headroom"\n/)
+    expect(src).toMatch(/<b>Budget headroom<\/b>/)
     expect(src).toMatch(/the whole lump, not a daily rate/)
     // Both signs of the lump have wording of their own.
     expect(src).toMatch(/left<\/>/)
@@ -98,15 +98,17 @@ describe('#381 — the tab speaks estimate headroom, not cash', () => {
   })
 
   it('a budget-less trip gets the degenerate state, not a scolding hero', () => {
-    // The hero (and its Trim action and bar) render only against a real target.
+    // The target-relative pill and the bar render only against a real target.
     expect(src).toMatch(/\{hasTarget \? \(/)
+    expect(src).toMatch(/\{hasTarget && Math\.abs\(remaining\) >= 1 && \(/)
     expect(src).toMatch(/Estimate so far/)
     expect(src).toMatch(/Set a per-person target to start pacing/)
-    // The strip's target-relative tiles say "none set" instead of printing a
-    // red negative or a +% over zero.
-    expect(src).toMatch(/no group target set/)
+    expect(src).toMatch(/Set a per-person target to measure this estimate/)
+    // The strip's per-person meta says there is no target rather than
+    // printing a red negative or a +% over zero.
     expect(src).toMatch(/no per-person target yet/)
-    expect(src).toMatch(/set a per-person target to measure/)
+    // The old "Group budget" label overstated a planning estimate.
+    expect(src).not.toMatch(/Group budget/)
   })
 
   it('the ask links to Settings when the workspace can open them', () => {

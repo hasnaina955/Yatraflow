@@ -160,22 +160,7 @@
 @media (max-width: 560px) {
   .dmca-body { padding: 16px; }
 }
-/* ---------- Budget tab static styles (bud-) ---------- */
-.bud-card-lead { margin: 4px 0 14px; }
-.bud-hint-note { margin-top: 10px; }
-.bud-hero-meter { margin-top: 10px; }
-.bud-crew-card { margin-top: 14px; }
-.bud-crew-invite { margin: 6px 0 0; }
-.bud-crew-status { margin: 6px 0 10px; }
-.bud-settle-strip { margin-top: 12px; }
-.bud-settle-lead { margin: 0; }
-/* Same element as .row-between, so the compound wins over its gap. */
-.row-between.bud-watch-row { margin-top: 8px; gap: 8px; }
-.bud-watch-status { margin-top: 6px; }
-.bud-line-chip { margin-left: 6px; }
-.bud-editor-actions { display: flex; gap: 8px; margin-top: 10px; }
-.bud-essential-fill { background: var(--teal); }
-.bud-optional-fill { background: var(--saffron); }
+/* ---------- Budget tab static styles moved to src/styles/pages/budget.css ---------- */
 /* Group input tab: the inline styles moved into these gin- classes.
    Each value is the value the inline style used. */
 .gin-digest-card { margin-bottom: 14px; }
@@ -417,31 +402,6 @@
    its own padding and inner rules, so only the two skin values are restated,
    as a same-element compound so they win in any order (R5). */
 .yf-surface.gin-panel { border-radius: var(--radius); box-shadow: var(--shadow-card); }
-
-/* ===== P12: Budget tab - panel titles, surfaces and state motion ===== */
-/* Panel titles read R20: Plus Jakarta Sans 800 at 18px with a line height of
-   1.3, the body text colour. Listed for the same later fold as .shr-card-title. */
-.bud-card-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
-/* The panels sit on the shared card skin. The card class keeps its own padding
-   and its inner rules, so only the two skin values are restated, as a
-   same-element compound so they win in any order (R5). */
-.yf-surface.bud-panel { border-radius: var(--radius); box-shadow: var(--shadow-card); }
-/* The step between the crew card and the essential/optional card. The markup
-   carries the condition (it follows whether a crew card was drawn); the step
-   itself is fixed, so it belongs here rather than in a style attribute. */
-.bud-panel-gap { margin-top: 14px; }
-/* A state block that appears inside a panel keeps the entrance the tab already
-   had: fade and a 4px rise on the motion tokens. `errIn` rises upward; the
-   catalog's entrance rises from below. Which direction reads right is a design
-   call, so the direction that shipped stays. */
-.bud-state { animation: errIn var(--motion-med) var(--ease-out); }
-/* The two bar widths glide when a read lands, and neither had an opt-out, so a
-   reader who asked for less motion still watched the bars travel. Only the
-   opt-out is added: the durations the rules already use stay as they are. */
-@media (prefers-reduced-motion: reduce) {
-  .bud-state { animation: none; }
-  .budget-bar-fill, .daybar-fill { transition: none; }
-}
 
 /* ===== P12: Trip settings tab ===== */
 /* The settings panels render through the shared Surface, so the card skin is

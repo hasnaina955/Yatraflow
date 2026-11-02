@@ -322,8 +322,9 @@ describe('#384 — settling is owner/editor only, on both paths', () => {
 describe('#384 — the gate exists in the code, not only in a comment', () => {
   it('both settle writers check the house rule', () => {
     const src = read('../src/store/store.ts')
-    // One gate per writer — the settle and the reopen it undoes.
-    expect(src.match(/if \(!canEdit\(roleOf\(t, by\)\)\) return/g)?.length ?? 0).toBe(2)
+    // One gate per settle writer, and the expense writers now share the same
+    // gate (pinned in budget-expense-role.test.ts).
+    expect(src.match(/if \(!canEdit\(roleOf\(t, by\)\)\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
   })
 
   it('the tab gates the affordance and requires the session on both paths', () => {

@@ -9,7 +9,7 @@
 // Every figure is still the engine's or the settlement lib's. This file adds
 // presentation and two read-only views (the ledger filter, the chart split).
 // The five direct writers keep the shared staged-change refusal.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   BedDouble, Car, Check, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
@@ -23,8 +23,9 @@ import {
   markExpenseSettled, markExpenseUnsettled,
   currentUser, userById, useDb, canEdit, roleOf, resumeSync,
 } from '../../store/store'
-import { computeTotals, getAssumptions, formatInr, formatInrShort, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
+import { computeTotals, getAssumptions, formatInr, isRoundTrip, safeToSpendPerDay } from '../../lib/engine'
 import { splitDaySpend } from '../../lib/budgetDaySplit'
+import { largestRemainderShares } from '../../lib/budgetShares'
 import { amountRefusal } from '../../lib/expenseAmount'
 import { sliceState, emptyCopyFor } from '../../lib/readState'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
@@ -220,7 +221,7 @@ function lineTotal(e: Expense, travellers: number): number {
 }
 
 /** The chart's fixed drawing box. Its own scale keeps every label legible. */
-const PLOT = { w: 600, h: 300, left: 44, right: 10, top: 26, bottom: 46 }
+const PLOT = { w: 600, h: 300, left: 58, right: 10, top: 26, bottom: 46 }
 const PLOT_W = PLOT.w - PLOT.left - PLOT.right
 const PLOT_H = PLOT.h - PLOT.top - PLOT.bottom
 
@@ -253,6 +254,16 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const [adding, setAdding] = useState(false)
   const [lineFilter, setLineFilter] = useState<'all' | 'open' | 'settled'>('all')
   const [watchOptional, setWatchOptional] = useState<boolean>(() => loadFlag('optional_watch', false))
+  // The live right and the live staged flag, read at Undo time. A deferred
+  // callback closes over the render that raised the toast, so it must read
+  // these refs instead of the captured props.
+  const canWrite = !!me?.id && canEdit(roleOf(trip, me.id))
+  const previewOpenRef = useRef(!!previewOpen)
+  const canWriteRef = useRef(canWrite)
+  const meIdRef = useRef<ID | undefined>(me?.id)
+  useEffect(() => { previewOpenRef.current = !!previewOpen }, [previewOpen])
+  useEffect(() => { canWriteRef.current = canWrite }, [canWrite])
+  useEffect(() => { meIdRef.current = me?.id }, [me?.id])
 
   const groupTarget = trip.budgetPerPersonInr * trip.travellers
   // #381: a zero target is a degenerate state, not an overspend. Gate every
@@ -275,8 +286,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const retryExpenses = () => { void resumeSync() }
   // #384: settle/reopen is owner/editor only — the store enforces it (the
   // real guard), and the affordance matches so a viewer never sees a control
-  // whose write would be refused.
-  const canSettle = !!me?.id && canEdit(roleOf(trip, me.id))
+  // whose write would be refused. The expense writers share the same right.
+  const canSettle = canWrite
   // Pacing: the dial's ESTIMATE headroom — how much room the plan still has
   // per remaining day without blowing the group target. Settled payments are
   // deliberately not fed in (#381, decided 2026-09-25: relabel, don't re-plumb
@@ -299,20 +310,34 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1])
   const topCat = cats[0]
-  // The ledger's own rows, as the glance cards report them.
+  // Displayed shares use largest remainder, so the rows can never sum to
+  // 99 or 101 under a hardcoded footer.
+  const catShares = largestRemainderShares(cats.map(([, v]) => v))
+  const catShareTotal = catShares.reduce((sum, share) => sum + share, 0)
+  const topCatShare = catShares[0] ?? 0
+  // The ledger's own rows, as the glance cards report them. The settled card
+  // measures the EXPENSE LINES, never the planning estimate: the engine's
+  // transport and lodging are not a ledger balance.
   const settledExpenses = trip.expenses.filter(e => e.settled).sort((a, b) => (b.settled?.at ?? 0) - (a.settled?.at ?? 0))
   const settledTotal = linesTotal(settledExpenses, trip.travellers)
-  const paidPct = totals.totalCostInr > 0 ? Math.min(100, Math.round((settledTotal / totals.totalCostInr) * 100)) : 0
-  const stillToPay = Math.max(0, totals.totalCostInr - settledTotal)
-  const kittyLines = trip.expenses.filter(e => !e.paidBy && !e.settled)
+  const ledgerTotal = linesTotal(trip.expenses, trip.travellers)
+  const openLedgerExpenses = trip.expenses.filter(e => !e.settled)
+  const openLedgerTotal = linesTotal(openLedgerExpenses, trip.travellers)
+  const settledPct = ledgerTotal > 0 ? Math.min(100, Math.round((settledTotal / ledgerTotal) * 100)) : 0
+  const kittyLines = trip.expenses.filter(e => !e.paidBy)
   const kittyTotal = linesTotal(kittyLines, trip.travellers)
-  const kittyPct = totals.totalCostInr > 0 ? Math.round((kittyTotal / totals.totalCostInr) * 100) : 0
+  const kittyPct = ledgerTotal > 0 ? Math.round((kittyTotal / ledgerTotal) * 100) : 0
   const biggestLine = trip.expenses
     .map(e => ({ expense: e, total: lineTotal(e, trip.travellers) }))
     .filter(line => Number.isFinite(line.total))
     .sort((a, b) => b.total - a.total)[0]
   const biggestShare = biggestLine && totals.totalCostInr > 0 ? Math.round((biggestLine.total / totals.totalCostInr) * 100) : 0
-  const ledgerKnown = expensesRead === 'ready' || trip.expenses.length > 0
+  // The read verdict branches explicitly. A missing ledger is "reading" or
+  // "failed", never a zero; kept rows may still print their last read.
+  const ledgerReady = expensesRead === 'ready'
+  const ledgerReading = expensesRead === 'reading'
+  const ledgerKept = !ledgerReady && trip.expenses.length > 0
+  const ledgerUnread = !ledgerReady && !ledgerKept
   const optionalLines = trip.expenses.filter(e => e.optional)
   const withoutOptional = totals.totalCostInr - totals.optionalInr
   const withoutOptionalRoom = groupTarget - withoutOptional
@@ -356,6 +381,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
   const chartTargetLabel = hasTarget ? 'day target' : 'daily average'
   const chartTargetY = PLOT.top + PLOT_H - (Math.min(dayTarget, maxDay) / maxDay) * PLOT_H
   const chartTicks = [1, 0.75, 0.5, 0.25, 0].map(f => ({ f, value: maxDay * f, y: PLOT.top + PLOT_H * (1 - f) }))
+  // A target that lands on a grid tick would print the same rupee value twice.
+  // The dashed line and the card note still name it; skip the duplicate label.
+  const targetHasTick = chartTicks.some(tick => Math.abs(tick.y - chartTargetY) < 12)
   const chartColW = PLOT_W / Math.max(1, days.length)
   const chartBarW = Math.min(58, chartColW * 0.56)
 
@@ -439,49 +467,67 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
 
         <article className="card bud-glance-tile">
           <span className="bud-kicker">Settled so far</span>
-          <span className="bud-glance-num sm">{ledgerKnown ? formatInr(settledTotal) : '—'}</span>
-          <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
-            aria-label={`${paidPct}% of the estimate is marked settled`}>
-            <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
-            {ledgerKnown && <rect className="bud-track-fill" x="0" y="0" width={Math.max(0, paidPct)} height="8" rx="4" />}
-          </svg>
+          <span className="bud-glance-num sm">{ledgerUnread ? '—' : formatInr(settledTotal)}</span>
+          {ledgerUnread ? (
+            <span className="bud-mini-track is-unread" aria-hidden="true" />
+          ) : (
+            <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+              aria-label={`${settledPct}% of the expense lines is marked settled${ledgerKept ? ' (last read)' : ''}`}>
+              <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
+              <rect className="bud-track-fill" x="0" y="0" width={Math.max(0, settledPct)} height="8" rx="4" />
+            </svg>
+          )}
           <span className="bud-glance-sub">
-            {ledgerKnown
-              ? <>{paidPct}% of the estimate · {settledExpenses.length} of {trip.expenses.length} line{trip.expenses.length === 1 ? '' : 's'} marked settled</>
-              : <>Couldn’t read the ledger — this is not a zero</>}
+            {ledgerUnread
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
+              : trip.expenses.length === 0
+                ? 'No expense lines yet'
+                : <>{settledPct}% of the expense lines · {settledExpenses.length} of {trip.expenses.length} line{trip.expenses.length === 1 ? '' : 's'} marked settled</>}
           </span>
-          <span className="bud-glance-foot strong">{ledgerKnown ? <>{formatInr(stillToPay)} still open on the ledger</> : '—'}</span>
+          <span className="bud-glance-foot strong">
+            {ledgerUnread
+              ? '—'
+              : trip.expenses.length === 0
+                ? 'Nothing on the ledger'
+                : <>{formatInr(openLedgerTotal)} still open across {openLedgerExpenses.length} line{openLedgerExpenses.length === 1 ? '' : 's'}</>}
+          </span>
         </article>
 
         <article className="card bud-glance-tile bud-glance-kitty">
           <span className="bud-kicker">Shared kitty spend</span>
-          <span className="bud-glance-num sm">{ledgerKnown ? formatInr(kittyTotal) : '—'}</span>
-          <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
-            aria-label={`${kittyPct}% of the estimate sits in untagged lines`}>
-            <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
-            {ledgerKnown && <rect className="bud-track-fill soft" x="0" y="0" width={Math.max(0, kittyPct)} height="8" rx="4" />}
-          </svg>
+          <span className="bud-glance-num sm">{ledgerUnread ? '—' : formatInr(kittyTotal)}</span>
+          {ledgerUnread ? (
+            <span className="bud-mini-track is-unread" aria-hidden="true" />
+          ) : (
+            <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+              aria-label={`${kittyPct}% of the expense lines sits in untagged lines${ledgerKept ? ' (last read)' : ''}`}>
+              <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
+              <rect className="bud-track-fill soft" x="0" y="0" width={Math.max(0, kittyPct)} height="8" rx="4" />
+            </svg>
+          )}
           <span className="bud-glance-sub">
-            {ledgerKnown
-              ? kittyLines.length === 0
-                ? 'No untagged lines — every line names who paid'
-                : <>{kittyLines.length} untagged line{kittyLines.length === 1 ? '' : 's'} · no one is owed</>
-              : <>Couldn’t read the ledger — this is not a zero</>}
+            {ledgerUnread
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
+              : kittyLines.length === 0
+                ? 'No untagged lines.'
+                : <>{kittyLines.length} untagged line{kittyLines.length === 1 ? '' : 's'} · no one is owed</>}
           </span>
-          <span className="bud-glance-foot strong">{ledgerKnown ? <>{kittyPct}% of the estimate</> : '—'}</span>
+          <span className="bud-glance-foot strong">
+            {ledgerUnread ? '—' : ledgerTotal > 0 ? <>{kittyPct}% of the expense lines</> : 'Nothing on the ledger'}
+          </span>
         </article>
 
         <article className="card bud-glance-tile">
           <span className="bud-kicker">Biggest line</span>
-          <span className="bud-glance-num sm">{ledgerKnown && biggestLine ? formatInr(biggestLine.total) : '—'}</span>
+          <span className="bud-glance-num sm">{ledgerUnread || !biggestLine ? '—' : formatInr(biggestLine.total)}</span>
           <span className="bud-glance-sub">
-            {!ledgerKnown
-              ? 'Couldn’t read the ledger'
+            {ledgerUnread
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines')
               : biggestLine
                 ? <>{biggestLine.expense.label} · {expenseDayLabel(trip, biggestLine.expense)}</>
                 : 'No expense lines yet'}
           </span>
-          <span className="bud-glance-foot strong">{ledgerKnown && biggestLine ? <>{biggestShare}% of the trip</> : '—'}</span>
+          <span className="bud-glance-foot strong">{ledgerUnread || !biggestLine ? '—' : <>{biggestShare}% of the trip</>}</span>
         </article>
       </section>
 
@@ -490,7 +536,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
           <div className="bud-card-head">
             <h3 className="bud-card-title">Cost per day</h3>
             <p className="bud-card-note">
-              Tap or focus a day for the split · every value is in the table below · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}
+              <span className="bud-chart-hint-wide">Focus or tap a day for the split · every value is in the table below · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
+              <span className="bud-chart-hint-narrow">Open the table below for every day’s split · dashed line is the {chartTargetLabel}{dayTarget > 0 ? ` (${formatInr(dayTarget)})` : ''}</span>
             </p>
           </div>
           {chartCats.length > 0 && (
@@ -511,13 +558,13 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                     {chartTicks.map(t => (
                       <g key={t.f}>
                         <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
-                        <text className="bud-axis-label" x={PLOT.left - 8} y={t.y + 4} textAnchor="end">{formatInrShort(Math.round(t.value))}</text>
+                        <text className="bud-axis-label" x={PLOT.left - 8} y={t.y + 4} textAnchor="end">{formatInr(Math.round(t.value))}</text>
                       </g>
                     ))}
                     {dayTarget > 0 && (
                       <g className="bud-target-group">
                         <line className="bud-target-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={chartTargetY} y2={chartTargetY} />
-                        <text className="bud-target-text" x={PLOT.w - PLOT.right - 4} y={Math.max(PLOT.top + 10, chartTargetY - 6)} textAnchor="end">{formatInrShort(Math.round(dayTarget))}</text>
+                        {!targetHasTick && <text className="bud-target-text" x={PLOT.left + 2} y={chartTargetY - 6}>{formatInr(Math.round(dayTarget))}</text>}
                       </g>
                     )}
                     <g className="bud-bars">
@@ -538,7 +585,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                             </g>
                             {d.totalInr > 0 && (
                               <text className={d.totalInr > dayTarget && dayTarget > 0 ? 'bud-bar-total is-over' : 'bud-bar-total'}
-                                x={cx} y={barTop - 8} textAnchor="middle">{formatInrShort(d.totalInr)}</text>
+                                x={cx} y={barTop - 8} textAnchor="middle">{formatInr(d.totalInr)}</text>
                             )}
                             <text className="bud-day-name" x={cx} y={PLOT.h - 22} textAnchor="middle">Day {i + 1}</text>
                             {d.dateLabel && <text className="bud-day-date" x={cx} y={PLOT.h - 8} textAnchor="middle">{d.dateLabel}</text>}
@@ -574,8 +621,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
               )}
               <details className="bud-table-view">
                 <summary>Table view of cost per day</summary>
-                <table className="compare-table bud-data-table">
-                  <caption className="sr-only">Cost per day by category</caption>
+                <table className="compare-table bud-data-table" tabIndex={0} aria-labelledby="bud-day-table-caption">
+                  <caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>
                   <thead>
                     <tr>
                       <th scope="col">Day</th>
@@ -611,7 +658,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
             <>
               <div ref={categoryBarsRef} data-motion-paused={!visible || !categoriesInView}>
                 <svg className="bud-share-bar" viewBox="0 0 100 16" preserveAspectRatio="none" role="img"
-                  aria-label={`Category shares: ${cats.map(([c, v]) => `${titleCase(c)} ${Math.round((v / Math.max(1, totals.totalCostInr)) * 100)}%`).join(', ')}`}>
+                  aria-label={`Category shares: ${cats.map(([c], i) => `${titleCase(c)} ${catShares[i]}%`).join(', ')}`}>
                   {cats.map(([c, v], i) => {
                     const before = cats.slice(0, i).reduce((a, [, x]) => a + x, 0)
                     const start = (before / Math.max(1, totals.totalCostInr)) * 100
@@ -633,13 +680,13 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                     </tr>
                   </thead>
                   <tbody>
-                    {cats.map(([c, v]) => {
+                    {cats.map(([c, v], i) => {
                       const Icon = CAT_META[c].icon
                       return (
                         <tr key={c}>
                           <td><span className={`bud-line-cat ${catClass(c)}`} aria-hidden="true"><Icon size={12} /></span></td>
                           <th scope="row">{titleCase(c)}</th>
-                          <td className="num">{Math.round((v / Math.max(1, totals.totalCostInr)) * 100)}%</td>
+                          <td className="num">{catShares[i]}%</td>
                           <td className="num">{formatInr(v)}</td>
                           <td className="num">{formatInr(v / Math.max(1, trip.travellers))}</td>
                         </tr>
@@ -650,7 +697,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                     <tr>
                       <td />
                       <th scope="row">Total</th>
-                      <td className="num">100%</td>
+                      <td className="num">{catShareTotal}%</td>
                       <td className="num"><b>{formatInr(totals.totalCostInr)}</b></td>
                       <td className="num"><b>{formatInr(totals.costPerPersonInr)}</b></td>
                     </tr>
@@ -661,7 +708,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                 <p className="bud-insight">
                   <span aria-hidden="true">i</span>
                   <span>
-                    {titleCase(topCat[0])} is the biggest share at {Math.round((topCat[1] / Math.max(1, totals.totalCostInr)) * 100)}%.
+                    {titleCase(topCat[0])} is the biggest share at {topCatShare}%.
                     {biggestLine && biggestLine.expense.category === topCat[0] && <> {biggestLine.expense.label} alone is {biggestShare}% of the trip.</>}
                   </span>
                 </p>
@@ -918,7 +965,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                 </button>
               ))}
             </div>
-            {editable && (
+            {editable && canWrite && (
               <button type="button" className="btn btn-primary btn-sm" aria-expanded={adding}
                 onClick={() => setAdding(v => !v)}>
                 {adding ? 'Close capture' : '+ Add expense'}
@@ -926,7 +973,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
             )}
           </div>
         </div>
-        {editable && adding && <QuickAdd trip={trip} members={members} meId={me?.id} previewOpen={previewOpen} />}
+        {editable && canWrite && adding && (
+          <QuickAdd trip={trip} members={members} meId={me?.id} canWrite={canWrite} previewOpen={previewOpen} />
+        )}
         {/* #383: the three states, in the order that makes the bug
             impossible — the failure branch first (it is the only one that
             offers a way back), then loading, and only then the genuine
@@ -970,16 +1019,17 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                 {shownExpenses.map(e => {
                   const Icon = CAT_META[e.category].icon
                   const payer = e.paidBy ? userById(e.paidBy) : undefined
-                  return editingId === e.id ? (
+                  return editingId === e.id && editable && canWrite ? (
                     <tr key={e.id}>
                       <td colSpan={7}>
-                        <ExpenseEditor trip={trip} members={members} expense={e} onDone={() => setEditingId(null)} previewOpen={previewOpen} />
+                        <ExpenseEditor trip={trip} members={members} expense={e} onDone={() => setEditingId(null)}
+                          meId={me?.id} canWrite={canWrite} previewOpen={previewOpen} />
                       </td>
                     </tr>
                   ) : (
                     <tr key={e.id}>
                       <td><span className={`bud-line-cat ${catClass(e.category)}`} aria-hidden="true"><Icon size={12} /></span></td>
-                      <td>
+                      <th scope="row">
                         <span className="bud-line-name">
                           {e.label}
                           {e.perPerson && <span className="chip chip-info bud-line-chip">per person</span>}
@@ -991,7 +1041,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                             {e.settled ? 'Settled' : 'Estimate'}
                           </span>
                         </span>
-                      </td>
+                      </th>
                       <td>{expenseDayLabel(trip, e)}</td>
                       <td>{payer
                         ? <span className="bud-payer"><Avatar user={payer} /> {payer.profile.name}</span>
@@ -1002,17 +1052,23 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
                           {e.settled ? 'Settled' : 'Estimate'}
                         </span>
                       </td>
-                      <td>{editable && (
+                      <td>{editable && canWrite && (
                         <span className="bud-row-actions">
                           <button className="icon-btn" aria-label={`Edit ${e.label}`} onClick={() => setEditingId(e.id)}><Pencil size={14} /></button>
                           <button className="icon-btn" aria-label={`Delete ${e.label}`} onClick={() => {
                             // #334: a direct write while a preview is open would
                             // make Keep refuse (stale base) — refuse it here instead.
                             if (refuseWhileStaged(previewOpen)) return
+                            if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
                             const idx = trip.expenses.findIndex(x => x.id === e.id)
-                            deleteExpense(trip.id, e.id)
+                            deleteExpense(trip.id, e.id, me?.id ?? null)
                             undoToast(`Removed “${e.label}”`, () => {
-                              restoreExpense(trip.id, e, idx)
+                              // The toast can outlive the right it was raised
+                              // under. Read the live flag and role, not the
+                              // render's captured props.
+                              if (refuseWhileStaged(previewOpenRef.current)) return
+                              if (!canWriteRef.current) { toast('You can no longer edit this trip.', 'err'); return }
+                              restoreExpense(trip.id, e, idx, meIdRef.current ?? null)
                               toast(`Restored “${e.label}”`)
                             })
                           }}><Trash2 size={14} /></button>
@@ -1038,7 +1094,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, onOpenSettings 
 
 const EMPTY_FORM: FormState = { label: '', amount: '', category: 'food', perPerson: false, optional: false, paidBy: '', attachStop: '' }
 
-function QuickAdd({ trip, members, meId, previewOpen }: { trip: Trip; members: { userId: ID }[]; meId?: ID; previewOpen?: boolean }) {
+function QuickAdd({ trip, members, meId, canWrite, previewOpen }: { trip: Trip; members: { userId: ID }[]; meId?: ID; canWrite: boolean; previewOpen?: boolean }) {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, paidBy: meId ?? '' })
   const [more, setMore] = useState(false)
 
@@ -1046,9 +1102,10 @@ function QuickAdd({ trip, members, meId, previewOpen }: { trip: Trip; members: {
     e.preventDefault()
     // Refused BEFORE validation so the typed line survives for the retry.
     if (refuseWhileStaged(previewOpen)) return
+    if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
-    addExpense(trip.id, patchOf(form))
+    addExpense(trip.id, patchOf(form), meId ?? null)
     setForm(f => ({ ...f, label: '', amount: '' }))
     toast('Expense added')
   }
@@ -1072,11 +1129,13 @@ function QuickAdd({ trip, members, meId, previewOpen }: { trip: Trip; members: {
   )
 }
 
-function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
+function ExpenseEditor({ trip, members, expense, onDone, meId, canWrite, previewOpen }: {
   trip: Trip
   members: { userId: ID }[]
   expense: Expense
   onDone: () => void
+  meId?: ID
+  canWrite: boolean
   previewOpen?: boolean
 }) {
   const [form, setForm] = useState<FormState>(stateFromExpense(expense))
@@ -1091,6 +1150,7 @@ function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
     // Refused before the save (and before onDone) so the editor stays open
     // with the edits intact for the retry (#334).
     if (refuseWhileStaged(previewOpen)) return
+    if (!canWrite) { toast('You can no longer edit this trip.', 'err'); return }
     const problem = validateForm(form)
     if (problem) { toast(problem, 'err'); return }
     // #829: the store reports what it did. The editor used to announce a save
@@ -1099,7 +1159,7 @@ function ExpenseEditor({ trip, members, expense, onDone, previewOpen }: {
     // amount was still on screen. Only an applied write earns the success
     // sentence and the close. A refusal keeps the editor open, exactly as the
     // two branches above do, because the typed values are the retry.
-    const outcome = updateExpense(trip.id, expense.id, changedFields(form, openedWith.current))
+    const outcome = updateExpense(trip.id, expense.id, changedFields(form, openedWith.current), meId ?? null)
     if (outcome === 'no-such-line') {
       toast('That expense is no longer on this trip — it was not saved.', 'err')
       return

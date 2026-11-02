@@ -32,14 +32,26 @@ const baseline = JSON.parse(read('../tests/page-consistency-baseline.json')) as 
 /** Code only — comments removed, so prose cannot satisfy an assertion. */
 const code = tab.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
-/** One top-level rule's declaration text, normalised. Null when absent. */
-function ruleBody(source: string, selector: string): string | null {
-  const at = source.indexOf(`\n${selector} {`)
-  if (at === -1) return null
-  const open = source.indexOf('{', at)
+/** One top-level rule's declaration text, normalised, plus its occurrence
+ *  count. A selector that appears twice is a duplicate and must fail. */
+function readRule(source: string, selector: string): { count: number; body: string | null } {
+  const needle = `\n${selector} {`
+  const at: number[] = []
+  let from = 0
+  for (;;) {
+    const hit = source.indexOf(needle, from)
+    if (hit === -1) break
+    at.push(hit)
+    from = hit + needle.length
+  }
+  if (at.length === 0) return { count: 0, body: null }
+  const open = source.indexOf('{', at[0])
   const close = source.indexOf('}', open)
-  if (open === -1 || close === -1) return null
-  return source.slice(open + 1, close).replace(/\s+/g, ' ').trim()
+  if (open === -1 || close === -1) return { count: at.length, body: null }
+  return {
+    count: at.length,
+    body: source.slice(open + 1, close).replace(/\s+/g, ' ').trim(),
+  }
 }
 
 // Classes the markup uses as stable probe hooks. They carry no rule on
@@ -53,7 +65,7 @@ const PROBE_HOOKS = new Set([
   'bud-target-group',
 ])
 // Tokens the regex cannot read as classes: a template prefix and an SVG id.
-const NOT_A_CLASS = new Set(['bud-cat', 'bud-optional-hatch'])
+const NOT_A_CLASS = new Set(['bud-cat', 'bud-day-table-caption', 'bud-optional-hatch'])
 
 const KEY_RULES: { selector: string; declarations: string }[] = [
   { selector: '.bud-page', declarations: 'display: flex; flex-direction: column; gap: var(--space-7); min-width: 0;' },
@@ -73,15 +85,19 @@ describe('PW-13 — one owner for the Budget family', () => {
     expect(owner?.file).toBe('src/styles/pages/budget.css')
     for (const file of map.legacy) {
       const source = read(`../${file}`)
-      expect(source, `${file} must not declare a .bud- rule`).not.toMatch(/\.bud-[a-z]/)
+      // `.budget-tier` and `.budget-anchor` belong to the Map tab, not this
+      // family. Every other retired `budget-*` name must be gone.
+      expect(source, `${file} must not declare a .bud- or retired .budget- rule`).not.toMatch(/\.(bud|budget)-(?!tier\b|anchor\b)[a-z]/)
       expect(source, `${file} must not declare the capture form`).not.toMatch(/\.(quick-add|expense-edit)\b/)
     }
+    // The dead hero label used to live in the shared kicker list.
+    expect(sheet).not.toContain('.budget-hero-label')
   })
 
   it('the map owns every class the module declares', () => {
     const owner = map.owners.find(o => o.id === 'budget')
     const owned = new Set(owner?.owned ?? [])
-    const modifiers = new Set(['is-over', 'is-on', 'is-done', 'soft', 'pos', 'neg', 'sm'])
+    const modifiers = new Set(['is-over', 'is-on', 'is-done', 'is-unread', 'soft', 'pos', 'neg', 'sm', 'card'])
     const declared = new Set([...css.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map(hit => hit[1]))
     for (const cls of declared) {
       if (modifiers.has(cls)) continue
@@ -110,7 +126,7 @@ describe('PW-13 — one owner for the Budget family', () => {
     for (const dead of [
       'bud-card-lead', 'bud-hero-meter', 'bud-panel-gap', 'bud-hero-meter',
       'metric-strip', 'daybars', 'daybar-fill', 'catbars', 'cat-chip',
-      'budget-bars', 'budget-bar-fill', 'budget-hero', 'balance-row', 'balance-who',
+      'budget-bars', 'budget-bar-fill', 'budget-hero', 'budget-hero-label', 'balance-row', 'balance-who',
     ]) {
       expect(sheet, `.${dead} is a retired budget selector`).not.toMatch(new RegExp(`\\.${dead}[\\s,{:]`))
     }
@@ -134,20 +150,28 @@ describe('PW-13 — the component carries no inline styles', () => {
 describe('PW-13 — the key recipes stay on the tokens', () => {
   for (const rule of KEY_RULES) {
     it(`declares ${rule.selector} once, with its own values`, () => {
-      expect(ruleBody(css, rule.selector)).toBe(rule.declarations)
+      const found = readRule(css, rule.selector)
+      expect(found.count).toBe(1)
+      expect(found.body).toBe(rule.declarations)
     })
   }
 
   it('grows the stacked bars as one element from their baseline', () => {
-    expect(ruleBody(css, '.bud-stack')).toContain('animation: bud-bars-in var(--motion-slower) var(--ease-paper) backwards;')
-    expect(ruleBody(css, '.bud-track-fill')).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
-    expect(ruleBody(css, '.bud-bal-bar')).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-stack').body).toContain('animation: bud-bars-in var(--motion-slower) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-track-fill').body).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-bal-bar').body).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
   })
 
   it('keeps the tooltip on a token transition and the card surface', () => {
-    const tip = ruleBody(css, '.bud-tip') ?? ''
+    const tip = readRule(css, '.bud-tip').body ?? ''
     expect(tip).toContain('background: var(--card); color: var(--text);')
     expect(tip).toContain('transition: opacity var(--motion-fast) var(--ease-paper);')
+  })
+
+  it('resets the shared card step inside the Budget grids', () => {
+    const rule = css.slice(css.indexOf('.bud-glance > .card + .card'), css.indexOf('.bud-grid > .card + .card'))
+    expect(rule).toContain('.bud-glance > .card + .card')
+    expect(css).toContain('.bud-grid > .card + .card { margin-top: 0; }')
   })
 
   it('pairs every animated class with a reduced-motion opt-out', () => {
@@ -166,5 +190,6 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
   it('gives the coarse pointer the 40px control floor', () => {
     const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
     expect(coarse).toContain('.bud-filter { min-height: 40px; }')
+    expect(coarse).toContain('.bud-table-view summary { display: flex; align-items: center; min-height: 40px; }')
   })
 })

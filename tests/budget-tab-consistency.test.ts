@@ -137,7 +137,8 @@ describe('P12/PW-13 — the money did not move', () => {
       'Fair share is {formatInr(fairShare)} {sharePer}',
       '{formatInr(openPayableTotal)}</b>',
       '{formatInr(lineTotal(e, trip.travellers))}',
-      '{formatInr(stillToPay)} still open on the ledger',
+      'const ledgerTotal = linesTotal(trip.expenses, trip.travellers)',
+      '{formatInr(openLedgerTotal)} still open across',
       'formatInr(kittyTotal)',
       'formatInr(biggestLine.total)',
       '{formatInr(withoutOptional)}',
@@ -166,6 +167,7 @@ describe('P12/PW-13 — the money did not move', () => {
     // figure; the tab only reads.
     expect(code).toContain("from '../../lib/engine'")
     expect(code).toContain("from '../../lib/budgetDaySplit'")
+    expect(code).toContain("from '../../lib/budgetShares'")
     expect(code).toContain("from '../../lib/settlement'")
     expect(code).toContain('const pacing = safeToSpendPerDay(trip, totals.totalCostInr)')
     expect(code).toContain('const balances = computeBalances(members, trip.expenses, trip.travellers, userById)')
@@ -175,6 +177,32 @@ describe('P12/PW-13 — the money did not move', () => {
   it('the hero names the planning figure, not a group budget', () => {
     expect(code).toContain("{hasTarget ? 'Trip estimate' : 'Estimate so far'}")
     expect(code).not.toContain('Group budget')
+  })
+
+  it('the glance cards branch on the read verdict and never announce a zero', () => {
+    expect(code).toContain("const ledgerReading = expensesRead === 'reading'")
+    expect(code).toContain('const ledgerUnread = !ledgerReady && !ledgerKept')
+    expect(code).toContain('bud-mini-track is-unread')
+    expect(code).toContain('Reading the expense lines…')
+    expect(code).toContain('Couldn’t read the expense lines — this is not a zero')
+    expect(code).not.toContain('Couldn’t read the ledger — this is not a zero')
+    expect(code).not.toMatch(/% of the estimate is marked settled/)
+    expect(code).not.toMatch(/% of the estimate sits in untagged lines/)
+  })
+
+  it('the settled footer measures open expense lines, not the estimate', () => {
+    expect(code).toContain('const openLedgerExpenses = trip.expenses.filter(e => !e.settled)')
+    expect(code).toContain('const openLedgerTotal = linesTotal(openLedgerExpenses, trip.travellers)')
+    expect(code).not.toContain('stillToPay')
+  })
+
+  it('the chart prints exact rupees, and the category footer is derived', () => {
+    expect(code).not.toContain('formatInrShort')
+    expect(code).toContain('formatInr(Math.round(t.value))')
+    expect(code).toContain('{formatInr(d.totalInr)}')
+    expect(code).toContain('{catShares[i]}%')
+    expect(code).toContain('{catShareTotal}%')
+    expect(code).not.toContain('>100%</td>')
   })
 })
 

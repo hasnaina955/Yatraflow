@@ -33,7 +33,7 @@ describe('PW-13 — the glance strip is the artboard’s four cards', () => {
     expect(code).toContain('no one is owed')
     // Settled is the ledger's own record, not a vendor-paid lifecycle.
     expect(code).toContain('Settled so far')
-    expect(code).toContain('still open on the ledger')
+    expect(code).toContain('still open across')
   })
 })
 
@@ -50,12 +50,12 @@ describe('PW-13 — the day chart is readable without a hover', () => {
     expect(code).toContain('<div key={d.dayIndex} tabIndex={0} role="group"')
     expect(code).toContain('over the day target')
     expect(code).toContain('within the day target')
-    expect(code).toContain('{formatInrShort(d.totalInr)}')
+    expect(code).toContain('{formatInr(d.totalInr)}')
   })
 
   it('writes every segment into a semantic table', () => {
     expect(code).toContain('<summary>Table view of cost per day</summary>')
-    expect(code).toContain('<caption className="sr-only">Cost per day by category</caption>')
+    expect(code).toContain('<caption id="bud-day-table-caption" className="sr-only">Cost per day by category</caption>')
     expect(code).toContain('{chartCats.map(c => <th key={c} scope="col" className="num">{titleCase(c)}</th>)}')
     expect(code).toContain('<th scope="row">Day {i + 1}{d.dateLabel ? ` · ${d.dateLabel}` : \'\'}</th>')
   })

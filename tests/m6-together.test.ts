@@ -105,7 +105,7 @@ describe('B4 · markExpenseSettled', () => {
     getSnapshot().sessionUserId = ownerId
     await flush()
     calls.length = 0
-    addExpense(trip.id, { label: 'Fuel bluff', category: 'transport', amountInr: 2000 })
+    addExpense(trip.id, { label: 'Fuel bluff', category: 'transport', amountInr: 2000 }, ownerId)
     markExpenseSettled(trip.id, tripById(trip.id)!.expenses.at(-1)!.id, ownerId)
     await flush()
     expect(tripsUpdates().length).toBeGreaterThan(0)
@@ -117,7 +117,7 @@ describe('B4 · markExpenseSettled', () => {
     const trip = singleTrip()
     // The activity entry (and its write) is gated on a signed-in session.
     getSnapshot().sessionUserId = ownerId
-    addExpense(trip.id, { label: 'Tolls', category: 'tolls-parking', amountInr: 350 })
+    addExpense(trip.id, { label: 'Tolls', category: 'tolls-parking', amountInr: 350 }, ownerId)
     const id = tripById(trip.id)!.expenses.at(-1)!.id
     calls.length = 0
     markExpenseSettled(trip.id, id, ownerId)
@@ -133,7 +133,7 @@ describe('B4 · markExpenseSettled', () => {
   it('is idempotent — a settled line is not re-marked', async () => {
     const trip = singleTrip()
     await flush()
-    addExpense(trip.id, { label: 'Snacks', category: 'food', amountInr: 120 })
+    addExpense(trip.id, { label: 'Snacks', category: 'food', amountInr: 120 }, ownerId)
     const id = tripById(trip.id)!.expenses.at(-1)!.id
     markExpenseSettled(trip.id, id, ownerId)
     await flush()
@@ -146,7 +146,7 @@ describe('B4 · markExpenseSettled', () => {
   it('markExpenseUnsettled reopens the line and writes through', async () => {
     const trip = singleTrip()
     await flush()
-    addExpense(trip.id, { label: 'Parking', category: 'tolls-parking', amountInr: 80 })
+    addExpense(trip.id, { label: 'Parking', category: 'tolls-parking', amountInr: 80 }, ownerId)
     const id = tripById(trip.id)!.expenses.at(-1)!.id
     markExpenseSettled(trip.id, id, ownerId)
     await flush()

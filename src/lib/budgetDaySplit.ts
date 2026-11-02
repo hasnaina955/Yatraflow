@@ -49,7 +49,6 @@ export function splitDaySpend(trip: Trip, totals: Pick<TripTotals, 'byDay'>): Bu
   const buckets = totals.byDay
   const dayCount = Math.max(1, trip.days.length)
   const heads = headsOf(trip.travellers)
-  const hasBucket = new Set(buckets.map(b => b.dayIndex))
   const stopDay = new Map<ID, number>()
   for (const day of trip.days) for (const stop of day.stops) stopDay.set(stop.id, day.index)
 
@@ -70,12 +69,14 @@ export function splitDaySpend(trip: Trip, totals: Pick<TripTotals, 'byDay'>): Bu
     if (allowed === null) continue
     const amount = allowed * (e.perPerson ? heads : 1)
     if (!(amount > 0)) continue
-    const ownDay = typeof e.dayIndex === 'number' && Number.isFinite(e.dayIndex) && hasBucket.has(e.dayIndex)
+    // A finite dayIndex is authoritative even when it names no bucket. The
+    // engine then spreads the line; it never falls back to the stop's day.
+    const dayKey = typeof e.dayIndex === 'number' && Number.isFinite(e.dayIndex)
       ? e.dayIndex
-      : undefined
-    const attached = ownDay ?? (e.stopId !== undefined ? stopDay.get(e.stopId) : undefined)
-    if (attached !== undefined && split.has(attached)) add(attached, e.category, amount)
-    else for (const bucket of buckets) add(bucket.dayIndex, e.category, amount / dayCount)
+      : e.stopId !== undefined ? stopDay.get(e.stopId) : undefined
+    const bucket = dayKey !== undefined ? split.get(dayKey) : undefined
+    if (bucket) add(dayKey, e.category, amount)
+    else for (const b of buckets) add(b.dayIndex, e.category, amount / dayCount)
   }
 
   // #573: a recorded entry-fees line attached to the stop replaces the stop's

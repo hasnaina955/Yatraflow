@@ -86,6 +86,24 @@ describe('splitDaySpend — the chart totals are the engine totals', () => {
     expect(sumSegments(rows[1])).toBe(300)
   })
 
+  it('a finite dayIndex stays authoritative even when no bucket exists', () => {
+    // The engine treats a finite dayIndex as the line's own day. When that
+    // index names no bucket it spreads the line; it never falls back to the
+    // stop's day. The split must mirror that, or the segments can exceed the
+    // engine's day total.
+    const trip = twoDays()
+    const stop: ItineraryStop = {
+      ...structuredClone(seedData.trips[0].days[0].stops[0]),
+      id: 'split_invalid_index_stop', entryFeeInrPerPerson: 0, transportCostInrTotal: 0, status: 'confirmed',
+    }
+    trip.days[1].stops = [stop]
+    trip.expenses = [line('a', 100, { dayIndex: 99, stopId: stop.id })]
+    const totals = computeTotals(trip)
+    const rows = splitDaySpend(trip, totals)
+    expect(rows.map(sumSegments)).toEqual([50, 50])
+    for (const row of rows) expect(sumSegments(row)).toBeCloseTo(row.totalInr, 6)
+  })
+
   it('a recorded entry fee replaces the stop estimate, never doubles it', () => {
     const trip = twoDays()
     const stop: ItineraryStop = {

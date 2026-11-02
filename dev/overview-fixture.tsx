@@ -49,6 +49,11 @@ const TAB = params.get('tab') ?? 'overview'
 // record, so the balances card and the settled history have something to draw.
 // The default keeps every other surface's fixture data unchanged.
 const BUDGET = params.get('budget') === 'tagged'
+// PW-13 review states. `read` drives the trips slice verdict, so the Budget
+// glance cards can be measured as reading, failed or ready. `empty` keeps the
+// plan but removes the ledger lines.
+const READ = params.get('read') ?? 'ready'
+const EMPTY_LEDGER = params.get('empty') === '1'
 
 const stop = (
   id: string,
@@ -179,7 +184,7 @@ const trip: Trip = {
       ],
     },
   ],
-  expenses: [
+  expenses: EMPTY_LEDGER ? [] : [
     { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800, ...(BUDGET ? { paidBy: OWNER_ID } : {}) },
     {
       id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000,
@@ -361,7 +366,11 @@ db.notifications = []
 db.published = []
 db.sessionUserId = OWNER_ID
 db.ready = true
-db.sliceReads = { decisions: 'ok', activity: 'ok', trips: 'ok' }
+db.sliceReads = READ === 'reading'
+  ? { decisions: 'ok', activity: 'ok' }
+  : READ === 'failed'
+    ? { decisions: 'ok', activity: 'ok', trips: 'failed' }
+    : { decisions: 'ok', activity: 'ok', trips: 'ok' }
 
 document.documentElement.dataset.theme = THEME
 

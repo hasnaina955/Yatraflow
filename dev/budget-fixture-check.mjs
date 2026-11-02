@@ -14,12 +14,16 @@ const OUT = join(ROOT, '.verify-evidence', 'budget-fixture')
 const URL = 'http://localhost:5178/dev/overview-fixture.html?tab=budget&budget=tagged'
 
 const CASES = [
-  { name: 'desktop-light', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
-  { name: 'desktop-dark', width: 1440, height: 1000, theme: 'dark', reducedMotion: 'no-preference' },
-  { name: 'tablet-light', width: 900, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
-  { name: 'phone-light', width: 390, height: 900, theme: 'light', reducedMotion: 'no-preference' },
-  { name: 'phone-dark', width: 390, height: 900, theme: 'dark', reducedMotion: 'no-preference' },
-  { name: 'desktop-reduced', width: 1440, height: 1000, theme: 'light', reducedMotion: 'reduce' },
+  { name: 'desktop-light', kind: 'ledger', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'desktop-dark', kind: 'ledger', width: 1440, height: 1000, theme: 'dark', reducedMotion: 'no-preference' },
+  { name: 'tablet-light', kind: 'ledger', width: 900, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'phone-light', kind: 'ledger', width: 390, height: 900, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'phone-dark', kind: 'ledger', width: 390, height: 900, theme: 'dark', reducedMotion: 'no-preference' },
+  { name: 'desktop-reduced', kind: 'ledger', width: 1440, height: 1000, theme: 'light', reducedMotion: 'reduce' },
+  { name: 'desktop-reading', kind: 'state', read: 'reading', empty: true, width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'desktop-failed-kept', kind: 'state', read: 'failed', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'desktop-failed-unread', kind: 'state', read: 'failed', empty: true, width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
+  { name: 'desktop-empty', kind: 'state', empty: true, width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference' },
 ]
 
 async function launchChrome() {
@@ -56,7 +60,7 @@ async function inspect(page) {
     const plot = document.querySelector('.bud-plot-svg')?.getBoundingClientRect()
     const hits = document.querySelector('.bud-hits')?.getBoundingClientRect()
     const plotArea = plot ? {
-      left: plot.left + (plot.width * 44) / 600,
+      left: plot.left + (plot.width * 58) / 600,
       right: plot.right - (plot.width * 10) / 600,
       top: plot.top + (plot.height * 26) / 300,
       bottom: plot.bottom - (plot.height * 46) / 300,
@@ -70,12 +74,49 @@ async function inspect(page) {
     const firstHit = document.querySelector('.bud-hit')
     firstHit?.focus()
     const focusStyle = firstHit ? getComputedStyle(firstHit) : null
+    const glanceCards = [...document.querySelectorAll('.bud-glance-main, .bud-glance-tile')]
+    const settledTile = document.querySelectorAll('.bud-glance-tile')[0]
+    const kittyTile = document.querySelector('.bud-glance-kitty')
+    const grids = [...document.querySelectorAll('.bud-grid')]
     return {
       viewport: [innerWidth, innerHeight],
       scroll: [document.documentElement.scrollWidth, document.documentElement.clientWidth],
       theme: document.documentElement.dataset.theme,
       reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
-      glanceCards: document.querySelectorAll('.bud-glance-main, .bud-glance-tile').length,
+      glanceCards: glanceCards.length,
+      glanceTops: glanceCards.map(element => +element.getBoundingClientRect().top.toFixed(1)),
+      glanceGap: glanceCards.length > 1
+        ? +(glanceCards[1].getBoundingClientRect().top - glanceCards[0].getBoundingClientRect().bottom).toFixed(1)
+        : null,
+      gridTops: grids.map(grid => [...grid.children].map(element => +element.getBoundingClientRect().top.toFixed(1))),
+      gridGaps: grids.map(grid => {
+        const children = [...grid.children]
+        return children.length > 1
+          ? +(children[1].getBoundingClientRect().top - children[0].getBoundingClientRect().bottom).toFixed(1)
+          : null
+      }),
+      optionalList: (() => {
+        const element = document.querySelector('.bud-optional-list')
+        if (!element) return null
+        const computed = getComputedStyle(element)
+        return { maxHeight: computed.maxHeight, overflowY: computed.overflowY }
+      })(),
+      read: {
+        settledSub: settledTile?.querySelector('.bud-glance-sub')?.textContent?.trim() ?? null,
+        kittySub: kittyTile?.querySelector('.bud-glance-sub')?.textContent?.trim() ?? null,
+        settledFoot: settledTile?.querySelector('.bud-glance-foot')?.textContent?.trim() ?? null,
+        unreadTracks: document.querySelectorAll('.bud-mini-track.is-unread').length,
+        miniTrackRoleImgs: document.querySelectorAll('.bud-mini-track[role="img"]').length,
+        zeroAria: [...document.querySelectorAll('.bud-glance [aria-label]')]
+          .some(element => /0% of the expense lines/.test(element.getAttribute('aria-label') ?? '')),
+        lastReadAria: [...document.querySelectorAll('.bud-mini-track[aria-label]')]
+          .filter(element => (element.getAttribute('aria-label') ?? '').includes('(last read)')).length,
+        topKept: document.querySelector('.bud-read')?.textContent?.trim().slice(0, 140) ?? null,
+        ledgerState: document.querySelector('.bud-lines')?.textContent?.trim().slice(0, 240) ?? null,
+        retryButtons: [...document.querySelectorAll('button')].filter(button => button.textContent?.trim() === 'Try again').length,
+        chartRendered: !!document.querySelector('.bud-plot-svg'),
+      },
+      summaryHeight: document.querySelector('.bud-table-view summary')?.getBoundingClientRect().height ?? null,
       panels: document.querySelectorAll('.bud-panel').length,
       panel: rectOf('.bud-panel'),
       chart: {
@@ -149,13 +190,14 @@ try {
     const context = await browser.newContext({
       viewport: { width: testCase.width, height: testCase.height },
       reducedMotion: testCase.reducedMotion,
+      hasTouch: testCase.width < 720,
     })
     const page = await context.newPage()
     const consoleErrors = []
     const pageErrors = []
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
     page.on('pageerror', error => pageErrors.push(String(error).split('\n')[0]))
-    await page.goto(`${URL}&theme=${testCase.theme}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(`${URL}&theme=${testCase.theme}${testCase.read ? `&read=${testCase.read}` : ''}${testCase.empty ? '&empty=1' : ''}`, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.bud-page', { timeout: 20_000 })
     await page.evaluate(() => document.fonts.ready)
     await page.waitForTimeout(800)
@@ -166,6 +208,29 @@ try {
     })
     const metrics = await inspect(page)
     const name = testCase.name
+
+    // The phone's day table is a labelled, focusable scroll target. Open the
+    // disclosure, focus the table, and read the shared ring before closing it.
+    if (testCase.width < 720) {
+      await page.getByText('Table view of cost per day').click()
+      await page.waitForTimeout(150)
+      const table = page.locator('.bud-data-table')
+      await table.scrollIntoViewIfNeeded()
+      await table.focus()
+      await page.waitForTimeout(200)
+      metrics.chart.keyboard = await table.evaluate(element => {
+        const computed = getComputedStyle(element)
+        return {
+          active: document.activeElement === element,
+          focusVisible: element.matches(':focus-visible'),
+          shadow: computed.boxShadow,
+          height: +element.getBoundingClientRect().height.toFixed(1),
+        }
+      })
+      await page.screenshot({ path: join(OUT, `${name}-table.png`) })
+      await page.getByText('Table view of cost per day').click()
+      await page.waitForTimeout(150)
+    }
 
     if (metrics.glanceCards !== 4) failures.push({ case: name, reason: `expected 4 glance cards, saw ${metrics.glanceCards}` })
     if (metrics.panels !== 5) failures.push({ case: name, reason: `expected 5 panels, saw ${metrics.panels}` })
@@ -180,14 +245,89 @@ try {
     if (metrics.category.headers.slice(1).join('|') !== 'Category|Share|Group|Per traveller') {
       failures.push({ case: name, reason: 'the category headers do not name their populations', headers: metrics.category.headers })
     }
-    if (metrics.balances.rows !== 3) failures.push({ case: name, reason: `expected 3 balance rows, saw ${metrics.balances.rows}`, balances: metrics.balances })
-    if (metrics.balances.bars < 1) failures.push({ case: name, reason: 'no diverging balance bar rendered' })
-    if (metrics.balances.transfers < 1) failures.push({ case: name, reason: 'no settlement transfer rendered' })
-    if (metrics.balances.settle < 2) failures.push({ case: name, reason: 'the settle strip and the settled history did not render' })
-    if (metrics.optional.marks < 1) failures.push({ case: name, reason: 'the optional list did not render' })
-    if (!metrics.optional.note?.startsWith('Read-only')) failures.push({ case: name, reason: 'the optional list does not say it is read-only' })
-    if (metrics.ledger.rows !== 3) failures.push({ case: name, reason: `expected 3 ledger rows, saw ${metrics.ledger.rows}`, ledger: metrics.ledger })
+    // The shared card rule steps every sibling down 14px. These rows own their
+    // own gap, so the tops and the gaps must be exact.
+    if (testCase.width >= 1101 && new Set(metrics.glanceTops).size !== 1) {
+      failures.push({ case: name, reason: 'the desktop glance cards do not share a top', tops: metrics.glanceTops })
+    }
+    if (testCase.width >= 721 && testCase.width <= 1100 && new Set(metrics.glanceTops.slice(1)).size !== 1) {
+      failures.push({ case: name, reason: 'the tablet tiles do not share a top', tops: metrics.glanceTops })
+    }
+    if (testCase.width < 720 && (metrics.glanceGap == null || Math.abs(metrics.glanceGap - 14) > 0.6)) {
+      failures.push({ case: name, reason: `the phone glance gap is ${metrics.glanceGap}px, not 14px` })
+    }
+    if (testCase.width <= 1100) {
+      for (const gap of metrics.gridGaps) {
+        if (gap != null && Math.abs(gap - 16) > 0.6) failures.push({ case: name, reason: `a stacked grid gap is ${gap}px, not 16px` })
+      }
+    } else {
+      for (const tops of metrics.gridTops) {
+        if (new Set(tops).size !== 1) failures.push({ case: name, reason: 'two cards in a row do not share a top', tops })
+      }
+    }
     if (metrics.ledger.filters !== 3) failures.push({ case: name, reason: `expected 3 ledger filters, saw ${metrics.ledger.filters}` })
+
+    if (testCase.kind !== 'state') {
+      if (metrics.balances.rows !== 3) failures.push({ case: name, reason: `expected 3 balance rows, saw ${metrics.balances.rows}`, balances: metrics.balances })
+      if (metrics.balances.bars < 1) failures.push({ case: name, reason: 'no diverging balance bar rendered' })
+      if (metrics.balances.transfers < 1) failures.push({ case: name, reason: 'no settlement transfer rendered' })
+      if (metrics.balances.settle < 2) failures.push({ case: name, reason: 'the settle strip and the settled history did not render' })
+      if (metrics.optional.marks < 1) failures.push({ case: name, reason: 'the optional list did not render' })
+      if (!metrics.optional.note?.startsWith('Read-only')) failures.push({ case: name, reason: 'the optional list does not say it is read-only' })
+      if (metrics.ledger.rows !== 3) failures.push({ case: name, reason: `expected 3 ledger rows, saw ${metrics.ledger.rows}`, ledger: metrics.ledger })
+      if (metrics.optionalList) {
+        if (metrics.optionalList.maxHeight !== 'none') failures.push({ case: name, reason: `the optional list is capped at ${metrics.optionalList.maxHeight}` })
+        if (metrics.optionalList.overflowY !== 'visible') failures.push({ case: name, reason: `the optional list scrolls (${metrics.optionalList.overflowY})` })
+      }
+    }
+
+    if (testCase.read === 'reading') {
+      if (!metrics.read.settledSub?.includes('Reading the expense lines…')) failures.push({ case: name, reason: 'the settled card does not use loading copy', read: metrics.read })
+      if (!metrics.read.kittySub?.includes('Reading the expense lines…')) failures.push({ case: name, reason: 'the kitty card does not use loading copy', read: metrics.read })
+      if (metrics.read.unreadTracks !== 2) failures.push({ case: name, reason: `expected 2 unread tracks, saw ${metrics.read.unreadTracks}` })
+      if (metrics.read.miniTrackRoleImgs !== 0) failures.push({ case: name, reason: 'an unread track still announces a percentage', read: metrics.read })
+      if (metrics.read.zeroAria) failures.push({ case: name, reason: 'an unread card announces 0%', read: metrics.read })
+      if (!metrics.read.ledgerState?.includes('Loading expenses…')) failures.push({ case: name, reason: 'the ledger is not loading', read: metrics.read })
+      if (!metrics.read.chartRendered) failures.push({ case: name, reason: 'the plan chart disappeared while reading' })
+    }
+    if (testCase.read === 'failed') {
+      if (testCase.empty) {
+        if (!metrics.read.settledSub?.includes('Couldn’t read the expense lines — this is not a zero')) failures.push({ case: name, reason: 'the settled card does not name the failed read', read: metrics.read })
+        if (metrics.read.unreadTracks !== 2) failures.push({ case: name, reason: `expected 2 unread tracks, saw ${metrics.read.unreadTracks}` })
+        if (metrics.read.miniTrackRoleImgs !== 0) failures.push({ case: name, reason: 'a failed track still announces a percentage', read: metrics.read })
+        if (metrics.read.zeroAria) failures.push({ case: name, reason: 'a failed card announces 0%', read: metrics.read })
+        if (!metrics.read.ledgerState?.includes('Couldn’t load expenses')) failures.push({ case: name, reason: 'the ledger is not failed', read: metrics.read })
+        if (metrics.read.retryButtons < 2) failures.push({ case: name, reason: `expected 2 retry controls, saw ${metrics.read.retryButtons}` })
+      } else {
+        // A failed refresh that kept its rows shows the last read, and says so.
+        if (!metrics.read.settledSub?.includes('% of the expense lines')) failures.push({ case: name, reason: 'the kept settled card is missing its last read', read: metrics.read })
+        if (metrics.read.unreadTracks !== 0) failures.push({ case: name, reason: 'kept rows are hidden behind unread tracks' })
+        if (metrics.read.miniTrackRoleImgs !== 2) failures.push({ case: name, reason: 'the kept tracks are not announced', read: metrics.read })
+        if (metrics.read.lastReadAria !== 2) failures.push({ case: name, reason: 'the kept tracks do not say last read', read: metrics.read })
+        if (!metrics.read.topKept?.includes('Couldn’t refresh expense lines')) failures.push({ case: name, reason: 'the kept note is missing', read: metrics.read })
+        if (!metrics.read.ledgerState?.includes('Couldn’t load expenses')) failures.push({ case: name, reason: 'the ledger is not failed', read: metrics.read })
+        if (metrics.read.retryButtons < 3) failures.push({ case: name, reason: `expected 3 retry controls, saw ${metrics.read.retryButtons}` })
+      }
+      if (!metrics.read.chartRendered) failures.push({ case: name, reason: 'the plan chart disappeared on a failed ledger' })
+    }
+    if (testCase.empty && !testCase.read) {
+      if (!metrics.read.settledSub?.includes('No expense lines yet')) failures.push({ case: name, reason: 'the empty settled card is wrong', read: metrics.read })
+      if (!metrics.read.kittySub?.includes('No untagged lines.')) failures.push({ case: name, reason: 'the empty kitty copy is wrong', read: metrics.read })
+      if (!metrics.read.settledFoot?.includes('Nothing on the ledger')) failures.push({ case: name, reason: 'the empty settled footer claims a ledger balance', read: metrics.read })
+      if (metrics.read.unreadTracks !== 0) failures.push({ case: name, reason: 'an empty ready ledger still shows unread tracks' })
+      if (!metrics.read.ledgerState?.includes('No expense lines yet')) failures.push({ case: name, reason: 'the ledger does not show its empty room', read: metrics.read })
+      if (!metrics.read.chartRendered) failures.push({ case: name, reason: 'the plan chart disappeared on an empty ledger' })
+    }
+    if (testCase.width < 720) {
+      if (metrics.summaryHeight == null || metrics.summaryHeight < 39.5) {
+        failures.push({ case: name, reason: `the table summary is ${metrics.summaryHeight}px tall` })
+      }
+      if (!metrics.chart.keyboard?.active) failures.push({ case: name, reason: 'the day table cannot take keyboard focus', keyboard: metrics.chart.keyboard })
+      if (metrics.chart.keyboard?.shadow === 'none') {
+        failures.push({ case: name, reason: 'the focused day table has no ring', keyboard: metrics.chart.keyboard })
+      }
+    }
+
     if (metrics.scroll[0] > metrics.scroll[1] + 1) failures.push({ case: name, reason: `horizontal overflow ${metrics.scroll.join('/')}` })
     if (testCase.width < 720) {
       // The phone must show the per-traveller column without a sideways scroll,

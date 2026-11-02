@@ -51,21 +51,22 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 
 let owner = 0
 /** A trip with one known line on it, and that line. */
-function tripWithLine(amountInr = 500): { tripId: string; line: Expense } {
-  const trip = duplicateTrip(seedData.trips[0], `budget-owner-${++owner}`)
-  addExpense(trip.id, { label: 'Probe line', category: 'food', amountInr } as Omit<Expense, 'id'>)
+function tripWithLine(amountInr = 500): { tripId: string; line: Expense; ownerId: string } {
+  const ownerId = `budget-owner-${++owner}`
+  const trip = duplicateTrip(seedData.trips[0], ownerId)
+  addExpense(trip.id, { label: 'Probe line', category: 'food', amountInr } as Omit<Expense, 'id'>, ownerId)
   const line = tripById(trip.id)!.expenses.find(e => e.label === 'Probe line')!
-  return { tripId: trip.id, line }
+  return { tripId: trip.id, line, ownerId }
 }
 
 const lineNow = (tripId: string, id: string) => tripById(tripId)!.expenses.find(e => e.id === id)!
 
 describe('#829 — the store reports what it did', () => {
   it('an applied edit really changes the line and the totals', () => {
-    const { tripId, line } = tripWithLine(500)
+    const { tripId, line, ownerId } = tripWithLine(500)
     const before = computeTotals(tripById(tripId)!).byCategory['food']
 
-    const outcome = updateExpense(tripId, line.id, { amountInr: 900 })
+    const outcome = updateExpense(tripId, line.id, { amountInr: 900 }, ownerId)
 
     expect(outcome).toBe('applied')
     // Not just a return value: the row and the money both moved, so a caller
@@ -76,22 +77,22 @@ describe('#829 — the store reports what it did', () => {
 
   it('a refused amount is reported as refused, and the line is untouched', () => {
     for (const bad of [-5, 0, NaN, Infinity]) {
-      const { tripId, line } = tripWithLine(500)
-      expect(updateExpense(tripId, line.id, { amountInr: bad })).toBe('refused')
+      const { tripId, line, ownerId } = tripWithLine(500)
+      expect(updateExpense(tripId, line.id, { amountInr: bad }, ownerId)).toBe('refused')
       expect(lineNow(tripId, line.id).amountInr, `${String(bad)} must not land`).toBe(500)
     }
   })
 
   it('a line that is no longer there is reported, not silently skipped', () => {
-    const { tripId } = tripWithLine()
+    const { tripId, ownerId } = tripWithLine()
     // This is the case that used to close the editor and announce success on a
     // row that did not exist any more.
-    expect(updateExpense(tripId, 'not-a-real-line', { amountInr: 100 })).toBe('no-such-line')
+    expect(updateExpense(tripId, 'not-a-real-line', { amountInr: 100 }, ownerId)).toBe('no-such-line')
   })
 
   it('a patch without an amount passes through untouched', () => {
-    const { tripId, line } = tripWithLine(500)
-    expect(updateExpense(tripId, line.id, { label: 'Renamed' })).toBe('applied')
+    const { tripId, line, ownerId } = tripWithLine(500)
+    expect(updateExpense(tripId, line.id, { label: 'Renamed' }, ownerId)).toBe('applied')
     expect(lineNow(tripId, line.id).label).toBe('Renamed')
     expect(lineNow(tripId, line.id).amountInr).toBe(500)
   })

@@ -1,9 +1,14 @@
 # APK update feed
 
 How an installed YatraFlow Android build learns that a newer one exists.
-Reference for the client contract, plus the activation steps that are still
-owed. **Nothing here is live.** No feed is published, and neither build
-variable is set in any environment.
+Reference for the client contract, the route that serves the feed, and the
+activation steps.
+
+**The feed is served, not committed.** `api/android-manifest.js` answers
+`https://www.yatraflow.in/android/manifest.json` from the newest release that
+carries an APK asset, so a release cut is the whole publishing step. The two
+build variables below still have to be set once, and the coordinator approves
+them once.
 
 ## What the client reads
 
@@ -24,21 +29,28 @@ release is offered only when the document is well formed. The package and the
 channel must both match the installed app. The destination must be HTTPS on an
 approved host.
 
-## The proposed destination
+## Where the feed is served
 
-The project already serves the app from its canonical origin. The manifest
-belongs at:
+`vercel.json` routes two paths ahead of the SPA catch-all, which would
+otherwise answer them with `index.html`:
 
-```
-https://www.yatraflow.in/android/manifest.json
-```
+| Path | Answered by | Result |
+|---|---|---|
+| `/android/manifest.json` | `api/android-manifest.js` | the JSON document above |
+| `/android/latest.apk` | the same route, `?apk=1` | a `302` to the release asset |
 
-with the APK behind a stable path on that same host, such as
-`/android/yatraflow-0.15.apk`. The host list is exactly
-`www.yatraflow.in`.
+The route reads `https://api.github.com/repos/<repo>/releases?per_page=15` and
+takes the newest entry that is not a draft or a prerelease, whose tag is
+`vX.Y.Z`, and that carries an `.apk` asset. `versionCode` is the same formula
+`build.gradle` bakes, `major*10000 + minor*100 + patch`. `versionName` is
+`<version>-native`. The repo is `hasnaina955/Yatraflow` unless `APK_UPDATE_REPO`
+sets another. The read needs no token, and `GITHUB_TOKEN` only raises its rate
+limit. The answer carries
+`cache-control: public, s-maxage=300, stale-while-revalidate=600`.
 
-An expiring CI artifact is not a destination. A signed-in Actions URL stops
-working, and it never was a public page.
+An expiring CI artifact is not a destination. The `302` points at the release
+asset, which is permanent, and the public URL stays on the approved host
+`www.yatraflow.in` — the same host the download URL is checked against.
 
 ## Activation, and what it needs
 
@@ -62,26 +74,37 @@ writes them into `.env.production` before `npm run build`. A Vercel variable has
 no effect on the APK. An absent variable writes an empty line, and an empty
 value keeps the check inert.
 
-The catch-all rewrite in `vercel.json` answers `/android/manifest.json` with
-`index.html` today. Serve the manifest ahead of that rewrite, and check the
-`content-type` is JSON. The client fails closed, so an HTML answer reads as a
-failed check.
+The catch-all rewrite in `vercel.json` once answered `/android/manifest.json`
+with `index.html`. Two explicit rewrites now sit ahead of it, so the path
+answers JSON. The client fails closed, so an HTML answer reads as a failed
+check.
 
-Steps, in this sequence:
+Steps, once the two variables are set:
 
-1. Build the release APK with a new version code (see below).
-2. Sign it with the release key, and check `apksigner verify` passes.
-3. Generate the manifest locally:
-   `node scripts/apk-release-manifest.mjs --apk <apk> --channel production --expect-signer-sha256 <cert-fingerprint> --download-url <url> --notes "<text>" --hosts www.yatraflow.in --out manifest.json`
-4. Publish the APK, then the manifest, to the origin above.
-5. Fetch the published manifest and check it answers with the expected fields.
-6. Set the two repository variables, then ship the build that reads them.
+1. Cut the release as usual: bump `package.json`, promote, tag `vX.Y.Z`.
+2. The tag run builds the APK and attaches it to the release. That is the whole
+   publish step: the route picks the newest release with an APK asset.
+3. Check the feed: `curl -s https://www.yatraflow.in/android/manifest.json`.
+   Expect the six fields, and a `versionCode` equal to the tag's.
+4. Install the new APK, open Profile, and read "App updates". A build equal to
+   the feed says "You are on the newest build." An older build says "Version
+   X is available."
 
-Step 3 refuses to emit a document unless the artifact passes every check. The
+To check one specific artifact before it is released, use the same script that
+documents the contract:
+
+```
+node scripts/apk-release-manifest.mjs --apk <apk> --channel production \
+  --expect-signer-sha256 <cert-fingerprint> --download-url <url> \
+  --hosts www.yatraflow.in --out manifest.json
+```
+
+It refuses to emit a document unless the artifact passes every check. The
 artifact must be available. Its package must match the channel. Its version code
 must be higher than every published code, its signature must verify **and** its
 signer must match the expected certificate, and its destination must be
-approved.
+approved. `--check <manifest.json>` runs the same checks against an existing
+document.
 
 ## What the signature check does and does not prove
 

@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Android APK can now carry its update feed.** Every APK that CI built told its Profile page that update checks were not configured. The check button stayed grey. The cause was a build gap. The workflow wrote four `VITE_*` keys into `.env.production` and stopped there. So `VITE_APK_UPDATE_FEED_URL` and `VITE_APK_UPDATE_HOSTS` never entered the bundle, and a Vercel variable cannot reach an APK build at all. The workflow now forwards both from repository variables. An unset variable keeps the check inert. The feed itself is the second gap. The catch-all rewrite in `vercel.json` answers `/android/manifest.json` with `index.html`. The client fails closed on an HTML answer. `docs/APK-UPDATE-FEED.md` names both causes, and `tests/android-release.test.ts` pins the forwarding.
+
 ## [0.82.0] - 2026-11-03
 
 **This minor release gives Overview, Budget and Timeline the Linen polish.** The three tabs now arrive in steps. A day card folds open and shut in one smooth motion. Switching between Day by day and Whole trip animates. The trip settings page follows the artboard's three-column body. Days can carry their own cover photo. The light theme sits on Linen paper. Release `0.81.0` stays as shipped.

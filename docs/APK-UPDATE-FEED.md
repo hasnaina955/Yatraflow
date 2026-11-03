@@ -55,6 +55,18 @@ check is not configured. **The coordinator must approve these before they are
 set in Vercel or in the Android build.** That approval also covers the published
 manifest, and the compatible signed APK behind it.
 
+The Android bundle comes from `.github/workflows/yatraflow-apk.yml`, not from
+Vercel. So the APK reads these two values from **repository variables**
+(Settings → Secrets and variables → Actions → Variables), and the workflow
+writes them into `.env.production` before `npm run build`. A Vercel variable has
+no effect on the APK. An absent variable writes an empty line, and an empty
+value keeps the check inert.
+
+The catch-all rewrite in `vercel.json` answers `/android/manifest.json` with
+`index.html` today. Serve the manifest ahead of that rewrite, and check the
+`content-type` is JSON. The client fails closed, so an HTML answer reads as a
+failed check.
+
 Steps, in this sequence:
 
 1. Build the release APK with a new version code (see below).
@@ -63,7 +75,7 @@ Steps, in this sequence:
    `node scripts/apk-release-manifest.mjs --apk <apk> --channel production --expect-signer-sha256 <cert-fingerprint> --download-url <url> --notes "<text>" --hosts www.yatraflow.in --out manifest.json`
 4. Publish the APK, then the manifest, to the origin above.
 5. Fetch the published manifest and check it answers with the expected fields.
-6. Only then set the two variables and ship the build that reads them.
+6. Set the two repository variables, then ship the build that reads them.
 
 Step 3 refuses to emit a document unless the artifact passes every check. The
 artifact must be available. Its package must match the channel. Its version code

@@ -124,6 +124,10 @@ All client config is read from `VITE_`-prefixed variables (see `.env.example`). 
 | `VITE_MAPPLS_KEY` | optional | Mappls REST key — powers India-best place autocomplete when set; falls back to the free stack when absent. |
 | `VITE_GOOGLE_MAPS_API_KEY` | optional | Google Places key — with it, the suggestion pipeline is Google-only (honest quota/failure notes, never a silent fallback; night-halt towns still ask OSM); the place search box degrades Google → free. Quota-guarded per SKU. |
 | `VITE_AI_COMPANION` | optional | `=on` mounts the AI companion drawer, its floating button and its two Profile cards (endpoint and Jev). Without it the app is unchanged. The value is exact: `on` only. |
+| `VITE_APK_UPDATE_FEED_URL` | optional | The APK update manifest URL. Keep it empty until a real feed exists. See `docs/APK-UPDATE-FEED.md`. |
+| `VITE_APK_UPDATE_HOSTS` | optional | The approved manifest and download hosts, comma separated. An empty list approves nothing. |
+
+The Android APK is built by `.github/workflows/yatraflow-apk.yml`, so a Vercel variable never reaches it. That workflow reads `VITE_APK_UPDATE_FEED_URL` and `VITE_APK_UPDATE_HOSTS` from **repository variables** (Settings → Secrets and variables → Actions → Variables). Both stay empty until the feed passes approval.
 
 The Google key is **optional** and the app fully works without it (free stack only). See the provider facade in `src/lib/geocode.ts`.
 

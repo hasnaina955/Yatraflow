@@ -6,7 +6,8 @@ import { chromium } from 'playwright-core'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUT = join(ROOT, '.verify-evidence', 'overview-fixture')
-const URL = 'http://localhost:5178/dev/overview-fixture.html'
+const URL = process.env.OVERVIEW_FIXTURE_URL ?? 'http://localhost:5178/dev/overview-fixture.html'
+const SETTINGS_ONLY = process.env.OVERVIEW_FIXTURE_ONLY === 'settings'
 
 const CASES = [
   { name: 'desktop-light', width: 1440, height: 1000, theme: 'light', reducedMotion: 'no-preference', mode: 'car' },
@@ -61,6 +62,20 @@ function rectScript(selector) {
     background: style.backgroundColor,
     font: style.fontFamily,
   }
+}
+
+function contrastRatio(foreground, background) {
+  const channels = value => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+  const luminance = value => {
+    const [r, g, b] = channels(value).map(channel => {
+      const unit = channel / 255
+      return unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4
+    })
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const a = luminance(foreground)
+  const b = luminance(background)
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
 }
 
 async function inspect(page) {
@@ -315,6 +330,7 @@ const errors = []
 const geometryFailures = []
 
 try {
+  if (!SETTINGS_ONLY) {
   for (const testCase of CASES) {
     const context = await browser.newContext({
       viewport: { width: testCase.width, height: testCase.height },
@@ -604,7 +620,607 @@ try {
       }
     }
   }
+  }
 
+  // ---- Trip Settings geometry ----
+  // The settings grid, type, aside rhythm, title wrapping and coarse-pointer
+  // route tools all have measured artboard values. This pass reads the rendered
+  // page, not the source CSS.
+  for (const width of [390, 721, 800, 960, 1024, 1440]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 1000 },
+      hasTouch: width === 390,
+      isMobile: width === 390,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&long=1&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.tset-grid', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    await page.evaluate(() => {
+      document.getAnimations().forEach(animation => {
+        try { animation.finish() } catch {}
+      })
+    })
+    const settings = await page.evaluate(async () => {
+      const box = element => {
+        const rect = element.getBoundingClientRect()
+        return {
+          x: +rect.x.toFixed(2),
+          y: +rect.y.toFixed(2),
+          width: +rect.width.toFixed(2),
+          height: +rect.height.toFixed(2),
+          bottom: +rect.bottom.toFixed(2),
+          right: +rect.right.toFixed(2),
+        }
+      }
+      const style = element => getComputedStyle(element)
+      const container = document.querySelector('.container.yf-workspace')
+      const grid = document.querySelector('.tset-grid')
+      const nav = grid.querySelector('.tset-nav')
+      const navItem = nav.querySelector('.tset-nav-item')
+      const main = grid.querySelector('.tset-main')
+      const aside = grid.querySelector('.tset-aside')
+      const head = document.querySelector('.yf-trip-head')
+      const title = document.querySelector('.yf-trip-title')
+      const tabs = document.querySelector('.yf-tabbar')
+      const members = document.querySelector('.yf-members')
+      const titleStyle = style(title)
+      const titleRange = document.createRange()
+      titleRange.selectNodeContents(title)
+      const titleInk = titleRange.getBoundingClientRect()
+      const titleBox = box(title)
+      const headBox = box(head)
+      const tabsBox = box(tabs)
+      const membersBox = box(members)
+      const containerBox = box(container)
+      const gridBox = box(grid)
+      const columnBoxes = { nav: box(nav), main: box(main), aside: box(aside) }
+      const titleTabGap = +(tabs.getBoundingClientRect().top - title.getBoundingClientRect().bottom).toFixed(2)
+      const membersTabGap = +(tabs.getBoundingClientRect().top - members.getBoundingClientRect().bottom).toFixed(2)
+      const containerStyle = style(container)
+      const pace = document.querySelector('.tset-pace-seg')
+      const driverPair = document.querySelector('.tset-driver-pace-pair')
+      const avatars = [...document.querySelectorAll('.tset-av')]
+      const days = [...document.querySelectorAll('.tset-day')]
+      const newDay = days.find(day => day.classList.contains('is-new'))
+      const gridGap = style(document.querySelector('.tset-glance-grid')).gap
+      const dayNumbers = days.map(day => ({
+        box: box(day),
+        borderWidth: style(day).borderTopWidth,
+        borderStyle: style(day).borderTopStyle,
+        background: style(day).backgroundColor,
+        stopsSize: style(day.querySelector('.tset-day-stops')).fontSize,
+      }))
+      const avatarBoxes = avatars.map(avatar => box(avatar))
+      const avatarFills = avatars.map(avatar => style(avatar).backgroundColor)
+      const avatarPairs = avatars.map(avatar => ({
+        initials: (avatar.textContent || '').trim(),
+        color: style(avatar).color,
+        background: style(avatar).backgroundColor,
+      }))
+      const navBadge = document.createElement('i')
+      navBadge.textContent = '1'
+      navItem.append(navBadge)
+      const navCount = style(navBadge).fontSize
+      navBadge.remove()
+
+      const paceButtons = [...pace.querySelectorAll('.seg-btn')]
+      const paceBox = pace.getBoundingClientRect()
+      const activePace = pace.querySelector('.seg-btn.on')
+      const activePaceBox = activePace?.getBoundingClientRect()
+      const initialPace = {
+        scrollLeft: pace.scrollLeft,
+        activeText: (activePace?.textContent || '').trim(),
+        activeVisible: !!activePaceBox
+          && activePaceBox.left >= paceBox.left - 1
+          && activePaceBox.right <= paceBox.right + 1,
+      }
+      const activeTab = tabs.querySelector('[aria-selected="true"]')
+      const activeTabBox = activeTab?.getBoundingClientRect()
+      const tabsBoxForVisibility = tabs.getBoundingClientRect()
+      const activeTabVisible = !!activeTabBox
+        && activeTabBox.left >= tabsBoxForVisibility.left - 1
+        && activeTabBox.right <= tabsBoxForVisibility.right + 1
+
+      // The pace rail must reach its last option without changing the page
+      // width. Scroll it to its own end before reading the final button.
+      pace.scrollLeft = pace.scrollWidth
+      const lastPace = paceButtons.at(-1)?.getBoundingClientRect()
+
+      // Scroll the route into view once, then hit-test every control. A
+      // two-frame wait lets the browser apply the instant scroll before the
+      // point lookup.
+      const route = document.querySelector('.tsx-route')
+      const routeNodes = [...route.querySelectorAll('.tsx-node')]
+      const returnNode = route.querySelector('.tsx-node--return')
+      const startNode = route.querySelector('.tsx-node--start')
+      const datesCard = document.getElementById('tset-dates')
+      const fieldLabel = text => [...datesCard.querySelectorAll('.label, .flab')]
+        .find(node => (node.textContent || '').trim() === text)
+      const destinationLabel = [...datesCard.querySelectorAll('.label, .flab')]
+        .find(node => (node.textContent || '').trim().startsWith('Destinations ('))
+      const endsField = [...datesCard.querySelectorAll('.field')]
+        .find(field => field.querySelector('.flab')?.textContent?.trim() === 'Ends')
+      const startsField = [...datesCard.querySelectorAll('.field')]
+        .find(field => field.querySelector('.flab')?.textContent?.trim() === 'Starts')
+      const endsValue = endsField?.querySelector('.tset-when-value')
+      const startsValue = startsField?.querySelector('.tset-when-value')
+      const roundTrip = datesCard.querySelector('.tog[role="switch"]')
+      const sectionBox = box(datesCard)
+      const sectionChildren = [route, destinationLabel?.closest('.field'), startsField, endsField,
+        datesCard.querySelector('.tset-daygrid'), roundTrip].filter(Boolean).map(box)
+      const sectionWithinCard = sectionChildren.every(child => (
+        child.x >= sectionBox.x - 1
+        && child.right <= sectionBox.right + 1
+        && child.y >= sectionBox.y - 1
+        && child.bottom <= sectionBox.bottom + 1
+      ))
+      const routeSummary = {
+        storedCount: routeNodes.filter(node => node !== startNode && node !== returnNode).length,
+        numberedCount: routeNodes.filter(node => node !== startNode).length,
+        returnText: (returnNode?.querySelector('.tsx-node-name')?.textContent || '').trim(),
+        returnMarker: (returnNode?.querySelector('.tsx-return-marker')?.textContent || '').trim(),
+        returnButtons: returnNode?.querySelectorAll('button').length ?? 0,
+        startText: (startNode?.textContent || '').trim(),
+        destinationLabel: (destinationLabel?.textContent || '').trim(),
+        startingLabel: (fieldLabel('Starting location')?.textContent || '').trim(),
+        startsText: (startsValue?.textContent || '').trim(),
+        endsText: (endsValue?.textContent || '').trim(),
+        dayCount: datesCard.querySelectorAll('.tset-day').length,
+        roundTripChecked: roundTrip?.getAttribute('aria-checked'),
+        sectionWithinCard,
+      }
+      route.scrollIntoView({ block: 'center', behavior: 'instant' })
+      await new Promise(resolve => setTimeout(resolve, 200))
+      const routeControls = [...document.querySelectorAll('.tsx-node > button, .tsx-node-tools button')]
+      const routeBoxes = routeControls.map(control => {
+        const rect = control.getBoundingClientRect()
+        const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        return {
+          label: control.getAttribute('aria-label'),
+          width: +rect.width.toFixed(2),
+          height: +rect.height.toFixed(2),
+          x: +rect.left.toFixed(2),
+          y: +rect.top.toFixed(2),
+          right: +rect.right.toFixed(2),
+          bottom: +rect.bottom.toFixed(2),
+          hit: !!at && control.contains(at),
+        }
+      })
+      const overlaps = []
+      for (let i = 0; i < routeBoxes.length; i++) {
+        for (let j = i + 1; j < routeBoxes.length; j++) {
+          const a = routeBoxes[i]
+          const b = routeBoxes[j]
+          const overlapX = Math.min(a.right, b.right) - Math.max(a.x, b.x)
+          const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.y, b.y)
+          if (overlapX > 0.1 && overlapY > 0.1) overlaps.push({ a: i, b: j, overlapX, overlapY })
+        }
+      }
+
+      return {
+        viewport: [innerWidth, innerHeight],
+        coarse: matchMedia('(pointer: coarse)').matches,
+        document: [document.documentElement.scrollWidth, document.documentElement.clientWidth],
+        container: {
+          box: containerBox,
+          contentWidth: +(container.getBoundingClientRect().width
+            - parseFloat(containerStyle.paddingLeft)
+            - parseFloat(containerStyle.paddingRight)).toFixed(2),
+        },
+        grid: gridBox,
+        columns: columnBoxes,
+        title: {
+          box: titleBox,
+          text: (title.textContent || '').trim(),
+          clientWidth: title.clientWidth,
+          scrollWidth: title.scrollWidth,
+          clientHeight: title.clientHeight,
+          scrollHeight: title.scrollHeight,
+          fontSize: titleStyle.fontSize,
+          lineHeight: titleStyle.lineHeight,
+          lineClamp: titleStyle.webkitLineClamp || titleStyle.lineClamp,
+          whiteSpace: titleStyle.whiteSpace,
+          ink: {
+            width: +titleInk.width.toFixed(2),
+            height: +titleInk.height.toFixed(2),
+            top: +titleInk.top.toFixed(2),
+            bottom: +titleInk.bottom.toFixed(2),
+          },
+        },
+        head: headBox,
+        tabs: tabsBox,
+        members: membersBox,
+        titleTabGap,
+        membersTabGap,
+        type: {
+          section: style(document.querySelector('.tsx-q')).fontSize,
+          subSize: style(document.querySelector('.tsx-a')).fontSize,
+          subWeight: style(document.querySelector('.tsx-a')).fontWeight,
+          label: style(document.querySelector('.flab')).fontSize,
+          saveTitle: style(document.querySelector('.tset-save-title')).fontSize,
+          peopleTitle: style(document.querySelector('.tset-people-title')).fontSize,
+          navCount,
+          currentCover: style(document.querySelector('.tset-cover-now')).fontSize,
+        },
+        aside: {
+          gap: style(aside).gap,
+          saveGap: style(document.querySelector('.tset-savecard')).gap,
+          diffPadding: style(document.querySelector('.tset-diff')).padding,
+          diffGap: style(document.querySelector('.tset-diff')).gap,
+          actionsGap: style(document.querySelector('.tset-save-actions')).gap,
+          glancePadding: style(document.querySelector('.tset-glance')).padding,
+          glanceGap: style(document.querySelector('.tset-glance')).gap,
+          glanceGridGap: gridGap,
+        },
+        avatars: {
+          boxes: avatarBoxes,
+          fills: avatarFills,
+          pairs: avatarPairs,
+          overlaps: avatarBoxes.slice(1).map((avatar, index) => (
+            +(avatarBoxes[index].right - avatar.x).toFixed(2)
+          )),
+        },
+        days: {
+          boxes: dayNumbers,
+          regularBoxes: dayNumbers.filter((_, index) => !days[index].classList.contains('is-new')),
+          newDay: newDay ? {
+            borderWidth: style(newDay).borderTopWidth,
+            borderStyle: style(newDay).borderTopStyle,
+            background: style(newDay).backgroundColor,
+          } : null,
+        },
+        driverPair: {
+          columns: style(driverPair).gridTemplateColumns.split(' ').filter(Boolean),
+          gap: style(driverPair).gap,
+        },
+        pace: {
+          wrap: style(pace).flexWrap,
+          overflowX: style(pace).overflowX,
+          count: paceButtons.length,
+          clientWidth: pace.clientWidth,
+          scrollWidth: pace.scrollWidth,
+          scrollLeft: pace.scrollLeft,
+          initial: initialPace,
+          lastVisible: !!lastPace
+            && lastPace.left >= paceBox.left - 1
+            && lastPace.right <= paceBox.right + 1,
+        },
+        tabbar: {
+          scrollLeft: tabs.scrollLeft,
+          activeVisible: activeTabVisible,
+          activeText: (activeTab?.textContent || '').trim(),
+        },
+        routeSummary,
+        routeControls: routeBoxes,
+        routeOverlaps: overlaps,
+      }
+    })
+
+    const fail = reason => geometryFailures.push({ case: `settings-${width}`, reason, settings })
+    if (settings.document[0] > settings.document[1]) fail('the page scrolls sideways')
+    if (!settings.title.text.includes('Beaches, Forts and Family Adventures')) fail('the full title text is missing')
+    if (settings.title.scrollWidth > settings.title.clientWidth + 1) fail('the title truncates horizontally')
+    if (settings.title.scrollHeight > settings.title.clientHeight + 1) fail('the title truncates vertically')
+    if (settings.title.ink.width > settings.title.clientWidth + 1) fail('the title ink leaves its box')
+    if (settings.titleTabGap < 8) fail(`the title is ${settings.titleTabGap}px from the tab rail`)
+    if (settings.membersTabGap < 4) fail(`the member row is ${settings.membersTabGap}px from the tab rail`)
+    const allowedLines = 4
+    if (+settings.title.lineClamp !== allowedLines) fail(`the title line limit is ${settings.title.lineClamp}, expected ${allowedLines}`)
+    const expectedTitleSize = width <= 720 ? '28px' : width <= 1023 ? '32px' : '40px'
+    if (settings.title.fontSize !== expectedTitleSize) fail(`the title font is ${settings.title.fontSize}, expected ${expectedTitleSize}`)
+    if (width === 1440) {
+      if (Math.abs(settings.container.contentWidth - 1180) > 1) fail(`content width is ${settings.container.contentWidth}`)
+      if (Math.abs(settings.grid.width - 1180) > 1) fail(`settings grid is ${settings.grid.width}`)
+      if (Math.abs(settings.columns.nav.width - 216) > 1) fail(`nav column is ${settings.columns.nav.width}`)
+      if (Math.abs(settings.columns.main.width - 616) > 1) fail(`middle column is ${settings.columns.main.width}`)
+      if (Math.abs(settings.columns.aside.width - 316) > 1) fail(`aside column is ${settings.columns.aside.width}`)
+    }
+    const expectedDriverColumns = width <= 860 ? 1 : 2
+    if (settings.driverPair.columns.length !== expectedDriverColumns) {
+      fail(`driver and pace have ${settings.driverPair.columns.length} columns, expected ${expectedDriverColumns}`)
+    }
+    if (width <= 720) {
+      if (!settings.coarse) fail('the phone context did not report a coarse pointer')
+      if (settings.routeControls.some(control => control.width < 43.99 || control.height < 43.99)) {
+        fail('a route-editor control is under 44px')
+      }
+      if (settings.routeControls.some(control => !control.hit)) fail('a route-editor hit test missed its control')
+      if (settings.routeOverlaps.length) fail('route-editor hit areas overlap')
+    }
+    if (settings.type.section !== '19px') fail(`section title is ${settings.type.section}`)
+    if (settings.type.subSize !== '12.5px' || settings.type.subWeight !== '400') fail('section subcopy is not 12.5/400')
+    if (settings.type.label !== '13px') fail(`field label is ${settings.type.label}`)
+    if (settings.type.saveTitle !== '17px') fail(`save title is ${settings.type.saveTitle}`)
+    if (settings.type.peopleTitle !== '17px') fail(`People title is ${settings.type.peopleTitle}`)
+    if (settings.type.navCount !== '11px') fail(`nav count is ${settings.type.navCount}`)
+    if (settings.type.currentCover !== '11px') fail(`Current cover pill is ${settings.type.currentCover}`)
+    if (settings.aside.gap !== '14px') fail(`aside gap is ${settings.aside.gap}`)
+    if (settings.aside.saveGap !== '12px') fail(`save-card gap is ${settings.aside.saveGap}`)
+    if (settings.aside.diffPadding !== '12px') fail(`diff padding is ${settings.aside.diffPadding}`)
+    if (settings.aside.diffGap !== '4px') fail(`diff gap is ${settings.aside.diffGap}`)
+    if (settings.aside.actionsGap !== '8px') fail(`save actions gap is ${settings.aside.actionsGap}`)
+    if (settings.aside.glancePadding !== '16px 18px') fail(`glance padding is ${settings.aside.glancePadding}`)
+    if (settings.aside.glanceGap !== '10px') fail(`glance gap is ${settings.aside.glanceGap}`)
+    if (settings.aside.glanceGridGap !== '8px') fail(`glance grid gap is ${settings.aside.glanceGridGap}`)
+    if (settings.avatars.boxes.some(avatar => Math.abs(avatar.width - 34) > 0.5 || Math.abs(avatar.height - 34) > 0.5)) {
+      fail('an avatar is not 34px')
+    }
+    if (settings.avatars.overlaps.some(overlap => Math.abs(overlap - 8) > 0.5)) fail('the avatar overlap is not 8px')
+    if (new Set(settings.avatars.fills).size !== settings.avatars.boxes.length) fail('the avatar tones are not distinct')
+    if (settings.avatars.pairs.some(pair => contrastRatio(pair.color, pair.background) < 4.5)) {
+      fail("an avatar's initials do not clear 4.5:1")
+    }
+    if (settings.days.boxes.some(day => Math.abs(day.box.height - 72) > 0.5)) fail('a day tile is not 72px tall')
+    if (settings.days.regularBoxes.some(day => day.borderWidth !== '0px')) fail('a regular day tile has a border')
+    if (settings.days.boxes.some(day => day.stopsSize !== '11px')) fail('a day-stop line is not 11px')
+    if (!settings.days.newDay || settings.days.newDay.borderStyle !== 'dashed') fail('the new day lost its dashed border')
+    if (settings.driverPair.gap !== '14px') fail(`driver/pace gap is ${settings.driverPair.gap}`)
+    if (settings.pace.wrap !== 'nowrap') fail('the pace segment wraps')
+    if (settings.pace.overflowX !== 'auto') fail('the pace segment does not scroll')
+    if (settings.pace.count !== 10) fail(`the pace segment holds ${settings.pace.count} styles`)
+    if (settings.pace.scrollWidth <= settings.pace.clientWidth) fail('the pace segment does not need its own scroll')
+    if (!settings.pace.lastVisible) fail('the last pace style is not reachable')
+    if (!settings.pace.initial.activeVisible) fail('the initial pace style is not visible')
+    if (!settings.tabbar.activeVisible) fail('the active workspace tab is not visible')
+    if (settings.routeSummary.storedCount !== 3) fail(`the route stores ${settings.routeSummary.storedCount} destinations`)
+    if (settings.routeSummary.numberedCount !== 4) fail(`the route shows ${settings.routeSummary.numberedCount} numbered rows`)
+    if (settings.routeSummary.destinationLabel !== 'Destinations (4)') {
+      fail(`the destination count reads ${settings.routeSummary.destinationLabel}`)
+    }
+    if (settings.routeSummary.startingLabel !== 'Starting location') fail('the Starting location label is missing')
+    if (settings.routeSummary.startText !== 'Panaji, Goa') fail(`the route starts at ${settings.routeSummary.startText}`)
+    if (settings.routeSummary.returnText !== 'Panaji, Goa') fail(`the return row reads ${settings.routeSummary.returnText}`)
+    if (settings.routeSummary.returnMarker !== 'Return') fail('the return row has no Return marker')
+    if (settings.routeSummary.returnButtons !== 0) fail('the derived return row has controls')
+    if (!settings.routeSummary.endsText.includes('Panaji, Goa')) fail(`Ends reads ${settings.routeSummary.endsText}`)
+    if (!settings.routeSummary.startsText.includes('Panaji, Goa')) fail(`Starts reads ${settings.routeSummary.startsText}`)
+    if (settings.routeSummary.dayCount !== 5) fail(`the day grid holds ${settings.routeSummary.dayCount} days`)
+    if (settings.routeSummary.roundTripChecked !== 'true') fail('the round-trip switch is not on')
+    if (!settings.routeSummary.sectionWithinCard) fail('a Dates & days control leaves its card')
+
+    if (width === 390 || width === 1440) {
+      const roundTripToggle = page.locator('#tset-dates .tog[role="switch"]')
+      await roundTripToggle.click()
+      await page.waitForFunction(() => !document.querySelector('.tsx-node--return'))
+      const off = await page.evaluate(() => {
+        const card = document.getElementById('tset-dates')
+        const label = [...card.querySelectorAll('.label, .flab')]
+          .find(node => (node.textContent || '').trim().startsWith('Destinations ('))
+        const ends = [...card.querySelectorAll('.field')]
+          .find(field => field.querySelector('.flab')?.textContent?.trim() === 'Ends')
+          ?.querySelector('.tset-when-value')
+        return {
+          label: (label?.textContent || '').trim(),
+          ends: (ends?.textContent || '').trim(),
+          checked: card.querySelector('.tog[role="switch"]')?.getAttribute('aria-checked'),
+        }
+      })
+      if (off.label !== 'Destinations (3)') fail(`one-way count reads ${off.label}`)
+      if (!off.ends.includes('Palolem')) fail(`one-way Ends reads ${off.ends}`)
+      if (off.checked !== 'false') fail('the round-trip switch did not turn off')
+      await roundTripToggle.click()
+      await page.waitForFunction(() => !!document.querySelector('.tsx-node--return'))
+      const on = await page.evaluate(() => ({
+        label: [...document.querySelectorAll('#tset-dates .label, #tset-dates .flab')]
+          .find(node => (node.textContent || '').trim().startsWith('Destinations ('))
+          ?.textContent?.trim(),
+        checked: document.querySelector('#tset-dates .tog[role="switch"]')?.getAttribute('aria-checked'),
+      }))
+      if (on.label !== 'Destinations (4)') fail(`round-trip count restored as ${on.label}`)
+      if (on.checked !== 'true') fail('the round-trip switch did not turn back on')
+    }
+
+    records.push({ name: `settings-${width}`, settings })
+    await page.evaluate(() => {
+      scrollTo(0, 0)
+      const pace = document.querySelector('.tset-pace-seg')
+      if (pace) pace.scrollLeft = 0
+    })
+    await page.screenshot({ path: join(OUT, `settings-${width}.png`), fullPage: true })
+    await context.close()
+  }
+
+  // ---- Avatar tone pairs ----
+  // The three-member stack exercises lagoon. The fourth row exercises
+  // time-stop. Each theme resolves its own semantic ink.
+  for (const theme of ['light', 'dark']) {
+    for (const memberCount of [3, 4]) {
+      const context = await browser.newContext({
+        viewport: { width: 390, height: 1000 },
+        hasTouch: true,
+        isMobile: true,
+      })
+      const page = await context.newPage()
+      await page.goto(`${URL}?theme=${theme}&mode=rental&members=${memberCount}&tab=settings`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.tset-av', { timeout: 15_000 })
+      await page.evaluate(() => document.fonts.ready)
+      await page.waitForTimeout(300)
+      const avatars = await page.evaluate(() => {
+        const read = element => {
+          const style = getComputedStyle(element)
+          return {
+            initials: (element.textContent || '').trim(),
+            color: style.color,
+            background: style.backgroundColor,
+          }
+        }
+        return [...document.querySelectorAll('.tset-av')].map(read)
+      })
+      const problems = []
+      if (avatars.length !== memberCount) problems.push(`expected ${memberCount} avatars, saw ${avatars.length}`)
+      if (avatars.some(avatar => !avatar.initials)) problems.push('an avatar has no initials')
+      if (avatars.some(avatar => contrastRatio(avatar.color, avatar.background) < 4.5)) {
+        problems.push('an avatar tone falls under 4.5:1')
+      }
+      if (problems.length) geometryFailures.push({
+        case: `settings-avatars-${memberCount}-${theme}`,
+        reason: problems.join('; '),
+        avatars,
+      })
+      await page.locator('.tsx-card--people').scrollIntoViewIfNeeded()
+      await page.screenshot({ path: join(OUT, `settings-avatars-${memberCount}-${theme}.png`) })
+      records.push({ name: `settings-avatars-${memberCount}-${theme}`, avatars })
+      await context.close()
+    }
+  }
+
+  // ---- Budget reaches zero from the ordinary artboard scale ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&budget=16000&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#tset-budget-exact', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const readBudget = () => page.evaluate(() => {
+      const exact = document.querySelector('#tset-budget-exact')
+      const range = document.querySelector('.yf-range[aria-label="Budget per person in rupees"]')
+      return {
+        readout: (document.querySelector('.tset-budget-sum b')?.textContent || '').trim(),
+        exact: exact?.value,
+        min: exact?.getAttribute('min'),
+        rangeMin: range?.getAttribute('min'),
+        rangeValue: range?.value,
+      }
+    })
+    const before = await readBudget()
+    await page.locator('#tset-budget-exact').fill('0')
+    await page.waitForFunction(() => (
+      (document.querySelector('.tset-budget-sum b')?.textContent || '').trim() === '₹0'
+    ))
+    const zero = await readBudget()
+    const problems = []
+    if (before.readout !== '₹16,000') problems.push(`started at ${before.readout}`)
+    if (before.rangeMin !== '5000') problems.push(`the ordinary scale starts at ${before.rangeMin}`)
+    if (zero.readout !== '₹0' || zero.exact !== '0') problems.push('the exact field did not reach zero')
+    if (zero.rangeMin !== '0' || zero.rangeValue !== '0') problems.push('the range did not follow zero')
+    if (zero.min !== '0') problems.push(`the exact field floor is ${zero.min}`)
+    if (problems.length) geometryFailures.push({ case: 'settings-budget-zero', reason: problems.join('; '), before, zero })
+    await page.evaluate(() => document.querySelector('.tset-budget-exact')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-budget-zero.png') })
+
+    await page.goto(`${URL}?theme=light&mode=rental&budget=0&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#tset-budget-exact', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const saved = await readBudget()
+    if (saved.readout !== '₹0' || saved.exact !== '0' || saved.rangeMin !== '0' || saved.rangeValue !== '0') {
+      geometryFailures.push({ case: 'settings-budget-saved-zero', reason: 'a stored zero did not reopen at zero', saved })
+    }
+    await page.evaluate(() => document.querySelector('.tset-budget-exact')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-budget-saved-zero.png') })
+    records.push({ name: 'settings-budget-zero', before, zero, saved })
+    await context.close()
+  }
+
+  // ---- A stored last pace style is visible before any pointer input ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&pace=creator&roundTrip=1&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.tset-pace-seg', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const readPace = () => page.evaluate(() => {
+      const rail = document.querySelector('.tset-pace-seg')
+      const active = rail.querySelector('.seg-btn.on')
+      const railBox = rail.getBoundingClientRect()
+      const activeBox = active?.getBoundingClientRect()
+      return {
+        activeText: (active?.textContent || '').trim(),
+        scrollLeft: +rail.scrollLeft.toFixed(2),
+        scrollWidth: rail.scrollWidth,
+        clientWidth: rail.clientWidth,
+        activeVisible: !!activeBox
+          && activeBox.left >= railBox.left - 1
+          && activeBox.right <= railBox.right + 1,
+      }
+    })
+    const initial = await readPace()
+    if (initial.activeText !== 'Creator' || initial.scrollLeft <= 0 || !initial.activeVisible) {
+      geometryFailures.push({ case: 'settings-pace-last-active', reason: 'the stored last style was hidden on load', initial })
+    }
+    await page.evaluate(() => document.querySelector('.tset-pace-seg')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-pace-last-active.png') })
+    await page.evaluate(() => {
+      document.querySelector('.tset-pace-seg [data-pill-key="relaxed"]')?.click()
+    })
+    await page.waitForFunction(() => (
+      (document.querySelector('.tset-pace-seg .seg-btn.on')?.textContent || '').trim() === 'Relaxed'
+    ))
+    const changed = await readPace()
+    if (changed.activeText !== 'Relaxed' || !changed.activeVisible || changed.scrollLeft >= initial.scrollLeft) {
+      geometryFailures.push({ case: 'settings-pace-active-change', reason: 'the active style did not scroll back into view', initial, changed })
+    }
+    await page.evaluate(() => document.querySelector('.tset-pace-seg')?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, 'settings-pace-active-change.png') })
+    records.push({ name: 'settings-pace-last-active', initial, changed })
+    await context.close()
+  }
+
+  // ---- A long Ends value stays inside its fixed-height field ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+    })
+    const page = await context.newPage()
+    await page.goto(`${URL}?theme=light&mode=rental&roundTrip=0&end=long&tab=settings`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#tset-dates', { timeout: 15_000 })
+    await page.evaluate(() => document.fonts.ready)
+    const ends = await page.evaluate(() => {
+      const field = [...document.querySelectorAll('#tset-dates .field')]
+        .find(node => node.querySelector('.flab')?.textContent?.trim() === 'Ends')
+      const value = field?.querySelector('.tset-when-value')
+      const input = value?.parentElement
+      const valueBox = value?.getBoundingClientRect()
+      const inputBox = input?.getBoundingClientRect()
+      const style = value ? getComputedStyle(value) : null
+      return {
+        text: (value?.textContent || '').trim(),
+        clientWidth: value?.clientWidth,
+        scrollWidth: value?.scrollWidth,
+        clientHeight: value?.clientHeight,
+        scrollHeight: value?.scrollHeight,
+        whiteSpace: style?.whiteSpace,
+        overflow: style?.overflow,
+        textOverflow: style?.textOverflow,
+        withinBox: !!valueBox && !!inputBox
+          && valueBox.top >= inputBox.top - 1
+          && valueBox.bottom <= inputBox.bottom + 1,
+      }
+    })
+    const problems = []
+    if (!ends.text.includes('Cotigao')) problems.push('the long destination is missing')
+    if (ends.whiteSpace !== 'nowrap' || ends.overflow !== 'hidden' || ends.textOverflow !== 'ellipsis') {
+      problems.push('the Ends value is not truncated')
+    }
+    if (!ends.withinBox) problems.push('the Ends text leaves its field')
+    if (ends.scrollHeight > ends.clientHeight + 1) problems.push('the Ends text wraps vertically')
+    if (ends.scrollWidth <= ends.clientWidth) problems.push('the long Ends fixture did not overflow')
+    if (problems.length) geometryFailures.push({ case: 'settings-long-ends', reason: problems.join('; '), ends })
+    await page.locator('#tset-dates .tset-when-pair').scrollIntoViewIfNeeded()
+    await page.screenshot({ path: join(OUT, 'settings-long-ends.png') })
+    records.push({ name: 'settings-long-ends', ends })
+    await context.close()
+  }
+
+  if (!SETTINGS_ONLY) {
   // ---- The failure chain, one controlled cause per case ----
   // Each case blocks a different thing and asserts what the slot shows next.
   // The renderer walks one candidate at a time, so these prove the order rather
@@ -826,6 +1442,7 @@ try {
   records.push({ name: 'keyboard-and-fold', disclosure, before, after, folded, unfolded })
   await page.screenshot({ path: join(OUT, 'keyboard-and-fold.png') })
   await context.close()
+  }
 } finally {
   await browser.close()
 }

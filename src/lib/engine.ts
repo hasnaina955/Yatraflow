@@ -1560,9 +1560,11 @@ export interface OptimizeDayResult {
   changed: boolean
   /** Why the optimiser declined, when it did for a reason the user can act on:
    *  'mid-anchor' = a manually placed waypoint sits mid-day, so the engine's
-   *  pinned head/tail model doesn't describe this day (#341). Absent = nothing
-   *  to explain (too few movable stops, or already optimal). */
-  blocked?: 'mid-anchor'
+   *  pinned head/tail model doesn't describe this day (#341);
+   *  'fixed-time' = a stop carries a fixed commitment mid-day, and that clock
+   *  must not be rewired by a route tidy (PW-08). Absent = nothing to explain
+   *  (too few movable stops, or already optimal). */
+  blocked?: 'mid-anchor' | 'fixed-time'
 }
 
 /** Reorder a day's MOVABLE stops to minimise crisscrossing: greedy
@@ -1584,7 +1586,7 @@ export interface OptimizeDayResult {
 export function optimizeDayOrder(
   origin: { lat: number; lng: number },
   stops: ItineraryStop[],
-  opts: { hasNextDay?: boolean } = {},
+  opts: { hasNextDay?: boolean; fixedStopIds?: readonly string[] } = {},
 ): OptimizeDayResult {
   const sorted = [...stops].sort((a, b) => a.orderInDay - b.orderInDay)
   const active = sorted.filter(s => s.status !== 'rejected')
@@ -1624,6 +1626,15 @@ export function optimizeDayOrder(
   const beforeKm = dayRouteKm(origin, active)
 
   if (midAnchor) return { stops: sorted, beforeKm, afterKm: beforeKm, changed: false, blocked: 'mid-anchor' }
+  // PW-08: a fixed time is a deadline, not a free variable. A commitment-linked
+  // stop may stay only where the optimiser's own head/tail model already pins
+  // it; a plain first or last stop is still movable, so its index alone is not
+  // a pin. Anywhere else, a route tidy would move the clock under the
+  // traveller. Such a day is left exactly as it is — the same honest refusal as
+  // a mid-day anchor above, never a silent reorder.
+  const fixedIds = new Set((opts.fixedStopIds ?? []).map(String))
+  const fixedUnpinned = fixedIds.size > 0 && active.some(s => fixedIds.has(String(s.id)) && s !== head && s !== tail)
+  if (fixedUnpinned) return { stops: sorted, beforeKm, afterKm: beforeKm, changed: false, blocked: 'fixed-time' }
   if (movable.length < 3) return { stops: sorted, beforeKm, afterKm: beforeKm, changed: false }
 
   // Greedy nearest-neighbour with the open-time tie-break (earlier opening

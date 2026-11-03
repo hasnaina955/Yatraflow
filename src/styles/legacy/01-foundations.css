@@ -45,7 +45,6 @@ html.native-shell .atmos {
   .tabbar,
   .glass-soft,
   .filter-pillbar,
-  .tl-total-strip,
   .board-info, .board-pulse {
     -webkit-backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);
     backdrop-filter: blur(var(--yf-blur-chip)) saturate(1.1);

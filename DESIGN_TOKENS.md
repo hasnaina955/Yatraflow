@@ -116,24 +116,24 @@ Every token is mirrored in `[data-theme='dark']`. We measured contrast for the t
 
 | Token | Light | Night | Use | Replaces or aliases |
 |------|-------|-------|-----|------|
-| `--pw-paper` | `#F0F8F6` | `#0C1420` | Page ground (no grain texture) | `--bg / --yf-cream` |
-| `--pw-sunken` | `#E0EBE9` | `#101B2B` | Tracks, segmented wells, quiet chips | `--bg-soft` |
-| `--pw-soft` | `#EAF3F2` | `#182740` | Hover fills, inline panels, collapsed rows | — |
-| `--pw-card` | `#FCFEFD` | `#16233A` | Cards and sheets | `--card / --yf-surface` |
+| `--pw-paper` | `#F8F5F0` | `#0C1420` | Page ground (no grain texture) | `--bg / --yf-cream` |
+| `--pw-sunken` | `#ECE7DE` | `#101B2B` | Tracks, segmented wells, quiet chips | `--bg-soft` |
+| `--pw-soft` | `#F2EDE4` | `#182740` | Hover fills, inline panels, collapsed rows | — |
+| `--pw-card` | `#FEFDFB` | `#16233A` | Cards and sheets | `--card / --yf-surface` |
 | `--pw-raised` | `#FFFFFF` | `#1A2A44` | Stop cards inside a day card | — |
-| `--pw-line` | `#D3DEDC` | `#27395A` | Control borders, dividers | `--line / --yf-border` |
-| `--pw-line-soft` | `#DCE7E6` | `#1E3050` | Card borders, dashed rules | — |
+| `--pw-line` | `#DFDBD1` | `#27395A` | Control borders, dividers | `--line / --yf-border` |
+| `--pw-line-soft` | `#E8E4DB` | `#1E3050` | Card borders, dashed rules | — |
 
 **Ink**
 
 | Token | Light | Night | Use | Replaces or aliases |
 |------|-------|-------|-----|------|
-| `--pw-ink` | `#142329` | `#E8EFF5` | Titles, body, figures | `--text` |
-| `--pw-ink-2` | `#45565D` | `#ADBCCF` | Meta lines, secondary text | `--text-2` |
-| `--pw-ink-3` | `#556972` | `#8FA0B5` | Labels, captions, axis text | `--text-3 / --yf-text-muted` |
-| `--pw-ink-4` | `#79929E` | `#5F757F` | Chevrons, disabled marks, dots. Not for text (3.0:1) | — |
+| `--pw-ink` | `#22201E` | `#E8EFF5` | Titles, body, figures | `--text` |
+| `--pw-ink-2` | `#57524C` | `#ADBCCF` | Meta lines, secondary text | `--text-2` |
+| `--pw-ink-3` | `#6B645C` | `#8FA0B5` | Labels, captions, axis text | `--text-3 / --yf-text-muted` |
+| `--pw-ink-4` | `#8C857B` | `#5F757F` | Chevrons, disabled marks, dots. Not for text (3.0:1) | — |
 | `--pw-on-sea` | `#FFFFFF` | `#0A1622` | Labels on sea and lagoon fills (7.4:1) | `--color-primary-foreground` |
-| `--pw-on-marigold` | `#142329` | `#1A1408` | Labels on marigold fills (7.7:1) | `--color-accent-foreground` |
+| `--pw-on-marigold` | `#22201E` | `#1A1408` | Labels on marigold fills (7.7:1) | `--color-accent-foreground` |
 | `--pw-on-bloom` | `#FFFFFF` | `#2B0E16` | Labels on bloom fills (4.6:1 light, 7.5:1 night) | — |
 
 **Sea (primary)**
@@ -315,14 +315,14 @@ measure about 1.8:1.
 
 ### Elevation
 
-One recipe per level. The shadow hue moves from navy (`--shadow-navy-rgb`) to a teal ink (`20, 56, 66`), so `--shadow-navy-rgb` can simply take the new value. Night depth comes from lighter surfaces plus a faint top edge; night shadows are black and do less.
+One recipe per level. The shadow hue follows the surface palette. On Linen it is the ink's warm charcoal (`34, 32, 30`), so `--shadow-navy-rgb` can simply take the new value. A cool teal shadow under warm paper reads as dirt, not shade. Night depth comes from lighter surfaces plus a faint top edge; night shadows are black and do less.
 
 | Token | Light | Night | Use |
 |------|-------|-------|-----|
-| `--elev-press` | `0 1px 2px rgba(20,56,66,.12)` | `0 1px 2px rgba(0,0,0,.5)` | Segmented thumbs, pressed chips |
-| `--elev-1` | `inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24)` | `inset 0 1px 0 rgba(255,255,255,.05), 0 18px 36px -20px rgba(0,0,0,.7)` | Resting cards and the nav |
-| `--elev-2` | `0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34)` | `inset 0 1px 0 rgba(255,255,255,.06), 0 16px 30px -14px rgba(0,0,0,.75)` | Hover lift, stamps and chrome floating on photos |
-| `--elev-3` | `0 4px 10px rgba(8,30,40,.08), 0 32px 60px -28px rgba(8,30,40,.55)` | `0 32px 60px -28px rgba(0,0,0,.85)` | Menus, sheets, dialogs, buy card on a cover |
+| `--elev-press` | `0 1px 2px rgba(34,32,30,.12)` | `0 1px 2px rgba(0,0,0,.5)` | Segmented thumbs, pressed chips |
+| `--elev-1` | `inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(34,32,30,.05), 0 18px 36px -20px rgba(34,32,30,.24)` | `inset 0 1px 0 rgba(255,255,255,.05), 0 18px 36px -20px rgba(0,0,0,.7)` | Resting cards and the nav |
+| `--elev-2` | `0 2px 4px rgba(34,32,30,.06), 0 16px 30px -14px rgba(34,32,30,.34)` | `inset 0 1px 0 rgba(255,255,255,.06), 0 16px 30px -14px rgba(0,0,0,.75)` | Hover lift, stamps and chrome floating on photos |
+| `--elev-3` | `0 4px 10px rgba(30,26,22,.08), 0 32px 60px -28px rgba(30,26,22,.55)` | `0 32px 60px -28px rgba(0,0,0,.85)` | Menus, sheets, dialogs, buy card on a cover |
 | `--glow-sea` | `inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6)` | same | Primary buttons, selected tab |
 | `--glow-marigold` | `inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6)` | same | Paid buttons |
 | `--ring` | `0 0 0 3px var(--yf-teal-600)` (#0D8D82) | `0 0 0 3px var(--yf-teal-600)` (#3FB8AC) | Keyboard focus (repo token, unchanged): 3.8:1 on paper, 4.0:1 on card |

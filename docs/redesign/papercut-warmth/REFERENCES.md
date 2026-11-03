@@ -38,15 +38,16 @@ The SHA256 value covers the full file.
 | `docs/redesign/papercut-warmth/sources/README.md` | `README.md` | 2090 | `8BB47F78474BFFF1FA334EE60854F802E389DBE3C728EA09A6B5E3D00584936C` | Supplied doc-set guide |
 | `docs/redesign/papercut-warmth/sources/DESIGN_TOKENS.md` | `DESIGN_TOKENS.md` | 40931 | `1095C098CE64660A7421AE253FDF4BCB3956233D3FEEF1C5E041C5BED4E7B979` | Supplied token reference |
 | `docs/redesign/papercut-warmth/sources/papercut-section.md` | `papercut-section.md` | 14447 | `3B4770555CD6F127C76791BFA06958DB2E1C828B04E56490ECCA3F69BD2E90F2` | Supplied token section |
-| `docs/redesign/papercut-warmth/sources/papercut-tokens.css` | `papercut-tokens.css` | 4070 | `1018106216CBC1314D3BF8D6FAA70AAF8E0623FFA63F7DD427347D206BF9AD55` | Supplied token CSS |
+| `docs/redesign/papercut-warmth/sources/papercut-tokens.css` | `papercut-tokens.css` | 4189 | `942A3680647B4372881B0AB252601BBC284143CB94B771E8B97F3E787E6E78AE` | Supplied token CSS, updated to the Linen surface palette. Light shadows use the warm umber of the Linen artboards (2026-11-02). |
 
 ## Foundation decisions
 
-The foundation uses the completed cool palette.
-The light ground is paper `#F0F8F6`.
-The light sunken, soft and card surfaces are `#E0EBE9`, `#EAF3F2` and `#FCFEFD`.
-The light lines are `#D3DEDC` and `#DCE7E6`.
-The light inks are `#142329`, `#45565D`, `#556972` and `#79929E`.
+The foundation uses the Linen surface palette.
+The light ground is paper `#F8F5F0`.
+The light sunken, soft and card surfaces are `#ECE7DE`, `#F2EDE4` and `#FEFDFB`.
+The light lines are `#DFDBD1` and `#E8E4DB`.
+The light inks are `#22201E`, `#57524C`, `#6B645C` and `#8C857B`.
+Linen replaced the earlier cool-mist neutrals. The teal, marigold and status hues did not change.
 The dark grounds are `#0C1420`, `#101B2B`, `#182740`, `#16233A` and `#1A2A44`.
 The dark lines are `#27395A` and `#1E3050`.
 The dark inks are `#E8EFF5`, `#ADBCCF`, `#8FA0B5` and `#5F757F`.
@@ -123,9 +124,15 @@ The raw extracted exports are under [exports-20261028](exports-20261028).
 The archive hash covers the full ZIP file.
 The HTML hash covers the extracted entry.
 
+The P12 entry was refreshed on 2026-11-02. The first extraction used the cool-mist palette.
+The design canvas now holds the Linen version of the same artboard (canvas version `1793447446-d529`).
+The repo copy is that Linen file. Its `/_blob/` image ids point to `assets/`, and the two vendor script
+lines are restored, as in the first extraction. The HTML hash in the P12 row is the refreshed file.
+The archive hash is unchanged, because the ZIP is the earlier supply. The cool-palette file stays in git history.
+
 | Source archive | HTML entry | Archive SHA256 | HTML SHA256 | Task |
 | --- | --- | --- | --- | --- |
-| `E:\YatraFlow\Redesign\P12 Overview · warmth v2 (compact + elevation route)-html.zip` | `P12Warm2.dc.html` | `f075b30573a22240af5ae432ae944b288c99e8287eb38c176f97527eaab1099c` | `e8617dceada3487df612f9467d13cbf9ae809b9b8897610c8ab9b7959eccfca7` | PW-05, PW-06, PW-14 |
+| `E:\YatraFlow\Redesign\P12 Overview · warmth v2 (compact + elevation route)-html.zip` | `P12Warm2.dc.html` | `f075b30573a22240af5ae432ae944b288c99e8287eb38c176f97527eaab1099c` | `d02cf005d164d154069874d4211c739bcbc93cb1ddb1f6749c0dc76105e99c87` | PW-05, PW-06, PW-14 |
 | `E:\YatraFlow\Redesign\Route card · flat, coast, flights and city stays (animated)-html.zip` | `FlatRoute.dc.html` | `5ad6fc3c25536d5d7e10a3ce6e2961a2bb9a58fe187dc4834b054da9f56b327a` | `a390c4f7af153e7aa8bb77b2b4aa523efaa39561410203210745f449ef15ea30` | PW-06 |
 | `E:\YatraFlow\Redesign\Papercut warmth · tokens (named scales, light + night)-html.zip` | `Tokens.dc.html` | `af1af930ccfb01c6ec261cc7631df3fe98dd4b309bde9809bd93752b4a55db56` | `83c4fcdf491451663fc1f905307fde32e68d76b6da032e200fabf4de5ca053ba` | PW-03 |
 | `E:\YatraFlow\Redesign\Papercut warmth · Component kit-html.zip` | `ComponentKit.dc.html` | `e59e0a6529261d169cfe203ff24552a759e77ce99591b7b4480f7cf3b1ff538b` | `753544d45075e06e3f17057f59aa1c2e8c10c73150ef29cf885524f900a18a89` | PW-04 |

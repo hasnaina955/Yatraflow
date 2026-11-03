@@ -1132,8 +1132,8 @@
           },
           {
             "path": "P12Warm2.dc.html",
-            "bytes": 81535,
-            "sha256": "e8617dceada3487df612f9467d13cbf9ae809b9b8897610c8ab9b7959eccfca7",
+            "bytes": 81503,
+            "sha256": "d02cf005d164d154069874d4211c739bcbc93cb1ddb1f6749c0dc76105e99c87",
             "isHtml": true
           },
           {
@@ -1771,8 +1771,8 @@
         },
         {
           "path": "docs/redesign/papercut-warmth/exports-20261028/P12 Overview · warmth v2 (compact + elevation route)/P12Warm2.dc.html",
-          "bytes": 81535,
-          "sha256": "e8617dceada3487df612f9467d13cbf9ae809b9b8897610c8ab9b7959eccfca7",
+          "bytes": 81503,
+          "sha256": "d02cf005d164d154069874d4211c739bcbc93cb1ddb1f6749c0dc76105e99c87",
           "isHtml": true,
           "isSupportFile": false
         },

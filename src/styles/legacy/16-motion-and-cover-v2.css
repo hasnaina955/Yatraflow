@@ -182,7 +182,6 @@
     .shr-state,
     .tl-state,
     .tm-state,
-    .bud-state,
     .ex-page .ex-clear:not([data-presence='exit']),
     .trips-page .ex-clear[style*='visible']:not([data-presence='exit'])
   ):not([data-presence='exit']) {
@@ -215,6 +214,13 @@
   max-width: 1180px;
 }
 
+/* The settings artboard is 1180px of content inside the shared 20px gutters.
+   The container's border box is 1220px. The :has guard keeps Board
+   and Map on their own width rules. */
+.container.yf-workspace.yf-workspace:has(.tset-grid) {
+  max-width: 1220px;
+}
+
 .container.yf-workspace.yf-workspace[data-wide='true'] {
   max-width: 1720px;
 }
@@ -222,8 +228,11 @@
 /* The cover is one full-width sheet. Its media is clipped inside the sheet,
    while the sheet itself keeps tooltips visible above it. */
 .yf-page .yf-trip-head {
-  --pw-cover-ink: #FCFEFD;
-  --pw-cover-ink-soft: rgb(252 254 253 / .9);
+  /* Ink over a photo. It is the palette's on-cover ink (tokens.css): the warm card
+     white in light, and the DarkTheme "On cover photos" near-white in dark. The photo
+     does not change with the theme, so the ink must not follow the card tone. */
+  --pw-cover-ink: var(--pw-on-cover);
+  --pw-cover-ink-soft: color-mix(in srgb, var(--pw-on-cover) 90%, transparent);
   position: relative;
   display: block;
   height: 260px;
@@ -575,8 +584,10 @@
 }
 
 .yf-page .yf-tabbar .tab-btn {
-  min-height: 44px;
-  padding: 0 var(--space-6);
+  /* The artboard's tabs are 38px with `padding: 0 16px` inside a 6px inset, so
+     the whole rail measures 50px. 44px tabs made the capsule 58px. */
+  min-height: 38px;
+  padding: 0 16px;
   color: var(--pw-ink);
   font-size: 14px;
   font-weight: 600;
@@ -769,10 +780,10 @@
 .ovw2-kicker,
 .ovw2-metric-label {
   color: var(--pw-ink-3);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: .1em;
-  line-height: 1.3;
+  line-height: normal;
   text-transform: uppercase;
 }
 
@@ -781,9 +792,10 @@
   grid-column: auto;
   align-items: center;
   justify-self: auto;
-  min-height: 24px;
+  min-height: 23px;
   margin: 0;
-  padding: 0 var(--space-4a);
+  padding: var(--space-2) var(--space-4a);
+  line-height: 1.25;
   border-radius: var(--radius-pill);
   background: var(--ovw-health-soft);
   color: var(--ovw-health-ink);
@@ -827,9 +839,9 @@
 .ovw2-score-core b {
   color: var(--ovw-health-ink);
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: -.02em;
+  letter-spacing: 0;
 }
 
 .ovw2-score-core small {
@@ -847,7 +859,7 @@
 .ovw2 .ovw2-health-line {
   color: var(--pw-ink);
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -.01em;
@@ -858,6 +870,7 @@
   margin: 0;
   color: var(--pw-ink-2);
   font-size: 13px;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -867,7 +880,9 @@
 }
 
 .ovw2-health-act .ovw-btn--primary {
+  flex: none;
   min-height: 44px;
+  white-space: normal;
   padding: 0 var(--space-8);
   border: 0;
   background: var(--pw-marigold-500);
@@ -881,6 +896,20 @@
   background: var(--pw-marigold-500);
   filter: brightness(1.04);
   transform: translateY(-1px);
+}
+
+/* Pressed: sink back onto the flat press shadow token. */
+.ovw2-health-act .ovw-btn--primary:active {
+  box-shadow: var(--elev-press);
+  filter: none;
+  transform: none;
+}
+
+/* The mockup's primary button is 42px tall with a fine pointer. Touch keeps 44px. */
+@media (pointer: fine) {
+  .ovw2-health-act .ovw-btn--primary {
+    min-height: 42px;
+  }
 }
 
 .ovw2-metrics {
@@ -914,9 +943,9 @@
 .ovw2-metric-value {
   color: var(--pw-ink);
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 27px;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: normal;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -924,6 +953,7 @@
 .ovw2-metric-sub {
   color: var(--pw-ink-2);
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -940,6 +970,12 @@
   min-width: 0;
 }
 
+/* Scoped to this card: the other .ovw2 blocks keep their 18px titles. */
+.ovw2-issues .ovw-title {
+  font-size: 20px;
+  letter-spacing: -.2px;
+}
+
 .yf-surface.ovw-card.ovw2-issues {
   display: flex;
   flex-direction: column;
@@ -954,10 +990,14 @@
 }
 
 .ovw2 .ovw-count {
-  min-height: 24px;
-  padding-inline: var(--space-4a);
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--pw-ink-2);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .ovw2 .ovw-need-list {
@@ -1010,34 +1050,50 @@
   color: var(--pw-ink-2);
 }
 
+/* Glyph fills from the mockup's tokens. The strokes follow the tile colour. */
+.ovw2-issue.is-high .ovw2-glyph-fill { fill: var(--pw-risk-100); }
+.ovw2-issue.is-medium .ovw2-glyph-fill { fill: var(--pw-marigold-500); }
+.ovw2-issue.is-low .ovw2-glyph-fill { fill: var(--pw-card); }
+.ovw2-issue .ovw2-glyph-accent { fill: var(--pw-marigold-500); }
+
 .ovw2-issue .ovw-need-title {
   color: var(--pw-ink);
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 700;
   line-height: 1.3;
 }
 
-.ovw2-issue .ovw-need-fix {
+.ovw2-issue .ovw-need-text {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-2);
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Inline sentence, as in the mockup: "High · Move one stop…". */
+.ovw2-issue .ovw-need-fix {
+  display: block;
   color: var(--pw-ink-2);
-  font-size: 13px;
+  font-size: 12.5px;
+  font-weight: 400;
   line-height: 1.4;
 }
 
 .ovw2-issue .ovw-sev {
   min-height: 0;
   padding: 0;
+  gap: 0;
   border-radius: 0;
   background: transparent;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 12.5px;
+  font-weight: 700;
 }
 
+/* One normal space either side of the dot. The margins sit on the dot, so the
+   sentence has no flex gap and no non-breaking spaces. */
 .ovw2-issue .ovw-sev::after {
   color: var(--pw-ink-2);
-  content: ' /';
+  content: '·';
+  margin-inline: 0.3em;
 }
 
 .ovw2-issue.is-high .ovw-sev {
@@ -1078,8 +1134,47 @@
   color: var(--pw-ink);
 }
 
+/* "3 of 5 · Show all" is a text link, as in the mockup. */
 .ovw2 .ovw-more-btn {
-  margin-top: var(--space-5);
+  display: inline-block;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--pw-sea-700);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ovw2 .ovw-more-btn:hover {
+  color: var(--pw-lagoon-600);
+}
+
+/* Touch keeps the 44px hit area on the link. */
+@media (pointer: coarse) {
+  .ovw2 .ovw-more-btn {
+    min-height: 44px;
+  }
+}
+
+/* The mockup's Fix button is 34px tall with a fine pointer. Touch keeps 44px. */
+@media (pointer: fine) {
+  /* A 24 px hit height for a fine pointer (WCAG 2.2 target size). Touch keeps 44 px.
+     The Open map link at 44 px made the route header 44 px tall; the plot sat 22 px low. */
+  .ovw2 .ovw-more-btn,
+  .ovw2 .ovw-link {
+    min-height: 24px;
+  }
+
+  .ovw2 .ovw2-fix {
+    min-height: 34px;
+    font-size: 12.5px;
+  }
 }
 
 .yf-surface.ovw-block.ovw-matrix {
@@ -1114,10 +1209,10 @@
 .yf-surface.ovw-card.ovw2-route {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4a);
+  gap: 10px;
   min-width: 0;
   padding: var(--space-8);
-  border-color: var(--pw-line-soft);
+  border-color: var(--ovw-route-line);
   border-radius: var(--radius-lg);
   box-shadow: var(--elev-1);
 }
@@ -1125,6 +1220,7 @@
 .ovw2-route .ovw-head {
   align-items: baseline;
   margin-bottom: 0;
+  min-height: 24px;
 }
 
 .ovw2-route .ovw-head-meta {
@@ -1307,9 +1403,10 @@
 
 .ovw2 .ovw-stoplist {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--space-8);
+  column-gap: 18px;
 }
 
+/* Linen rows: a dashed hairline between rows, as on the artboard. */
 .ovw2 .ovw-stoplist > li {
   border-top: 1px dashed var(--pw-line-soft);
 }
@@ -1318,19 +1415,20 @@
   border-top: 0;
 }
 
+/* The row height (44 px on touch, 31 px with a mouse) comes from .ovw-stop-btn
+   in 15-overview.css. This block sets no min-height, so the two do not fight. */
 .ovw2 .ovw-stop-btn {
   grid-template-columns: 24px minmax(0, 1fr) auto;
-  min-height: 44px;
   column-gap: var(--space-4);
   border-radius: var(--radius-sm);
 }
 
-.ovw2 .ovw-stop-km,
+.ovw2 .ovw-stop-meta,
 .ovw2 .ovw-stop-t {
   grid-column: 3;
 }
 
-.ovw2 .ovw-stop-km {
+.ovw2 .ovw-stop-meta {
   min-width: 0;
 }
 
@@ -1339,17 +1437,12 @@
 }
 
 .ovw2 .ovw-stop-name {
-  font-size: 13px;
-}
-
-.ovw2 .ovw-stop-name small {
-  margin-inline-start: var(--space-2);
-  font-size: 11px;
+  font-size: 12.5px;
 }
 
 .ovw2 .ovw-stop-pin {
-  border-color: var(--pw-route);
-  color: var(--pw-sea-700);
+  border-color: var(--pw-marigold-500);
+  color: var(--pw-ink);
 }
 
 .yf-surface.ovw-block.ovw2-quiet,
@@ -1371,10 +1464,12 @@
 }
 
 .ovw2 .ovw-next {
+  --ovw-next-line: #CDE9E3;
+  display: flex;
   align-items: center;
   gap: var(--space-5);
-  padding: var(--space-4a) var(--space-5);
-  border: 1px solid var(--pw-route);
+  padding: var(--space-4a);
+  border: 1px solid var(--ovw-next-line);
   border-radius: var(--radius);
   background: var(--pw-lagoon-50);
 }
@@ -1446,11 +1541,11 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--pw-line-soft);
+  gap: var(--space-4a);
+  padding: var(--space-4a) var(--space-5);
+  border: 0;
   border-radius: var(--radius);
-  background: var(--pw-lagoon-50);
+  background: var(--pw-sand);
 }
 
 .ovw-wx-copy {
@@ -1477,15 +1572,18 @@
 }
 
 .ovw2 .ovw-wx-cell.wet {
-  background: var(--pw-marigold-100);
+  background: var(--pw-lagoon);
 }
 
 .ovw2 .ovw-wx-cell > svg {
+  width: 26px;
+  height: 26px;
   color: var(--pw-marigold-ink);
 }
 
+/* Rain cells carry the teal ink, as the artboard's "Rain 70%" does. */
 .ovw2 .ovw-wx-cell.wet > svg {
-  color: var(--pw-marigold-ink);
+  color: var(--pw-sea-700);
 }
 
 @media (max-width: 960px) {
@@ -1698,11 +1796,167 @@
   }
 }
 
+/* Settings titles wrap instead of disappearing behind an ellipsis. Four lines
+   cover the long-trip fixture at every width. The 721-1023px band gets a
+   smaller title and a taller cover, because 40px type needs three lines there
+   and the member row otherwise reaches the tab rail. */
+body:has(.tset-grid) .yf-page .yf-trip-head {
+  height: 304px;
+}
+
+body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+  display: -webkit-box;
+  width: min(100%, 900px);
+  height: auto;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+@media (min-width: 721px) and (max-width: 1023px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 384px;
+  }
+
+  body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 720px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 352px;
+  }
+
+  body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
+    width: 100%;
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 440px) {
+  body:has(.tset-grid) .yf-page .yf-trip-head {
+    height: 380px;
+  }
+}
+
 /* The compact day list is a full-row button, not an inline reset. */
 @media (max-width: 720px) {
   .ovw2 .mx-compact .mx-crow:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 3px var(--pw-lagoon-600);
+  }
+}
+
+/* ---------- Entrance: the Timeline tab's own cascade ----------
+   Measured on the fixture (1440 and 390 agree): the tab panel held a 360ms
+   `pageRise` that did not start until 240ms, while the toolbar rose at 0 and
+   the day cards ran `cardIn` at 120/180/240/300ms underneath it. Two clocks
+   again — the same flat stagger Budget and Overview had — so the panel's late
+   fade is switched off for this tab only, with the rule the other two use.
+   Other tabs keep theirs.
+
+   The tab has no stable root class of its own (its wrapper carries only
+   `tl-root-review` in review mode), and the fixture's panel id is stale, so
+   the tab is identified by `.tl-ribbon`: it is rendered unconditionally and
+   named nowhere else in the app. The cascade itself is scoped through
+   `.page-enter:has(> .tl-ribbon)`, the wrapper the tab already ships for this
+   purpose.
+
+   Order follows the page: the toolbar (step 0), the ribbon and its spine
+   (step 1), then the day cards one at a time (steps 2 to 6). The four ribbon
+   cards ride the same steps as the first four day cards — two starts per step,
+   never a crowd — and each card's progress bar grows one step later, from its
+   left edge, for one and a half token lengths. The last bar starts at step 6
+   (360ms) and settles at about 1.2s, inside the 1.0 to 1.5s target.
+
+   Day cards take `pageRise` (a fade and an 8px rise, as Overview's cards do)
+   instead of the `cardIn` lift that 12-pages gives the shared
+   `.page-enter > .day-section`, so the two tabs read as one gesture. The
+   shared rule is left alone; this more specific one overrides it.
+
+   Nothing here can replay: a day's body is mounted on expand and carries no
+   entrance rule at all, the day cards keep their element across a toggle and
+   a refresh (their class list changes; the animation names and delays do
+   not), and every rule matches elements that exist at first mount. */
+div[role="tabpanel"]:has(.tl-ribbon) { animation: none; }
+
+/* The progress fill grows from its left edge. `transform-origin` is the
+   element's own, so the keyframe only has to say where it starts. */
+@keyframes tlBarGrow {
+  from { transform: scaleX(0); }
+}
+
+/* Toolbar: first, and alone on its beat. */
+.page-enter:has(> .tl-ribbon) > .tl-head {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+
+/* The ribbon and its spine arrive together. The line is a drawing, so it
+   fades rather than rising. */
+.page-enter:has(> .tl-ribbon) > .tl-ribbon {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line,
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line-end {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+
+/* Ribbon cards, left to right. `:nth-of-type` counts only the buttons beside
+   the two line spans. Past the fourth they share the last step. */
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 3); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 4); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card:nth-of-type(n+4) { animation-delay: calc(var(--stagger-step) * 5); }
+
+/* Each card's bar grows two steps after the card itself, so the fill never
+   moves while its card is still arriving. */
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card .tl-ribbon-card-bar > span {
+  transform-origin: left center;
+  animation: tlBarGrow calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 4);
+}
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card:nth-of-type(2) .tl-ribbon-card-bar > span { animation-delay: calc(var(--stagger-step) * 5); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card:nth-of-type(3) .tl-ribbon-card-bar > span { animation-delay: calc(var(--stagger-step) * 6); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card:nth-of-type(n+4) .tl-ribbon-card-bar > span { animation-delay: calc(var(--stagger-step) * 6); }
+
+/* Day cards: one at a time, after the ribbon. The toolbar is child one and
+   the ribbon child two, so day one is child three. Cards past the fourth card
+   share step 6 — six entrance steps is the budget, not one per day. */
+.page-enter:has(> .tl-ribbon) > .day-section {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+4) { animation-delay: calc(var(--stagger-step) * 3); }
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * 4); }
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * 6); }
+
+/* Reduced motion. Every selector that sets an animation name above is switched
+   off here with the same selector text, so the specificity is equal and this
+   later rule wins. Rules that only set a delay need no opt-out: with no name,
+   they start nothing. */
+@media (prefers-reduced-motion: reduce) {
+  div[role="tabpanel"]:has(.tl-ribbon),
+  .page-enter:has(> .tl-ribbon) > .tl-head,
+  .page-enter:has(> .tl-ribbon) > .tl-ribbon,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line-end,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-card .tl-ribbon-card-bar > span,
+  .page-enter:has(> .tl-ribbon) > .day-section {
+    animation: none;
   }
 }
 

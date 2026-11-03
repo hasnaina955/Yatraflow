@@ -27,7 +27,9 @@ describe('TimelineTab hands each day its facts (#347)', () => {
     // open, so the live trip goes to the days actually on screen (at most a card
     // or two), which is what keeps the memo biting and the provider calls bounded.
     expect(tab).toMatch(/trip=\{openDayIndex === day\.index \|\| \(reviewAll && visibleDays\.has\(day\.index\)\) \? trip : undefined\}/)
-    expect(tab).toMatch(/open=\{reviewAll \|\| openDayIndex === day\.index\}/)
+    // Whole trip opens its days one beat apart, so `open` follows the reveal step
+    // in review and the accordion's open day otherwise.
+    expect(tab).toMatch(/open=\{openDayIndex === day\.index \|\| \(reviewAll && revealStep > Math\.min\(ordinal, REVEAL_STEPS - 1\)\)\}/)
   })
 
   it('keeps the money and warning props reference-stable across commits', () => {

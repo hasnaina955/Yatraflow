@@ -85,6 +85,14 @@ export interface CoverInput {
   region: ArtRegion
   /** Stable seed, such as a trip id. */
   seed: string
+  /**
+   * A position in a list of covers that steps through the region's scenes,
+   * such as the day number on a timeline. When set, the region's own family is
+   * chosen by this position instead of by hashing `seed`, so consecutive
+   * entries differ whenever the region has more than one scene. Leave it unset
+   * for a single cover, where hashing is the better answer.
+   */
+  sceneIndex?: number
   /** Number of distinct places on the trip. A trip with 2 or more uses road art, otherwise city art. */
   placeCount: number
   /**
@@ -128,6 +136,23 @@ function pickFromList(ids: readonly string[], seed: string): string | null {
 /** The generated id for a region, chosen by seed. Null when the region has no generated image. */
 export function artIdFor(region: ArtRegion, seed: string, manifest: ArtManifest = ART_MANIFEST): string | null {
   return pickFromList(manifest.regions[region] ?? [], seed)
+}
+
+/**
+ * The generated id for a region at a POSITION, chosen by that position.
+ *
+ * `artIdFor` hashes its seed, which is right for a trip: the same trip keeps
+ * the same scene. It is wrong for the Nth day of a list, because two hashes can
+ * land on the same slot and two neighbouring days then draw one picture — with
+ * two Goa scenes the second and fourth days collided. A position steps the
+ * family predictably, so consecutive days differ whenever the region has more
+ * than one scene.
+ */
+export function artIdAt(region: ArtRegion, position: number, manifest: ArtManifest = ART_MANIFEST): string | null {
+  const ids = manifest.regions[region] ?? []
+  if (ids.length === 0) return null
+  const at = Math.abs(Math.trunc(position)) % ids.length
+  return ids[at]
 }
 
 /**
@@ -252,13 +277,25 @@ export function coverPlanFor(input: CoverInput, manifest: ArtManifest = ART_MANI
   // is destination evidence too, so an unrelated origin cannot outrank it.
   const regionKnows = input.region !== 'generic'
 
+  // The region's own family. With `sceneIndex` the family is rotated by that
+  // position rather than hashed, so a list of covers (one per day) steps through
+  // the region's scenes instead of hashing into collisions.
+  const regionFamily = input.sceneIndex === undefined
+    ? artFamilyFor(input.region, input.seed, manifest)
+    : (() => {
+        const ids = manifest.regions[input.region] ?? []
+        if (ids.length === 0) return []
+        const start = Math.abs(Math.trunc(input.sceneIndex)) % ids.length
+        return [...ids.slice(start), ...ids.slice(0, start)]
+      })()
+
   if (placeLayerKnows) {
     for (const id of destinationFamily) addScene(id)
   } else if (regionKnows) {
     // No place named, but the region matcher recognised the stops. Its own
     // family leads, so a refused file costs a step inside the region rather
     // than dropping to the neutral scene.
-    for (const id of artFamilyFor(input.region, input.seed, manifest)) addScene(id)
+    for (const id of regionFamily) addScene(id)
   } else {
     const startMatch = placeArtFor([input.startLocation ?? ''], input.seed, fallbacks)
     const startIsEvidence = startMatch !== null && startMatch.kind !== 'generic'
@@ -269,7 +306,7 @@ export function coverPlanFor(input: CoverInput, manifest: ArtManifest = ART_MANI
 
   // Every scene the region owns follows, seeded-first, so a place-layer match
   // inside a recognised region still has the region's own scenes behind it.
-  for (const id of artFamilyFor(input.region, input.seed, manifest)) addScene(id)
+  for (const id of regionFamily) addScene(id)
   for (const id of manifest.fallbacks[fallbackKindFor(input.placeCount)] ?? []) addScene(id)
 
   const userUrl = input.userCover?.trim()

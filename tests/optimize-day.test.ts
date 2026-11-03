@@ -1,7 +1,8 @@
 // ============ Day route optimization tests ============
 // optimizeDayOrder is pure — nearest-neighbour + 2-opt over haversine with
 // anchors pinned. Pinned behaviours: crisscross days collapse, anchors stay
-// first/last, mid-day anchors are refused (never dropped), <3 movable is a
+// first/last, mid-day anchors are refused (never dropped), a commitment-linked
+// stop that the optimiser would move refuses the tidy (PW-08), <3 movable is a
 // no-op, rejected stops survive the reorder.
 import { describe, it, expect } from 'vitest'
 import { optimizeDayOrder, dayRouteKm, originOf, measuredLegCount, optimiseKmLabel, legKey } from '../src/lib/engine'
@@ -246,6 +247,45 @@ describe('optimizeDayOrder', () => {
       [legKey(a, b)]: { distanceKm: 20, durationMinutes: 40 },
       [legKey(b, c)]: { distanceKm: 18, durationMinutes: 36 },
     })).toBe(2)
+  })
+
+  it('refuses to move a fixed stop the optimiser would rewire (PW-08)', () => {
+    const far = stop(10.000, 10.300)
+    const near = stop(10.000, 10.100)
+    const fixed = stop(10.000, 10.250, { title: 'Fixed lunch' })
+    const near2 = stop(10.000, 10.150)
+    const day = [far, near, fixed, near2] as ItineraryStop[]
+    day.forEach((s, i) => { s.orderInDay = i + 1 })
+    const res = optimizeDayOrder(origin, day, { hasNextDay: false, fixedStopIds: [fixed.id] })
+    expect(res.changed).toBe(false)
+    expect(res.blocked).toBe('fixed-time')
+    expect(res.stops.map(s => s.id)).toEqual(day.map(s => s.id))
+    expect(res.afterKm).toBeCloseTo(res.beforeKm, 6)
+  })
+
+  it('a fixed first stop is not a pin just because it sits first (PW-08)', () => {
+    const fixedHead = stop(10.000, 10.300, { title: 'Fixed departure' })
+    const near = stop(10.000, 10.100)
+    const mid = stop(10.000, 10.250)
+    const near2 = stop(10.000, 10.150)
+    const day = [fixedHead, near, mid, near2] as ItineraryStop[]
+    day.forEach((s, i) => { s.orderInDay = i + 1 })
+    const res = optimizeDayOrder(origin, day, { hasNextDay: false, fixedStopIds: [fixedHead.id] })
+    expect(res.changed).toBe(false)
+    expect(res.blocked).toBe('fixed-time')
+  })
+
+  it('allows the tidy when the fixed stop is a pinned hotel tail (PW-08)', () => {
+    const far = stop(10.000, 10.300)
+    const near = stop(10.000, 10.100)
+    const mid = stop(10.000, 10.250)
+    const base = stop(10.000, 10.150, { category: 'hotel', title: 'Night base' })
+    const day = [far, near, mid, base] as ItineraryStop[]
+    day.forEach((s, i) => { s.orderInDay = i + 1 })
+    const res = optimizeDayOrder(origin, day, { hasNextDay: false, fixedStopIds: [base.id] })
+    expect(res.blocked).toBeUndefined()
+    expect(res.changed).toBe(true)
+    expect(res.stops[res.stops.length - 1].id).toBe(base.id)
   })
 
   it('open time breaks near-ties: the earlier-opening stop is picked first', () => {

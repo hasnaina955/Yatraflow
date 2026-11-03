@@ -306,11 +306,22 @@
   margin-bottom: 20px;
   transition: margin var(--motion-slow) var(--ease-glide);
 }
-.yf-tabbar .tab-btn { min-height: 44px; }
+/* The artboard's trip tabs are 38px tall with `padding: 0 16px` inside a 6px
+   inset, so the whole rail measures 50px. The app ran 44px tabs, which made the
+   capsule 58px and pushed it past the header's own bottom edge. 38px is the
+   artboard value; the coarse-pointer block still grows the hit area to 48dp. */
+.yf-tabbar .tab-btn { min-height: 38px; padding: 0 16px; }
+.yf-tabbar .tab-btn.active { font-weight: 700; }
+/* The workspace rail's real class is `.tabbar` (the `yf-tabbar` above is the
+   wrapper), so the tab sizing above never reached it. The artboard's tabs are
+   38px with `padding: 0 16px`; the app ran 44px/14px, which made the capsule
+   58px instead of the artboard's 52px. The glider's glow lives in pill-nav.css,
+   which owns that element. */
+.tabbar .tab-btn { min-height: 38px; padding: 0 16px; }
+.tabbar .tab-btn.active { font-weight: 700; }
 .yf-page[data-compact='true'] .yf-tabbar { margin-bottom: 12px; }
 
-.tl-trip-wide-warn { margin-top: 10px; }
-.tl-trip-wide-warn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.tl-ribbon-warn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
 
 @media (max-width: 720px) {
   .container.yf-workspace { padding-left: 16px; padding-right: 16px; }

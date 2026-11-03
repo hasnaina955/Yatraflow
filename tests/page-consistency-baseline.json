@@ -84,7 +84,7 @@
     "src/pages/trip/BudgetTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 10,
+      "inlineStyle": 0,
       "rawH1": 0
     },
     "src/pages/trip/GroupInputTab.tsx": {
@@ -144,7 +144,7 @@
     "src/pages/trip/timeline/DaySection.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 5,
+      "inlineStyle": 4,
       "rawH1": 0
     },
     "src/pages/trip/timeline/DaySpark.tsx": {
@@ -171,6 +171,12 @@
       "inlineStyle": 2,
       "rawH1": 0
     },
+    "src/pages/trip/timeline/ToolbarMenu.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
     "src/pages/trip/timeline/TravelPanel.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
@@ -180,13 +186,13 @@
     "src/pages/trip/TimelineTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 3,
+      "inlineStyle": 1,
       "rawH1": 0
     },
     "src/pages/trip/TripSettingsForm.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 4,
+      "inlineStyle": 3,
       "rawH1": 0
     },
     "src/pages/TripCreated.tsx": {

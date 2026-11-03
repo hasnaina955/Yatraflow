@@ -8,7 +8,7 @@ import '@fontsource/plus-jakarta-sans/500.css'
 import '@fontsource/plus-jakarta-sans/600.css'
 import '@fontsource/plus-jakarta-sans/700.css'
 import '../src/styles.css'
-import type { ActivityEntry, ItineraryStop, Trip, TripDecision, User } from '../src/data/types'
+import type { ActivityEntry, CachedUser, ItineraryStop, Trip, TripDecision } from '../src/data/types'
 import type { RoadLeg } from '../src/lib/routing'
 import { buildRoadChain, setRoadMeasureForTests } from '../src/lib/tripRoad'
 import { setElevationTileLoaderForTests } from '../src/lib/elevationTiles'
@@ -24,6 +24,7 @@ const EDITOR_ID = 'fixture-editor'
 // A third member, so the stack proves the mockup's three-circle case: the
 // reported bug was three circles in one pale mint reading as a single block.
 const VIEWER_ID = 'fixture-viewer'
+const SECOND_VIEWER_ID = 'fixture-second-viewer'
 
 const params = new URLSearchParams(location.search)
 const THEME = params.get('theme') === 'dark' ? 'dark' : 'light'
@@ -45,6 +46,22 @@ const ROAD = params.get('road') ?? 'ok'
 // surface can be measured without a session. The workspace validates the key
 // itself and falls back to overview, so a bad value cannot make the fixture lie.
 const TAB = params.get('tab') ?? 'overview'
+const MEMBER_COUNT = params.get('members') === '4' ? 4 : 3
+const ROUND_TRIP = params.get('roundTrip') === '1'
+const BUDGET_PER_PERSON = Number(params.get('budgetPerPerson') ?? params.get('budget') ?? 16000)
+const PACE = params.get('pace') ?? 'relaxed'
+const LONG_END = params.get('end') === 'long'
+// PW-13: `budget=tagged` gives the two fixture expenses a payer and one settled
+// record, so the balances card and the settled history have something to draw.
+// The default keeps every other surface's fixture data unchanged.
+const BUDGET_TAGGED = params.get('budget') === 'tagged'
+// PW-13 review states. `read` drives the trips slice verdict, so the Budget
+// glance cards can be measured as reading, failed or ready. `empty` keeps the
+// plan but removes the ledger lines. `categories` adds wide-ledger lines so
+// the phone day table has to scroll past four or more category columns.
+const READ = params.get('read') ?? 'ready'
+const EMPTY_LEDGER = params.get('empty') === '1'
+const WIDE = Number(params.get('categories') ?? 0) >= 4
 
 const stop = (
   id: string,
@@ -69,24 +86,28 @@ const stop = (
   orderInDay,
 })
 
-const users: User[] = [
+const users: CachedUser[] = [
   {
     id: OWNER_ID,
+    kind: 'private',
     email: 'fixture-owner@example.invalid',
-    profile: { name: 'Owner One', languages: ['en'], travelStyles: ['balanced'], isCreator: false },
+    profile: { name: 'Owner One', languages: ['en'], travelStyles: ['balanced'], isCreator: false, creatorAvailable: true },
     createdAt: 1,
   },
   {
     id: EDITOR_ID,
-    email: 'fixture-editor@example.invalid',
-    profile: { name: 'Editor Two', languages: ['en'], travelStyles: ['food-focused'], isCreator: false },
-    createdAt: 2,
+    kind: 'public',
+    profile: { name: 'Editor Two', isCreator: false, creatorAvailable: true },
   },
   {
     id: VIEWER_ID,
-    email: 'fixture-viewer@example.invalid',
-    profile: { name: 'Viewer Three', languages: ['en'], travelStyles: ['balanced'], isCreator: false },
-    createdAt: 3,
+    kind: 'public',
+    profile: { name: 'Viewer Three', isCreator: false, creatorAvailable: true },
+  },
+  {
+    id: SECOND_VIEWER_ID,
+    kind: 'public',
+    profile: { name: 'Traveller Four', isCreator: false, creatorAvailable: true },
   },
 ]
 
@@ -118,7 +139,11 @@ const trip: Trip = {
   startLocationCoords: { lat: 15.4909, lng: 73.8278 },
   destinations: PLACE
     ? [PLACE]
-    : params.get('scene') === 'goa' ? ['Goa'] : ['Candolim', 'Colva', 'Palolem'],
+    : params.get('scene') === 'goa'
+      ? ['Goa']
+      : ['Candolim', 'Colva', LONG_END
+        ? 'Palolem Beach, Canacona, South Goa Coastal Extension near Cotigao Wildlife Sanctuary'
+        : 'Palolem'],
   destinationCoords: [
     { lat: 15.5185, lng: 73.7628 },
     { lat: 15.2754, lng: 73.9228 },
@@ -128,9 +153,11 @@ const trip: Trip = {
   endDate: '2026-11-06',
   travellers: 2,
   transportMode: MODE as Trip['transportMode'],
-  roundTrip: false,
-  budgetPerPersonInr: 16000,
-  travelStyle: 'relaxed',
+  roundTrip: ROUND_TRIP,
+  budgetPerPersonInr: Number.isFinite(BUDGET_PER_PERSON) && BUDGET_PER_PERSON >= 0
+    ? BUDGET_PER_PERSON
+    : 16000,
+  travelStyle: PACE as Trip['travelStyle'],
   stayStyle: 'comfort',
   fixedCommitments: [
     { id: 'commitment-1', title: 'Hotel check-in', type: 'hotel-checkin', dayIndex: 1, time: '15:00', stopId: 'night-1' },
@@ -162,7 +189,8 @@ const trip: Trip = {
       title: 'South Goa',
       stops: [
         stop('colva', 'Colva beach', 15.2754, 73.9228, 0, 'beach'),
-        stop('night-2', 'Night in Colva', 15.2754, 73.9228, 1, 'hotel', 'Colva'),
+        stop('lunch-colva', 'Lunch on the way', 15.3106, 73.9144, 1, 'food', 'Colva road'),
+        stop('night-2', 'Night in Colva', 15.2754, 73.9228, 2, 'hotel', 'Colva'),
       ],
     },
     {
@@ -175,14 +203,25 @@ const trip: Trip = {
       ],
     },
   ],
-  expenses: [
-    { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800 },
-    { id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000 },
+  expenses: EMPTY_LEDGER ? [] : [
+    { id: 'expense-1', label: 'Fuel', category: 'transport', amountInr: 4800, ...(BUDGET_TAGGED ? { paidBy: OWNER_ID } : {}) },
+    {
+      id: 'expense-2', label: 'Stay', category: 'accommodation', amountInr: 12000,
+      ...(BUDGET_TAGGED ? { paidBy: EDITOR_ID, settled: { by: OWNER_ID, at: 1 } } : {}),
+    },
+    ...(BUDGET_TAGGED ? [{ id: 'expense-3', label: 'Sunset cruise', category: 'activities' as const, amountInr: 1800, optional: true }] : []),
+    ...(WIDE ? [
+      { id: 'expense-wide-1', label: 'Meals', category: 'food' as const, amountInr: 2400, paidBy: OWNER_ID },
+      { id: 'expense-wide-2', label: 'Temple entry', category: 'entry-fees' as const, amountInr: 600, paidBy: EDITOR_ID },
+    ] : []),
   ],
   members: [
     { userId: OWNER_ID, role: 'owner', joinedAt: 1 },
     { userId: EDITOR_ID, role: 'editor', joinedAt: 2 },
     { userId: VIEWER_ID, role: 'viewer', joinedAt: 3 },
+    ...(MEMBER_COUNT === 4
+      ? [{ userId: SECOND_VIEWER_ID, role: 'viewer' as const, joinedAt: 4 }]
+      : []),
   ],
   ...COVERS[COVER] ?? COVERS.art,
   visibility: 'private',
@@ -353,7 +392,11 @@ db.notifications = []
 db.published = []
 db.sessionUserId = OWNER_ID
 db.ready = true
-db.sliceReads = { decisions: 'ok', activity: 'ok' }
+db.sliceReads = READ === 'reading'
+  ? { decisions: 'ok', activity: 'ok' }
+  : READ === 'failed'
+    ? { decisions: 'ok', activity: 'ok', trips: 'failed' }
+    : { decisions: 'ok', activity: 'ok', trips: 'ok' }
 
 document.documentElement.dataset.theme = THEME
 

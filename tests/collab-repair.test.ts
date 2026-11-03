@@ -642,7 +642,7 @@ describe('gate round 2-3 — F4/C1 conflict reconciliation and the unresolved dr
     fake.membersRow = { id: 'tm-1', trip_id: fake.trip, user_id: fake.actor, role: 'owner', joined_at: 1 }
     // A real local edit whose trip write fails, so the edit is queued.
     fake.tripUpdateFails = true
-    store.addExpense(fake.trip, { label: 'Queued fuel', category: 'transport', amountInr: 500 })
+    store.addExpense(fake.trip, { label: 'Queued fuel', category: 'transport', amountInr: 500 }, fake.actor)
     await tick()
     const before = store.getSnapshot().trips.find(t => t.id === fake.trip)!
     expect(before.expenses.some(e => e.label === 'Queued fuel')).toBe(true)
@@ -787,7 +787,7 @@ describe('gate round 4 — ballot ownership and per-action draft ownership', () 
     fake.tripsRow = authoritativeTripsRow(fake.trip, fake.actor, 0)
     fake.membersRow = { id: 'tm-1', trip_id: fake.trip, user_id: fake.actor, role: 'owner', joined_at: 1 }
     fake.tripUpdateFails = true
-    store.addExpense(fake.trip, { label: 'Queued fuel', category: 'transport', amountInr: 500 })
+    store.addExpense(fake.trip, { label: 'Queued fuel', category: 'transport', amountInr: 500 }, fake.actor)
     await tick(); await tick(); await tick()
     expect(fake.tripUpdates.length).toBeGreaterThanOrEqual(1)
     const after = store.getSnapshot().trips.find(t => t.id === fake.trip)!

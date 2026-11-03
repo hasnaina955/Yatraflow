@@ -1,136 +1,205 @@
-// Stage A proof for the Budget tab. Static inline styles moved into bud-
-// classes in src/styles.css. Each class carries the inline values, copied
-// exactly. This node test checks the source only. The rendered proof is the
-// before and after screenshot pair.
+// ============ PW-13 — the Budget family has one stylesheet owner ============
+//
+// The old census pinned 18 `bud-` rules inside the monolithic sheet and ten
+// data-driven inline styles. The artboard redraw moves the whole family into
+// `src/styles/pages/budget.css` and puts every chart measurement in SVG
+// attributes, so the component now carries ZERO inline styles. That is a
+// deliberate tightening, not a bypass: the page-consistency baseline drops
+// from 10 to 0 in the same commit.
+//
+// This census is the replacement allowlist. It proves four things:
+//   1. no legacy module still declares a budget rule;
+//   2. the ownership map registers every class the family declares;
+//   3. every class the component names is declared, or is a named probe hook;
+//   4. the key recipes and the reduced-motion opt-outs are exact.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tab = read('../src/pages/trip/BudgetTab.tsx')
-const css = readCssSource('src/styles.css')
+const css = read('../src/styles/pages/budget.css')
+const sheet = readCssSource('src/styles.css')
+const map = JSON.parse(read('../docs/css-ownership.json')) as {
+  owners: { id: string; file: string; owned: string[] }[]
+  legacy: string[]
+  baselines: { configAppearanceKeys: string[] }
+}
+const baseline = JSON.parse(read('../tests/page-consistency-baseline.json')) as {
+  pageFiles: Record<string, { inlineStyle: number }>
+}
 
-const count = (source: string, needle: string) => source.split(needle).length - 1
-const SECTION = '/* ---------- Budget tab static styles (bud-) ---------- */'
+/** Code only — comments removed, so prose cannot satisfy an assertion. */
+const code = tab.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
-/** The sheet's top-level rules: every `@media` block is removed, so a
- *  reduced-motion opt-out does not read as a second declaration of its selector.
- *  The design-system gates read top-level rules only, and this census follows
- *  them. The braces are counted rather than pattern-matched: the sheet is over
- *  600 KB, and a nested pattern over that backtracks until the suite hangs. */
-function topLevel(css: string): string {
-  let out = css.replace(/\/\*[\s\S]*?\*\//g, '')
+/** One top-level rule's declaration text, normalised, plus its occurrence
+ *  count. A selector that appears twice is a duplicate and must fail. */
+function readRule(source: string, selector: string): { count: number; body: string | null } {
+  const needle = `\n${selector} {`
+  const at: number[] = []
+  let from = 0
   for (;;) {
-    const at = out.indexOf('@media')
-    if (at === -1) return out
-    const open = out.indexOf('{', at)
-    if (open === -1) return out.slice(0, at)
-    let depth = 0
-    let i = open
-    for (; i < out.length; i += 1) {
-      if (out[i] === '{') depth += 1
-      else if (out[i] === '}') { depth -= 1; if (depth === 0) break }
-    }
-    out = out.slice(0, at) + out.slice(i + 1)
+    const hit = source.indexOf(needle, from)
+    if (hit === -1) break
+    at.push(hit)
+    from = hit + needle.length
+  }
+  if (at.length === 0) return { count: 0, body: null }
+  const open = source.indexOf('{', at[0])
+  const close = source.indexOf('}', open)
+  if (open === -1 || close === -1) return { count: at.length, body: null }
+  return {
+    count: at.length,
+    body: source.slice(open + 1, close).replace(/\s+/g, ' ').trim(),
   }
 }
 
-// One entry per class. The selector and declarations must match styles.css.
-// The compound selector on the watch row fights the host class .row-between,
-// which sets gap: 12px, so it names both classes on the same element.
-const RULES = [
-  { cls: 'bud-card-lead', selector: '.bud-card-lead', declarations: 'margin: 4px 0 14px;' },
-  { cls: 'bud-hint-note', selector: '.bud-hint-note', declarations: 'margin-top: 10px;' },
-  { cls: 'bud-hero-meter', selector: '.bud-hero-meter', declarations: 'margin-top: 10px;' },
-  { cls: 'bud-crew-card', selector: '.bud-crew-card', declarations: 'margin-top: 14px;' },
-  { cls: 'bud-crew-invite', selector: '.bud-crew-invite', declarations: 'margin: 6px 0 0;' },
-  { cls: 'bud-crew-status', selector: '.bud-crew-status', declarations: 'margin: 6px 0 10px;' },
-  { cls: 'bud-settle-strip', selector: '.bud-settle-strip', declarations: 'margin-top: 12px;' },
-  { cls: 'bud-settle-lead', selector: '.bud-settle-lead', declarations: 'margin: 0;' },
-  { cls: 'bud-watch-row', selector: '.row-between.bud-watch-row', declarations: 'margin-top: 8px; gap: 8px;' },
-  { cls: 'bud-watch-status', selector: '.bud-watch-status', declarations: 'margin-top: 6px;' },
-  { cls: 'bud-line-chip', selector: '.bud-line-chip', declarations: 'margin-left: 6px;' },
-  { cls: 'bud-editor-actions', selector: '.bud-editor-actions', declarations: 'display: flex; gap: 8px; margin-top: 10px;' },
-  { cls: 'bud-essential-fill', selector: '.bud-essential-fill', declarations: 'background: var(--teal);' },
-  { cls: 'bud-optional-fill', selector: '.bud-optional-fill', declarations: 'background: var(--saffron);' },
-  // P12: the shared card skin, the R20 title rule, the fixed step between the
-  // two right-hand cards, and the state block's entrance.
-  { cls: 'bud-panel', selector: '.yf-surface.bud-panel', declarations: 'border-radius: var(--radius); box-shadow: var(--shadow-card);' },
-  { cls: 'bud-card-title', selector: '.bud-card-title', declarations: 'font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text);' },
-  { cls: 'bud-panel-gap', selector: '.bud-panel-gap', declarations: 'margin-top: 14px;' },
-  { cls: 'bud-state', selector: '.bud-state', declarations: 'animation: errIn var(--motion-med) var(--ease-out);' },
+// Classes the markup uses as stable probe hooks. They carry no rule on
+// purpose: a browser check can select a panel without depending on its skin.
+const PROBE_HOOKS = new Set([
+  'bud-cat-card',
+  'bud-chart-card',
+  'bud-crew-card',
+  'bud-optional-card',
+  'bud-read',
+  'bud-target-group',
+])
+// Tokens the regex cannot read as classes: a template prefix and an SVG id.
+const NOT_A_CLASS = new Set(['bud-cat', 'bud-day-table-caption', 'bud-optional-hatch'])
+
+const KEY_RULES: { selector: string; declarations: string }[] = [
+  { selector: '.bud-page', declarations: 'display: flex; flex-direction: column; gap: var(--space-7); min-width: 0;' },
+  { selector: '.bud-grid-charts, .bud-grid-mid', declarations: 'grid-template-columns: 1.2fr 1fr;' },
+  { selector: '.bud-glance', declarations: 'display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: var(--space-6); min-width: 0;' },
+  { selector: '.bud-panel', declarations: 'padding: var(--space-8); background: var(--card); border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg); box-shadow: var(--elev-1);' },
+  { selector: '.bud-card-title', declarations: 'margin: 0; font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: 0; color: var(--text);' },
+  { selector: '.bud-hit:focus-visible', declarations: 'outline: none; box-shadow: var(--ring);' },
+  { selector: '.bud-watch-row', declarations: 'align-items: flex-start; gap: var(--space-4); margin-top: var(--space-5);' },
+  { selector: '.bud-line-chip', declarations: 'margin-left: 0;' },
+  { selector: '.bud-state', declarations: 'animation: errIn var(--motion-med) var(--ease-out);' },
 ]
 
-// Inline snippets that left the component. None may come back.
-const REMOVED_INLINE = [
-  "style={{ margin: '4px 0 14px' }}",
-  'style={{ marginTop: 10 }}',
-  'style={{ marginTop: 14 }}',
-  'style={{ marginLeft: 6 }}',
-  "style={{ margin: '6px 0 0' }}",
-  "style={{ margin: '6px 0 10px' }}",
-  'style={{ marginTop: 12 }}',
-  'style={{ margin: 0 }}',
-  'style={{ marginTop: 8, gap: 8 }}',
-  'style={{ marginTop: 6 }}',
-  "style={{ display: 'flex', gap: 8, marginTop: 10 }}",
-  "background: 'var(--teal)'",
-  "background: 'var(--saffron)'",
-]
-
-// The inline styles that stay. Each one reads a value from the trip data, so
-// it cannot be a fixed class. Each entry carries its expected count.
-const REMAINING_INLINE: [string, number][] = [
-  ["style={{ width: `${(d.totalInr / maxDay) * 100}%`, background: over ? 'var(--saffron)' : 'var(--teal)' }}", 1],
-  ['style={{ left: `${(avg / maxDay) * 100}%` }}', 1],
-  ['style={{ background: `color-mix(in srgb, ${meta.color} 15%, transparent)` }}', 2],
-  ['style={{ color: meta.color }}', 2],
-  ['style={{ width: `${(v / maxCat) * 100}%`, background: meta.color }}', 1],
-  ["style={{ width: `${Math.min(100, pctUsed)}%`, background: pctUsed > 100 ? 'var(--coral)' : pctUsed > 85 ? 'var(--saffron)' : 'var(--teal)' }}", 1],
-  ["style={{ width: `${(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100}%` }}", 1],
-  ["style={{ width: `${(totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100}%` }}", 1],
-]
-
-describe('BudgetTab inline styles moved to bud- classes', () => {
-  it('leaves none of the replaced inline declarations in the component', () => {
-    for (const snippet of REMOVED_INLINE) expect(count(tab, snippet), snippet).toBe(0)
+describe('PW-13 — one owner for the Budget family', () => {
+  it('registers the module, and no legacy file declares a budget rule', () => {
+    const owner = map.owners.find(o => o.id === 'budget')
+    expect(owner?.file).toBe('src/styles/pages/budget.css')
+    for (const file of map.legacy) {
+      const source = read(`../${file}`)
+      // `.budget-tier` and `.budget-anchor` belong to the Map tab, not this
+      // family. Every other retired `budget-*` name must be gone.
+      expect(source, `${file} must not declare a .bud- or retired .budget- rule`).not.toMatch(/\.(bud|budget)-(?!tier\b|anchor\b)[a-z]/)
+      expect(source, `${file} must not declare the capture form`).not.toMatch(/\.(quick-add|expense-edit)\b/)
+    }
+    // The dead hero label used to live in the shared kicker list.
+    expect(sheet).not.toContain('.budget-hero-label')
   })
 
-  it('keeps exactly the ten data-driven inline styles', () => {
-    // P12 took the tenth one: the crew-card step was a fixed pair chosen by a
-    // condition, not a measured value, so it became `.bud-panel-gap` and the
-    // condition stayed in the markup. The other ten all read the trip.
-    expect(count(tab, 'style={')).toBe(10)
-    for (const [snippet, expected] of REMAINING_INLINE) {
-      expect(count(tab, snippet), snippet).toBe(expected)
+  it('the map owns every class the module declares', () => {
+    const owner = map.owners.find(o => o.id === 'budget')
+    const owned = new Set(owner?.owned ?? [])
+    // Shared components this page places, sizes or configures but does not own:
+    // avatar.css documents width/height as the page's sizing points, and
+    // button.css documents --btn-* as the page's configuration variables.
+    const modifiers = new Set(['is-over', 'is-on', 'is-done', 'is-unread', 'soft', 'pos', 'neg', 'sm', 'card', 'avatar', 'btn'])
+    const declared = new Set([...css.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map(hit => hit[1]))
+    for (const cls of declared) {
+      if (modifiers.has(cls)) continue
+      expect(owned.has(cls), `${cls} is declared but not owned`).toBe(true)
+    }
+    expect(owned.has('settled-row')).toBe(true)
+    expect(owned.has('quick-add')).toBe(true)
+  })
+
+  it('every class the component names is declared, or a named probe hook', () => {
+    const declared = new Set([...css.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map(hit => hit[1]))
+    const used = new Set(tab.match(/\bbud-[a-z0-9-]+\b/g) ?? [])
+    for (const cls of used) {
+      if (NOT_A_CLASS.has(cls)) continue
+      expect(declared.has(cls) || PROBE_HOOKS.has(cls), `${cls} has no rule and is not a probe hook`).toBe(true)
+    }
+    // The category classes are composed by `catClass`, so the census needs
+    // one named proof that every hue the app can paint exists.
+    for (const hue of ['transport', 'accommodation', 'food', 'activities', 'entry-fees', 'tolls-parking', 'local-travel', 'emergency-buffer']) {
+      expect(declared.has(`bud-cat--${hue}`), `bud-cat--${hue}`).toBe(true)
+      expect(code).toContain('return `bud-cat--${c}`')
     }
   })
 
-  it('uses only the moved classes, and each moved class is used', () => {
-    const used = new Set(tab.match(/\bbud-[a-z-]+/g) ?? [])
-    expect([...used].sort()).toEqual(RULES.map(rule => rule.cls).sort())
+  it('the old rules are gone from the whole graph', () => {
+    for (const dead of [
+      'bud-card-lead', 'bud-hero-meter', 'bud-panel-gap', 'bud-hero-meter',
+      'metric-strip', 'daybars', 'daybar-fill', 'catbars', 'cat-chip',
+      'budget-bars', 'budget-bar-fill', 'budget-hero', 'budget-hero-label', 'balance-row', 'balance-who',
+    ]) {
+      expect(sheet, `.${dead} is a retired budget selector`).not.toContain(`.${dead}`)
+    }
+  })
+})
+
+describe('PW-13 — the component carries no inline styles', () => {
+  it('uses none, and the page baseline locks the zero in', () => {
+    // The tenth survivor was a chart width. Every bar now uses SVG geometry
+    // (`x`/`width`/`height` attributes), so no measured value needs `style`.
+    expect(code.match(/style=\{\{/g) ?? []).toHaveLength(0)
+    expect(baseline.pageFiles['src/pages/trip/BudgetTab.tsx'].inlineStyle).toBe(0)
+    expect(tab).not.toContain('enterIndex')
   })
 
-  it('puts the watch-row compound classes on the same element', () => {
+  it('keeps the watch-row classes on one element', () => {
     expect(tab).toContain('className="row-between bud-watch-row"')
   })
+})
 
-  it('keeps the moved rules under one section comment, after the rules they follow', () => {
-    expect(count(css, SECTION)).toBe(1)
-    expect(css.indexOf(SECTION)).toBeLessThan(css.indexOf('.bud-card-lead {'))
-  })
-
-  it('declares no bud- rule that the list above does not name', () => {
-    const sheet = topLevel(css)
-    const selectors = [...sheet.matchAll(/(?:^|\n)([^\n{}]*\.bud-[a-z-]+[^\n{}]*) \{/g)].map(hit => hit[1].trim())
-    expect(selectors.sort()).toEqual(RULES.map(rule => rule.selector).sort())
-  })
-
-  for (const rule of RULES) {
-    it(`declares ${rule.selector} once, with the inline values`, () => {
-      const hits = [...topLevel(css).matchAll(/(?:^|\n)([^\n{}]+) \{([^}]*)\}/g)].filter(hit => hit[1] === rule.selector)
-      expect(hits.length).toBe(1)
-      expect(hits[0][2].replace(/\s+/g, ' ').trim()).toBe(rule.declarations)
+describe('PW-13 — the key recipes stay on the tokens', () => {
+  for (const rule of KEY_RULES) {
+    it(`declares ${rule.selector} once, with its own values`, () => {
+      const found = readRule(css, rule.selector)
+      expect(found.count).toBe(1)
+      expect(found.body).toBe(rule.declarations)
     })
   }
+
+  it('grows the stacked bars as one element from their baseline', () => {
+    expect(readRule(css, '.bud-stack').body).toContain('animation: bud-bars-in calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-track-fill').body).toContain('animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-bal-bar').body).toContain('animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+  })
+
+  it('keeps the tooltip on a token transition and its own popover surface', () => {
+    // The artboard draws the day tooltip as a dark popover in both themes, so the
+    // surface and ink come from the rule's own variables, and dark swaps the surface.
+    const tip = readRule(css, '.bud-tip').body ?? ''
+    expect(tip).toContain('background: var(--bud-tip-surface); color: var(--bud-tip-ink);')
+    expect(css).toContain("[data-theme='dark'] .bud-tip { --bud-tip-surface: var(--pw-line); }")
+    expect(tip).toContain('transition: opacity var(--motion-fast) var(--ease-paper);')
+  })
+
+  it('resets the shared card step inside the Budget grids', () => {
+    // The shared `.card + .card` step is real; this reset must own it back.
+    const shared = readRule(sheet, '.card + .card')
+    expect(shared.count).toBe(1)
+    expect(shared.body).toContain('margin-top: 14px')
+    expect(css).toMatch(/\.bud-glance > \.card \+ \.card,\s*\.bud-grid > \.card \+ \.card \{ margin-top: 0; \}/)
+  })
+
+  it('pairs every animated class with a reduced-motion opt-out', () => {
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    for (const cls of ['.bud-track-fill', '.bud-share-bar', '.bud-essential-bar', '.bud-stack', '.bud-bal-bar', '.bud-state']) {
+      expect(reduced, `${cls} must stop under reduced motion`).toContain(cls)
+    }
+    expect(reduced).toContain('.bud-tip { transition: none; }')
+  })
+
+  it('names no raw duration in the module', () => {
+    const timeline = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(timeline).not.toMatch(/\d+ms/)
+  })
+
+  it('gives the coarse pointer the 44px control floor', () => {
+    const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
+    expect(coarse).toContain('.bud-filter { min-height: 44px; min-width: 44px; }')
+    expect(coarse).toContain('.settled-history summary { min-height: 44px; padding: 12px 0; }')
+    // A flex summary drops the native disclosure marker.
+    expect(coarse).not.toContain('.bud-table-view summary { display: flex;')
+  })
 })

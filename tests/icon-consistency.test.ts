@@ -91,15 +91,16 @@ describe('#1 — warn-ink on light tints (the ratchet-baseline entries)', () => 
   // The design-system ratchet reads each selector's OWN declaration pair, so
   // the fix has to live in the base rule — a :root override alone leaves the
   // finding in tests/design-system-baseline.json forever.
-  it('the three base rules ink with --ink-amber, not raw --warn', () => {
+  it('the base rules ink with --ink-amber, not raw --warn', () => {
     const pill = /\.day-warn-pill\s*\{([^}]*)\}/.exec(stylesSrc)
     expect(pill, '.day-warn-pill rule missing').not.toBeNull()
     expect(pill![1]).toContain('var(--ink-amber)')
 
+    // PW-08 retired `.day-rail-chip.warn` with the rail it skinned; the ribbon's
+    // attention pill is that role's heir and must carry the same deeper ink.
     for (const sel of [
       /^\.clickable-chip\.on-saffron \{[^}]*\}/m,
-      /^\.day-rail-chip\.warn \{[^}]*\}/m,
-      /^\.day-rail-chip\.warn:hover \{[^}]*\}/m,
+      /^\.tl-ribbon-alert \{[^}]*\}/m,
     ]) {
       const line = sel.exec(stylesSrc)
       expect(line, `rule ${sel} missing`).not.toBeNull()
@@ -107,9 +108,9 @@ describe('#1 — warn-ink on light tints (the ratchet-baseline entries)', () => 
     }
   })
 
-  it('none of the three is still a ratcheted (accepted) violation', () => {
+  it('none of them is still a ratcheted (accepted) violation', () => {
     const baseline = JSON.parse(readFileSync(join(root, 'tests', 'design-system-baseline.json'), 'utf8')) as { contrastLight: string[] }
-    for (const name of ['.day-warn-pill', '.clickable-chip.on-saffron', '.day-rail-chip.warn:hover']) {
+    for (const name of ['.day-warn-pill', '.clickable-chip.on-saffron', '.tl-ribbon-alert']) {
       expect(baseline.contrastLight.filter(e => e.startsWith(name + ' ')), `${name} re-entered the baseline`).toEqual([])
     }
   })

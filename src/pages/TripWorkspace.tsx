@@ -557,13 +557,13 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
         </React.Suspense>
       )}
       {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} previewOpen={!!pending} />}
-      {tab === 'budget' && <BudgetTab trip={effective} totals={totals} editable={editable} previewOpen={!!pending} onOpenSettings={() => setTab('settings')} />}
+      {tab === 'budget' && <BudgetTab key={editable ? 'budget-edit' : 'budget-view'} trip={effective} totals={totals} editable={editable} previewOpen={!!pending} stagedRef={pendingRef} onOpenSettings={() => setTab('settings')} />}
       {tab === 'share' && <ShareTab trip={trip} me={me} editable={editable} onNavigate={onNavigate} legCorrections={legCorrections} />}
       {/* key=trip.id: TripSettingsForm holds local draft state in useState
            seeded from the trip at mount and never re-syncs, so without the key
            a quick trip-switch keeps the previous trip's draft visible until a
            reload (#213). */}
-      {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} legCorrections={legCorrections} onOpenDay={dayIndex => openTimeline({ dayIndex })} />}
+      {tab === 'settings' && <TripSettingsForm key={trip.id} trip={trip} editable={editable} legCorrections={legCorrections} onOpenDay={dayIndex => openTimeline({ dayIndex })} onOpenShare={() => setTab('share')} />}
       </>}</div>)}
 
       {/* The impact sheet is position:fixed, so it paints in the same place either

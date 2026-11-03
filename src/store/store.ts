@@ -4128,16 +4128,24 @@ export function restoreMember(tripId: ID, member: TripMember): void {
   fire('trip_members', supabase.from('trip_members').insert({ trip_id: tripId, user_id: member.userId, role: member.role, joined_at: member.joinedAt }))
 }
 
-/** Re-insert a deleted expense line — powers Undo on expense deletion. */
-export function restoreExpense(tripId: ID, expense: Expense, index: number): void {
+/** What an Undo restore did, so the toast speaks the truth. */
+export type ExpenseRestoreOutcome = 'applied' | 'refused' | 'duplicate' | 'invalid'
+
+/** Re-insert a deleted expense line — powers Undo on expense deletion.
+ *  Undo can fire after a realtime downgrade, so the acting user must still
+ *  hold the edit right. The gate is the one the settle writers use. */
+export function restoreExpense(tripId: ID, expense: Expense, index: number, by: ID | null): ExpenseRestoreOutcome {
   const t = tripById(tripId)
-  if (!t || t.expenses.some(x => x.id === expense.id)) return
+  if (!t) return 'refused'
+  if (!canEdit(roleOf(t, by))) return 'refused'
+  if (t.expenses.some(x => x.id === expense.id)) return 'duplicate'
   // #382: Undo replays a captured line, and a line the writers would refuse
   // today must not come back through the back door. One rule, everywhere.
   const v = amountVerdict(expense.amountInr)
-  if (!v.ok) { toast(amountRefusal(expense.amountInr)!, 'err'); return }
+  if (!v.ok) { toast(amountRefusal(expense.amountInr)!, 'err'); return 'invalid' }
   mutateTrip(tripId, draft => { draft.expenses.splice(Math.min(index, draft.expenses.length), 0, expense) }, { touch: false })
   void persistTripField(tripId, tripById(tripId)!)
+  return 'applied'
 }
 
 export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
@@ -4537,6 +4545,7 @@ function coherentDay(value: unknown): value is ItineraryDay {
   if (!nonEmptyString(day.id) || !finiteNumber(day.index)) return false
   if (day.title !== undefined && typeof day.title !== 'string') return false
   if (day.startTime !== undefined && typeof day.startTime !== 'string') return false
+  if (day.coverImageUrl !== undefined && typeof day.coverImageUrl !== 'string') return false
   return Array.isArray(day.stops) && day.stops.every(coherentStop)
 }
 
@@ -5922,23 +5931,37 @@ export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopI
 
 // ---------------- Expenses ----------------
 
-export function addExpense(tripId: ID, e: Omit<Expense, 'id'>): void {
+/** What adding a line did, so the capture form speaks the truth. */
+export type ExpenseAddOutcome = 'applied' | 'refused' | 'invalid'
+
+/** Add an expense line. The acting user must hold the edit right, so a
+ *  downgraded session cannot mutate the cache before RLS refuses. */
+export function addExpense(tripId: ID, e: Omit<Expense, 'id'>, by: ID | null): ExpenseAddOutcome {
   const t = tripById(tripId)
-  if (!t) return
+  if (!t) return 'refused'
+  if (!canEdit(roleOf(t, by))) return 'refused'
   // #382: the writer refuses what the form refuses. An amount that is not a
   // finite number of rupees above zero poisons every figure the Budget tab
   // shows, and the row is durable — one bad line survives reloads and syncs.
   const v = amountVerdict(e.amountInr)
-  if (!v.ok) { toast(amountRefusal(e.amountInr)!, 'err'); return }
+  if (!v.ok) { toast(amountRefusal(e.amountInr)!, 'err'); return 'invalid' }
   mutateTrip(tripId, draft => { draft.expenses.push({ optional: false, ...e, id: uid('ex') }) }, { touch: false })
   void persistTripField(tripId, tripById(tripId)!)
+  return 'applied'
 }
 
-export function deleteExpense(tripId: ID, expenseId: ID): void {
+/** What deleting a line did, so the undo toast is not raised for a no-op. */
+export type ExpenseDeleteOutcome = 'applied' | 'refused' | 'no-such-line'
+
+/** Delete an expense line. Only an owner or editor may remove it. */
+export function deleteExpense(tripId: ID, expenseId: ID, by: ID | null): ExpenseDeleteOutcome {
   const t = tripById(tripId)
-  if (!t) return
+  if (!t) return 'refused'
+  if (!canEdit(roleOf(t, by))) return 'refused'
+  if (!t.expenses.some(x => x.id === expenseId)) return 'no-such-line'
   mutateTrip(tripId, draft => { draft.expenses = draft.expenses.filter(x => x.id !== expenseId) }, { touch: false })
   void persistTripField(tripId, tripById(tripId)!)
+  return 'applied'
 }
 
 /** What `updateExpense` did, so a caller can speak the truth instead of
@@ -5952,9 +5975,12 @@ export type ExpenseWriteOutcome = 'applied' | 'refused' | 'no-such-line'
 
 /** Edit an expense line in place — the Budget tab's pencil affordance — instead
  *  of the old delete-and-retype dance. */
-export function updateExpense(tripId: ID, expenseId: ID, patch: Partial<Omit<Expense, 'id'>>): ExpenseWriteOutcome {
+export function updateExpense(tripId: ID, expenseId: ID, patch: Partial<Omit<Expense, 'id'>>, by: ID | null): ExpenseWriteOutcome {
   const t = tripById(tripId)
   if (!t || !t.expenses.some(x => x.id === expenseId)) return 'no-such-line'
+  // The editor stays open on a refusal, so a downgraded role keeps the typed
+  // values instead of writing under the old right.
+  if (!canEdit(roleOf(t, by))) return 'refused'
   // #382: an edit is a write too — the pencil affordance used to put any
   // number on the row it was handed. A patch that does not carry an amount
   // changes nothing about the line's money and passes through untouched.

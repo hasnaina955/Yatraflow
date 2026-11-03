@@ -52,4 +52,16 @@ describe('Android release workflow', () => {
     const [major, minor, patch] = pkg.version.split('.').map(Number)
     expect(major * 10000 + minor * 100 + patch).toBeGreaterThan(14)
   })
+
+  // Profile said "Update checks are not configured in this build" on every CI
+  // APK. The bundle is built here, and this step wrote four keys, but not the
+  // two the update feed reads. A Vercel variable cannot reach this build.
+  it('forwards the APK update feed settings into the web build', () => {
+    expect(workflow).toContain("printf 'VITE_APK_UPDATE_FEED_URL=%s\\n'")
+    expect(workflow).toContain("printf 'VITE_APK_UPDATE_HOSTS=%s\\n'")
+    expect(workflow).toMatch(/VITE_APK_UPDATE_FEED_URL: \$\{\{ vars\.VITE_APK_UPDATE_FEED_URL \}\}/)
+    expect(workflow).toMatch(/VITE_APK_UPDATE_HOSTS: \$\{\{ vars\.VITE_APK_UPDATE_HOSTS \}\}/)
+    // A host spelled out here would bake a feed that nobody approved.
+    expect(workflow).not.toMatch(/yatraflow\.in/)
+  })
 })

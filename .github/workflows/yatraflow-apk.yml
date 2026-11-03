@@ -50,11 +50,17 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_MAPPLS_KEY: ${{ secrets.VITE_MAPPLS_KEY }}
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_APK_UPDATE_FEED_URL: ${{ vars.VITE_APK_UPDATE_FEED_URL }}
+          VITE_APK_UPDATE_HOSTS: ${{ vars.VITE_APK_UPDATE_HOSTS }}
+
         run: |
           printf 'VITE_SUPABASE_URL=%s\n' "$VITE_SUPABASE_URL" >> .env.production
           printf 'VITE_SUPABASE_ANON_KEY=%s\n' "$VITE_SUPABASE_ANON_KEY" >> .env.production
           printf 'VITE_MAPPLS_KEY=%s\n' "$VITE_MAPPLS_KEY" >> .env.production
           printf 'VITE_GOOGLE_MAPS_API_KEY=%s\n' "$VITE_GOOGLE_MAPS_API_KEY" >> .env.production
+          printf 'VITE_APK_UPDATE_FEED_URL=%s\n' "$VITE_APK_UPDATE_FEED_URL" >> .env.production
+          printf 'VITE_APK_UPDATE_HOSTS=%s\n' "$VITE_APK_UPDATE_HOSTS" >> .env.production
+
 
       - name: Build web bundle
         run: npm run build

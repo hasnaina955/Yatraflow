@@ -376,6 +376,8 @@ discriminates a migration-gated table in one call — **`200 []` means the table
 
 - **A test that compares a file byte-for-byte needs pinned line endings (learned 2026-10-02).** `tests/lint-ratchet.test.ts` rewrites `eslint-baseline.json` and demands the rewrite be identical. A Windows checkout converts LF to CRLF, so the rewrite always differed and the test failed on every Windows machine while CI on Linux stayed green. Pin such files with a `.gitattributes` rule (`eslint-baseline.json text eol=lf`). A byte-identity assertion and platform line-ending conversion cannot coexist without one.
 
+- **A killed gate run leaves the eslint ratchet probe behind, and the next run fails (learned 2026-11-03).** `tests/lint-ratchet.test.ts` writes `src/__ratchet_probe_tmp.ts` and deletes it. Stop the run in the middle and the file stays. `lint:ratchet` then reports two regressions in that file, and `verify` stops before the suite starts. Delete the file and re-run. Read the regression path before you trust a red ratchet.
+
 ### 3.1 What CI actually runs, per destination
 
 Neither workflow has a `paths` filter, so **docs-only changes still run the full
@@ -396,6 +398,14 @@ tags — **not on pull requests**. So a PR into `main` costs one `ci.yml` run pl
 Vercel, while the merge itself is what burns an Android build. Verify with
 `gh pr checks <n>` rather than reasoning from the YAML; the check list names the
 workflow that actually fired.
+
+**The APK bundle comes from this workflow, so only its `env:` block reaches the
+installed app.** Four `VITE_*` keys come from repository secrets. The two
+update-feed keys are public, so they come from repository variables. Both stay
+empty until the feed passes approval. A Vercel variable never reaches an APK,
+because the APK has its own build. An empty value keeps the update check inert,
+so Profile says the check is not configured. `tests/android-release.test.ts`
+pins the forwarding.
 
 **A run that dies at ~15 minutes with zero executed steps is the runner queue,
 not the code (seen twice, 2026-10-05/06).** Two runs hit it. Run `37364628598`

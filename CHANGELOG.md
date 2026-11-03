@@ -16,6 +16,18 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-11-03
+
+**This minor release makes the Android app able to learn about its own updates.** The APK now carries the update feed URL. The feed is served from the release page, so a release cut publishes it. Every APK shipped before this one told its own Profile page that update checks were not configured.
+
+### Added
+
+- **The APK update feed is now served, so a release cut publishes it.** `api/android-manifest.js` answers `/android/manifest.json` with the six fields `src/lib/apkUpdates.ts` parses. It reads the newest GitHub release that carries an APK asset. `/android/latest.apk` answers a `302` to that asset, so the download URL stays on the approved host. `VITE_APK_UPDATE_HOSTS` stays exactly `www.yatraflow.in`. Two explicit rewrites sit ahead of the SPA catch-all, which used to answer the path with `index.html`. A test pins that order, because the failure is silent. The read needs no token, and it carries a 5-minute edge cache. It fails closed with a `503` on a broken read, or when no release carries an APK. `scripts/apk-release-manifest.mjs` stays as the check on a single artifact, and `docs/APK-UPDATE-FEED.md` now describes the served feed.
+
+### Fixed
+
+- **The Android APK can now carry its update feed.** Every APK that CI built told its Profile page that update checks were not configured. The check button stayed grey. The cause was a build gap. The workflow wrote four `VITE_*` keys into `.env.production` and stopped there. So `VITE_APK_UPDATE_FEED_URL` and `VITE_APK_UPDATE_HOSTS` never entered the bundle, and a Vercel variable cannot reach an APK build at all. The workflow now forwards both from repository variables. An unset variable keeps the check inert. The feed itself is the second gap. The catch-all rewrite in `vercel.json` answers `/android/manifest.json` with `index.html`. The client fails closed on an HTML answer. `docs/APK-UPDATE-FEED.md` names both causes, and `tests/android-release.test.ts` pins the forwarding.
+
 ## [0.82.0] - 2026-11-03
 
 **This minor release gives Overview, Budget and Timeline the Linen polish.** The three tabs now arrive in steps. A day card folds open and shut in one smooth motion. Switching between Day by day and Whole trip animates. The trip settings page follows the artboard's three-column body. Days can carry their own cover photo. The light theme sits on Linen paper. Release `0.81.0` stays as shipped.

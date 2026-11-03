@@ -135,6 +135,16 @@ describe('boot gating', () => {
     expect(seams.fetches).toEqual([])
   })
 
+  // The APK workflow writes both keys on every run, and both are empty until
+  // the feed is approved. An empty pair must stay as inert as an absent pair.
+  it('stays inert when the build carries empty feed settings', async () => {
+    const runtime = await fresh({ feed: '', hosts: '' })
+    await runtime.bootApkUpdates()
+    expect(runtime.apkUpdateStatus().unavailable).toBe('unconfigured')
+    await runtime.apkUpdateCheck({ manual: true })
+    expect(seams.fetches).toEqual([])
+  })
+
   it('boots once when two mounts ask at the same time', async () => {
     const runtime = await fresh()
     await Promise.all([runtime.bootApkUpdates(), runtime.bootApkUpdates()])

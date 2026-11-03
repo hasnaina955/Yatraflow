@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-11-03
+
+**This minor release makes the Android app able to learn about its own updates.** The APK now carries the update feed URL. The feed is served from the release page, so a release cut publishes it. Every APK shipped before this one told its own Profile page that update checks were not configured.
+
 ### Added
 
 - **The APK update feed is now served, so a release cut publishes it.** `api/android-manifest.js` answers `/android/manifest.json` with the six fields `src/lib/apkUpdates.ts` parses. It reads the newest GitHub release that carries an APK asset. `/android/latest.apk` answers a `302` to that asset, so the download URL stays on the approved host. `VITE_APK_UPDATE_HOSTS` stays exactly `www.yatraflow.in`. Two explicit rewrites sit ahead of the SPA catch-all, which used to answer the path with `index.html`. A test pins that order, because the failure is silent. The read needs no token, and it carries a 5-minute edge cache. It fails closed with a `503` on a broken read, or when no release carries an APK. `scripts/apk-release-manifest.mjs` stays as the check on a single artifact, and `docs/APK-UPDATE-FEED.md` now describes the served feed.

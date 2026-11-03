@@ -93,6 +93,14 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 _Release highlights, newest first — the full record lives in [CHANGELOG.md](CHANGELOG.md)._
 
+## The v0.83.0 release
+
+v0.83.0 is deployed to production. It makes the Android app able to learn about its own updates.
+
+- **The update feed is served, not committed.** `/android/manifest.json` answers from the newest release that carries an APK, and `/android/latest.apk` redirects to it. A release cut publishes the feed.
+- **The APK now carries the feed settings.** Before this, every build told its Profile page that update checks were not configured. The CI bundle never received the two keys.
+- **A release cut is the whole flow.** No hand-copied manifest, no fingerprint, no Android SDK on your machine.
+
 ## The v0.80.0 release
 
 v0.80.0 is deployed to production. It joins the verified work on `test` with main's dependency security updates.

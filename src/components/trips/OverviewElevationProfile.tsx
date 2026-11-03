@@ -109,36 +109,43 @@ export function OverviewElevationProfile({
             <path className="ovw-elev-hill-far" d={run.area} transform={`translate(0 ${plot.baseY}) scale(1 1.12) translate(0 ${-plot.baseY})`} aria-hidden="true" />
             <path className="ovw-elev-hill-near" d={run.area} transform={`translate(0 ${plot.baseY}) scale(1 1.04) translate(0 ${-plot.baseY})`} aria-hidden="true" />
             <path className="ovw-elev-area" d={run.area} fill={`url(#${landId})`} />
-            <path className="ovw-elev-line" d={run.line} />
+            {/* `pathLength={1}` lets the CSS dash draw run the whole curve once,
+                instead of leaving it dotted at its real length. */}
+            <path className="ovw-elev-line" d={run.line} pathLength={1} />
             <path className="ovw-elev-line-centre" d={run.line} aria-hidden="true" />
           </g>
         ))}
 
-        {plot.marks.map(mark => (
-          <circle
-            key={`${mark.kind}-${mark.distanceKm}-${mark.title}`}
-            className={`ovw-elev-dot is-${mark.kind}`}
-            cx={mark.x}
-            cy={mark.y}
-            r={mark.kind === 'destination' ? 7 : mark.kind === 'start' ? 6 : 4.5}
-          />
-        ))}
+        {/* One group, so the marks arrive as one beat in the CSS cascade. */}
+        <g className="ovw-elev-marks">
+          {plot.marks.map(mark => (
+            <circle
+              key={`${mark.kind}-${mark.distanceKm}-${mark.title}`}
+              className={`ovw-elev-dot is-${mark.kind}`}
+              cx={mark.x}
+              cy={mark.y}
+              r={mark.kind === 'destination' ? 7 : mark.kind === 'start' ? 6 : 4.5}
+            />
+          ))}
+        </g>
 
-        {labelled.map(mark => {
-          const anchor = mark.x > width * 0.72 ? 'end' : 'start'
-          const dx = anchor === 'end' ? -7 : 7
-          const nameY = Math.max(plot.pad.top + 8, mark.y - 24)
-          return (
-            <g key={`label-${mark.title}-${mark.distanceKm}`}>
-              <text className="ovw-elev-name" x={mark.x + dx} y={nameY} textAnchor={anchor}>
-                {overviewPinText(mark.title, compact ? 14 : 20)}
-              </text>
-              <text className="ovw-elev-height" x={mark.x + dx} y={nameY + 13} textAnchor={anchor}>
-                {Math.round(mark.elevationM).toLocaleString('en-IN')} m
-              </text>
-            </g>
-          )
-        })}
+        <g className="ovw-elev-labels">
+          {labelled.map(mark => {
+            const anchor = mark.x > width * 0.72 ? 'end' : 'start'
+            const dx = anchor === 'end' ? -7 : 7
+            const nameY = Math.max(plot.pad.top + 8, mark.y - 24)
+            return (
+              <g key={`label-${mark.title}-${mark.distanceKm}`}>
+                <text className="ovw-elev-name" x={mark.x + dx} y={nameY} textAnchor={anchor}>
+                  {overviewPinText(mark.title, compact ? 14 : 20)}
+                </text>
+                <text className="ovw-elev-height" x={mark.x + dx} y={nameY + 13} textAnchor={anchor}>
+                  {Math.round(mark.elevationM).toLocaleString('en-IN')} m
+                </text>
+              </g>
+            )
+          })}
+        </g>
 
         {peak && (
           <g className="ovw-elev-peak">
@@ -160,17 +167,19 @@ export function OverviewElevationProfile({
           </g>
         )}
 
-        {plot.ticksX.map((tick, index) => (
-          <text
-            key={`x-${tick.label}`}
-            className="ovw-elev-axis is-x"
-            x={tick.x}
-            y={plot.baseY + 18}
-            textAnchor={index === 0 ? 'start' : index === plot.ticksX.length - 1 ? 'end' : 'middle'}
-          >
-            {tick.label}
-          </text>
-        ))}
+        <g className="ovw-elev-axes">
+          {plot.ticksX.map((tick, index) => (
+            <text
+              key={`x-${tick.label}`}
+              className="ovw-elev-axis is-x"
+              x={tick.x}
+              y={plot.baseY + 18}
+              textAnchor={index === 0 ? 'start' : index === plot.ticksX.length - 1 ? 'end' : 'middle'}
+            >
+              {tick.label}
+            </text>
+          ))}
+        </g>
       </svg>
 
       {insetPath && (

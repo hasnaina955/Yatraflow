@@ -1016,7 +1016,13 @@
   scrollbar-width: thin;
 }
 
+/* The rows stack with the artboard's 6px step. They used to touch, so the day
+   thumbnails and the cells read as one block. A flex column keeps the sticky
+   header row working. */
 .mx {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-width: 520px;
   padding: 2px 0;
 }

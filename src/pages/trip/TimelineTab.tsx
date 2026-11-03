@@ -82,6 +82,10 @@ import { MoveStopModal } from './timeline/MoveStopModal'
  *  stable reference for days without warnings (`?? []` would defeat the memo). */
 const NO_WARNINGS: ScheduleWarning[] = []
 
+/** Whole trip opens its days over this many beats (one --stagger-step each): the
+ *  motion budget's six entrance steps. Days past the sixth share the last beat. */
+const REVEAL_STEPS = 6
+
 const STRIP_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 /** "Sat 14" for the ribbon's day line, or null when the trip has no start date. */
@@ -187,10 +191,22 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // never reads nor writes the saved open day, so the accordion you left is the
   // accordion you return to when the switch goes back to One day.
   const [reviewAll, setReviewAll] = useState(() => loadReviewAll(trip.id))
+  // Whole trip opens its days one beat apart (capped at REVEAL_STEPS, one
+  // --stagger-step each) instead of mounting every body in one commit: measured,
+  // four bodies at once cost three frames of 109 to 126ms. `revealStep` counts
+  // the beats played; a persisted Whole trip starts past the last one so a page
+  // load never animates, and so does reduced motion (the step is 0ms there).
+  const [revealStep, setRevealStep] = useState(() => (reviewAll ? REVEAL_STEPS : 0))
   const setReview = useCallback((on: boolean) => {
     setReviewAll(on)
     saveReviewAll(trip.id, on)
+    setRevealStep(on && motionTiming('--stagger-step').duration > 0 ? 1 : on ? REVEAL_STEPS : 0)
   }, [trip.id, reviewAll])
+  useEffect(() => {
+    if (!reviewAll || revealStep >= REVEAL_STEPS) return
+    const id = window.setTimeout(() => setRevealStep(s => s + 1), motionTiming('--stagger-step').duration)
+    return () => window.clearTimeout(id)
+  }, [reviewAll, revealStep])
   // (TripWorkspace keys this component by trip id, so a trip switch remounts
   // it and this init re-reads the right trip — no reset effect needed.)
   // Persisted inside the updater: React may re-run updaters in dev StrictMode,
@@ -502,7 +518,10 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // exists so the DAY HEADER can stay in flow: measured, a header carrying the
   // day's clocks, chips, warnings and actions is 193–309px tall, which is a
   // control panel, not a label to stick to the viewport.
-  const [currentDay, setCurrentDay] = useState<number | null>(null)
+  // A page that loads in Whole trip starts on the first day, which is also what
+  // the measure below settles on at the top of the page. Starting from null made
+  // the ribbon fade its current card in after first paint: a load must not animate.
+  const [currentDay, setCurrentDay] = useState<number | null>(() => (reviewAll && days.length ? days[0].index : null))
   useEffect(() => {
     if (!reviewAll) { setCurrentDay(null); return }
     const line = stackRef.current // the measured sticky stack (MR9/P4)
@@ -899,8 +918,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           </div>
         </section>
 
-        {days.map(day => (
-          <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} editable={planEditable} open={reviewAll || openDayIndex === day.index} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
+        {days.map((day, ordinal) => (
+          <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} editable={planEditable} open={openDayIndex === day.index || (reviewAll && revealStep > Math.min(ordinal, REVEAL_STEPS - 1))} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}

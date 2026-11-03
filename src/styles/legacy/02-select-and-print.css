@@ -723,12 +723,28 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
   font-variant-numeric: tabular-nums;
+  /* Switching to Whole trip tightens the ribbon (see .tl-root-review below);
+     the padding rides the same clock as the totals column, so the ribbon settles
+     as one surface instead of cutting in one frame. */
+  transition: padding var(--motion-slow) var(--ease-resize);
 }
 .tl-ribbon-total {
   width: 233px; flex: none;
   display: flex; flex-direction: column; gap: 4px;
   padding-inline-end: 22px;
   border-inline-end: 1px dashed var(--line);
+  /* The column folds in Whole trip instead of vanishing: its width, its end
+     padding, the gap it leaves and its dashed edge all travel on one
+     clock, and the text fades on the med beat. `clip` with a margin keeps
+     the keyboard ring of the warning pill inside the paint. */
+  overflow: clip; overflow-clip-margin: 8px;
+  transition:
+    width var(--motion-slow) var(--ease-resize),
+    padding-inline-end var(--motion-slow) var(--ease-resize),
+    margin-inline-end var(--motion-slow) var(--ease-resize),
+    border-inline-end-width var(--motion-slow) var(--ease-resize),
+    opacity var(--motion-med) var(--ease-paper) var(--motion-fast),
+    visibility 0s;
 }
 .tl-ribbon-eyebrow {
   font-size: 11px; font-weight: 700; letter-spacing: .06em;
@@ -786,7 +802,13 @@
   background: var(--pw-soft);
   border: 1.5px solid transparent; border-radius: var(--radius-sm);
   color: var(--text-2);
-  transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+  /* Every part of the current-day marker tweens: the card's fill, its border and
+     the inset ring Whole trip adds, plus the day label and the bar's track below.
+     None of them changes weight or size, so nothing in the card reflows. */
+  transition:
+    border-color var(--motion-med) var(--ease-paper),
+    background-color var(--motion-med) var(--ease-paper),
+    box-shadow var(--motion-med) var(--ease-paper);
 }
 .tl-ribbon-card:hover { border-color: var(--teal); }
 .tl-ribbon-card[aria-current='true'] {
@@ -802,6 +824,7 @@
 .tl-ribbon-card-day {
   font-size: 12px; font-weight: 700; color: var(--text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color var(--motion-med) var(--ease-paper);
 }
 .tl-ribbon-card[aria-current='true'] .tl-ribbon-card-day { color: var(--pw-sea-700); }
 /* The state dot: one mark, three meanings. The label is the accessible name,
@@ -824,6 +847,7 @@
   display: block; width: 100%; height: 4px; margin-top: 4px;
   background: var(--pw-sunken); border-radius: var(--radius-pill);
   overflow: hidden;
+  transition: background-color var(--motion-med) var(--ease-paper);
 }
 .tl-ribbon-card-bar > span {
   display: block; height: 4px;
@@ -889,7 +913,7 @@
   .tl-ribbon-card { min-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tl-ribbon-card { transition: none; }
+  .tl-ribbon, .tl-ribbon-total, .tl-ribbon-card, .tl-ribbon-card-day, .tl-ribbon-card-bar { transition: none; }
 }
 /* Warning state inside the affected day's header (doc §6.3). */
 .day-warn-pill {
@@ -947,11 +971,60 @@
 }
 /* A stuck ribbon would otherwise hold 160px of totals over a phone screen to
    say one word; in review the totals column is not the point, the day row is. */
-.tl-root-review .tl-ribbon-total { display: none; }
+.tl-root-review .tl-ribbon-total {
+  width: 0; padding-inline-end: 0;
+  /* the ribbon's 22px gap would otherwise keep a 22px hole where the column was */
+  margin-inline-end: -22px;
+  border-inline-end-width: 0;
+  opacity: 0;
+  /* gone from the tab order and the accessibility tree once it has folded away,
+     which is what `display: none` used to do on the first frame */
+  visibility: hidden;
+  transition:
+    width var(--motion-slow) var(--ease-resize),
+    padding-inline-end var(--motion-slow) var(--ease-resize),
+    margin-inline-end var(--motion-slow) var(--ease-resize),
+    border-inline-end-width var(--motion-slow) var(--ease-resize),
+    opacity var(--motion-med) var(--ease-resize),
+    visibility 0s linear var(--motion-slow);
+}
 /* Which day you are in: the card whose day has scrolled past the sticky line.
    The marker is the BORDER plus the weight, so the state dot cannot replace
    it — the dot is the day's own state and stays next to the marker. */
-.tl-root-review .tl-ribbon-card[aria-current='true'] { font-weight: 800; }
+.tl-root-review .tl-ribbon-card[aria-current='true'] {
+  /* An inset ring doubles the border instead of the old 800 weight: a ring
+     tweens, a static font's weight can only snap and reflow the card's text. */
+  box-shadow: inset 0 0 0 1px var(--pw-lagoon-600);
+}
+/* The totals column keeps its measure while it folds, so its text never
+   rewraps on the way out (233px less the end padding and the dashed edge). */
+@media (min-width: 901px) {
+  .tl-ribbon-total > * { min-width: 210px; }
+}
+/* Stacked ribbon (phone and narrow tablet): the totals are a header line, so
+   they fold by height. `interpolate-size` lets `auto` tween to 0; a browser
+   without it folds in one step, as before. */
+@media (max-width: 900px) {
+  .tl-ribbon-total {
+    interpolate-size: allow-keywords;
+    transition:
+      height var(--motion-med) var(--ease-resize),
+      margin-block-end var(--motion-med) var(--ease-resize),
+      opacity var(--motion-med) var(--ease-paper) var(--motion-fast),
+      visibility 0s;
+  }
+  .tl-root-review .tl-ribbon-total {
+    width: auto; height: 0; margin-inline-end: 0; margin-block-end: -10px;
+    transition:
+      height var(--motion-med) var(--ease-resize),
+      margin-block-end var(--motion-med) var(--ease-resize),
+      opacity var(--motion-med) var(--ease-resize),
+      visibility 0s linear var(--motion-med);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-root-review .tl-ribbon-total { transition: none; }
+}
 
 /* ---------- Between-stop insertion (#422) ---------- */
 /* The control belongs to the leg between two stops and is revealed on hover
@@ -2446,8 +2519,32 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 /* The selected segment is card white with a 700-weight label, as the artboard
    draws it. The glider's paint lives in pill-nav.css, which owns that element.
    The unselected label carries the mockup's #57524C, which is our ink-2. */
-.tl-toolbar .view-pillbar .tab-btn.active { color: var(--pw-ink); font-weight: 700; }
+.tl-toolbar .view-pillbar .tab-btn.active { color: var(--pw-ink); }
 .tl-toolbar .view-pillbar .tab-btn:not(.active) { color: var(--pw-ink-2); }
+/* The two labels share one weight. A static font cannot tween 600 to 700, so
+   the old swap snapped the glyphs and moved the label by a pixel under the
+   glider; ink and the glider now carry the selection alone. */
+/* The segment's icon is part of the switch: it takes the selection's tint and
+   a small settle, on the same beat as the glider's arrival. */
+.tl-toolbar .view-pillbar .tab-btn > svg {
+  opacity: .7;
+  transition: color var(--motion-med) var(--ease-paper), opacity var(--motion-med) var(--ease-paper), transform var(--motion-med) var(--ease-paper);
+}
+.tl-toolbar .view-pillbar .tab-btn.active > svg { color: var(--pw-sea-700); opacity: 1; transform: scale(1.08); }
+/* One weight, one clock for the label and the press; the global press (scale .97 on
+   --t-fast) is replaced here by a lighter one on the instant step. */
+.tl-toolbar .view-pillbar .tab-btn {
+  font-weight: 700;
+  transition:
+    color var(--motion-med) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
+}
+.tl-toolbar .view-pillbar .tab-btn:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-toolbar .view-pillbar .tab-btn, .tl-toolbar .view-pillbar .tab-btn > svg { transition: none; }
+  .tl-toolbar .view-pillbar .tab-btn:active { transform: none; }
+  .tl-toolbar .view-pillbar .tab-btn.active > svg { transform: none; }
+}
 /* 8px of toolbar gap plus a 6px margin either side is the artboard's 14px
    space between the day-scope switch and the editing switch. */
 .tl-toolbar-sep { width: 1px; height: 24px; flex: none; background: var(--pw-line); margin-inline: var(--space-3); }

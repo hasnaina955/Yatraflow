@@ -62,7 +62,7 @@ describe('review never touches the saved open day (#421)', () => {
   })
 
   it('opens every day from the mode, keeping the accordion value intact', () => {
-    expect(tab).toMatch(/open=\{reviewAll \|\| openDayIndex === day\.index\}/)
+    expect(tab).toMatch(/open=\{openDayIndex === day\.index \|\| \(reviewAll && revealStep > Math\.min\(ordinal, REVEAL_STEPS - 1\)\)\}/)
     expect(tab).toMatch(/onToggleOpen=\{toggleDay\}/)
   })
 
@@ -174,7 +174,8 @@ describe('review mode is a continuous read, oriented by the day rail (#421)', ()
     // PW-08 folded the totals strip and the rail into one ribbon, so the rung
     // moves as one surface: in review the totals column drops out and what is
     // left is the compact rail.
-    expect(css).toMatch(/\.tl-root-review \.tl-ribbon-total \{ display: none; \}/)
+    expect(css).toMatch(/\.tl-root-review \.tl-ribbon-total \{\r?\n {2}width: 0; padding-inline-end: 0;/)
+    expect(css).toMatch(/\.tl-root-review \.tl-ribbon-total \{[^}]*visibility: hidden;/)
     expect(css).toMatch(/\.tl-root-review \.tl-ribbon \{\r?\n  position: sticky;/)
     expect(css).toMatch(/top: calc\(12px \+ var\(--nav-h\) \+ 10px \+ var\(--safe-area-inset-top, env\(safe-area-inset-top, 0px\)\)\);/)
     expect(css).not.toMatch(/\.day-review \.day-header \{[^}]*position: sticky/)
@@ -226,7 +227,7 @@ describe('the timeline blocks cascade in, like the Overview beside them', () => 
     const wrapped = tab.slice(open, close)
     expect(wrapped).toMatch(/className="row-between tl-head"/)
     expect(wrapped).toMatch(/className="tl-ribbon"/)
-    expect(wrapped).toMatch(/\{days\.map\(day => \(/)
+    expect(wrapped).toMatch(/\{days\.map\(\(day, ordinal\) => \(/)
   })
 
   it('gives the day cards the Overview card entrance, not the generic page rise', () => {

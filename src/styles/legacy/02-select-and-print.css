@@ -125,8 +125,10 @@
   border: 1.5px solid var(--pw-line);
   border-radius: var(--radius-lg);
   /* The artboard's folded card is 16px top and bottom, not 18/14: the asymmetry
-     came from the body's own bottom padding, which a folded day does not have. */
-  padding: 16px 20px;
+     came from the body's own bottom padding, which a folded day does not have.
+     The 24px side inset is the artboard's content column; the open day's body
+     already used it, so the header was the one block sitting 4px proud. */
+  padding: 16px var(--space-10);
   box-shadow: var(--elev-1);
 }
 /* The artboard raises the OPEN day one tier: its border turns to the sea tint
@@ -143,6 +145,16 @@
    under the last row. The artboard's folded card is 16px padding on all sides
    with the header flush to it; removing the margin makes the box symmetric. */
 .day-closed > .day-header { margin-bottom: 0; }
+/* The artboard closes an OPEN day's header with a hairline, so the header block
+   reads as the card's cover and the body as its content. Only the open day has
+   a body to separate, so only it draws the rule. Its 18px bottom padding is the
+   artboard's own (the header block is `0 24px 18px` there), and it replaces the
+   12px margin a folded day keeps. */
+.day-section:not(.day-closed) > .day-header {
+  border-bottom: 1px dashed var(--pw-line);
+  padding-bottom: var(--space-7a);
+  margin-bottom: 0;
+}
 /* The lead group is the collapsed day's thumbnail plus its date badge. On an
    open day the thumbnail is absent and the group collapses to just the badge.
    The artboard measures 22px between the thumbnail, the badge, the title block
@@ -181,6 +193,18 @@
    pointer engine carries the real row instead) */
 .stop-card.status-rejected { border-style: dashed; }
 .stop-card.status-maybe { background: var(--card-soft); }
+/* The artboard gives a stop that a fixed clock governs a 1.5px deep-teal border,
+   so the cards the day cannot move read apart from the ones it can. --pw-sea-700
+   is the Linen deep teal (#0B5F67) in both themes, so no raw hex is needed.
+   `border-width` only: the shorthand re-set the style, and the card's own
+   `status-rejected` dashes must still win by order. */
+.stop-card.is-fixed { border-width: 1.5px; border-color: var(--pw-sea-700); }
+/* The Confirmed pill is --pw-ok ink on --pw-ok-100. It has to be scoped to the
+   card: `.chip` in components/chip.css loads after this file and sets a base
+   fill at the same specificity as the bare `.chip-ok` variant, so that variant
+   never won — the pill measured the sunken grey of an unknown state. Scoping
+   keeps the fix on the timeline instead of repainting every other `tone="ok"`. */
+.stop-card .chip-ok { background: var(--pw-ok-100); color: var(--pw-ok); }
 .stop-num {
   width: 44px; height: 44px; border-radius: var(--radius); flex: 0 0 auto; margin-top: 0;
   display: flex; align-items: center; justify-content: center;
@@ -192,7 +216,10 @@
 .stop-num.cat-hotel { background: var(--pw-sunken); color: var(--pw-ink-2); }
 .stop-main { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: flex-start; }
 .stop-toprow { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; min-width: 0; }
-.stop-title { font-weight: 700; font-size: 16px; font-family: var(--font-display); letter-spacing: -.01em; min-width: 0; }
+/* R20: a card title is Plus Jakarta Sans 800 with a 1.3 line height. This
+   was Sora 700 — the figures face on a heading. The 16px size is the artboard's
+   and stays, so the stop title sits one step under its day card's 22px. */
+.stop-title { font-weight: 800; font-size: 16px; font-family: var(--font-body); line-height: 1.3; letter-spacing: -.01em; min-width: 0; }
 .stop-meta { font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; font-size: 13px; color: var(--pw-ink-2); font-weight: 500; }
 /* The artboard's 48px duotone tile: a tinted square holding the stop kind's
    glyph in a darker ink of the same hue. Every tint pairs a 100-step fill with
@@ -269,11 +296,20 @@
 
 
 
+/* The artboard's leg row: 13px body text at regular weight in the muted ink,
+   an 18px vehicle glyph, and an 8px gap. It was 12px/600 with a 12px glyph and
+   a 9px gap, so the one line that says how you get from A to B was the smallest,
+   heaviest type in the rail — a caption shouting. Colour was already right
+   (--text-3 is the artboard's #6B645C). */
 .travel-leg {
-  display: flex; align-items: center; gap: 9px;
+  display: flex; align-items: flex-start; gap: var(--space-4);
   margin: 3px 0 3px 0; padding: 2px 0 2px 0;
-  color: var(--text-3); font-size: 12px; font-weight: 600;
+  color: var(--text-3); font-size: 13px; font-weight: 400; line-height: 1.4;
 }
+/* The artboard draws the leg glyph at 18px against the 13px text beside it: the
+   vehicle is the first thing read on the line, and a 12px `.ic-sm` matched the
+   text instead, so the icon read as a bullet. */
+.travel-leg svg { flex: none; margin-top: 1px; width: 18px; height: 18px; }
 .travel-leg::before { content: none; }
 .travel-leg.foreign-over {
   color: var(--ink-amber); background: var(--warn-soft);
@@ -295,12 +331,6 @@
    glider). The copy line reserves two rows so a mode switch never reflows. */
 .tl-mode-copy { min-height: 2.4em; max-width: 72ch; animation: popover-in var(--motion-fast) var(--ease-glide); }
 @media (prefers-reduced-motion: reduce) { .tl-mode-copy { animation: none; } }
-/* The header tools must not reflow when the mode copy changes length (the Plan
-   copy's max-content used to push the whole tools row into a left-aligned
-   wrap). The copy is the flexible item; the tools pin right, and margin-left
-   auto keeps them right-aligned even on the rare wrapped line. */
-.tl-head-copy { flex: 1 1 320px; min-width: 0; }
-.tl-head-tools { margin-left: auto; }
 
 /* Liquid drag (rule 10 pattern): rows glide by the carried row's height while
    a drag is live; rows carry data-stop-id for the FLIP settle on commit. */
@@ -378,16 +408,20 @@
   margin-bottom: 12px;
   box-shadow: var(--shadow-sm);
 }
-.travel-panel-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.travel-panel-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 /* title + Directions share the first line; the stats line runs full-width under
    them (the button used to drop to its own row and left a dead gap) */
-.travel-panel-toprow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.travel-panel-toprow { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
 .travel-panel-title { font-weight: 800; font-size: 15px; font-family: var(--font-display); color: var(--text); min-width: 0; }
-.travel-panel-stats { display: flex; flex-wrap: wrap; gap: 10px 26px; }
 .tps-stat { display: flex; flex-direction: column; gap: 1px; }
 .tps-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; }
 .tps-stat b { font-variant-numeric: tabular-nums; font-size: 16px; font-family: var(--font-display); color: var(--text); }
 .travel-panel-fuel { margin-top: 8px; font-size: 12.5px; color: var(--text-2); }
+/* The panel's one logistics band: departure, arrival, the fuel or fare figure
+   and the halt control sit on this row. `.travel-panel-fuel` is also used here
+   as an inline span, so the row supplies its own top spacing and the span's
+   margin-top is cancelled inside it. */
+.travel-panel-eta .travel-panel-fuel { margin-top: 0; }
 .travel-panel-fuel b { color: var(--teal-deep); }
 .travel-panel-eta {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
@@ -408,6 +442,47 @@
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   margin-top: 12px; padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+/* A closed planner with nothing in it is not a section: no divider, no padding,
+   no gap. The halt rows and the stale warning bring it back on their own, so
+   this only ever hides an empty band. */
+.halt-planner:not(.is-open):not(.has-plan) { margin-top: 0; padding-top: 0; border-top: 0; }
+/* The halt form is a disclosure. Closed it costs one row; open it grows in
+   place on the same 0fr→1fr grid the day body uses, so the stop rows below
+   travel with it instead of jumping. The fields fade in on the same beat. */
+.halt-planner-toggle {
+  display: inline-flex; align-items: center; gap: 2px;
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: none; color: var(--teal-deep);
+  font: 700 12.5px/1.2 var(--font-body);
+  cursor: pointer;
+}
+.halt-planner-toggle:hover { border-color: var(--teal-deep); }
+.halt-planner-toggle:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 2px; }
+.halt-planner-form {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-med) var(--ease-paper);
+}
+/* A planner whose form has never been opened must contribute no height at all.
+   The 0fr row alone kept the fields' content box alive, which left a band under
+   a panel nobody had touched. */
+.halt-planner:not(.is-open) .halt-planner-fields { display: none; }
+.halt-planner-form.open { grid-template-rows: 1fr; }
+.halt-planner-fields {
+  overflow: hidden; min-height: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  opacity: 0;
+  transition: opacity var(--motion-med) var(--ease-paper);
+}
+.halt-planner-form.open .halt-planner-fields { opacity: 1; }
+@media (pointer: coarse) {
+  .halt-planner-toggle { min-height: 44px; padding-block: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .halt-planner-form, .halt-planner-fields { transition: none; }
 }
 
 /* ---------- Flight card (flight-mode trips only) ---------- */
@@ -443,17 +518,23 @@
 /* ---------- Timeline time rail ---------- */
 /* one shared rail geometry — these three used to redeclare 74px/12px each,
    so widening the rail meant finding all of them */
-/* 105px = the 74px time cell + 8px clearance + the 23px ring column below,
+/* 129px = the 98px time cell + 8px clearance + the 23px ring column below,
    so the ring can never reach the time. Grows with the gutter at each rung. */
-.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 105px 1fr; gap: 12px; }
+.tl-row, .tl-legrow, .tl-end { display: grid; grid-template-columns: 129px 1fr; gap: 12px; }
 .tl-row { margin-bottom: 8px; align-items: center; }
 .tl-legrow { align-items: center; margin-bottom: 8px; }
 .tl-end { min-height: 12px; margin-bottom: 4px; }
 .tl-row .stop-card { margin-bottom: 0; }
 .tl-gutter {
-  display: grid; grid-template-columns: 74px 23px; column-gap: 8px; justify-content: end;
+  display: grid; grid-template-columns: 98px 23px; column-gap: 8px; justify-content: end;
   align-items: start; padding: 14px 0 10px; min-width: 0;
 }
+/* 17px, not the artboard's 19px. The artboard prints short 24-hour labels
+   ("07:00", 47px); this app defaults to 12-hour, where the widest label —
+   "10:33 AM" — measured 94px at 19px and overflowed its 74px cell, so the
+   card's own overflow clip cut it to ":33 AM". 17px sets that label at 84px
+   inside a 98px cell: 14px of clearance for every hour of the day in both
+   clock formats, and still a full step above the 11.5px departure line. */
 .tl-time {
   font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--pw-ink);
   grid-column: 1; justify-self: end; text-align: end;
@@ -484,17 +565,24 @@
 }
 
 /* ---------- Day header: collapse, rename, progress, sparkline, suggestions ---------- */
+/* The artboard's fold control is --pw-sunken (= #ECE7DE), a sunken disc on the
+   card, not the lagoon tint it used to be: the tint read as a "selected" state
+   next to the day's own chips. */
 .day-collapse {
-  border: 0; background: var(--teal-soft); cursor: pointer; flex: 0 0 auto;
-  color: var(--text-2); width: 40px; height: 40px; padding: 0; border-radius: 999px;
+  border: 0; background: var(--pw-sunken); cursor: pointer; flex: 0 0 auto;
+  color: var(--pw-ink-2); width: 40px; height: 40px; padding: 0; border-radius: 999px;
   display: grid; place-items: center;
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
 }
-.day-collapse:hover { color: var(--teal-deep); background: color-mix(in srgb, var(--teal-soft) 70%, var(--teal-deep) 10%); }
+.day-collapse:hover { color: var(--pw-sea-700); background: var(--pw-soft); }
 /* The chevron and the body are one gesture: at --t-fast/180ms the arrow settled
    ~90ms before the body did, so the row read as two separate movements. */
+/* The glyph itself points down, which is where a FOLDED day must point: down
+   is "this opens". Rotating it -90deg sent it sideways, pointing at nothing, and
+   a sideways chevron reads as a "next" link rather than a fold control. So a
+   folded card keeps it unrotated and the open day flips it to point up. */
 .day-collapse-icon { transition: transform var(--motion-slower) var(--ease-resize); }
-.day-closed .day-collapse-icon { transform: rotate(-90deg); }
+.day-section:not(.day-closed) .day-collapse-icon { transform: rotate(180deg); }
 .day-header h3[style*='pointer'] { text-decoration: transparent; }
 .day-progress {
   height: 5px; border-radius: 3px; background: var(--bg-soft);
@@ -513,6 +601,11 @@
    already say). Names wrap instead of truncating; the full chain rides in
    the title tooltip. */
 .day-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+/* The artboard holds "Day 4" and the title 10px apart, which is more than the
+   row's 8px chip rhythm: the label is a kicker for the title, not a sibling
+   chip. Without this the two ran together as "Day 1Panaji lanes". */
+.day-title-row > .day-number + h3,
+.day-title-row > .day-number + .day-title-btn { margin-inline-start: var(--space-1); }
 /* The artboard's chip is sentence case at 12px/700 with 4px 10px padding. Ours
    was 10.5px/600 in uppercase, which shrank the label and shouted it at the
    same time — the opposite of the quiet badge the artboard draws. The tint is
@@ -582,10 +675,18 @@
    softness. */
 .day-body-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-slower) var(--ease-resize); }
 .day-body-clip.open { grid-template-rows: 1fr; }
-.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s var(--motion-slower); }
-/* The artboard puts 16px between the header and the first row of the body. The
-   clip opened flush, so the tools row touched the stats line. */
-.day-body-clip.open .day-body-clip-inner { visibility: visible; transition: visibility 0s; padding-top: var(--space-7); }
+/* The content fades in just after the shell starts to travel, and fades out
+   first on the way back, so the eye follows the surface rather than the type.
+   Each direction reads its transition from the state it is moving TO: the
+   opening rule delays the fade by --motion-fast, the closing rule does not. */
+.day-body-clip-inner { overflow: hidden; min-height: 0; visibility: hidden; opacity: 0; transition: visibility 0s var(--motion-slower), opacity var(--motion-fast) var(--ease-paper); }
+.day-body-clip.open .day-body-clip-inner { visibility: visible; opacity: 1; transition: visibility 0s, opacity var(--motion-med) var(--ease-paper) var(--motion-fast); }
+/* The artboard puts 16px between the header and the first row of the body. It is
+   a spacer INSIDE the clip, not padding on it: padding sets a floor under the
+   0fr row, so the closing body stopped at 16px and lost that 16px in the frame
+   the click landed (measured: the card dropped 16px on frame one of a collapse
+   that must start at rest). A spacer is clipped like any other content. */
+.day-body-clip-inner::before { content: ""; display: block; height: var(--space-7); }
 @media (prefers-reduced-motion: reduce) {
   .day-body-clip, .day-body-clip-inner { transition: none; }
 }
@@ -616,18 +717,34 @@
    the rail: same jump, same current-day marker, richer card. */
 .tl-ribbon {
   display: flex; align-items: stretch; gap: 22px;
-  padding: 16px 20px; margin-bottom: 16px;
+  padding: 16px 20px; margin-bottom: 14px;
   background: var(--card);
   border: 1.5px solid var(--line-soft);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
   font-variant-numeric: tabular-nums;
+  /* Switching to Whole trip tightens the ribbon (see .tl-root-review below);
+     the padding rides the same clock as the totals column, so the ribbon settles
+     as one surface instead of cutting in one frame. */
+  transition: padding var(--motion-slow) var(--ease-resize);
 }
 .tl-ribbon-total {
-  width: 210px; flex: none;
+  width: 233px; flex: none;
   display: flex; flex-direction: column; gap: 4px;
   padding-inline-end: 22px;
   border-inline-end: 1px dashed var(--line);
+  /* The column folds in Whole trip instead of vanishing: its width, its end
+     padding, the gap it leaves and its dashed edge all travel on one
+     clock, and the text fades on the med beat. `clip` with a margin keeps
+     the keyboard ring of the warning pill inside the paint. */
+  overflow: clip; overflow-clip-margin: 8px;
+  transition:
+    width var(--motion-slow) var(--ease-resize),
+    padding-inline-end var(--motion-slow) var(--ease-resize),
+    margin-inline-end var(--motion-slow) var(--ease-resize),
+    border-inline-end-width var(--motion-slow) var(--ease-resize),
+    opacity var(--motion-med) var(--ease-paper) var(--motion-fast),
+    visibility 0s;
 }
 .tl-ribbon-eyebrow {
   font-size: 11px; font-weight: 700; letter-spacing: .06em;
@@ -637,7 +754,7 @@
   font-family: var(--font-display);
   font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text);
 }
-.tl-ribbon-sub { font-size: 13px; color: var(--text-2); }
+.tl-ribbon-sub { font-size: 13px; font-weight: 400; color: var(--text-2); }
 /* The ribbon's type is compact display copy, not prose. The app's 1.55 body
    leading adds 19px of air across the column and pushes the whole bar taller
    than the source, so these three carry their own leading. */
@@ -685,7 +802,13 @@
   background: var(--pw-soft);
   border: 1.5px solid transparent; border-radius: var(--radius-sm);
   color: var(--text-2);
-  transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+  /* Every part of the current-day marker tweens: the card's fill, its border and
+     the inset ring Whole trip adds, plus the day label and the bar's track below.
+     None of them changes weight or size, so nothing in the card reflows. */
+  transition:
+    border-color var(--motion-med) var(--ease-paper),
+    background-color var(--motion-med) var(--ease-paper),
+    box-shadow var(--motion-med) var(--ease-paper);
 }
 .tl-ribbon-card:hover { border-color: var(--teal); }
 .tl-ribbon-card[aria-current='true'] {
@@ -701,6 +824,7 @@
 .tl-ribbon-card-day {
   font-size: 12px; font-weight: 700; color: var(--text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color var(--motion-med) var(--ease-paper);
 }
 .tl-ribbon-card[aria-current='true'] .tl-ribbon-card-day { color: var(--pw-sea-700); }
 /* The state dot: one mark, three meanings. The label is the accessible name,
@@ -723,6 +847,7 @@
   display: block; width: 100%; height: 4px; margin-top: 4px;
   background: var(--pw-sunken); border-radius: var(--radius-pill);
   overflow: hidden;
+  transition: background-color var(--motion-med) var(--ease-paper);
 }
 .tl-ribbon-card-bar > span {
   display: block; height: 4px;
@@ -730,32 +855,65 @@
 }
 .tl-ribbon-card[aria-current='true'] .tl-ribbon-card-bar { background: var(--card); }
 /* Below the phone breakpoint the two halves cannot share a row: the totals
-   become a header band and the days scroll sideways, as the old rail did. */
+   become a single header LINE and the days share the width under it. The
+   stacked totals column cost 116px to say three numbers, so the phone (where
+   the mockup is the reference) reads them across one row instead. */
 @media (max-width: 900px) {
-  .tl-ribbon { flex-direction: column; gap: 14px; padding: 14px 16px; }
+  .tl-ribbon { flex-direction: column; gap: 10px; padding: 12px; }
   .tl-ribbon-total {
-    width: auto; padding-inline-end: 0; padding-bottom: 12px;
-    border-inline-end: 0; border-bottom: 1px dashed var(--line);
+    width: auto; padding-inline-end: 0; padding-bottom: 0;
+    flex-direction: row; flex-wrap: wrap; align-items: baseline;
+    gap: 2px 8px;
+    border-inline-end: 0; border-bottom: 0;
   }
+  /* Below the row the pill is the only thing left that can grow; pin it to the
+     end of the line rather than let it push the figure off the edge. */
+  .tl-ribbon-total > .tl-ribbon-sub { min-width: 0; }
+  .tl-ribbon-total > .tl-ribbon-alert { margin-top: 0; }
   /* The days scroll sideways here, so a spine pinned to the box would slide
      out of step with the cards it is meant to join. Drop it and let the cards
      carry the sequence. */
   .tl-ribbon-line, .tl-ribbon-line-end { display: none; }
   .tl-ribbon-days {
-    gap: 12px; overflow-x: auto; padding: 2px;
+    gap: 10px; overflow-x: auto; padding: 2px;
     scrollbar-width: thin;
     /* Cards snap to the edge so the strip never rests showing half a card. */
     scroll-snap-type: x proximity;
     scroll-padding-inline: 2px;
   }
-  .tl-ribbon-card { flex: 0 0 auto; min-width: 150px; max-width: 210px; scroll-snap-align: start; }
+  /* Four days must all fit without scrolling, so the cards SHARE the row
+     instead of each reserving 150px. The 70px floor is what keeps a longer
+     trip scrollable: five cards cannot shrink below it. */
+  .tl-ribbon-card {
+    flex: 1 1 0; min-width: 70px; max-width: none; scroll-snap-align: start;
+    padding: 8px 10px; gap: 2px;
+  }
   .tl-ribbon-card:last-of-type { margin-inline-end: 0; }
+}
+/* A phone card carries what the mockup's chip carries — the day, the place and
+   the state dot — plus our progress bar. The stop count line is what it drops:
+   at four cards across a 390px screen it was the first line to truncate
+   ("3 st…"), and the count is on the day card a tap away.
+
+   The totals lose their eyebrow for the same reason: "Trip total" plus figure
+   plus sub is 388px of text in 332px, so the label forced the sub onto a third
+   line. Without it the three numbers share one row, which is what the mockup
+   draws. The word is a label, not a datum — the section is already named. */
+@media (max-width: 430px) {
+  .tl-ribbon-card-meta { display: none; }
+  .tl-ribbon-total > .tl-ribbon-eyebrow { display: none; }
+  /* The eyebrow reads "Day 1 · Mon 2" in a 37px box, so the card showed
+     "Day …" and dropped the number — the one digit the chip exists to say.
+     Four cards across a 390px screen cannot carry the date too, and the
+     mockup's chip carries the day alone. The date is not lost: the day card's
+     own date tile carries it in full. */
+  .tl-ribbon-card-date { display: none; }
 }
 @media (pointer: coarse), (max-width: 720px) {
   .tl-ribbon-card { min-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tl-ribbon-card { transition: none; }
+  .tl-ribbon, .tl-ribbon-total, .tl-ribbon-card, .tl-ribbon-card-day, .tl-ribbon-card-bar { transition: none; }
 }
 /* Warning state inside the affected day's header (doc §6.3). */
 .day-warn-pill {
@@ -813,11 +971,60 @@
 }
 /* A stuck ribbon would otherwise hold 160px of totals over a phone screen to
    say one word; in review the totals column is not the point, the day row is. */
-.tl-root-review .tl-ribbon-total { display: none; }
+.tl-root-review .tl-ribbon-total {
+  width: 0; padding-inline-end: 0;
+  /* the ribbon's 22px gap would otherwise keep a 22px hole where the column was */
+  margin-inline-end: -22px;
+  border-inline-end-width: 0;
+  opacity: 0;
+  /* gone from the tab order and the accessibility tree once it has folded away,
+     which is what `display: none` used to do on the first frame */
+  visibility: hidden;
+  transition:
+    width var(--motion-slow) var(--ease-resize),
+    padding-inline-end var(--motion-slow) var(--ease-resize),
+    margin-inline-end var(--motion-slow) var(--ease-resize),
+    border-inline-end-width var(--motion-slow) var(--ease-resize),
+    opacity var(--motion-med) var(--ease-resize),
+    visibility 0s linear var(--motion-slow);
+}
 /* Which day you are in: the card whose day has scrolled past the sticky line.
    The marker is the BORDER plus the weight, so the state dot cannot replace
    it — the dot is the day's own state and stays next to the marker. */
-.tl-root-review .tl-ribbon-card[aria-current='true'] { font-weight: 800; }
+.tl-root-review .tl-ribbon-card[aria-current='true'] {
+  /* An inset ring doubles the border instead of the old 800 weight: a ring
+     tweens, a static font's weight can only snap and reflow the card's text. */
+  box-shadow: inset 0 0 0 1px var(--pw-lagoon-600);
+}
+/* The totals column keeps its measure while it folds, so its text never
+   rewraps on the way out (233px less the end padding and the dashed edge). */
+@media (min-width: 901px) {
+  .tl-ribbon-total > * { min-width: 210px; }
+}
+/* Stacked ribbon (phone and narrow tablet): the totals are a header line, so
+   they fold by height. `interpolate-size` lets `auto` tween to 0; a browser
+   without it folds in one step, as before. */
+@media (max-width: 900px) {
+  .tl-ribbon-total {
+    interpolate-size: allow-keywords;
+    transition:
+      height var(--motion-med) var(--ease-resize),
+      margin-block-end var(--motion-med) var(--ease-resize),
+      opacity var(--motion-med) var(--ease-paper) var(--motion-fast),
+      visibility 0s;
+  }
+  .tl-root-review .tl-ribbon-total {
+    width: auto; height: 0; margin-inline-end: 0; margin-block-end: -10px;
+    transition:
+      height var(--motion-med) var(--ease-resize),
+      margin-block-end var(--motion-med) var(--ease-resize),
+      opacity var(--motion-med) var(--ease-resize),
+      visibility 0s linear var(--motion-med);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-root-review .tl-ribbon-total { transition: none; }
+}
 
 /* ---------- Between-stop insertion (#422) ---------- */
 /* The control belongs to the leg between two stops and is revealed on hover
@@ -2110,7 +2317,10 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
    border and --elev-2, while a folded day keeps --elev-1 and the plain line. */
 .day-section:not(.day-closed) { border-color: var(--pw-route); box-shadow: var(--elev-2); }
 .day-badge-date {
-  width: 56px;
+  /* The artboard's 62px. It was 56px, which left the 25px numeral only 2px of
+     air either side and made the tile read narrower than the thumbnail beside
+     it instead of squarer. */
+  width: 62px;
   /* Natural height, as the artboard has it: 8px padding, then the weekday,
      numeral and month at their own line heights. A fixed 66px clipped the
      stack and left the month riding the card's bottom edge. */
@@ -2120,11 +2330,10 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   border: 1px solid var(--pw-glass-edge);
   border-radius: var(--radius);
   /* The artboard's own recipe, shared with the open day's badge so the two
-     states read as one component: a near-opaque warm fill that lifts on
-     --elev-2 with a light edge. */
-  background: linear-gradient(180deg,
-    rgba(255, 255, 255, .96) 0%,
-    color-mix(in srgb, var(--pw-soft) 90%, transparent) 100%);
+     states read as one component: the card fill at 82% alpha, so a photo
+     behind an open day's badge shows through faintly, on --elev-2 with a
+     light edge. */
+  background: color-mix(in srgb, var(--card) 82%, transparent);
   color: var(--pw-ink);
   box-shadow: var(--elev-2);
 }
@@ -2151,9 +2360,19 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   font-weight: 700;
   color: var(--pw-sea-700);
   white-space: nowrap;
+  /* Plus Jakarta Sans at 12px/700 draws a ~2px word space, so "Day 1" read as
+     "Day1". .12em widens it to about 3.5px without touching the glyphs. */
+  word-spacing: .12em;
 }
+/* R20: a card title is Plus Jakarta Sans 800 with a 1.3 line height. The day
+   card's own heading was Sora 700 — Sora is the figures face (the 30px date
+   numeral, the rail times) and a card heading is not a figure. The artboard's
+   22px stays: it is this card's rank, above the 18px panel titles. */
 .day-title-row h3 {
-  font: var(--pw-display-s);
+  font-family: var(--font-body);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.3;
   letter-spacing: -.01em;
 }
 /* The title is plain text; the pencil beside it renames. A title that was
@@ -2194,6 +2413,22 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   flex-direction: column;
   gap: var(--space-3);
   margin: var(--space-1) 0 var(--space-7) calc(var(--space-16) + var(--space-9));
+}
+/* The open day's tool row starts on the title column too, not on the card's
+   padding edge. "Copy" and "+ Add here" duplicate the aside's Day tools
+   ("Copy these stops to Day N", "Add a stop to Day N") — same handler, same
+   screen — so at desktop the aside keeps them and the header drops its copy.
+   A phone has no room for the aside on screen, so the header keeps every
+   action there. The row's own display lives with the rest of its rules in
+   12-pages.css; this file only sets its inset, and only where the day has a
+   badge column to line up with. */
+@media (min-width: 721px) {
+  .day-body-clip-inner > .tl-day-tools {
+    padding-inline-start: calc(var(--space-16) + var(--space-9));
+  }
+}
+@media (min-width: 1100px) {
+  .tl-day-tools .is-day-dup { display: none; }
 }
 .day-budget-bar {
   display: grid;
@@ -2237,7 +2472,10 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
    inset, a 36px control, a 1px rule between the two groups, and the action end
    pinned right. `flex-wrap` is off: below 720px the pill scrolls horizontally
    rather than stacking into the wall of buttons this replaced. */
-.tl-head { align-items: center; }
+/* The toolbar row is the whole head: the empty copy block that used to hold the
+   left column is gone, so the row is one line and its own bottom margin is the
+   toolbar-to-ribbon gap (14px, as the artboard spaces its blocks). */
+.tl-head { align-items: center; padding-top: 2px; margin-bottom: 14px; }
 .tl-toolbar {
   display: flex;
   align-items: center;
@@ -2272,13 +2510,45 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+  /* The artboard butts the two segments together (no gap in the track); the
+     glider then measures the item's own box and lands exactly on the edge. */
+  gap: 0;
+  --pill-gap: 0px;
 }
-.tl-toolbar .tab-btn { height: 36px; font-size: 13px; }
+.tl-toolbar .tab-btn { height: 36px; font-size: 13px; gap: 6px; }
 /* The selected segment is card white with a 700-weight label, as the artboard
-   draws it. The glider's paint lives in pill-nav.css, which owns that element. */
-.tl-toolbar .view-pillbar .tab-btn.active { color: var(--pw-ink); font-weight: 700; }
-.tl-toolbar-sep { width: 1px; height: 24px; flex: none; background: var(--pw-line); margin-inline: 8px; }
-.tl-toolbar-end { display: flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; padding-inline-start: var(--space-3); }
+   draws it. The glider's paint lives in pill-nav.css, which owns that element.
+   The unselected label carries the mockup's #57524C, which is our ink-2. */
+.tl-toolbar .view-pillbar .tab-btn.active { color: var(--pw-ink); }
+.tl-toolbar .view-pillbar .tab-btn:not(.active) { color: var(--pw-ink-2); }
+/* The two labels share one weight. A static font cannot tween 600 to 700, so
+   the old swap snapped the glyphs and moved the label by a pixel under the
+   glider; ink and the glider now carry the selection alone. */
+/* The segment's icon is part of the switch: it takes the selection's tint and
+   a small settle, on the same beat as the glider's arrival. */
+.tl-toolbar .view-pillbar .tab-btn > svg {
+  opacity: .7;
+  transition: color var(--motion-med) var(--ease-paper), opacity var(--motion-med) var(--ease-paper), transform var(--motion-med) var(--ease-paper);
+}
+.tl-toolbar .view-pillbar .tab-btn.active > svg { color: var(--pw-sea-700); opacity: 1; transform: scale(1.08); }
+/* One weight, one clock for the label and the press; the global press (scale .97 on
+   --t-fast) is replaced here by a lighter one on the instant step. */
+.tl-toolbar .view-pillbar .tab-btn {
+  font-weight: 700;
+  transition:
+    color var(--motion-med) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
+}
+.tl-toolbar .view-pillbar .tab-btn:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-toolbar .view-pillbar .tab-btn, .tl-toolbar .view-pillbar .tab-btn > svg { transition: none; }
+  .tl-toolbar .view-pillbar .tab-btn:active { transform: none; }
+  .tl-toolbar .view-pillbar .tab-btn.active > svg { transform: none; }
+}
+/* 8px of toolbar gap plus a 6px margin either side is the artboard's 14px
+   space between the day-scope switch and the editing switch. */
+.tl-toolbar-sep { width: 1px; height: 24px; flex: none; background: var(--pw-line); margin-inline: var(--space-3); }
+.tl-toolbar-end { display: flex; align-items: center; gap: var(--space-3); margin-inline-start: auto; padding-inline-start: var(--space-3); }
 .tl-toolbar .btn-sm { height: 36px; }
 /* The artboard's editing control is a SWITCH with its hint underneath, not a
    two-segment pill: "Editing on" and "Review" as peers read as two modes to
@@ -2321,7 +2591,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .tl-edit-switch[aria-checked="true"] .tl-edit-knob { left: 19px; }
 .tl-edit-copy { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
 .tl-edit-label { font-size: 13px; font-weight: 700; }
-.tl-edit-hint { font-size: 12px; font-weight: 500; color: var(--pw-ink-3); }
+.tl-edit-hint { font-size: 12px; font-weight: 400; color: var(--pw-ink-3); }
 /* The artboard splits the primary action: "Add stop to Day N" plus a chevron
    that picks the day. The single button always added to the day you were in,
    with no way to say otherwise. */
@@ -2396,7 +2666,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   flex: none;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--pw-lagoon-50);
+  background: var(--pw-soft);
   color: var(--pw-ink-2);
   cursor: pointer;
 }
@@ -2435,9 +2705,13 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
    inline-end and upward-inset, because the last card on a day sits at the
    bottom of the viewport. */
 .stop-more { position: relative; flex: none; }
-.stop-more > summary { list-style: none; cursor: pointer; }
+/* The artboard's ⋯ control is a sunken disc, the same fill as the day's fold
+   control: two disclosure buttons on one card should not have two different
+   fills. It is the shared .icon-btn's 40px box, so the coarse-pointer floor in
+   04-mobile-usability.css still applies. */
+.stop-more > summary { list-style: none; cursor: pointer; background: var(--pw-sunken); color: var(--pw-ink-2); }
 .stop-more > summary::-webkit-details-marker { display: none; }
-.stop-more[open] > summary { background: var(--bg-soft); color: var(--text); }
+.stop-more[open] > summary { background: var(--pw-soft); color: var(--pw-ink); }
 .stop-more-menu {
   position: absolute;
   top: calc(100% + var(--space-2));
@@ -2478,6 +2752,27 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .tl-head { flex-wrap: wrap; gap: var(--space-5); }
   .tl-toolbar { width: 100%; }
 }
+/* The trip title above the Timeline is one nowrap line, so a long name ended in
+   an ellipsis mid-word ("Goa, North to the Q..."). A phone gives it two lines
+   before it clips. The selector keys on the Timeline's own head, so the other
+   tabs keep their single line, and desktop keeps it too. */
+@media (max-width: 720px) {
+  /* The cover is a fixed height, so the second line needs its 36px of room or
+     the member row slides under the tab rail. */
+  body:has(.tl-head) .yf-page .yf-trip-head { height: 324px; }
+  body:has(.tl-head) .yf-page .yf-trip-head .yf-trip-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    line-height: 1.1;
+  }
+}
+@media (max-width: 440px) {
+  body:has(.tl-head) .yf-page .yf-trip-head { height: 332px; }
+}
 
 /* The artboard puts the collapse control at the RIGHT of the header, after the
    title block, so the eye reads date → title → state → fold. `order` moves it
@@ -2497,10 +2792,33 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
      1.5px border) so the photo's corner follows the card's curve instead of
      being clipped square by it. The cancel must match .day-section's padding
      exactly, or the photo insets by the difference. */
-  margin: -16px -20px 0;
+  margin: -16px calc(-1 * var(--space-10)) 0;
   border-radius: calc(var(--radius-lg) - 1.5px) calc(var(--radius-lg) - 1.5px) 0 0;
   overflow: hidden;
+  /* The band folds with the body. Its -16px top margin cancels the card's
+     padding, but a folded strip must not keep it: measured, a 0-height strip
+     with the margin left the header 16px above where a folded day puts it, so
+     mounting or removing the strip moved the whole card by 16px in one frame.
+     So the margin folds with the height (see .is-folded). */
+  transition: height var(--motion-slower) var(--ease-resize), margin-top var(--motion-slower) var(--ease-resize);
   background: var(--pw-raised);
+}
+/* The strip's closing state, held for the whole gesture: the photo shrinks to
+   nothing instead of vanishing on the first frame (measured: cover height was
+   -1 by 69ms while the card still had 900px of travel left, so the picture
+   popped out before the body started to move). */
+.day-cover.is-folded { height: 0; margin-top: 0; }
+/* The header's pull-up into the photo is part of the same gesture (its own
+   rule is below): a folded strip has no photo to overlap, so the pull-up goes
+   with it. Without this the header would land 34px short the moment the strip
+   finished folding. */
+.day-section > .day-cover.is-folded + .day-header { margin-top: 0; }
+/* The strip's two controls are unreachable while it folds, so they leave the
+   tab order with it rather than for the 560ms they would sit clipped. */
+.day-cover.is-folded .day-cover-tools { opacity: 0; visibility: hidden; transition: opacity var(--motion-fast) var(--ease-paper), visibility 0s var(--motion-fast); }
+@media (prefers-reduced-motion: reduce) {
+  .day-cover { transition: none; }
+  .day-cover.is-folded .day-cover-tools { transition: none; }
 }
 .day-cover-img {
   position: absolute;
@@ -2513,16 +2831,17 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .day-cover-veil {
   position: absolute;
   inset: 0;
-  /* The header's title and stats sit in the lower third of this 132px band, and
-     they are dark ink. A fade that only reached card colour at 100% left the
-     title over mid-tone sand and sky, where contrast fell to roughly 2:1. The
-     fade now starts higher and reaches near-solid white by 78%, so the band
-     under the text is always light — on a bright beach and on a dark fort wall
-     alike. */
+  /* The artboard is `transparent 40% → #FFFFFF 100%`. Near-solid card colour by
+     78% left only the top ~60px of the photo visible, as a washed strip, which
+     is why the band read as a grey box rather than a photo. This ramp follows
+     the artboard: open until 38%, a half-strength mid tone at 70%, and card
+     colour only at the very bottom, where the title and stats sit. The header
+     also carries a card-coloured halo (`.day-title-row`, below) so the dark ink
+     keeps its contrast where the veil is still thin — measured, not assumed. */
   background: linear-gradient(180deg,
-    rgba(255, 255, 255, 0) 26%,
-    color-mix(in srgb, var(--pw-card) 72%, transparent) 58%,
-    var(--pw-card) 78%,
+    color-mix(in srgb, var(--pw-card) 0%, transparent) 38%,
+    color-mix(in srgb, var(--pw-card) 55%, transparent) 70%,
+    color-mix(in srgb, var(--pw-card) 86%, transparent) 88%,
     var(--pw-card) 100%);
 }
 .day-cover-btn {
@@ -2568,13 +2887,36 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .day-section > .day-cover + .day-header {
   margin-top: calc(-1 * (var(--space-12) + var(--space-1)));
   position: relative;
+  /* The pull-up rides the strip's own fold, so the header lands where the
+     photo leaves rather than snapping 34px after it. */
+  transition: margin-top var(--motion-slower) var(--ease-resize), padding-bottom var(--motion-slower) var(--ease-resize), border-bottom-width var(--motion-slower) var(--ease-resize), border-bottom-color var(--motion-slower) var(--ease-resize);
+}
+/* The open day's header closes with a hairline and 18px of padding (see the
+   `:not(.day-closed)` rule near the top of this file). Both used to appear or
+   vanish in the frame the click landed — 19px of the card's height at once, on
+   the first frame of a gesture that must begin at rest. They ride the fold:
+   the border exists at zero width on a folded header so its width and colour
+   have something to animate from and to. A header under a cover carries the
+   same list in the rule above, because that rule's `transition` wins there. */
+.day-section > .day-header {
+  border-bottom: 0 dashed transparent;
+  transition: padding-bottom var(--motion-slower) var(--ease-resize), border-bottom-width var(--motion-slower) var(--ease-resize), border-bottom-color var(--motion-slower) var(--ease-resize);
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-section > .day-header,
+  .day-section > .day-cover + .day-header { transition: none; }
 }
 /* An open day with a cover keeps its badge clear of the photo's top edge. The
    artboard draws that badge larger than a folded day's — 62px wide with a 30px
    numeral — and lifts it 30px out of the header's own flow so it straddles the
    photo's bottom edge. The header stays top-aligned (see the design-system
-   test): only the badge moves. */
-.day-section > .day-cover + .day-header .day-badge {
+   test): only the badge moves.
+   These rules stop at `.is-folded`, not at the strip's removal: the strip stays
+   mounted for the whole close, and a badge that kept its large open-day form
+   until the unmount snapped to the folded size 11px and 16px sideways in the
+   last frame, on a card that had already come to rest. Folded, the badge takes
+   the folded day's size on the first frame, with the thumbnail's swap. */
+.day-section > .day-cover:not(.is-folded) + .day-header .day-badge {
   position: relative;
   /* The artboard lifts the badge 30px out of the header flow; 32px is the
      ladder rung above it, and the 2px difference is invisible under the veil. */
@@ -2585,7 +2927,7 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   height: auto;
   justify-content: flex-start;
 }
-.day-section > .day-cover + .day-header .day-badge-date {
+.day-section > .day-cover:not(.is-folded) + .day-header .day-badge-date {
   /* The artboard's 62px, rounded to the ladder so the budget's offset can be
      expressed as tokens instead of a one-off pixel value. */
   width: var(--space-16);
@@ -2596,27 +2938,96 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   /* Same fill, edge and elevation as the folded badge — only the width and the
      numeral step up, so the two states read as one component. */
   background: linear-gradient(180deg,
-    rgba(255, 255, 255, .96) 0%,
+    color-mix(in srgb, var(--card) 96%, transparent) 0%,
     color-mix(in srgb, var(--pw-soft) 90%, transparent) 100%);
   -webkit-backdrop-filter: blur(var(--yf-blur-chip));
   backdrop-filter: blur(var(--yf-blur-chip));
   border-color: var(--pw-glass-edge);
   box-shadow: var(--elev-2);
 }
-.day-section > .day-cover + .day-header .day-badge-date b { font-size: 30px; }
-.day-section > .day-cover + .day-header .day-badge-date .day-badge-wd { font-size: 11px; }
-.day-section > .day-cover + .day-header .day-badge-date .day-badge-mon { font-size: 11px; }
+.day-section > .day-cover:not(.is-folded) + .day-header .day-badge-date b { font-size: 30px; }
+.day-section > .day-cover:not(.is-folded) + .day-header .day-badge-date .day-badge-wd { font-size: 11px; }
+.day-section > .day-cover:not(.is-folded) + .day-header .day-badge-date .day-badge-mon { font-size: 11px; }
 @media (max-width: 720px) {
   .day-budget { margin-inline-start: 0; }
+  /* The phone row is one line, so nothing in it may set a floor. The title
+     block declared a 160px min-width; with the thumbnail, the badge and the
+     fold control already on that row, 160px no longer fits and the block was
+     pushed onto a second line — the folded card measured 217px tall against the
+     artboard's 114. */
+  /* 12-pages.css loads after this file and re-declares `.tl-stop-flex` with a
+     160px floor, so a bare selector here lost the cascade and the title block
+     still wrapped. The descendant form outranks it. */
+  .day-header .tl-stop-flex { min-width: 0; }
+  .day-title-row { min-width: 0; }
+  /* A phone thumbnail is a marker, not a picture: 56x40 keeps the day
+     recognisable and gives the title back the 28px the desktop crop took. */
+  .day-thumb { width: 56px; height: 40px; }
+  /* The date stack needs its own height: the 40px square is the "Day N" tile's
+     shape, and a weekday, a 22px numeral and a month do not fit inside it. The
+     artboard's phone tile is 46px wide with a natural height. */
   .day-badge-date { width: 46px; height: auto; }
-  .day-badge-date b { font-size: 24px; }
+  .day-badge-date b { font-size: 22px; }
   .day-title-row h3,
   .day-title-btn { font-size: 19px; }
-  .day-header { gap: 8px; }
+  /* The phone header spends its width on the thumbnail, the badge and the fold
+     control; three 22px gaps plus two 8px ones is what pushed the title block
+     onto its own line. 8px across keeps the row one line, and the fold control's
+     `margin-inline-start: auto` still pins it to the far edge. */
+  .day-header { gap: var(--space-4); }
+  .day-badge-lead { gap: var(--space-4); }
+  /* The artboard's phone row is the title, then ONE stats line under it. The
+     day-type chip is derived from the same journey the stats line describes, so
+     it was a second copy of the same fact, and it was what wrapped: the title
+     row's own min-content (title + pencil + heart + chip) measured 104px against
+     a 99px column, so the chip fell to a third line and the card stood 217px
+     tall where the artboard draws 114. */
+  .day-kind { display: none; }
+  /* "Day 1" repeats what the date tile and the card's position already say, and
+     it was the last 30px standing between the title and a single line. */
+  .day-number { display: none; }
+  /* One row: title, rename pencil, save heart. The title takes what the two
+     44px controls leave and ellipsises past that; `min-width: 5.5em` is the
+     floor that keeps it from shrinking to a letter. Day 2 ("Candolim coast")
+     once measured 0px wide beside the fixed-time badge, so the badge is the one
+     item allowed to wrap, onto its own line below. The 44px controls carry
+     their own air, so the row sets no column gap. */
+  .day-title-row { flex-wrap: wrap; column-gap: 0; }
+  .day-title-row h3 { flex: 1 1 0; min-width: 5.5em; }
+  .day-title-row .tl-day-note { flex: 1 1 100%; }
+  /* The stats line wraps instead of clipping. One nowrap line cut it mid-word
+     ("road me..."), which hid the drive time and the day window. The folded
+     card's column is 158px, and the full line (stops, distance, road state,
+     drive time, window) needs three lines there at 12px and two in the open
+     card; three is the ceiling, so nothing is dropped. */
+  .day-header .small.muted.num,
+  .day-closed .day-header .small.muted.num {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .day-header .stat-sep { padding-inline: var(--space-2); }
+  /* A folded phone row keeps ONE control beside the title: the save heart. The
+     artboard's folded card shows the chevron and nothing else, and the pencil's
+     44px would leave a 165px column only 77px for the name. The pencil is back
+     the moment the day opens. */
+  .day-closed .day-header .day-rename-btn { display: none; }
+  /* The 44px floor the touch budget asks for. The pencil was 32px and the heart
+     40px. The row's column gap is 0 (above), so both 44px controls fit beside
+     the title. */
+  .day-header .day-rename-btn,
+  .day-header .tl-save-heart { min-width: 44px; min-height: 44px; }
+  .day-header .day-collapse { width: 44px; height: 44px; }
   .stop-num { width: 38px; height: 38px; font-size: 14px; }
+  /* 121px = a 90px time cell + 8px clearance + the 23px ring column. The rung
+     used 97px with an 11.5px string, but the clock labels here are 12-hour
+     ("10:33 AM"), and the gutter's 58px cell cut them. */
   .tl-row,
   .tl-legrow,
-  .tl-end { grid-template-columns: 97px 1fr; }
+  .tl-end { grid-template-columns: 121px 1fr; }
   .tl-time { font-size: 15px; }
 }
 
@@ -2692,7 +3103,15 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .day-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-8); }
 }
 @media (max-width: 1099px) {
-  .day-brief { order: -1; }
+  /* The stops come first. The brief is a summary OF the day, so stacking it
+     above the day it summarises made the reader scroll past the verdict to
+     find the subject; the collapse order is the reading order. */
+  .day-brief { order: 1; }
+}
+/* A brief action is a tap target on a phone. It is a full-width row there, so
+   the 44px floor costs nothing and the fine-pointer box stays compact. */
+@media (pointer: coarse) {
+  .brief-tool { min-height: 44px; }
 }
 /* The brief narrows the rail, so the six inline stop actions move into a
    compact two-column cluster on a fine pointer. Touch keeps the 44px row. */
@@ -2735,7 +3154,9 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
 .tl-rail-num.cat-food { border-color: var(--pw-saffron-600); }
 .tl-rail-num.cat-hotel { border-color: var(--pw-sea-700); color: var(--pw-sea-700); }
 @media (max-width: 720px) {
-  .tl-gutter { grid-template-columns: 66px 23px; }
+  /* 90px matches the widened `.tl-row` track above; the 66px cell clipped a
+     15px 12-hour label ("10:33 AM" needs about 76px). */
+  .tl-gutter { grid-template-columns: 90px 23px; }
 }
 
 /* PW-08: a drive day keeps its fixed clock visible. The badge counts the
@@ -2913,4 +3334,25 @@ main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: colu
   .tl-toolbar-end { display: none; }
   .tl-add-fab { display: flex; }
 }
+/* On a touch phone the two segments are the only way to switch the whole view,
+   so they take the 44px target floor (WCAG 2.5.8) even though the artboard
+   draws 36px. 44 + the track's own 4px inset gives a 52px track. The house
+   floor outranks the mockup here. */
+@media (pointer: coarse) {
+  .tl-toolbar .view-pillbar .tab-btn { height: 44px; }
+}
 
+/* The panel's top row on a phone: the title keeps its own line, then
+   Directions and the halt button share the next one. Side by side, the three
+   could not fit and the head grew to 180px. */
+@media (max-width: 720px) {
+  .travel-panel-toprow { row-gap: 4px; }
+  .travel-panel-title { flex: 1 1 100%; }
+}
+
+/* The cover's negative margin cancels the card's padding, so it must track the
+   phone rung's 14px/10px padding: with the desktop 24px it bled 9px past the
+   card edge at 390px and the photo hung over the border. */
+@media (max-width: 720px) {
+  .day-cover { margin: -14px -14px 0; }
+}

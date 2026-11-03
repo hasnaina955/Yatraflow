@@ -97,7 +97,10 @@ describe('PW-13 — one owner for the Budget family', () => {
   it('the map owns every class the module declares', () => {
     const owner = map.owners.find(o => o.id === 'budget')
     const owned = new Set(owner?.owned ?? [])
-    const modifiers = new Set(['is-over', 'is-on', 'is-done', 'is-unread', 'soft', 'pos', 'neg', 'sm', 'card'])
+    // Shared components this page places, sizes or configures but does not own:
+    // avatar.css documents width/height as the page's sizing points, and
+    // button.css documents --btn-* as the page's configuration variables.
+    const modifiers = new Set(['is-over', 'is-on', 'is-done', 'is-unread', 'soft', 'pos', 'neg', 'sm', 'card', 'avatar', 'btn'])
     const declared = new Set([...css.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map(hit => hit[1]))
     for (const cls of declared) {
       if (modifiers.has(cls)) continue
@@ -157,14 +160,17 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
   }
 
   it('grows the stacked bars as one element from their baseline', () => {
-    expect(readRule(css, '.bud-stack').body).toContain('animation: bud-bars-in var(--motion-slower) var(--ease-paper) backwards;')
-    expect(readRule(css, '.bud-track-fill').body).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
-    expect(readRule(css, '.bud-bal-bar').body).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-stack').body).toContain('animation: bud-bars-in calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-track-fill').body).toContain('animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-bal-bar').body).toContain('animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
   })
 
-  it('keeps the tooltip on a token transition and the card surface', () => {
+  it('keeps the tooltip on a token transition and its own popover surface', () => {
+    // The artboard draws the day tooltip as a dark popover in both themes, so the
+    // surface and ink come from the rule's own variables, and dark swaps the surface.
     const tip = readRule(css, '.bud-tip').body ?? ''
-    expect(tip).toContain('background: var(--card); color: var(--text);')
+    expect(tip).toContain('background: var(--bud-tip-surface); color: var(--bud-tip-ink);')
+    expect(css).toContain("[data-theme='dark'] .bud-tip { --bud-tip-surface: var(--pw-line); }")
     expect(tip).toContain('transition: opacity var(--motion-fast) var(--ease-paper);')
   })
 
@@ -189,10 +195,10 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
     expect(timeline).not.toMatch(/\d+ms/)
   })
 
-  it('gives the coarse pointer the 40px control floor', () => {
+  it('gives the coarse pointer the 44px control floor', () => {
     const coarse = css.slice(css.indexOf('@media (pointer: coarse)'))
-    expect(coarse).toContain('.bud-filter { min-height: 40px; }')
-    expect(coarse).toContain('.bud-table-view summary { min-height: 40px; padding: 10px 0; }')
+    expect(coarse).toContain('.bud-filter { min-height: 44px; min-width: 44px; }')
+    expect(coarse).toContain('.settled-history summary { min-height: 44px; padding: 12px 0; }')
     // A flex summary drops the native disclosure marker.
     expect(coarse).not.toContain('.bud-table-view summary { display: flex;')
   })

@@ -503,6 +503,8 @@
   --pw-sunken: #ECE7DE;
   --pw-soft: #F2EDE4;
   --pw-card: #FEFDFB;
+  /* Ink over a cover photo. Light keeps the card white, so the light theme is unchanged. */
+  --pw-on-cover: #FEFDFB;
   --pw-raised: #FFFFFF;
   --pw-line: #DFDBD1;
   --pw-line-soft: #E8E4DB;
@@ -601,12 +603,12 @@
   --stagger-step: 60ms;
 
   /* elevation — the tint follows the surface palette. A cool blue-teal shadow
-     under Linen's warm paper read as dirt rather than shade, so the tint is the
-     same warm charcoal the ink uses. */
-  --elev-press: 0 1px 2px rgba(34,32,30,.12);
-  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(34,32,30,.05), 0 18px 36px -20px rgba(34,32,30,.24);
-  --elev-2: 0 2px 4px rgba(34,32,30,.06), 0 16px 30px -14px rgba(34,32,30,.34);
-  --elev-3: 0 4px 10px rgba(30,26,22,.08), 0 32px 60px -28px rgba(30,26,22,.55);
+     under Linen's warm paper read as dirt rather than shade. The tint is the warm
+     umber the approved Linen artboards use (Budget, TripSettings, DriveDay). */
+  --elev-press: 0 1px 2px rgba(64,54,44,.12);
+  --elev-1: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(64,54,44,.05), 0 18px 36px -20px rgba(64,54,44,.24);
+  --elev-2: 0 2px 4px rgba(64,54,44,.06), 0 16px 30px -14px rgba(64,54,44,.34);
+  --elev-3: 0 4px 10px rgba(34,28,22,.08), 0 32px 60px -28px rgba(34,28,22,.55);
   --glow-sea: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px -6px rgba(11,95,103,.6);
   --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
   --icon-stroke: 1.9;
@@ -619,6 +621,8 @@
   --pw-sunken: #101B2B;
   --pw-soft: #182740;
   --pw-card: #16233A;
+  /* The DarkTheme artboard's "On cover photos" ink: near-white, so text on a photo stays light. */
+  --pw-on-cover: #F4F8FC;
   --pw-raised: #1A2A44;
   --pw-line: #27395A;
   --pw-line-soft: #1E3050;

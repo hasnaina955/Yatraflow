@@ -9,7 +9,7 @@
 // Every figure is still the engine's or the settlement lib's. This file adds
 // presentation and two read-only views (the ledger filter, the chart split).
 // The five direct writers keep the shared staged-change refusal.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   BedDouble, Car, Check, Fuel, LifeBuoy, Mountain, MoreHorizontal, Pencil,
@@ -30,7 +30,8 @@ import { amountRefusal } from '../../lib/expenseAmount'
 import { sliceState, emptyCopyFor } from '../../lib/readState'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../../lib/settlement'
 import { loadFlag, saveFlag } from '../../lib/uiPrefs'
-import { titleCase } from '../../lib/labels'
+import { titleCase as baseTitleCase } from '../../lib/labels'
+import { avatarToneFor, assignAvatarTones, type AvatarTone } from '../../lib/avatarTone'
 import { Avatar, Chip, Field, toast, undoToast, useInView, usePageVisible } from '../../components/ui'
 import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
@@ -56,6 +57,33 @@ function fmtNeg(n: number): string { return `−${formatInr(-n)}` }
 
 /** The category class that carries the validated spend hue. */
 function catClass(c: ExpenseCategory): string { return `bud-cat--${c}` }
+
+/** The one category the mockup names differently. */
+const CAT_LABEL: Partial<Record<ExpenseCategory, string>> = { accommodation: 'Stays' }
+/** Category label as the budget surfaces print it. */
+function titleCase(c: string): string { return CAT_LABEL[c as ExpenseCategory] ?? baseTitleCase(c) }
+
+/** One solid tone per person, for every avatar this tab draws.
+ *
+ *  The mockup paints each participant a solid brand chip instead of the pale
+ *  mint default, so the money rows read as people. The tone must also match the
+ *  header's member stack, which assigns tones across the whole cast: a lone
+ *  hash cannot promise that two people differ, and it could paint one person two
+ *  colours on one page. So this reads the stack's own assignment — same members,
+ *  same order — and falls back to the lone hash only for an identity the trip
+ *  does not hold. */
+function toneMapFor(members: { userId: ID }[]): Map<string, AvatarTone> {
+  const tones = assignAvatarTones(members.map(member => member.userId))
+  return new Map(members.map((member, index) => [member.userId, tones[index]]))
+}
+
+type ToneUser = { id?: string; profile?: { name?: string } } | null | undefined
+
+/** The member's assigned tone, or the lone-identity tone for a non-member. */
+function toneFrom(toneMap: Map<string, AvatarTone>, user: ToneUser): AvatarTone {
+  const assigned = user?.id ? toneMap.get(user.id) : undefined
+  return assigned ?? avatarToneFor(user?.id ?? user?.profile?.name)
+}
 
 interface FormState {
   label: string; amount: string; category: ExpenseCategory
@@ -225,6 +253,63 @@ const PLOT = { w: 600, h: 300, left: 58, right: 10, top: 26, bottom: 46 }
 const PLOT_W = PLOT.w - PLOT.left - PLOT.right
 const PLOT_H = PLOT.h - PLOT.top - PLOT.bottom
 
+/** A rectangle with one radius per corner, as an SVG path.
+ *
+ *  `r` is [top-left, top-right, bottom-right, bottom-left] in px. The small bars
+ *  need a rounded OUTER end and a square inner one (the balance bars start on the
+ *  zero line, the target track's over-segment starts at the target), and a rect
+ *  carries one radius for all four corners. The path is drawn by hand, so those
+ *  radii stay real px at every column width, where a stretched `rx` drew ellipses. */
+function roundedBox(x: number, y: number, w: number, h: number, r: number[]): string {
+  const [tl, tr, br, bl] = r.map(v => Math.max(0, Math.min(v, w / 2, h / 2)))
+  return `M${x + tl} ${y}H${x + w - tr}`
+    + (tr ? `A${tr} ${tr} 0 0 1 ${x + w} ${y + tr}` : '')
+    + `V${y + h - br}`
+    + (br ? `A${br} ${br} 0 0 1 ${x + w - br} ${y + h}` : '')
+    + `H${x + bl}`
+    + (bl ? `A${bl} ${bl} 0 0 1 ${x} ${y + h - bl}` : '')
+    + `V${y + tl}`
+    + (tl ? `A${tl} ${tl} 0 0 1 ${x + tl} ${y}` : '')
+    + 'Z'
+}
+
+/** The drawn width of an SVG, in CSS px, kept current across resizes.
+ *
+ *  The bars that span a card cannot use a `viewBox`: `preserveAspectRatio="none"`
+ *  stretches every declared radius with the column, which is what turned the
+ *  caps into ellipses. Geometry in px needs the width, so this reads it. It is a
+ *  measurement, not a style: the value always lands in an SVG attribute. */
+function useSvgWidth(ref: { current: SVGSVGElement | null }): number {
+  const [width, setWidth] = useState(0)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // The bar grows with a scaleX on its own SVG, so its rect reads 0 on the
+    // first frame and stays 0 unless the wrapper is measured: the wrapper keeps
+    // the layout width the bar will fill.
+    const read = () => {
+      const wrapper = el.parentElement ? el.parentElement.getBoundingClientRect().width : 0
+      setWidth(wrapper || el.getBoundingClientRect().width)
+    }
+    read()
+    if (typeof ResizeObserver === 'undefined') return
+    const watcher = new ResizeObserver(read)
+    watcher.observe(el)
+    return () => watcher.disconnect()
+  }, [ref])
+  return width
+}
+
+/** Where the target mark sits on the glance track, as a share of its width.
+ *  The mockup draws the target at 92% so the over-target segment has room on
+ *  the right of the mark instead of piling up on the end of the bar. */
+const TARGET_SHARE = 92
+/** The gap the mockup leaves between the fill and the over segment, in px. */
+const TRACK_GAP = 2
+/** The narrowest a segment may be drawn, so a real share never reads as 0. */
+const MIN_SEG = 6
+
+
 export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings }: {
   trip: Trip
   totals: ReturnType<typeof computeTotals>
@@ -250,9 +335,23 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   const categoriesInView = useInView(categoryBarsRef)
   const optionalInView = useInView(optionalBarsRef)
   const balancesInView = useInView(balancesRef)
+  // The three full-width bars are drawn in px from these measured widths, so a
+  // rounded end stays round at every column width.
+  const trackRef = useRef<SVGSVGElement>(null)
+  const shareRef = useRef<SVGSVGElement>(null)
+  const essentialRef = useRef<SVGSVGElement>(null)
+  const balRef = useRef<SVGSVGElement>(null)
+  const trackW = useSvgWidth(trackRef)
+  const shareW = useSvgWidth(shareRef)
+  const essentialW = useSvgWidth(essentialRef)
+  const balW = useSvgWidth(balRef)
   const db = useDb()
   const me = currentUser(db)
   const members = trip.members ?? []
+  // One tone per person, from the same assignment the header's member stack
+  // reads, so a colour means one person everywhere on this page.
+  const toneMap = useMemo(() => toneMapFor(trip.members ?? []), [trip.members])
+  const toneFor = (user: ToneUser) => toneFrom(toneMap, user)
   const [editingId, setEditingId] = useState<ID | null>(null)
   const [adding, setAdding] = useState(false)
   const [lineFilter, setLineFilter] = useState<'all' | 'open' | 'settled'>('all')
@@ -374,15 +473,52 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   const maxBalance = Math.max(1, ...balances.map(b => Math.abs(b.bal)))
   const nameOf = (u: CachedUser | undefined) => u?.profile.name ?? 'Traveller'
 
-  const targetScale = Math.max(100, pctUsed)
-  const targetFillPct = Math.min(100, (pctUsed / targetScale) * 100)
-  const targetMarkPct = (100 / targetScale) * 100
+  // The glance track's geometry, in px at the measured width: the mark sits at
+  // 92% of the bar, the fill runs up to it, then a 2px gap and the over-target
+  // segment. The old 0..100 viewBox stretched every radius and pushed the mark
+  // and the over-segment onto the bar's last pixels.
+  const usedPct = (totals.totalCostInr / Math.max(1, groupTarget)) * 100
+  const targetX = (TARGET_SHARE / 100) * trackW
+  const estimateX = (usedPct / 100) * (TARGET_SHARE / 100) * trackW
+  const isOver = usedPct > 100
+  const fillEnd = isOver ? targetX : Math.min(trackW, estimateX)
+  const overStart = targetX + TRACK_GAP
+  const overEnd = Math.max(overStart + MIN_SEG, Math.min(trackW, estimateX))
+  const capText = `Target ${formatInr(groupTarget)}`
+  const capRef = useRef<SVGTextElement>(null)
+  const [capW, setCapW] = useState(0)
+  useLayoutEffect(() => {
+    if (capRef.current) setCapW(capRef.current.getBBox().width)
+  }, [capText, trackW])
+  // Centred under the mark, but never past the card edge on a narrow column.
+  const capX = Math.max(capW / 2 + 1, Math.min(targetX, trackW - capW / 2 - 1))
+
+  // The stacked share bar, in px at the measured width: a real 2px gap between
+  // segments, 4px corners on every one, and a 6px floor for a tiny share. The
+  // floor is taken from the largest segment, so the segments still add up to
+  // the bar and no share is invented.
+  const shareGaps = TRACK_GAP * Math.max(0, cats.length - 1)
+  const shareAvail = Math.max(0, shareW - shareGaps)
+  const shareIdeal = cats.map(([, v]) => (v / Math.max(1, totals.totalCostInr)) * shareAvail)
+  const sharePx = shareIdeal.map(w => Math.max(MIN_SEG, w))
+  const shareOver = sharePx.reduce((a, w) => a + w, 0) - shareIdeal.reduce((a, w) => a + w, 0)
+  if (shareOver > 0 && sharePx.length > 0) {
+    const biggest = sharePx.indexOf(Math.max(...sharePx))
+    sharePx[biggest] = Math.max(MIN_SEG, sharePx[biggest] - shareOver)
+  }
+  let shareCursor = 0
+  const shareSegs = sharePx.map((w, i) => {
+    const x = shareCursor
+    shareCursor += w + TRACK_GAP
+    return { key: cats[i][0], klass: catClass(cats[i][0]), x, w: Math.max(0.5, w) }
+  })
   const chartTargetLabel = hasTarget ? 'day target' : 'daily average'
   const chartTargetY = PLOT.top + PLOT_H - (Math.min(dayTarget, maxDay) / maxDay) * PLOT_H
   const chartTicks = [1, 0.75, 0.5, 0.25, 0].map(f => ({ f, value: maxDay * f, y: PLOT.top + PLOT_H * (1 - f) }))
   // A target that lands on a grid tick would print the same rupee value twice.
-  // The dashed line and the card note still name it; skip the duplicate label.
-  const targetHasTick = chartTicks.some(tick => Math.abs(tick.y - chartTargetY) < 12)
+  // The comparison is on the VALUE, not on pixels: a tick 200 rupees away from
+  // the target is not the target, and bolding it claimed otherwise.
+  const targetHasTick = chartTicks.some(tick => Math.abs(Math.round(tick.value) - Math.round(dayTarget)) <= 1)
   const chartColW = PLOT_W / Math.max(1, days.length)
   const chartBarW = Math.min(58, chartColW * 0.56)
 
@@ -422,23 +558,35 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               {formatInr(totals.costPerPersonInr)} each · {trip.travellers} traveller{trip.travellers === 1 ? '' : 's'}
               {hasTarget
                 ? perPersonDeltaPct !== 0 && <> · <b className={perPersonDeltaPct > 0 ? 'bud-delta-bad' : 'bud-delta-ok'}>{perPersonDeltaPct > 0 ? '+' : '−'}{Math.abs(perPersonDeltaPct)}%</b></>
-                : ' · no per-person target yet'}
+                : ' · no per‑person target yet'}
             </span>
           </div>
           {hasTarget ? (
             <div className="bud-target-wrap">
-              <svg className="bud-target-track" viewBox="0 0 100 12" preserveAspectRatio="none" role="img"
-                aria-label={`Estimate ${formatInr(totals.totalCostInr)} against a ${formatInr(groupTarget)} target, ${pctUsed}% of the target`}>
-                <rect className="bud-track" x="0" y="0" width="100" height="12" rx="6" />
-                <rect className="bud-track-fill"
-                  x="0" y="0" width={Math.max(1, pctUsed > 100 ? targetMarkPct : targetFillPct)} height="12" rx="6" />
-                {pctUsed > 100 && (
-                  <rect className="bud-track-fill is-over"
-                    x={targetMarkPct} y="0" width={Math.max(0.5, 100 - targetMarkPct)} height="12" rx="6" />
+              <svg className="bud-target-track" ref={trackRef} height="42" role="img"
+                aria-label={isOver
+                  ? `Estimate ${formatInr(totals.totalCostInr)} against a ${formatInr(groupTarget)} target, ${pctUsed}% of the target, ${formatInr(Math.max(0, -remaining))} over`
+                  : `Estimate ${formatInr(totals.totalCostInr)} against a ${formatInr(groupTarget)} target, ${pctUsed}% of the target, ${formatInr(Math.max(0, remaining))} to go`}>
+                <rect className="bud-track" x="0" y="8" width="100%" height="12" rx="6" />
+                {trackW > 0 && (
+                  <>
+                    <path className="bud-track-fill"
+                      d={isOver
+                        ? roundedBox(0, 8, Math.max(1, fillEnd), 12, [6, 2, 2, 6])
+                        : roundedBox(0, 8, Math.max(1, fillEnd), 12, [6, 6, 6, 6])} />
+                    {isOver && (
+                      <>
+                        {/* The gap the mockup leaves between fill and over-run. */}
+                        <rect className="bud-track-gap" x={targetX} y="8" width={TRACK_GAP} height="12" />
+                        <path className="bud-track-fill is-over"
+                          d={roundedBox(overStart, 8, Math.max(1, overEnd - overStart), 12, [2, 6, 6, 2])} />
+                      </>
+                    )}
+                    <line className="bud-target-mark" x1={targetX} x2={targetX} y1="0" y2="28" />
+                    <text className="bud-target-caption" ref={capRef} x={capX} y="41" textAnchor="middle">{capText}</text>
+                  </>
                 )}
-                <line className="bud-target-mark" x1={targetMarkPct} x2={targetMarkPct} y1="0" y2="12" />
               </svg>
-              <span className="bud-target-caption">Target {formatInr(groupTarget)} · {pctUsed}% of the target{pctUsed > 100 ? ' — over budget' : ''}</span>
             </div>
           ) : (
             <div className="bud-target-wrap">
@@ -477,10 +625,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           {ledgerUnread ? (
             <span className="bud-mini-track is-unread" aria-hidden="true" />
           ) : (
-            <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+            <svg className="bud-mini-track" height="8" role="img"
               aria-label={`${settledPct}% of recorded spend is marked settled${ledgerKept ? ' (last read)' : ''}`}>
-              <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
-              <rect className="bud-track-fill" x="0" y="0" width={Math.max(0, settledPct)} height="8" rx="4" />
+              <rect className="bud-track" x="0" y="0" width="100%" height="8" rx="4" />
+              <rect className="bud-track-fill" x="0" y="0" width={`${Math.max(0, settledPct)}%`} height="8" rx="4" />
             </svg>
           )}
           <span className="bud-glance-sub">
@@ -505,10 +653,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           {ledgerUnread ? (
             <span className="bud-mini-track is-unread" aria-hidden="true" />
           ) : (
-            <svg className="bud-mini-track" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+            <svg className="bud-mini-track" height="8" role="img"
               aria-label={`${kittyPct}% of recorded spend sits in untagged lines${ledgerKept ? ' (last read)' : ''}`}>
-              <rect className="bud-track" x="0" y="0" width="100" height="8" rx="4" />
-              <rect className="bud-track-fill soft" x="0" y="0" width={Math.max(0, kittyPct)} height="8" rx="4" />
+              <rect className="bud-track" x="0" y="0" width="100%" height="8" rx="4" />
+              <rect className="bud-track-fill soft" x="0" y="0" width={`${Math.max(0, kittyPct)}%`} height="8" rx="4" />
             </svg>
           )}
           <span className="bud-glance-sub">
@@ -558,19 +706,24 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               <div className="bud-plot-scroll" ref={dayBarsRef} data-motion-paused={!visible || !daysInView}>
                 <div className="bud-plot">
                   <svg className="bud-plot-svg" viewBox={`0 0 ${PLOT.w} ${PLOT.h}`} role="img"
-                    aria-label={`Cost per day. ${days.map(d => `${d.label} ${formatInr(d.totalInr)}`).join('; ')}. Dashed line is the ${chartTargetLabel} at ${formatInr(dayTarget)}.`}>
+                    aria-label={`Cost per day. ${days.map(d => `${d.label} ${formatInr(d.totalInr)}`).join('; ')}. Dashed line is the ${chartTargetLabel} at ${formatInr(dayTarget)}. The axis runs from ${formatInr(0)} to ${formatInr(Math.round(maxDay))}.`}>
                     <title>Cost per day</title>
                     <desc>{`Each column stacks one day's spend by category. The dashed line marks the ${chartTargetLabel}. Every value is also written in the table below the chart.`}</desc>
-                    {chartTicks.map(t => (
-                      <g key={t.f}>
-                        <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
-                        <text className="bud-axis-label" x={PLOT.left - 8} y={t.y + 4} textAnchor="end">{formatInr(Math.round(t.value))}</text>
-                      </g>
-                    ))}
+                    {chartTicks.map(t => {
+                      // Only the tick that IS the target carries the weight.
+                      const onTarget = dayTarget > 0 && Math.abs(Math.round(t.value) - Math.round(dayTarget)) <= 1
+                      return (
+                        <g key={t.f}>
+                          <line className="bud-grid-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={t.y} y2={t.y} />
+                          <text className={onTarget ? 'bud-axis-label is-on' : 'bud-axis-label'} x={PLOT.left - 8} y={t.y + 4} textAnchor="end">
+                            {formatInr(Math.round(t.value))}
+                          </text>
+                        </g>
+                      )
+                    })}
                     {dayTarget > 0 && (
                       <g className="bud-target-group">
                         <line className="bud-target-line" x1={PLOT.left} x2={PLOT.w - PLOT.right} y1={chartTargetY} y2={chartTargetY} />
-                        {!targetHasTick && <text className="bud-target-text" x={PLOT.left + 2} y={chartTargetY - 6}>{formatInr(Math.round(dayTarget))}</text>}
                       </g>
                     )}
                     <g className="bud-bars">
@@ -599,6 +752,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                         )
                       })}
                     </g>
+                    {/* Drawn after the bars so a tall first day cannot paint over the figure. */}
+                    {dayTarget > 0 && !targetHasTick && (
+                      <text className="bud-target-text" x={PLOT.left + 2} y={chartTargetY - 6}>{formatInr(Math.round(dayTarget))}</text>
+                    )}
                   </svg>
                   <div className="bud-hits">
                     {days.map(d => {
@@ -665,14 +822,12 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           {cats.length > 0 ? (
             <>
               <div ref={categoryBarsRef} data-motion-paused={!visible || !categoriesInView}>
-                <svg className="bud-share-bar" viewBox="0 0 100 16" preserveAspectRatio="none" role="img"
+                <svg className="bud-share-bar" ref={shareRef} height="16" role="img"
                   aria-label={`Category shares: ${cats.map(([c], i) => `${titleCase(c)} ${catShares[i]}%`).join(', ')}`}>
-                  {cats.map(([c, v], i) => {
-                    const before = cats.slice(0, i).reduce((a, [, x]) => a + x, 0)
-                    const start = (before / Math.max(1, totals.totalCostInr)) * 100
-                    const width = (v / Math.max(1, totals.totalCostInr)) * 100
-                    return <rect key={c} className={`bud-seg ${catClass(c)}`} x={start} y="0" width={Math.max(0.6, width)} height="16" rx="2" />
-                  })}
+                  {shareW > 0 && shareSegs.map(seg => (
+                    <rect key={seg.key} className={`bud-seg ${seg.klass}`}
+                      x={seg.x} y="0" width={seg.w} height="16" rx="4" />
+                  ))}
                 </svg>
               </div>
               <div className="bud-cat-table-wrap">
@@ -716,7 +871,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 <p className="bud-insight">
                   <span aria-hidden="true">i</span>
                   <span>
-                    {titleCase(topCat[0])} is the biggest share at {topCatShare}%.
+                    Biggest share: {titleCase(topCat[0])} at {topCatShare}%.
                     {biggestLine && biggestLine.expense.category === topCat[0] && <> {biggestLine.expense.label} alone is {biggestShare}% of the trip.</>}
                   </span>
                 </p>
@@ -781,19 +936,25 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                       <div className="bud-bal-head" aria-hidden="true">
                         <span /><span><span>← owes</span><span>gets back →</span></span><span />
                       </div>
-                      {balances.map(b => {
+                      {balances.map((b, i) => {
                         const bal = Math.abs(b.bal) <= 0.5 ? 0 : b.bal
-                        const width = (Math.abs(bal) / maxBalance) * 50
+                        // The bars start exactly on the zero line and end with a
+                        // 4px rounded OUTER end: the inner end is square, so an
+                        // owes bar and a gets-back bar never overlap on the axis.
+                        const half = balW / 2
+                        const barW = (Math.abs(bal) / maxBalance) * half
                         return (
                           <div key={b.id} className="bud-bal-row">
-                            <span className="bud-bal-who"><Avatar user={b.user} /> {nameOf(b.user)}</span>
+                            <span className="bud-bal-who"><Avatar user={b.user} tone={toneFor(b.user)} /> {nameOf(b.user)}</span>
                             <span className="bud-bal-track" role="img"
                               aria-label={bal === 0 ? `${nameOf(b.user)} is settled` : bal > 0 ? `${nameOf(b.user)} gets back ${formatInr(bal)}` : `${nameOf(b.user)} owes ${formatInr(-bal)}`}>
-                              <svg viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
-                                <line className="bud-bal-even" x1="50" x2="50" y1="0" y2="16" />
-                                {bal !== 0 && (
-                                  <rect className={bal > 0 ? 'bud-bal-bar pos' : 'bud-bal-bar neg'}
-                                    x={bal > 0 ? 50 : 50 - width} y="3" width={Math.max(1.5, width)} height="10" rx="2" />
+                              <svg ref={i === 0 ? balRef : undefined} height="24" aria-hidden="true">
+                                <line className="bud-bal-even" x1={half} x2={half} y1="0" y2="24" />
+                                {bal !== 0 && balW > 0 && (
+                                  <path className={`bud-bal-bar ${bal > 0 ? 'pos' : 'neg'}`}
+                                    d={bal > 0
+                                      ? roundedBox(half, 4, Math.max(1, barW), 16, [0, 4, 4, 0])
+                                      : roundedBox(half - Math.max(1, barW), 4, Math.max(1, barW), 16, [4, 0, 0, 4])} />
                                 )}
                               </svg>
                             </span>
@@ -812,7 +973,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                         <p className="bud-transfer-head"><b>Simplest way to settle</b> · {transfers.length} payment{transfers.length === 1 ? '' : 's'}</p>
                         {transfers.map((t, i) => (
                           <div key={`${t.from.id}-${t.to.id}-${i}`} className="bud-transfer-row">
-                            <Avatar user={t.from.user} />
+                            <Avatar user={t.from.user} tone={toneFor(t.from.user)} />
                             <span>{nameOf(t.from.user)} → {nameOf(t.to.user)}</span>
                             <b>{formatInr(t.amount)}</b>
                           </div>
@@ -837,7 +998,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                               <span className="num muted small">{formatInr(lineTotal(e, trip.travellers))}</span>
                               <button
                                 type="button"
-                                className="btn btn-sm settled-btn"
+                                className="btn btn-sm btn-outline settled-btn"
                                 aria-label={`Mark ${e.label} settled`}
                                 onClick={() => {
                                   if (refuseWhileStaged(previewOpen)) return
@@ -895,7 +1056,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
             <span className="bud-card-note">Read-only: the optional flag lives on each line</span>
           </div>
           <div ref={optionalBarsRef} data-motion-paused={!visible || !optionalInView}>
-            <svg className="bud-essential-bar" viewBox="0 0 100 16" preserveAspectRatio="none" role="img"
+            <svg className="bud-essential-bar" ref={essentialRef} height="16" role="img"
               aria-label={`Essential ${formatInr(totals.essentialInr)}, optional ${formatInr(totals.optionalInr)}`}>
               <defs>
                 <pattern id="bud-optional-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -903,11 +1064,18 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                   <line className="bud-hatch-line" x1="0" y1="0" x2="0" y2="6" />
                 </pattern>
               </defs>
-              <rect className="bud-essential-fill" x="0" y="0"
-                width={Math.max(0, (totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="2" />
-              {totals.optionalInr > 0 && (
-                <rect className="bud-optional-fill" x={(totals.essentialInr / Math.max(1, totals.totalCostInr)) * 100} y="0"
-                  width={Math.max(0.6, (totals.optionalInr / Math.max(1, totals.totalCostInr)) * 100)} height="16" rx="2" />
+              {essentialW > 0 && (
+                <>
+                  <path className="bud-essential-fill"
+                    d={roundedBox(0, 0, Math.max(1, (totals.essentialInr / Math.max(1, totals.totalCostInr)) * essentialW), 16, [4, 4, 4, 4])} />
+                  {totals.optionalInr > 0 && (
+                    <path className="bud-optional-fill"
+                      d={roundedBox(
+                        (totals.essentialInr / Math.max(1, totals.totalCostInr)) * essentialW, 0,
+                        Math.max(1, (totals.optionalInr / Math.max(1, totals.totalCostInr)) * essentialW), 16, [4, 4, 4, 4],
+                      )} />
+                  )}
+                </>
               )}
             </svg>
           </div>
@@ -920,17 +1088,20 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               <ul className="bud-optional-list">
                 {optionalLines.map(e => (
                   <li key={e.id} className="bud-optional-row">
-                    <span className="bud-optional-check" aria-hidden="true"><Check size={12} /></span>
+                    <span className="bud-optional-check" aria-hidden="true"><Check size={14} /></span>
                     <span className="bud-optional-name">{e.label} <span className="muted">· {expenseDayLabel(trip, e)}</span></span>
                     <b>{formatInr(lineTotal(e, trip.travellers))}</b>
                   </li>
                 ))}
               </ul>
               <p className="bud-optional-result">
-                Without {optionalLines.length === 1 ? 'that line' : `those ${optionalLines.length}`}: <b>{formatInr(withoutOptional)}</b>
-                {hasTarget && <> — {withoutOptionalRoom >= 0
-                  ? <>{formatInr(withoutOptionalRoom)} under target</>
-                  : <>{formatInr(-withoutOptionalRoom)} over target</>}</>}
+                <Check size={20} aria-hidden="true" />
+                <span>
+                  Without {optionalLines.length === 1 ? 'that line' : `those ${optionalLines.length}`}: <b>{formatInr(withoutOptional)}</b>
+                  {hasTarget && <> — {withoutOptionalRoom >= 0
+                    ? <>{formatInr(withoutOptionalRoom)} under target</>
+                    : <>{formatInr(-withoutOptionalRoom)} over target</>}</>}
+                </span>
               </p>
             </>
           ) : (
@@ -961,7 +1132,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
       <Surface className="card bud-panel bud-lines">
         <div className="bud-card-head">
           <div>
-            <h3 className="bud-card-title">Expense lines{expensesRead === 'ready' && trip.expenses.length > 0 ? ` · ${trip.expenses.length}` : ''}</h3>
+            <h3 className="bud-card-title">Expense lines</h3>
             <p className="bud-card-note">Amounts are group totals unless marked per person. Tag who paid to settle up above.</p>
           </div>
           <div className="bud-line-tools">
@@ -974,7 +1145,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               ))}
             </div>
             {editable && canWrite && (
-              <button type="button" className="btn btn-primary btn-sm" aria-expanded={adding}
+              <button type="button" className="btn btn-primary" aria-expanded={adding}
                 onClick={() => setAdding(v => !v)}>
                 {adding ? 'Close capture' : '+ Add expense'}
               </button>
@@ -1011,6 +1182,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               body="Add the big ones first (stay, fuel, food)." />
           </div>
         ) : (
+            <div className="bud-ledger-scroll">
             <table className="compare-table bud-lines-table" tabIndex={0} aria-label="Expense lines">
               <thead>
                 <tr>
@@ -1052,7 +1224,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                       </th>
                       <td>{expenseDayLabel(trip, e)}</td>
                       <td>{payer
-                        ? <span className="bud-payer"><Avatar user={payer} /> {payer.profile.name}</span>
+                        ? <span className="bud-payer"><Avatar user={payer} tone={toneFor(payer)} /> {payer.profile.name}</span>
                         : <span className="bud-payer bud-payer-kitty">Shared kitty</span>}</td>
                       <td className="num">{formatInr(lineTotal(e, trip.travellers))}</td>
                       <td>
@@ -1096,7 +1268,19 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 })}
               </tbody>
             </table>
+            </div>
           )}
+        {expensesRead === 'ready' && trip.expenses.length > 0 && (
+          <p className="bud-lines-foot">
+            Showing {shownExpenses.length} of {trip.expenses.length} lines
+            {lineFilter !== 'all' && (
+              <>
+                {' · '}
+                <button type="button" className="link-btn teal" onClick={() => setLineFilter('all')}>Show all lines</button>
+              </>
+            )}
+          </p>
+        )}
         {expensesRead === 'ready' && trip.expenses.length > 0 && shownExpenses.length === 0 && (
           <p className="hint-text bud-empty-line">
             No {lineFilter === 'settled' ? 'settled' : 'open'} lines. <button className="link-btn teal" onClick={() => setLineFilter('all')}>Show all lines</button>

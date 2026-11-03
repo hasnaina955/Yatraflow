@@ -9,9 +9,7 @@ import {
   Check,
   CircleCheck,
   CloudSun,
-  Lightbulb,
-  Pin,
-  Siren,
+  MessageSquare,
   TriangleAlert,
 } from 'lucide-react'
 import type { Trip } from '../../data/types'
@@ -25,6 +23,7 @@ import { useTimeFormat, formatHM } from '../../lib/timefmt'
 import { fetchDailyWeather, forecastAvailable, isoAddDays, weatherAnchor, wmoInfo } from '../../lib/weather'
 import type { DayWeather } from '../../lib/weather'
 import { useWeatherRefreshTick } from '../../hooks/useWeatherRefresh'
+import { useToday } from '../../hooks/useToday'
 import { timeAgo } from './shared'
 import { Avatar } from '../../components/ui'
 import { assignAvatarTones } from '../../lib/avatarTone'
@@ -163,6 +162,10 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
   const retryOverviewReads = () => { void resumeSync().catch(() => undefined) }
   const nextCommitment = [...trip.fixedCommitments]
     .sort((a, b) => a.dayIndex - b.dayIndex || a.time.localeCompare(b.time))[0]
+  // The next commitment's day, dated from the trip start. Without a start date the chip shows the day number only.
+  const nextDate = nextCommitment && trip.startDate
+    ? new Date(`${isoAddDays(trip.startDate, nextCommitment.dayIndex)}T00:00`)
+    : null
   const crew = trip.members ?? []
   const hasPlan = overviewHasPlan(trip)
   const routeRows = useMemo(() => overviewRouteRows(trip, road), [trip, road])
@@ -330,7 +333,21 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
           <Surface as="section" className="ovw-card ovw-needs ovw2-issues" enterIndex={5} aria-labelledby="ovw-needs-title">
             <div className="ovw-head">
               <h2 className="ovw-title" id="ovw-needs-title">What needs you</h2>
-              {rankedWarnings.length > 0 && (
+              {rankedWarnings.length > 3 ? (
+                <span className={countTone}>
+                  {visibleWarnings.length} of {rankedWarnings.length} ·{' '}
+                  <button
+                    type="button"
+                    className="ovw-more-btn"
+                    aria-label={showAllWarnings ? 'Show fewer warnings' : `Show all ${rankedWarnings.length} warnings`}
+                    aria-expanded={showAllWarnings}
+                    aria-controls="ovw-needs-list"
+                    onClick={() => setShowAllWarnings(value => !value)}
+                  >
+                    {showAllWarnings ? 'Show fewer' : 'Show all'}
+                  </button>
+                </span>
+              ) : rankedWarnings.length > 0 && (
                 <span className={countTone}>{rankedWarnings.length} warning{rankedWarnings.length === 1 ? '' : 's'}</span>
               )}
             </div>
@@ -350,10 +367,27 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
                     <li key={warningKey(warning)} className={`ovw-need ovw2-issue is-${warning.severity}`}>
                       <span className="ovw2-issue-icon" aria-hidden="true">
                         {warning.severity === 'high'
-                          ? <Siren size={22} />
+                          ? (
+                            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                              <circle className="ovw2-glyph-fill" cx="12" cy="13" r="8" stroke="currentColor" strokeWidth={1.9} />
+                              <path d="M12 9v4l2.5 2.5M9.5 2.5h5" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )
                           : warning.severity === 'medium'
-                            ? <TriangleAlert size={22} />
-                            : <Lightbulb size={22} />}
+                            ? (
+                              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                                <path className="ovw2-glyph-fill" d="M5 16a7 7 0 0 1 14 0Z" stroke="currentColor" strokeWidth={1.9} strokeLinejoin="round" />
+                                <path d="M2.5 16h19M6 20h12M12 4v2.5M4.6 8.6l1.6 1.6M19.4 8.6l-1.6 1.6" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" />
+                              </svg>
+                            )
+                            : (
+                              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                                <rect className="ovw2-glyph-fill" x="3.5" y="5" width="17" height="15" rx="3" stroke="currentColor" strokeWidth={1.9} />
+                                <path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" />
+                                <rect x="7" y="13" width="4" height="3.5" rx="1" fill="none" stroke="currentColor" strokeWidth={1.9} strokeDasharray="1.6 1.4" />
+                                <rect className="ovw2-glyph-accent" x="13" y="13" width="4" height="3.5" rx="1" />
+                              </svg>
+                            )}
                       </span>
                       <div className="ovw-need-text">
                         <div className="ovw-need-title">{warning.title}</div>
@@ -374,19 +408,6 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
                   )
                 })}
               </ul>
-            )}
-            {rankedWarnings.length > 3 && (
-              <button
-                type="button"
-                className="ovw-more-btn"
-                aria-expanded={showAllWarnings}
-                aria-controls="ovw-needs-list"
-                onClick={() => setShowAllWarnings(value => !value)}
-              >
-                {showAllWarnings
-                  ? 'Show fewer'
-                  : `${rankedWarnings.length - 3} more warning${rankedWarnings.length - 3 === 1 ? '' : 's'}`}
-              </button>
             )}
           </Surface>
 
@@ -417,9 +438,14 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
             {nextCommitment ? (
               <div className="ovw-commitments">
                 <div className="ovw-next">
-                  <Pin size={14} aria-hidden />
-                  <div>
-                    <b>Next: {nextCommitment.title}</b>
+                  <span className="ovw-next-date" aria-hidden="true">
+                    {nextDate
+                      ? <><span>{nextDate.toLocaleDateString('en-US', { weekday: 'short' })}</span><b>{nextDate.getDate()}</b></>
+                      : <><span>Day</span><b>{nextCommitment.dayIndex + 1}</b></>}
+                  </span>
+                  <div className="ovw-next-copy">
+                    <span className="ovw-next-kicker">Next up</span>
+                    <b>{nextCommitment.title}</b>
                     <span>Day {nextCommitment.dayIndex + 1} at {formatHM(nextCommitment.time, timeFormat)}</span>
                   </div>
                 </div>
@@ -487,10 +513,13 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
               />
             )}
             {(decisionsView === 'rows' || decisionsView === 'kept') && (
+              <>
+                <span className="ovw2-strip-chip" aria-hidden="true"><MessageSquare size={18} /></span>
               <div className="ovw2-strip-copy">
                 <b>{unresolvedDecisions} open decision{unresolvedDecisions === 1 ? '' : 's'}</b>
                 <button type="button" className="ovw-btn ovw-btn--quiet" onClick={onOpenDecisions}>Review decisions</button>
               </div>
+              </>
             )}
           </div>
 
@@ -787,7 +816,7 @@ function WeatherCard({
                   <span className="ovw-wx-day">
                     {dayNum >= 0 ? `Day ${dayNum + 1}` : w.date} · {wet ? `Rain ${w.rainChancePct}%` : info.label}
                   </span>
-                  <span className="ovw-wx-temp">{Math.round(w.tempMinC)}° / {Math.round(w.tempMaxC)}°</span>
+                  <span className="ovw-wx-temp">{Math.round(w.tempMaxC)}° / {Math.round(w.tempMinC)}°</span>
                 </span>
               </div>
             )
@@ -1039,6 +1068,12 @@ function SlotMatrix({
           : 'not part of this day'
     return `Day ${dayIndex + 1} ${kindName}: ${state}`
   }
+  // The day in view. A trip day is today only when the start date and the local
+  // date put today inside the trip, so the Today row never guesses.
+  const today = useToday()
+  const todayIndex = trip.startDate
+    ? Math.round((today.getTime() - new Date(`${trip.startDate}T00:00`).getTime()) / 86400000)
+    : -1
   const dayStatesLabel = (dayIndex: number, slots: DaySlot[]): string =>
     `Day ${dayIndex + 1}. ${kinds.map(kind => {
       const slot = slotFor(slots, kind.key)
@@ -1056,7 +1091,7 @@ function SlotMatrix({
         <span className="ovw-head-meta">
           Meals, fuel, a stretch and a bed
           {thinnest
-            ? ` · thinnest: Day ${thinnest.index + 1}, ${thinnest.filled} of ${thinnest.total}`
+            ? <> · thinnest: <b className="ovw-thin">Day {thinnest.index + 1}, {thinnest.filled} of {thinnest.total}</b></>
             : ''}
         </span>
       </div>
@@ -1096,7 +1131,7 @@ function SlotMatrix({
                 {rows.map(({ day, slots }, rowIndex) => {
                   const filled = slots.filter(slot => slot.state === 'filled').length
                   return (
-                    <div key={day.index} className="mx-row" role="row">
+                    <div key={day.index} className={`mx-row${day.index === todayIndex ? ' is-today' : ''}`} role="row">
                       <span className="mx-day mx-daycol" role="rowheader">
                         {(() => {
                           const label = dayPlaceLabel(trip, day.index)
@@ -1114,6 +1149,7 @@ function SlotMatrix({
                                 <span className="mx-thumb-n">{day.index + 1}</span>
                               </span>
                               <span className="mx-place">{overviewPinText(label, 26)}</span>
+                              {day.index === todayIndex && <span className="mx-today">Today</span>}
                             </>
                           )
                           return onSelectDay ? (
@@ -1201,7 +1237,7 @@ function SlotMatrix({
                       />
                       <span className="mx-thumb-n">{day.index + 1}</span>
                     </span>
-                    <span className="mx-place">{overviewPinText(dayPlaceLabel(trip, day.index), 18)}</span>
+                    <span className="mx-place">{overviewPinText(dayPlaceLabel(trip, day.index), 40)}</span>
                   </span>
                   {kinds.map(kind => {
                     const slot = slotFor(slots, kind.key)

@@ -144,7 +144,9 @@
         "tone-bloom",
         "lg"
       ],
-      "variables": []
+      "variables": [
+        "--avatar-ring"
+      ]
     },
     {
       "id": "dialog",
@@ -331,8 +333,10 @@
         "bud-line-amount-inline",
         "bud-line-name",
         "bud-line-tools",
+        "bud-ledger-scroll",
         "bud-lines",
         "bud-lines-table",
+        "bud-lines-foot",
         "bud-method",
         "bud-mini-track",
         "bud-note",
@@ -377,6 +381,7 @@
         "bud-tip",
         "bud-track",
         "bud-track-fill",
+        "bud-track-gap",
         "bud-transfer-head",
         "bud-transfer-note",
         "bud-transfer-row",

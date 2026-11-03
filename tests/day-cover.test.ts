@@ -44,7 +44,9 @@ describe('a day carries its own cover photo', () => {
     // with "Change day cover" over it, and a folded day draws an 84x60
     // thumbnail at the start of its row. The band on a folded card turned four
     // days into four banners and buried the list.
-    expect(day).toMatch(/\{!collapsed && <DayCover day=\{day\} trip=\{trip \?\? dayCover\}/)
+    // The band stays mounted while the fold runs, so it clips with the body
+    // and the gesture reads as one motion. Once the fold ends it unmounts.
+    expect(day).toMatch(/\{fold\.mounted && \(\s*<DayCover day=\{day\} trip=\{trip \?\? dayCover\}[^>]*folded=\{!fold\.expanded\}/)
     expect(day).toMatch(/\{collapsed && <DayThumb day=\{day\} trip=\{trip \?\? dayCover\} \/>\}/)
     // Both read ONE plan, so folding a day cannot swap the picture.
     expect(day).toMatch(/function DayThumb[\s\S]*?const plan = useDayCover\(day, trip\)/)

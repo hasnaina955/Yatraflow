@@ -129,7 +129,8 @@ describe('PW-13 review — the narrow chart copy points at the table', () => {
   })
 
   it('gives the table summary the coarse-pointer floor without dropping its marker', () => {
-    expect(css).toContain('.bud-table-view summary { min-height: 40px; padding: 10px 0; }')
+    // 44px, not 40: a finger needs the same floor as every other control here.
+    expect(css).toContain('.settled-history summary { min-height: 44px; padding: 12px 0; }')
     expect(css).not.toContain('.bud-table-view summary { display: flex;')
   })
 })

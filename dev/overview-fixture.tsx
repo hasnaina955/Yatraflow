@@ -48,7 +48,7 @@ const ROAD = params.get('road') ?? 'ok'
 const TAB = params.get('tab') ?? 'overview'
 const MEMBER_COUNT = params.get('members') === '4' ? 4 : 3
 const ROUND_TRIP = params.get('roundTrip') === '1'
-const BUDGET_PER_PERSON = Number(params.get('budget') ?? 16000)
+const BUDGET_PER_PERSON = Number(params.get('budgetPerPerson') ?? params.get('budget') ?? 16000)
 const PACE = params.get('pace') ?? 'relaxed'
 const LONG_END = params.get('end') === 'long'
 // PW-13: `budget=tagged` gives the two fixture expenses a payer and one settled

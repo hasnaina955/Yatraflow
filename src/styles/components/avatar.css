@@ -7,7 +7,7 @@
    such as `.who-voted .avatar` and stacking such as `.member-stack .avatar`
    stay in their page modules. */
 
-.avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--teal-soft); color: var(--teal-deep); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex: 0 0 auto; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--teal-soft); color: var(--teal-deep); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex: 0 0 auto; box-shadow: var(--avatar-ring, none); }
 
 .avatar.lg { width: 44px; height: 44px; font-size: 16px; }
 

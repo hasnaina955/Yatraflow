@@ -1853,3 +1853,110 @@ body:has(.tset-grid) .yf-page .yf-trip-head .yf-trip-title {
   }
 }
 
+/* ---------- Entrance: the Timeline tab's own cascade ----------
+   Measured on the fixture (1440 and 390 agree): the tab panel held a 360ms
+   `pageRise` that did not start until 240ms, while the toolbar rose at 0 and
+   the day cards ran `cardIn` at 120/180/240/300ms underneath it. Two clocks
+   again — the same flat stagger Budget and Overview had — so the panel's late
+   fade is switched off for this tab only, with the rule the other two use.
+   Other tabs keep theirs.
+
+   The tab has no stable root class of its own (its wrapper carries only
+   `tl-root-review` in review mode), and the fixture's panel id is stale, so
+   the tab is identified by `.tl-ribbon`: it is rendered unconditionally and
+   named nowhere else in the app. The cascade itself is scoped through
+   `.page-enter:has(> .tl-ribbon)`, the wrapper the tab already ships for this
+   purpose.
+
+   Order follows the page: the toolbar (step 0), the ribbon and its spine
+   (step 1), then the day cards one at a time (steps 2 to 6). The four ribbon
+   cards ride the same steps as the first four day cards — two starts per step,
+   never a crowd — and each card's progress bar grows one step later, from its
+   left edge, for one and a half token lengths. The last bar starts at step 6
+   (360ms) and settles at about 1.2s, inside the 1.0 to 1.5s target.
+
+   Day cards take `pageRise` (a fade and an 8px rise, as Overview's cards do)
+   instead of the `cardIn` lift that 12-pages gives the shared
+   `.page-enter > .day-section`, so the two tabs read as one gesture. The
+   shared rule is left alone; this more specific one overrides it.
+
+   Nothing here can replay: a day's body is mounted on expand and carries no
+   entrance rule at all, the day cards keep their element across a toggle and
+   a refresh (their class list changes; the animation names and delays do
+   not), and every rule matches elements that exist at first mount. */
+div[role="tabpanel"]:has(.tl-ribbon) { animation: none; }
+
+/* The progress fill grows from its left edge. `transform-origin` is the
+   element's own, so the keyframe only has to say where it starts. */
+@keyframes tlBarGrow {
+  from { transform: scaleX(0); }
+}
+
+/* Toolbar: first, and alone on its beat. */
+.page-enter:has(> .tl-ribbon) > .tl-head {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+
+/* The ribbon and its spine arrive together. The line is a drawing, so it
+   fades rather than rising. */
+.page-enter:has(> .tl-ribbon) > .tl-ribbon {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line,
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line-end {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+
+/* Ribbon cards, left to right. `:nth-of-type` counts only the buttons beside
+   the two line spans. Past the fourth they share the last step. */
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 3); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 4); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card:nth-of-type(n+4) { animation-delay: calc(var(--stagger-step) * 5); }
+
+/* Each card's bar grows two steps after the card itself, so the fill never
+   moves while its card is still arriving. */
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card .tl-ribbon-card-bar > span {
+  transform-origin: left center;
+  animation: tlBarGrow calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 4);
+}
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card:nth-of-type(2) .tl-ribbon-card-bar > span { animation-delay: calc(var(--stagger-step) * 5); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card:nth-of-type(3) .tl-ribbon-card-bar > span { animation-delay: calc(var(--stagger-step) * 6); }
+.page-enter:has(> .tl-ribbon) .tl-ribbon-card:nth-of-type(n+4) .tl-ribbon-card-bar > span { animation-delay: calc(var(--stagger-step) * 6); }
+
+/* Day cards: one at a time, after the ribbon. The toolbar is child one and
+   the ribbon child two, so day one is child three. Cards past the fourth card
+   share step 6 — six entrance steps is the budget, not one per day. */
+.page-enter:has(> .tl-ribbon) > .day-section {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+4) { animation-delay: calc(var(--stagger-step) * 3); }
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * 4); }
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+.page-enter:has(> .tl-ribbon) > .day-section:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * 6); }
+
+/* Reduced motion. Every selector that sets an animation name above is switched
+   off here with the same selector text, so the specificity is equal and this
+   later rule wins. Rules that only set a delay need no opt-out: with no name,
+   they start nothing. */
+@media (prefers-reduced-motion: reduce) {
+  div[role="tabpanel"]:has(.tl-ribbon),
+  .page-enter:has(> .tl-ribbon) > .tl-head,
+  .page-enter:has(> .tl-ribbon) > .tl-ribbon,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-line-end,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-days > .tl-ribbon-card,
+  .page-enter:has(> .tl-ribbon) .tl-ribbon-card .tl-ribbon-card-bar > span,
+  .page-enter:has(> .tl-ribbon) > .day-section {
+    animation: none;
+  }
+}
+

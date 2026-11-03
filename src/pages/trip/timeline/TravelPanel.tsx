@@ -8,7 +8,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
 
-  BedDouble, Coffee, Eye, ExternalLink, Fuel, MapPin,
+  BedDouble, ChevronUp, Coffee, Eye, ExternalLink, Fuel, MapPin,
   Plus, RotateCcw, Route as RouteIcon, Search,
   TriangleAlert, Utensils, X,
 } from 'lucide-react'
@@ -126,6 +126,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   const [draftPurpose, setDraftPurpose] = useState<HaltPurpose>('meal')
   const [resolving, setResolving] = useState(false)
   const [searched, setSearched] = useState(false)
+  // The halt form is a disclosure, not a permanent block: on every expanded day
+  // it stood ~180px tall before the first stop, most of it explanation. The
+  // planner's rows stay visible whenever a plan exists; only the form folds.
+  const [plannerOpen, setPlannerOpen] = useState(false)
   const spotRequest = useRef(0)
   useLayoutEffect(() => {
     ++spotRequest.current
@@ -434,26 +438,16 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
         <div className="small muted">
           {modeLabelMode(trip.transportMode)} · {journey.distanceKm.toFixed(0)} km · {minutesToHM(journey.driveMinutes)} {hasAirLeg ? 'in transit' : 'wheel time'}
           {journey.halts.length > 0 && ` · ${journey.halts.length} halt${journey.halts.length !== 1 ? 's' : ''}`}
+          {journey.dwellMinutes > 0 && ` · includes ${minutesToHM(journey.dwellMinutes)} of ${hasAirLeg ? 'airport waiting and stops' : 'stops'}`}
         </div>
       </div>
 
-      <div className="travel-panel-stats">
-        <div className="tps-stat"><div className="tps-label">Mode</div><b>{modeLabelMode(trip.transportMode)}</b></div>
-        <div className="tps-stat"><div className="tps-label">Distance</div><b>{journey.distanceKm.toFixed(0)} km</b></div>
-        <div className="tps-stat"><div className="tps-label">{hasAirLeg ? 'Travel time' : 'Drive time'}</div><b>{minutesToHM(journey.driveMinutes)}</b></div>
-        <div className="tps-stat">
-          <div className="tps-label">{journey.fuelLitres != null ? 'Fuel needed' : 'Est. transport'}</div>
-          <b>{journey.fuelLitres != null ? `${journey.fuelLitres.toFixed(1)} L` : formatInr(Math.round(fuelCost))}</b>
-        </div>
-      </div>
-
-      {journey.fuelLitres != null && (
-        <div className="travel-panel-fuel">
-          ≈ {journey.fuelLitres.toFixed(1)} L × ₹{fuelPrice}/L = <b>{formatInr(Math.round(fuelCost))}</b>
-          {' '}<span className="small muted">{A.fuelPriceIsUserSet ? '(your pump price)' : '(indicative national rate)'}</span>
-        </div>
-      )}
-
+      {/* One logistics band. The four stat tiles that used to sit here repeated
+          facts already on the screen: the subtitle above carries mode, km and
+          wheel time; the header's stats line carries the distance; this row
+          carries the fuel figure or the estimated fare; and the Day brief aside
+          repeats the driving time. Departure, arrival and the halt control share
+          the row, so the panel closes with one band instead of three. */}
       <div className="travel-panel-eta">
         {editable ? (
           <label className="tps-dep">
@@ -469,8 +463,29 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           <div className="tps-label">{isReturn ? 'Home by' : 'Arrival'}</div>
           <b>{formatHM(journey.arrivalTime, timeFormat)}</b>
         </div>
+        {journey.fuelLitres != null ? (
+          <span className="travel-panel-fuel">
+            ≈ {journey.fuelLitres.toFixed(1)} L × ₹{fuelPrice}/L = <b>{formatInr(Math.round(fuelCost))}</b>
+            {' '}<span className="small muted">{A.fuelPriceIsUserSet ? '(your pump price)' : '(indicative national rate)'}</span>
+          </span>
+        ) : (
+          <span className="travel-panel-fuel">
+            <span className="small muted">Est. transport</span> <b>{formatInr(Math.round(fuelCost))}</b>
+          </span>
+        )}
+        {editable && (
+          <button
+            type="button"
+            className="halt-planner-toggle"
+            aria-expanded={plannerOpen}
+            aria-controls={`halt-planner-${day.index}`}
+            onClick={() => setPlannerOpen(o => !o)}
+          >
+            <InlineIcon icon={plannerOpen ? ChevronUp : Plus} size={13} gap={4} />
+            {plannerOpen ? 'Hide the halt planner' : plan.length > 0 ? 'Plan another halt' : 'Add a halt'}
+          </button>
+        )}
         {(journey.startDayOffset ?? 0) < 0 && <div className="small muted">Your airport transfer starts on the previous day.</div>}
-        {journey.dwellMinutes > 0 && <div className="small muted">includes {minutesToHM(journey.dwellMinutes)} of {hasAirLeg ? 'airport waiting and stops' : 'stops'}</div>}
       </div>
 
       {/* The flight card — only a flight-mode trip renders one. Everything
@@ -496,13 +511,18 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
       )}
 
       {editable && (
-        <div className="travel-panel-add halt-planner" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <div className="small muted"><MetaIcon icon={ MapPin } tone="place" />Halt planner — you pick where along the ride and for how long. Halts sit on the route itself; tick a found spot to detour there instead.</div>
+        <div className={`travel-panel-add halt-planner${plannerOpen ? ' is-open' : ''}${plan.length > 0 ? ' has-plan' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
           {haltStale && (
             <div className="hint-text ts-warn-note">
               <InlineIcon icon={TriangleAlert} size={12} gap={3} />Party, fuel, budget or the plan itself changed since these halts were tuned — the saved plan was dropped. Review the km points below, then search for spots again.
             </div>
           )}
+          {/* The form is a disclosure, opened from the button on the ETA row.
+              A plan that already exists keeps its rows visible either way — a
+              halt nobody can see is a halt nobody can remove. */}
+          <div id={`halt-planner-${day.index}`} className={`halt-planner-form${plannerOpen ? ' open' : ''}`}>
+          <div className="halt-planner-fields">
+          <div className="small muted halt-planner-help"><MetaIcon icon={ MapPin } tone="place" />Pick where along the ride and for how long. Tick a found spot to detour there.</div>
           <div className="halt-planner-inputs">
             <label className="hp-field">
               <span className="tps-label">after</span>
@@ -525,6 +545,8 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
             <Select compact value={draftPurpose} onChange={v => setDraftPurpose(v as HaltPurpose)} aria-label="Halt type"
               options={[{ value: 'meal', label: 'Meal' }, { value: 'stretch', label: 'Stretch / rest' }, { value: 'fuel', label: 'Fuel' }, { value: 'overnight', label: 'Overnight' }]} />
             <button className="btn btn-outline btn-sm" onClick={addPlanHalt}>+ Add halt</button>
+          </div>
+          </div>
           </div>
 
           {plan.length > 0 && (

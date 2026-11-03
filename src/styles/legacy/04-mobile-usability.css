@@ -1823,7 +1823,10 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .map-day-chip { padding: 8px 13px; font-size: 12.5px; }
   .tab-btn { padding: 12px 15px; }
   .vote-btn { width: 44px; height: 38px; min-width: 40px; min-height: 40px; }
-  .day-badge { width: 40px; height: 40px; }
+  /* The "Day N" tile is a square; the date stack is not. A square on the date
+     variant put a 22px numeral in a 40px box with 8px of padding above and
+     below, so it overflowed. The date variant sizes itself. */
+  .day-badge:not(.day-badge-date) { width: 40px; height: 40px; }
   /* PW-08: the ribbon is not sticky in this mode — it stacks and scrolls. */
   .tl-ribbon { position: static; }
   .day-section { padding: 14px 14px 10px; }

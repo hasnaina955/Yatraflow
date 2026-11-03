@@ -751,12 +751,11 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           cascaded. This wrapper carries the cascade for the timeline's own
           blocks. The modals stay outside it — they have their own entrance. */}
       <div className="page-enter">
-        <div className="row-between tl-head" style={{ marginBottom: 16 }}>
+        <div className="row-between tl-head">
           {/* The artboard has no section heading here: the toolbar pill IS the top
               of the timeline. A 21px "Day-by-day timeline" above a toolbar whose
               first control already says "Day by day" was the same words twice,
               stacked — and it pushed the plan itself down the page. */}
-          <div className="tl-head-copy" />
           {/* The mockup's toolbar is ONE pill: a day-scope switch on the left, then
               the actions, then a ⋯ menu. This was six separate controls — Open in
               Board, Plan/Review, One day/All days, Add stop — which read as a wall
@@ -797,7 +796,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
                   <button className="tl-add-main" disabled={mode !== 'plan'}
                     title={mode !== 'plan' ? 'Switch to Plan mode to edit' : undefined}
                     onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>
-                    <Plus size={15} aria-hidden />Add stop to Day {addTargetDay + 1}
+                    <Plus size={16} aria-hidden />Add stop to Day {addTargetDay + 1}
                   </button>
                   <ToolbarMenu className="tl-add-day" label="Choose the day to add to"
                     icon={<ChevronDown size={15} aria-hidden />}>
@@ -884,7 +883,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
                   aria-current={current ? 'true' : undefined}
                   onClick={() => jumpToDay(it.dayIndex)}>
                   <span className="tl-ribbon-card-top">
-                    <span className="tl-ribbon-card-day">{it.label}{it.dateLabel ? ` · ${it.dateLabel}` : ''}</span>
+                    <span className="tl-ribbon-card-day">{it.label}{it.dateLabel && <span className="tl-ribbon-card-date"> · {it.dateLabel}</span>}</span>
                     <span className={`tl-ribbon-dot ${it.tone}`} role="img" aria-label={it.toneLabel} />
                   </span>
                   {route && <span className="tl-ribbon-card-place">{route}</span>}

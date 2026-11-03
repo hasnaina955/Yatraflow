@@ -134,11 +134,15 @@ function DayThumb({ day, trip }: {
  * pulls up 34px into it, which is why the cover is a sibling of the header
  * rather than its background.
  */
-function DayCover({ day, trip, editable, onSetCover }: {
+function DayCover({ day, trip, editable, onSetCover, folded = false, nodeRef }: {
   day: ItineraryDay
   trip: Pick<Trip, 'id' | 'coverEmoji' | 'destinations' | 'startLocation'> | undefined
   editable: boolean
   onSetCover: (dayIndex: number, url: string | undefined) => void
+  /** Folded shut: the strip's closing state, held for the length of the day's
+   *  open/close gesture so the photo never pops out on the first frame. */
+  folded?: boolean
+  nodeRef?: React.Ref<HTMLDivElement>
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -166,7 +170,7 @@ function DayCover({ day, trip, editable, onSetCover }: {
   if (!coverAttemptsFor(plan).length) return null
 
   return (
-    <div className="day-cover">
+    <div ref={nodeRef} className={`day-cover${folded ? ' is-folded' : ''}`}>
       <CoverMedia
         plan={plan}
         ratio="16:5"
@@ -318,28 +322,41 @@ const COLLAPSE_UNMOUNT_SLACK_MS = 40
  *  (height-agnostic, no max-height guessing), mounting the body just before
  *  the expand and unmounting it just after the collapse — so a closed day
  *  still costs nothing (the collapsed-by-default premise) while the motion
- *  stays smooth. A section that mounts already-open does NOT animate (no
- *  surprise motion on page load).
+ *  stays smooth. A clip that would strand the keyboard user's focus hands it
+ *  back through `fallbackFocus` instead.
  *
- *  The two rAFs before the class flip are load-bearing, not defensive: React
- *  flushes a discrete-event effect before the browser paints, so mounting and
- *  opening in the SAME commit leaves the 0fr row unrendered — the transition
- *  then has no "from" value and the day snaps open. The unmount delay reads its
- *  duration from --motion-slower, so retiming the animation in CSS can never
- *  leave a half-collapsed body mounted — and an unmount that would strand the
- *  keyboard user's focus hands it back through `fallbackFocus` instead. */
-function SmoothCollapse({ open, children, fallbackFocus }: { open: boolean; children: React.ReactNode; fallbackFocus?: React.RefObject<HTMLButtonElement | null> }) {
-  const [mounted, setMounted] = useState(open)
-  const [expanded, setExpanded] = useState(open)
+ *  Pass `fold` to move on a clock a sibling shares (the day cover rides the
+ *  body's); without it the clip keeps its own. */
+function SmoothCollapse({ open, children, fallbackFocus, fold }: {
+  open: boolean
+  children: React.ReactNode
+  fallbackFocus?: React.RefObject<HTMLButtonElement | null>
+  fold?: FoldState
+}) {
+  return fold
+    ? <FoldClip open={open} fold={fold} fallbackFocus={fallbackFocus}>{children}</FoldClip>
+    : <OwnFoldClip open={open} fallbackFocus={fallbackFocus}>{children}</OwnFoldClip>
+}
+
+function OwnFoldClip({ open, children, fallbackFocus }: {
+  open: boolean
+  children: React.ReactNode
+  fallbackFocus?: React.RefObject<HTMLButtonElement | null>
+}) {
+  const fold = useFold(open)
+  return <FoldClip open={open} fold={fold} fallbackFocus={fallbackFocus}>{children}</FoldClip>
+}
+
+function FoldClip({ open, fold, children, fallbackFocus }: {
+  open: boolean
+  fold: FoldState
+  children: React.ReactNode
+  fallbackFocus?: React.RefObject<HTMLButtonElement | null>
+}) {
+  const { mounted, expanded } = fold
   const clipRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (open) {
-      setMounted(true)
-      let raf2 = 0
-      const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setExpanded(true)) })
-      return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
-    }
-    setExpanded(false)
+    if (open) return
     // This clip is on its way out, so hand focus back to the day's disclosure
     // control the moment the close starts — NOT when the clip unmounts. Its
     // inner wrapper flips to `visibility: hidden` one animation earlier, and a
@@ -348,8 +365,6 @@ function SmoothCollapse({ open, children, fallbackFocus }: { open: boolean; chil
     // document. Reachable on both clips: opening a day from its route line
     // removes that line, and collapsing removes the body under the cursor.
     if (clipRef.current?.contains(document.activeElement)) fallbackFocus?.current?.focus()
-    const t = window.setTimeout(() => { setMounted(false) }, motionTiming('--motion-slower').duration + COLLAPSE_UNMOUNT_SLACK_MS)
-    return () => window.clearTimeout(t)
   }, [open, fallbackFocus])
   if (!mounted) return null
   return (
@@ -357,6 +372,51 @@ function SmoothCollapse({ open, children, fallbackFocus }: { open: boolean; chil
       <div className="day-body-clip-inner">{children}</div>
     </div>
   )
+}
+
+type FoldState = { mounted: boolean; expanded: boolean }
+
+/** One open/close gesture, shared by every part of a day that folds: `mounted`
+ *  keeps a closing element in the document until its transition ends, and
+ *  `expanded` is the open state. A section that mounts already-open never
+ *  animates (the persisted open day renders open immediately).
+ *
+ *  The layout-effect read is load-bearing, not defensive. React flushes a
+ *  discrete event's effect before the browser paints, so mounting the element
+ *  and opening it in the same commit left the transition with no "from" value:
+ *  measured on the first day, the card went 195px → 1090px inside 130ms with no
+ *  height animation at all while the chevron took 600ms — the "snap then settle"
+ *  the motion doc names as a defect. The fix commits the closed state, reads
+ *  layout, and only then flips the class, which pins the "from" value. The unmount
+ *  delay reads its duration from --motion-slower, so retiming the animation in
+ *  CSS can never leave a half-collapsed body mounted. A reopen during the close
+ *  clears that timer and re-flips `expanded`, so the transition simply reverses
+ *  from wherever it had got to. */
+function useFold(open: boolean): FoldState {
+  const [mounted, setMounted] = useState(open)
+  const [expanded, setExpanded] = useState(open)
+  // Follow `open` while rendering (React's "adjust state on a prop change"
+  // pattern) so the closed commit never waits on an effect: a reopen mounts, a
+  // close drops `expanded` in the same pass that the prop arrives.
+  const [seenOpen, setSeenOpen] = useState(open)
+  if (open !== seenOpen) {
+    setSeenOpen(open)
+    if (open) setMounted(true)
+    else setExpanded(false)
+  }
+  useEffect(() => {
+    if (open) return
+    const t = window.setTimeout(() => { setMounted(false) }, motionTiming('--motion-slower').duration + COLLAPSE_UNMOUNT_SLACK_MS)
+    return () => window.clearTimeout(t)
+  }, [open])
+  useLayoutEffect(() => {
+    if (!open || !mounted || expanded) return
+    // Commits the closed value before the class flips, so the transition has a
+    // start to travel from.
+    void document.documentElement.offsetHeight
+    setExpanded(true)
+  }, [open, mounted, expanded])
+  return { mounted, expanded }
 }
 
 // React.memo on the timeline hot path: TimelineTab re-renders on every store
@@ -656,6 +716,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // uiPrefs.loadOpenDay). This component is controlled: `open` in, `onToggleOpen`
   // out — the old local collapsed useState + per-day localStorage map is retired.
   const collapsed = !open
+  // The cover and the body are one gesture: both read this fold, so the photo
+  // keeps its place in the layout until the body has finished closing instead
+  // of vanishing on the first frame (measured: cover height was -1 by 69ms
+  // while the card still had 900px left to travel).
+  const fold = useFold(open)
   const timeFormat = useTimeFormat()
   // Both clips hand focus back here when they unmount under the keyboard user's
   // feet (see SmoothCollapse's fallbackFocus).
@@ -771,7 +836,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           days into four banners and buried the list. The cover is a SIBLING of
           the header, not its background: a background image could not be
           overlapped by its own child. */}
-      {!collapsed && <DayCover day={day} trip={trip ?? dayCover} editable={editable} onSetCover={onSetCover} />}
+      {fold.mounted && (
+        <DayCover day={day} trip={trip ?? dayCover} editable={editable} onSetCover={onSetCover} folded={!fold.expanded} />
+      )}
       <div className={`day-header${foreignOver === ordered.length && dragging === null ? ' foreign-over' : ''}`} {...(editable ? dayDropHandlers(ordered.length) : {})}>
         {/* Stable name + state attribute (UI audit F-09); the collapsible body
             is a fragment of siblings, so there's no single aria-controls id. */}
@@ -933,7 +1000,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           the first frame, which is the "snap then settle" the motion doc names
           as a defect. Inside the clip they are simply part of the surface that
           is expanding. */}
-      <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef}>
+      <SmoothCollapse open={!collapsed} fallbackFocus={collapseRef} fold={fold}>
       {editable && (
         <div className="tl-day-tools">
           {optResult.changed && !isStayDay && (
@@ -960,15 +1027,15 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
             </span>
           )}
           <button
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-sm is-day-dup"
             disabled={ordered.length === 0 || !facts.hasNextDay}
             onClick={() => onCopyDay(day.index)}
-            title={ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
-          ><InlineIcon icon={Copy} size={13} gap={4} />Copy</button>
+            title={!facts.hasNextDay ? 'No next day to copy to' : ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
+          ><InlineIcon icon={Copy} size={13} gap={4} />{facts.hasNextDay ? `Copy to Day ${day.index + 2}` : 'Copy'}</button>
           {/* The cover control lives on the cover strip itself ("Change day
               cover"), so the header carries no Cover button: a day without a
               photo simply has none, exactly as the artboard shows. */}
-          <button className="btn btn-outline btn-sm" onClick={() => onAdd(day.index)}>+ Add here</button>
+          <button className="btn btn-outline btn-sm is-day-dup" onClick={() => onAdd(day.index)}>+ Add here</button>
         </div>
       )}
       {!isStayDay && (
@@ -1086,6 +1153,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           }
           const { kind, label } = stopPresentation(s, trip?.transportMode)
           const stopSaved = savedIds.includes(savedStopId(s.id))
+          /* The artboard outlines a stop that a fixed clock governs, so the card
+             the day cannot move reads apart from the ones it can. */
+          const stopFixed = (fixedByStop.get(String(s.id))?.length ?? 0) > 0
           return (
             <React.Fragment key={s.id}>
               <div
@@ -1101,7 +1171,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   <span className={`tl-rail-num cat-${s.category}`} aria-hidden="true">{i + 1}</span>
                 </div>
                 <div
-                  className={`stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
+                  className={`stop-card kind-${kind} status-${s.status} ${stopFixed ? 'is-fixed' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
                 >
               <div className="stop-main">
                 {/* The artboard leads a stop with a 48px duotone tile: a tinted
@@ -1376,7 +1446,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
               className="brief-tool"
               disabled={ordered.length === 0 || !facts.hasNextDay}
               onClick={() => onCopyDay(day.index)}
-            >Copy these stops to Day {day.index + 2}</button>
+              title={!facts.hasNextDay ? 'No next day to copy to' : ordered.length ? `Copy these stops to Day ${day.index + 2}` : 'Nothing to copy yet'}
+            >{facts.hasNextDay ? `Copy these stops to Day ${day.index + 2}` : 'Copy these stops'}</button>
             <button type="button" className="brief-tool" onClick={() => onAdd(day.index)}>
               Add a stop to Day {day.index + 1}
             </button>
@@ -1489,5 +1560,8 @@ function poiQuickStop(h: PlaceHit): Omit<ItineraryStop, 'id' | 'orderInDay'> {
 }
 
 function statusTone(s: string): 'teal' | 'saffron' | 'danger' | 'ok' | 'info' {
-  return s === 'confirmed' ? 'teal' : s === 'needs-booking' ? 'saffron' : s === 'rejected' ? 'danger' : 'info'
+  /* "Confirmed" is the artboard's confirmed pill: --pw-ok ink on --pw-ok-100.
+     The teal tone is the day's own "selected" colour and read as a state the
+     user had just picked rather than a booking already made. */
+  return s === 'confirmed' ? 'ok' : s === 'needs-booking' ? 'saffron' : s === 'rejected' ? 'danger' : 'info'
 }

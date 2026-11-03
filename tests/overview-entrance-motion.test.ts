@@ -78,7 +78,7 @@ describe('Overview tab entrance: tab-owned cascade', () => {
       expect(m, d).not.toBeNull()
       steps.push(Number(m![1]))
     }
-    // The last step is 20: 1200 plus one 360 run lands near 1.56 s, inside the 1.0 to 1.6 s target.
+    // The last step is 20. It starts at 1200ms and runs 360ms more. That ends near 1.56 s, inside the 1.0 to 1.6 s target.
     expect(Math.max(...steps)).toBeLessThanOrEqual(20)
   })
 

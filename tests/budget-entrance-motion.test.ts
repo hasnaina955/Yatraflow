@@ -52,11 +52,17 @@ describe('Budget tab entrance: container-owned cascade', () => {
   })
 
   it('owns the body cascade at the top level, with the page-entrance kind', () => {
+    // The body's blocks are the wrappers and the expense list. A wrapper carries
+    // no fade of its own (its cards do), and the list lands on the last beat.
     const rule = top.find((b) => b.selector === '.bud-page > *')
     expect(rule).toBeDefined()
-    expect(rule?.body).toMatch(/animation:\s*pageRise var\(--motion-slow\) var\(--ease-paper\) backwards/)
-    // The catch-all sits at step 6, the same shape as the page-enter pattern.
-    expect(code).toMatch(/\.bud-page > \*:nth-child\(n\+7\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* 6\);?\s*\}/)
+    expect(rule?.body).toMatch(/animation:\s*none/)
+    const list = top.find((b) => b.selector === '.bud-page > .bud-lines')
+    expect(list?.body).toMatch(/animation:\s*pageRise var\(--motion-slow\) var\(--ease-paper\) backwards/)
+    expect(list?.body).toMatch(/animation-delay:\s*calc\(var\(--stagger-step\) \* 8\)/)
+    // The containers still own their cards with the page-entrance kind.
+    const glance = top.find((b) => b.selector === '.bud-glance > *')
+    expect(glance?.body).toMatch(/animation:\s*pageRise var\(--motion-slow\) var\(--ease-paper\) backwards/)
   })
 
   it('takes the block fade off the tab panel only for the Budget tab', () => {
@@ -67,31 +73,48 @@ describe('Budget tab entrance: container-owned cascade', () => {
     const delays = [...code.matchAll(/animation-delay:\s*([^;}]+)/g)].map((m) => m[1].trim())
     expect(delays.length).toBeGreaterThan(40)
     for (const d of delays) {
-      // `* N`, `* (base + N)`, and either of those plus one full bar growth.
+      // `* N`, `* (base + N)`, and either of those plus one bar growth (the bar
+      // is one and a half token lengths, so its multiplier is allowed).
       expect(d).toMatch(
-        /^calc\(var\(--stagger-step\) \* (?:\d+|\(\d+ \+ \d+\))(?: \+ var\(--motion-slower\))?\)$/,
+        /^calc\(var\(--stagger-step\) \* (?:\d+|\(\d+ \+ \d+\))(?: \+ var\(--motion-slower\)(?: \* 1\.5)?)?\)$/,
       )
     }
   })
 
-  it('caps every cascade at six steps, with a catch-all at the seventh child', () => {
+  it('spreads the card beats and caps every inner cascade at six steps', () => {
     const pairs = [...code.matchAll(/\((\d+) \+ (\d+)\)/g)]
     expect(pairs.length).toBeGreaterThan(10)
     for (const [, base, step] of pairs) {
-      expect(Number(base)).toBeLessThanOrEqual(6)
+      // `base` is the card's beat (0-8); `step` is the inner offset (at most six).
+      expect(Number(base)).toBeLessThanOrEqual(8)
       expect(Number(step)).toBeLessThanOrEqual(6)
     }
     const plain = [...code.matchAll(/var\(--stagger-step\) \* (\d+)(?!\)?\s*\+)/g)].map((m) => Number(m[1]))
-    for (const n of plain) expect(n).toBeLessThanOrEqual(6)
-    // The catch-all is the same shape the page cascade uses.
+    // The card beats run 0-8: hero, three tiles, day chart, category card,
+    // balances, optional card, expense list. Every inner cascade stays inside
+    // six steps beyond its card's beat (the `(base + N)` pairs above).
+    for (const n of plain) expect(n).toBeLessThanOrEqual(8)
+    // The four card beats are distinct, so the cards arrive in separate beats.
+    const cardSteps = [
+      '.bud-grid-charts > \\*:nth-child\\(1\\)',
+      '.bud-grid-charts > \\*:nth-child\\(2\\)',
+      '.bud-grid-mid > \\*:nth-child\\(1\\)',
+      '.bud-grid-mid > \\*:nth-child\\(2\\)',
+    ].map((sel) => {
+      const rule = code.match(new RegExp(`${sel}\\s*\\{\\s*animation-delay:\\s*calc\\(var\\(--stagger-step\\) \\* (\\d+)\\)`))
+      expect(rule, sel).not.toBeNull()
+      return Number(rule![1])
+    })
+    expect(new Set(cardSteps).size, cardSteps.join(',')).toBe(cardSteps.length)
+    // The catch-alls sit on the last inner step of their cascade.
     expect(code).toMatch(
-      /\.bud-cat-card \.bud-cat-table > tbody > tr:nth-child\(n\+7\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* \(2 \+ 6\)\)/,
+      /\.bud-cat-card \.bud-cat-table > tbody > tr:nth-child\(n\+5\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* \(5 \+ 6\)\)/,
     )
     expect(code).toMatch(
-      /\.bud-balances > \*:nth-child\(n\+7\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* \(3 \+ 6\)\)/,
+      /\.bud-balances > \*:nth-child\(n\+4\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* \(6 \+ 5\)\)/,
     )
     expect(code).toMatch(
-      /\.bud-chart-card \.bud-legend > li:nth-child\(n\+7\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* \(2 \+ 6\)\)/,
+      /\.bud-chart-card \.bud-legend > li:nth-child\(n\+5\)\s*\{\s*animation-delay:\s*calc\(var\(--stagger-step\) \* \(4 \+ 4\)\)/,
     )
   })
 
@@ -114,15 +137,18 @@ describe('Budget tab entrance: container-owned cascade', () => {
   })
 
   it('fades a label instead of moving it, and only after its mark has grown', () => {
+    // The axis ticks and the rupee label on the target line are static, as they
+    // are in the mockup: six labels (five ticks plus the rupee) fading together
+    // would start six elements in one frame. The day totals and the caption fade.
     const labelRules = entrance.filter((b) =>
       /bud-bar-total|bud-axis-label|bud-target-text|bud-target-caption/.test(b.selector),
     )
-    expect(labelRules.length).toBeGreaterThan(6)
+    expect(labelRules.length).toBeGreaterThanOrEqual(6)
     for (const rule of labelRules) {
       expect(rule.body, rule.selector).toMatch(/animation:\s*fadeIn var\(--motion-med\)/)
       expect(rule.body, rule.selector).not.toMatch(/pageRise/)
       expect(rule.body, rule.selector).toMatch(
-        /animation-delay:\s*calc\(var\(--stagger-step\) \* [\d() +]+ \+ var\(--motion-slower\)\)/,
+        /animation-delay:\s*calc\(var\(--stagger-step\) \* [\d() +]+ \+ var\(--motion-slower\)(?: \* 1\.5)?\)/,
       )
     }
   })
@@ -154,7 +180,11 @@ describe('Budget tab entrance: container-owned cascade', () => {
   })
 
   it('animates only transform and opacity, never layout properties', () => {
-    expect(code).not.toMatch(/\b(top|left|right|bottom|width|height|margin|padding|inset|transition)\s*:/)
+    // The reduced-motion block below the cascade switches transitions off, which
+    // is a `transition:` declaration and not an animated property; it is checked
+    // by its own test, so it is cut out here.
+    const motionCode = code.slice(0, code.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(motionCode).not.toMatch(/\b(top|left|right|bottom|width|height|margin|padding|inset|transition)\s*:/)
   })
 
   it('does not restart on a filter: expense rows carry no cascade of their own', () => {
@@ -163,12 +193,16 @@ describe('Budget tab entrance: container-owned cascade', () => {
   })
 
   it('keeps the state banners and the edit bar out of the cascade', () => {
-    expect(code).toMatch(/\.bud-page > \.bud-read[\s\S]*?animation:\s*none/)
-    expect(code).toMatch(/\.bud-page > \.bud-editor-actions[\s\S]*?animation:\s*none/)
+    // `.bud-page > *` is opted out wholesale, so the banners and the edit bar
+    // cannot enter the cascade even if they move up the child order.
+    const body = top.find((b) => b.selector === '.bud-page > *')
+    expect(body?.body).toMatch(/animation:\s*none/)
+    expect(code).not.toMatch(/bud-read[^{]*\{[^}]*pageRise/)
+    expect(code).not.toMatch(/bud-editor-actions[^{]*\{[^}]*pageRise/)
   })
 
   it('keeps the existing chart and balance grow rules', () => {
-    expect(CSS).toMatch(/\.bud-stack\s*\{[^}]*bud-bars-in var\(--motion-slower\)/)
+    expect(CSS).toMatch(/\.bud-stack\s*\{[^}]*bud-bars-in calc\(var\(--motion-slower\) \* 1\.5\)/)
     expect(CSS).toMatch(/\.bud-bal-bar[^{]*\{[^}]*bud-grow-x/)
   })
 
@@ -190,12 +224,17 @@ describe('Budget tab entrance: container-owned cascade', () => {
       '\\.bud-chart-card \\.bud-bars \\.bud-day-group \\.bud-bar-total',
       '\\.bud-chart-card \\.bud-bars \\.bud-day-group \\.bud-day-name',
       '\\.bud-chart-card \\.bud-bars \\.bud-day-group \\.bud-day-date',
-      '\\.bud-chart-card \\.bud-axis-label',
-      '\\.bud-chart-card \\.bud-target-text',
       '\\.bud-chart-card \\.bud-legend > li',
     ]) {
       expect(reduce?.body, selector).toMatch(new RegExp(`${selector}[\\s\\S]*?animation:\\s*none`))
     }
+    // The container opt-out is what actually stops the per-day rules: their
+    // `:nth-of-type` selectors outrank the plain list, so the plain list alone
+    // left a 0.01ms fadeIn running on those labels.
+    expect(reduce?.body).toMatch(/\.bud-page \*[\s\S]*?animation:\s*none/)
+    expect(reduce?.body).toMatch(/transition:\s*none/)
+    expect(reduce?.body).toMatch(/\.bud-day-group:nth-of-type\(n\)/)
+    expect(reduce?.body).not.toMatch(/!important/)
     const index = top.indexOf(reduce as Block)
     expect(index).toBeGreaterThan(top.findIndex((b) => b.selector === '.bud-page > *'))
   })

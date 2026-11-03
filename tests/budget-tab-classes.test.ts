@@ -160,9 +160,9 @@ describe('PW-13 — the key recipes stay on the tokens', () => {
   }
 
   it('grows the stacked bars as one element from their baseline', () => {
-    expect(readRule(css, '.bud-stack').body).toContain('animation: bud-bars-in var(--motion-slower) var(--ease-paper) backwards;')
-    expect(readRule(css, '.bud-track-fill').body).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
-    expect(readRule(css, '.bud-bal-bar').body).toContain('animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-stack').body).toContain('animation: bud-bars-in calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-track-fill').body).toContain('animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
+    expect(readRule(css, '.bud-bal-bar').body).toContain('animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;')
   })
 
   it('keeps the tooltip on a token transition and its own popover surface', () => {

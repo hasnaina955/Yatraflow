@@ -80,18 +80,27 @@
 
 /* ---- target and progress bars ---- */
 .bud-target-wrap { display: flex; flex-direction: column; gap: var(--space-2); }
-.bud-target-track { display: block; width: 100%; height: 12px; }
+/* 42px tall: the target tick runs 8px above and below the 12px track, like the
+   mockup's track and tick, and the caption sits under the tick's end so the line
+   never crosses the figure. No viewBox: the geometry is px at the measured
+   width, so every radius and the tick stay real px at any column. */
+.bud-target-track { display: block; width: 100%; height: 42px; overflow: visible; }
 .bud-mini-track { display: block; width: 100%; height: 8px; }
 .bud-mini-track.is-unread { border-radius: var(--radius-pill); background: var(--pw-sunken); }
 .bud-track { fill: var(--pw-sunken); }
+/* The mockup's bars run 700-900ms, so the draw is one and a half token lengths
+   rather than one: `--motion-slower` alone finished the bars at ~400ms while
+   the cards were still arriving. calc() over the token stays on the clock. */
 .bud-track-fill {
   fill: var(--pw-lagoon-600); transform-box: fill-box; transform-origin: left center;
-  animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;
+  animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;
 }
 .bud-track-fill.soft { fill: var(--pw-route); }
 .bud-track-fill.is-over { fill: var(--pw-risk); }
+/* The 2px breath between the fill and the over-run, cut in the card's own colour. */
+.bud-track-gap { fill: var(--card); }
 .bud-target-mark { stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.bud-target-caption { font-size: 11px; font-weight: 700; color: var(--text); text-align: end; }
+.bud-target-caption { fill: var(--text); font-size: 11px; font-weight: 700; }
 
 /* ---- card heads and legends ---- */
 .bud-card-head {
@@ -128,7 +137,10 @@
   stroke: var(--text); stroke-width: 2; stroke-dasharray: 5 5; opacity: .55;
   vector-effect: non-scaling-stroke;
 }
-.bud-target-text { fill: var(--text); font-family: var(--font-body); font-size: 11px; font-weight: 700; }
+.bud-target-text {
+  fill: var(--text); font-family: var(--font-body); font-size: 11px; font-weight: 700;
+  paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round;
+}
 /* A halo in the card tone keeps the total legible over a coloured segment,
    standing in for the mockup's pill behind the figure. */
 .bud-bar-total {
@@ -140,7 +152,7 @@
 .bud-day-date { fill: var(--text-3); font-family: var(--font-body); font-size: 11.5px; font-weight: 400; }
 .bud-stack {
   transform-box: fill-box; transform-origin: 50% 100%;
-  animation: bud-bars-in var(--motion-slower) var(--ease-paper) backwards;
+  animation: bud-bars-in calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;
 }
 .bud-bars .bud-day-group:nth-of-type(2) .bud-stack { animation-delay: calc(var(--stagger-step) * 1); }
 .bud-bars .bud-day-group:nth-of-type(3) .bud-stack { animation-delay: calc(var(--stagger-step) * 2); }
@@ -232,7 +244,11 @@
 .bud-cat-table-wrap { overflow-x: auto; }
 /* The table fills the card: the mockup's rows run to the card's inner edge, and a
    shrink-wrapped table left a dead strip at its right. */
-.bud-cat-table { min-width: 360px; width: 100%; }
+/* The legacy table recipe sets `display: block` (it stayed untouched), which
+   stopped the table at 469px inside a 470px card column and left the last column
+   ~200px short of the card edge. A real table box fills the card, and the phone
+   block below keeps the wrapper scrolling. */
+.bud-cat-table { display: table; table-layout: auto; min-width: 360px; width: 100%; margin-top: var(--space-5); }
 .bud-cat-table:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* ---- category table + insight ---- */
@@ -295,27 +311,26 @@
   /* A name is one line: "Viewer Three" wrapped under itself at 120px. */
   white-space: nowrap;
 }
-/* HTML bars, not an SVG: a `preserveAspectRatio="none"` viewBox scales with the
-   column, which is what turned the 4px caps into ellipses. A div keeps the radius
-   it declares at every width. The track owns the even line. */
+/* The bars are SVG paths in px at the measured width: the inner end sits
+   squarely on the zero line and only the outer end is rounded, so an owes bar
+   and a gets-back bar can never overlap across the axis. The track is 24px tall
+   so the zero line reads 4px above and below a 16px bar. */
 .bud-bal-track {
-  display: block; position: relative; height: 16px; min-width: 0;
+  display: block; position: relative; height: 24px; min-width: 0;
   border-radius: var(--radius-mark);
 }
-.bud-bal-track svg { display: block; width: 100%; height: 16px; }
-/* The even line is the zero the bars measure from. The mockup draws none, but a
-   bar with no centre on it cannot say which side of settled a row is on. */
-.bud-bal-even { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
-/* A stroked line, not a filled rect: the viewBox stretches with the column, which
-   drew the rect's rx=4 caps as long ellipses. A non-scaling stroke keeps its 16px
-   width and its round cap round at every width. */
+.bud-bal-track svg { display: block; width: 100%; height: 24px; }
+/* The zero the bars measure from. `--line` measured 1.3:1 against the card, so
+   the line was invisible; `--text-3` at 75% reads 3.4:1 in light and stays
+   above 3:1 on the dark card. */
+.bud-bal-even { stroke: var(--text-3); stroke-width: 1; opacity: .75; vector-effect: non-scaling-stroke; }
 .bud-bal-bar {
-  stroke-width: 16; stroke-linecap: round; vector-effect: non-scaling-stroke;
-  transform-box: view-box; transform-origin: 50% 50%;
-  animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;
+  transform-box: fill-box;
+  animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;
 }
-.bud-bal-bar.pos { stroke: var(--pw-cat-stays); }
-.bud-bal-bar.neg { stroke: var(--pw-cat-food); }
+/* Grow outward from the axis, not from the track's centre. */
+.bud-bal-bar.pos { fill: var(--pw-cat-stays); transform-origin: left center; }
+.bud-bal-bar.neg { fill: var(--pw-cat-food); transform-origin: right center; }
 .bud-bal-row:nth-child(2) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 1); }
 .bud-bal-row:nth-child(3) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 2); }
 .bud-bal-row:nth-child(4) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 3); }
@@ -365,7 +380,7 @@
 .bud-essential-bar, .bud-share-bar {
   display: block; width: 100%; height: 16px;
   transform-box: fill-box; transform-origin: left center;
-  animation: bud-grow-x var(--motion-slower) var(--ease-paper) backwards;
+  animation: bud-grow-x calc(var(--motion-slower) * 1.5) var(--ease-paper) backwards;
 }
 .bud-essential-fill { fill: var(--pw-ink-2); }
 .bud-optional-fill { fill: url(#bud-optional-hatch); }
@@ -661,50 +676,54 @@
    `div[role="tabpanel"]:has(> .bud-page)` takes that block fade off this tab only; other
    tabs keep theirs. The body's blocks and their parts carry the entrance instead. A wrapper that cascades its parts
    (`.bud-glance`, `.bud-grid`) carries none, so no element fades twice. Steps are
-   the 60ms `--stagger-step`, capped at six (360ms). The blocks land as before, and
-   the parts inside each card trail from the card's own step, so the contents of a
-   card arrive one after another for about another half second. The sequence
-   settles inside about 1.2s. The state banners and the edit bar are opted out: they
+   the 60ms `--stagger-step`: hero 0, glance tiles 1-3, day chart 4, category
+   card 5, balances 6, optional 7, expense list 8. The parts inside each card
+   trail from the card's own step, so the contents arrive one after another and
+   no two cards share a beat. The sequence settles inside about 1.6s, and a bar
+   drawn at one and a half token lengths is still growing at 900ms, as the
+   mockup's bars are. The state banners and the edit bar are opted out: they
    are states, not entrance content. Top level, not in a media query, so the design-system
    gates can read it. The reduced-motion opt-out is the block at the end. */
 div[role="tabpanel"]:has(> .bud-page) { animation: none; }
-.bud-page > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
-.bud-page > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
-.bud-page > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
-.bud-page > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
-.bud-page > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
-.bud-page > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
-.bud-page > *:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * 6); }
-.bud-page > .bud-glance,
-.bud-page > .bud-grid,
-.bud-page > .bud-read,
-.bud-page > .bud-editor-actions { animation: none; }
-.bud-page > .bud-lines { animation-delay: calc(var(--stagger-step) * 5); }
+/* The body's blocks are three wrappers plus the expense list. A wrapper carries
+   no fade of its own (its cards do), so nothing fades twice. The list lands on
+   the last beat. */
+.bud-page > * { animation: none; }
+.bud-page > .bud-lines {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 8);
+}
 
 /* Glance: the hero first, then the three tiles. */
 .bud-glance > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
 .bud-glance > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
 .bud-glance > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
 .bud-glance > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
-.bud-glance > :nth-child(1) .bud-track-fill,
+.bud-glance > :nth-child(1) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 3); }
 .bud-glance > :nth-child(2) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 1); }
 .bud-glance > :nth-child(3) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 2); }
 .bud-glance > :nth-child(4) .bud-track-fill { animation-delay: calc(var(--stagger-step) * 3); }
 
-/* Chart cards, then the balances and optional-lines card. Each bar starts with its card. */
-.bud-grid-charts > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; animation-delay: calc(var(--stagger-step) * 2); }
-.bud-grid-mid > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; animation-delay: calc(var(--stagger-step) * 3); }
-.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(1) .bud-stack { animation-delay: calc(var(--stagger-step) * 2); }
-.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(2) .bud-stack { animation-delay: calc(var(--stagger-step) * 3); }
-.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(3) .bud-stack { animation-delay: calc(var(--stagger-step) * 4); }
-.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(4) .bud-stack { animation-delay: calc(var(--stagger-step) * 5); }
-.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(n+5) .bud-stack { animation-delay: calc(var(--stagger-step) * 6); }
-.bud-grid-charts .bud-share-bar { animation-delay: calc(var(--stagger-step) * 2); }
-.bud-grid-mid .bud-essential-bar { animation-delay: calc(var(--stagger-step) * 3); }
-.bud-grid-mid .bud-bal-row:nth-child(1) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 3); }
-.bud-grid-mid .bud-bal-row:nth-child(2) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 4); }
-.bud-grid-mid .bud-bal-row:nth-child(3) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 5); }
-.bud-grid-mid .bud-bal-row:nth-child(n+4) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * 6); }
+/* The four card beats that follow, one step each: day chart 4, category card 5,
+   balances 6, optional 7. The bars start with their own card. */
+.bud-grid-charts > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
+.bud-grid-charts > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 4); }
+.bud-grid-charts > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 5); }
+.bud-grid-mid > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
+.bud-grid-mid > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 6); }
+.bud-grid-mid > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 7); }
+.bud-grid-charts .bud-share-bar { animation-delay: calc(var(--stagger-step) * 5); }
+.bud-grid-mid .bud-essential-bar { animation-delay: calc(var(--stagger-step) * (7 + 3)); }
+/* The balance rows start at the second child (the head is first), so their bars
+   trail the rows they sit on. */
+.bud-grid-mid .bud-bal-row:nth-child(2) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * (6 + 3)); }
+.bud-grid-mid .bud-bal-row:nth-child(3) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * (6 + 4)); }
+.bud-grid-mid .bud-bal-row:nth-child(n+4) .bud-bal-bar { animation-delay: calc(var(--stagger-step) * (6 + 5)); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(1) .bud-stack { animation-delay: calc(var(--stagger-step) * 4); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(2) .bud-stack { animation-delay: calc(var(--stagger-step) * 5); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(3) .bud-stack { animation-delay: calc(var(--stagger-step) * 6); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(4) .bud-stack { animation-delay: calc(var(--stagger-step) * 7); }
+.bud-grid-charts .bud-bars .bud-day-group:nth-of-type(n+5) .bud-stack { animation-delay: calc(var(--stagger-step) * 8); }
 
 /* ---- Inner cascade: the parts inside a card, one after another ----------
    The cards keep their own step and the parts inside them trail from it, from
@@ -713,103 +732,91 @@ div[role="tabpanel"]:has(> .bud-page) { animation: none; }
    takes at most six inner steps, then a catch-all. Rows and blocks rise with
    `pageRise`, and labels carry `fadeIn`, so a label never moves. */
 
-/* (a) Glance hero: the total, then the track, then the kicker and pill, then the foot. */
+/* (a) Glance hero: the kicker and total, then the figure, then the track, then the foot. */
 .bud-glance-main > * { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
-.bud-glance-main > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 4); }
-.bud-glance-main > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 1); }
-.bud-glance-main > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 5); }
-/* The caption is a label: it fades once the track has grown (its step plus 560ms). */
+.bud-glance-main > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.bud-glance-main > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.bud-glance-main > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+/* The caption is a label: it fades once the track has grown (its step plus the
+   bar's one-and-a-half token length). */
 .bud-glance-main .bud-target-caption {
   animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 1 + var(--motion-slower));
+  animation-delay: calc(var(--stagger-step) * 3 + var(--motion-slower) * 1.5);
 }
 
 /* (b) "Where the money goes": one category row at a time, then the total row. */
 .bud-cat-card .bud-cat-table > tbody > tr {
   animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 2);
+  animation-delay: calc(var(--stagger-step) * 7);
 }
-.bud-cat-card .bud-cat-table > tbody > tr:nth-child(2) { animation-delay: calc(var(--stagger-step) * (2 + 1)); }
-.bud-cat-card .bud-cat-table > tbody > tr:nth-child(3) { animation-delay: calc(var(--stagger-step) * (2 + 2)); }
-.bud-cat-card .bud-cat-table > tbody > tr:nth-child(4) { animation-delay: calc(var(--stagger-step) * (2 + 3)); }
-.bud-cat-card .bud-cat-table > tbody > tr:nth-child(5) { animation-delay: calc(var(--stagger-step) * (2 + 4)); }
-.bud-cat-card .bud-cat-table > tbody > tr:nth-child(6) { animation-delay: calc(var(--stagger-step) * (2 + 5)); }
-.bud-cat-card .bud-cat-table > tbody > tr:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * (2 + 6)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(2) { animation-delay: calc(var(--stagger-step) * (5 + 3)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(3) { animation-delay: calc(var(--stagger-step) * (5 + 4)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(4) { animation-delay: calc(var(--stagger-step) * (5 + 5)); }
+.bud-cat-card .bud-cat-table > tbody > tr:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * (5 + 6)); }
 .bud-cat-card .bud-cat-table > tfoot > tr {
   animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * (2 + 5));
+  animation-delay: calc(var(--stagger-step) * (5 + 5));
 }
 
 /* (c) "Who paid": the balance rows one by one, then the transfers. */
 .bud-balances > * {
   animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 3);
+  animation-delay: calc(var(--stagger-step) * (6 + 3));
 }
-.bud-balances > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * (3 + 1)); }
-.bud-balances > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * (3 + 2)); }
-.bud-balances > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * (3 + 3)); }
-.bud-balances > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * (3 + 4)); }
-.bud-balances > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * (3 + 5)); }
-.bud-balances > *:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * (3 + 6)); }
+.bud-balances > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * (6 + 4)); }
+.bud-balances > *:nth-child(n+4) { animation-delay: calc(var(--stagger-step) * (6 + 5)); }
 /* The transfers follow the rows: the card's step, then three row steps. */
 .bud-transfers > * {
   animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * (3 + 3));
+  animation-delay: calc(var(--stagger-step) * (6 + 5));
 }
-.bud-transfers > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * (3 + 4)); }
-.bud-transfers > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * (3 + 5)); }
-.bud-transfers > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * (3 + 6)); }
-.bud-transfers > *:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * (3 + 6)); }
+.bud-transfers > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * (6 + 6)); }
+.bud-transfers > *:nth-child(n+3) { animation-delay: calc(var(--stagger-step) * (6 + 6)); }
 
 /* (d) A day's total and its label fade once that bar has grown: the bar's own
-   step plus `--motion-slower`. Axis ticks follow the last bar. */
+   step plus the bar's one-and-a-half token length. The axis ticks are static,
+   as they are in the mockup (its axis labels carry no animation class): five
+   ticks and the rupee label fading together would start six elements at once. */
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(1) .bud-bar-total,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(1) .bud-day-name,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(1) .bud-day-date {
   animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 2 + var(--motion-slower));
+  animation-delay: calc(var(--stagger-step) * 4 + var(--motion-slower) * 1.5);
 }
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(2) .bud-bar-total,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(2) .bud-day-name,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(2) .bud-day-date {
   animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 3 + var(--motion-slower));
+  animation-delay: calc(var(--stagger-step) * 5 + var(--motion-slower) * 1.5);
 }
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(3) .bud-bar-total,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(3) .bud-day-name,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(3) .bud-day-date {
   animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 4 + var(--motion-slower));
+  animation-delay: calc(var(--stagger-step) * 6 + var(--motion-slower) * 1.5);
 }
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(4) .bud-bar-total,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(4) .bud-day-name,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(4) .bud-day-date {
   animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 5 + var(--motion-slower));
+  animation-delay: calc(var(--stagger-step) * 7 + var(--motion-slower) * 1.5);
 }
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(n+5) .bud-bar-total,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(n+5) .bud-day-name,
 .bud-chart-card .bud-bars .bud-day-group:nth-of-type(n+5) .bud-day-date {
   animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 6 + var(--motion-slower));
-}
-.bud-chart-card .bud-axis-label,
-.bud-chart-card .bud-target-text {
-  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 6 + var(--motion-slower));
+  animation-delay: calc(var(--stagger-step) * 8 + var(--motion-slower) * 1.5);
 }
 
 /* (e) The legend items, one by one, inside the chart card's step. */
 .bud-chart-card .bud-legend > li {
   animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
-  animation-delay: calc(var(--stagger-step) * 2);
+  animation-delay: calc(var(--stagger-step) * 4);
 }
-.bud-chart-card .bud-legend > li:nth-child(2) { animation-delay: calc(var(--stagger-step) * (2 + 1)); }
-.bud-chart-card .bud-legend > li:nth-child(3) { animation-delay: calc(var(--stagger-step) * (2 + 2)); }
-.bud-chart-card .bud-legend > li:nth-child(4) { animation-delay: calc(var(--stagger-step) * (2 + 3)); }
-.bud-chart-card .bud-legend > li:nth-child(5) { animation-delay: calc(var(--stagger-step) * (2 + 4)); }
-.bud-chart-card .bud-legend > li:nth-child(6) { animation-delay: calc(var(--stagger-step) * (2 + 5)); }
-.bud-chart-card .bud-legend > li:nth-child(n+7) { animation-delay: calc(var(--stagger-step) * (2 + 6)); }
+.bud-chart-card .bud-legend > li:nth-child(2) { animation-delay: calc(var(--stagger-step) * (4 + 1)); }
+.bud-chart-card .bud-legend > li:nth-child(3) { animation-delay: calc(var(--stagger-step) * (4 + 2)); }
+.bud-chart-card .bud-legend > li:nth-child(4) { animation-delay: calc(var(--stagger-step) * (4 + 3)); }
+.bud-chart-card .bud-legend > li:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * (4 + 4)); }
 
 /* The expense list lands last, as one panel (`.bud-lines`, step 5). Its rows and the
    optional-line rows carry no cascade of their own: a filter click or an optional
@@ -821,6 +828,7 @@ div[role="tabpanel"]:has(> .bud-page) { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .bud-page > *,
+  .bud-page > .bud-lines,
   .bud-glance > *,
   .bud-grid-charts > *,
   .bud-grid-mid > *,
@@ -833,7 +841,18 @@ div[role="tabpanel"]:has(> .bud-page) { animation: none; }
   .bud-chart-card .bud-bars .bud-day-group .bud-bar-total,
   .bud-chart-card .bud-bars .bud-day-group .bud-day-name,
   .bud-chart-card .bud-bars .bud-day-group .bud-day-date,
-  .bud-chart-card .bud-axis-label,
-  .bud-chart-card .bud-target-text,
   .bud-chart-card .bud-legend > li { animation: none; }
+  /* The class list above could not stop the per-day rules: their `:nth-of-type`
+     selectors outrank it, so those labels still ran a 0.01ms `fadeIn` and the
+     global reset left the SVG geometry transitions alive. `animation: none`
+     clears the animation NAME, which the global duration reset never sets, so
+     the opt-out below needs specificity, not importance — the ownership gate
+     refuses to raise its count. */
+  .bud-page,
+  .bud-page *,
+  .bud-page *::before,
+  .bud-page *::after { animation: none; transition: none; }
+  .bud-page .bud-chart-card .bud-bars .bud-day-group:nth-of-type(n) .bud-bar-total,
+  .bud-page .bud-chart-card .bud-bars .bud-day-group:nth-of-type(n) .bud-day-name,
+  .bud-page .bud-chart-card .bud-bars .bud-day-group:nth-of-type(n) .bud-day-date { animation: none; }
 }

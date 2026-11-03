@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-11-03
+
+**This minor release gives Overview, Budget and Timeline the Linen polish.** The three tabs now arrive in steps. A day card folds open and shut in one smooth motion. Switching between Day by day and Whole trip animates. The trip settings page follows the artboard's three-column body. Days can carry their own cover photo. The light theme sits on Linen paper. Release `0.81.0` stays as shipped.
+
 ### Changed
 
 - **Switching between "Day by day" and "Whole trip" now moves smoothly.** The trip ribbon used to cut in one frame. It lost 31px of height, its "Trip total" column vanished, and the route line jumped 271px. The "Trip total" column now folds away and fades. The ribbon padding, the current-day ring and the bar colours move on motion tokens. Whole trip opens its days over six beats of `--stagger-step`. This removes the 126ms frames that four bodies caused when they mounted together. The two toolbar buttons share one text weight, so the label no longer shifts under the sliding highlight. The active icon takes the teal tint, and a press scales to 0.98. A page that loads in Whole trip does not animate. Reduced motion changes the view at once. Leaving Whole trip while scrolled deep still hides the stuck ribbon in one frame, because `position: sticky` cannot animate.

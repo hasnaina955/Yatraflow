@@ -54,6 +54,14 @@
       "destination": "https://search.mappls.com/:path*"
     },
     {
+      "source": "/android/manifest.json",
+      "destination": "/api/android-manifest"
+    },
+    {
+      "source": "/android/latest.apk",
+      "destination": "/api/android-manifest?apk=1"
+    },
+    {
       "source": "/((?!api/|i/|c/|sitemap.xml|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",
       "destination": "/index.html"
     }

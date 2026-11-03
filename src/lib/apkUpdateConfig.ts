@@ -1,14 +1,12 @@
 // ============ APK update feed configuration ============
 // Both values are build variables, in the same shape as lib/featureFlags. An
-// unset value means "no feed", so the feature stays inert. No live host is
-// named in this file.
+// unset value means "no feed", so the feature stays inert.
 //
-// PROPOSED permanent endpoint, not configured and not live: the project already
-// serves the app from its canonical origin, so the manifest belongs at
-// `https://www.yatraflow.in/android/manifest.json`, with the APK behind a
-// stable path on that same host. Neither variable gets a value until a real
-// feed exists and the coordinator approves it. See docs/APK-UPDATE-FEED.md for
-// the contract and the activation steps.
+// The endpoint is served by `api/android-manifest.js`, and `vercel.json` routes
+// it ahead of the SPA catch-all. The document is derived from the newest
+// release that carries an APK asset, so a release cut publishes it. Neither
+// variable gets a value until the coordinator approves them; see
+// docs/APK-UPDATE-FEED.md for the contract and the activation steps.
 
 import type { UpdateChannel } from './apkUpdates'
 

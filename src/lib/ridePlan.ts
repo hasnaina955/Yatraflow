@@ -1564,10 +1564,20 @@ export interface AssignOpts {
 
 /** Rain chance at or above this means the day counts as rainy. Matches OverviewTab. */
 export const RAIN_PCT_THRESHOLD = 60
-/** Categories that suffer in the rain. */
-const WEATHER_SENSITIVE = new Set(['nature', 'beach', 'temple', 'adventure'])
+/**
+ * Categories that suffer in the rain, aligned with the source's confirmed
+ * rain rows (ticket 09): nature is 'exposed'. 'temple' moves to sheltered
+ * (the source's Faith row says sheltered — it was wrongly sensitive here).
+ * 'adventure' leaves the set: the source's Culture row says 'mixed', which is
+ * no adjustment. Water, views and heritage have NO confirmed rain row
+ * (source cells empty) and stay neutral — nothing is invented for them.
+ * 'beach' keeps its pre-existing sensitivity: it predates this table and
+ * stripping it on an empty source cell would be a regression, not an
+ * alignment — flagged to the coordinator for the Water-rain decision.
+ */
+const WEATHER_SENSITIVE = new Set(['nature', 'beach'])
 /** Categories that shelter from it. */
-const WEATHER_SHELTERED = new Set(['museum', 'cafe', 'shopping'])
+const WEATHER_SHELTERED = new Set(['museum', 'cafe', 'shopping', 'temple'])
 
 /** purpose-fit adjusted for rain: exposed sights lose a point, sheltered picks gain one. */
 function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): number {

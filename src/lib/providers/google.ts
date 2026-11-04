@@ -25,8 +25,9 @@
 // (`routingSummaries.legs.distanceMeters`). See scripts/verify-google-places.mjs.
 import { normWords, hasCoords, spurKm, type PlaceHit, type HaltPurpose } from './hits'
 import { placeHoursFromPeriods, localISODate, type PlaceHours } from './hours'
+import { familyFromType, familyFromName, type PlaceFamily } from './families'
 import { quotaAllows, quotaCount, type QuotaSku } from './quota'
-import { queriesForPurpose } from '../purposeQueries'
+import { queriesForPurpose, familyQueryEntries } from '../purposeQueries'
 import { encodePolyline } from './polyline'
 
 const PLACES = 'https://places.googleapis.com/v1'
@@ -284,6 +285,13 @@ export interface AlongRouteArgs {
   includeFuel?: boolean
   /** When provided, searches use purpose-specific queries instead of the static tourist set. */
   purposes?: HaltPurpose[]
+  /**
+   * Ticket 09: family query sets appended to the scan — one Text Search event
+   * per family query, results classified into the family's category. Family
+   * SELECTION per day and operating limits require coordinator agreement
+   * before any live expansion (ticket 10 owns the day-context selection).
+   */
+  families?: PlaceFamily[]
   signal?: AbortSignal
 }
 
@@ -311,35 +319,53 @@ export interface AlongRouteArgs {
  */
 const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
   tourist_attraction: 'sightseeing',
-  aquarium: 'sightseeing', zoo: 'sightseeing', amusement_park: 'sightseeing',
+  aquarium: 'sightseeing',
   museum: 'museum', art_gallery: 'museum', cultural_center: 'museum',
   hindu_temple: 'temple', mosque: 'temple', church: 'temple', synagogue: 'temple',
   place_of_worship: 'temple', gurudwara: 'temple',
-  park: 'nature', natural_feature: 'nature', botanical_garden: 'nature',
+  park: 'nature', botanical_garden: 'nature',
   beach: 'beach',
-  hiking_area: 'adventure', campground: 'adventure',
+  campground: 'adventure',
   restaurant: 'food', cafe: 'cafe', coffee_shop: 'cafe', bar: 'food',
   bakery: 'food', meal_takeaway: 'food', food: 'food',
   hotel: 'hotel', motel: 'hotel', lodge: 'hotel', guest_house: 'hotel',
   hostel: 'hotel', bed_and_breakfast: 'hotel', resort: 'hotel', lodging: 'hotel',
   gas_station: 'transport-hub', fuel: 'transport-hub',
   ev_charging_station: 'transport-hub', charging_station: 'transport-hub',
-  shopping_mall: 'shopping', store: 'shopping', market: 'shopping',
+  shopping_mall: 'shopping', store: 'shopping',
   train_station: 'travel', transit_station: 'travel', airport: 'travel',
+  // Ticket 09: natural_feature, zoo, market, amusement_park and hiking_area
+  // moved out of this table into providers/families.ts — the source's
+  // family rows classify them (with subtype facts) and the family table is
+  // checked right after this one.
 }
 
-/** Category from Google's primaryType (or types), else the query's category hint. */
-function categoryForGooglePlace(
+/**
+ * Category + family facts from provider type, then evidenced name, then the
+ * query's own category hint (ticket 09 AC 1). Name evidence refines ONLY the
+ * generic sight context ('sightseeing' fallback) — a name word never
+ * re-classifies a food, fuel or hotel hit. Exported for the classification
+ * test seam; hit assembly is its only production caller.
+ */
+export function classifyGooglePlace(
   p: GooglePlace,
   fallback: string,
-): string {
+): { category: string; family?: PlaceFamily; subtype?: string | null } {
   const primary = p.primaryType ? GOOGLE_TYPE_TO_CATEGORY[p.primaryType] : undefined
-  if (primary) return primary
+  if (primary) return { category: primary }
   for (const t of p.types ?? []) {
     const mapped = GOOGLE_TYPE_TO_CATEGORY[t]
-    if (mapped) return mapped
+    if (mapped) return { category: mapped }
   }
-  return fallback
+  const byType = familyFromType(p.primaryType)
+    ?? (p.types ?? []).map(t => familyFromType(t)).find(m => m != null)
+    ?? null
+  if (byType) return { category: byType.category, family: byType.family, subtype: byType.subtype }
+  if (fallback === 'sightseeing') {
+    const byName = familyFromName(p.displayName?.text)
+    if (byName) return { category: byName.category, family: byName.family, subtype: byName.subtype }
+  }
+  return { category: fallback }
 }
 
 function hitsFromResponses(
@@ -376,6 +402,7 @@ function hitsFromResponses(
       // regardless of which provider measured the polyline.
       const spur = routePolyline ? spurKm({ latitude: lat, longitude: lng }, routePolyline) : null
       const hours = placeHoursFrom(p)
+      const classified = classifyGooglePlace(p, queries[qi].cat)
       out.push({
         id: `google_${p.id}`,
         name: p.displayName.text,
@@ -389,7 +416,8 @@ function hitsFromResponses(
         // real category from the place's machine type — NEVER the purpose
         // string that built the query ('meal'/'fuel'/'overnight' are purposes,
         // not categories; they score 0 in PURPOSE_FIT)
-        category: categoryForGooglePlace(p, queries[qi].cat),
+        category: classified.category,
+        ...(classified.family ? { family: classified.family, subtype: classified.subtype ?? undefined } : {}),
         ...hoursFrom(p),
         ...(hours ? { hours } : {}),
         ...(p.rating != null && Number.isFinite(p.rating) ? { rating: p.rating } : {}),
@@ -409,9 +437,12 @@ export async function googleNearbyAlongRoute(args: AlongRouteArgs): Promise<Plac
   if (!encoded) return []
   // Build query list: static tourist set (backward compat) OR purpose-specific dynamic set
   const staticQueries = args.includeFuel ? [...ALONG_ROUTE_QUERIES, FUEL_QUERY] : ALONG_ROUTE_QUERIES
-  const queries = args.purposes && args.purposes.length > 0
+  const purposeQueries = args.purposes && args.purposes.length > 0
     ? args.purposes.flatMap(p => queriesForPurpose(p).googleQueries.map(textQuery => ({ textQuery, cat: p, includedType: queriesForPurpose(p).includedType })))
     : staticQueries
+  // Ticket 09: family scans ride the same event structure — one Text Search
+  // event per family query, results classified into the family's category.
+  const queries = [...purposeQueries, ...familyQueryEntries(args.families ?? [])]
   const responses = await Promise.all(queries.map(qv =>
     placesPost('/places:searchText', 'textSearchPro', {
       textQuery: qv.textQuery,

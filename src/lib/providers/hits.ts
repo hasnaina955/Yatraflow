@@ -8,6 +8,7 @@ import type { VehicleProfile } from '../../data/types'
 import { haversineKm } from '../geo'
 import type { DnaVector } from '../tripDna'
 import type { PlaceHours } from './hours'
+import type { PlaceFamily } from './families'
 import type { PlaceExposure } from '../../data/types'
 
 export interface PlaceHit {
@@ -41,6 +42,14 @@ export interface PlaceHit {
    * (open / closed / unknown for a visit) come from here when present.
    */
   hours?: PlaceHours
+  /**
+   * source family + subtype when classification refined the category
+   * (ticket 09) — 'water' | 'nature' | 'views' | 'faith' | 'heritage' |
+   * 'culture'. Undefined = generic (no evidence or a non-family category);
+   * confirmed subtype facts come only from complete source rows.
+   */
+  family?: PlaceFamily
+  subtype?: string
   /** Google rating 1–5 — present on Google hits when the mask returns it */
   rating?: number
   /** Google review count — gates the rating boost against thin samples */

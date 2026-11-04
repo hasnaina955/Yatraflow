@@ -6,7 +6,17 @@
 import type { HaltPurpose } from './providers/hits'
 
 /** How well a place category serves each purpose (0-3). The engine's single
- *  source of truth for "can this kind of place be this kind of stop". */
+ *  source of truth for "can this kind of place be this kind of stop".
+ *
+ *  Ticket 09 (#894): the source's place-family rows join the table. Every
+ *  sight-land family fits `sight` at 3 ("every sight type fits sights at 3").
+ *  Stretch fit 3 goes to the source's short scenic stops — viewpoints,
+ *  waterfalls, dams, lakes, tea/spice estates — which is why water, views
+ *  and nature carry `stretch: 3` (nature conservatively at 3 only through
+ *  its listed subtypes; the category-level entry keeps tea/spice estates
+ *  competitive without inventing per-subtype fit). Faith, heritage, museum
+ *  and culture stay out of the stretch list — the source does not put them
+ *  there, and nothing is invented. */
 export const PURPOSE_FIT: Record<string, Partial<Record<HaltPurpose, number>>> = {
   food: { meal: 3, stretch: 2, rest: 2 },
   'transport-hub': { fuel: 3, stretch: 2, meal: 1, rest: 1 },
@@ -14,6 +24,15 @@ export const PURPOSE_FIT: Record<string, Partial<Record<HaltPurpose, number>>> =
   cafe: { stretch: 3, meal: 1 },
   rest: { stretch: 2, rest: 3, meal: 1 },
   sightseeing: { sight: 3 },
+  water: { sight: 3, stretch: 3 },
+  beach: { sight: 3 },
+  nature: { sight: 3, stretch: 3 },
+  views: { sight: 3, stretch: 3 },
+  temple: { sight: 3 },
+  heritage: { sight: 3 },
+  museum: { sight: 3 },
+  culture: { sight: 3 },
+  adventure: { sight: 3 },
 }
 
 /** Fit for a category the table does not name. */

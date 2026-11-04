@@ -24,6 +24,7 @@
 // applied from that run: routingSummaries paths are legs-scoped
 // (`routingSummaries.legs.distanceMeters`). See scripts/verify-google-places.mjs.
 import { normWords, hasCoords, spurKm, type PlaceHit, type HaltPurpose } from './hits'
+import { placeHoursFromPeriods, localISODate, type PlaceHours } from './hours'
 import { quotaAllows, quotaCount, type QuotaSku } from './quota'
 import { queriesForPurpose } from '../purposeQueries'
 import { encodePolyline } from './polyline'
@@ -191,8 +192,19 @@ interface GooglePlace {
 }
 
 interface GooglePeriod {
-  open?: { hour?: number; minute?: number }
-  close?: { hour?: number; minute?: number }
+  /**
+   * day: 0 = Sunday (Google convention), local clock. date: the calendar day a
+   * currentOpeningHours period covers (next ~7 days, closures and holidays).
+   * Both are optional here because the parser must survive their absence
+   * honestly — unattributable periods are dropped, never guessed (ticket 02).
+   */
+  open?: {
+    day?: number
+    hour?: number
+    minute?: number
+    date?: { year?: number; month?: number; day?: number }
+  }
+  close?: { day?: number; hour?: number; minute?: number }
 }
 
 interface RoutingSummary {
@@ -252,6 +264,17 @@ function hoursFrom(p: GooglePlace): { openTime?: string; closeTime?: string } {
   const hm = (t?: { hour?: number; minute?: number }) =>
     t ? `${String(t.hour ?? 0).padStart(2, '0')}:${String(t.minute ?? 0).padStart(2, '0')}` : undefined
   return { openTime: hm(first.open) ?? '00:00', closeTime: hm(first.close) ?? '23:59' }
+}
+
+/**
+ * Structured hours facts (ticket 02): weekday-attributed intervals from both
+ * the weekly pattern and the dated currentOpeningHours observations, stamped
+ * with the local fetch date. Undefined when no period is weekday-attributable —
+ * the legacy open/closeTime pair still rides the hit, but no verdict is ever
+ * invented from it (ambiguous hours stay unknown, not fabricated intervals).
+ */
+function placeHoursFrom(p: GooglePlace): PlaceHours | undefined {
+  return placeHoursFromPeriods(p.regularOpeningHours?.periods, p.currentOpeningHours?.periods, localISODate())
 }
 
 export interface AlongRouteArgs {
@@ -352,6 +375,7 @@ function hitsFromResponses(
       // search ran along — engine-free, so an on-road petrol pump reads ~0
       // regardless of which provider measured the polyline.
       const spur = routePolyline ? spurKm({ latitude: lat, longitude: lng }, routePolyline) : null
+      const hours = placeHoursFrom(p)
       out.push({
         id: `google_${p.id}`,
         name: p.displayName.text,
@@ -367,6 +391,7 @@ function hitsFromResponses(
         // not categories; they score 0 in PURPOSE_FIT)
         category: categoryForGooglePlace(p, queries[qi].cat),
         ...hoursFrom(p),
+        ...(hours ? { hours } : {}),
         ...(p.rating != null && Number.isFinite(p.rating) ? { rating: p.rating } : {}),
         ...(p.userRatingCount != null && Number.isFinite(p.userRatingCount) ? { ratingCount: p.userRatingCount } : {}),
         // leg0 = road km from the route origin to this place — its position

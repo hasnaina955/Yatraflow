@@ -7,6 +7,7 @@ import type { VehicleProfile } from '../../data/types'
 // exercise this module directly.
 import { haversineKm } from '../geo'
 import type { DnaVector } from '../tripDna'
+import type { PlaceHours } from './hours'
 import type { PlaceExposure } from '../../data/types'
 
 export interface PlaceHit {
@@ -33,6 +34,13 @@ export interface PlaceHit {
   /** reported opening hours "HH:MM" — Google hits only, rendered as "reported" */
   openTime?: string
   closeTime?: string
+  /**
+   * structured opening-hours facts (ticket 02): weekday-attributed intervals
+   * (split + overnight), source basis and fetch date. The legacy open/closeTime
+   * pair above stays for undated display and pre-existing consumers; verdicts
+   * (open / closed / unknown for a visit) come from here when present.
+   */
+  hours?: PlaceHours
   /** Google rating 1–5 — present on Google hits when the mask returns it */
   rating?: number
   /** Google review count — gates the rating boost against thin samples */

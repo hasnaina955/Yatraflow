@@ -17,6 +17,7 @@ import { hmToMinutes } from './engine'
 import { plannerDrives, transportPolicy } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { openingVerdict } from './providers/hours'
 import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
@@ -1552,6 +1553,13 @@ export interface AssignOpts {
   speedKmph?: number
   /** trip preference vector — favoured categories score a similarity boost */
   dnaVector?: DnaVector
+  /**
+   * Local visit date per segment, by segment index (journey order) —
+   * 'YYYY-MM-DD'. Ticket 02: lets opening-hours verdicts resolve the visit's
+   * weekday instead of staying neutral. Absent entries (or the whole field)
+   * keep the honest weekday-free behavior; the projection owns supplying it.
+   */
+  visitDates?: (string | null)[]
 }
 
 /** Rain chance at or above this means the day counts as rainy. Matches OverviewTab. */
@@ -1577,13 +1585,28 @@ function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): 
  * leave the hit untouched. Penalty is minutes a trip would "walk a shut
  * door" away from the ideal — scaled so a full locked-out place is about as
  * bad as a 10 km off-road detour (matches the detour minute weight).
+ *
+ * Ticket 02: when the hit carries structured hours (weekday-attributed
+ * intervals, from providers/hours.ts) the verdict comes from
+ * openingVerdict — split and overnight intervals, full-visit fit and
+ * known-closed-vs-unknown. Unknown hours stay neutral (no invented penalty);
+ * closed-with-a-measurable-edge keeps the legacy scaling; an edge-less
+ * closure (whole weekday / outside a uniform daily shape) is the legacy flat
+ * lock-out. Without structured hours the legacy single-interval behavior is
+ * byte-identical, so pre-existing hits score exactly as before.
  */
 export function hoursFitAdj(
-  h: Pick<PlaceHit, 'openTime' | 'closeTime'>,
+  h: Pick<PlaceHit, 'openTime' | 'closeTime' | 'hours'>,
   etaMinutes: number | null | undefined,
+  visit?: { date?: string | { year: number; month: number; day: number } | Date | null; visitMin?: number },
 ): number {
   const eta = etaMinutes
   if (eta == null || !Number.isFinite(eta)) return 0
+  if (h.hours) {
+    const verdict = openingVerdict(h.hours, visit?.date ?? null, eta, visit?.visitMin ?? 0)
+    if (verdict.state !== 'closed') return 0 // open, or honestly unknown — never an invented penalty
+    return verdict.missMin != null ? Math.round(verdict.missMin / 15) * 2 + 1 : 6
+  }
   const open = h.openTime ? hmToMinutes(h.openTime) : null
   const close = h.closeTime ? hmToMinutes(h.closeTime) : null
   if (open == null || close == null) return 0
@@ -1632,8 +1655,11 @@ export function scoreHitForSegment(
   const detour = asymmetricDetourMinutes(h, anchors, opts.routePolyline ?? undefined, opts.speedKmph)
   if (detour == null) return null // unknown position cannot be scored as free/on-route
   const detourCost = detour
-  // Opening-hours fit: a hit closed when you'd arrive is degraded.
-  const hours = hoursFitAdj(h, seg.etaMinutes)
+  // Opening-hours fit: a hit closed when you'd arrive is degraded. Structured
+  // hours (ticket 02) resolve the visit weekday from visitDates when the
+  // projection supplies one; undated verdicts stay honest (neutral, not guessed).
+  const visitDate = opts.visitDates?.[seg.index] ?? null
+  const hours = hoursFitAdj(h, seg.etaMinutes, { date: visitDate })
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0
   return distPenalty + detourCost + hours + (3 - fit) * 4 - dna

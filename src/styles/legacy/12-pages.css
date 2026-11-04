@@ -1364,6 +1364,31 @@
    column, so the action and the values it writes are in one view. */
 .prof-save-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
 
+/* Profile travel styles take the two-column row grid from Pace. */
+/* Each chip keeps its teal pressed colour. The shared chip stays unchanged. */
+.prof-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-width: 100%;
+}
+.prof-style-grid .prof-chip {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--pw-soft);
+  justify-content: flex-start;
+  text-align: start;
+  white-space: normal;
+}
+.prof-style-grid .prof-chip:hover:not([aria-pressed='true']) { background: var(--bg-soft); }
+@media (pointer: coarse) {
+  .prof-style-grid .prof-chip { min-height: 44px; }
+}
+
 /* ---------- Profile: the pressed chip ----------
    The artboard fills a pressed chip with sea ink and white text. The shared
    `.ex-chip` keeps the ink fill everywhere else; this page owns its own

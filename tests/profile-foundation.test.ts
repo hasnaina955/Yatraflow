@@ -130,3 +130,19 @@ describe('Profile: page-owned styling reaches no shared component default', () =
     expect(read('src/styles/legacy/11-shared-page.css')).toContain('border-radius: var(--radius); box-shadow: var(--shadow-card);')
   })
 })
+
+describe('Profile: travel styles use the two-column row grid', () => {
+  it('gives the style group its own grid and keeps multi-select chips', () => {
+    expect(TSX).toContain('className="prof-style-grid"')
+    expect(TSX).toContain('className="prof-chip"')
+    expect(TSX).toContain('<div className="chip-row">')
+    expect(PAGES).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(PAGES).toContain(".prof-chip[aria-pressed='true']")
+  })
+
+  it('leaves Trip Settings Pace single-select and unchanged', () => {
+    const pace = read('src/pages/trip/TripSettingsForm.tsx')
+    expect(pace).toContain('className="tset-pace-rows" role="group" aria-label="Travel style"')
+    expect(pace).toContain('f.travelStyle === s')
+  })
+})

@@ -435,7 +435,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               <PanelHead icon={Sparkles} title="Travel styles"
                 note="Pick all that fit — helps collaborators know what kind of trip to invite you to."
                 mark={<Chip tone="teal">{me.profile.travelStyles.length} picked</Chip>} />
-              <div className="chip-row">
+              <div className="prof-style-grid">
                 {TRAVEL_STYLES.map(s => (
                   <FilterChip key={s} className="prof-chip" pressed={me.profile.travelStyles.includes(s)} onClick={() => toggleStyle(s)}>{cap(s)}</FilterChip>
                 ))}

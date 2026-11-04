@@ -21,7 +21,7 @@ import { transportPolicy } from '../../lib/transportPolicy'
 import { CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
 import { defaultVehicleProfile, parseCapacityL, parseVehicleEconomy } from '../../lib/vehicleProfile'
 import { zipDests, splitDests, renameDest, type DestPair } from '../../lib/destPairs'
-import { Field, RangeDial, StickyFormBar, toast, undoToast } from '../../components/ui'
+import { Field, RangeDial, StickyFormBar, toast, undoToast, useMedia } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DateRangeCalendar } from '../../components/DateRangeCalendar'
 import { PillNav } from '../../components/PillNav'
@@ -412,11 +412,19 @@ export function spendingStyleLabel(style: SettingsFormState['stayStyle']): strin
 
 export const SPENDING_STYLE_HINT = 'Changes which stays and restaurants the app suggests first.'
 export const NEW_DAY_HINT = 'Existing stops stay on their dates. The new day starts empty, ready to plan.'
-// A blocked save must not promise a drop. The plan keeps its days.
-export const SAVE_REFUSED_HINT = 'Save is blocked: the plan keeps its days. No days are dropped.'
+// A blocked save must not promise a date change. The plan keeps its days.
+export const SAVE_REFUSED_HINT = 'Save is blocked: the plan keeps its days.'
+
+export function settingsDayDeltaLabel(dayDelta: number | null, saveRefused: boolean): string {
+  if (saveRefused && dayDelta !== null && dayDelta !== 0) return 'Save is blocked: the plan keeps its days'
+  if (dayDelta === null) return 'Pick both dates to preview the day grid'
+  if (dayDelta === 0) return 'Day count unchanged'
+  if (dayDelta > 0) return `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
+  return `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
+}
 
 export function settingsDayGridHint(dayDelta: number | null, dayDeltaLabel: string, saveRefused: boolean): string {
-  if (saveRefused && dayDelta !== null && dayDelta < 0) return SAVE_REFUSED_HINT
+  if (saveRefused && dayDelta !== null && dayDelta !== 0) return SAVE_REFUSED_HINT
   if (!saveRefused && dayDelta !== null && dayDelta > 0) return NEW_DAY_HINT
   return `${dayDeltaLabel}. Existing stops stay on their dates.`
 }
@@ -531,6 +539,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
    *  the avatar stack resolve against the same person. */
   const meId = useSessionUserId()
   const users = useUsers()
+  const showBottomSave = useMedia('(max-width: 1180px)')
   /** #704: the last write the server did not keep. Shown beside the Save button; the draft stays. */
   const [writeErr, setWriteErr] = useState<string | null>(null)
   /** #704: true from the Save click until the server answers. Save stays disabled meanwhile. */
@@ -686,13 +695,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
   const travellers = clampCrew(f.travellers)
   const clampedBudget = Math.min(300000, Math.max(0, f.budget))
   const dayCount = dayDelta === null ? trip.days.length : trip.days.length + dayDelta
-  const dayDeltaLabel = !dry.ok && dayDelta !== null && dayDelta < 0
-    ? 'Save is blocked: the plan keeps its days'
-    : dayDelta === null
-      ? 'Pick both dates to preview the day grid'
-      : dayDelta === 0 ? 'Day count unchanged'
-      : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
-      : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
+  const dayDeltaLabel = settingsDayDeltaLabel(dayDelta, !dry.ok)
   const dayGridHint = settingsDayGridHint(dayDelta, dayDeltaLabel, !dry.ok)
   const fuelMode = isFuelEconomyMode(f.transportMode)
   const routeSummary = settingsRouteSummary(dests, f.startLocation, fuelMode && f.roundTrip)
@@ -1616,11 +1619,10 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
         {saveAside}
       </div>
 
-      {/* The save bar stays for a keyboard user who scrolled past the panel:
-          the same verbs, reachable from anywhere on the page. */}
-      <StickyFormBar show>
+      {/* Narrow layouts keep the same verbs reachable past the panel. */}
+      <StickyFormBar show={showBottomSave}>
         {/* #413: a viewer used to get a vanished bar under disabled inputs —
-            permissioned read as broken. The bar renders for everyone; a
+            permissioned read as broken. The narrow bar renders for everyone; a
             viewer gets it disabled with the reason said out loud. */}
         {!editable && (
           <span className="ts-savebar-note hint-text" role="status">

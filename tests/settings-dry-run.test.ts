@@ -368,10 +368,10 @@ describe('#413 — the dirty compare is over the saved field set, by value', () 
     expect(settingsAreDirty(run.patch, trip)).toBe(false)
   })
 
-  it('the bar renders for viewers, disabled, with the reason said', () => {
+  it('the narrow bar retains the viewer explanation and save guards', () => {
     const form = read('../src/pages/trip/TripSettingsForm.tsx')
-    // Never a vanished bar: the show-gate is unconditional on this surface.
-    expect(form).toMatch(/<StickyFormBar show>/)
+    expect(form).toContain("useMedia('(max-width: 1180px)')")
+    expect(form).toMatch(/<StickyFormBar show=\{showBottomSave\}>/)
     expect(form).not.toMatch(/<StickyFormBar show=\{editable\}>/)
     // Disabled exactly when a click would not write.
     expect(form).toMatch(/const canSave = dry\.ok && settingsAreDirty\(dry\.patch, trip\)/)

@@ -24,3 +24,7 @@
 .chip-outline { background: var(--card); color: var(--text-2); border-color: var(--line); }
 
 .chip-saffron { background: var(--saffron-soft); color: var(--ink-amber); }
+
+.chip.chip-ok { background: var(--pw-ok-100); color: var(--pw-ok); }
+.chip.chip-danger { background: var(--danger-soft); color: var(--ink-coral); }
+.chip.chip-info { background: var(--info-soft); color: var(--text-2); }

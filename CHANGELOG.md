@@ -18,9 +18,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Status chips and Settings controls use clearer colours.** The Settings rail fades at its edges on narrow screens.
+- **Trip Settings shows its bottom Save bar at 1180px and below.** The panel Save remains available at all widths.
+
 - **Shared action buttons now use the Papercut kit across the app.** Secondary and quiet actions retain their states. Compact, large and touch sizes remain distinct.
 
-- **Trip Settings keeps long route names readable on narrow cards.** Route actions wrap below the name. A blocked date change no longer promises to remove a day.
+- **Trip Settings keeps long route names readable on narrow cards.** Route actions wrap below the name. Blocked date changes do not promise to add or remove days.
 
 - **Timeline ribbon counts now exclude rejected stops.** The count uses the same schedule as the day header.
 

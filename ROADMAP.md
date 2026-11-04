@@ -1133,6 +1133,8 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 
 ### Tier 2 — blocked on a named dependency
 
+I-108 and I-113 are complete. Shared status chips keep their colours. Settings controls and the phone rail passed synthetic theme checks.
+
 | # | Idea | Blocked on | Note |
 |---|---|---|---|
 | I-29 | Phone map planning access | Choose a sheet or split layout | Keep candidates near the map. Preserve keyboard focus and touch targets. [Audit](docs/UI_AUDIT.md#workspace-tab-audit--2026-10-03). |
@@ -1163,13 +1165,11 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-105 | Deposit / To-book pills on expense lines | Booking-state data per line | The expense lines need booking-state data per line. |
 | I-106 | Rounded axis ticks (5k steps) on the day chart | A tick design that keeps exact figures on the bars | The chart prints exact rupee figures today. Rounded ticks must keep the exact figures on the bars. |
 | I-107 | Per-row entrance stagger for the expense list | A mount-gated class | Filtering must not replay the motion. |
-| I-108 | Tone "ok" chips paint grey app-wide | A fix to the chip cascade | `.chip-ok` is dead code. `components/chip.css` loads later, so each `tone="ok"` chip paints grey. The Timeline has a scoped fix only. |
 | I-109 | Phone day card: More menu actions | A phone home for Open in Board, Export and Print | These three actions are hidden at 390px and have no other path on a phone. |
 | I-110 | Halts as rows, not chips | A row design with the halt data the product holds | The artboard draws halts as rows. The product draws chips. |
 | I-111 | Phone Timeline touch targets and travel speed | A longer phone fold duration, 44px cover and move buttons | Cover buttons are 34px, and heart and move buttons are 40px. The phone fold travels about 2170px in 560ms. A longer duration needs a change to the pinned token tests. The floating "Add to Day" button also covers the ETA row on a phone. |
-| I-112 | Settings sticky bottom save bar | A call on when it shows (dirty only, or 1180px and narrower) | The shared `StickyFormBar` duplicates the panel's Save and overlaps content on desktop. Page CSS may not restyle it. |
-| I-113 | Settings dark-mode contrast and phone nav fade | Token review for the disabled Archive button and the off-state switch knob; an edge fade on the nav strip | Both read weak in dark mode. The active nav item sits flush at the strip's edge on a phone. |
-| I-114 | Settings states in the fixture | A fixture read that exercises a failed and an empty Settings state | The `read=` and `empty=` fixture params change nothing on this tab. Those states are not audited. |
+| I-112 | Settings sticky bottom save bar | Saving-state acceptance | The bar shows at 1180px and below. The panel Save stays. A synthetic saving-state check remains. |
+| I-114 | Settings states in the fixture | Workspace read-state acceptance | The form receives a loaded trip. Its fixture supports empty and filled days. Failed and retained reads belong to the workspace. |
 #### Creator portfolio proposals
 
 | # | Idea | Blocked on | Note |

@@ -10,8 +10,12 @@ import '../src/styles.css'
 import type { CachedUser, Trip } from '../src/data/types'
 import { getSnapshot, _installUsersForTest } from '../src/store/store'
 import { TripSettingsForm } from '../src/pages/trip/TripSettingsForm'
+import { Chip } from '../src/components/ui'
 
 const params = new URLSearchParams(location.search)
+if (params.has('read') || params.has('empty')) {
+  throw new Error('Trip Settings fixture does not support read or empty. Use days=empty or days=filled.')
+}
 document.documentElement.dataset.theme = params.get('theme') === 'dark' ? 'dark' : 'light'
 
 const USER_ID = 'fixture-profile-user'
@@ -50,7 +54,9 @@ const trip: Trip = {
   updatedAt: 1,
   members: [{ userId: 'fixture-profile-user', role: 'owner', joinedAt: 1 }],
   itinerary: [],
-  days: [],
+  days: params.get('days') === 'filled' ? [{ id: 'fixture-day', index: 0, title: 'First day', stops: [
+    { id: 'fixture-stop', title: 'Fixture stop', category: 'sightseeing', locationName: 'Munnar', lat: 10.08, lng: 77.06, visitMinutes: 45, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0 },
+  ] }] : [],
   fixedCommitments: [],
   expenses: [],
 } as unknown as Trip
@@ -77,6 +83,11 @@ function Chrome({ children }: { children: React.ReactNode }) {
 
 createRoot(document.getElementById('root')!).render(
   <Chrome>
-    <TripSettingsForm trip={trip} editable />
+    <TripSettingsForm trip={trip} editable={params.get('role') !== 'viewer'} />
+    {params.has('chips') && <div id="fixture-chips">
+      <Chip tone="ok">ok</Chip><Chip tone="teal">teal</Chip><Chip tone="saffron">saffron</Chip>
+      <Chip tone="danger">danger</Chip><Chip tone="info">info</Chip>
+      <span className="chip chip-outline">outline</span><span className="chip chip-warn">warn</span>
+    </div>}
   </Chrome>,
 )

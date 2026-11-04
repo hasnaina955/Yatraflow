@@ -39,12 +39,11 @@ describe('Settings day-grid hint honesty', () => {
 
   it('keeps the refused add-day copy locked by the copy suite', () => {
     expect(settingsDayGridHint(1, 'Adds 1 empty day at the end', true))
-      .toBe('Adds 1 empty day at the end. Existing stops stay on their dates.')
+      .toBe(SAVE_REFUSED_HINT)
   })
 
   it('does not show a drop label as the calendar hint during a refusal', () => {
-    expect(tsx).toContain('const dayDeltaLabel = !dry.ok && dayDelta !== null && dayDelta < 0')
-    expect(tsx).toContain("? 'Save is blocked: the plan keeps its days'")
+    expect(tsx).toContain('const dayDeltaLabel = settingsDayDeltaLabel(dayDelta, !dry.ok)')
     expect(tsx).toContain('hint={dayDeltaLabel}')
   })
 

@@ -56,6 +56,14 @@ export interface PlaceHit {
   ratingCount?: number
   /** real road detour in km (Google routingSummaries); undefined when unknown */
   offRouteKm?: number
+  /**
+   * ROAD-MEASURED directed one-way detour in minutes (ticket 11, from
+   * providers/roadMeasure.ts) — a baseline-vs-via measurement with matching
+   * inputs. Wins over every geometric estimate; invalid values are ignored,
+   * never read as free. The unified return-driving fact doubles it once in
+   * asymmetricDetourMinutes (the return leg is not separately measured yet).
+   */
+  measuredRoadDetourMin?: number
   // ---- ride-plan annotations (filled by src/lib/ridePlan.ts + providers) ----
   /** road km along the route from the journey origin (Google leg0/1000; free = coarse anchor position) */
   alongRouteKm?: number
@@ -237,12 +245,19 @@ export function asymmetricDetourKm(
  * so a broken measurement cannot ride for free.
  */
 export function asymmetricDetourMinutes(
-  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
+  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute' | 'measuredRoadDetourMin'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
   speedKmph?: number,
 ): number | null {
   const speed = speedKmph != null && Number.isFinite(speedKmph) && speedKmph > 0 ? speedKmph : DEFAULT_SPEED_KMH
+  // Ticket 11: a road-measured fact wins over every estimate. The stored
+  // value is the DIRECTED one-way delta; the return-driving fact doubles it
+  // exactly once here (the return leg is not separately measured yet — the
+  // symmetric assumption roadMeasure.ts documents). Invalid values are
+  // ignored — never read as free — and the estimate paths apply as before.
+  const measured = h.measuredRoadDetourMin
+  if (measured != null && Number.isFinite(measured) && measured >= 0) return measured * 2
   const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
   if (km == null) return null
   return ((km / speed) * 60) * 2

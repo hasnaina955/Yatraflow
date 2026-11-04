@@ -17,14 +17,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
-import { readFileSync } from 'node:fs'
+import packageJson from './package.json' with { type: 'json' }
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 // The app config inlines the shipped version (the feedback mailto reads it).
 // Without it `feedbackHref()` throws on the first render, so the fixture needs
 // the same substitution to reach a painted page.
-const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }).version
+const APP_VERSION = packageJson.version
 
 export default defineConfig({
   plugins: [react()],

@@ -152,7 +152,9 @@ function SyntheticChrome({ children }: { children: React.ReactNode }) {
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')
+if (!root) throw new Error('Profile fixture root not found')
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <>
       {CHROME

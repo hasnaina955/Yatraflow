@@ -22,8 +22,9 @@ function rule(css: string, selector: string): string {
 /** The start index of every occurrence of a selector as a rule head. */
 function ruleHeads(css: string, selector: string): number[] {
   const out: number[] = []
-  const re = new RegExp(`(^|\\n)\\s*${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{`, 'g')
-  for (let m = re.exec(css); m; m = re.exec(css)) out.push(m.index)
+  for (const m of css.matchAll(/(^|\n)\s*([^\n{}]+) \{/g)) {
+    if (m[2].trimStart() === selector) out.push(m.index)
+  }
   return out
 }
 
@@ -135,8 +136,9 @@ describe('Section accents — tile tint and hairline border only', () => {
     const expected = [
       ['details', 'teal'], ['styles', 'teal'], ['creator', 'marigold'], ['ai', 'jev'],
     ]
+    const accents = [...profile.matchAll(/id="([^"]+)"[^>]*accent="([^"]+)"/g)]
     for (const [id, accent] of expected) {
-      expect(profile).toMatch(new RegExp(`id="${id}"[^>]*accent="${accent}"`))
+      expect(accents.some(m => m[1] === id && m[2] === accent)).toBe(true)
     }
     // Nothing else is accented: a hue per card would invent a legend.
     const all = [...profile.matchAll(/<Section id="([^"]+)"[^>]*accent="([^"]+)"/g)].map(m => m[1])
@@ -150,13 +152,14 @@ describe('Section accents — tile tint and hairline border only', () => {
 
   it('tints the tile and the card border, and nothing else', () => {
     for (const accent of ['teal', 'marigold', 'jev']) {
-      const rules = [...pages.matchAll(new RegExp(`\\.prof-section\\[data-accent='${accent}'\\] ([^{]+)\\{([^}]*)\\}`, 'g'))]
+      const rules = [...pages.matchAll(/\.prof-section\[data-accent='([^']+)'\] ([^{]+)\{([^}]*)\}/g)]
+        .filter(r => r[1] === accent)
       expect(rules.length).toBe(2)
-      const targets = rules.map(r => r[1].trim()).sort()
+      const targets = rules.map(r => r[2].trim()).sort()
       // Exactly the icon tile and the card's own hairline; no text, no surface.
       expect(targets).toEqual(['.prof-tile', '.yf-surface.prof-panel'])
       for (const r of rules) {
-        const decls = r[2]
+        const decls = r[3]
         expect(decls).toMatch(/var\(--/)
         // A raw hex here would be a new colour, which the ruling forbids.
         expect(decls).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)

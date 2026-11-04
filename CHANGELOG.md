@@ -18,6 +18,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Development fixtures use explicit status and root checks.** Source checks use literal patterns, and the fixture config imports the package version.
+
 - **Status chips and Settings controls use clearer colours.** The Settings rail fades at its edges on narrow screens.
 - **Trip Settings shows its bottom Save bar at 1180px and below.** The panel Save remains available at all widths.
 

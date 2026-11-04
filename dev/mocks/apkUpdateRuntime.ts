@@ -36,7 +36,10 @@ const statuses: Record<string, UpdateRuntimeStatus> = {
   },
 }
 
-const status: UpdateRuntimeStatus = statuses[UPDATE] ?? statuses.none
+const status: UpdateRuntimeStatus = UPDATE === 'current' ? statuses.current
+  : UPDATE === 'newer' ? statuses.newer
+    : UPDATE === 'unconfigured' ? statuses.unconfigured
+      : statuses.none
 
 export const APK_UPDATE_LATER_KEY = 'yatraflow_apk_update_later'
 export const APK_UPDATE_FETCH_TIMEOUT_MS = 10_000

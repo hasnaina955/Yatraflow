@@ -81,7 +81,9 @@ function Chrome({ children }: { children: React.ReactNode }) {
   )
 }
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')
+if (!root) throw new Error('Trip settings fixture root not found')
+createRoot(root).render(
   <Chrome>
     <TripSettingsForm trip={trip} editable={params.get('role') !== 'viewer'} />
     {params.has('chips') && <div id="fixture-chips">

@@ -18,6 +18,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Shared action buttons now use the Papercut kit across the app.** Secondary and quiet actions retain their states. Compact, large and touch sizes remain distinct.
+
+- **Trip Settings keeps long route names readable on narrow cards.** Route actions wrap below the name. A blocked date change no longer promises to remove a day.
+
+- **Timeline ribbon counts now exclude rejected stops.** The count uses the same schedule as the day header.
+
 - **Trip Settings navigation now clears the header and phone rail.** The active mark follows the section or the selected link. The day grid uses the reference spacing.
 
 - **The selected Pace choice now uses sea ink in both themes.** The two-column grid keeps its single-choice behavior and neutral unselected rows.

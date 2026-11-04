@@ -412,8 +412,11 @@ export function spendingStyleLabel(style: SettingsFormState['stayStyle']): strin
 
 export const SPENDING_STYLE_HINT = 'Changes which stays and restaurants the app suggests first.'
 export const NEW_DAY_HINT = 'Existing stops stay on their dates. The new day starts empty, ready to plan.'
+// A blocked save must not promise a drop. The plan keeps its days.
+export const SAVE_REFUSED_HINT = 'Save is blocked: the plan keeps its days. No days are dropped.'
 
 export function settingsDayGridHint(dayDelta: number | null, dayDeltaLabel: string, saveRefused: boolean): string {
+  if (saveRefused && dayDelta !== null && dayDelta < 0) return SAVE_REFUSED_HINT
   if (!saveRefused && dayDelta !== null && dayDelta > 0) return NEW_DAY_HINT
   return `${dayDeltaLabel}. Existing stops stay on their dates.`
 }
@@ -683,11 +686,13 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
   const travellers = clampCrew(f.travellers)
   const clampedBudget = Math.min(300000, Math.max(0, f.budget))
   const dayCount = dayDelta === null ? trip.days.length : trip.days.length + dayDelta
-  const dayDeltaLabel = dayDelta === null
-    ? 'Pick both dates to preview the day grid'
-    : dayDelta === 0 ? 'Day count unchanged'
-    : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
-    : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
+  const dayDeltaLabel = !dry.ok && dayDelta !== null && dayDelta < 0
+    ? 'Save is blocked: the plan keeps its days'
+    : dayDelta === null
+      ? 'Pick both dates to preview the day grid'
+      : dayDelta === 0 ? 'Day count unchanged'
+      : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
+      : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
   const dayGridHint = settingsDayGridHint(dayDelta, dayDeltaLabel, !dry.ok)
   const fuelMode = isFuelEconomyMode(f.transportMode)
   const routeSummary = settingsRouteSummary(dests, f.startLocation, fuelMode && f.roundTrip)
@@ -1075,27 +1080,29 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 <Fragment key={`${d.name}-${i}`}>
                   <span className="tsx-road" aria-hidden="true" />
                   <span className="tsx-node">
-                    <span className="tsx-node-ord" aria-hidden="true">{i + 1}</span>
-                    <span className="tsx-node-name">
-                      {renamingDest === i ? (
-                        <input
-                          className="input input--compact"
-                          aria-label={`Rename ${d.name}`}
-                          autoFocus
-                          value={renameDraft}
-                          onChange={e => setRenameDraft(e.target.value)}
-                          onBlur={() => commitRename(i)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') commitRename(i)
-                            if (e.key === 'Escape') { setRenamingDest(null); setRenameDraft('') }
-                          }}
-                        />
-                      ) : (
-                        <>
-                          {d.name}
-                          {d.lat != null && d.lng != null && <span className="dest-pin" aria-hidden>📍</span>}
-                        </>
-                      )}
+                    <span className="tsx-node-line">
+                      <span className="tsx-node-ord" aria-hidden="true">{i + 1}</span>
+                      <span className="tsx-node-name">
+                        {renamingDest === i ? (
+                          <input
+                            className="input input--compact"
+                            aria-label={`Rename ${d.name}`}
+                            autoFocus
+                            value={renameDraft}
+                            onChange={e => setRenameDraft(e.target.value)}
+                            onBlur={() => commitRename(i)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') commitRename(i)
+                              if (e.key === 'Escape') { setRenamingDest(null); setRenameDraft('') }
+                            }}
+                          />
+                        ) : (
+                          <>
+                            {d.name}
+                            {d.lat != null && d.lng != null && <span className="dest-pin" aria-hidden>📍</span>}
+                          </>
+                        )}
+                      </span>
                     </span>
                     {renamingDest !== i && editable && (
                       <button type="button" aria-label={`Rename ${d.name}`}

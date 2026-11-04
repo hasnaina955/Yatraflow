@@ -574,8 +574,17 @@
   align-items: stretch;
   gap: 0;
   padding: var(--space-3);
+  container: route-edit / inline-size;
 }
 .tsx-card .tsx-route .tsx-node { width: 100%; }
+/* The ordinal and name share one line. Tools get their own row on a phone. */
+.tsx-card .tsx-route .tsx-node-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+}
 .tsx-card .tsx-route .tsx-node-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .tsx-card .tsx-route .tsx-road {
   width: 2px;
@@ -593,6 +602,13 @@
   font: var(--pw-kicker);
   letter-spacing: var(--pw-kicker-tracking);
   text-transform: uppercase;
+}
+/* A long name gets the full line. Actions sit on a second row. */
+/* Key the switch to the route width, not the viewport. */
+@container route-edit (max-width: 480px) {
+  .tsx-card .tsx-route .tsx-node { flex-wrap: wrap; row-gap: var(--space-2); }
+  .tsx-card .tsx-route .tsx-node-line { flex: 1 1 100%; }
+  .tsx-card .tsx-route .tsx-node-tools { margin-left: 0; }
 }
 
 /* A row of choice buttons. `.bench-line` is the receipt's own column stack, so

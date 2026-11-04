@@ -441,6 +441,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     }
     return {
       ...it,
+      stopCount: dayFacts?.sim.activeStops.length ?? 0,
       dateLabel: stripDateLabel(trip.startDate, it.dayIndex),
       km: dayTotals ? Math.round(dayTotals.distanceKm) : null,
       tone: blocked ? 'risk' : warned ? 'warn' : 'ok',

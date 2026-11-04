@@ -136,6 +136,10 @@ const FAMILY_TYPE_MAP: Record<string, { category: string; family: PlaceFamily; s
   national_park: { category: 'nature', family: 'nature', subtype: 'wildlife' },
   state_park: { category: 'nature', family: 'nature', subtype: 'garden' },
   zoo: { category: 'nature', family: 'nature', subtype: 'wildlife' },
+  // source Nature row ("hiking_area") — moved out of google.ts's legacy
+  // 'adventure' mapping; without this entry the primary type would be
+  // unrecognized and the query's purpose could leak in as a category (B2).
+  hiking_area: { category: 'nature', family: 'nature', subtype: 'trek' },
   observation_deck: { category: 'views', family: 'views', subtype: 'viewpoint' },
   monastery: { category: 'temple', family: 'faith', subtype: 'monastery' },
   historical_landmark: { category: 'heritage', family: 'heritage', subtype: null },

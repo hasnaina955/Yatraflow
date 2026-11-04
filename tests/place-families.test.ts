@@ -27,6 +27,23 @@ describe('AC1 — classification chain: type, then evidenced name, then OSM tags
       .toMatchObject({ category: 'temple' })
   })
 
+  it('B1 — a generic tourist_attraction type does NOT short-circuit the chain (review probe)', () => {
+    // the most common sight type: family types and name evidence must still run
+    expect(classifyGooglePlace({ primaryType: 'tourist_attraction', types: ['natural_feature'] }, 'water'))
+      .toMatchObject({ category: 'water', family: 'water' })
+    expect(classifyGooglePlace({ primaryType: 'tourist_attraction', displayName: { text: 'Athirapally Waterfalls' } }, 'sightseeing'))
+      .toMatchObject({ category: 'water', family: 'water', subtype: 'waterfall' })
+    // specific types still win immediately, and the generic mapping still beats a food query hint
+    expect(classifyGooglePlace({ primaryType: 'tourist_attraction', displayName: { text: 'Unremarkable Sight' } }, 'food'))
+      .toMatchObject({ category: 'sightseeing' })
+  })
+
+  it('B2 — hiking_area classifies from the source row even with no sibling type (review probe)', () => {
+    // the query purpose ('stretch') must never leak in as a category
+    expect(classifyGooglePlace({ primaryType: 'hiking_area', types: ['hiking_area'] }, 'stretch'))
+      .toMatchObject({ category: 'nature', family: 'nature', subtype: 'trek' })
+  })
+
   it('family types classify with subtype facts (source rows)', () => {
     expect(familyFromType('natural_feature')).toMatchObject({ category: 'water', family: 'water' })
     expect(familyFromType('marina')).toMatchObject({ category: 'water', subtype: 'backwater' })

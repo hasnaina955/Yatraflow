@@ -342,30 +342,38 @@ const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
 
 /**
  * Category + family facts from provider type, then evidenced name, then the
- * query's own category hint (ticket 09 AC 1). Name evidence refines ONLY the
- * generic sight context ('sightseeing' fallback) — a name word never
- * re-classifies a food, fuel or hotel hit. Exported for the classification
- * test seam; hit assembly is its only production caller.
+ * query's own category hint (ticket 09 AC 1). Name evidence refines ONLY
+ * sight-land contexts — the query asked for sights, or the hit's own machine
+ * type is the generic attraction type; a name word never re-classifies a
+ * food, fuel or hotel hit. A mapping to the GENERIC 'sightseeing' category
+ * is not a specific classification: the chain continues to the family and
+ * name steps before falling back (B1 — real waterfall/fort/viewpoint hits
+ * usually carry `primaryType: tourist_attraction`). Exported for the
+ * classification test seam; hit assembly is its only production caller.
  */
 export function classifyGooglePlace(
   p: GooglePlace,
   fallback: string,
 ): { category: string; family?: PlaceFamily; subtype?: string | null } {
-  const primary = p.primaryType ? GOOGLE_TYPE_TO_CATEGORY[p.primaryType] : undefined
-  if (primary) return { category: primary }
+  // 1. a SPECIFIC provider type wins immediately
+  const primaryCat = p.primaryType ? GOOGLE_TYPE_TO_CATEGORY[p.primaryType] : undefined
+  if (primaryCat && primaryCat !== 'sightseeing') return { category: primaryCat }
   for (const t of p.types ?? []) {
     const mapped = GOOGLE_TYPE_TO_CATEGORY[t]
-    if (mapped) return { category: mapped }
+    if (mapped && mapped !== 'sightseeing') return { category: mapped }
   }
+  // 2. family types (the source's rows) refine
   const byType = familyFromType(p.primaryType)
     ?? (p.types ?? []).map(t => familyFromType(t)).find(m => m != null)
     ?? null
   if (byType) return { category: byType.category, family: byType.family, subtype: byType.subtype }
-  if (fallback === 'sightseeing') {
+  // 3. evidenced name, sight-land contexts only
+  if (fallback === 'sightseeing' || primaryCat === 'sightseeing') {
     const byName = familyFromName(p.displayName?.text)
     if (byName) return { category: byName.category, family: byName.family, subtype: byName.subtype }
   }
-  return { category: fallback }
+  // 4. generic — the tourist_attraction mapping still beats the query hint
+  return { category: primaryCat ?? fallback }
 }
 
 function hitsFromResponses(

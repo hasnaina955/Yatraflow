@@ -218,10 +218,12 @@ describe('P12 — the measured artboard gaps stay closed', () => {
     expect(css).toContain('.tset-when-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }')
   })
 
-  it('the driver and pace pair responds and the pace track scrolls', () => {
+  it('the driver and pace pair responds and the pace rows wrap', () => {
     expect(css).toContain('.tset-driver-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }')
     expect(css).toContain('.tset-driver-pace-pair { grid-template-columns: minmax(0, 1fr); }')
-    expect(css).toMatch(/\.tset-pace-seg \{[\s\S]*?flex-wrap: nowrap;\s*overflow-x: auto;/)
-    expect(css).toContain('.tset-pace-seg .seg-btn { flex: 0 0 auto; }')
+    // The ten styles wrap into rows rather than scrolling off the right edge,
+    // and the row reaches 44px on a coarse pointer.
+    expect(css).toMatch(/\.tset-pace-rows \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+    expect(css).toContain('.tset-pace-row { height: 44px; }')
   })
 })

@@ -1432,16 +1432,20 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               </div>
               <div className="field">
                 <span className="flab">Pace</span>
-                <PillNav className="seg tset-pace-seg" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
+                {/* A proposal, not a shipped decision: the ten styles wrap into
+                    rows instead of scrolling off the right edge, so every one is
+                    reachable without a sideways drag. The choice keeps its own
+                    pressed state, its own key and the same setter. */}
+                <div className="tset-pace-rows" role="group" aria-label="Travel style">
                   {TRAVEL_STYLES.map(s => (
                     <button key={s} type="button" data-pill-key={s} disabled={!editable}
                       aria-pressed={f.travelStyle === s}
-                      className={`seg-btn${f.travelStyle === s ? ' on' : ''}`}
+                      className={`seg-btn tset-pace-row${f.travelStyle === s ? ' on' : ''}`}
                       onClick={() => setF(x => ({ ...x, travelStyle: s }))}>
                       {cap(s)}
                     </button>
                   ))}
-                </PillNav>
+                </div>
                 <span className="hint-text">Relaxed leaves 2 h free and ends days by 8 pm; packed pushes further. It never touches pricing.</span>
               </div>
             </div>

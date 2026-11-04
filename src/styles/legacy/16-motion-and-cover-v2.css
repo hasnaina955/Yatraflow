@@ -2093,3 +2093,57 @@ div[role="tabpanel"]:has(.tset-grid) { animation: none; }
   }
 }
 
+/* ---------- Entrance: the Profile page's own cascade ----------
+   The page rises in steps, one layer per block, as the Settings tab does: the
+   rail first, then each section in reading order, then the supporting rail.
+   The container owns it, so a section added later cannot miss one, and the
+   whole-column rise is off (a column that rises while its rows rise reads as
+   two animations fighting).
+
+   Steps use --stagger-step and stop at six, the shared entrance budget, so the
+   last section starts at 300ms and settles inside a second. Entrance only: a
+   scroll, a chip and a save repaint the same elements and start nothing. The
+   rail rows fade rather than rise, because a rising link would move its own
+   hit area while the pointer is on it. Every animated selector is switched off
+   again in the reduced-motion block at the end of this region. */
+.prof-page > .prof-grid { animation: none; }
+
+.prof-grid > .prof-nav {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.prof-nav > .prof-nav-item {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.prof-nav > .prof-nav-item:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.prof-nav > .prof-nav-item:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.prof-nav > .prof-nav-item:nth-of-type(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.prof-nav > .prof-nav-item:nth-of-type(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.prof-nav > .prof-nav-item:nth-of-type(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+
+.prof-main > .prof-section {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.prof-main > .prof-section:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.prof-main > .prof-section:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.prof-main > .prof-section:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.prof-main > .prof-section:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.prof-main > .prof-section:nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+
+.prof-aside > * {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prof-page > .prof-grid,
+  .prof-grid > .prof-nav,
+  .prof-nav > .prof-nav-item,
+  .prof-main > .prof-section,
+  .prof-aside > * {
+    animation: none;
+  }
+}
+

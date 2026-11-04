@@ -504,9 +504,11 @@
    the aside and their inner layers on one clock. */
 
 /* R14 / R20: a card title is Plus Jakarta Sans 800, 18px, line height 1.3. The
-   section title here, the save panel title and the people title all use it,
-   the same as `.prof-panel-title`. Sora stays on the big figures. `.tsx-q` is
-   used by this page alone, so the rule cannot restyle another tab. */
+   section title here, the save panel title and the people title all use it.
+   Profile's own `.prof-panel-title` moved to the Sora title token in the 28 Oct
+   ruling; nothing in this block is shared with that page. Sora stays on the big
+   figures. `.tsx-q` is used by this page alone, so the rule cannot restyle
+   another tab. */
 .tsx-card .tsx-q { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
 
 /* The artboard's own card recipe: 24px corners, 22px of padding and an 18px
@@ -1101,15 +1103,29 @@
 .seg-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
 .seg-btn.on { background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--elev-press); }
 .seg-btn:disabled { opacity: .55; cursor: not-allowed; }
-.tset-pace-seg {
+/* Pace: a proposal under review, so it stays a wrapped row grid rather than the
+   artboard's sideways scroller. Ten styles in two columns of rows keep every
+   choice reachable with no hidden sideways drag, and the row is a full-width
+   target on a finger. The pressed state is the shared `.seg-btn` one. */
+.tset-pace-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
   max-width: 100%;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--pw-line) transparent;
 }
-.tset-pace-seg .seg-btn { flex: 0 0 auto; }
+.tset-pace-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--pw-soft);
+  text-align: start;
+}
+@media (pointer: coarse) {
+  .tset-pace-row { height: 44px; }
+}
 
 /* The people strip is one row, as the artboard draws it: the stack, the copy
    column that takes the slack, and the one button that belongs to Share. */
@@ -1255,8 +1271,202 @@
 .prof-panel + .prof-panel, .prof-col + .prof-col { margin-top: var(--space-6); }
 /* The rule under a panel title keeps the 12px card spacing. The card rule for it applies only inside a card. */
 .prof-panel > .prof-panel-title + hr.divider { margin-top: var(--space-5); }
-/* A panel title uses the card-title style (R14, R20): Plus Jakarta Sans 800, 18px, line height 1.3. */
-.prof-panel-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
+/* A panel title is a card title, so it takes the adopted title token: Sora 700
+   18/1.25 with -.01em tracking (DESIGN.md, 28 Oct ruling superseding R14). The
+   class exists only on this page, so Profile changed alone; Trip Settings keeps
+   Plus Jakarta 800 18/1.3 until its own pass, and no shared rule moved. */
+.prof-panel-title { font: var(--pw-title); letter-spacing: var(--pw-title-tracking); color: var(--text); }
+/* The artboard draws Profile's cards at 24px corners with 24px of padding. This
+   page owns that through a compound on its own class, so the shared Surface
+   (18px / 20px) is unchanged for every other page. */
+.prof-page .yf-surface.prof-panel { border-radius: var(--radius-lg); padding: var(--space-10); }
+/* Anchor targets clear the floating header through the document's own
+   `html { scroll-padding-top }`. A matching `scroll-margin-top` here stacked on
+   top of it and landed every jump 90px too low, so the section sat below the
+   reading line the rail marks. One offset, in one place. */
+
+/* ---------- Profile: the section rail ----------
+   The artboard's jump list. It is an anchor list, not a tablist: every section
+   is on the page at once. The rows copy the Settings rail's recipe, because
+   the two pages are read the same way, but the classes are this page's own. */
+.prof-nav {
+  position: sticky;
+  top: var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-5);
+}
+.prof-nav-lbl {
+  display: block;
+  padding: 6px 12px 8px;
+  font: var(--pw-kicker);
+  letter-spacing: var(--pw-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--pw-ink-3);
+}
+.prof-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* One row per section: a wrapped label ("Display and appearance") made the
+     rail ragged and pushed that row to 59px. The label truncates instead. */
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font: var(--pw-ui);
+  color: var(--pw-ink-2);
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: inset 0 0 0 1px transparent;
+  transition:
+    background-color var(--motion-fast) var(--ease-paper),
+    color var(--motion-fast) var(--ease-paper),
+    box-shadow var(--motion-fast) var(--ease-paper);
+}
+.prof-nav-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.prof-nav-item:hover { background: var(--pw-soft); color: var(--pw-ink); }
+.prof-nav-item:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.prof-nav-item svg { flex: none; color: var(--pw-ink-3); }
+/* The section you are reading carries the artboard's lagoon fill. */
+.prof-nav-item[aria-current='true'] {
+  background: var(--pw-lagoon-100);
+  color: var(--pw-sea-700);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pw-lagoon-600) 38%, transparent);
+}
+.prof-nav-item[aria-current='true'] svg { color: var(--pw-sea-700); }
+
+/* ---------- Profile: the artboard's panel head ----------
+   A 36px sunken tile, the heading, a 13px subtitle and an optional mark on the
+   right. The tile carries the section's own rail icon, so the two agree. */
+.prof-head { display: flex; align-items: flex-start; gap: var(--space-5); }
+.prof-tile {
+  width: 36px; height: 36px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--pw-sunken); color: var(--pw-ink-2);
+}
+.prof-head-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.prof-head-note { margin: 0; font-size: 13px; line-height: 1.4; color: var(--pw-ink-3); }
+.prof-head-mark { flex: none; display: flex; align-items: center; }
+.prof-sub-title { margin: 0; font: var(--pw-ui); color: var(--text); }
+
+/* ---------- Profile: the avatar row and the name/city pair ---------- */
+.prof-avatar-row {
+  display: flex; align-items: center; gap: var(--space-7);
+  padding: var(--space-6); border-radius: var(--radius);
+  background: var(--pw-sunken);
+}
+.prof-avatar-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prof-avatar-copy b { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.prof-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6); }
+/* The Save control sits under the fields it validates, at the end of their
+   column, so the action and the values it writes are in one view. */
+.prof-save-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
+
+/* ---------- Profile: the pressed chip ----------
+   The artboard fills a pressed chip with sea ink and white text. The shared
+   `.ex-chip` keeps the ink fill everywhere else; this page owns its own
+   pressed colour through the class `FilterChip` already accepts, so no shared
+   control changes. Measured: --pw-on-sea on --pw-sea-700 is 7.38:1 in the light
+   theme and 7.53:1 in the dark theme. */
+.prof-chip[aria-pressed='true'] {
+  background: var(--pw-sea-700);
+  border-color: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+}
+/* ---------- Profile: supporting rail ---------- */
+.prof-preview { display: flex; flex-direction: column; gap: var(--space-5); }
+.prof-preview-head { display: flex; align-items: center; gap: var(--space-5); }
+.prof-preview-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.prof-preview-id b { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.prof-preview-chips { gap: var(--space-2); }
+.prof-tag {
+  display: inline-flex; align-items: center;
+  padding: 4px 10px; border-radius: var(--radius-pill);
+  background: var(--pw-lagoon-100); color: var(--pw-sea-700);
+  font-size: 12px; font-weight: 700;
+}
+.prof-preview-bio { margin: 0; color: var(--pw-ink-2); line-height: 1.5; }
+
+/* ---------- Profile: connected accounts and about-data rows ---------- */
+.prof-link-list, .prof-data-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.prof-link-row, .prof-data-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: var(--space-5); align-items: center;
+  padding: var(--space-4a) var(--space-5);
+  border-radius: var(--radius-sm); background: var(--pw-sunken);
+}
+.prof-link-name, .prof-data-row b { font-size: 13px; font-weight: 700; color: var(--text); }
+.prof-link-url {
+  font-size: 13px; color: var(--pw-sea-700); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.prof-link-url:hover { text-decoration: underline; }
+.prof-link-url:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; border-radius: var(--radius-mark); }
+.prof-data-row { grid-template-columns: 3px minmax(0, 1fr) minmax(0, 1.6fr); gap: var(--space-5); }
+.prof-data-rail { width: 3px; height: 100%; border-radius: var(--radius-mark); background: var(--pw-line); }
+.prof-data-row span:last-child { font-size: 13px; color: var(--pw-ink-2); }
+.prof-inbox { margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+/* A finger needs 44px. These sit at the end of the Profile region, because this
+   file loads after 02-select-and-print.css: a coarse rule there would lose to
+   the base rule that follows it. */
+@media (pointer: coarse) {
+  .prof-nav-item { min-height: 44px; }
+  .prof-chip { min-height: 44px; }
+  .prof-link-name, .prof-link-url { min-height: 44px; display: flex; align-items: center; }
+}
+/* ---------- Profile: the phone rail ----------
+   The rail becomes the sticky sideways strip the Settings tab uses. This block
+   must sit AFTER the base `.prof-nav` above: 02-select-and-print.css has an
+   equal-specificity copy, and because that file loads first the base rule's
+   `flex-direction: column` won, so a phone drew a vertical nav card. Written
+   here once, at winning order, with no selector duplicated and no specificity
+   escalation. The top offset clears the floating header and the safe area. */
+@media (max-width: 860px) {
+  .prof-nav {
+    position: sticky;
+    top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    z-index: var(--z-raised);
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--space-2);
+    /* The strip must reach its last row by a sideways drag, and the browser must
+       not also pan the page: one axis only, and a visible affordance. */
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+  .prof-nav-lbl { display: none; }
+  .prof-nav-item { flex: none; white-space: nowrap; }
+  /* The icon takes 26px of a 390px strip and buys nothing at this size. */
+  .prof-nav-item svg { display: none; }
+}
+
+/* ---------- Profile: the section accent ----------
+   Three roles, not ten. `data-accent` on the section tints exactly two things:
+   the 36px icon tile the panel head already draws, and the card's own hairline
+   border. Text, the card surface, chips and every shared component are
+   untouched, so this restyles nothing outside Profile.
+
+   Why only three: a hue per card would read as a legend the page does not have,
+   and an accent per section invites the reader to decode meaning that is not
+   there. Teal is the brand and covers the two travel-and-identity cards,
+   marigold is the colour the creator hub already uses for payouts, and Jev's
+   purple is the AI companion's own. No green and no red: a setting on this page
+   is neither healthy nor alarming, and decoration must not imply either.
+
+   Every value is an existing token, so both themes resolve from one set of
+   rules — the dark block re-points the same names. Nothing here is a new
+   colour, and no shared Surface rule is restyled. */
+.prof-section[data-accent='teal'] .prof-tile { background: var(--yf-teal-100); color: var(--pw-sea-700); }
+.prof-section[data-accent='marigold'] .prof-tile { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.prof-section[data-accent='jev'] .prof-tile { background: var(--pw-jev-100); color: var(--pw-jev); }
+/* The hairline is set per section rather than on the shared Surface, so the
+   Surface's own border colour still governs every other page. */
+.prof-section[data-accent='teal'] .yf-surface.prof-panel { border-color: var(--yf-teal-100); }
+.prof-section[data-accent='marigold'] .yf-surface.prof-panel { border-color: var(--pw-marigold-100); }
+.prof-section[data-accent='jev'] .yf-surface.prof-panel { border-color: var(--pw-jev-100); }
 
 
 /* ===== Trip settings: touch targets ===== */

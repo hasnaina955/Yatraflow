@@ -130,7 +130,9 @@ describe('Trip settings artboard copy and controls', () => {
 
   it('exposes the driver and pace hooks Ling styles, and keeps the product extras', () => {
     expect(source).toContain('<div className="tset-driver-pace-pair">')
-    expect(source).toContain('<PillNav className="seg tset-pace-seg"')
+    // The pace control is a wrapped row grid, so all ten styles are reachable
+    // without a sideways scroll. The hook is the wrapper class.
+    expect(source).toContain('<div className="tset-pace-rows" role="group" aria-label="Travel style">')
     expect(source).toContain('{TRANSPORT_MODES.map(m => (')
     expect(source).toContain('{TRAVEL_STYLES.map(s => (')
     expect(source).toContain('{[2, 3].map(n => (')

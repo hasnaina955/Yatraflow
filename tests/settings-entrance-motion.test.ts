@@ -16,6 +16,11 @@ const CSS = read('src/styles/legacy/16-motion-and-cover-v2.css')
 const PAGES = read('src/styles/legacy/12-pages.css')
 const TSX = read('src/pages/trip/TripSettingsForm.tsx')
 const MARK = "/* ---------- Entrance: the Settings tab's own cascade ----------"
+// The Profile page appends its own cascade after this one. This gate is about
+// the Settings block only, so it reads up to the next region's marker rather
+// than to the end of the file: otherwise "the reduced-motion mirror is last"
+// would silently mean "the last region in the file", which is a different claim.
+const NEXT_REGION = "/* ---------- Entrance: the Profile page's own cascade ----------"
 
 type Block = { selector: string; body: string; depth: number }
 
@@ -50,7 +55,8 @@ const PANEL = 'div[role="tabpanel"]:has(.tset-grid)'
 
 describe('Settings tab entrance: tab-owned cascade', () => {
   const tailStart = CSS.indexOf(MARK)
-  const tail = CSS.slice(tailStart)
+  const nextRegion = CSS.indexOf(NEXT_REGION, tailStart + 1)
+  const tail = CSS.slice(tailStart, nextRegion > tailStart ? nextRegion : undefined)
   const code = stripComments(tail)
   const entrance = blocks(code).filter((b) => b.depth === 0)
   const animated = entrance.filter((b) => /animation:\s*(?!none\b)[a-zA-Z]/.test(b.body))

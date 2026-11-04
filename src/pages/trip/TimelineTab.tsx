@@ -763,7 +763,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   }
 
   return (
-    <div className={reviewAll ? 'tl-root-review' : undefined}>
+    <div className={reviewAll ? 'tl-root-review tl-tab-root' : 'tl-tab-root'}>
       {/* The tab's blocks sit one level down from TripWorkspace's page root, so
           `.page-enter > *` never reached them: the toolbar, the ribbon and every
           day card appeared between two frames while the Overview beside them

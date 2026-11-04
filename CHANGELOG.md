@@ -16,6 +16,24 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **The section tab rail now shows more of Group input on a phone.** At 390 to 411px the rail overflowed and cut the tab at the edge. Below 561px the tabs use a smaller face and tighter padding. About 75px of Group input shows at 390px, where 23px showed before. The rail still scrolls, and it must: an owner's workspace carries eight tabs.
+
+- **The Timeline day card header now folds from its inline end on a phone.** The fold control used to ride the wrapped flex line. It landed under the warning pill at the row's end. Below 721px it sits at the header's inline end, centred, and the header reserves 52px for it. A warning pill takes a full line of its own.
+
+- **A day name on a phone can now use two lines.** The title row leaves the heading little room, so "Candolim coast" was cut to "Candolim ...". Below 561px the heading wraps to at most two lines. The save heart and the fold control keep their 44px targets.
+
+- **A narrow phone keeps its day card copy clear.** Below 381px the thumbnail, date tile, save heart and fold reserve left the title too little room. The heart wrapped under the title, and the stats line lost the day window. The thumbnail now hides in that range; the date tile still names the day.
+
+- **A stop card on a phone now takes the full width.** The 89px time rail left the card 216px wide. Chips and figures then stacked on a narrow phone, and one stop stood 355px tall. Below 561px the arrival time and the stop ring sit above each card. The travel leg sits between the cards. The card keeps a 38px kind tile, and its meta row uses the width. At 390px one stop now measures 321px by 213px.
+
+- **The active tab is no longer half faded on a phone.** The rail fades its edges when more tabs sit out of view. It scrolled a newly active tab flush to the edge, so the fade covered its last letters. The reveal now keeps 20px clear at the start and 28px at the end.
+
+- **The trip ribbon's day rail no longer paints a scrollbar on Android.** The day chips deliberately overflow on a phone, so the rail scrolls. Its `thin` scrollbar drew a permanent grey track under the chips on Android Chrome. Below 901px the rail now hides the track and keeps its snap points and edge clip.
+
+- **The floating Add stop button no longer covers the last day card for good.** The button is `position: fixed`, so it always sat on the list. The list reserves 144px at the end below 721px, and only when the button renders. The last card scrolls clear of it.
+
 ## [0.83.0] - 2026-11-03
 
 **This minor release makes the Android app able to learn about its own updates.** The APK now carries the update feed URL. The feed is served from the release page, so a release cut publishes it. Every APK shipped before this one told its own Profile page that update checks were not configured.

@@ -257,6 +257,15 @@
       ]
     },
     {
+      "id": "phone",
+      "file": "src/styles/pages/phone.css",
+      "owned": [
+        "tl-tab-root"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
       "id": "budget",
       "file": "src/styles/pages/budget.css",
       "owned": [

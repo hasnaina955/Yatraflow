@@ -13,6 +13,14 @@ export type RailOverflow = 'none' | 'start' | 'middle' | 'end'
 /** A scroll offset this close to an edge counts as that edge. */
 const EDGE_EPSILON = 1
 
+/**
+ * The rail's edge fades, in px. `13-phone-polish-and-guided-create.css` paints
+ * 20px at the start and 28px at the end. A reveal clears them, or the active
+ * tab shows up half faded.
+ */
+const FADE_START = 20
+const FADE_END = 28
+
 export function railOverflow(scrollLeft: number, scrollWidth: number, clientWidth: number): RailOverflow {
   const max = scrollWidth - clientWidth
   if (max <= EDGE_EPSILON) return 'none'
@@ -36,9 +44,11 @@ export function railScrollToReveal(
   const max = Math.max(0, scrollWidth - clientWidth)
   const current = Math.max(0, Math.min(max, scrollLeft))
   if (max <= EDGE_EPSILON) return current
-  if (itemLeft < current) return Math.max(0, Math.min(max, Math.floor(itemLeft)))
-  if (itemRight > current + clientWidth) {
-    return Math.max(0, Math.min(max, Math.ceil(itemRight - clientWidth)))
+  if (itemLeft < current + FADE_START) {
+    return Math.max(0, Math.min(max, Math.floor(itemLeft - FADE_START)))
+  }
+  if (itemRight > current + clientWidth - FADE_END) {
+    return Math.max(0, Math.min(max, Math.ceil(itemRight - clientWidth + FADE_END)))
   }
   return current
 }

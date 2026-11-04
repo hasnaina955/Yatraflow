@@ -31,11 +31,19 @@ describe('rail overflow state', () => {
 })
 
 describe('the active pill is scrolled into its rail', () => {
-  it('moves only when the active item sits outside the visible window', () => {
+  it('moves only when the active item sits under an edge fade', () => {
     expect(railScrollToReveal(0, 600, 360, 40, 120)).toBe(0)
-    expect(railScrollToReveal(0, 600, 360, 500, 580)).toBe(220)
-    expect(railScrollToReveal(220, 600, 360, 20, 100)).toBe(20)
+    expect(railScrollToReveal(0, 600, 360, 500, 580)).toBe(240)
+    expect(railScrollToReveal(220, 600, 360, 20, 100)).toBe(0)
     expect(railScrollToReveal(120, 600, 360, 150, 230)).toBe(120)
+  })
+
+  it('leaves the 28px end fade and the 20px start fade clear of the item', () => {
+    const endScroll = railScrollToReveal(0, 853, 312, 460.25, 536.65)
+    expect(536.65 - endScroll).toBeLessThanOrEqual(312 - 28)
+    expect(536.65 - endScroll).toBeGreaterThan(312 - 29)
+    const startScroll = railScrollToReveal(536.65, 853, 312, 300, 380)
+    expect(300 - startScroll).toBe(20)
   })
 
   it('clamps to the rail and leaves a fitting rail alone', () => {
@@ -45,8 +53,8 @@ describe('the active pill is scrolled into its rail', () => {
   })
 
   it('rounds the right edge up so fractional text width cannot stay hidden', () => {
-    expect(railScrollToReveal(0, 853, 312, 460.25, 536.65)).toBe(225)
-    expect(railScrollToReveal(536.65, 853, 312, 20.25, 100.75)).toBe(20)
+    expect(railScrollToReveal(0, 853, 312, 460.25, 536.65)).toBe(253)
+    expect(railScrollToReveal(536.65, 853, 312, 20.25, 100.75)).toBe(0)
   })
 })
 

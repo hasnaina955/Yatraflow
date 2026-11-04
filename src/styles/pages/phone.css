@@ -1,0 +1,124 @@
+/* ============================================================================
+   Phone optimisations - issue #809 (Android layout pass)
+   Loaded LAST so it wins order ties on the phone breakpoints. Every rule sits
+   inside a narrow breakpoint, and each one names the sheet it amends.
+   ========================================================================== */
+
+/* ---------- 1. Timeline day card header: the parts fit the phone ----------
+   At <= 720px the fold control used to ride the wrapped flex line, so it
+   landed under the warning pill at the row's end. It now sits at the header's
+   inline end, and the header reserves 52px for it. The warning pill takes a
+   full line when a day carries one. */
+@media (max-width: 720px) {
+  .day-warn-pill {
+    flex-basis: 100%;
+    max-width: 100%;
+    margin-top: 4px;
+  }
+  /* The fold control used to ride the wrapped flex line, so it landed under
+     the warning pill at the row's end. Float it top-right instead: one tap
+     target, centred on the content, independent of what the pill does.
+     The header reserves its width so no copy ever renders underneath. */
+  .day-header { position: relative; padding-inline-end: 52px; }
+  .day-header > .day-collapse {
+    position: absolute;
+    inset-inline-end: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    order: 0;
+    margin-inline-start: 0;
+  }
+}
+
+/* ---------- 2. Trip ribbon: the rail scrolls without a visible scrollbar ----
+   The day chips deliberately overflow on a phone (a 10-day trip cannot share
+   one row), so the rail scrolls and snaps. The platform scrollbar is hidden,
+   so Android Chrome paints no grey track under the chips. */
+@media (max-width: 900px) {
+  .tl-ribbon-days { scrollbar-width: none; }
+  .tl-ribbon-days::-webkit-scrollbar { display: none; }
+}
+
+/* ---------- 3. The tab rail on the cover fits more of a phone ----------
+   An owner's workspace carries eight tabs, so the rail always scrolls at
+   390px and the last tab is cut. Smaller type and padding show more of Group
+   input before the cut. The edge fade and the reveal of the active tab stay
+   as they are. */
+@media (max-width: 560px) {
+  .yf-page .yf-tabbar .tab-btn {
+    padding: 0 8px;
+    font-size: 12.5px;
+    gap: 4px;
+  }
+  .yf-page .yf-tabbar .tab-btn > svg { width: 16px; height: 16px; }
+}
+
+/* ---------- 4. The FAB clears the last card ----------
+   The floating "Add to Day" pill is position: fixed, so it always sits on top
+   of the list. Its footprint is 144px: a 92px offset and a 52px height. Reserve
+   that space at the end of the list, and only when the pill renders. */
+@media (max-width: 720px) {
+  .tl-tab-root:has(.tl-add-fab) { padding-bottom: 144px; }
+}
+
+/* ---------- 5. A day name is user copy, so it may take two lines ----------
+   The phone title row spends most of its width on the thumbnail, the date
+   tile, the save heart and the fold reserve. One line cut "Candolim coast" to
+   "Candolim ...". Two lines show the name, and only grow the card when the
+   copy needs it. */
+@media (max-width: 560px) {
+  .day-title-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: break-word;
+    overflow: hidden;
+  }
+}
+
+/* ---------- 6. Narrow phones drop the day thumbnail ----------------------
+   Below 381px the thumbnail, date tile, save heart and fold reserve leave the
+   title too little room. The heart then wrapped under the title and the stats
+   line lost the day window. The date tile already names the day. */
+@media (max-width: 380px) {
+  .day-header .day-thumb { display: none; }
+}
+
+/* ---------- 7. A stop card takes the full phone width --------------------
+   The 89px time rail left the card 231px, and its body 163px, so chips and
+   figures still stacked on a narrow phone. Below 561px the arrival time and
+   the stop ring move to a header row above the card, and the card takes the
+   width. The travel leg sits between the cards as a full-width note. */
+@media (max-width: 560px) {
+  .day-section:has(.day-layout) { padding-left: 10px; padding-right: 10px; }
+  .tl-row, .tl-anchor, .tl-legrow, .tl-end { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .tl-gutter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 0 6px;
+    justify-content: flex-start;
+  }
+  .tl-gutter .tl-line { display: none; }
+  .tl-time.tl-arr { font-size: 12px; justify-self: start; text-align: start; padding: 0; }
+  .tl-rail-num { order: 2; }
+  .tl-gutter-leg { display: none; }
+  .tl-leg-cell, .travel-leg, .travel-endpoint { grid-column: 1; }
+  .tl-row .stop-card { padding: 10px 10px 8px; gap: 8px; }
+  /* The tile shares the first row with the title only. The meta, the
+     description and the actions take the whole card width, so two figures or
+     two chips can share a line. */
+  .tl-row .stop-main {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: start;
+  }
+  .tl-row .stop-body { display: contents; }
+  .tl-row .stop-tile { grid-column: 1; grid-row: 1; width: 38px; height: 38px; }
+  .tl-row .stop-body > .stop-toprow { grid-column: 2; grid-row: 1; gap: 6px; }
+  .tl-row .stop-body > :not(.stop-toprow) { grid-column: 1 / -1; }
+  .tl-row .stop-meta { gap: 4px 10px; font-size: 12.5px; }
+}

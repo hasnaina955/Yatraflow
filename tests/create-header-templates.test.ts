@@ -84,8 +84,13 @@ describe('Create trip stylesheet (P11)', () => {
   })
 
   it('keeps the scrollbar usable', () => {
-    expect(section).not.toContain('scrollbar-width: none')
-    expect(section).not.toContain('::-webkit-scrollbar')
+    // Scoped to the P11 file: a later sheet hides its own scrollbar (the phone
+    // sheet in 02-select-and-print.css does), so the check must not read the
+    // flattened cascade of everything that loads after this block.
+    const p11 = read('../src/styles/legacy/13-phone-polish-and-guided-create.css')
+    const p11section = p11.slice(p11.indexOf(MARK))
+    expect(p11section).not.toContain('scrollbar-width: none')
+    expect(p11section).not.toContain('::-webkit-scrollbar')
   })
 
   it('opts the row out of smooth scrolling under reduced motion', () => {

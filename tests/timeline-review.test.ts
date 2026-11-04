@@ -163,7 +163,7 @@ describe('a stop card leads with the artboard duotone tile', () => {
 
 describe('review mode is a continuous read, oriented by the day rail (#421)', () => {
   it('marks the root and the card so the CSS can hand the sticky rung over', () => {
-    expect(tab).toMatch(/<div className=\{reviewAll \? 'tl-root-review' : undefined\}>/)
+    expect(tab).toMatch(/<div className=\{reviewAll \? 'tl-root-review tl-tab-root' : 'tl-tab-root'\}>/)
     expect(day).toMatch(/\$\{reviewMode \? ' day-review' : ''\}/)
   })
 

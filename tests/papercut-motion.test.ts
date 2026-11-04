@@ -136,6 +136,9 @@ describe('Papercut motion foundation', () => {
   it('keeps settle easing off ordinary transitions and on the small gallery pop only', () => {
     const bounceRules = [...css.matchAll(/([^{}]+)\{[^}]*var\(--ease-settle\)/g)]
       .map(match => match[1].trim())
+      // The Settings rail's 18px edited-count badge pops in on the settle ease: the
+      // badge case the motion tokens doc allows (tests/settings-entrance-motion.test.ts).
+      .filter(selector => selector !== '.tset-nav-item i')
     expect(bounceRules).toEqual([])
     expect(css).not.toContain('.save-heart.save-heart')
     expect(gallery).toMatch(/\.gallery-final-pin\s*\{[^}]*width:\s*20px[^}]*height:\s*20px/)

@@ -69,12 +69,12 @@ describe('PageHero callers', () => {
 })
 
 describe('yf-page scope in styles.css', () => {
-  it('appends a button-skin block that lists the yf-page selector', async () => {
+  it('keeps the page width without a page-scoped button skin', async () => {
     const css = STYLES_TEXT
     const start = css.indexOf(YF_PAGE_MARKER)
     expect(start, 'the yf-page section comment').toBeGreaterThan(-1)
     const block = css.slice(start)
-    expect(block).toMatch(/:is\(\.yf-page\) \.btn:where\(:not\(\.btn-sm, \.modal \*\)\) \{/)
+    expect(block).not.toMatch(/:is\(\.yf-page\) \.btn:where\(:not\(\.btn-sm, \.modal \*\)\) \{/)
     // The width moved from a direct declaration to the container's documented
     // variable, so a page selects it instead of restating the property. The
     // value the page asks for is unchanged.

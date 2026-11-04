@@ -541,6 +541,14 @@
   --pw-ok-100: #E2F0E8;
   --pw-risk: #B23A2E;
   --pw-risk-100: #FBEDEA;
+  /* Jev and the active-status dot. Two colour pairs the Profile artboard draws
+     but the token set had no name for, so the Profile page had nothing honest to
+     point at. Measured: Jev ink on the card 7.88:1 and on its own tint 6.75:1;
+     status ink on the card 5.24:1 and on its tint 4.63:1. Both clear AA. */
+  --pw-jev: #7E2E86;
+  --pw-jev-100: #F4E8F5;
+  --pw-status-active: #1F7A4A;
+  --pw-status-active-100: #E3F3E9;
   --pw-cat-stays: #008C7F;
   --pw-cat-transport: #3168C4;
   --pw-cat-food: #CF5A2C;
@@ -662,6 +670,12 @@
   --pw-ok-100: #17291E;
   --pw-risk: #F08A7A;
   --pw-risk-100: #3A1C18;
+  /* Measured on the dark page, card and tint: Jev 8.48 / 7.21 / 7.29:1, status
+     10.44 / 8.88 / 8.05:1. */
+  --pw-jev: #C9A3D0;
+  --pw-jev-100: #2B1D30;
+  --pw-status-active: #6FD79A;
+  --pw-status-active-100: #15301F;
   --pw-cat-stays: #26A898;
   --pw-cat-transport: #5A8AE6;
   --pw-cat-food: #DC6C3E;

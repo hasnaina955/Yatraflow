@@ -6,6 +6,7 @@ import {
   SPENDING_STYLE_HINT,
   settingsBudgetScale,
   settingsDayGridHint,
+  settingsDayDeltaLabel,
   settingsDryRun,
   settingsEndPlace,
   settingsPeopleSummary,
@@ -104,7 +105,20 @@ describe('Trip settings artboard copy and controls', () => {
     expect(settingsDayGridHint(-2, 'Drops 2 empty trailing days (days with stops are kept)', false))
       .toBe('Drops 2 empty trailing days (days with stops are kept). Existing stops stay on their dates.')
     expect(settingsDayGridHint(1, 'Adds 1 empty day at the end', true))
-      .toBe('Adds 1 empty day at the end. Existing stops stay on their dates.')
+      .toBe('Save is blocked: the plan keeps its days.')
+    expect(settingsDayDeltaLabel(1, true)).toBe('Save is blocked: the plan keeps its days')
+    expect(settingsDayDeltaLabel(-1, true)).toBe('Save is blocked: the plan keeps its days')
+    expect(settingsDayDeltaLabel(1, false)).toBe('Adds 1 empty day at the end')
+  })
+
+  it('does not promise an extension when invalid fuel input blocks the save', () => {
+    const trip = structuredClone(seedData.trips[0]) as Trip
+    const form = { ...formFromTrip(trip), transportMode: 'car' as const, capacity: '999' }
+    const dry = settingsDryRun(form, zipDests(trip.destinations, trip.destinationCoords), null, trip)
+    expect(dry.ok).toBe(false)
+    const label = settingsDayDeltaLabel(1, !dry.ok)
+    expect(label).toBe('Save is blocked: the plan keeps its days')
+    expect(settingsDayGridHint(1, label, !dry.ok)).toBe('Save is blocked: the plan keeps its days.')
   })
 
   it('keeps one space in the People summary', () => {
@@ -130,7 +144,9 @@ describe('Trip settings artboard copy and controls', () => {
 
   it('exposes the driver and pace hooks Ling styles, and keeps the product extras', () => {
     expect(source).toContain('<div className="tset-driver-pace-pair">')
-    expect(source).toContain('<PillNav className="seg tset-pace-seg"')
+    // The pace control is a wrapped row grid, so all ten styles are reachable
+    // without a sideways scroll. The hook is the wrapper class.
+    expect(source).toContain('<div className="tset-pace-rows" role="group" aria-label="Travel style">')
     expect(source).toContain('{TRANSPORT_MODES.map(m => (')
     expect(source).toContain('{TRAVEL_STYLES.map(s => (')
     expect(source).toContain('{[2, 3].map(n => (')

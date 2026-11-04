@@ -139,10 +139,10 @@ describe('My trips Trash toggle and hero wiring (source)', () => {
     expect(page()).not.toContain('btn-outline')
   })
 
-  it('styles a pressed quiet button and keeps the page button rules off dialogs and small buttons', () => {
+  it('styles a pressed quiet button in the shared recipe', () => {
     const c = css()
-    expect(c).toContain(".btn-quiet[aria-pressed='true']:where(:not(.modal *))")
-    expect(c).toContain('.btn:where(:not(.btn-sm, .modal *)) {')
+    expect(c).toContain(".btn-quiet[aria-pressed='true']")
+    expect(c).toContain('background: var(--teal-soft); color: var(--ink-teal)')
     expect(c).not.toMatch(/:is\(\.ex-page, \.trips-page\) \.btn \{\s*min-height/)
     expect(c).not.toContain('.btn.on-teal')
   })

@@ -78,7 +78,9 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(app).toContain('(!isNative || !me) &&')
     // And the relocated controls actually landed in Profile:
     const profile = source('src/pages/Profile.tsx')
-    expect(profile).toContain('Appearance')
+    // The theme toggle now lives in the Display and appearance section, so the
+    // gate reads that section's label rather than the old standalone card title.
+    expect(profile).toContain('Display and appearance')
     expect(profile).toContain('setTheme(!dark)')
     expect(profile).toContain('notificationsFor(me.id)')
     expect(profile).toContain('feedbackHref()')

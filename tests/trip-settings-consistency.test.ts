@@ -46,15 +46,15 @@ describe('P12 — the panels sit on the shared card skin', () => {
   })
 
   it('the skin is restated as a same-element compound, so it wins in any order (R5)', () => {
-    expect(css).toMatch(/\.yf-surface\.tsx-card \{ border-radius: var\(--radius\); box-shadow: var\(--shadow-card\); animation: cardIn/)
+    expect(css).toContain('.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); }')
   })
 })
 
 describe('P12 — the section titles read the settings artboard scale', () => {
   it('the shared rule keeps the token and sets the artboard size', () => {
-    // `--pw-title` keeps Sora 700 and its tracking. The artboard draws this
-    // page's titles at 19px. `.tsx-q` is used here alone.
-    expect(css).toMatch(/\.tsx-card \.tsx-q \{ font: var\(--pw-title\); font-size: 19px; letter-spacing: var\(--pw-title-tracking\); color: var\(--text\); \}/)
+    // R14 and R20: a card title is Plus Jakarta Sans 800, 18px, line height 1.3.
+    // `.tsx-q` is used here alone.
+    expect(css).toMatch(/\.tsx-card \.tsx-q \{ font-family: var\(--font-body\); font-size: 18px; font-weight: 800; line-height: 1\.3; color: var\(--text\); \}/)
     // One top-level `.tsx-q` rule in the whole sheet: the original. A second
     // would be a duplicate-selector violation. The 760px restatement does not
     // count: the gate reads top-level rules only, and the descendant selector
@@ -114,13 +114,13 @@ describe('P12 — the static inline styles are gone', () => {
 })
 
 describe('P12 — the motion is the catalog motion', () => {
-  it('the panel entrance uses the tokens and no raw duration', () => {
-    expect(css).toMatch(/\.yf-surface\.tsx-card \{[^}]*animation: cardIn var\(--motion-slow\) var\(--ease-out\) var\(--stagger-step\) backwards;/)
-    expect(css).not.toMatch(/\.yf-surface\.tsx-card \{[^}]*\d+ms/)
-    expect(css).toMatch(/\.tset-nav \{[^}]*animation: cardIn var\(--motion-slow\) var\(--ease-out\) var\(--stagger-step\) backwards;[^}]*animation-delay: 0s;/)
-    expect(css).toContain('.tset-aside > * { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }')
-    expect(css).toContain('.tset-aside > :nth-child(1) { animation-delay: calc(var(--stagger-step) * 5); }')
-    expect(css).toContain('.tset-aside > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 6); }')
+  it('the panel entrance is the tab-owned cascade, with no cardIn left on the page', () => {
+    // The cascade lives in one block in 16-motion-and-cover-v2.css, pinned by
+    // tests/settings-entrance-motion.test.ts. The page sheet keeps the skin only.
+    expect(css).not.toMatch(/^\.yf-surface\.tsx-card \{[^}]*animation:/m)
+    expect(css).not.toMatch(/^\.tset-nav \{[^}]*animation:/m)
+    expect(css).not.toContain('.tset-aside > :nth-child(1) { animation-delay')
+    expect(css).toMatch(/\.tset-main > section\.yf-surface\.tsx-card \{\s*animation: pageRise var\(--motion-slow\) var\(--ease-paper\) backwards;/)
   })
 
   it('no second .tsx-card rule exists at the top level, so the sheet keeps one selector per rule', () => {
@@ -128,8 +128,7 @@ describe('P12 — the motion is the catalog motion', () => {
   })
 
   it('a reduced-motion user gets no panel entrance', () => {
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.yf-surface\.tsx-card \{ animation: none; \}/)
-    expect(css).toContain('.tset-nav, .tset-aside > * { animation: none; }')
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[^}]*\.tset-main > section\.yf-surface\.tsx-card,[^}]*\.tset-aside > \*,[^}]*\{\s*animation: none;\s*\}/)
   })
 })
 
@@ -144,7 +143,7 @@ describe('P12 — the measured artboard gaps stay closed', () => {
 
   it('the People strip outranks the base card and copy rules', () => {
     expect(css).toContain('.tset-main > .yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }')
-    expect(css).toContain('.tset-people-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }')
+    expect(css).toContain('.tset-people-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--pw-ink); }')
     expect(css).not.toContain('.tset-people-copy b {')
   })
 
@@ -169,8 +168,8 @@ describe('P12 — the measured artboard gaps stay closed', () => {
     expect(css).toContain('.flab { font: 700 13px/1.4 var(--font-body); color: var(--pw-ink); }')
     expect(css).toMatch(/\.tset-nav-item i \{[\s\S]*?font-size: 11px;\s*font-weight: 800;/)
     expect(css).toMatch(/\.tset-cover-now \{[\s\S]*?font-size: 11px;\s*font-weight: 700;/)
-    expect(css).toContain('.tset-save-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }')
-    expect(css).toContain('.tset-aside { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: 14px; }')
+    expect(css).toContain('.tset-save-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--pw-ink); }')
+    expect(css).toContain('.tset-aside { position: sticky; top: var(--space-7); display: flex; flex-direction: column; gap: 14px; }')
     expect(css).toMatch(/\.tset-savecard \{\s*display: flex;\s*flex-direction: column;\s*gap: 12px;/)
     expect(css).toMatch(/\.tset-diff \{\s*display: flex;\s*flex-direction: column;\s*gap: 4px;\s*padding: 12px;/)
     expect(css).toContain('.tset-save-actions { display: flex; gap: 8px; margin-top: 2px; }')
@@ -219,10 +218,12 @@ describe('P12 — the measured artboard gaps stay closed', () => {
     expect(css).toContain('.tset-when-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }')
   })
 
-  it('the driver and pace pair responds and the pace track scrolls', () => {
+  it('the driver and pace pair responds and the pace rows wrap', () => {
     expect(css).toContain('.tset-driver-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }')
     expect(css).toContain('.tset-driver-pace-pair { grid-template-columns: minmax(0, 1fr); }')
-    expect(css).toMatch(/\.tset-pace-seg \{[\s\S]*?flex-wrap: nowrap;\s*overflow-x: auto;/)
-    expect(css).toContain('.tset-pace-seg .seg-btn { flex: 0 0 auto; }')
+    // The ten styles wrap into rows rather than scrolling off the right edge,
+    // and the row reaches 44px on a coarse pointer.
+    expect(css).toMatch(/\.tset-pace-rows \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+    expect(css).toContain('.tset-pace-row { height: 44px; }')
   })
 })

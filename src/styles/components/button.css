@@ -9,52 +9,58 @@
    The fallbacks are the default scale, which is what a button outside a page
    scope already used. */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border-radius: var(--btn-radius, 999px); border: 1.5px solid transparent;
-  font-weight: var(--btn-weight, 600); font-size: var(--btn-font-size, 14px);
-  padding: var(--btn-padding, 9px 17px);
-  min-height: var(--btn-min-height, auto);
-  letter-spacing: var(--btn-tracking, normal);
+  font-weight: var(--btn-weight, 700); font-size: var(--btn-font-size, 14.5px);
+  padding: var(--btn-padding, 0 18px);
+  min-height: var(--btn-min-height, 44px);
+  letter-spacing: var(--btn-tracking, -.005em);
   transition: var(--btn-transition,
-    background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out),
-    border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out),
-    transform var(--t-fast) var(--ease-out), filter var(--t-fast) var(--ease-out));
+    background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out), filter var(--motion-fast) var(--ease-out));
   white-space: nowrap;
 }
-.btn:active { transform: var(--btn-active-transform, scale(.97)); }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: var(--btn-active-transform, scale(.98)); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 a.btn { text-decoration: none; }
 .btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* Button variants: colour, border and ink. These are the control. */
-.btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-sm); }
+.btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--glow-sea); }
 .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
 .btn-primary:active:not(:disabled) { background: var(--color-primary-active); }
 /* No dark-mode colour rule here. `[data-theme='dark'] .btn-primary` is an
    attribute selector plus a class, so it is 0,2,0 — the same as
-   `.hero .btn-primary` — and it only ever won on order. It set exactly what
+   `.hero .btn-primary` — and it only ever wins on order. It set exactly what
    `.btn-primary` already sets, so it was a redundant rule that beat the hero
    override once this module loaded after section 04. */
-.btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--shadow-sm); }
+.btn-saffron { background: var(--color-accent); color: var(--color-accent-foreground); box-shadow: var(--glow-marigold); }
 .btn-saffron:hover:not(:disabled) { background: var(--color-accent-hover); }
 .btn-navy { background: var(--text); color: var(--bg); }
-.btn-outline { background: transparent; border-color: var(--line); color: var(--text); }
-.btn-outline:hover { background: var(--bg-soft); }
+.btn-outline, .btn-secondary { background: var(--card); border-color: var(--line); color: var(--text); box-shadow: var(--elev-press); }
+.btn-outline:hover:not(:disabled), .btn-secondary:hover:not(:disabled) { background: var(--bg-soft); border-color: var(--teal-deep); }
 
 /* Ghost uses the page scale when one is set. Size rules follow the variant. */
-.btn-ghost {
-  background: none; border: none; color: var(--text-2);
+.btn-ghost, .btn-quiet {
+  background: transparent; border-color: transparent; color: var(--teal-deep);
   padding: var(--btn-padding, 8px 10px);
   border-radius: var(--btn-radius, 999px);
 }
-.btn-ghost:hover { background: var(--bg-soft); }
+.btn-ghost:hover:not(:disabled), .btn-quiet:hover:not(:disabled) { background: var(--bg-soft); }
+.btn-quiet[aria-pressed='true'], .btn-quiet[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--teal-soft); color: var(--ink-teal); box-shadow: inset 0 0 0 1px var(--teal-deep);
+}
+.btn-quiet[aria-pressed='true']:focus-visible,
+.btn-quiet[aria-pressed='true']:hover:not(:disabled):focus-visible { box-shadow: var(--ring), inset 0 0 0 1px var(--teal-deep); }
 
 /* ---------- Button size scale ---------- */
 /* anchors styled as buttons (hero CTAs, auth links) drop the underline (F-06) */
 .btn-danger { background: var(--color-destructive-soft); color: var(--ink-coral); }
 /* Button state matrix (sizes + variants + states): see DESIGN_TOKENS.md */
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-destructive) 14%, transparent); }
-.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 24px; }
+.btn-sm { padding: 0 12px; font-size: 13px; min-height: 36px; }
 /* The LARGE size is the one that carries a sentence, so it is the one that may
    wrap. `.btn`'s global `white-space: nowrap` keeps pill labels single-line,
    but it also makes a sentence-length label's MIN-CONTENT equal to the whole
@@ -67,6 +73,7 @@ a.btn { text-decoration: none; }
 .btn-lg {
   padding: var(--btn-padding, 12px 24px);
   font-size: var(--btn-font-size, 15.5px);
+  min-height: 52px;
   white-space: normal;
 }
 /* Button-in-button (landing hero): the trailing glyph rides its own circular
@@ -79,6 +86,11 @@ a.btn { text-decoration: none; }
 .btn-trail:hover .btn-trail-icon { transform: translate3d(2px, -2px, 0) scale(1.06); background: rgba(255, 255, 255, .28); }
 
 /* Phone: the control keeps a 44px touch target. */
-@media (max-width: 720px) {
+@media (max-width: 720px), (pointer: coarse) {
   .btn { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn { --btn-transition: none; }
+  .btn:hover:not(:disabled) { transform: none; }
+  .btn:active:not(:disabled) { transform: none; }
 }

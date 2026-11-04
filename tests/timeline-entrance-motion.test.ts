@@ -52,7 +52,10 @@ const PANEL = 'div[role="tabpanel"]:has(.tl-ribbon)'
 
 describe('Timeline tab entrance: tab-owned cascade', () => {
   const tailStart = CSS.indexOf(MARK)
-  const tail = CSS.slice(tailStart)
+  // The Settings tab's block follows this one in the same file, so the Timeline
+  // block ends where that one begins.
+  const tailEnd = CSS.indexOf("/* ---------- Entrance: the Settings tab's own cascade ----------")
+  const tail = CSS.slice(tailStart, tailEnd > tailStart ? tailEnd : undefined)
   const code = stripComments(tail)
   // Parse the comment-free text: the block reader carries a comment that
   // precedes a selector into that selector's text.

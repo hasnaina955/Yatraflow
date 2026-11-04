@@ -40,3 +40,12 @@
 @import './styles/legacy/17-overview-tiles-and-cover.css';
 @import './styles/components/pill-nav-17.css';
 @import './styles/pages/budget.css';
+
+/* Settings controls keep their state legible in both themes. */
+.tset-main .tset-danger-btn:disabled { opacity: 1; color: var(--pw-ink-2); }
+.tset-main .tog:disabled { opacity: 1; }
+.tset-main .tog:not(.on) .sw::after { background: var(--pw-ink-2); }
+
+@media (max-width: 860px) {
+  .tset-nav { padding-inline: 16px; scroll-padding-inline: 16px; mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent); }
+}

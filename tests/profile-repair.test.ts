@@ -92,7 +92,7 @@ describe('P1 — the phone rail must beat the base column rule', () => {
 
   it('the strip is sticky, scrolls on one axis, and keeps 44px rows', () => {
     const phone = pages.slice(pages.search(/\/\* -+ Profile: the phone rail/))
-    expect(phone).toMatch(/position:\s*sticky/)
+    expect(rule(pages, '.prof-nav')).toMatch(/position:\s*sticky/)
     expect(phone).toMatch(/overflow-x:\s*auto/)
     expect(phone).toMatch(/overscroll-behavior-inline:\s*contain/)
     expect(pages).toMatch(/@media \(pointer: coarse\)[\s\S]*?\.prof-nav-item \{ min-height: 44px; \}/)

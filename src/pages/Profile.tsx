@@ -278,13 +278,13 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
     // intersection batch. "First intersecting section" was wrong twice: near the
     // foot of the page several sections intersect at once, and the earliest one
     // in document order kept the mark, so "Account" could never take it. The
-    // reading line is the one offset the document already reserves for the
-    // sticky header (`html { scroll-padding-top }`), so an anchor jump lands its
-    // own section exactly on the line and the mark follows.
+    // reading line includes the document's header offset and any extra margin
+    // the section needs for the phone rail. The mark follows anchor jumps.
     const mark = () => {
       if (railClick.current) return
       const raw = getComputedStyle(document.documentElement).scrollPaddingTop
-      const line = Number.parseFloat(raw) || 0
+      const sectionMargin = getComputedStyle(els[0]).scrollMarginTop
+      const line = (Number.parseFloat(raw) || 0) + (Number.parseFloat(sectionMargin) || 0)
       let active = els[0]
       for (const el of els) if (el.getBoundingClientRect().top <= line + 1) active = el
       // At the foot of the page the document cannot scroll further, so the last
@@ -576,10 +576,10 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                   : 'A branding badge: your bio and social links appear on the itineraries you publish.'}
               </p>
               {me.profile.isCreator ? (
-                <>
+                <div className="prof-actions">
                   <button className="btn btn-primary btn-sm" onClick={() => onNavigate('/creator-hub')}>Open creator hub</button>
-                  <a className="btn btn-outline btn-sm prof-btn-offset" {...appLink(`/creator/${me.id}`)}>View public page</a>
-                </>
+                  <a className="btn btn-outline btn-sm" {...appLink(`/creator/${me.id}`)}>View public page</a>
+                </div>
               ) : (
                 <button className="btn btn-saffron" onClick={async () => {
                   // The success line waits for the server. A refused write rolls

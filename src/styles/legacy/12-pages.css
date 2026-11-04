@@ -1,12 +1,11 @@
 /* ===== Stage A: Profile.tsx — inline styles moved to classes (no visual change) ===== */
 .prof-creator-lede { margin-bottom: 14px; }
-.prof-hint { margin: 6px 0 12px; }
+.prof-hint { margin: 0 0 var(--space-5); }
 .prof-hint-tight { margin: 6px 0 10px; }
 .prof-hint-top { margin: 6px 0 0; }
 .prof-hint-mt { margin-top: 6px; }
 .prof-status { margin: 0; }
 .prof-heading-note { font-weight: 400; }
-.prof-btn-offset { margin-left: 10px; }
 .prof-btn-block { margin-bottom: 8px; }
 .prof-notif-label { display: flex; align-items: center; gap: 6px; }
 .prof-notif-list { display: flex; flex-direction: column; gap: 8px; }
@@ -1280,10 +1279,7 @@
    page owns that through a compound on its own class, so the shared Surface
    (18px / 20px) is unchanged for every other page. */
 .prof-page .yf-surface.prof-panel { border-radius: var(--radius-lg); padding: var(--space-10); }
-/* Anchor targets clear the floating header through the document's own
-   `html { scroll-padding-top }`. A matching `scroll-margin-top` here stacked on
-   top of it and landed every jump 90px too low, so the section sat below the
-   reading line the rail marks. One offset, in one place. */
+/* The document clears the header. The phone strip needs its own extra room. */
 
 /* ---------- Profile: the section rail ----------
    The artboard's jump list. It is an anchor list, not a tablist: every section
@@ -1291,7 +1287,7 @@
    the two pages are read the same way, but the classes are this page's own. */
 .prof-nav {
   position: sticky;
-  top: var(--space-7);
+  top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1309,14 +1305,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  /* One row per section: a wrapped label ("Display and appearance") made the
-     rail ragged and pushed that row to 59px. The label truncates instead. */
   min-height: 40px;
-  padding: 0 12px;
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-sm);
   font: var(--pw-ui);
   color: var(--pw-ink-2);
-  white-space: nowrap;
+  white-space: normal;
   text-decoration: none;
   box-shadow: inset 0 0 0 1px transparent;
   transition:
@@ -1324,7 +1318,7 @@
     color var(--motion-fast) var(--ease-paper),
     box-shadow var(--motion-fast) var(--ease-paper);
 }
-.prof-nav-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.prof-nav-item > span { min-width: 0; }
 .prof-nav-item:hover { background: var(--pw-soft); color: var(--pw-ink); }
 .prof-nav-item:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
 .prof-nav-item svg { flex: none; color: var(--pw-ink-3); }
@@ -1339,7 +1333,7 @@
 /* ---------- Profile: the artboard's panel head ----------
    A 36px sunken tile, the heading, a 13px subtitle and an optional mark on the
    right. The tile carries the section's own rail icon, so the two agree. */
-.prof-head { display: flex; align-items: flex-start; gap: var(--space-5); }
+.prof-head { display: flex; align-items: flex-start; gap: var(--space-5); margin-bottom: var(--space-7); }
 .prof-tile {
   width: 36px; height: 36px; flex: none;
   display: flex; align-items: center; justify-content: center;
@@ -1354,6 +1348,7 @@
 /* ---------- Profile: the avatar row and the name/city pair ---------- */
 .prof-avatar-row {
   display: flex; align-items: center; gap: var(--space-7);
+  margin-bottom: var(--space-7);
   padding: var(--space-6); border-radius: var(--radius);
   background: var(--pw-sunken);
 }
@@ -1416,6 +1411,8 @@
 
 /* ---------- Profile: connected accounts and about-data rows ---------- */
 .prof-link-list, .prof-data-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.prof-link-list { margin-bottom: var(--space-7); }
+.prof-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4a); }
 .prof-link-row, .prof-data-row {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
   gap: var(--space-5); align-items: center;
@@ -1450,8 +1447,6 @@
    escalation. The top offset clears the floating header and the safe area. */
 @media (max-width: 860px) {
   .prof-nav {
-    position: sticky;
-    top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
     z-index: var(--z-raised);
     flex-direction: row;
     overflow-x: auto;
@@ -1466,6 +1461,7 @@
   .prof-nav-item { flex: none; white-space: nowrap; }
   /* The icon takes 26px of a 390px strip and buys nothing at this size. */
   .prof-nav-item svg { display: none; }
+  .prof-section { scroll-margin-top: var(--space-16); }
 }
 
 /* ---------- Profile: the section accent ----------

@@ -1,0 +1,690 @@
+[
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 334,
+  "sel": ".btn",
+  "ctx": "",
+  "decls": [
+   "display",
+   "align-items",
+   "justify-content",
+   "gap",
+   "border-radius",
+   "border",
+   "font-weight",
+   "font-size",
+   "padding",
+   "transition",
+   "white-space"
+  ],
+  "important": 0,
+  "order": 102
+ },
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 342,
+  "sel": ".btn:active",
+  "ctx": "",
+  "decls": [
+   "transform"
+  ],
+  "important": 0,
+  "order": 103
+ },
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 343,
+  "sel": ".btn:disabled",
+  "ctx": "",
+  "decls": [
+   "opacity",
+   "cursor"
+  ],
+  "important": 0,
+  "order": 104
+ },
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 345,
+  "sel": "a.btn",
+  "ctx": "",
+  "decls": [
+   "text-decoration"
+  ],
+  "important": 0,
+  "order": 105
+ },
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 346,
+  "sel": ".btn:focus-visible",
+  "ctx": "",
+  "decls": [
+   "outline",
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 106
+ },
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 394,
+  "sel": ".btn, .icon-btn, .chip, .clickable-chip, .toast-action, .tab-btn, .map-legend-toggle, .nav-link, .filter-pillbar .clickable-chip, .link-btn, .move-btn, .board-pulse-link, .cal-day, .cal-nav, .route-btn, .vote-btn, .yf-map-idea-add, .poi-short, .poi-cand-add, .poi-fold, .save-heart, .yf-maplibre .yf-map-ctrls button, .day-collapse",
+  "ctx": "@media (pointer: coarse)",
+  "decls": [
+   "position"
+  ],
+  "important": 0,
+  "order": 128
+ },
+ {
+  "file": "legacy/01-foundations.css",
+  "line": 400,
+  "sel": ".btn::after, .icon-btn::after, .chip::after, .clickable-chip::after, .toast-action::after, .tab-btn::after, .map-legend-toggle::after, .nav-link::after, .link-btn::after, .move-btn::after, .board-pulse-link::after, .cal-day::after, .cal-nav::after, .route-btn::after, .vote-btn::after, .yf-map-idea-add::after, .poi-short::after, .poi-cand-add::after, .poi-fold::after, .save-heart::after, .yf-maplibre .yf-map-ctrls button::after, .day-collapse::after",
+  "ctx": "@media (pointer: coarse)",
+  "decls": [
+   "content",
+   "position",
+   "inset",
+   "border-radius"
+  ],
+  "important": 0,
+  "order": 129
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 112,
+  "sel": ".input:focus-visible, .textarea:focus-visible, .btn:focus-visible, .icon-btn:focus-visible, .theme-toggle:focus-visible, .avatar-btn:focus-visible, .user-menu-item:focus-visible, .nav-link:focus-visible, .tab-btn:focus-visible, .brand:focus-visible, .mobile-nav-btn:focus-visible, .bottom-nav-item:focus-visible, .day-collapse:focus-visible, .day-route:focus-visible, .move-btn:focus-visible, .vote-btn:focus-visible, .chip-btn:focus-visible, .clickable-chip:focus-visible, .toast-action:focus-visible, .day-rail-chip:focus-visible, .map-day-chip:focus-visible, .map-idea-chip:focus-visible, .map-legend-toggle:focus-visible, .map-expand-chip:focus-visible, .loc-option:focus-visible, .ai-fab:focus-visible, .trip-card-hit:focus-visible, .trip-task-row:focus-visible, .skip-link:focus-visible, .yf-map-pin:focus-visible, .clamp-toggle:focus-visible, .board-fit:focus-visible, .save-heart:focus-visible, .dest-chip button:focus-visible, .role-select:focus-visible, .day-title-btn:focus-visible, .trip-hero-back:focus-visible, .health-rec:focus-visible, .link-btn:focus-visible, .yf-range:focus-visible, .bench-mode-btn:focus-visible, .bench-stay-row:focus-visible, .hero-bench-cta:focus-visible, .bench-toggle:focus-visible, .bench-preset-chip:focus-visible, .bench-crew-btn:focus-visible, .bench-receipt-actions .chip:focus-visible, .bench-surprise:focus-visible",
+  "ctx": "",
+  "decls": [
+   "outline",
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 975
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 496,
+  "sel": ".btn, .tab-btn, .board-fit, .board-pulse-link",
+  "ctx": "",
+  "decls": [
+   "transition"
+  ],
+  "important": 0,
+  "order": 1108
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 501,
+  "sel": ".btn:active, .tab-btn:active",
+  "ctx": "",
+  "decls": [
+   "transform"
+  ],
+  "important": 0,
+  "order": 1109
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1470,
+  "sel": ".bench-dock .btn",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "padding",
+   "flex-shrink"
+  ],
+  "important": 0,
+  "order": 1485
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1488,
+  "sel": ".hero .btn, .hero .btn::after",
+  "ctx": "@media (prefers-reduced-motion: reduce)",
+  "decls": [
+   "animation",
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 1502
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1590,
+  "sel": ".hero .btn",
+  "ctx": "",
+  "decls": [
+   "position",
+   "overflow"
+  ],
+  "important": 0,
+  "order": 1549
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1596,
+  "sel": ".hero .btn:focus-visible",
+  "ctx": "@media (prefers-reduced-motion: no-preference)",
+  "decls": [
+   "animation",
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 1553
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1598,
+  "sel": ".hero .btn::after",
+  "ctx": "@media (prefers-reduced-motion: no-preference)",
+  "decls": [
+   "content",
+   "position",
+   "top",
+   "bottom",
+   "left",
+   "width",
+   "background",
+   "transform",
+   "pointer-events",
+   "animation"
+  ],
+  "important": 0,
+  "order": 1554
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1769,
+  "sel": ".nav-right .btn",
+  "ctx": "@media (max-width: 560px)",
+  "decls": [
+   "padding",
+   "font-size"
+  ],
+  "important": 0,
+  "order": 1635
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1797,
+  "sel": ".topnav-inner:has(.nav-right > .btn) .brand span",
+  "ctx": "@media (max-width: 440px)",
+  "decls": [
+   "display"
+  ],
+  "important": 0,
+  "order": 1641
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1798,
+  "sel": ".nav-right:has(> .btn)",
+  "ctx": "@media (max-width: 440px)",
+  "decls": [
+   "gap"
+  ],
+  "important": 0,
+  "order": 1642
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1803,
+  "sel": ".nav-right:has(> .btn) .btn",
+  "ctx": "@media (max-width: 350px)",
+  "decls": [
+   "padding",
+   "font-size"
+  ],
+  "important": 0,
+  "order": 1644
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1908,
+  "sel": ".btn",
+  "ctx": "@media (max-width: 720px)",
+  "decls": [
+   "min-height"
+  ],
+  "important": 0,
+  "order": 1683
+ },
+ {
+  "file": "legacy/04-mobile-usability.css",
+  "line": 1967,
+  "sel": ".pub-actions-btns .btn",
+  "ctx": "@media (max-width: 720px)",
+  "decls": [
+   "flex"
+  ],
+  "important": 0,
+  "order": 1726
+ },
+ {
+  "file": "legacy/05-share-and-trip-ticket.css",
+  "line": 114,
+  "sel": ".ts-savebar .btn",
+  "ctx": "@media (max-width: 720px)",
+  "decls": [
+   "flex"
+  ],
+  "important": 0,
+  "order": 1914
+ },
+ {
+  "file": "legacy/07-workspace-and-unlock.css",
+  "line": 274,
+  "sel": ".unlock-reveal-actions .btn",
+  "ctx": "",
+  "decls": [
+   "flex"
+  ],
+  "important": 0,
+  "order": 2438
+ },
+ {
+  "file": "legacy/08-map-review.css",
+  "line": 102,
+  "sel": ".map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .chip, .map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head > .btn, .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .chip, .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head > .btn",
+  "ctx": "",
+  "decls": [
+   "display"
+  ],
+  "important": 0,
+  "order": 2519
+ },
+ {
+  "file": "legacy/08-map-review.css",
+  "line": 402,
+  "sel": ".draft-card > .btn",
+  "ctx": "",
+  "decls": [
+   "margin-left"
+  ],
+  "important": 0,
+  "order": 2642
+ },
+ {
+  "file": "legacy/08-map-review.css",
+  "line": 442,
+  "sel": ".created-crew-row .btn",
+  "ctx": "",
+  "decls": [
+   "margin-left"
+  ],
+  "important": 0,
+  "order": 2669
+ },
+ {
+  "file": "legacy/08-map-review.css",
+  "line": 640,
+  "sel": ".offline-banner .btn",
+  "ctx": "",
+  "decls": [
+   "flex"
+  ],
+  "important": 0,
+  "order": 2794
+ },
+ {
+  "file": "legacy/08-map-review.css",
+  "line": 658,
+  "sel": ".offline-recovery-actions .btn",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "white-space"
+  ],
+  "important": 0,
+  "order": 2803
+ },
+ {
+  "file": "legacy/09-trips-list.css",
+  "line": 133,
+  "sel": ".mt-feat-actions .btn",
+  "ctx": "",
+  "decls": [
+   "position",
+   "z-index"
+  ],
+  "important": 0,
+  "order": 3168
+ },
+ {
+  "file": "legacy/09-trips-list.css",
+  "line": 178,
+  "sel": ".mt-feat-actions .btn",
+  "ctx": "@media (max-width: 720px), (pointer: coarse)",
+  "decls": [
+   "min-height"
+  ],
+  "important": 0,
+  "order": 3204
+ },
+ {
+  "file": "legacy/09-trips-list.css",
+  "line": 179,
+  "sel": ".draft-card .btn",
+  "ctx": "@media (max-width: 720px), (pointer: coarse)",
+  "decls": [
+   "min-height"
+  ],
+  "important": 0,
+  "order": 3205
+ },
+ {
+  "file": "legacy/10-explore.css",
+  "line": 23,
+  "sel": ":is(.ex-page, .trips-page) .btn:where(:not(.btn-sm, .modal *))",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "padding",
+   "border-radius",
+   "font-size",
+   "font-weight",
+   "letter-spacing",
+   "transition"
+  ],
+  "important": 0,
+  "order": 3255
+ },
+ {
+  "file": "legacy/10-explore.css",
+  "line": 27,
+  "sel": ":is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled)",
+  "ctx": "",
+  "decls": [
+   "transform"
+  ],
+  "important": 0,
+  "order": 3256
+ },
+ {
+  "file": "legacy/10-explore.css",
+  "line": 484,
+  "sel": ".ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg",
+  "ctx": "",
+  "decls": [
+   "animation"
+  ],
+  "important": 0,
+  "order": 3512
+ },
+ {
+  "file": "legacy/10-explore.css",
+  "line": 495,
+  "sel": ".ex-enter, .ex-hero-copy, .ex-hero-visual, .ex-aside > :nth-child(n), .ex-selects.is-open, .ex-save[aria-pressed='true'] .ex-save-dot, .ex-chip-saved[aria-pressed='true'] svg, .ex-feature-actions .btn[aria-pressed='true'] svg",
+  "ctx": "@media (prefers-reduced-motion: reduce)",
+  "decls": [
+   "animation"
+  ],
+  "important": 0,
+  "order": 3518
+ },
+ {
+  "file": "legacy/10-explore.css",
+  "line": 504,
+  "sel": ".ex-cover-img, .ex-feature-cover .ex-cover-img, .ex-save-dot, .ex-chip, .ex-creator, :is(.ex-page, .trips-page) .btn",
+  "ctx": "@media (prefers-reduced-motion: reduce)",
+  "decls": [
+   "transition"
+  ],
+  "important": 0,
+  "order": 3524
+ },
+ {
+  "file": "legacy/10-explore.css",
+  "line": 506,
+  "sel": ".ex-save:hover .ex-save-dot, .ex-save:active .ex-save-dot, .ex-chip:active, :is(.ex-page, .trips-page) .btn:where(:not(.modal *)):active:not(:disabled)",
+  "ctx": "@media (prefers-reduced-motion: reduce)",
+  "decls": [
+   "transform"
+  ],
+  "important": 0,
+  "order": 3525
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 34,
+  "sel": ".mt-hero-secondary > .btn",
+  "ctx": "@media (max-width: 640px)",
+  "decls": [
+   "flex",
+   "justify-content",
+   "padding"
+  ],
+  "important": 0,
+  "order": 3548
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 516,
+  "sel": ".trip-featured-btn-group .btn",
+  "ctx": "@media (max-width: 640px)",
+  "decls": [
+   "width",
+   "min-height"
+  ],
+  "important": 0,
+  "order": 3658
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1037,
+  "sel": ":is(.yf-page) .btn:where(:not(.btn-sm, .modal *))",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "padding",
+   "border-radius",
+   "font-size",
+   "font-weight",
+   "letter-spacing",
+   "transition"
+  ],
+  "important": 0,
+  "order": 3839
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1041,
+  "sel": ":is(.yf-page) .btn:where(:not(.modal *)):active:not(:disabled)",
+  "ctx": "",
+  "decls": [
+   "transform"
+  ],
+  "important": 0,
+  "order": 3840
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1053,
+  "sel": ":is(.yf-page) .btn:where(:not(.modal *))",
+  "ctx": "@media (prefers-reduced-motion: reduce)",
+  "decls": [
+   "transition"
+  ],
+  "important": 0,
+  "order": 3848
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1054,
+  "sel": ":is(.yf-page) .btn:where(:not(.modal *)):active:not(:disabled)",
+  "ctx": "@media (prefers-reduced-motion: reduce)",
+  "decls": [
+   "transform"
+  ],
+  "important": 0,
+  "order": 3849
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1078,
+  "sel": ".yf-header-actions > .btn",
+  "ctx": "",
+  "decls": [
+   "width",
+   "justify-content"
+  ],
+  "important": 0,
+  "order": 3858
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1085,
+  "sel": ".yf-header-actions > .btn",
+  "ctx": "@media (min-width: 720px)",
+  "decls": [
+   "width"
+  ],
+  "important": 0,
+  "order": 3865
+ },
+ {
+  "file": "legacy/11-shared-page.css",
+  "line": 1132,
+  "sel": ".pur-actions > .btn",
+  "ctx": "@media (max-width: 560px)",
+  "decls": [
+   "flex",
+   "justify-content"
+  ],
+  "important": 0,
+  "order": 3896
+ },
+ {
+  "file": "legacy/12-pages.css",
+  "line": 88,
+  "sel": ".btn.shr-unpublish-action",
+  "ctx": "",
+  "decls": [
+   "margin-top"
+  ],
+  "important": 0,
+  "order": 3984
+ },
+ {
+  "file": "legacy/12-pages.css",
+  "line": 96,
+  "sel": ".btn.auth-submit",
+  "ctx": "",
+  "decls": [
+   "width"
+  ],
+  "important": 0,
+  "order": 3990
+ },
+ {
+  "file": "legacy/13-phone-polish-and-guided-create.css",
+  "line": 632,
+  "sel": ".sf-buybox .btn",
+  "ctx": "",
+  "decls": [
+   "width",
+   "min-height",
+   "justify-content"
+  ],
+  "important": 0,
+  "order": 4290
+ },
+ {
+  "file": "legacy/13-phone-polish-and-guided-create.css",
+  "line": 945,
+  "sel": ".offline-banner-summary .btn",
+  "ctx": "",
+  "decls": [
+   "min-height"
+  ],
+  "important": 0,
+  "order": 4351
+ },
+ {
+  "file": "legacy/13-phone-polish-and-guided-create.css",
+  "line": 1206,
+  "sel": ".gcf .gcf-presets .btn",
+  "ctx": "",
+  "decls": [
+   "border-radius",
+   "padding",
+   "font-size"
+  ],
+  "important": 0,
+  "order": 4467
+ },
+ {
+  "file": "legacy/13-phone-polish-and-guided-create.css",
+  "line": 1272,
+  "sel": ".gcf .ct-nav .btn",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "padding",
+   "border-radius",
+   "font-size",
+   "font-weight"
+  ],
+  "important": 0,
+  "order": 4530
+ },
+ {
+  "file": "legacy/13-phone-polish-and-guided-create.css",
+  "line": 1304,
+  "sel": ".gcf-review-actions > .btn",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "border-radius"
+  ],
+  "important": 0,
+  "order": 4562
+ },
+ {
+  "file": "legacy/15-overview.css",
+  "line": 1791,
+  "sel": ".btn.btn-primary",
+  "ctx": "",
+  "decls": [
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 5044
+ },
+ {
+  "file": "legacy/15-overview.css",
+  "line": 1792,
+  "sel": ".btn.btn-saffron",
+  "ctx": "",
+  "decls": [
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 5045
+ },
+ {
+  "file": "legacy/15-overview.css",
+  "line": 1793,
+  "sel": ".btn.btn-primary:focus-visible, .btn.btn-saffron:focus-visible",
+  "ctx": "",
+  "decls": [
+   "box-shadow"
+  ],
+  "important": 0,
+  "order": 5046
+ },
+ {
+  "file": "legacy/17-overview-tiles-and-cover.css",
+  "line": 436,
+  "sel": ".ovw2 .btn.btn-sm, .ovw-weather .btn.btn-sm",
+  "ctx": "",
+  "decls": [
+   "min-height",
+   "padding-inline"
+  ],
+  "important": 0,
+  "order": 5365
+ }
+]

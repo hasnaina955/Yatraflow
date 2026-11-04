@@ -1,0 +1,599 @@
+{
+ "utc": "2026-10-30T07:33:05.097Z",
+ "before": "dev/_css3-b11-pill.css",
+ "after": "dev/_css3-board-after.css",
+ "seeded": false,
+ "behaviour": [
+  {
+   "label": "light@390",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 343,
+     "h": 1179.546875,
+     "display": "flex",
+     "overflow": "visible",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.947647 0.94949 0.968863) 0%, color(srgb 0.970196 0.975372 0.981804) 55%, rgb(252, 254, 253) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.754902 0.772549 0.830392)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    }
+   }
+  },
+  {
+   "label": "light@390 rm",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 343,
+     "h": 1179.546875,
+     "display": "flex",
+     "overflow": "visible",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.947647 0.94949 0.968863) 0%, color(srgb 0.970196 0.975372 0.981804) 55%, rgb(252, 254, 253) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.754902 0.772549 0.830392)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    },
+    "reducedTransition": [
+     "1e-05s",
+     "1e-05s",
+     "1e-05s"
+    ]
+   }
+  },
+  {
+   "label": "light@768",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 713,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.947647 0.94949 0.968863) 0%, color(srgb 0.970196 0.975372 0.981804) 55%, rgb(252, 254, 253) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.754902 0.772549 0.830392)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    }
+   }
+  },
+  {
+   "label": "light@768 rm",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 713,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.947647 0.94949 0.968863) 0%, color(srgb 0.970196 0.975372 0.981804) 55%, rgb(252, 254, 253) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.754902 0.772549 0.830392)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    },
+    "reducedTransition": [
+     "1e-05s",
+     "1e-05s",
+     "1e-05s"
+    ]
+   }
+  },
+  {
+   "label": "light@1440",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 1385,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.947647 0.94949 0.968863) 0%, color(srgb 0.970196 0.975372 0.981804) 55%, rgb(252, 254, 253) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.754902 0.772549 0.830392)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    }
+   }
+  },
+  {
+   "label": "light@1440 rm",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 1385,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.947647 0.94949 0.968863) 0%, color(srgb 0.970196 0.975372 0.981804) 55%, rgb(252, 254, 253) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.754902 0.772549 0.830392)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    },
+    "reducedTransition": [
+     "1e-05s",
+     "1e-05s",
+     "1e-05s"
+    ]
+   }
+  },
+  {
+   "label": "dark@390",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 343,
+     "h": 1179.546875,
+     "display": "flex",
+     "overflow": "visible",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.138157 0.179608 0.28251) 0%, color(srgb 0.109333 0.156078 0.251922) 55%, rgb(22, 35, 58) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.280392 0.319608 0.47451)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    }
+   }
+  },
+  {
+   "label": "dark@390 rm",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 343,
+     "h": 1179.546875,
+     "display": "flex",
+     "overflow": "visible",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.138157 0.179608 0.28251) 0%, color(srgb 0.109333 0.156078 0.251922) 55%, rgb(22, 35, 58) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.280392 0.319608 0.47451)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    },
+    "reducedTransition": [
+     "1e-05s",
+     "1e-05s",
+     "1e-05s"
+    ]
+   }
+  },
+  {
+   "label": "dark@768",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 713,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.138157 0.179608 0.28251) 0%, color(srgb 0.109333 0.156078 0.251922) 55%, rgb(22, 35, 58) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.280392 0.319608 0.47451)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    }
+   }
+  },
+  {
+   "label": "dark@768 rm",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 713,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.138157 0.179608 0.28251) 0%, color(srgb 0.109333 0.156078 0.251922) 55%, rgb(22, 35, 58) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.280392 0.319608 0.47451)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    },
+    "reducedTransition": [
+     "1e-05s",
+     "1e-05s",
+     "1e-05s"
+    ]
+   }
+  },
+  {
+   "label": "dark@1440",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 1385,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.138157 0.179608 0.28251) 0%, color(srgb 0.109333 0.156078 0.251922) 55%, rgb(22, 35, 58) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.280392 0.319608 0.47451)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    }
+   }
+  },
+  {
+   "label": "dark@1440 rm",
+   "findings": [],
+   "facts": {
+    "counts": {
+     "columns": 4,
+     "stops": 10,
+     "rows": 10,
+     "zones": 4,
+     "kickers": 10,
+     "metas": 10,
+     "fit": 1,
+     "pulse": 1
+    },
+    "board": {
+     "w": 1385,
+     "h": 708,
+     "display": "flex",
+     "overflow": "hidden",
+     "radius": "24px"
+    },
+    "fitFocus": {
+     "focused": true,
+     "visible": "visible"
+    },
+    "scroll": {
+     "overflowY": "auto",
+     "scrollable": false
+    },
+    "stopPaint": {
+     "first": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "img": "linear-gradient(to right, color(srgb 0.138157 0.179608 0.28251) 0%, color(srgb 0.109333 0.156078 0.251922) 55%, rgb(22, 35, 58) 100%)",
+      "radius": "18px",
+      "border": "color(srgb 0.280392 0.319608 0.47451)"
+     },
+     "distinctTints": 3,
+     "count": 10
+    },
+    "reducedTransition": [
+     "1e-05s",
+     "1e-05s",
+     "1e-05s"
+    ]
+   }
+  }
+ ],
+ "cases": [
+  {
+   "label": "light@390",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "light@390 rm",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "light@768",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "light@768 rm",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "light@1440",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "light@1440 rm",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "dark@390",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "dark@390 rm",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "dark@768",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "dark@768 rm",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "dark@1440",
+   "elements": 622,
+   "compared": 48516
+  },
+  {
+   "label": "dark@1440 rm",
+   "elements": 622,
+   "compared": 48516
+  }
+ ],
+ "diffs": [],
+ "totals": {
+  "behaviourChecks": 12,
+  "totalElements": 7464,
+  "totalCompared": 582192,
+  "diffs": 0
+ }
+}

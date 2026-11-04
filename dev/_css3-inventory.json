@@ -1,0 +1,1887 @@
+{
+  "fingerprint": "6ccb7bcd42b3fd650e24209e3db46ed2908269c564562e1eb0182f8491cd3226",
+  "files": 20,
+  "records": 5394,
+  "rules": 5058,
+  "atrules": 254,
+  "assets": 10,
+  "perFile": [
+    {
+      "file": "legacy/01-foundations.css",
+      "rules": 126,
+      "decls": 583,
+      "important": 0,
+      "media": 5,
+      "ids": 0
+    },
+    {
+      "file": "legacy/02-select-and-print.css",
+      "rules": 733,
+      "decls": 2708,
+      "important": 8,
+      "media": 55,
+      "ids": 1
+    },
+    {
+      "file": "legacy/03-maplibre.css",
+      "rules": 44,
+      "decls": 216,
+      "important": 0,
+      "media": 3,
+      "ids": 0
+    },
+    {
+      "file": "legacy/04-mobile-usability.css",
+      "rules": 812,
+      "decls": 2360,
+      "important": 14,
+      "media": 290,
+      "ids": 0
+    },
+    {
+      "file": "components/select.css",
+      "rules": 24,
+      "decls": 87,
+      "important": 0,
+      "media": 2,
+      "ids": 0
+    },
+    {
+      "file": "legacy/05-share-and-trip-ticket.css",
+      "rules": 228,
+      "decls": 736,
+      "important": 0,
+      "media": 31,
+      "ids": 0
+    },
+    {
+      "file": "legacy/06-shell-and-consistency.css",
+      "rules": 177,
+      "decls": 650,
+      "important": 0,
+      "media": 35,
+      "ids": 0
+    },
+    {
+      "file": "legacy/07-workspace-and-unlock.css",
+      "rules": 176,
+      "decls": 530,
+      "important": 0,
+      "media": 23,
+      "ids": 0
+    },
+    {
+      "file": "legacy/08-map-review.css",
+      "rules": 566,
+      "decls": 1966,
+      "important": 0,
+      "media": 60,
+      "ids": 0
+    },
+    {
+      "file": "legacy/09-trips-list.css",
+      "rules": 140,
+      "decls": 450,
+      "important": 0,
+      "media": 53,
+      "ids": 0
+    },
+    {
+      "file": "components/search-field.css",
+      "rules": 12,
+      "decls": 48,
+      "important": 0,
+      "media": 2,
+      "ids": 0
+    },
+    {
+      "file": "legacy/10-explore.css",
+      "rules": 259,
+      "decls": 935,
+      "important": 0,
+      "media": 76,
+      "ids": 0
+    },
+    {
+      "file": "legacy/11-shared-page.css",
+      "rules": 352,
+      "decls": 1192,
+      "important": 0,
+      "media": 92,
+      "ids": 0
+    },
+    {
+      "file": "legacy/12-pages.css",
+      "rules": 243,
+      "decls": 457,
+      "important": 0,
+      "media": 16,
+      "ids": 0
+    },
+    {
+      "file": "legacy/13-phone-polish-and-guided-create.css",
+      "rules": 490,
+      "decls": 1510,
+      "important": 4,
+      "media": 128,
+      "ids": 1
+    },
+    {
+      "file": "legacy/14-art-and-workspace-header.css",
+      "rules": 75,
+      "decls": 272,
+      "important": 0,
+      "media": 15,
+      "ids": 0
+    },
+    {
+      "file": "legacy/15-overview.css",
+      "rules": 265,
+      "decls": 1164,
+      "important": 0,
+      "media": 40,
+      "ids": 0
+    },
+    {
+      "file": "legacy/16-motion-and-cover-v2.css",
+      "rules": 235,
+      "decls": 713,
+      "important": 5,
+      "media": 50,
+      "ids": 0
+    },
+    {
+      "file": "legacy/17-overview-tiles-and-cover.css",
+      "rules": 101,
+      "decls": 329,
+      "important": 0,
+      "media": 12,
+      "ids": 0
+    }
+  ],
+  "crossFileCount": 101,
+  "crossFileTop": [
+    {
+      "sel": "from",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css",
+        "src/styles/legacy/06-shell-and-consistency.css",
+        "src/styles/legacy/07-workspace-and-unlock.css",
+        "src/styles/legacy/08-map-review.css",
+        "src/styles/legacy/10-explore.css",
+        "src/styles/legacy/11-shared-page.css",
+        "src/styles/legacy/13-phone-polish-and-guided-create.css",
+        "src/styles/legacy/15-overview.css",
+        "src/styles/legacy/16-motion-and-cover-v2.css"
+      ],
+      "n": 11
+    },
+    {
+      "sel": "to",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css",
+        "src/styles/legacy/07-workspace-and-unlock.css",
+        "src/styles/legacy/08-map-review.css",
+        "src/styles/legacy/10-explore.css",
+        "src/styles/legacy/11-shared-page.css",
+        "src/styles/legacy/13-phone-polish-and-guided-create.css"
+      ],
+      "n": 8
+    },
+    {
+      "sel": ":root",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/06-shell-and-consistency.css",
+        "src/styles/legacy/08-map-review.css",
+        "src/styles/legacy/11-shared-page.css",
+        "src/styles/legacy/13-phone-polish-and-guided-create.css",
+        "src/styles/legacy/15-overview.css"
+      ],
+      "n": 7
+    },
+    {
+      "sel": "50%",
+      "files": [
+        "src/styles/legacy/03-maplibre.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css",
+        "src/styles/legacy/09-trips-list.css"
+      ],
+      "n": 4
+    },
+    {
+      "sel": ".itin-card",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css"
+      ],
+      "n": 3
+    },
+    {
+      "sel": ".trip-head-card",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/13-phone-polish-and-guided-create.css"
+      ],
+      "n": 3
+    },
+    {
+      "sel": ".trip-head-card h1",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/13-phone-polish-and-guided-create.css"
+      ],
+      "n": 3
+    },
+    {
+      "sel": "0%",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/10-explore.css"
+      ],
+      "n": 3
+    },
+    {
+      "sel": "0%, 100%",
+      "files": [
+        "src/styles/legacy/03-maplibre.css",
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css"
+      ],
+      "n": 3
+    },
+    {
+      "sel": "100%",
+      "files": [
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/10-explore.css",
+        "src/styles/legacy/11-shared-page.css"
+      ],
+      "n": 3
+    },
+    {
+      "sel": ".bench-stamp",
+      "files": [
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/06-shell-and-consistency.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".bill-printer",
+      "files": [
+        "src/styles/legacy/05-share-and-trip-ticket.css",
+        "src/styles/legacy/06-shell-and-consistency.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-col",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-col-head",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-col-stops",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-col-zone",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-cols",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-head",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-info",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-map",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-map .map-frame",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-pulse",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-stop",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".board-topbar",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".brand",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".brand svg",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".btn",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".budget-hero-num",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".chip-btn",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".container",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".crew-btn",
+      "files": [
+        "src/styles/legacy/05-share-and-trip-ticket.css",
+        "src/styles/legacy/06-shell-and-consistency.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".ct-grid",
+      "files": [
+        "src/styles/legacy/05-share-and-trip-ticket.css",
+        "src/styles/legacy/06-shell-and-consistency.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".cta-band",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".day-badge",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".day-rail-chip",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".day-section",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".day-spark",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".explore-grid",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".feature-bento > .feature-card:first-child",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".form-row",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".handoff",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".hero",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".hero-blob-a, .hero-blob-b, .bench-blob-a, .bench-blob-b",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".hero-split",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".icon-btn",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".input, .textarea",
+      "files": [
+        "src/styles/legacy/01-foundations.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".itin-card:hover",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/05-share-and-trip-ticket.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".loc-dropdown",
+      "files": [
+        "src/styles/legacy/03-maplibre.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".loc-option",
+      "files": [
+        "src/styles/legacy/03-maplibre.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-day-chip",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-day-filter",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-frame",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-ideas-grid",
+      "files": [
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/08-map-review.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-ideas-grid .poi-col",
+      "files": [
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/06-shell-and-consistency.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-ideas-grid.is-needs-folded > .poi-col--needs > .poi-col-head, .map-ideas-grid.is-see-folded > .poi-col--see > .poi-col-head",
+      "files": [
+        "src/styles/legacy/06-shell-and-consistency.css",
+        "src/styles/legacy/08-map-review.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-ideas-map",
+      "files": [
+        "src/styles/legacy/04-mobile-usability.css",
+        "src/styles/legacy/06-shell-and-consistency.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-legend",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-legend-toggle",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    },
+    {
+      "sel": ".map-shell--expanded",
+      "files": [
+        "src/styles/legacy/02-select-and-print.css",
+        "src/styles/legacy/04-mobile-usability.css"
+      ],
+      "n": 2
+    }
+  ],
+  "familyCount": 240,
+  "families": [
+    {
+      "token": "return",
+      "rules": 4,
+      "files": 1,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 321,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx"
+      ]
+    },
+    {
+      "token": "is",
+      "rules": 6,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/15-overview.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 294,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx"
+      ]
+    },
+    {
+      "token": "map",
+      "rules": 111,
+      "files": 6,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/07-workspace-and-unlock.css",
+        "legacy/08-map-review.css",
+        "legacy/16-motion-and-cover-v2.css"
+      ],
+      "classes": 28,
+      "important": 0,
+      "consumers": 192,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CreateFlowCalendar.tsx",
+        "components/CreateFlowShell.tsx"
+      ]
+    },
+    {
+      "token": "trip",
+      "rules": 147,
+      "files": 6,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/11-shared-page.css",
+        "legacy/13-phone-polish-and-guided-create.css"
+      ],
+      "classes": 51,
+      "important": 0,
+      "consumers": 189,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx"
+      ]
+    },
+    {
+      "token": "two",
+      "rules": 4,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 163,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/DateRangeCalendar.tsx",
+        "components/explore/PlacesPanel.tsx"
+      ]
+    },
+    {
+      "token": "day",
+      "rules": 128,
+      "files": 6,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/07-workspace-and-unlock.css",
+        "legacy/08-map-review.css",
+        "legacy/11-shared-page.css"
+      ],
+      "classes": 61,
+      "important": 0,
+      "consumers": 147,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/CreateFlowCalendar.tsx",
+        "components/DateRangeCalendar.tsx",
+        "components/DetourWhisk.tsx"
+      ]
+    },
+    {
+      "token": "label",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/01-foundations.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 136,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/DateRangeCalendar.tsx"
+      ]
+    },
+    {
+      "token": "row",
+      "rules": 9,
+      "files": 3,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 134,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/explore/CreatorsPanel.tsx"
+      ]
+    },
+    {
+      "token": "filter",
+      "rules": 3,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 132,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/explore/ExploreFilterBar.tsx",
+        "components/explore/ExploreHero.tsx",
+        "components/explore/FeaturedCard.tsx",
+        "components/icons.tsx"
+      ]
+    },
+    {
+      "token": "stop",
+      "rules": 42,
+      "files": 3,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 9,
+      "important": 0,
+      "consumers": 131,
+      "consumerList": [
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/explore/ExploreCover.tsx",
+        "components/explore/RouteTrail.tsx",
+        "components/icons.tsx"
+      ]
+    },
+    {
+      "token": "page",
+      "rules": 19,
+      "files": 3,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/11-shared-page.css",
+        "legacy/16-motion-and-cover-v2.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 131,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/DobPicker.tsx"
+      ]
+    },
+    {
+      "token": "plan",
+      "rules": 19,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 124,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx",
+        "components/CoverThumb.tsx",
+        "components/explore/CreatorsPanel.tsx"
+      ]
+    },
+    {
+      "token": "user",
+      "rules": 6,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 120,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverMedia.tsx",
+        "components/CreateFlowShell.tsx"
+      ]
+    },
+    {
+      "token": "set",
+      "rules": 10,
+      "files": 1,
+      "fileList": [
+        "legacy/12-pages.css"
+      ],
+      "classes": 10,
+      "important": 0,
+      "consumers": 116,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/explore/ExploreHero.tsx",
+        "components/icons.tsx",
+        "components/LocationInput.tsx"
+      ]
+    },
+    {
+      "token": "route",
+      "rules": 30,
+      "files": 6,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/08-map-review.css"
+      ],
+      "classes": 16,
+      "important": 0,
+      "consumers": 111,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/DetourWhisk.tsx",
+        "components/explore/ExploreCover.tsx"
+      ]
+    },
+    {
+      "token": "empty",
+      "rules": 8,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/09-trips-list.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 111,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/explore/ExploreStateBlock.tsx",
+        "components/explore/TrendingShelf.tsx"
+      ]
+    },
+    {
+      "token": "card",
+      "rules": 7,
+      "files": 3,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/02-select-and-print.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 108,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverThumb.tsx",
+        "components/DetourWhisk.tsx",
+        "components/explore/ExploreCard.tsx"
+      ]
+    },
+    {
+      "token": "tab",
+      "rules": 9,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 5,
+      "important": 0,
+      "consumers": 99,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/explore/SharePanel.tsx",
+        "components/ImportTripButton.tsx"
+      ]
+    },
+    {
+      "token": "time",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 97,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/DateRangeCalendar.tsx"
+      ]
+    },
+    {
+      "token": "ts",
+      "rules": 82,
+      "files": 4,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/08-map-review.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 19,
+      "important": 0,
+      "consumers": 95,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/explore/TrendingShelf.tsx",
+        "components/icons.tsx",
+        "components/ImportTripButton.tsx"
+      ]
+    },
+    {
+      "token": "engine",
+      "rules": 8,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 5,
+      "important": 0,
+      "consumers": 95,
+      "consumerList": [
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/ImpactPreview.tsx",
+        "components/PlanBench.tsx",
+        "components/PrintExport.tsx"
+      ]
+    },
+    {
+      "token": "t",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 95,
+      "consumerList": [
+        "App.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/DateRangeCalendar.tsx",
+        "components/mapcn/map.tsx",
+        "components/PillNav.tsx",
+        "components/ResolvePickDialog.tsx"
+      ]
+    },
+    {
+      "token": "input",
+      "rules": 7,
+      "files": 2,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 93,
+      "consumerList": [
+        "components/AiDrawer.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx",
+        "components/DateRangeCalendar.tsx",
+        "components/DobPicker.tsx",
+        "components/explore/PlacesPanel.tsx"
+      ]
+    },
+    {
+      "token": "share",
+      "rules": 22,
+      "files": 4,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/08-map-review.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 11,
+      "important": 0,
+      "consumers": 86,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/DetourWhisk.tsx",
+        "components/explore/ExploreCover.tsx",
+        "components/explore/SharePanel.tsx"
+      ]
+    },
+    {
+      "token": "app",
+      "rules": 32,
+      "files": 5,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/02-select-and-print.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/12-pages.css",
+        "legacy/17-overview-tiles-and-cover.css"
+      ],
+      "classes": 20,
+      "important": 0,
+      "consumers": 85,
+      "consumerList": [
+        "App.tsx",
+        "components/BottomNav.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/mapcn/map.tsx",
+        "components/page/Surface.tsx",
+        "components/PlanBench.tsx"
+      ]
+    },
+    {
+      "token": "text",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 85,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/explore/FeaturedCard.tsx",
+        "components/filters/SearchField.tsx",
+        "components/icons.tsx"
+      ]
+    },
+    {
+      "token": "shape",
+      "rules": 10,
+      "files": 1,
+      "fileList": [
+        "legacy/07-workspace-and-unlock.css"
+      ],
+      "classes": 10,
+      "important": 0,
+      "consumers": 84,
+      "consumerList": [
+        "components/BoardView.tsx",
+        "components/DobPicker.tsx",
+        "components/explore/TrendingShelf.tsx",
+        "components/PillNav.tsx",
+        "components/storefront/KindChip.tsx",
+        "components/TrendChart.tsx"
+      ]
+    },
+    {
+      "token": "mode",
+      "rules": 19,
+      "files": 4,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/13-phone-polish-and-guided-create.css"
+      ],
+      "classes": 4,
+      "important": 0,
+      "consumers": 82,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/icons.tsx",
+        "components/mapcn/map.tsx"
+      ]
+    },
+    {
+      "token": "style",
+      "rules": 5,
+      "files": 1,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 76,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverMedia.tsx",
+        "components/ErrorBoundary.tsx"
+      ]
+    },
+    {
+      "token": "trips",
+      "rules": 58,
+      "files": 3,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/11-shared-page.css",
+        "legacy/16-motion-and-cover-v2.css"
+      ],
+      "classes": 4,
+      "important": 0,
+      "consumers": 75,
+      "consumerList": [
+        "App.tsx",
+        "components/BottomNav.tsx",
+        "components/explore/ExploreFacts.tsx",
+        "components/explore/ExploreHero.tsx",
+        "components/explore/PlacesPanel.tsx",
+        "components/explore/SharePanel.tsx"
+      ]
+    },
+    {
+      "token": "form",
+      "rules": 4,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/05-share-and-trip-ticket.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 72,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/ImportTripButton.tsx"
+      ]
+    },
+    {
+      "token": "step",
+      "rules": 8,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 71,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/ImportTripButton.tsx"
+      ]
+    },
+    {
+      "token": "role",
+      "rules": 3,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 69,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowCalendar.tsx"
+      ]
+    },
+    {
+      "token": "budget",
+      "rules": 26,
+      "files": 5,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/08-map-review.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 12,
+      "important": 0,
+      "consumers": 63,
+      "consumerList": [
+        "components/BoardView.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/DetourWhisk.tsx",
+        "components/explore/ExploreFilterBar.tsx",
+        "components/PlanBench.tsx",
+        "components/TripMap.tsx"
+      ]
+    },
+    {
+      "token": "small",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 62,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/ImpactPreview.tsx",
+        "components/LocationInput.tsx",
+        "components/mapcn/map.tsx",
+        "components/page/PageHeader.tsx"
+      ]
+    },
+    {
+      "token": "move",
+      "rules": 7,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 58,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/LocationInput.tsx",
+        "components/mapcn/map.tsx",
+        "components/PlanBench.tsx"
+      ]
+    },
+    {
+      "token": "travel",
+      "rules": 18,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 15,
+      "important": 0,
+      "consumers": 56,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/icons.tsx",
+        "components/PlanBench.tsx"
+      ]
+    },
+    {
+      "token": "field",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/01-foundations.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 55,
+      "consumerList": [
+        "App.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/DobPicker.tsx",
+        "components/explore/ExploreFilterBar.tsx",
+        "components/explore/ExploreHero.tsx"
+      ]
+    },
+    {
+      "token": "btn",
+      "rules": 33,
+      "files": 4,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/12-pages.css",
+        "legacy/15-overview.css"
+      ],
+      "classes": 11,
+      "important": 0,
+      "consumers": 54,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CreateFlowShell.tsx",
+        "components/ErrorBoundary.tsx"
+      ]
+    },
+    {
+      "token": "crew",
+      "rules": 22,
+      "files": 3,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/08-map-review.css"
+      ],
+      "classes": 13,
+      "important": 0,
+      "consumers": 54,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/PlanBench.tsx",
+        "components/RemoteEditBanner.tsx",
+        "components/useStopConflict.ts",
+        "data/types.ts"
+      ]
+    },
+    {
+      "token": "flight",
+      "rules": 13,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 13,
+      "important": 0,
+      "consumers": 53,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/icons.tsx",
+        "components/ImportTripButton.tsx",
+        "components/LocationInput.tsx"
+      ]
+    },
+    {
+      "token": "profile",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 53,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/explore/ExploreCard.tsx",
+        "components/explore/FeaturedCard.tsx",
+        "components/explore/TrendingShelf.tsx"
+      ]
+    },
+    {
+      "token": "icon",
+      "rules": 7,
+      "files": 3,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 52,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/BoardView.tsx",
+        "components/BottomNav.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/ErrorBoundary.tsx"
+      ]
+    },
+    {
+      "token": "toast",
+      "rules": 9,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 50,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/ImportTripButton.tsx",
+        "components/PlanBench.tsx",
+        "components/PrintExport.tsx",
+        "components/ui.tsx"
+      ]
+    },
+    {
+      "token": "view",
+      "rules": 7,
+      "files": 1,
+      "fileList": [
+        "legacy/11-shared-page.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 50,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CreateFlowCalendar.tsx",
+        "components/DateRangeCalendar.tsx",
+        "components/explore/TrendingShelf.tsx",
+        "components/mapcn/map.tsx"
+      ]
+    },
+    {
+      "token": "link",
+      "rules": 6,
+      "files": 2,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/12-pages.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 50,
+      "consumerList": [
+        "App.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/explore/ExploreCard.tsx",
+        "components/explore/TrendingShelf.tsx",
+        "components/page/PageHeader.tsx",
+        "components/page/Surface.tsx"
+      ]
+    },
+    {
+      "token": "group",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 50,
+      "consumerList": [
+        "components/BoardView.tsx",
+        "components/CreateFlowCalendar.tsx",
+        "components/DobPicker.tsx",
+        "components/explore/ExploreFilterBar.tsx",
+        "components/page/FilterBar.tsx",
+        "components/page/SegmentedTabs.tsx"
+      ]
+    },
+    {
+      "token": "creator",
+      "rules": 20,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 9,
+      "important": 0,
+      "consumers": 46,
+      "consumerList": [
+        "App.tsx",
+        "components/BottomNav.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/explore/CreatorsPanel.tsx",
+        "components/explore/ExploreCard.tsx",
+        "components/explore/ExploreFilterBar.tsx"
+      ]
+    },
+    {
+      "token": "chip",
+      "rules": 14,
+      "files": 3,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css",
+        "legacy/08-map-review.css"
+      ],
+      "classes": 11,
+      "important": 0,
+      "consumers": 46,
+      "consumerList": [
+        "App.tsx",
+        "components/AiDrawer.tsx",
+        "components/filters/FilterChip.tsx",
+        "components/ImpactPreview.tsx",
+        "components/page/FilterBar.tsx",
+        "components/PlanBench.tsx"
+      ]
+    },
+    {
+      "token": "cover",
+      "rules": 7,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/17-overview-tiles-and-cover.css"
+      ],
+      "classes": 6,
+      "important": 0,
+      "consumers": 46,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/CoverImagePicker.tsx",
+        "components/CoverMedia.tsx",
+        "components/CoverThumb.tsx",
+        "components/explore/ExploreCover.tsx"
+      ]
+    },
+    {
+      "token": "leg",
+      "rules": 4,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 46,
+      "consumerList": [
+        "components/BoardView.tsx",
+        "components/icons.tsx",
+        "components/PlanBench.tsx",
+        "components/PrintExport.tsx",
+        "components/StopEditor.tsx",
+        "components/TripMap.tsx"
+      ]
+    },
+    {
+      "token": "fuel",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/05-share-and-trip-ticket.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 46,
+      "consumerList": [
+        "components/CreateFlowTicket.tsx",
+        "components/icons.tsx",
+        "components/PlanBench.tsx",
+        "components/StopEditor.tsx",
+        "components/TripMap.tsx",
+        "data/seed.ts"
+      ]
+    },
+    {
+      "token": "suggestion",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 45,
+      "consumerList": [
+        "components/icons.tsx",
+        "components/LocationInput.tsx",
+        "components/StopEditor.tsx",
+        "components/TripMap.tsx",
+        "data/seed.ts",
+        "data/types.ts"
+      ]
+    },
+    {
+      "token": "native",
+      "rules": 13,
+      "files": 3,
+      "fileList": [
+        "legacy/01-foundations.css",
+        "legacy/06-shell-and-consistency.css",
+        "legacy/13-phone-polish-and-guided-create.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 41,
+      "consumerList": [
+        "App.tsx",
+        "components/BottomNav.tsx",
+        "components/mapcn/map.tsx",
+        "components/PlanBench.tsx",
+        "components/PubCard.tsx",
+        "components/Select.tsx"
+      ]
+    },
+    {
+      "token": "halt",
+      "rules": 3,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 3,
+      "important": 0,
+      "consumers": 41,
+      "consumerList": [
+        "components/Select.tsx",
+        "components/TripMap.tsx",
+        "components/ui.tsx",
+        "data/types.ts",
+        "hooks/useSuggestionCache.ts",
+        "lib/ai.ts"
+      ]
+    },
+    {
+      "token": "decision",
+      "rules": 2,
+      "files": 2,
+      "fileList": [
+        "legacy/02-select-and-print.css",
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 41,
+      "consumerList": [
+        "components/BoardView.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/TripMap.tsx",
+        "components/UpdateNotice.tsx",
+        "components/useStopConflict.ts",
+        "data/seed.ts"
+      ]
+    },
+    {
+      "token": "who",
+      "rules": 4,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 39,
+      "consumerList": [
+        "App.tsx",
+        "components/CreateFlowTicket.tsx",
+        "components/RemoteEditBanner.tsx",
+        "data/types.ts",
+        "lib/avatarTone.ts",
+        "lib/createDraft.ts"
+      ]
+    },
+    {
+      "token": "save",
+      "rules": 8,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 2,
+      "important": 0,
+      "consumers": 38,
+      "consumerList": [
+        "App.tsx",
+        "components/BoardView.tsx",
+        "components/explore/ExploreCard.tsx",
+        "components/explore/ExploreSaveHeart.tsx",
+        "components/explore/TrendingShelf.tsx",
+        "components/ImportTripButton.tsx"
+      ]
+    },
+    {
+      "token": "loading",
+      "rules": 1,
+      "files": 1,
+      "fileList": [
+        "legacy/02-select-and-print.css"
+      ],
+      "classes": 1,
+      "important": 0,
+      "consumers": 38,
+      "consumerList": [
+        "App.tsx",
+        "components/CoverMedia.tsx",
+        "components/ErrorBoundary.tsx",
+        "components/explore/ExploreHero.tsx",
+        "components/explore/ExploreStateBlock.tsx",
+        "components/explore/PlacesPanel.tsx"
+      ]
+    },
+    {
+      "token": "ride",
+      "rules": 14,
+      "files": 1,
+      "fileList": [
+        "legacy/04-mobile-usability.css"
+      ],
+      "classes": 13,
+      "important": 0,
+      "consumers": 36,
+      "consumerList": [
+        "App.tsx",
+        "components/BottomNav.tsx",
+        "components/ImportTripButton.tsx",
+        "components/TripMap.tsx",
+        "data/types.ts",
+        "hooks/useSuggestionCache.ts"
+      ]
+    }
+  ]
+}

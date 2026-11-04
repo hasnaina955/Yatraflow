@@ -1,0 +1,16 @@
+Project: hqlqbfpzjmailxydjojw.supabase.co
+
+[1] get_public_profile_cards as anon  -> expect 200 with rows
+    status 200, 41 profile card(s)
+    sample: name=Shabtab creator_available=True
+    payload carries only the reviewed public fields
+
+[2] direct profiles read as anon  -> expect [] / 401 / 403
+    status 401  body: {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.profiles TO anon;","message":"permission denied for table profiles"}
+    closed - no private row reachable by anon
+
+[3] profile_cards visible to anon  -> expect a non-zero count
+    status 206
+    Content-Range: 0-0/41
+
+SQL checks: Supabase Dashboard -> SQL Editor -> paste and Run.

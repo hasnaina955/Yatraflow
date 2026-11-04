@@ -1,0 +1,1062 @@
+{
+ "utc": "2026-10-30T06:48:55.857Z",
+ "before": "dev/_css3-b10-cp2.css",
+ "after": "dev/_css3-b10-cp2.css",
+ "seeded": true,
+ "behaviour": [
+  {
+   "label": "light@390",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgba(13, 141, 130, 0.92) 0px 0px 0px 2.76303px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "start",
+    "scrollable": true,
+    "overflowAfter": "end"
+   }
+  },
+  {
+   "label": "light@390 rm",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgb(13, 141, 130) 0px 0px 0px 3px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "start",
+    "scrollable": true,
+    "overflowAfter": "end",
+    "reducedTransition": {
+     "glider": "1e-05s",
+     "ink": "1e-05s"
+    }
+   }
+  },
+  {
+   "label": "light@768",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgba(13, 141, 130, 0.92) 0px 0px 0px 2.76217px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "none",
+    "scrollable": false
+   }
+  },
+  {
+   "label": "light@768 rm",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgb(13, 141, 130) 0px 0px 0px 3px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "none",
+    "scrollable": false,
+    "reducedTransition": {
+     "glider": "1e-05s",
+     "ink": "1e-05s"
+    }
+   }
+  },
+  {
+   "label": "light@1440",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgba(13, 141, 130, 0.92) 0px 0px 0px 2.76131px",
+     "outline": "none 3px",
+     "focusVisible": true
+    }
+   }
+  },
+  {
+   "label": "light@1440 rm",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgb(13, 141, 130) 0px 0px 0px 3px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "reducedTransition": {
+     "glider": "1e-05s",
+     "ink": "1e-05s"
+    }
+   }
+  },
+  {
+   "label": "dark@390",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgba(63, 184, 172, 0.92) 0px 0px 0px 2.76131px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "start",
+    "scrollable": true,
+    "overflowAfter": "end"
+   }
+  },
+  {
+   "label": "dark@390 rm",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "97.1875px",
+     "top": "6px",
+     "width": "106.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgb(63, 184, 172) 0px 0px 0px 3px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "start",
+    "scrollable": true,
+    "overflowAfter": "end",
+    "reducedTransition": {
+     "glider": "1e-05s",
+     "ink": "1e-05s"
+    }
+   }
+  },
+  {
+   "label": "dark@768",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgba(63, 184, 172, 0.898) 0px 0px 0px 2.69406px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "none",
+    "scrollable": false
+   }
+  },
+  {
+   "label": "dark@768 rm",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgb(63, 184, 172) 0px 0px 0px 3px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "overflowBefore": "none",
+    "scrollable": false,
+    "reducedTransition": {
+     "glider": "1e-05s",
+     "ink": "1e-05s"
+    }
+   }
+  },
+  {
+   "label": "dark@1440",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgba(63, 184, 172, 0.92) 0px 0px 0px 2.76217px",
+     "outline": "none 3px",
+     "focusVisible": true
+    }
+   }
+  },
+  {
+   "label": "dark@1440 rm",
+   "findings": [],
+   "facts": {
+    "restedKey": "timeline",
+    "restedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "glider": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "ink": {
+     "left": "101.188px",
+     "top": "6px",
+     "width": "110.719px",
+     "height": "44px",
+     "opacity": "1"
+    },
+    "movedKey": "board",
+    "movedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "interruptedKey": "group",
+    "interruptedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "reversedKey": "timeline",
+    "reversedDelta": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "keyboardReached": 7,
+    "ring": {
+     "boxShadow": "rgb(63, 184, 172) 0px 0px 0px 3px",
+     "outline": "none 3px",
+     "focusVisible": true
+    },
+    "reducedTransition": {
+     "glider": "1e-05s",
+     "ink": "1e-05s"
+    }
+   }
+  }
+ ],
+ "cases": [
+  {
+   "label": "light@390",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "light@390 rm",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "light@768",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "light@768 rm",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "light@1440",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "light@1440 rm",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "dark@390",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "dark@390 rm",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "dark@768",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "dark@768 rm",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "dark@1440",
+   "elements": 40,
+   "compared": 2240
+  },
+  {
+   "label": "dark@1440 rm",
+   "elements": 40,
+   "compared": 2240
+  }
+ ],
+ "diffs": [
+  "light@390 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "light@390 pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@390 pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@390 pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@390 pill-glider|1 (span.pill-glider) :: right: 112.984px -> 103.984px",
+  "light@390 pill-glider|1 (span.pill-glider) :: left: 91.5469px -> 100.547px",
+  "light@390 pill-ink|2 (span.pill-ink) :: right: 112.984px -> 103.984px",
+  "light@390 pill-ink|2 (span.pill-ink) :: left: 91.5469px -> 100.547px",
+  "light@390 pill-ink-row|3 (span.pill-ink-row) :: right: -382.844px -> -427.844px",
+  "light@390 pill-ink-row|3 (span.pill-ink-row) :: left: -85.5469px -> -94.5469px",
+  "light@390 pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "light@390 pill-ink-row|3 (span.pill-ink-row) :: width: 572.859px -> 626.859px",
+  "light@390 pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "light@390 pill-glider|25 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@390 pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@390 pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@390 pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@390 pill-glider|25 (span.pill-glider) :: right: 91.5781px -> 64.5781px",
+  "light@390 pill-glider|25 (span.pill-glider) :: left: 178.203px -> 205.203px",
+  "light@390 pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "light@390 pill-glider|35 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@390 pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@390 pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@390 pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@390 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "light@390 rm pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@390 rm pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@390 rm pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@390 rm pill-glider|1 (span.pill-glider) :: right: 112.984px -> 103.984px",
+  "light@390 rm pill-glider|1 (span.pill-glider) :: left: 91.5469px -> 100.547px",
+  "light@390 rm pill-ink|2 (span.pill-ink) :: right: 112.984px -> 103.984px",
+  "light@390 rm pill-ink|2 (span.pill-ink) :: left: 91.5469px -> 100.547px",
+  "light@390 rm pill-ink-row|3 (span.pill-ink-row) :: right: -382.844px -> -427.844px",
+  "light@390 rm pill-ink-row|3 (span.pill-ink-row) :: left: -85.5469px -> -94.5469px",
+  "light@390 rm pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "light@390 rm pill-ink-row|3 (span.pill-ink-row) :: width: 572.859px -> 626.859px",
+  "light@390 rm pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "light@390 rm pill-glider|25 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@390 rm pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@390 rm pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@390 rm pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@390 rm pill-glider|25 (span.pill-glider) :: right: 91.5781px -> 64.5781px",
+  "light@390 rm pill-glider|25 (span.pill-glider) :: left: 178.203px -> 205.203px",
+  "light@390 rm pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "light@390 rm pill-glider|35 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@390 rm pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@390 rm pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@390 rm pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@768 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 84.1406px -> 30.1406px",
+  "light@768 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "light@768 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "light@768 pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@768 pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@768 pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@768 pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "light@768 pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "light@768 pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "light@768 pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "light@768 pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "light@768 pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "light@768 pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "light@768 pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "light@768 pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "light@768 pill-glider|25 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@768 pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@768 pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@768 pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@768 pill-glider|25 (span.pill-glider) :: right: 408.344px -> 381.344px",
+  "light@768 pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "light@768 pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "light@768 pill-glider|35 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@768 pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@768 pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@768 pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@768 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 84.1406px -> 30.1406px",
+  "light@768 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "light@768 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "light@768 rm pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@768 rm pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@768 rm pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@768 rm pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "light@768 rm pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "light@768 rm pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "light@768 rm pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "light@768 rm pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "light@768 rm pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "light@768 rm pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "light@768 rm pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "light@768 rm pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "light@768 rm pill-glider|25 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@768 rm pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@768 rm pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@768 rm pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@768 rm pill-glider|25 (span.pill-glider) :: right: 408.344px -> 381.344px",
+  "light@768 rm pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "light@768 rm pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "light@768 rm pill-glider|35 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@768 rm pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@768 rm pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@768 rm pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@1440 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 231.141px -> 177.141px",
+  "light@1440 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "light@1440 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "light@1440 pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@1440 pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@1440 pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@1440 pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "light@1440 pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "light@1440 pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "light@1440 pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "light@1440 pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "light@1440 pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "light@1440 pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "light@1440 pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "light@1440 pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "light@1440 pill-glider|25 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@1440 pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@1440 pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@1440 pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@1440 pill-glider|25 (span.pill-glider) :: right: 555.344px -> 528.344px",
+  "light@1440 pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "light@1440 pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "light@1440 pill-glider|35 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@1440 pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@1440 pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@1440 pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@1440 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 231.141px -> 177.141px",
+  "light@1440 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "light@1440 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "light@1440 rm pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "light@1440 rm pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "light@1440 rm pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "light@1440 rm pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "light@1440 rm pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "light@1440 rm pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "light@1440 rm pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "light@1440 rm pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "light@1440 rm pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "light@1440 rm pill-glider|25 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@1440 rm pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|25 (span.pill-glider) :: right: 555.344px -> 528.344px",
+  "light@1440 rm pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "light@1440 rm pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "light@1440 rm pill-glider|35 (span.pill-glider) :: background-color: rgb(221, 241, 238) -> rgb(9, 9, 9)",
+  "light@1440 rm pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "light@1440 rm pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@390 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "dark@390 pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@390 pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@390 pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@390 pill-glider|1 (span.pill-glider) :: right: 112.984px -> 103.984px",
+  "dark@390 pill-glider|1 (span.pill-glider) :: left: 91.5469px -> 100.547px",
+  "dark@390 pill-ink|2 (span.pill-ink) :: right: 112.984px -> 103.984px",
+  "dark@390 pill-ink|2 (span.pill-ink) :: left: 91.5469px -> 100.547px",
+  "dark@390 pill-ink-row|3 (span.pill-ink-row) :: right: -382.844px -> -427.844px",
+  "dark@390 pill-ink-row|3 (span.pill-ink-row) :: left: -85.5469px -> -94.5469px",
+  "dark@390 pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "dark@390 pill-ink-row|3 (span.pill-ink-row) :: width: 572.859px -> 626.859px",
+  "dark@390 pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "dark@390 pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@390 pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@390 pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@390 pill-glider|25 (span.pill-glider) :: right: 91.5781px -> 64.5781px",
+  "dark@390 pill-glider|25 (span.pill-glider) :: left: 178.203px -> 205.203px",
+  "dark@390 pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "dark@390 pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@390 pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@390 pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@390 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "dark@390 rm pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|1 (span.pill-glider) :: right: 112.984px -> 103.984px",
+  "dark@390 rm pill-glider|1 (span.pill-glider) :: left: 91.5469px -> 100.547px",
+  "dark@390 rm pill-ink|2 (span.pill-ink) :: right: 112.984px -> 103.984px",
+  "dark@390 rm pill-ink|2 (span.pill-ink) :: left: 91.5469px -> 100.547px",
+  "dark@390 rm pill-ink-row|3 (span.pill-ink-row) :: right: -382.844px -> -427.844px",
+  "dark@390 rm pill-ink-row|3 (span.pill-ink-row) :: left: -85.5469px -> -94.5469px",
+  "dark@390 rm pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "dark@390 rm pill-ink-row|3 (span.pill-ink-row) :: width: 572.859px -> 626.859px",
+  "dark@390 rm pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "dark@390 rm pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|25 (span.pill-glider) :: right: 91.5781px -> 64.5781px",
+  "dark@390 rm pill-glider|25 (span.pill-glider) :: left: 178.203px -> 205.203px",
+  "dark@390 rm pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "dark@390 rm pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@390 rm pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@768 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 84.1406px -> 30.1406px",
+  "dark@768 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "dark@768 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "dark@768 pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@768 pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@768 pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@768 pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "dark@768 pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "dark@768 pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "dark@768 pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "dark@768 pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "dark@768 pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "dark@768 pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "dark@768 pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "dark@768 pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "dark@768 pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@768 pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@768 pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@768 pill-glider|25 (span.pill-glider) :: right: 408.344px -> 381.344px",
+  "dark@768 pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "dark@768 pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "dark@768 pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@768 pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@768 pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@768 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 84.1406px -> 30.1406px",
+  "dark@768 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "dark@768 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "dark@768 rm pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "dark@768 rm pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "dark@768 rm pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "dark@768 rm pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "dark@768 rm pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "dark@768 rm pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "dark@768 rm pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "dark@768 rm pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "dark@768 rm pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "dark@768 rm pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|25 (span.pill-glider) :: right: 408.344px -> 381.344px",
+  "dark@768 rm pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "dark@768 rm pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "dark@768 rm pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@768 rm pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@1440 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 231.141px -> 177.141px",
+  "dark@1440 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "dark@1440 pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "dark@1440 pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@1440 pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@1440 pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@1440 pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "dark@1440 pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "dark@1440 pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "dark@1440 pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "dark@1440 pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "dark@1440 pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "dark@1440 pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "dark@1440 pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "dark@1440 pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "dark@1440 pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@1440 pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@1440 pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@1440 pill-glider|25 (span.pill-glider) :: right: 555.344px -> 528.344px",
+  "dark@1440 pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "dark@1440 pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "dark@1440 pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@1440 pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@1440 pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@1440 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: right: 231.141px -> 177.141px",
+  "dark@1440 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: gap: 2px -> 11px",
+  "dark@1440 rm pill-nav tabbar yf-tabbar|0 (div.pill-nav tabbar yf-tabbar) :: width: 614.859px -> 668.859px",
+  "dark@1440 rm pill-glider|1 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|1 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|1 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|1 (span.pill-glider) :: right: 408.844px -> 453.844px",
+  "dark@1440 rm pill-glider|1 (span.pill-glider) :: left: 95.5469px -> 104.547px",
+  "dark@1440 rm pill-ink|2 (span.pill-ink) :: right: 408.844px -> 453.844px",
+  "dark@1440 rm pill-ink|2 (span.pill-ink) :: left: 95.5469px -> 104.547px",
+  "dark@1440 rm pill-ink-row|3 (span.pill-ink-row) :: right: -402.844px -> -447.844px",
+  "dark@1440 rm pill-ink-row|3 (span.pill-ink-row) :: left: -89.5469px -> -98.5469px",
+  "dark@1440 rm pill-ink-row|3 (span.pill-ink-row) :: gap: 2px -> 11px",
+  "dark@1440 rm pill-ink-row|3 (span.pill-ink-row) :: width: 600.859px -> 654.859px",
+  "dark@1440 rm pill-nav |24 (div.pill-nav ) :: gap: 2px -> 11px",
+  "dark@1440 rm pill-glider|25 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|25 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|25 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|25 (span.pill-glider) :: right: 555.344px -> 528.344px",
+  "dark@1440 rm pill-glider|25 (span.pill-glider) :: left: 239.438px -> 266.438px",
+  "dark@1440 rm pill-nav|34 (div.pill-nav) :: gap: 2px -> 11px",
+  "dark@1440 rm pill-glider|35 (span.pill-glider) :: border-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|35 (span.pill-glider) :: border-top-left-radius: 999px -> 4px",
+  "dark@1440 rm pill-glider|35 (span.pill-glider) :: border-bottom-right-radius: 999px -> 4px"
+ ],
+ "totals": {
+  "behaviourChecks": 12,
+  "totalElements": 480,
+  "totalCompared": 26880,
+  "diffs": 292
+ }
+}

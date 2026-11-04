@@ -1,0 +1,82 @@
+[
+ {
+  "id": "button-focus-visible",
+  "risk": "focus ring visibility on a filled control",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 1075200,
+  "before": "dev\\_css3-paint-b4\\button-focus-visible-before.png",
+  "after": "dev\\_css3-paint-b4\\button-focus-visible-after.png"
+ },
+ {
+  "id": "button-phone-sm",
+  "risk": "scale and tap target at 390px",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 655200,
+  "before": "dev\\_css3-paint-b4\\button-phone-sm-before.png",
+  "after": "dev\\_css3-paint-b4\\button-phone-sm-after.png"
+ },
+ {
+  "id": "input-invalid-focus",
+  "risk": "invalid border plus focus ring stacking",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 1075200,
+  "before": "dev\\_css3-paint-b4\\input-invalid-focus-before.png",
+  "after": "dev\\_css3-paint-b4\\input-invalid-focus-after.png"
+ },
+ {
+  "id": "field-dark-disabled",
+  "risk": "disabled opacity and contrast in dark",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 1075200,
+  "before": "dev\\_css3-paint-b4\\field-dark-disabled-before.png",
+  "after": "dev\\_css3-paint-b4\\field-dark-disabled-after.png"
+ },
+ {
+  "id": "input-clipping-phone",
+  "risk": "text clipping and overflow inside a narrow field",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 537600,
+  "before": "dev\\_css3-paint-b4\\input-clipping-phone-before.png",
+  "after": "dev\\_css3-paint-b4\\input-clipping-phone-after.png"
+ },
+ {
+  "id": "card-shadow-border",
+  "risk": "shadow and hairline border on the static card",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 1075200,
+  "before": "dev\\_css3-paint-b4\\card-shadow-border-before.png",
+  "after": "dev\\_css3-paint-b4\\card-shadow-border-after.png"
+ },
+ {
+  "id": "card-route-snap-dark",
+  "risk": "route-snap gradient and transparent border in dark",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 1075200,
+  "before": "dev\\_css3-paint-b4\\card-route-snap-dark-before.png",
+  "after": "dev\\_css3-paint-b4\\card-route-snap-dark-after.png"
+ },
+ {
+  "id": "card-nested-overflow-phone",
+  "risk": "nested content and overflow at 390px",
+  "same": true,
+  "diff": 0,
+  "maxDelta": 0,
+  "pixels": 655200,
+  "before": "dev\\_css3-paint-b4\\card-nested-overflow-phone-before.png",
+  "after": "dev\\_css3-paint-b4\\card-nested-overflow-phone-after.png"
+ }
+]

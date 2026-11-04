@@ -1,0 +1,565 @@
+{
+ "utc": "2026-10-30T08:39:52.614Z",
+ "before": "dev/_css3-rm-fixed.css",
+ "after": "dev/_css3-rm-fixed.css",
+ "seeded": true,
+ "cases": [
+  {
+   "label": "light@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "light@390",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "light@390 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "light@768",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "light@768 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "light@1440",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "dark@390",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "dark@768",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "dark@1440",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  }
+ ],
+ "skipped": [
+  "light@390 board: no trip to open, so the Board never rendered",
+  "light@390 board: no trip to open, so the Board never rendered",
+  "light@390 rm board: no trip to open, so the Board never rendered",
+  "light@390 rm board: no trip to open, so the Board never rendered",
+  "light@768 board: no trip to open, so the Board never rendered",
+  "light@768 board: no trip to open, so the Board never rendered",
+  "light@768 rm board: no trip to open, so the Board never rendered",
+  "light@768 rm board: no trip to open, so the Board never rendered",
+  "light@1440 board: no trip to open, so the Board never rendered",
+  "light@1440 board: no trip to open, so the Board never rendered",
+  "light@1440 rm board: no trip to open, so the Board never rendered",
+  "light@1440 rm board: no trip to open, so the Board never rendered",
+  "dark@390 board: no trip to open, so the Board never rendered",
+  "dark@390 board: no trip to open, so the Board never rendered",
+  "dark@390 rm board: no trip to open, so the Board never rendered",
+  "dark@390 rm board: no trip to open, so the Board never rendered",
+  "dark@768 board: no trip to open, so the Board never rendered",
+  "dark@768 board: no trip to open, so the Board never rendered",
+  "dark@768 rm board: no trip to open, so the Board never rendered",
+  "dark@768 rm board: no trip to open, so the Board never rendered",
+  "dark@1440 board: no trip to open, so the Board never rendered",
+  "dark@1440 board: no trip to open, so the Board never rendered",
+  "dark@1440 rm board: no trip to open, so the Board never rendered",
+  "dark@1440 rm board: no trip to open, so the Board never rendered"
+ ],
+ "diffs": [
+  "light@390 rm landing-hero .hero[0]/0 (section.hero) :: padding-left: 0px -> 33px",
+  "light@390 rm landing-hero .hero[0]/0 (section.hero) :: height: 860.547px -> 852.359px",
+  "light@390 rm landing-hero .hero[0]/1 (span.hero-blob hero-blob-a) :: bottom: 590.547px -> 582.359px",
+  "light@390 rm landing-hero .hero[0]/2 (span.hero-blob hero-blob-b) :: top: 650.547px -> 642.359px",
+  "light@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-columns: 347px -> 314px",
+  "light@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-rows: 415.984px 380.562px -> 415.984px 372.375px",
+  "light@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: width: 375px -> 342px",
+  "light@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: height: 826.547px -> 818.359px",
+  "light@390 rm landing-hero .hero[0]/4 (div.hero-copy) :: width: 347px -> 314px",
+  "light@390 rm landing-hero .hero[0]/6 (h1.hero-rise rise-d1 hero-title) :: width: 347px -> 314px",
+  "light@390 rm landing-hero .hero[0]/8 (p.hero-sub hero-rise rise-d2) :: width: 347px -> 314px",
+  "light@390 rm landing-hero .hero[0]/9 (div.hero-ctas hero-rise rise-d3) :: width: 347px -> 314px",
+  "light@390 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: width: 347px -> 314px",
+  "light@390 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: height: 380.562px -> 372.375px",
+  "light@390 rm landing-hero .hero[0]/17 (div.ha-kicker) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: height: 301.516px -> 293.328px",
+  "light@390 rm landing-hero .hero[0]/19 (svg.rs-svg) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/19 (svg.rs-svg) :: height: 75.1719px -> 66.9844px",
+  "light@390 rm landing-hero .hero[0]/40 (div.rs-caption) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/41 (span.rs-caption-name) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/44 (span.rs-caption-meta) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/49 (div.ha-stats) :: grid-template-columns: 95.6562px 95.6719px 95.6562px -> 84.6562px 84.6719px 84.6562px",
+  "light@390 rm landing-hero .hero[0]/49 (div.ha-stats) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/50 (div.rs-stat) :: width: 95.6562px -> 84.6562px",
+  "light@390 rm landing-hero .hero[0]/51 (b.) :: width: 73.6562px -> 62.6562px",
+  "light@390 rm landing-hero .hero[0]/52 (span.) :: width: 73.6562px -> 62.6562px",
+  "light@390 rm landing-hero .hero[0]/53 (div.rs-stat rs-stat-d1) :: width: 95.6719px -> 84.6719px",
+  "light@390 rm landing-hero .hero[0]/54 (b.) :: width: 73.6719px -> 62.6719px",
+  "light@390 rm landing-hero .hero[0]/55 (span.) :: width: 73.6719px -> 62.6719px",
+  "light@390 rm landing-hero .hero[0]/56 (div.rs-stat rs-stat-d2) :: width: 95.6562px -> 84.6562px",
+  "light@390 rm landing-hero .hero[0]/57 (b.) :: width: 73.6562px -> 62.6562px",
+  "light@390 rm landing-hero .hero[0]/58 (span.) :: width: 73.6562px -> 62.6562px",
+  "light@390 rm landing-hero .hero[0]/59 (div.ha-row) :: grid-template-columns: 172.078px 122.906px -> 152.828px 109.156px",
+  "light@390 rm landing-hero .hero[0]/59 (div.ha-row) :: width: 303px -> 270px",
+  "light@390 rm landing-hero .hero[0]/60 (div.ha-warn) :: width: 172.078px -> 152.828px",
+  "light@390 rm landing-hero .hero[0]/65 (span.) :: width: 150.078px -> 130.828px",
+  "light@390 rm landing-hero .hero[0]/66 (div.ha-sync) :: width: 122.906px -> 109.156px",
+  "light@390 rm landing-hero .hero[0]/72 (span.) :: width: 100.906px -> 87.1562px",
+  "light@768 rm landing-hero .hero[0]/0 (section.hero) :: padding-left: 0px -> 33px",
+  "light@768 rm landing-hero .hero[0]/0 (section.hero) :: height: 739.312px -> 773.422px",
+  "light@768 rm landing-hero .hero[0]/1 (span.hero-blob hero-blob-a) :: bottom: 469.312px -> 503.422px",
+  "light@768 rm landing-hero .hero[0]/2 (span.hero-blob hero-blob-b) :: top: 529.312px -> 563.422px",
+  "light@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-columns: 713px -> 680px",
+  "light@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-rows: 239.578px 435.734px -> 281.875px 427.547px",
+  "light@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: width: 753px -> 720px",
+  "light@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: height: 705.312px -> 739.422px",
+  "light@768 rm landing-hero .hero[0]/4 (div.hero-copy) :: width: 713px -> 680px",
+  "light@768 rm landing-hero .hero[0]/4 (div.hero-copy) :: height: 239.578px -> 281.875px",
+  "light@768 rm landing-hero .hero[0]/6 (h1.hero-rise rise-d1 hero-title) :: width: 713px -> 680px",
+  "light@768 rm landing-hero .hero[0]/6 (h1.hero-rise rise-d1 hero-title) :: height: 42.2969px -> 84.5938px",
+  "light@768 rm landing-hero .hero[0]/8 (p.hero-sub hero-rise rise-d2) :: margin-right: 73px -> 40px",
+  "light@768 rm landing-hero .hero[0]/9 (div.hero-ctas hero-rise rise-d3) :: width: 713px -> 680px",
+  "light@768 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: width: 713px -> 680px",
+  "light@768 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: height: 435.734px -> 427.547px",
+  "light@768 rm landing-hero .hero[0]/17 (div.ha-kicker) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: height: 356.688px -> 348.5px",
+  "light@768 rm landing-hero .hero[0]/19 (svg.rs-svg) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/19 (svg.rs-svg) :: height: 165.984px -> 157.797px",
+  "light@768 rm landing-hero .hero[0]/40 (div.rs-caption) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/41 (span.rs-caption-name) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/44 (span.rs-caption-meta) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/49 (div.ha-stats) :: grid-template-columns: 217.656px 217.672px 217.672px -> 206.656px 206.672px 206.672px",
+  "light@768 rm landing-hero .hero[0]/49 (div.ha-stats) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/50 (div.rs-stat) :: width: 217.656px -> 206.656px",
+  "light@768 rm landing-hero .hero[0]/51 (b.) :: width: 195.656px -> 184.656px",
+  "light@768 rm landing-hero .hero[0]/52 (span.) :: width: 195.656px -> 184.656px",
+  "light@768 rm landing-hero .hero[0]/53 (div.rs-stat rs-stat-d1) :: width: 217.672px -> 206.672px",
+  "light@768 rm landing-hero .hero[0]/54 (b.) :: width: 195.672px -> 184.672px",
+  "light@768 rm landing-hero .hero[0]/55 (span.) :: width: 195.672px -> 184.672px",
+  "light@768 rm landing-hero .hero[0]/56 (div.rs-stat rs-stat-d2) :: width: 217.672px -> 206.672px",
+  "light@768 rm landing-hero .hero[0]/57 (b.) :: width: 195.672px -> 184.672px",
+  "light@768 rm landing-hero .hero[0]/58 (span.) :: width: 195.672px -> 184.672px",
+  "light@768 rm landing-hero .hero[0]/59 (div.ha-row) :: grid-template-columns: 385.578px 275.406px -> 366.328px 261.656px",
+  "light@768 rm landing-hero .hero[0]/59 (div.ha-row) :: width: 669px -> 636px",
+  "light@768 rm landing-hero .hero[0]/60 (div.ha-warn) :: width: 385.578px -> 366.328px",
+  "light@768 rm landing-hero .hero[0]/65 (span.) :: width: 363.578px -> 344.328px",
+  "light@768 rm landing-hero .hero[0]/66 (div.ha-sync) :: width: 275.406px -> 261.656px",
+  "light@768 rm landing-hero .hero[0]/72 (span.) :: width: 253.406px -> 239.656px",
+  "light@1440 rm landing-hero .hero[0]/0 (section.hero) :: padding-left: 0px -> 33px",
+  "light@1440 rm landing-hero .hero[0]/3 (div.container hero-split) :: margin-right: 122.5px -> 106px",
+  "light@1440 rm landing-hero .hero[0]/3 (div.container hero-split) :: margin-left: 122.5px -> 106px",
+  "dark@390 rm landing-hero .hero[0]/0 (section.hero) :: padding-left: 0px -> 33px",
+  "dark@390 rm landing-hero .hero[0]/0 (section.hero) :: height: 860.547px -> 852.359px",
+  "dark@390 rm landing-hero .hero[0]/1 (span.hero-blob hero-blob-a) :: bottom: 590.547px -> 582.359px",
+  "dark@390 rm landing-hero .hero[0]/2 (span.hero-blob hero-blob-b) :: top: 650.547px -> 642.359px",
+  "dark@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-columns: 347px -> 314px",
+  "dark@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-rows: 415.984px 380.562px -> 415.984px 372.375px",
+  "dark@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: width: 375px -> 342px",
+  "dark@390 rm landing-hero .hero[0]/3 (div.container hero-split) :: height: 826.547px -> 818.359px",
+  "dark@390 rm landing-hero .hero[0]/4 (div.hero-copy) :: width: 347px -> 314px",
+  "dark@390 rm landing-hero .hero[0]/6 (h1.hero-rise rise-d1 hero-title) :: width: 347px -> 314px",
+  "dark@390 rm landing-hero .hero[0]/8 (p.hero-sub hero-rise rise-d2) :: width: 347px -> 314px",
+  "dark@390 rm landing-hero .hero[0]/9 (div.hero-ctas hero-rise rise-d3) :: width: 347px -> 314px",
+  "dark@390 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: width: 347px -> 314px",
+  "dark@390 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: height: 380.562px -> 372.375px",
+  "dark@390 rm landing-hero .hero[0]/17 (div.ha-kicker) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: height: 301.516px -> 293.328px",
+  "dark@390 rm landing-hero .hero[0]/19 (svg.rs-svg) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/19 (svg.rs-svg) :: height: 75.1719px -> 66.9844px",
+  "dark@390 rm landing-hero .hero[0]/40 (div.rs-caption) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/41 (span.rs-caption-name) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/44 (span.rs-caption-meta) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/49 (div.ha-stats) :: grid-template-columns: 95.6562px 95.6719px 95.6562px -> 84.6562px 84.6719px 84.6562px",
+  "dark@390 rm landing-hero .hero[0]/49 (div.ha-stats) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/50 (div.rs-stat) :: width: 95.6562px -> 84.6562px",
+  "dark@390 rm landing-hero .hero[0]/51 (b.) :: width: 73.6562px -> 62.6562px",
+  "dark@390 rm landing-hero .hero[0]/52 (span.) :: width: 73.6562px -> 62.6562px",
+  "dark@390 rm landing-hero .hero[0]/53 (div.rs-stat rs-stat-d1) :: width: 95.6719px -> 84.6719px",
+  "dark@390 rm landing-hero .hero[0]/54 (b.) :: width: 73.6719px -> 62.6719px",
+  "dark@390 rm landing-hero .hero[0]/55 (span.) :: width: 73.6719px -> 62.6719px",
+  "dark@390 rm landing-hero .hero[0]/56 (div.rs-stat rs-stat-d2) :: width: 95.6562px -> 84.6562px",
+  "dark@390 rm landing-hero .hero[0]/57 (b.) :: width: 73.6562px -> 62.6562px",
+  "dark@390 rm landing-hero .hero[0]/58 (span.) :: width: 73.6562px -> 62.6562px",
+  "dark@390 rm landing-hero .hero[0]/59 (div.ha-row) :: grid-template-columns: 172.078px 122.906px -> 152.828px 109.156px",
+  "dark@390 rm landing-hero .hero[0]/59 (div.ha-row) :: width: 303px -> 270px",
+  "dark@390 rm landing-hero .hero[0]/60 (div.ha-warn) :: width: 172.078px -> 152.828px",
+  "dark@390 rm landing-hero .hero[0]/65 (span.) :: width: 150.078px -> 130.828px",
+  "dark@390 rm landing-hero .hero[0]/66 (div.ha-sync) :: width: 122.906px -> 109.156px",
+  "dark@390 rm landing-hero .hero[0]/72 (span.) :: width: 100.906px -> 87.1562px",
+  "dark@768 rm landing-hero .hero[0]/0 (section.hero) :: padding-left: 0px -> 33px",
+  "dark@768 rm landing-hero .hero[0]/0 (section.hero) :: height: 739.312px -> 773.422px",
+  "dark@768 rm landing-hero .hero[0]/1 (span.hero-blob hero-blob-a) :: bottom: 469.312px -> 503.422px",
+  "dark@768 rm landing-hero .hero[0]/2 (span.hero-blob hero-blob-b) :: top: 529.312px -> 563.422px",
+  "dark@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-columns: 713px -> 680px",
+  "dark@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: grid-template-rows: 239.578px 435.734px -> 281.875px 427.547px",
+  "dark@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: width: 753px -> 720px",
+  "dark@768 rm landing-hero .hero[0]/3 (div.container hero-split) :: height: 705.312px -> 739.422px",
+  "dark@768 rm landing-hero .hero[0]/4 (div.hero-copy) :: width: 713px -> 680px",
+  "dark@768 rm landing-hero .hero[0]/4 (div.hero-copy) :: height: 239.578px -> 281.875px",
+  "dark@768 rm landing-hero .hero[0]/6 (h1.hero-rise rise-d1 hero-title) :: width: 713px -> 680px",
+  "dark@768 rm landing-hero .hero[0]/6 (h1.hero-rise rise-d1 hero-title) :: height: 42.2969px -> 84.5938px",
+  "dark@768 rm landing-hero .hero[0]/8 (p.hero-sub hero-rise rise-d2) :: margin-right: 73px -> 40px",
+  "dark@768 rm landing-hero .hero[0]/9 (div.hero-ctas hero-rise rise-d3) :: width: 713px -> 680px",
+  "dark@768 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: width: 713px -> 680px",
+  "dark@768 rm landing-hero .hero[0]/16 (div.hero-adventure hero-rise rise-d2) :: height: 435.734px -> 427.547px",
+  "dark@768 rm landing-hero .hero[0]/17 (div.ha-kicker) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/18 (div.rs-shell rs-paused) :: height: 356.688px -> 348.5px",
+  "dark@768 rm landing-hero .hero[0]/19 (svg.rs-svg) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/19 (svg.rs-svg) :: height: 165.984px -> 157.797px",
+  "dark@768 rm landing-hero .hero[0]/40 (div.rs-caption) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/41 (span.rs-caption-name) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/44 (span.rs-caption-meta) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/49 (div.ha-stats) :: grid-template-columns: 217.656px 217.672px 217.672px -> 206.656px 206.672px 206.672px",
+  "dark@768 rm landing-hero .hero[0]/49 (div.ha-stats) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/50 (div.rs-stat) :: width: 217.656px -> 206.656px",
+  "dark@768 rm landing-hero .hero[0]/51 (b.) :: width: 195.656px -> 184.656px",
+  "dark@768 rm landing-hero .hero[0]/52 (span.) :: width: 195.656px -> 184.656px",
+  "dark@768 rm landing-hero .hero[0]/53 (div.rs-stat rs-stat-d1) :: width: 217.672px -> 206.672px",
+  "dark@768 rm landing-hero .hero[0]/54 (b.) :: width: 195.672px -> 184.672px",
+  "dark@768 rm landing-hero .hero[0]/55 (span.) :: width: 195.672px -> 184.672px",
+  "dark@768 rm landing-hero .hero[0]/56 (div.rs-stat rs-stat-d2) :: width: 217.672px -> 206.672px",
+  "dark@768 rm landing-hero .hero[0]/57 (b.) :: width: 195.672px -> 184.672px",
+  "dark@768 rm landing-hero .hero[0]/58 (span.) :: width: 195.672px -> 184.672px",
+  "dark@768 rm landing-hero .hero[0]/59 (div.ha-row) :: grid-template-columns: 385.578px 275.406px -> 366.328px 261.656px",
+  "dark@768 rm landing-hero .hero[0]/59 (div.ha-row) :: width: 669px -> 636px",
+  "dark@768 rm landing-hero .hero[0]/60 (div.ha-warn) :: width: 385.578px -> 366.328px",
+  "dark@768 rm landing-hero .hero[0]/65 (span.) :: width: 363.578px -> 344.328px",
+  "dark@768 rm landing-hero .hero[0]/66 (div.ha-sync) :: width: 275.406px -> 261.656px",
+  "dark@768 rm landing-hero .hero[0]/72 (span.) :: width: 253.406px -> 239.656px",
+  "dark@1440 rm landing-hero .hero[0]/0 (section.hero) :: padding-left: 0px -> 33px",
+  "dark@1440 rm landing-hero .hero[0]/3 (div.container hero-split) :: margin-right: 122.5px -> 106px",
+  "dark@1440 rm landing-hero .hero[0]/3 (div.container hero-split) :: margin-left: 122.5px -> 106px"
+ ],
+ "totalCompared": 214320,
+ "totalElements": 4560,
+ "totalDiffs": 166
+}

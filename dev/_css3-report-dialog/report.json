@@ -1,0 +1,389 @@
+{
+ "seeds": [
+  {
+   "name": "stacking",
+   "healthy": true,
+   "seeded": false,
+   "detail": {
+    "ok": false,
+    "onTopIsDialog": false,
+    "onTopIsOverlay": false,
+    "topTag": "BUTTON",
+    "dialogReachable": false
+   }
+  },
+  {
+   "name": "clipping",
+   "healthy": true,
+   "seeded": false,
+   "detail": {
+    "ok": false,
+    "scrolls": false,
+    "overflowing": true,
+    "lastVisible": true,
+    "lastHit": true
+   }
+  }
+ ],
+ "coverage": [
+  {
+   "label": "light-desktop dialog short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "light-desktop full short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "dark-desktop dialog short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "dark-desktop full short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "light-phone dialog short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "light-phone dialog long",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 41
+  },
+  {
+   "label": "light-phone full short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "light-phone full long",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 41
+  },
+  {
+   "label": "dark-phone dialog short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "dark-phone dialog long",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 41
+  },
+  {
+   "label": "dark-phone full short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "dark-phone full long",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 41
+  },
+  {
+   "label": "light-reduced dialog short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "light-reduced full short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "phone-reduced dialog short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "phone-reduced dialog long",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 41
+  },
+  {
+   "label": "phone-reduced full short",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 1
+  },
+  {
+   "label": "phone-reduced full long",
+   "overlay": true,
+   "dialog": true,
+   "role": "dialog",
+   "ariaModal": "true",
+   "focusables": 3,
+   "bodyParas": 41
+  }
+ ],
+ "behaviour": [
+  {
+   "env": "light-desktop",
+   "keyboard": {
+    "entered": {
+     "inside": true,
+     "tag": "BUTTON",
+     "id": ""
+    },
+    "trapped": [
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm"
+    ],
+    "distinctFocusables": 3,
+    "focusables": 3,
+    "restored": "opener"
+   }
+  },
+  {
+   "env": "light-desktop",
+   "reopen": {
+    "dialogs": 1,
+    "overlays": 1,
+    "bodyOverflow": "hidden",
+    "focusedInside": true
+   }
+  },
+  {
+   "env": "dark-desktop",
+   "keyboard": {
+    "entered": {
+     "inside": true,
+     "tag": "BUTTON",
+     "id": ""
+    },
+    "trapped": [
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm"
+    ],
+    "distinctFocusables": 3,
+    "focusables": 3,
+    "restored": "opener"
+   }
+  },
+  {
+   "env": "dark-desktop",
+   "reopen": {
+    "dialogs": 1,
+    "overlays": 1,
+    "bodyOverflow": "hidden",
+    "focusedInside": true
+   }
+  },
+  {
+   "env": "light-phone",
+   "keyboard": {
+    "entered": {
+     "inside": true,
+     "tag": "BUTTON",
+     "id": ""
+    },
+    "trapped": [
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm"
+    ],
+    "distinctFocusables": 3,
+    "focusables": 3,
+    "restored": "opener"
+   }
+  },
+  {
+   "env": "light-phone",
+   "reopen": {
+    "dialogs": 1,
+    "overlays": 1,
+    "bodyOverflow": "hidden",
+    "focusedInside": true
+   }
+  },
+  {
+   "env": "dark-phone",
+   "keyboard": {
+    "entered": {
+     "inside": true,
+     "tag": "BUTTON",
+     "id": ""
+    },
+    "trapped": [
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm"
+    ],
+    "distinctFocusables": 3,
+    "focusables": 3,
+    "restored": "opener"
+   }
+  },
+  {
+   "env": "dark-phone",
+   "reopen": {
+    "dialogs": 1,
+    "overlays": 1,
+    "bodyOverflow": "hidden",
+    "focusedInside": true
+   }
+  },
+  {
+   "env": "light-reduced",
+   "keyboard": {
+    "entered": {
+     "inside": true,
+     "tag": "BUTTON",
+     "id": ""
+    },
+    "trapped": [
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm"
+    ],
+    "distinctFocusables": 3,
+    "focusables": 3,
+    "restored": "opener"
+   }
+  },
+  {
+   "env": "light-reduced",
+   "reopen": {
+    "dialogs": 1,
+    "overlays": 1,
+    "bodyOverflow": "hidden",
+    "focusedInside": true
+   }
+  },
+  {
+   "env": "phone-reduced",
+   "keyboard": {
+    "entered": {
+     "inside": true,
+     "tag": "BUTTON",
+     "id": ""
+    },
+    "trapped": [
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm",
+     "cancel",
+     "Close",
+     "confirm"
+    ],
+    "distinctFocusables": 3,
+    "focusables": 3,
+    "restored": "opener"
+   }
+  },
+  {
+   "env": "phone-reduced",
+   "reopen": {
+    "dialogs": 1,
+    "overlays": 1,
+    "bodyOverflow": "hidden",
+    "focusedInside": true
+   }
+  }
+ ],
+ "compared": 1350,
+ "differences": 0,
+ "diffs": []
+}

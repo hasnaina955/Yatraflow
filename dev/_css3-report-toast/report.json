@@ -1,0 +1,282 @@
+{
+ "seeds": [
+  {
+   "name": "semantic-fill",
+   "healthy": true,
+   "seeded": true
+  },
+  {
+   "name": "ink-contrast",
+   "healthy": 7.376269441334067,
+   "seeded": 1,
+   "detected": true
+  }
+ ],
+ "coverage": [
+  {
+   "label": "light-desktop ok",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 0
+  },
+  {
+   "label": "light-desktop err",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "err"
+   ],
+   "alertRoles": 1,
+   "actions": 0
+  },
+  {
+   "label": "light-desktop undo",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 1
+  },
+  {
+   "label": "light-desktop many",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 3,
+   "kinds": [
+    "ok",
+    "err",
+    "ok"
+   ],
+   "alertRoles": 1,
+   "actions": 1
+  },
+  {
+   "label": "dark-desktop ok",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 0
+  },
+  {
+   "label": "dark-desktop err",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "err"
+   ],
+   "alertRoles": 1,
+   "actions": 0
+  },
+  {
+   "label": "dark-desktop undo",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 1
+  },
+  {
+   "label": "dark-desktop many",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 3,
+   "kinds": [
+    "ok",
+    "err",
+    "ok"
+   ],
+   "alertRoles": 1,
+   "actions": 1
+  },
+  {
+   "label": "light-phone ok",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 0
+  },
+  {
+   "label": "light-phone err",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "err"
+   ],
+   "alertRoles": 1,
+   "actions": 0
+  },
+  {
+   "label": "light-phone undo",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 1
+  },
+  {
+   "label": "light-phone many",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 3,
+   "kinds": [
+    "ok",
+    "err",
+    "ok"
+   ],
+   "alertRoles": 1,
+   "actions": 1
+  },
+  {
+   "label": "dark-phone ok",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 0
+  },
+  {
+   "label": "dark-phone err",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "err"
+   ],
+   "alertRoles": 1,
+   "actions": 0
+  },
+  {
+   "label": "dark-phone undo",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 1
+  },
+  {
+   "label": "dark-phone many",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 3,
+   "kinds": [
+    "ok",
+    "err",
+    "ok"
+   ],
+   "alertRoles": 1,
+   "actions": 1
+  },
+  {
+   "label": "light-reduced ok",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 0
+  },
+  {
+   "label": "light-reduced err",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "err"
+   ],
+   "alertRoles": 1,
+   "actions": 0
+  },
+  {
+   "label": "light-reduced undo",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 1,
+   "kinds": [
+    "ok"
+   ],
+   "alertRoles": 0,
+   "actions": 1
+  },
+  {
+   "label": "light-reduced many",
+   "zone": true,
+   "zoneRole": "status",
+   "zoneLive": "polite",
+   "count": 3,
+   "kinds": [
+    "ok",
+    "err",
+    "ok"
+   ],
+   "alertRoles": 1,
+   "actions": 1
+  }
+ ],
+ "contrasts": [
+  {
+   "theme": "light",
+   "ok": 7.376269441334067,
+   "err": 5.936111725572823
+  },
+  {
+   "theme": "dark",
+   "ok": 6.704497097037938,
+   "err": 6.672158092426222
+  }
+ ],
+ "compared": 1680,
+ "differences": 0,
+ "diffs": []
+}

@@ -1,0 +1,398 @@
+{
+ "utc": "2026-10-30T08:34:05.312Z",
+ "before": "dev/_css3-rm-broken.css",
+ "after": "dev/_css3-rm-fixed.css",
+ "seeded": false,
+ "cases": [
+  {
+   "label": "light@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "light@390",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@390 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "light@390 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "light@768",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@768 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "light@768 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "light@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "light@1440",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "light@1440 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@390",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "dark@390",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "dark@390 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@768",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "dark@768",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "dark@768 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440",
+   "case": "landing-hero",
+   "elements": 77
+  },
+  {
+   "label": "dark@1440",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440",
+   "case": "landing-hero",
+   "compared": 7238
+  },
+  {
+   "label": "dark@1440",
+   "case": "creator-grid",
+   "compared": 10810
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "landing-hero",
+   "elements": 73
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "creator-grid",
+   "elements": 115
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "landing-hero",
+   "compared": 6862
+  },
+  {
+   "label": "dark@1440 rm",
+   "case": "creator-grid",
+   "compared": 10810
+  }
+ ],
+ "skipped": [
+  "light@390 board: no trip to open, so the Board never rendered",
+  "light@390 board: no trip to open, so the Board never rendered",
+  "light@390 rm board: no trip to open, so the Board never rendered",
+  "light@390 rm board: no trip to open, so the Board never rendered",
+  "light@768 board: no trip to open, so the Board never rendered",
+  "light@768 board: no trip to open, so the Board never rendered",
+  "light@768 rm board: no trip to open, so the Board never rendered",
+  "light@768 rm board: no trip to open, so the Board never rendered",
+  "light@1440 board: no trip to open, so the Board never rendered",
+  "light@1440 board: no trip to open, so the Board never rendered",
+  "light@1440 rm board: no trip to open, so the Board never rendered",
+  "light@1440 rm board: no trip to open, so the Board never rendered",
+  "dark@390 board: no trip to open, so the Board never rendered",
+  "dark@390 board: no trip to open, so the Board never rendered",
+  "dark@390 rm board: no trip to open, so the Board never rendered",
+  "dark@390 rm board: no trip to open, so the Board never rendered",
+  "dark@768 board: no trip to open, so the Board never rendered",
+  "dark@768 board: no trip to open, so the Board never rendered",
+  "dark@768 rm board: no trip to open, so the Board never rendered",
+  "dark@768 rm board: no trip to open, so the Board never rendered",
+  "dark@1440 board: no trip to open, so the Board never rendered",
+  "dark@1440 board: no trip to open, so the Board never rendered",
+  "dark@1440 rm board: no trip to open, so the Board never rendered",
+  "dark@1440 rm board: no trip to open, so the Board never rendered"
+ ],
+ "diffs": [],
+ "totalCompared": 214320,
+ "totalElements": 4560,
+ "totalDiffs": 0
+}

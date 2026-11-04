@@ -418,17 +418,15 @@
    every section is on the page at once, and the marks say which carry edits. */
 .tset-nav {
   position: sticky;
-  top: var(--space-4);
+  top: var(--space-7);
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-3);
-  border: 1px solid var(--pw-line);
+  padding: var(--space-5);
+  border: 1px solid var(--pw-line-soft);
   border-radius: var(--radius-lg);
   background: var(--pw-card);
   box-shadow: var(--elev-1);
-  animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards;
-  animation-delay: 0s;
 }
 .tset-nav-lbl {
   display: block;
@@ -447,12 +445,17 @@
   font: var(--pw-ui);
   color: var(--pw-ink-2);
   text-decoration: none;
-  transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition:
+    background-color var(--motion-fast) var(--ease-paper),
+    color var(--motion-fast) var(--ease-paper),
+    box-shadow var(--motion-fast) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
 }
 .tset-nav-item:hover { background: var(--pw-soft); color: var(--pw-ink); }
 .tset-nav-item:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
 .tset-nav-item svg { flex: none; color: var(--pw-ink-3); }
-.tset-nav-item.is-edited { color: var(--pw-sea-700); font-weight: 700; }
+.tset-nav-item.is-edited { color: var(--pw-sea-700); }
 .tset-nav-item.is-edited svg { color: var(--pw-sea-700); }
 /* The artboard paints the archive row in the risk hue and sets it apart with a
    rule, because it is the one row that cannot be undone by a Save. */
@@ -461,7 +464,11 @@
 .tset-nav-item.is-danger:hover { background: var(--pw-risk-100); color: var(--pw-risk); }
 /* The section you are reading carries the lagoon fill, the same one the
    artboard gives its current row. */
-.tset-nav-item[aria-current='true'] { background: var(--pw-lagoon-100); color: var(--pw-sea-700); font-weight: 700; }
+.tset-nav-item[aria-current='true'] {
+  background: var(--pw-lagoon-100);
+  color: var(--pw-sea-700);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pw-lagoon-600) 38%, transparent);
+}
 .tset-nav-item[aria-current='true'] svg { color: var(--pw-sea-700); }
 .tset-nav-item i {
   margin-inline-start: auto;
@@ -478,32 +485,29 @@
   font-size: 11px;
   font-weight: 800;
   font-style: normal;
+  /* The count badge pops in when a section turns edited. It is 18px, so the
+     settle ease is allowed. */
+  animation: tsetBadgePop var(--motion-fast) var(--ease-settle) backwards;
 }
 /* The artboard separates the destructive row from the five settings rows. */
 .tset-nav-divider { height: 1px; margin: var(--space-3) var(--space-4); background: var(--pw-line); }
 
-.tset-main { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.tset-main { display: flex; flex-direction: column; gap: var(--space-7); min-width: 0; }
 
 /* The panels render through the shared Surface, so the card skin is restated
    as a same-element compound (R5). It wins over the tab's own card rule in any
    order, because a compound outranks a single class. The panel entrance rides
    on the same rule, so no second `.tsx-card` selector exists. */
-.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
-.yf-surface.tsx-card:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 2); }
-.yf-surface.tsx-card:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 3); }
-.yf-surface.tsx-card:nth-of-type(4) { animation-delay: calc(var(--stagger-step) * 4); }
-/* The settings body enters left-to-right: the rail, then the six question
-   cards, then the two aside cards. The global nth-child index supplies the
-   card order; the +1 offset gives the rail the first beat. */
-.tset-aside > * { animation: cardIn var(--motion-slow) var(--ease-out) var(--stagger-step) backwards; }
-.tset-aside > :nth-child(1) { animation-delay: calc(var(--stagger-step) * 5); }
-.tset-aside > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 6); }
+.yf-surface.tsx-card { border-radius: var(--radius); box-shadow: var(--shadow-card); }
+/* The entrance lives in one block at the end of 16-motion-and-cover-v2.css
+   ("Entrance: the Settings tab's own cascade"): the rail, the question cards,
+   the aside and their inner layers on one clock. */
 
-/* R20 / the 28-Oct typography ruling: Sora carries every section and card
-   title. The settings artboard draws these titles at 19px. The token keeps the
-   Sora face, weight, line height and tracking. `.tsx-q` is used by this page
-   alone, so the size override cannot restyle another tab. */
-.tsx-card .tsx-q { font: var(--pw-title); font-size: 19px; letter-spacing: var(--pw-title-tracking); color: var(--text); }
+/* R14 / R20: a card title is Plus Jakarta Sans 800, 18px, line height 1.3. The
+   section title here, the save panel title and the people title all use it,
+   the same as `.prof-panel-title`. Sora stays on the big figures. `.tsx-q` is
+   used by this page alone, so the rule cannot restyle another tab. */
+.tsx-card .tsx-q { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
 
 /* The artboard's own card recipe: 24px corners, 22px of padding and an 18px
    rhythm between blocks. The shared `.tsx-card` is 18px/20px-22px-18px, so the
@@ -513,7 +517,8 @@
   padding: 22px;
   gap: 18px;
   background: var(--pw-card);
-  border-color: var(--pw-line);
+  border-color: var(--pw-line-soft);
+  transition: border-color var(--motion-med) var(--ease-paper);
 }
 /* The dates card marks a moved range in the artboard's warm border. The pill
    is the state hook, so the card needs no second class. */
@@ -527,6 +532,7 @@
   color: var(--pw-marigold-ink);
   font: var(--pw-caption);
   font-weight: 700;
+  animation: fadeIn var(--motion-med) var(--ease-paper) backwards;
 }
 
 /* The cover strip: the artboard keeps the name full-width, then a labelled row
@@ -547,8 +553,16 @@
   background: var(--pw-soft);
   color: var(--pw-ink-2);
 }
+/* The artboard tints each tile by section: the name card is sunken, the dates
+   card lagoon with a sea icon, the group card bloom. The travel tile is the
+   artboard's blue; no Linen token holds it, so it stays soft. */
+#tset-identity .tsx-ico { background: var(--pw-sunken); }
+#tset-dates .tsx-ico { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
+#tset-group .tsx-ico { background: var(--pw-bloom-100); color: var(--pw-bloom-700); }
 .tsx-head-copy { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .tsx-head-copy .tsx-q { margin: 0; }
+/* The section subtitle reads in ink-2, as the artboard draws it. */
+.tsx-card .tsx-a { color: var(--pw-ink-2); }
 
 /* The route strip in the artboard's middle column. The shared `.tsx-route` is
    a horizontal run, which wrapped into orphaned dashes at 530px. Here each stop
@@ -636,28 +650,33 @@
 
 /* Archive or delete: owner only. The trash half carries the risk colour, the
    archive half the calm one, and archive is disabled while it has no API. */
-.yf-surface.tsx-card--danger { border-color: var(--pw-risk-100); }
+/* The artboard's edge hue is a warm rose between the risk hue and the card
+   fill; no Linen token holds it, so it is mixed from two tokens. */
+.tset-main > .yf-surface.tsx-card--danger { border-color: color-mix(in srgb, var(--pw-risk) 30%, var(--pw-card)); }
 .tsx-card--danger .tsx-ico { background: var(--pw-risk-100); color: var(--pw-risk); }
-.tset-danger-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+/* The artboard stacks the two cells. Each cell is a row: the verb and its
+   prose on the left, the button on the right. */
+.tset-danger-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
 .tset-danger-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px;
-  border: 1px solid var(--pw-line);
-  border-radius: var(--radius-sm);
-  background: var(--pw-card);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-5);
+  row-gap: 2px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--pw-soft);
 }
-.tset-danger-cell b { font: var(--pw-ui); color: var(--pw-ink); }
-.tset-danger-cell span { font: var(--pw-caption); color: var(--pw-ink-3); }
-.tset-danger-cell .btn { margin-top: 6px; }
+.tset-danger-cell b { grid-column: 1; font: var(--pw-ui); color: var(--pw-ink); }
+.tset-danger-cell span { grid-column: 1; font: var(--pw-caption); color: var(--pw-ink-2); }
+.tset-danger-cell .tset-danger-btn { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; }
+.tset-danger-cell--trash { background: var(--pw-risk-100); }
 .tset-danger-cell--trash b, .tset-danger-cell--trash span { color: var(--pw-risk); }
 
 /* The sticky preview: the save panel and the plan-at-a-glance card. The save
    panel carries the marigold edge the artboard gives it — the same hue as the
    dot in its head — because it is the one card that changes state. */
-.tset-aside { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: 14px; }
+.tset-aside { position: sticky; top: var(--space-7); display: flex; flex-direction: column; gap: 14px; }
 .tset-savecard {
   display: flex;
   flex-direction: column;
@@ -676,7 +695,7 @@
   border-radius: var(--radius-pill);
   background: var(--pw-marigold-500);
 }
-.tset-save-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }
+.tset-save-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--pw-ink); }
 .tset-save-sub { margin: -4px 0 0; font: var(--pw-meta); color: var(--pw-ink-3); }
 .tset-diff {
   display: flex;
@@ -685,13 +704,16 @@
   padding: 12px;
   border: 1px solid var(--pw-line-soft);
   border-radius: var(--radius-sm);
-  background: var(--pw-paper);
+  background: var(--pw-raised);
+  transition:
+    background-color var(--motion-med) var(--ease-paper),
+    border-color var(--motion-med) var(--ease-paper);
 }
 .tset-diff.is-good { background: var(--pw-lagoon-50); border-color: var(--pw-lagoon-100); }
-.tset-diff-lbl { font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); text-transform: uppercase; color: var(--pw-ink-3); }
+.tset-diff-lbl { font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); text-transform: uppercase; color: var(--pw-ink-3); transition: color var(--motion-med) var(--ease-paper); }
 .tset-diff.is-good .tset-diff-lbl { color: var(--pw-sea-700); }
 .tset-diff b { font: var(--pw-ui); color: var(--pw-ink); }
-.tset-diff > span:last-child { font: var(--pw-caption); color: var(--pw-ink-3); }
+.tset-diff > span:last-child { font: var(--pw-caption); font-size: 12.5px; color: var(--pw-ink-2); }
 .tset-was { color: var(--pw-ink-4); text-decoration: line-through; }
 .tset-save-actions { display: flex; gap: 8px; margin-top: 2px; }
 .tset-save-btn { flex: 1; }
@@ -715,7 +737,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 18px;
-  border: 1px solid var(--pw-line);
+  border: 1px solid var(--pw-line-soft);
   border-radius: var(--radius-lg);
   background: var(--pw-card);
   box-shadow: var(--elev-1);
@@ -747,7 +769,7 @@
 .set-read-reasons { margin: 0; }
 
 /* The in-flight save is its own answer, so it gets its own block. */
-.set-save-state { margin-top: 2px; }
+.set-save-state { margin-top: 2px; animation: fadeIn var(--motion-med) var(--ease-paper) backwards; }
 
 /* The artboard's cover strip: the current cover wide on the left, then up to
    three route photos, then the upload tile — five columns exactly. A trip with
@@ -797,6 +819,9 @@
 /* The upload tile is the only dashed edge in the strip, so it reads as an
    action rather than a fifth photo. */
 .tset-cover-add {
+  /* Pinned to the last column, so the route photos that mount late fill the
+     columns before it and the tile does not move when they do. */
+  grid-column: -2 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -845,7 +870,7 @@
   width: 100%;
   border: 1.5px solid var(--pw-line);
   border-radius: var(--radius-sm);
-  background: var(--pw-card);
+  background: var(--pw-raised);
   font: 600 14.5px/1.4 var(--font-body);
   color: var(--pw-ink);
 }
@@ -878,7 +903,7 @@
   gap: 12px;
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--radius);
   background: var(--pw-paper);
   text-align: start;
@@ -909,10 +934,10 @@
   border-radius: var(--radius-pill);
   background: var(--pw-card);
   box-shadow: var(--elev-press);
-  transition: left var(--motion-fast) var(--ease-paper);
+  transition: transform var(--motion-fast) var(--ease-paper);
 }
 .tog.on .sw { background: var(--pw-sea-700); }
-.tog.on .sw::after { left: 22px; }
+.tog.on .sw::after { transform: translateX(18px); }
 .tog-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .tog-copy b { font: var(--pw-ui); font-weight: 700; color: var(--pw-ink); }
 .tog-copy span { font: var(--pw-caption); color: var(--pw-ink-2); }
@@ -937,6 +962,13 @@
   border-radius: var(--radius);
   background: var(--pw-card);
   text-transform: none;
+  box-shadow: 0 0 0 3px transparent;
+  transition:
+    border-color var(--motion-fast) var(--ease-paper),
+    background-color var(--motion-fast) var(--ease-paper),
+    color var(--motion-fast) var(--ease-paper),
+    box-shadow var(--motion-fast) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
 }
 .tset-main .bench-mode-btn.on { background: var(--pw-lagoon-50); border-color: var(--pw-lagoon-600); box-shadow: 0 0 0 3px var(--pw-lagoon-100); color: var(--pw-ink); }
 .tset-main .bench-mode-name { font: var(--pw-ui); font-weight: 700; color: var(--pw-ink); }
@@ -963,7 +995,7 @@
   width: fit-content;
   padding: 4px;
   border-radius: var(--radius-pill);
-  background: var(--pw-soft);
+  background: var(--pw-sunken);
 }
 .tset-stepper button {
   display: inline-flex;
@@ -979,7 +1011,7 @@
   font-weight: 700;
   color: var(--pw-ink);
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-paper);
+  transition: background-color var(--motion-fast) var(--ease-paper), transform var(--motion-instant) var(--ease-paper);
 }
 .tset-stepper button:hover:not(:disabled) { background: var(--pw-lagoon-100); }
 .tset-stepper button:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
@@ -1049,7 +1081,7 @@
   gap: 2px;
   padding: 4px;
   border-radius: var(--radius-pill);
-  background: var(--pw-soft);
+  background: var(--pw-sunken);
 }
 .seg-btn {
   flex: 1 1 auto;
@@ -1067,7 +1099,7 @@
 }
 .seg-btn:hover:not(:disabled) { color: var(--pw-ink); }
 .seg-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
-.seg-btn.on { background: var(--pw-card); color: var(--pw-ink); font-weight: 700; box-shadow: var(--elev-press); }
+.seg-btn.on { background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--elev-press); }
 .seg-btn:disabled { opacity: .55; cursor: not-allowed; }
 .tset-pace-seg {
   max-width: 100%;
@@ -1082,7 +1114,7 @@
 /* The people strip is one row, as the artboard draws it: the stack, the copy
    column that takes the slack, and the one button that belongs to Share. */
 .tset-main > .yf-surface.tsx-card--people { flex-direction: row; align-items: center; gap: 14px; padding: 18px 22px; }
-.tset-people-title { font: var(--pw-title); font-size: 17px; color: var(--pw-ink); }
+.tset-people-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--pw-ink); }
 .tset-manage {
   flex: none;
   height: 40px;
@@ -1094,7 +1126,7 @@
   font-weight: 700;
   color: var(--pw-ink);
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-paper);
+  transition: background-color var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), transform var(--motion-instant) var(--ease-paper);
 }
 .tset-manage:hover { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
 .tset-manage:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
@@ -1104,19 +1136,19 @@
   height: 38px;
   margin-top: 6px;
   padding: 0 14px;
-  border: 1px solid var(--pw-line);
+  border: 0;
   border-radius: var(--radius-pill);
   background: var(--pw-card);
   font: var(--pw-caption);
   font-weight: 700;
   color: var(--pw-ink-2);
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper);
+  transition: background-color var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), transform var(--motion-instant) var(--ease-paper);
 }
 .tset-danger-btn:hover:not(:disabled) { background: var(--pw-soft); }
 .tset-danger-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
 .tset-danger-btn:disabled { opacity: .55; cursor: not-allowed; }
-.tset-danger-btn--trash { border-color: var(--pw-risk-100); color: var(--pw-risk); }
+.tset-danger-btn--trash { border: 1.5px solid color-mix(in srgb, var(--pw-risk) 30%, var(--pw-card)); color: var(--pw-risk); }
 .tset-danger-btn--trash:hover:not(:disabled) { background: var(--pw-risk-100); }
 
 /* The two switches sit side by side, as the artboard draws them, and stack
@@ -1133,8 +1165,12 @@
 }
 @media (max-width: 860px) {
   .tset-grid { grid-template-columns: minmax(0, 1fr); }
+  /* The strip sticks under the floating header, as the timeline ribbon does,
+     and sits above the cards that slide under it. */
   .tset-nav {
-    position: static;
+    position: sticky;
+    top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    z-index: var(--z-raised);
     flex-direction: row;
     overflow-x: auto;
     padding: var(--space-2);
@@ -1176,8 +1212,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yf-surface.tsx-card { animation: none; }
-  .tset-nav, .tset-aside > * { animation: none; }
   .tset-nav-item, .tset-day, .tset-discard { transition: none; }
 }
 
@@ -1224,3 +1258,96 @@
 /* A panel title uses the card-title style (R14, R20): Plus Jakarta Sans 800, 18px, line height 1.3. */
 .prof-panel-title { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); }
 
+
+/* ===== Trip settings: touch targets ===== */
+/* A finger needs 44px. Desktop keeps the artboard's sizes; only a coarse
+   pointer lifts the page controls that sit under 44px. */
+@media (pointer: coarse) {
+  .tset-nav-item { min-height: 44px; }
+  .seg-btn { height: 44px; }
+  .tset-stepper button { width: 44px; height: 44px; }
+  .tset-manage { height: 44px; }
+  .tset-danger-btn { height: 44px; }
+  .tset-budget-exact .inp { height: 44px; }
+}
+
+/* ===== Trip settings: motion for state changes (not the entrance) ===== */
+/* The entrance is one block at the end of 16-motion-and-cover-v2.css. Here are
+   the changes a person causes: typing in a field, a section turning edited, the
+   Save button waking, a mode picked, a press. Every change eases on a motion
+   token; nothing here moves layout. The saved rows are the same elements
+   before and after, so none of this replays on a keystroke. The easing for a
+   rule that already exists sits on that rule, above. This block holds the
+   rules that have no earlier home. The bottom save bar is the shared
+   StickyFormBar and is not touched. */
+
+/* A field: the border and the ring ease between rest, focus and edited. */
+.tset-main .inp {
+  transition: border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper);
+}
+
+/* Save and Discard wake from their disabled opacity. The shared button turns
+   its own transition off inside a page, so the opacity rides on this page's
+   control, and a press moves the control for one beat. */
+.tset-aside .tset-save-btn {
+  transition:
+    opacity var(--motion-med) var(--ease-paper),
+    background-color var(--motion-fast) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
+}
+.tset-aside .tset-discard {
+  transition:
+    opacity var(--motion-med) var(--ease-paper),
+    background var(--motion-fast) var(--ease-paper),
+    border-color var(--motion-fast) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
+}
+.tset-discard:active:not(:disabled) { transform: scale(.97); }
+
+/* The rail row, a segment option and the other controls take a one-beat press. */
+.tset-nav-item:active { transform: scale(.985); }
+.tset-main .seg-btn {
+  transition:
+    background-color var(--motion-fast) var(--ease-paper),
+    color var(--motion-fast) var(--ease-paper),
+    box-shadow var(--motion-fast) var(--ease-paper),
+    transform var(--motion-instant) var(--ease-paper);
+}
+.tset-main .seg-btn:active:not(:disabled) { transform: scale(.97); }
+.tset-stepper button:active:not(:disabled) { transform: scale(.94); }
+.tset-manage:active { transform: scale(.97); }
+.tset-danger-btn:active:not(:disabled) { transform: scale(.97); }
+.tset-main .bench-mode-btn:hover { transform: none; }
+.tset-main .bench-mode-btn:active:not(:disabled) { transform: scale(.98); }
+
+/* The count badge pops in when a section turns edited. Eighteen pixels, so the
+   settle ease is allowed. */
+@keyframes tsetBadgePop {
+  from { opacity: 0; transform: scale(.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tset-main .inp,
+  .tset-aside .tset-save-btn,
+  .tset-aside .tset-discard,
+  .tset-nav-item,
+  .tset-main .seg-btn,
+  .tset-main .bench-mode-btn,
+  .tset-stepper button,
+  .tset-manage,
+  .tset-danger-btn,
+  .tog .sw::after,
+  .tset-main > .yf-surface.tsx-card,
+  .tset-diff,
+  .tset-diff-lbl { transition: none; }
+  .tset-nav-item i,
+  .tset-changed,
+  .set-save-state { animation: none; }
+  .tset-discard:active:not(:disabled),
+  .tset-nav-item:active,
+  .tset-main .seg-btn:active:not(:disabled),
+  .tset-main .bench-mode-btn:active:not(:disabled),
+  .tset-stepper button:active:not(:disabled),
+  .tset-manage:active,
+  .tset-danger-btn:active:not(:disabled) { transform: none; }
+}

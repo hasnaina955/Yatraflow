@@ -1960,3 +1960,136 @@ div[role="tabpanel"]:has(.tl-ribbon) { animation: none; }
   }
 }
 
+/* ---------- Entrance: the Settings tab's own cascade ----------
+   Measured on the fixture (1440 and 390 agree): the tab panel held a 360ms
+   `pageRise` that did not start until 300ms. Its backwards fill kept the panel
+   at opacity 0 for that time, so every card clock underneath it was hidden and
+   the rail and the first cards all appeared together at about 300ms. The cards
+   also ran `cardIn` at 60ms steps from a global `nth-of-type` count, and the
+   glance card sat at step 6, past the cap. One flat clock, then a late panel.
+
+   The panel's late fade is switched off for this tab only, with the rule the
+   Timeline and Overview tabs use, and the tab owns one cascade. The grid is
+   identified by `.tset-grid`, which only this tab renders.
+
+   Order follows the page, left to right and top to bottom: the rail and the
+   name card (step 0); the save card and the dates card (1); the glance card and
+   the group card (2); travel (3); people (4); archive or delete (5). Cards are
+   named by their section id because the "Will you drive" question can mount
+   between group and travel, and a count would move every card after it.
+
+   Inner layers ride the cards in nested cascades, each inside the six-step
+   cap: the six rail rows (0 to 5), the cover tiles (1 to 5), the three preview
+   diffs (3 to 5), the four glance figures in two pairs (6 and 7), and the day
+   tiles one at a time (7 to 11). At most four elements start on any one step.
+   The last tile starts at 660ms and settles at about 1.0 s.
+
+   Entrance only. Typing, a nav click, a save and a repaint reuse the same
+   elements and start nothing. A day tile that is added later (`.is-late`) has no
+   delay, so a new day appears at once instead of waiting 660ms for its turn.
+   The route photos in the cover strip mount late too, so they only fade.
+   Only transform and opacity move. */
+div[role="tabpanel"]:has(.tset-grid) { animation: none; }
+
+/* The rail and the three groups of cards. The card base rule is written
+   with the element name, which outranks the shared stagger rule above, so its
+   delay wins; the per-section rules use the id and win outright. */
+.tset-grid > .tset-nav {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.tset-main > section.yf-surface.tsx-card {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 3);
+}
+.tset-main > #tset-identity { animation-delay: calc(var(--stagger-step) * 0); }
+.tset-main > #tset-dates { animation-delay: calc(var(--stagger-step) * 1); }
+.tset-main > #tset-group { animation-delay: calc(var(--stagger-step) * 2); }
+.tset-main > #tset-travel { animation-delay: calc(var(--stagger-step) * 3); }
+.tset-main > #tset-people { animation-delay: calc(var(--stagger-step) * 4); }
+.tset-main > #tset-danger { animation-delay: calc(var(--stagger-step) * 5); }
+.tset-aside > * {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+.tset-aside > .tset-glance { animation-delay: calc(var(--stagger-step) * 2); }
+
+/* Rail rows: a fade, one row to a step. The row is a link, and a fade moves no
+   text, so the hover fill and the focus ring stay where they are. */
+.tset-nav > .tset-nav-item {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.tset-nav > .tset-nav-item:nth-of-type(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.tset-nav > .tset-nav-item:nth-of-type(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.tset-nav > .tset-nav-item:nth-of-type(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.tset-nav > .tset-nav-item:nth-of-type(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.tset-nav > .tset-nav-item:nth-of-type(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+
+/* Cover tiles: the current cover and the upload tile paint with the page, the
+   cover at step 1 and the upload tile at the last step. The route photos are
+   buttons that mount later, when the photo lookups return (about 1.5 s), so a
+   rise and a step delay would hold them at opacity 0 and then lift them in
+   long after the rest has settled. They take a plain fade at once. The file
+   input that sits in the strip is not a tile and starts nothing. */
+.tset-coverstrip > .tset-cover-slot,
+.tset-coverstrip > .tset-cover-add {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+.tset-coverstrip > button.tset-cover-slot {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.tset-coverstrip > .tset-cover-add { animation-delay: calc(var(--stagger-step) * 5); }
+
+/* Preview diffs: a fade, in reading order. A sibling chain names them, so a
+   diff that mounts later (the engine read) takes the step after the others. */
+.tset-savecard > .tset-diff {
+  animation: fadeIn var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 3);
+}
+.tset-savecard > .tset-diff + .tset-diff { animation-delay: calc(var(--stagger-step) * 4); }
+.tset-savecard > .tset-diff + .tset-diff + .tset-diff { animation-delay: calc(var(--stagger-step) * 5); }
+
+/* Glance figures: two to a step. */
+.tset-glance-grid > .tset-stat {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 6);
+}
+.tset-glance-grid > .tset-stat:nth-child(n+3) { animation-delay: calc(var(--stagger-step) * 7); }
+
+/* Day tiles: one at a time, after the card that holds them. Tiles past the
+   fifth share the last step. A tile drawn after the form mounted (`.is-late`)
+   has no delay. A pending tile (`.is-new`) that is on the page at first paint
+   keeps its place in the order. */
+.tset-daygrid > .tset-day {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 7);
+}
+.tset-daygrid > .tset-day:nth-child(2) { animation-delay: calc(var(--stagger-step) * 8); }
+.tset-daygrid > .tset-day:nth-child(3) { animation-delay: calc(var(--stagger-step) * 9); }
+.tset-daygrid > .tset-day:nth-child(4) { animation-delay: calc(var(--stagger-step) * 10); }
+.tset-daygrid > .tset-day:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * 11); }
+.tset-daygrid > .tset-day.is-late { animation-delay: calc(var(--stagger-step) * 0); }
+
+/* Reduced motion. Every selector that sets an animation name above is switched
+   off here with the same selector text, so the specificity is equal and this
+   later rule wins. Rules that only set a delay need no opt-out: with no name,
+   they start nothing. */
+@media (prefers-reduced-motion: reduce) {
+  div[role="tabpanel"]:has(.tset-grid),
+  .tset-grid > .tset-nav,
+  .tset-main > section.yf-surface.tsx-card,
+  .tset-aside > *,
+  .tset-nav > .tset-nav-item,
+  .tset-coverstrip > .tset-cover-slot,
+  .tset-coverstrip > button.tset-cover-slot,
+  .tset-coverstrip > .tset-cover-add,
+  .tset-savecard > .tset-diff,
+  .tset-glance-grid > .tset-stat,
+  .tset-daygrid > .tset-day {
+    animation: none;
+  }
+}
+

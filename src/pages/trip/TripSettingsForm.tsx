@@ -738,6 +738,20 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     if (section) editedPerSection.set(section, (editedPerSection.get(section) ?? 0) + 1)
   }
   const grid = dayGrid(f.startDate, trip.days, dayCount)
+  // A day tile first drawn after the form has mounted rises at once (is-late),
+  // instead of waiting for its place in the entrance cascade. The mark is
+  // sticky while the tile stays on the page: a delay that changed while a tile
+  // animates would restart it. A tile that leaves and returns is drawn anew.
+  // The state is adjusted during render, so the tile has its class on its first paint.
+  const [dayMarks, setDayMarks] = useState(() => ({ live: new Set(grid.map(d => d.key)), late: new Set<string>() }))
+  const gridKeys = grid.map(d => d.key)
+  const enteringDays = gridKeys.filter(k => !dayMarks.live.has(k))
+  const leavingDays = [...dayMarks.live].filter(k => !gridKeys.includes(k))
+  let lateDays = dayMarks.late
+  if (enteringDays.length > 0 || leavingDays.length > 0) {
+    lateDays = new Set([...dayMarks.late].filter(k => !leavingDays.includes(k)).concat(enteringDays))
+    setDayMarks({ live: new Set(gridKeys), late: lateDays })
+  }
   const tripTotals = computeTotals(trip)
   /** What the plan already costs each head, read from the engine's own total
    *  and split by the party being drafted. The budget dial is read against
@@ -787,6 +801,16 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     sections.forEach(el => io.observe(el))
     return () => io.disconnect()
   }, [])
+  /** On a phone the nav is a sideways strip. When the section you are reading
+   *  changes, bring its item into view so the mark is never off screen. The
+   *  strip scrolls only when it overflows, so the desktop rail never moves. */
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav || nav.scrollWidth <= nav.clientWidth) return
+    nav.querySelector<HTMLElement>('[aria-current="true"]')
+      ?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'auto' })
+  }, [activeSection])
 
   // The sticky preview panel. It sits last in the grid, after every section,
   // so the artboard's three columns hold their shape on any section count.
@@ -930,7 +954,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
         {/* The artboard's short nav: one long page, six sections, and the two
             that carry unsaved edits say so. Every item is an in-page anchor,
             so it works with no JavaScript and keeps the URL. */}
-        <nav className="tset-nav" aria-label="Settings sections">
+        <nav className="tset-nav" aria-label="Settings sections" ref={navRef}>
           <span className="tset-nav-lbl">Trip settings</span>
           {([['identity', 'Name & cover', AlignLeft], ['dates', 'Dates & days', CalendarDays], ['group', 'Group & budget', Users],
             ['travel', 'How you travel', CarFront], ['people', 'People & sharing', Share2], ['danger', 'Archive or delete', Trash2]] as const)
@@ -1170,7 +1194,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               <span className="flab">Your days</span>
               <div className="tset-daygrid">
                 {grid.map(d => (
-                  <div key={d.key} className={`tset-day${d.isNew ? ' is-new' : ''}`}>
+                  <div key={d.key} className={`tset-day${d.isNew ? ' is-new' : ''}${lateDays.has(d.key) ? ' is-late' : ''}`}>
                     <span className="tset-day-dow">{d.dow}</span>
                     <b className="tset-day-num">{d.dayOfMonth}</b>
                     <em className="tset-day-stops">

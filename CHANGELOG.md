@@ -16,6 +16,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+
+- **The trip Settings tab now arrives in steps and answers each edit with a soft transition.** The tab panel used to fade in while the cards inside it rose. The two fades ran together, so the nav and the first cards appeared at the same moment. The panel fade is now off for this tab. The nav and the name card come first. The save card, the dates, the glance and the group follow. The travel, people and danger cards come last. Inside the cards, the nav rows, the cover tiles, the preview blocks and the day tiles follow in steps. The cascade starts at most four elements per 60ms and settles in about one second. The field border and ring, the Save and Discard buttons and the "Changed" badge now ease on motion tokens. The active nav row keeps one text weight, so its neighbours no longer shift. The switch knob slides on `transform`. Press states and the mode-card ring follow the motion tokens. Cover photos that arrive late now fade in at once, and they no longer move the "Your photo" tile. A day added after the first paint rises at once. Reduced motion shows the end state with no running animation.
+- **The Settings tab now follows the Linen artboard more closely.** The card titles use Plus Jakarta Sans 800 at 18px. The gap between cards is 16px, and the nav rail has 12px padding. Card borders, subtitles, icon tiles and the preview blocks use the Linen tokens. The danger cells stack as rows, and "Archive" stays disabled with its "Not built yet" copy. On a coarse pointer, each nav item, segment button, stepper button and danger button is at least 44px. On a phone, the nav strip stays under the header, and it scrolls the active item into view. See I-112 to I-114 for what stays open.
+
 ## [0.83.0] - 2026-11-03
 
 **This minor release makes the Android app able to learn about its own updates.** The APK now carries the update feed URL. The feed is served from the release page, so a release cut publishes it. Every APK shipped before this one told its own Profile page that update checks were not configured.

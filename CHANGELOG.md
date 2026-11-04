@@ -20,6 +20,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The map's drive picks now pass through one presentation adapter.** The adapter copies the engine's public picks in their original sequence. It keeps each place's identity. It carries the corrected detour, arrival and window facts unchanged. It starts no search and holds no write authority. The map workspace will render from it. Timeline sharing waits for issue 841.
 
+- **Scenic places now classify by family with confirmed subtype facts.** Provider type, then evidenced name, then OSM tags decide the family. A waterfall fits a stretch break, and a viewpoint cannot fill a fuel gap. Heritage, water and views keep their generic facts until the source rows are complete.
+
+- **Road-measured detours now have one validated fact surface.** A baseline route and a via route through a place give the directed delta. Negative, non-finite or missing results stay unknown. A stale generation cannot replace a newer measurement. The helper ships with an injected transport, so no live routing call starts until rights and limits are agreed.
+
 ### Fixed
 
 - **Map suggestions now charge the return drive once, so the card, the ranker and the day budget agree.** An 8 km spur at 40 km/h shows 24 minutes, not 12 or 48. `asymmetricDetourMinutes` now returns the drive out and back. The ranker weighs that fact once, the day budget spends it once, and the arrival clock keeps the one-way leg. Supplied road evidence still wins. Missing, negative or non-finite distance stays unknown, and it never reads as free.

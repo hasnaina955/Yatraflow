@@ -105,7 +105,7 @@ export function queriesForPurpose(
 // ---- family query sets (ticket 09 / #894) ----
 // One Text Search event per family query, for the day the family is needed
 // (ticket 10 builds the day-context selection on top; family SELECTION and
-// operating limits require coordinator agreement before any live expansion).
+// operating limits need coordinator agreement before any live expansion).
 // Deliberately NO includedType: the audit's flaw 5 showed a strict
 // tourist_attraction gate discards lakes, waterfalls, dams and viewpoints —
 // the family classification (providers/families.ts) refines results instead.

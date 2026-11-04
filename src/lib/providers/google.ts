@@ -288,7 +288,7 @@ export interface AlongRouteArgs {
   /**
    * Ticket 09: family query sets appended to the scan — one Text Search event
    * per family query, results classified into the family's category. Family
-   * SELECTION per day and operating limits require coordinator agreement
+   * SELECTION per day and operating limits need coordinator agreement
    * before any live expansion (ticket 10 owns the day-context selection).
    */
   families?: PlaceFamily[]

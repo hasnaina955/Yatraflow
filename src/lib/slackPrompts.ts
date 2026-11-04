@@ -43,14 +43,15 @@ function round5(n: number): number {
 }
 
 /**
- * Closest candidate whose there-and-back detour plus visit fits the slack.
+ * Closest candidate whose return-driving detour plus visit fits the slack.
+ * `detourMin` is already round-trip valued, so it is spent once, not doubled.
  * Garbage detours never fit; zero-detour on-route picks always do.
  */
 export function pickSlackHit(slackMin: number, candidates: SlackCandidate[]): SlackCandidate | null {
   let best: SlackCandidate | null = null
   for (const c of candidates) {
     if (!Number.isFinite(c.detourMin) || c.detourMin < 0) continue
-    const cost = c.detourMin * 2 + visitMinutesForCategory(c.category)
+    const cost = c.detourMin + visitMinutesForCategory(c.category)
     if (cost > slackMin) continue
     if (!best || c.detourMin < (best.detourMin as number)) best = c
   }
@@ -62,5 +63,5 @@ export function slackPrompt(slackMin: number, dayLabel: string, candidates: Slac
   if (!(slackMin >= MIN_SLACK_MIN)) return null
   const pick = pickSlackHit(slackMin, candidates)
   if (!pick) return null
-  return `you have ~${round5(slackMin)} min slack in ${dayLabel} — ${pick.name} is ${round5(pick.detourMin)} min away`
+  return `you have ~${round5(slackMin)} min slack in ${dayLabel} — ${pick.name} costs ~${round5(pick.detourMin)} min there and back`
 }

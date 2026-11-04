@@ -337,9 +337,9 @@ describe('filled states (P1.2)', () => {
 describe('candidates (P1.4)', () => {
   it('the segment hit leads, pool entries follow, duplicates collapse', () => {
     const slots = daySlots(0, base({
-      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel'))],
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel', { offRouteKm: 2 }))],
       dayStops: [],
-      altPool: [hit('h1', 'Grand Hotel'), hit('p1', 'Halais, Cherthala', { offRouteKm: 8 }), hit('p2', 'Another eatery', { offRouteKm: 6, alongRouteKm: 130 })],
+      altPool: [hit('h1', 'Grand Hotel'), hit('p1', 'Halais, Cherthala', { offRouteKm: 5 }), hit('p2', 'Another eatery', { offRouteKm: 1, alongRouteKm: 130 })],
     }))
     const names = slots[0].candidates.map(c => c.hit.name)
     expect(names[0]).toBe('Grand Hotel')
@@ -353,13 +353,13 @@ describe('candidates (P1.4)', () => {
       dayStops: [],
     }))
     const c = slots[0].candidates[0]
-    expect(c.detourMin).toBe(18) // 12 km at the 40 km/h fallback
-    expect(c.arriveMin).toBe(753) // 735 + 18
+    expect(c.detourMin).toBe(36) // a 12 km spur at 40 km/h costs 36 min there and back
+    expect(c.arriveMin).toBe(753) // 735 + the 18-min one-way leg
     expect(c.arriveLabel).toBe('12:33')
     expect(c.inWindow).toBe(true) // inside 11:30-14:30
     expect(c.detourKm).toBe(12)
     expect(c.reason).toContain('off-route')
-    expect(c.budgetSharePct).toBe(Math.round((18 / 45) * 100)) // 40% of the 45-min default budget
+    expect(c.budgetSharePct).toBe(Math.round((36 / 45) * 100)) // 80% of the 45-min default budget
   })
 
   it('a candidate whose arrival misses the window is marked honestly', () => {
@@ -378,7 +378,7 @@ describe('candidates (P1.4)', () => {
   })
 
   it('candidates are capped at the limit', () => {
-    const altPool = [1, 2, 3, 4, 5].map(i => hit(`p${i}`, `Eatery ${i}`, { alongRouteKm: 100 + i }))
+    const altPool = [1, 2, 3, 4, 5].map(i => hit(`p${i}`, `Eatery ${i}`, { alongRouteKm: 100 + i, offRouteKm: 1 }))
     const slots = daySlots(0, base({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
@@ -410,14 +410,14 @@ describe('candidates (P1.4)', () => {
   })
 
   it('the day detour budget culls the tail', () => {
-    const altPool = [1, 2, 3].map(i => hit(`p${i}`, `Far eatery ${i}`, { offRouteKm: 30, alongRouteKm: 100 + i }))
+    const altPool = [1, 2, 3].map(i => hit(`p${i}`, `Far eatery ${i}`, { offRouteKm: 15, alongRouteKm: 100 + i }))
     const slots = daySlots(0, base({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       altPool,
     }))
-    // Each 30 km detour costs 45 min at 40 km/h - the 45-min default budget
-    // funds exactly one of them.
+    // Each 15 km spur costs 45 min there and back at 40 km/h - the 45-min
+    // default budget funds exactly one of them.
     expect(slots[0].candidates).toHaveLength(1)
     expect(slots[0].candidates[0].budgetSharePct).toBe(100)
   })
@@ -768,8 +768,8 @@ describe('coupled re-ranking after a stay (plan P3.4)', () => {
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       altPool: [
-        hit('a', 'A', { latitude: 10.9, longitude: 76.9, alongRouteKm: 100 }),
-        hit('b', 'B', { latitude: 10.01, longitude: 76.01, alongRouteKm: 105 }),
+        hit('a', 'A', { latitude: 10.9, longitude: 76.9, alongRouteKm: 100, offRouteKm: 1 }),
+        hit('b', 'B', { latitude: 10.01, longitude: 76.01, alongRouteKm: 105, offRouteKm: 1 }),
       ],
     }))
     expect(slots[0].candidates.length).toBeGreaterThanOrEqual(2)

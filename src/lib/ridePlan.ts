@@ -1576,7 +1576,7 @@ function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): 
  * arrival clock is degraded. Known hours + no arrival clock (or vice versa)
  * leave the hit untouched. Penalty is minutes a trip would "walk a shut
  * door" away from the ideal — scaled so a full locked-out place is about as
- * bad as a 10 km off-road detour (matches the ×2 minute weight).
+ * bad as a 10 km off-road detour (matches the detour minute weight).
  */
 export function hoursFitAdj(
   h: Pick<PlaceHit, 'openTime' | 'closeTime'>,
@@ -1623,15 +1623,15 @@ export function scoreHitForSegment(
   // 800 km further down the corridor. Past this bound the segment is honestly
   // empty; a halt 800 km from its halt is not a suggestion.
   if (seg.purpose === 'overnight' && h.isPopulatedPlace && dist > 120) return null
-  // Detour scores in minutes at the trip's speed, not flat km: the same
-  // off-route distance costs a slow mode more. ×2 keeps the old weight at
-  // the 60 km/h reference (10 km = 10 min = 20 points, as before).
+  // Detour scores in return-driving minutes at the trip's speed, not flat km:
+  // the same off-route spur costs a slow mode more, and it costs the drive out
+  // plus the drive back. The weight is those return minutes once — the fact is
+  // already round-trip valued, so it is not doubled again here.
   // Asymmetric when route geometry is known: on-the-way hits cost ~0 detour,
-  // off-road spurs pay the round trip — so a place you literally pass is not
-  // penalized as a "detour".
+  // so a place you literally pass is not penalized as a "detour".
   const detour = asymmetricDetourMinutes(h, anchors, opts.routePolyline ?? undefined, opts.speedKmph)
   if (detour == null) return null // unknown position cannot be scored as free/on-route
-  const detourCost = detour * 2
+  const detourCost = detour
   // Opening-hours fit: a hit closed when you'd arrive is degraded.
   const hours = hoursFitAdj(h, seg.etaMinutes)
   // Trip DNA bends ties only: favoured categories shave up to 3 points.

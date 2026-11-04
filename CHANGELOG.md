@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **Map suggestions now charge the return drive once, so the card, the ranker and the day budget agree.** An 8 km spur at 40 km/h shows 24 minutes, not 12 or 48. `asymmetricDetourMinutes` now returns the drive out and back. The ranker weighs that fact once, the day budget spends it once, and the arrival clock keeps the one-way leg. Supplied road evidence still wins. Missing, negative or non-finite distance stays unknown, and it never reads as free.
+
 ### Changed
 
 - **Development fixtures use explicit status and root checks.** Source checks use literal patterns, and the fixture config imports the package version.

@@ -117,6 +117,15 @@ export function distToNearest(h: Pick<PlaceHit, 'latitude' | 'longitude'>, ancho
   return Math.min(...anchors.map(a => haversineKm(h.latitude, h.longitude, a.lat, a.lng) * 1000))
 }
 
+/**
+ * A supplied detour distance is usable only when it is a finite, non-negative
+ * number of km. Missing, negative or non-finite evidence stays unknown — it is
+ * never read as free.
+ */
+function usableDetourKm(v: number | undefined | null): number | null {
+  return v != null && Number.isFinite(v) && v >= 0 ? v : null
+}
+
 /** How far a hit sits off the route corridor, in km (real road detour when known).
  *  Returns null when the detour is genuinely unknown (Google along-route hits with no
  *  computed detour) so the UI can say "on route" instead of a misleading straight-line estimate. */
@@ -124,7 +133,10 @@ export function detourKm(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
   anchors: { lat: number; lng: number }[],
 ): number | null {
-  if (h.offRouteKm != null && Number.isFinite(h.offRouteKm)) return h.offRouteKm
+  const known = usableDetourKm(h.offRouteKm)
+  if (known != null) return known
+  // Supplied but invalid evidence (negative or non-finite) stays unknown.
+  if (h.offRouteKm != null) return null
   // Google Search-Along-Route hits already hug the polyline, so a straight-line fallback
   // would report a misleadingly tiny "off route" distance. When the real detour is unknown,
   // return null and let the UI say "on route".
@@ -177,17 +189,22 @@ export function spurKm(
 }
 
 /**
- * Asymmetric detour: a destination ON the road is on-the-way (~0 detour —
- * you pass it), a destination off the road pays a one-way spur (the caller
- * doubles it to out-and-back). When no polyline is available it falls back to
- * the straight-line-to-anchor measure. Google's real road detour always wins.
+ * Asymmetric one-way detour: a destination ON the road is on-the-way (~0 km —
+ * you pass it), a destination off the road pays a one-way spur. When no
+ * polyline is available it falls back to the straight-line-to-anchor measure.
+ * Supplied road evidence always wins. Returns null when the detour is unknown
+ * or the supplied evidence is invalid; never returns a negative distance.
  */
 export function asymmetricDetourKm(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
 ): number | null {
-  if (h.offRouteKm != null && Number.isFinite(h.offRouteKm)) return h.offRouteKm
+  const known = usableDetourKm(h.offRouteKm)
+  if (known != null) return known
+  // Supplied but invalid evidence stays unknown instead of falling through to
+  // a geometric guess that could read as free.
+  if (h.offRouteKm != null) return null
   if (h.fromGoogleAlongRoute) return null // on the polyline, no real detour known
   if (routePolyline && routePolyline.length >= 2) {
     const spur = spurKm(h, routePolyline)
@@ -197,9 +214,10 @@ export function asymmetricDetourKm(
 }
 
 /**
- * Asymmetric detour in minutes at the trip's speed. On-the-way hits cost ~0;
- * off-road hits are the spur (doubled by scorers). Falls back to the current
- * symmetric minute math when there's no route geometry to measure against.
+ * Return-driving time in minutes at the trip's speed: the one-way detour out
+ * to the place plus the drive back. An on-the-way hit costs 0; an 8 km spur at
+ * 40 km/h costs 24 minutes. Unknown or invalid detours return null — never 0,
+ * so a broken measurement cannot ride for free.
  */
 export function asymmetricDetourMinutes(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
@@ -208,9 +226,9 @@ export function asymmetricDetourMinutes(
   speedKmph?: number,
 ): number | null {
   const speed = speedKmph != null && Number.isFinite(speedKmph) && speedKmph > 0 ? speedKmph : DEFAULT_SPEED_KMH
-  if (h.fromGoogleAlongRoute) return 0
   const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
-  return km == null ? null : (km / speed) * 60
+  if (km == null) return null
+  return ((km / speed) * 60) * 2
 }
 
 /**

@@ -605,6 +605,8 @@ function candidatesFor(
   for (const row of rows) {
     if (out.length >= limit) break
     const dKm = detourKm(row.hit, deps.anchors)
+    // Return-driving minutes: the budget (and the card) charge the drive out
+    // plus the drive back, once.
     const dMin = asymmetricDetourMinutes(row.hit, deps.anchors, deps.routePolyline ?? null, speed)
     // Unknown position is never free or auto-kept: the candidate needs a
     // measured road position before it can consume the day's finite budget.
@@ -616,7 +618,9 @@ function candidatesFor(
     if (spent + dMin > budget) continue
     spent += dMin
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
-    const arriveMin = eta != null && dMin != null ? Math.round(eta + dMin) : null
+    // The arrival clock pays the one-way leg only; the return leg happens
+    // after the visit.
+    const arriveMin = eta != null ? Math.round(eta + dMin / 2) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({
       hit: row.hit,

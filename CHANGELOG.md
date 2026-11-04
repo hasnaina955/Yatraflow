@@ -18,6 +18,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Trip Settings navigation now clears the header and phone rail.** The active mark follows the section or the selected link. The day grid uses the reference spacing.
+
 - **The selected Pace choice now uses sea ink in both themes.** The two-column grid keeps its single-choice behavior and neutral unselected rows.
 
 - **Profile section navigation now clears the header and its phone strip.** Section headings and social actions have space around their content. Long rail labels wrap on desktop, and creator actions wrap on narrow screens.

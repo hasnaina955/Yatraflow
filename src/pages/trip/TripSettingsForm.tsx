@@ -783,23 +783,36 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     startLocation: trip.startLocation,
   })
 
-  /** The artboard marks the section you are looking at, not just the ones you
-   *  edited. One observer over the six section anchors; the first one whose top
-   *  crosses the reading line wins, so the mark follows the scroll. */
+  /** Mark the section at the reading line, including the phone rail offset. */
   const [activeSection, setActiveSection] = useState<string>('identity')
+  const railClick = useRef(false)
   useEffect(() => {
     const sections = SECTIONS
       .map(id => document.getElementById(`tset-${id}`))
       .filter((el): el is HTMLElement => el !== null)
     if (sections.length === 0) return
-    const seen = new Map<string, boolean>()
-    const io = new IntersectionObserver(entries => {
-      for (const e of entries) seen.set(e.target.id.replace('tset-', ''), e.isIntersecting)
-      const first = SECTIONS.find(id => seen.get(id))
-      if (first) setActiveSection(first)
-    }, { rootMargin: '-96px 0px -60% 0px', threshold: 0 })
+    const mark = () => {
+      if (railClick.current) return
+      const padding = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0
+      const margin = Number.parseFloat(getComputedStyle(sections[0]).scrollMarginTop) || 0
+      let active = sections[0]
+      for (const section of sections) if (section.getBoundingClientRect().top <= padding + margin + 1) active = section
+      if (Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 2) active = sections[sections.length - 1]
+      setActiveSection(active.id.replace('tset-', ''))
+    }
+    const io = new IntersectionObserver(mark, { rootMargin: '-96px 0px -60% 0px', threshold: 0 })
     sections.forEach(el => io.observe(el))
-    return () => io.disconnect()
+    const release = () => { railClick.current = false }
+    window.addEventListener('scroll', mark, { passive: true })
+    window.addEventListener('resize', mark)
+    for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) window.addEventListener(type, release, { passive: true })
+    mark()
+    return () => {
+      io.disconnect()
+      window.removeEventListener('scroll', mark)
+      window.removeEventListener('resize', mark)
+      for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) window.removeEventListener(type, release)
+    }
   }, [])
   /** On a phone the nav is a sideways strip. When the section you are reading
    *  changes, bring its item into view so the mark is never off screen. The
@@ -808,8 +821,11 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
   useEffect(() => {
     const nav = navRef.current
     if (!nav || nav.scrollWidth <= nav.clientWidth) return
-    nav.querySelector<HTMLElement>('[aria-current="true"]')
-      ?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'auto' })
+    const item = nav.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!item) return
+    const rail = nav.getBoundingClientRect(), row = item.getBoundingClientRect()
+    if (row.left < rail.left) nav.scrollLeft += row.left - rail.left
+    else if (row.right > rail.right) nav.scrollLeft += row.right - rail.right
   }, [activeSection])
 
   // The sticky preview panel. It sits last in the grid, after every section,
@@ -966,6 +982,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   {key === 'danger' && <span className="tset-nav-divider" aria-hidden="true" />}
                   <a href={`#tset-${key}`}
                     className={`tset-nav-item${edited ? ' is-edited' : ''}${key === 'danger' ? ' is-danger' : ''}`}
+                    onClick={() => { railClick.current = true; setActiveSection(key) }}
                     aria-current={activeSection === key ? 'true' : undefined}>
                     <Icon size={16} aria-hidden />
                     {label}
@@ -1432,10 +1449,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               </div>
               <div className="field">
                 <span className="flab">Pace</span>
-                {/* A proposal, not a shipped decision: the ten styles wrap into
-                    rows instead of scrolling off the right edge, so every one is
-                    reachable without a sideways drag. The choice keeps its own
-                    pressed state, its own key and the same setter. */}
+                {/* The approved row grid keeps all ten choices in view. */}
                 <div className="tset-pace-rows" role="group" aria-label="Travel style">
                   {TRAVEL_STYLES.map(s => (
                     <button key={s} type="button" data-pill-key={s} disabled={!editable}

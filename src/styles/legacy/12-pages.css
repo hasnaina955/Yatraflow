@@ -417,7 +417,7 @@
    every section is on the page at once, and the marks say which carry edits. */
 .tset-nav {
   position: sticky;
-  top: var(--space-7);
+  top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -604,7 +604,7 @@
    each tile, paints the weekday in marigold ink and the number in the display
    face. A day past the trip's own length is dashed marigold, so a new day
    reads as pending, not saved. */
-.tset-daygrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
+.tset-daygrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); }
 .tset-day {
   display: flex;
   flex-direction: column;
@@ -1184,8 +1184,6 @@
   /* The strip sticks under the floating header, as the timeline ribbon does,
      and sits above the cards that slide under it. */
   .tset-nav {
-    position: sticky;
-    top: calc(12px + var(--nav-h) + 10px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
     z-index: var(--z-raised);
     flex-direction: row;
     overflow-x: auto;
@@ -1193,6 +1191,7 @@
   }
   .tset-nav-lbl, .tset-nav-item i { display: none; }
   .tset-nav-item { flex: none; white-space: nowrap; }
+  .tset-main > .tsx-card { scroll-margin-top: var(--space-16); }
   .tset-daygrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* The group row and the two read-back pairs are two columns of a 343px card
      at 390px: each column would be 160px and the budget figure overflows it. */

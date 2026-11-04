@@ -18,6 +18,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **The selected Pace choice now uses sea ink in both themes.** The two-column grid keeps its single-choice behavior and neutral unselected rows.
+
 - **Profile section navigation now clears the header and its phone strip.** Section headings and social actions have space around their content. Long rail labels wrap on desktop, and creator actions wrap on narrow screens.
 
 - **Profile travel-style choices now sit in two columns of rows, like the Trip Settings Pace grid.** The ten styles keep sea ink when selected. Several styles stay selected at once. The instant-save handler does not change. Clock-format pills and Trip Settings stay as they were. Each row is 40px, and 44px on a coarse pointer. Text wraps and stays readable. Both themes resolve from existing tokens.

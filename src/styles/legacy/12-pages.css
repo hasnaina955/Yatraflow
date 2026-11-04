@@ -1102,10 +1102,7 @@
 .seg-btn:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
 .seg-btn.on { background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--elev-press); }
 .seg-btn:disabled { opacity: .55; cursor: not-allowed; }
-/* Pace: a proposal under review, so it stays a wrapped row grid rather than the
-   artboard's sideways scroller. Ten styles in two columns of rows keep every
-   choice reachable with no hidden sideways drag, and the row is a full-width
-   target on a finger. The pressed state is the shared `.seg-btn` one. */
+/* Pace uses the approved two-column row grid. All ten choices stay visible. */
 .tset-pace-rows {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1121,6 +1118,10 @@
   border-radius: var(--radius-sm);
   background: var(--pw-soft);
   text-align: start;
+}
+.tset-pace-row.on, .tset-pace-row.on:hover:not(:disabled) {
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
 }
 @media (pointer: coarse) {
   .tset-pace-row { height: 44px; }

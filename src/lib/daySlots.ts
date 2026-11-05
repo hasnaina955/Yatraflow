@@ -37,7 +37,7 @@ import {
 } from './ridePlan'
 import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
 import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
-import { candidateArrivalMin } from './candidateArrival'
+import { candidateArrivalMin, type ArrivalContext } from './candidateArrival'
 import { MIN_PURPOSE_FIT } from './haltFit'
 import { type DnaVector } from './tripDna'
 import { clockHM } from './clockOverlay'
@@ -199,6 +199,12 @@ export interface DaySlotsDeps {
   /** The day's road-km span (start inclusive, end inclusive) for positioning
    *  synthesized slots on the corridor. Absent = the day's own stops only. */
   daySpanKm?: (dayIndex: number) => { fromKm: number; toKm: number } | null
+  /**
+   * COMPLETE measured-evidence context (active route/generation + origin).
+   * Absent = measured arrival evidence is unknown (fail closed); the unchanged
+   * symmetric estimate applies. Production callers do not supply it yet.
+   */
+  measuredContext?: ArrivalContext
   /**
    * Runtime hours (repair of #887): the local ISO date of a trip day. Candidate
    * scoring uses it so a weekday closure and a full-visit overrun are real
@@ -557,6 +563,7 @@ function candidatesFor(
     ...(deps.dnaVector ? { dnaVector: deps.dnaVector } : {}),
     ...(deps.homeCenter ? { homeCenter: deps.homeCenter } : {}),
     visitDates,
+    ...(deps.measuredContext ? { measuredContext: deps.measuredContext } : {}),
   }
   const seen = new Set<string>()
   const rows: Array<{ hit: PlaceHit; score: number }> = []
@@ -635,7 +642,12 @@ function candidatesFor(
     // Arrival uses the same clock rule as the scorer and the card: the directed
     // measured leg at its own departure clock when available, else the symmetric
     // estimate. Repair (recheck P1) — never a measured total halved as directed.
-    const arrivalMin = candidateArrivalMin({ hit: row.hit, etaMinutes: eta, detourMin: dMin })
+    const arrivalMin = candidateArrivalMin({
+      hit: row.hit,
+      etaMinutes: eta,
+      detourMin: dMin,
+      context: deps.measuredContext,
+    })
     const arriveMin = arrivalMin != null ? Math.round(arrivalMin) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({

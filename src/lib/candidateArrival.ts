@@ -1,40 +1,45 @@
 // The candidate arrival clock (direct-review repair, DeepSeek lane).
 //
 // The scorer, the slot engine and the card must agree on WHEN the traveller
-// reaches the place. A measured arrival leg is used only inside the context it
-// was measured in: same hit, same origin, same active route/generation and the
-// departure clock it was taken at. A mismatched measured context is UNKNOWN —
-// a directed arrival is never inferred by halving a measured asymmetric total.
-// Without measured evidence the symmetric geometric estimate applies.
+// reaches the place. Measured arrival evidence is trusted ONLY inside the
+// complete context it was measured in: same hit, same departure clock, same
+// active route/generation and same origin. A missing route or origin fails
+// closed (unknown), never "matches by omission"; a directed arrival is never
+// inferred by halving a measured asymmetric total. Without measured evidence
+// the unchanged symmetric geometric estimate applies.
 import type { MeasuredRoadFact, PlaceHit } from './providers/hits'
 
-/** What a caller knows about the context it is scoring under, when it knows it. */
+/**
+ * The COMPLETE context measured evidence must match. Both parts are needed:
+ * a route without its origin, or an origin without its route, cannot identify
+ * the measurement pair.
+ */
 export interface ArrivalContext {
-  /** active route/generation from the measurement contract */
-  route?: { generation: number; routeFingerprint: string } | null
-  /** stable origin identity of the measurement pair */
-  originKey?: string | null
+  route: { generation: number; routeFingerprint: string }
+  originKey: string
 }
 
-function factMatchesContext(
+function contextTrustsMeasured(
   fact: MeasuredRoadFact,
   hitId: string,
   etaMinutes: number,
-  context: ArrivalContext,
+  context: ArrivalContext | undefined,
 ): boolean {
   if (fact.hitId !== hitId) return false
   if (Math.abs(fact.departAtMin - etaMinutes) > 1) return false
-  const route = context.route
-  if (route && (fact.generation !== route.generation || fact.routeFingerprint !== route.routeFingerprint)) return false
-  if (context.originKey != null && fact.originKey !== context.originKey) return false
-  return true
+  // Fail closed: absence of the route or the origin is not a match.
+  if (!context || !context.route || typeof context.originKey !== 'string' || context.originKey.length === 0) return false
+  if (fact.generation !== context.route.generation) return false
+  if (fact.routeFingerprint !== context.route.routeFingerprint) return false
+  return fact.originKey === context.originKey
 }
 
 /**
- * Arrival clock for a candidate. With a matching measured fact: ETA plus the
- * directed leg. With a measured fact that does NOT match this context: null
- * (unknown), never half of a measured total. With no measured fact: ETA plus
- * half the symmetric geometric estimate. Null when ETA or estimate unknown.
+ * Arrival clock for a candidate. With a measured fact and its COMPLETE
+ * matching context: ETA plus the directed leg. With a measured fact but any
+ * missing or mismatched context: null (unknown), never half of a measured
+ * total. With no measured fact: ETA plus half the unchanged geometric
+ * estimate. Null when ETA or estimate is unknown.
  */
 export function candidateArrivalMin(args: {
   hit: Pick<PlaceHit, 'id' | 'measuredRoadFact'>
@@ -46,7 +51,7 @@ export function candidateArrivalMin(args: {
   if (eta == null || !Number.isFinite(eta)) return null
   const fact = args.hit.measuredRoadFact
   if (fact) {
-    return factMatchesContext(fact, String(args.hit.id), eta, args.context ?? {})
+    return contextTrustsMeasured(fact, String(args.hit.id), eta, args.context)
       ? eta + fact.arriveMin
       : null
   }
@@ -57,7 +62,7 @@ export function candidateArrivalMin(args: {
   return eta + detour / 2
 }
 
-/** True when the arrival came from a measured fact that matches this context. */
+/** True only when complete measured context matches this hit and clock. */
 export function arrivalIsMeasured(args: {
   hit: Pick<PlaceHit, 'id' | 'measuredRoadFact'>
   etaMinutes: number | null | undefined
@@ -66,5 +71,5 @@ export function arrivalIsMeasured(args: {
   const eta = args.etaMinutes
   const fact = args.hit.measuredRoadFact
   if (eta == null || !Number.isFinite(eta) || !fact) return false
-  return factMatchesContext(fact, String(args.hit.id), eta, args.context ?? {})
+  return contextTrustsMeasured(fact, String(args.hit.id), eta, args.context)
 }

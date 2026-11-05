@@ -20,7 +20,7 @@ import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandida
 import { openingVerdict } from './providers/hours'
 import { weatherAdjustedPurposeFit } from './providers/families'
 import { intendedVisitMinutes } from './hoursContext'
-import { candidateArrivalMin } from './candidateArrival'
+import { candidateArrivalMin, type ArrivalContext } from './candidateArrival'
 import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
@@ -1563,6 +1563,13 @@ export interface AssignOpts {
    * keep the honest weekday-free behavior; the projection owns supplying it.
    */
   visitDates?: (string | null)[]
+  /**
+   * COMPLETE measured-evidence context (active route/generation + origin).
+   * When absent, measured arrival evidence is unknown (fail closed) and the
+   * unchanged geometric estimate applies. The measured transport is inactive;
+   * production callers do not supply this yet.
+   */
+  measuredContext?: ArrivalContext
 }
 
 /** Rain chance at or above this means the day counts as rainy. Matches OverviewTab. */
@@ -1683,7 +1690,12 @@ export function scoreHitForSegment(
   // measured leg when it was taken at this ETA. The slot and card use the
   // same helper, so three surfaces cannot disagree about arrival.
   const visitDate = opts.visitDates?.[seg.index] ?? null
-  const arrival = candidateArrivalMin({ hit: h, etaMinutes: seg.etaMinutes, detourMin: detour })
+  const arrival = candidateArrivalMin({
+    hit: h,
+    etaMinutes: seg.etaMinutes,
+    detourMin: detour,
+    context: opts.measuredContext,
+  })
   const hours = hoursFitAdj(h, arrival, { date: visitDate, visitMin: intendedVisitMinutes(h) })
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0

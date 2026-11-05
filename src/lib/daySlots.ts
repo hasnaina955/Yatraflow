@@ -37,6 +37,7 @@ import {
 } from './ridePlan'
 import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
 import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { candidateArrivalMin } from './candidateArrival'
 import { MIN_PURPOSE_FIT } from './haltFit'
 import { type DnaVector } from './tripDna'
 import { clockHM } from './clockOverlay'
@@ -631,9 +632,11 @@ function candidatesFor(
     if (spent + dMin > budget) continue
     spent += dMin
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
-    // The arrival clock pays the one-way leg only; the return leg happens
-    // after the visit.
-    const arriveMin = eta != null ? Math.round(eta + dMin / 2) : null
+    // Arrival uses the same clock rule as the scorer and the card: the directed
+    // measured leg at its own departure clock when available, else the symmetric
+    // estimate. Repair (recheck P1) — never a measured total halved as directed.
+    const arrivalMin = candidateArrivalMin({ hit: row.hit, etaMinutes: eta, detourMin: dMin })
+    const arriveMin = arrivalMin != null ? Math.round(arrivalMin) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({
       hit: row.hit,

@@ -44,7 +44,7 @@ import {
 } from './map/pageHelpers'
 import { activeReadinessLabel, activeDayLabel } from './map/railRows'
 import { driveRowsFromSegments } from './map/driveSuggestionView'
-import { hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
+import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import { LedgerRow } from './map/RailRowViews'
 import { filingOptionsFor, manualCandidateFor, mergeSlotCandidates } from './map/slotFiling'
 import {
@@ -1191,8 +1191,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                         first legacy period. No structured hours keeps the old pair. */}
                     {(() => {
                       if (h.hours) {
+                        // No arrival clock here: show the day's intervals only, and
+                        // never a verdict this row has not checked. Repair (recheck P2).
                         const shown = hoursDisplayFor(h, { date: visitDateForDay(trip.startDate, pickDay), arrivalMin: null })
-                        return shown.ranges ? `, ${shown.ranges.map(r => formatHMRange(r.open, r.close, timeFormat)).join(' · ')}` : ''
+                        const text = hoursCardText(shown, (a, b) => formatHMRange(a, b, timeFormat))
+                        return text ? `, ${text}` : ''
                       }
                       return (h.openTime || h.closeTime) ? `, ${formatHMRange(h.openTime, h.closeTime, timeFormat)}` : ''
                     })()}
@@ -1722,9 +1725,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                                         arrivalMin: c.arriveMin,
                                         visitMin: intendedVisitMinutes(c.hit),
                                       })
-                                      if (!shown.ranges) return ''
-                                      const span = shown.ranges.map(r => formatHMRange(r.open, r.close, timeFormat)).join(' · ')
-                                      return ` · ${span}${shown.note ? ` (${shown.note})` : ''}`
+                                      // The verdict note renders even when no interval is
+                                      // provable: a known closure is a fact, not a blank.
+                                      // Repair of the recheck P2: ranges no longer gate the note.
+                                      const text = hoursCardText(shown, (a, b) => formatHMRange(a, b, timeFormat))
+                                      return text ? ` · ${text}` : ''
                                     }
                                     return (c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''
                                   })()}

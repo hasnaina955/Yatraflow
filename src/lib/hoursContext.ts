@@ -142,3 +142,18 @@ export function hoursDisplayFor(
     note: verdict.state === 'closed' ? closedNote(verdict) : null,
   }
 }
+
+/**
+ * The card text for an hours display. The verdict note renders even when no
+ * interval is provable: a known closure on a closed weekday is a fact, and
+ * discarding it because `ranges` is null hid a shut door. Repair of the
+ * recheck P2.
+ */
+export function hoursCardText(
+  shown: HoursDisplay,
+  formatRange: (open: string, close: string) => string,
+): string {
+  const span = shown.ranges?.map(r => formatRange(r.open, r.close)).join(' · ') ?? ''
+  const note = shown.note ? `(${shown.note})` : ''
+  return [span, note].filter(Boolean).join(' · ')
+}

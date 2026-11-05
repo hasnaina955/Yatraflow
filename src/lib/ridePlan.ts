@@ -20,6 +20,7 @@ import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandida
 import { openingVerdict } from './providers/hours'
 import { familyFactsFor } from './providers/families'
 import { intendedVisitMinutes } from './hoursContext'
+import { candidateArrivalMin } from './candidateArrival'
 import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
@@ -1593,9 +1594,10 @@ function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): 
     const facts = familyFactsFor(h.category, h.subtype ?? null, h.family)
     if (facts?.rain === 'exposed') return Math.max(0, base - 1)
     if (facts?.rain === 'sheltered') return Math.min(3, base + 1)
-    if (facts?.rain === 'mixed') return base
-    // family present but its row has no confirmed rain rule → neutral (no invention)
-    if (facts != null) return base
+    // A family fact with no confirmed rain row is UNKNOWN, not a category
+    // signal: never fall through to the category boosts (the heritage-fort
+    // museum case). Repair of the recheck P1.
+    return base
   }
   const cat = h.category ?? 'sightseeing'
   if (WEATHER_SENSITIVE.has(cat)) return Math.max(0, base - 1)
@@ -1656,13 +1658,14 @@ export function scoreHitForSegment(
   const dist = Math.abs(pos - seg.targetKm)
   const window = Math.max(1, seg.maxKm - seg.minKm)
   const distPenalty = dist > window / 2 ? dist + window : dist
-  const fit = weatherAdjustedFit(h, seg.purpose, seg.rainy === true)
-  // Need-based purposes never take a wrong-kind place: a college with zero
-  // fuel-fit must leave the segment empty (rendered as a gap), not fill it
-  // as a bogus petrol pump. Generic breaks stay ungated.
-  if ((seg.purpose === 'fuel' || seg.purpose === 'meal' || seg.purpose === 'overnight') && fit < 1) {
+  // Hard eligibility reads the DRY fit: rain is a preference, so it must never
+  // turn a wrong-kind place into a valid need candidate (recheck P1 — a museum
+  // fort must not become a fuel candidate just because it is raining).
+  const dryFit = fitScoreForPurpose(h, seg.purpose)
+  if ((seg.purpose === 'fuel' || seg.purpose === 'meal' || seg.purpose === 'overnight') && dryFit < 1) {
     return null
   }
+  const fit = weatherAdjustedFit(h, seg.purpose, seg.rainy === true)
   // A night-halt ANCHOR belongs to the halt it sits near (#189). The upstream
   // city guard filters candidates against ANY halt km, so a town valid for a
   // late halt could still be grabbed by an early segment starved of nearby
@@ -1684,8 +1687,13 @@ export function scoreHitForSegment(
   // projection supplies one; undated verdicts stay honest (neutral, not guessed).
   // The visit length is the pacing the add path already intends for this kind,
   // never a zero-length stand-in, so a visit that would overrun close is scored.
+  // Repair (recheck P1): the hours check reads the CANDIDATE ARRIVAL clock —
+  // ETA plus the outward leg — not the corridor ETA, and uses the directed
+  // measured leg when it was taken at this ETA. The slot and card use the
+  // same helper, so three surfaces cannot disagree about arrival.
   const visitDate = opts.visitDates?.[seg.index] ?? null
-  const hours = hoursFitAdj(h, seg.etaMinutes, { date: visitDate, visitMin: intendedVisitMinutes(h) })
+  const arrival = candidateArrivalMin({ hit: h, etaMinutes: seg.etaMinutes, detourMin: detour })
+  const hours = hoursFitAdj(h, arrival, { date: visitDate, visitMin: intendedVisitMinutes(h) })
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0
   return distPenalty + detourCost + hours + (3 - fit) * 4 - dna

@@ -105,7 +105,7 @@ describe('the active-route staleness binding', () => {
 describe('the hard top-15 ceiling (probe overriddenCap)', () => {
   it('a caller requesting 20 still gets the hard 15, in ranked order, unique by id', () => {
     const ranked = Array.from({ length: 20 }, (_, i) => ({ id: `c${i}` }))
-    const capped = topCandidatesForMeasurement(ranked, c => c.id, 20) // the probe's override attempt
+    const capped = topCandidatesForMeasurement(ranked, c => c.id, 20) // the probe's over-limit request
     expect(capped).toHaveLength(MEASUREMENT_TOP_CANDIDATES)
     expect(capped[0].id).toBe('c0')
     expect(capped[MEASUREMENT_TOP_CANDIDATES - 1].id).toBe('c14')

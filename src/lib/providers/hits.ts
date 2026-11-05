@@ -63,11 +63,18 @@ export interface PlaceHit {
    * INCLUDES the out-and-back extra, so it is charged ONCE and must never be
    * doubled again (60 baseline + 84 via → 24 extra minutes, not 48).
    * Wins over every geometric estimate; invalid values are ignored, never
-   * read as free. The directed arrival leg evidence rides the measurement
-   * record (`directedArriveExtraMin` in roadMeasure's handoff), NOT this
-   * field, and is never derived by halving.
+   * read as free. The directed arrival leg rides the two fields below.
    */
   measuredRoadDetourMin?: number
+  /**
+   * ROAD-MEASURED DIRECTED ARRIVAL LEG in minutes (origin -> place) from the
+   * same measurement record. Consumed only at the departure clock it was
+   * measured at (see `measuredRoadDepartAtMin`); a mismatch falls back to the
+   * symmetric estimate. Never derived by halving the return total.
+   */
+  measuredRoadArriveMin?: number
+  /** The departure clock (minutes since local midnight) the measured leg was taken at. */
+  measuredRoadDepartAtMin?: number
   // ---- ride-plan annotations (filled by src/lib/ridePlan.ts + providers) ----
   /** road km along the route from the journey origin (Google leg0/1000; free = coarse anchor position) */
   alongRouteKm?: number

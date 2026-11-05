@@ -6,6 +6,7 @@
 // with the free stack in charge the app behaves exactly as it always has.
 import { haversineKm } from '../geo'
 import { hasCoords, distToNearest, normWords, rankAndCap, spurKm, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
+import { familyFromOsmTags, type PlaceFamily } from './families'
 import { queriesForPurpose } from '../purposeQueries'
 import { cap } from '../labels'
 
@@ -279,6 +280,25 @@ function classifyOsmTags(tags: Record<string, string>): { cat: string; label: st
 }
 
 /**
+ * Scenic categories that may carry a family fact from OSM tags. The persisted
+ * category stays the classifier's own (never the helper's, and never a widened
+ * StopCategory). Fuel, food, lodging and worship hits keep their functional
+ * class and receive no scenic family from a secondary tag.
+ */
+const SCENIC_FAMILY_CATEGORIES = new Set(['nature', 'beach', 'sightseeing'])
+
+/** The helper's confirmed family facts, only for a compatible scenic hit. */
+function scenicFamilyFact(
+  tags: Record<string, string>,
+  category: string,
+): { family: PlaceFamily; subtype: string } | null {
+  if (!SCENIC_FAMILY_CATEGORIES.has(category)) return null
+  const evidence = familyFromOsmTags(tags)
+  // No matching confirmed tag evidence → no fact (unknown stays absent).
+  return evidence ? { family: evidence.family, subtype: evidence.subtype } : null
+}
+
+/**
  * Tourist-worthy OSM selectors. Fuel is appended conditionally (self-drive
  * pit stops only); ATMs/banks/post offices are deliberately absent — they are
  * errands, not itinerary items.
@@ -326,6 +346,7 @@ async function searchNearbyOverpass(anchors: { lat: number; lng: number }[], rad
     const lng = el.lon ?? el.center?.lon
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
     const cls = classifyOsmTags(tags)
+    const familyFact = scenicFamilyFact(tags, cls.cat)
     const hit: PlaceHit = {
       id: `osm_${el.type}_${el.id}`,
       name,
@@ -335,6 +356,9 @@ async function searchNearbyOverpass(anchors: { lat: number; lng: number }[], rad
       description: cls.label,
       category: cls.cat,
       source: 'osm',
+      // Additive family metadata only; identity, description, category and
+      // coordinates above stay exactly as the classifier produced them.
+      ...(familyFact ?? {}),
     }
     const prev = byName.get(hit.name.toLowerCase())
     if (!prev || distToNearest(hit, anchors) < distToNearest(prev, anchors)) {

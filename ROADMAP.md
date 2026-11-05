@@ -351,6 +351,14 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ---
 
+## Map V2 local UI work
+
+- [ ] Complete Map V2 acceptance against the six supplied boards. The local UI branch contains the map canvas layout, timed day list, place details, journey clock and phone sheet. These use the existing engine and write paths. Browser checks use a synthetic trip. Signed-in, native and phone-lane acceptance remain open.
+- [ ] Agree and verify the custom basemap styles, day colours and 2D elevation rules. The current map styles and view modes remain in use.
+- [ ] Add the shared suggestion projection after the issue #841 and #842 owner handoffs. Stay, Gap, Fix and map editing remain in the approved dependency order. Photo and live-position decisions remain open.
+
+The implementation boundary and local fixture are recorded in [the Map workspace note](docs/redesign/map-v2/IMPLEMENTATION.md). Existing issue claims are unchanged.
+
 ## Suggestions repair sequence (#832)
 
 The [full issue specification](https://github.com/hasnaina955/Yatraflow/issues/832) owns the contracts and all five checks per stage.

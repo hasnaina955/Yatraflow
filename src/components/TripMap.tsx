@@ -2,7 +2,7 @@
 // Real slippy-map rendering via mapcn (MapLibre GL): OpenFreeMap basemaps that follow
 // light/dark theme, numbered stop markers in timeline order, and a polyline
 // connecting each day's stops. Distances/durations still come from the engine.
-import { useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps } from 'react'
+import { useId, useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps } from 'react'
 import { useInView, usePageVisible } from './ui'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
@@ -25,6 +25,7 @@ import { haptic } from '../lib/haptics'
 import { nativeWatch } from '../lib/native'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
+import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -433,7 +434,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -514,8 +515,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   mapTarget?: MapTarget | null
   /** Clears the one-shot request after the camera and selection settle. */
   onMapTargetConsumed?: () => void
+  workspaceChrome?: boolean
+  overlayInsets?: MapInsets
+  instantTarget?: boolean
+  journeyCursor?: { coordinate: { lat: number; lng: number }; label: string } | null
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
+  const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
+  const toolbarId = useId()
   // A host drives the day filter through the prop (Board columns, the slots
   // rail's day strip); the map's own chips report their choice back through
   // `onDayFilterChange`, so the two selectors agree whichever one was touched.
@@ -709,6 +716,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'),
   )
   const mapRef = useRef<MapRef | null>(null)
+  const { top = 70, bottom = 70, left = 70, right = 70 } = overlayInsets ?? {}
+  const cameraPadding = useCallback(() => {
+    const container = mapRef.current?.getContainer()
+    return visibleMapPadding({ width: container?.clientWidth ?? 800, height: container?.clientHeight ?? 600 }, { top, bottom, left, right })
+  }, [top, bottom, left, right])
   const [mapLoaded, setMapLoaded] = useState(false)
   // A target camera stays authoritative for its day until the user moves the
   // map or chooses another day. Late road geometry must not steal the camera.
@@ -918,7 +930,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       m.resize()
       m.fitBounds(
         bounds,
-        { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 },
+        { padding: cameraPadding(), maxZoom: 12, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration },
       )
     }
     requestAnimationFrame(run)
@@ -949,14 +961,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       setSelectedStop({ id: stop.id, title: stop.title, dayIndex: stop.dayIndex })
       m.easeTo({
         center: [stop.lng, stop.lat],
+        padding: cameraPadding(),
         zoom: Math.max(m.getZoom(), 14),
         duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
       })
     } else if (normalized.kind === 'coordinate') {
       m.easeTo({
         center: [normalized.coordinate.lng, normalized.coordinate.lat],
+        padding: cameraPadding(),
         zoom: Math.max(m.getZoom(), 12),
-        duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
+        duration: instantTarget || prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
       })
     } else {
       const bounds = boundsOf(normalized.points)
@@ -966,7 +980,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
       m.resize()
       m.fitBounds(bounds, {
-        padding: 70,
+        padding: cameraPadding(),
         maxZoom: 12,
         duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration,
       })
@@ -974,7 +988,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     targetCameraActive.current = true
     targetCameraDay.current = dayFilter
     onMapTargetConsumed?.()
-  }, [mapTarget, mapLoaded, allPoints, trip.days, dayFilter, onMapTargetConsumed])
+  }, [mapTarget, mapLoaded, allPoints, trip.days, dayFilter, onMapTargetConsumed, cameraPadding, instantTarget])
 
   // Panel → map highlight: when a suggestion card is hovered/selected in the
   // side panels, glide the camera to its pin so the user sees where it is.
@@ -985,8 +999,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const m = mapRef.current
     m.easeTo({
       center: [hit.longitude, hit.latitude],
+      padding: cameraPadding(),
       zoom: Math.max(m.getZoom(), 7),
-      duration: prefersReducedMotion() ? 0 : 500,
+      duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration,
     })
   }, [activeHitId, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1035,7 +1050,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const bounds = boundsOf(fitPoints)
     if (!m || !bounds) return
     m.resize()
-    m.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
+    m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
   }
 
   function colorForDay(i: number): string {
@@ -1209,9 +1224,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   )
 
   return (
-    <div className={`map-shell${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`}>
+    <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open={workspaceToolsOpen ? 'true' : 'false'}>
+      {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><MapIcon size={18} aria-hidden /></button>}
       {showToolbar && (
-      <div className="map-toolbar">
+      <div className="map-toolbar" id={toolbarId}>
         <div className="map-day-filter" role="group" aria-label="Which day the map draws">
           <span className="map-scope-lbl">Show on map</span>
           <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
@@ -1360,6 +1376,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <CooperativeGestures enabled={wantsCooperativeGestures({ dedicated, expanded })} />
             {/* Live location layer — mounted always, self-gating on `liveOn`. */}
             <LiveLocationLayer active={liveOn} />
+            {journeyCursor && validMapCoordinate(journeyCursor.coordinate) && <MapMarker longitude={journeyCursor.coordinate.lng} latitude={journeyCursor.coordinate.lat}>
+              <MarkerContent><span className="mv2-map-clock" aria-hidden="true"><Clock size={13} />{journeyCursor.label}</span></MarkerContent>
+            </MapMarker>}
             {/* In All-days view a single connected main line from the trip start
                 through every stop to the end; in single-day view, coloured lines.
                 Both get a contrasting casing underneath (road-map halo) and

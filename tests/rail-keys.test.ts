@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { railKeyAction } from '../src/lib/railKeys'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const omniSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapOmnibar.tsx'), 'utf8').replace(/\r\n/g, '\n')
 const mapTabSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
 
 describe('railKeyAction', () => {
@@ -67,18 +68,18 @@ describe('railKeyAction', () => {
 
 describe('the rail uses that grammar, not a one-branch Enter handler', () => {
   it('the search list is a listbox whose rows are options', () => {
-    expect(mapTabSrc).toMatch(/role="listbox"/)
-    expect(mapTabSrc).toMatch(/role="option"/)
+    expect(omniSrc).toMatch(/role="listbox"/)
+    expect(omniSrc).toMatch(/role="option"/)
     // The invalid pairing the issue named: listitem + aria-selected announces
     // static text, so a screen reader never says the row is selectable.
     expect(mapTabSrc).not.toMatch(/role="listitem"/)
   })
 
   it('rows run the shared grammar and keep a roving tabIndex', () => {
-    expect(mapTabSrc).toMatch(/railKeyAction\(/)
+    expect(omniSrc).toMatch(/railKeyAction\(/)
     // Roving, not every-row-tabbable: exactly one row owns the tab stop, and the
     // first row owns it while nothing is highlighted so the list is still enterable.
-    expect(mapTabSrc).toMatch(/tabIndex=\{[^}]*\? 0 : -1\}/)
+    expect(omniSrc).toMatch(/tabIndex=\{[^}]*\? 0 : -1\}/)
     expect(mapTabSrc).not.toMatch(/aria-selected=\{selected\} tabIndex=\{0\}/)
   })
 
@@ -109,7 +110,9 @@ describe('the rail states scope in words, and keeps nothing unreachable (#333 A4
     // opacity 0.6 washed out text already near the contrast floor AND made the
     // row's own action buttons read as disabled while they were still pressable.
     expect(mapTabSrc).not.toMatch(/opacity: inScope \? undefined : 0\.6/)
-    expect(mapTabSrc).toMatch(/chip chip-saffron[^>]*>beyond your detour scope</)
+    expect(omniSrc).toContain('className="chip chip-saffron"')
+    expect(omniSrc).toContain("'beyond your detour scope'")
+    expect(omniSrc).not.toMatch(/opacity: inScope/)
     // the phrase must not still be trailing the muted comma-run
     expect(mapTabSrc).not.toMatch(/, beyond your detour scope'/)
   })

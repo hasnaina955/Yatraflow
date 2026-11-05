@@ -75,14 +75,16 @@ describe('the sheet tab model (A415)', () => {
 })
 
 describe('MapTab renders the sheet (A415)', () => {
-  it('renders the switcher only while the band is measured', () => {
-    expect(tab).toMatch(/\{sheetApplies && \(\s*<div className="map-ideas-sheet-tabs"/)
+  it('renders one planning-panel switcher across viewport widths', () => {
+    expect(tab).toMatch(/className="mv2-lenses" role="group" aria-label="Map planning panels"/)
     expect(hook).toMatch(/setSheetApplies\(sheetAppliesAt\(/)
   })
 
   it('is a pressed-state switcher, not inert tabs', () => {
-    expect(tab).toMatch(/aria-pressed=\{sheetTab === t\.key\}/)
-    expect(tab).toMatch(/aria-controls=\{t\.panelId\}/)
+    expect(tab).toMatch(/aria-pressed=\{sheetTab === 'see'/)
+    expect(tab).toMatch(/aria-pressed=\{sheetTab === 'needs'/)
+    expect(tab).toContain('aria-controls="rail-see"')
+    expect(tab).toContain('aria-controls="rail-needs"')
   })
 
   it('hides the inactive rail through the model, passing the band flag', () => {
@@ -91,7 +93,7 @@ describe('MapTab renders the sheet (A415)', () => {
   })
 
   it('starts on a real tab', () => {
-    expect(hook).toMatch(/useState<SheetTabKey>\('needs'\)/)
+    expect(hook).toMatch(/useState<SheetTabKey>\('see'\)/)
   })
 })
 
@@ -130,7 +132,7 @@ describe('the wiring is declared exactly once (A415)', () => {
     expect(tab).toContain('} = useRailView(')
   })
 
-  it('opens and closes the switcher conditional exactly once', () => {
-    expect(tab.match(/\{sheetApplies && \(/g)).toHaveLength(1)
+  it('declares the planning-panel switcher exactly once', () => {
+    expect(tab.match(/className="mv2-lenses"/g)).toHaveLength(1)
   })
 })

@@ -18,6 +18,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **The Map workspace keeps the journey beside the map.** A timed day list, one place search and a folding pick panel use the existing engine facts. Place details keep the current preview and add flow. The journey clock follows supplied road geometry and labels missing road positions. Phones use a day switcher and a sheet with three heights. No new provider search or live-routing service is enabled.
+
 - **The map's drive picks now pass through one presentation adapter.** The adapter copies the engine's public picks in their original sequence. It keeps each place's identity. It carries the corrected detour, arrival and window facts unchanged. It starts no search and holds no write authority. The map workspace will render from it. Timeline sharing waits for issue 841.
 
 - **Scenic places now classify by family with confirmed subtype facts.** Provider type, then evidenced name, then OSM tags decide the family. A waterfall fits a stretch break, and a viewpoint cannot fill a fuel gap. Heritage, water and views keep their generic facts until the source rows are complete.

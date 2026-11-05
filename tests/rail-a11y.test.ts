@@ -87,18 +87,18 @@ describe('scopeValueText (A8) and voteStatusId (A6)', () => {
 })
 
 describe('MapTab wires those sentences into the DOM', () => {
-  it('A5: both result lists announce their arrival through a live region', () => {
-    expect(mapTabSrc).toMatch(/searchAnnouncement\(/)
+  it('A5: the single search and slot candidates announce their results', () => {
+    expect(omniSrc).toMatch(/searchAnnouncement\(/)
     expect(mapTabSrc).toMatch(/candidatesAnnouncement\(/)
     // a polite live region, not a static label the user has to go find
     expect(mapTabSrc).toMatch(/role="status"[^>]*aria-live="polite"|aria-live="polite"[^>]*role="status"/)
   })
 
-  it('#545: both search regions call unguarded — the helper owns the idle rule', () => {
+  it('#545: the single search announces zero results and leaves idle wording to the helper', () => {
     // A results-length ternary at the call site suppressed the failed-search
     // sentence on one surface while the other announced at idle. Unguarded
     // calls mean a genuine zero-result search now speaks on both.
-    expect(mapTabSrc).toMatch(/aria-live="polite">\{searchAnnouncement\(searchQ/)
+    expect(mapTabSrc.match(/<MapOmnibar\b/g)).toHaveLength(1)
     expect(omniSrc).toMatch(/aria-live="polite">\s*\{searchAnnouncement\(query/)
     expect(mapTabCode).not.toMatch(/length > 0 \? searchAnnouncement/)
     expect(omniCode).not.toMatch(/length > 0 \? searchAnnouncement/)

@@ -71,6 +71,7 @@ export function LedgerRow({
   onToggleShortlist,
   onOpenAlt,
   onWiden,
+  onInspect,
 }: {
   sh: SegmentHit
   dismissed: boolean
@@ -89,6 +90,7 @@ export function LedgerRow({
   onToggleShortlist: () => void
   onOpenAlt: (h: PlaceHit) => void
   onWiden: () => void
+  onInspect?: () => void
 }) {
   const hit = sh.hit
   if (dismissed) return null
@@ -149,7 +151,7 @@ export function LedgerRow({
   ].filter(Boolean).join(' \u00b7 ')
   return (
     <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
-      <summary className="lrow-sum" title={hit.name}>
+      <summary className="lrow-sum" title={hit.name} onClick={onInspect}>
         <span className="xdot" aria-hidden />
         <span className="lr-name">{hit.name}</span>
         <span className="lr-meta">{meta}</span>

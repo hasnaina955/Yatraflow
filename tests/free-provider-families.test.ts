@@ -1,8 +1,24 @@
 // Free-provider family wiring (mechanical assignment): OSM hits may carry the
 // existing familyFromOsmTags facts, and nothing else may change. The suite runs
 // the exported discovery entry with controlled fetch responses.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { searchNearbyPoisMultiFree } from '../src/lib/providers/free'
+//
+// The provider snapshots its Mappls key when the module is first evaluated, so
+// this OSM/Wikipedia-focused suite pins that unrelated integration OFF before
+// the import below runs. Without this pin a key present in the process makes
+// the Mappls layer issue its own requests and the discovery-request count
+// changes, which has nothing to do with the family facts under test.
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
+
+vi.hoisted(() => {
+  // Runs before any import is evaluated, so the provider sees no Mappls key.
+  vi.stubEnv('VITE_MAPPLS_KEY', '')
+})
+
+const { searchNearbyPoisMultiFree, mapplsEnabled } = await import('../src/lib/providers/free')
+
+afterAll(() => {
+  vi.unstubAllEnvs()
+})
 
 const ANCHOR = { lat: 10, lng: 76 }
 const requests: Array<{ url: string; method: string }> = []
@@ -175,6 +191,12 @@ describe('existing dedupe and invalid-coordinate behaviour is unchanged', () => 
 })
 
 describe('the request sequence proves no extra discovery request', () => {
+  it('the fixture pins the unrelated Mappls integration off', () => {
+    // Proves the suite owns its configuration, whatever the process carries.
+    expect(mapplsEnabled()).toBe(false)
+    expect(process.env.VITE_MAPPLS_KEY).toBe('')
+  })
+
   it('one Overpass POST and one Wikipedia geosearch, nothing else', async () => {
     await searchNearbyPoisMultiFree([ANCHOR], 10000, 20, { includeFuel: true })
     expect(requests).toHaveLength(2)

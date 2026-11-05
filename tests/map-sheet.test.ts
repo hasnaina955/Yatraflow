@@ -155,7 +155,14 @@ describe('the phone top row (Phone 390 board, one row on top)', () => {
     expect(phone).toContain(".mv2-omnibar .input:placeholder-shown:not(:disabled) ~ button[type='submit'] { display: none; }")
   })
 
-  it('keeps the map attribution clear of the Key control on desktop', () => {
-    expect(css).toMatch(/\.mv2-workspace \.maplibregl-ctrl-bottom-right \{ right: calc\(var\(--mv2-deck-width\) \+ var\(--space-10\) \+ 116px\); bottom: 94px; \}/)
+  it('keeps the map attribution clear of the Key control on desktop, from the end of the sheet', () => {
+    const rule = '.mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10) + 116px); }'
+    expect(css).toContain(rule)
+    expect(css.indexOf(rule)).toBeGreaterThan(css.indexOf('/* Map V2 phone: search and the lens pill share one row.'))
+    expect(css).toContain('.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10)); bottom: 94px; }')
+  })
+
+  it('closes the place card on Escape through the one close path that restores focus', () => {
+    expect(tab).toMatch(/className="mv2-detail" onKeyDown=\{e => \{ if \(e\.key === 'Escape' && !e\.defaultPrevented\) \{ e\.stopPropagation\(\); closeDetails\(\) \} \}\}/)
   })
 })

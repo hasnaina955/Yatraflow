@@ -1964,7 +1964,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               )}
             </div>
           </div>
-          {selectedHit && deckOpen && <div className="mv2-detail">
+          {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} />
             <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={selectedRow?.detourMin ?? detourMinFor(selectedHit) ?? null} reason={selectedRow?.reason ?? null}
               added={isAlreadyAdded(selectedHit, identity)} editable={editable} busy={addingAny || !!previewOpen} shortlisted={isShortlisted(selectedHit)}

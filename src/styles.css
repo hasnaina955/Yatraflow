@@ -181,7 +181,7 @@
 .mv2-sheet-handle, .mv2-peek, .mv2-phone-day, .mv2-map-tools-toggle { display: none; }
 .mv2-workspace .map-legend { position: absolute; bottom: 108px; right: calc(var(--mv2-deck-width) + var(--space-10)); max-width: min(280px, 80%); z-index: 3; }
 .mv2-workspace .map-legend-toggle { min-height: 44px; }
-.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10)); bottom: 94px; }
+.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10) + 116px); bottom: 94px; }
 .mv2-workspace .maplibregl-ctrl-attrib { background: var(--card); color: var(--text-2); }
 .mv2-workspace .maplibregl-ctrl-attrib a { color: var(--text-2); }
 .mv2-workspace .map-shell--workspace > .tm-note { display: none; }
@@ -310,4 +310,16 @@
 @media (max-width: 760px) {
   .mv2-basemap-status { left: var(--space-5); right: var(--space-5); bottom: calc(var(--mv2-sheet-height) + 84px); }
   .mv2-workspace[data-snap='full'] .mv2-basemap-status { display: none; }
+}
+/* Map V2 phone: the omnibar and the lens pill share one row under the day header (Phone 390 board, "One row on top"). */
+@media (max-width: 760px) {
+  .mv2-workspace { --mv2-lens-width: 132px; }
+  .mv2-workspace .mv2-omnibar { right: calc(var(--space-4) + var(--mv2-lens-width) + var(--space-3)); width: auto; }
+  .mv2-workspace .mv2-lenses { top: 60px; left: auto; right: var(--space-4); width: var(--mv2-lens-width); min-height: 52px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 0; padding: var(--space-1); }
+  .mv2-workspace .mv2-lenses > button { flex: 1 1 0; min-width: 44px; padding-inline: var(--space-2); gap: var(--space-2); }
+  .mv2-workspace .mv2-lenses > button > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .mv2-workspace .mv2-lenses > button[aria-label='Show suggestions'] { flex: 0 0 44px; }
+  .mv2-map-tools-toggle { top: 124px; }
+  /* An empty query has nothing to submit, so Find yields its width to the placeholder. It returns once text exists. */
+  .mv2-omnibar .input:placeholder-shown:not(:disabled) ~ button[type='submit'] { display: none; }
 }

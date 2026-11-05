@@ -135,4 +135,27 @@ describe('the wiring is declared exactly once (A415)', () => {
   it('declares the planning-panel switcher exactly once', () => {
     expect(tab.match(/className="mv2-lenses"/g)).toHaveLength(1)
   })
-})
+})
+
+describe('the phone top row (Phone 390 board, one row on top)', () => {
+  const phone = css.slice(css.lastIndexOf('/* Map V2 phone: the omnibar and the lens pill share one row'))
+
+  it('puts the omnibar and the lens pill on the same top offset', () => {
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses \{ top: 60px;/)
+    expect(css).toMatch(/\.mv2-workspace \.mv2-omnibar \{ top: 60px;/)
+  })
+
+  it('keeps each lens a 44-pixel target and its name readable to assistive tech', () => {
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button \{[^}]*min-width: 44px;/)
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button > span \{ position: absolute;[^}]*clip-path: inset\(50%\);/)
+    expect(phone).not.toMatch(/mv2-lenses[^{]*\{[^}]*display: none/)
+  })
+
+  it('lets Find yield only while the query is empty and the field is usable', () => {
+    expect(phone).toContain(".mv2-omnibar .input:placeholder-shown:not(:disabled) ~ button[type='submit'] { display: none; }")
+  })
+
+  it('keeps the map attribution clear of the Key control on desktop', () => {
+    expect(css).toMatch(/\.mv2-workspace \.maplibregl-ctrl-bottom-right \{ right: calc\(var\(--mv2-deck-width\) \+ var\(--space-10\) \+ 116px\); bottom: 94px; \}/)
+  })
+})

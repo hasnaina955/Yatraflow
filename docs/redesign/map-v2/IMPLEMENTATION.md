@@ -2,7 +2,7 @@
 
 The map is a full canvas behind a timed day list, one search and a pick panel. The panels fold without clearing their contents. Place details use the existing add dialog and impact preview. The UI does not own ranking, placement or acknowledged writes.
 
-The supplied six HTML boards in the MapTab redesign folder are the visual target. The current UI implements their workspace composition. It retains the existing basemap styles while the style, day-colour and 2D elevation decisions remain open. It does not claim complete visual acceptance of all six boards.
+The supplied six HTML boards in the MapTab redesign folder are the visual target. The current UI implements their workspace composition. The Map workspace uses authored Linen and Night paint on the existing OpenFreeMap vector tiles. Day-colour approval and the 2D elevation decision remain open. It does not claim complete visual acceptance of all six boards.
 
 ## Data and interaction
 
@@ -13,6 +13,8 @@ The day list and phone day switcher share the workspace day focus. The suggestio
 The phone sheet has peek, half and full heights. Its handle supports pointer movement, activation and arrow keys. The ribbon sits above the sheet. Map tools opens the zoom and layer controls on phones. The canvas uses the space below the workspace header. Map camera padding reserves space for floating controls and clamps large insets to retain usable map space.
 
 The Map workspace uses 32-pixel numbered stops and 36-pixel house marks for stays. A lock badge follows a stop's fixed commitment on its trip day. Tentative stops have a dashed ring. Suggested places use 30-pixel tiles, with a 40-pixel selected tile. The visual key explains existing marks and road estimates. Close or Escape restores focus to the key control. Other map surfaces retain their current marks. The current day palette remains in use.
+
+The authored basemaps use the source land, water, green, road and label colours. The versioned style objects live in `src/lib/workspaceMapStyles.ts`. These are new styles, not the missing JSON files claimed by the source document. Vector data and Noto glyphs use the existing keyless provider. The vector TileJSON supplies attribution. Basemap place icons are absent. Minor roads start at zoom 12. The current 2D, Terrain and 3D behavior remains in place. A failed map source keeps the background, trip stops and route estimates. Its status offers a manual retry. These local styles await full visual acceptance.
 
 ## Local fixture
 

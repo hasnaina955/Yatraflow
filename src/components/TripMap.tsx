@@ -26,6 +26,7 @@ import { nativeWatch } from '../lib/native'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
+import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -40,6 +41,7 @@ import {
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
 import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
+import { MapBasemapStatus, useWorkspaceBasemapStatus } from './map/MapBasemapStatus'
 import {
   Map as MapLibreMap,
   MapMarker,
@@ -723,6 +725,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [theme, setTheme] = useState<'light' | 'dark'>(
     () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'),
   )
+  const basemapStatus = useWorkspaceBasemapStatus(theme)
   const mapRef = useRef<MapRef | null>(null)
   const { top = 70, bottom = 70, left = 70, right = 70 } = overlayInsets ?? {}
   const cameraPadding = useCallback(() => {
@@ -1369,6 +1372,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           <MapLibreMap
             ref={mapRef}
             theme={theme}
+            styles={workspaceChrome ? WORKSPACE_MAP_STYLES : undefined}
+            onMapError={workspaceChrome ? basemapStatus.onMapError : undefined}
             className="yf-maplibre"
             center={[76.5, 10.5]}
             zoom={5}
@@ -1384,6 +1389,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <CooperativeGestures enabled={wantsCooperativeGestures({ dedicated, expanded })} />
             {/* Live location layer — mounted always, self-gating on `liveOn`. */}
             <LiveLocationLayer active={liveOn} />
+            {workspaceChrome && <MapBasemapStatus failure={basemapStatus.failure} onRetry={basemapStatus.onRetry} onSourceReady={basemapStatus.onSourceReady} />}
             {journeyCursor && validMapCoordinate(journeyCursor.coordinate) && <MapMarker longitude={journeyCursor.coordinate.lng} latitude={journeyCursor.coordinate.lat}>
               <MarkerContent><span className="mv2-map-clock" aria-hidden="true"><Clock size={13} />{journeyCursor.label}</span></MarkerContent>
             </MapMarker>}

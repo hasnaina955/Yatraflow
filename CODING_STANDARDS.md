@@ -419,6 +419,8 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    double-render) — then remove the counter before committing.
  **Map marker touch areas.** Check the computed width and height of the hit area on a coarse pointer. Borders reduce the space used by an inset calculation. Use a centred 44-pixel box when the visible marker must stay smaller.
 
+ **Initial map errors.** Observe map errors when constructing the map. A failed initial tile request can finish before child effects attach a listener.
+
  6t. **A drawing is a claim about the same measurement the numbers came from —
    and a failure must not wear the mark of success (learned 2026-09-26, #370).**
    The Board's mini-map measured a road of its own over the stops alone, while

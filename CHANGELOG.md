@@ -18,8 +18,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
-- **Map stops use clear numbers and a visual key.** The Map workspace shows round stop marks, larger house marks for stays and lock badges for timed commitments. Suggested places use tiles. The key explains the marks and distinguishes road geometry from estimates. Other map surfaces keep their current marks.
+- **The Map workspace uses Linen and Night map paint.** Land, water, vegetation, roads and town labels follow the supplied palette on the existing OpenFreeMap vector tiles. Basemap place icons stay hidden. A failed tile read keeps the stops and route estimates visible, with a retry control. Other map surfaces keep their current basemaps.
+
 - **Free-mode OpenStreetMap hits now carry their confirmed scenic family facts.** A waterfall, lake or viewpoint keeps its existing category, description, identity and coordinates. Only tags the family helper already understands attach a family and subtype. Fuel, food, lodging and worship hits stay unchanged, and no new request is made.
+
+- **Map stops use clear numbers and a visual key.** The Map workspace shows round stop marks, larger house marks for stays and lock badges for timed commitments. Suggested places use tiles. The key explains the marks and distinguishes road geometry from estimates. Other map surfaces keep their current marks.
 
 - **The Map workspace keeps the journey beside the map.** A timed day list, one place search and a folding pick panel use the existing engine facts. Place details keep the current preview and add flow. The journey clock follows supplied road geometry and labels missing road positions. Phones use a day switcher and a sheet with three heights. No new provider search or live-routing service is enabled.
 

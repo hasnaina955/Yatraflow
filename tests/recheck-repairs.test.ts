@@ -7,6 +7,8 @@ import { daySlots, type DaySlotsDeps } from '../src/lib/daySlots'
 import { placeHoursFromPeriods, type RawHoursPeriod } from '../src/lib/providers/hours'
 import { hoursCardText, hoursDisplayFor, visitDateForDay } from '../src/lib/hoursContext'
 import { candidateArrivalMin } from '../src/lib/candidateArrival'
+import { withRoadMeasurement } from '../src/lib/roadEvidence'
+import { roadDetourFromLegs, type RoadMeasurement } from '../src/lib/providers/roadMeasure'
 import type { PlaceHit, SegmentHit } from '../src/lib/geocode'
 
 const anchors = [{ lat: 10, lng: 76 }]
@@ -168,5 +170,42 @@ describe('rain is a preference, never eligibility', () => {
 describe('the trip calendar still supplies the date', () => {
   it('maps the day index to the trip date', () => {
     expect(visitDateForDay('2026-11-05', 2)).toBe('2026-11-07')
+  })
+})
+
+describe('measured road evidence reaches the candidate without doubling', () => {
+  const active = { generation: 3, routeFingerprint: 'route-a' }
+  const measurement = roadDetourFromLegs({
+    hitId: 'cand',
+    baselineMin: 60,
+    via: { totalMin: 84, arrivalLegMin: 25 },
+    generation: 3,
+    routeFingerprint: 'route-a',
+    measuredAt: 1000,
+    departAtMin: 720,
+  })
+  if ('invalid' in measurement) throw new Error('fixture measurement is invalid')
+
+  it('the measurement is 24 extra minutes with a 25-minute directed arrival leg', () => {
+    expect(measurement.detourMin).toBe(24)
+    expect(measurement.arrivalLegMin).toBe(25)
+    expect(measurement.departAtMin).toBe(720)
+  })
+
+  it('copies a current measurement and ignores a stale or foreign one', () => {
+    const current = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active)
+    expect(current.measuredRoadDetourMin).toBe(24)
+    expect(current.measuredRoadArriveMin).toBe(25)
+    expect(current.measuredRoadDepartAtMin).toBe(720)
+
+    const stale = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, { generation: 4, routeFingerprint: 'route-a' })
+    expect(stale.measuredRoadDetourMin).toBeUndefined()
+    const foreign = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, { generation: 3, routeFingerprint: 'route-b' })
+    expect(foreign.measuredRoadArriveMin).toBeUndefined()
+  })
+
+  it('the copied evidence drives the same arrival rule as the slot and card', () => {
+    const current = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active)
+    expect(candidateArrivalMin({ hit: current, etaMinutes: 720, detourMin: current.measuredRoadDetourMin })).toBe(745)
   })
 })

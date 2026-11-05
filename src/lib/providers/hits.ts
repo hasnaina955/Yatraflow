@@ -11,6 +11,27 @@ import type { PlaceHours } from './hours'
 import type { PlaceFamily } from './families'
 import type { PlaceExposure } from '../../data/types'
 
+/**
+ * One road measurement, bound to the hit and the route context it was taken
+ * under. A fact for another hit, another route or another generation must not
+ * be applied; stale fields are removed by the bridge, not left to age.
+ */
+export interface MeasuredRoadFact {
+  /** the hit this fact belongs to */
+  hitId: string
+  /** stable identity of the measurement origin (the pair's shared start) */
+  originKey: string
+  /** route fingerprint and generation of the active route when measured */
+  routeFingerprint: string
+  generation: number
+  /** departure clock (minutes since local midnight) both legs were measured at */
+  departAtMin: number
+  /** measured extra driving for the complete pair — charged once */
+  detourMin: number
+  /** measured directed arrival leg (origin -> place) */
+  arriveMin: number
+}
+
 export interface PlaceHit {
   id: number | string
   name: string
@@ -57,24 +78,16 @@ export interface PlaceHit {
   /** real road detour in km (Google routingSummaries); undefined when unknown */
   offRouteKm?: number
   /**
-   * ROAD-MEASURED EXTRA DRIVING in minutes (ticket 11, repaired: from
-   * providers/roadMeasure.ts) — the complete via route minus the complete
-   * baseline with matching endpoints, clock and direction. The delta already
-   * INCLUDES the out-and-back extra, so it is charged ONCE and must never be
-   * doubled again (60 baseline + 84 via → 24 extra minutes, not 48).
-   * Wins over every geometric estimate; invalid values are ignored, never
-   * read as free. The directed arrival leg rides the two fields below.
+   * ROAD-MEASURED facts for this hit, bound to the route context they were
+   * measured under (ticket 11, repaired). One record, so cost, arrival and
+   * context can never drift apart: the measured extra driving is charged ONCE
+   * (24 for a 60-baseline/84-via pair, never 48), the directed arrival leg is
+   * the via route's origin-to-place leg, and the departure clock plus route
+   * identity say when the evidence applies. A consumer must check the record
+   * before use; see candidateArrival.ts. Invalid values are ignored, never
+   * read as free.
    */
-  measuredRoadDetourMin?: number
-  /**
-   * ROAD-MEASURED DIRECTED ARRIVAL LEG in minutes (origin -> place) from the
-   * same measurement record. Consumed only at the departure clock it was
-   * measured at (see `measuredRoadDepartAtMin`); a mismatch falls back to the
-   * symmetric estimate. Never derived by halving the return total.
-   */
-  measuredRoadArriveMin?: number
-  /** The departure clock (minutes since local midnight) the measured leg was taken at. */
-  measuredRoadDepartAtMin?: number
+  measuredRoadFact?: MeasuredRoadFact
   // ---- ride-plan annotations (filled by src/lib/ridePlan.ts + providers) ----
   /** road km along the route from the journey origin (Google leg0/1000; free = coarse anchor position) */
   alongRouteKm?: number
@@ -256,7 +269,7 @@ export function asymmetricDetourKm(
  * so a broken measurement cannot ride for free.
  */
 export function asymmetricDetourMinutes(
-  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute' | 'measuredRoadDetourMin'>,
+  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute' | 'measuredRoadFact'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
   speedKmph?: number,
@@ -267,9 +280,9 @@ export function asymmetricDetourMinutes(
   // inherent) — charged ONCE, returned VERBATIM. Doubling it (the old
   // `×2`) manufactured 48 minutes out of a real 24 (progress review P1).
   // Invalid values are ignored — never read as free — and the estimate paths
-  // apply as before. DeepSeek's daySlots arrival consumes the directed
-  // arrival-leg evidence from the measurement record, never detour/2.
-  const measured = h.measuredRoadDetourMin
+  // apply as before. The directed arrival leg lives in the same record and is
+  // consumed by candidateArrival.ts, never derived as detour/2.
+  const measured = h.measuredRoadFact?.detourMin
   if (measured != null && Number.isFinite(measured) && measured >= 0) return measured
   const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
   if (km == null) return null

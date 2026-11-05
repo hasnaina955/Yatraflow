@@ -18,11 +18,16 @@ import {
   MEASUREMENT_TOP_CANDIDATES,
   type RoadMeasurement,
 } from '../src/lib/providers/roadMeasure'
-import { asymmetricDetourMinutes, asymmetricDetourKm } from '../src/lib/providers/hits'
+import { asymmetricDetourMinutes, asymmetricDetourKm, type MeasuredRoadFact } from '../src/lib/providers/hits'
 import { scoreHitForSegment } from '../src/lib/ridePlan'
 
 const EAST = [{ lat: 10, lng: 10 }, { lat: 10, lng: 10.5 }]
 const FP = 'route-fp-1'
+
+/** A context-bound measured fact for the consumer fixtures. */
+function fact(detourMin: number): MeasuredRoadFact {
+  return { hitId: 'x', originKey: 'o', routeFingerprint: 'r', generation: 1, departAtMin: 750, detourMin, arriveMin: 24 }
+}
 
 function measurement(over: Partial<RoadMeasurement> = {}): RoadMeasurement {
   return {
@@ -202,16 +207,16 @@ describe('the batch runner: per-request quota recheck and halting (probe quotaBa
 describe('the measured fact wins over estimates in the unified consumer', () => {
   it('asymmetricDetourMinutes returns the measured extra driving VERBATIM — charged once', () => {
     // probe roadDelta: measured 24 via-minus-baseline → the unified fact is 24, NOT 48
-    const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadDetourMin: 24 }
+    const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadFact: fact(24) }
     expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBe(24)
   })
 
   it('an invalid measured value is ignored — never free — and estimates apply', () => {
     for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -3]) {
-      const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadDetourMin: bad }
+      const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadFact: fact(bad) }
       expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBeCloseTo(24, 5) // the 8 km estimate
     }
-    expect(asymmetricDetourKm({ latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadDetourMin: Number.NaN } as never, [], EAST)).toBe(8)
+    expect(asymmetricDetourKm({ latitude: 10, longitude: 10.09, offRouteKm: 8 } as never, [], EAST)).toBe(8)
   })
 
   it('the scorer uses the road-true fact verbatim regardless of the speed guess', () => {
@@ -219,12 +224,12 @@ describe('the measured fact wins over estimates in the unified consumer', () => 
     const seg = { index: 0, purpose: 'meal' as const, label: 'Lunch', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 750 }
     const base = { name: 'Eat', latitude: 10, longitude: 10, kind: 'poi' as const, category: 'food', offRouteKm: 0 }
     const estimated = scoreHitForSegment({ ...base, offRouteKm: 8 } as never, seg, anchors2, {})
-    const measured = scoreHitForSegment({ ...base, measuredRoadDetourMin: 24 } as never, seg, anchors2, {})
+    const measured = scoreHitForSegment({ ...base, measuredRoadFact: fact(24) } as never, seg, anchors2, {})
     expect(estimated).not.toBeNull()
     expect(measured).not.toBeNull()
     // estimate: 24 return minutes; measured: 24 extra driving — equal here, so pin
     // the mechanism: the measured fact does not rescale with the speed guess
-    const slow = scoreHitForSegment({ ...base, measuredRoadDetourMin: 24 } as never, seg, anchors2, { speedKmph: 10 })
+    const slow = scoreHitForSegment({ ...base, measuredRoadFact: fact(24) } as never, seg, anchors2, { speedKmph: 10 })
     expect(slow).toBe(measured)
   })
 })

@@ -7,8 +7,9 @@ import { daySlots, type DaySlotsDeps } from '../src/lib/daySlots'
 import { placeHoursFromPeriods, type RawHoursPeriod } from '../src/lib/providers/hours'
 import { hoursCardText, hoursDisplayFor, visitDateForDay } from '../src/lib/hoursContext'
 import { candidateArrivalMin } from '../src/lib/candidateArrival'
-import { withRoadMeasurement } from '../src/lib/roadEvidence'
+import { withRoadMeasurement, withoutRoadMeasurement } from '../src/lib/roadEvidence'
 import { roadDetourFromLegs, type RoadMeasurement } from '../src/lib/providers/roadMeasure'
+import type { MeasuredRoadFact } from '../src/lib/providers/hits'
 import type { PlaceHit, SegmentHit } from '../src/lib/geocode'
 
 const anchors = [{ lat: 10, lng: 76 }]
@@ -37,6 +38,12 @@ const hoursFor = (periods: RawHoursPeriod[]) => placeHoursFromPeriods(periods, u
 const daily = (open: string, close: string) => hoursFor(weekly(week, [[open, close]]))
 const mondayClosed = () => hoursFor(weekly([0, 2, 3, 4, 5, 6], [['09:00', '17:00']]))
 
+/** A context-bound measured fact; identity and clock default to the fixtures below. */
+const measuredFact = (over: Partial<MeasuredRoadFact> = {}): MeasuredRoadFact => ({
+  hitId: 'measured', originKey: 'origin-a', routeFingerprint: 'route-a', generation: 1,
+  departAtMin: 960, detourMin: 60, arriveMin: 20, ...over,
+})
+
 describe('D1 — the hours check reads the candidate arrival clock, not the corridor ETA', () => {
   // 16:00 corridor target, 20 km spur at 40 km/h => 60 return minutes => 30 outward.
   // 16:30 arrival + 60-minute visit ends 17:30, past a 17:00 close.
@@ -53,21 +60,24 @@ describe('D1 — the hours check reads the candidate arrival clock, not the corr
   it('uses the directed measured arrival leg at its own departure clock', () => {
     const measured = hit('measured', {
       hours: daily('09:00', '17:00'), offRouteKm: 20,
-      measuredRoadArriveMin: 20, measuredRoadDepartAtMin: 16 * 60,
+      measuredRoadFact: measuredFact({ hitId: 'measured', departAtMin: 16 * 60, arriveMin: 20, detourMin: 60 }),
     })
     const withHours = assignSegmentHits([measured], target, anchors, { visitDates: ['2026-11-08'] })[0].score
     const without = assignSegmentHits([bare], target, anchors, { visitDates: ['2026-11-08'] })[0].score
     expect(withHours - without).toBeCloseTo(3, 5) // arrival 16:20 + 60 -> miss 20
   })
 
-  it('ignores a measured leg taken at a different departure clock', () => {
+  it('returns unknown when the measured context does not match, never half a measured total', () => {
     const wrongClock = hit('wrong-clock', {
       hours: daily('09:00', '17:00'), offRouteKm: 20,
-      measuredRoadArriveMin: 20, measuredRoadDepartAtMin: 15 * 60,
+      measuredRoadFact: measuredFact({ hitId: 'wrong-clock', departAtMin: 15 * 60, arriveMin: 20, detourMin: 60 }),
     })
+    // With no measured arrival the hours check stays neutral: it must not halve
+    // the measured 60-minute total to invent a 30-minute outward leg.
+    expect(candidateArrivalMin({ hit: wrongClock, etaMinutes: 16 * 60, detourMin: 60 })).toBeNull()
     const withHours = assignSegmentHits([wrongClock], target, anchors, { visitDates: ['2026-11-08'] })[0].score
     const without = assignSegmentHits([bare], target, anchors, { visitDates: ['2026-11-08'] })[0].score
-    expect(withHours - without).toBeCloseTo(5, 5) // falls back to half the return total
+    expect(withHours - without).toBeCloseTo(0, 5)
   })
 })
 
@@ -86,21 +96,32 @@ describe('D3 — one arrival rule for the slot engine and the scorer', () => {
   })
 
   it('uses the directed measured leg when its clock matches the slot ETA', () => {
-    const slot = daySlots(0, depsFor(candidate({ measuredRoadArriveMin: 20, measuredRoadDepartAtMin: 735 })))[0]
+    const slot = daySlots(0, depsFor(candidate({
+      measuredRoadFact: measuredFact({ hitId: 'cand', departAtMin: 735, arriveMin: 20, detourMin: 60 }),
+    })))[0]
     expect(slot.candidates[0].arriveMin).toBe(735 + 20)
   })
 
-  it('falls back when the measured clock belongs to another departure', () => {
-    const slot = daySlots(0, depsFor(candidate({ measuredRoadArriveMin: 20, measuredRoadDepartAtMin: 700 })))[0]
-    expect(slot.candidates[0].arriveMin).toBe(735 + 30)
+  it('leaves arrival unknown when the measured context belongs to another departure', () => {
+    const slot = daySlots(0, depsFor(candidate({
+      measuredRoadFact: measuredFact({ hitId: 'cand', departAtMin: 700, arriveMin: 20, detourMin: 60 }),
+    })))[0]
+    expect(slot.candidates[0].arriveMin).toBeNull()
   })
 
   it('the helper itself keeps the same contract', () => {
-    expect(candidateArrivalMin({ hit: {}, etaMinutes: 735, detourMin: 60 })).toBe(765)
-    expect(candidateArrivalMin({ hit: { measuredRoadArriveMin: 20, measuredRoadDepartAtMin: 735 }, etaMinutes: 735, detourMin: 60 })).toBe(755)
-    expect(candidateArrivalMin({ hit: { measuredRoadArriveMin: 20, measuredRoadDepartAtMin: 700 }, etaMinutes: 735, detourMin: 60 })).toBe(765)
-    expect(candidateArrivalMin({ hit: {}, etaMinutes: null, detourMin: 60 })).toBeNull()
-    expect(candidateArrivalMin({ hit: {}, etaMinutes: 735, detourMin: null })).toBeNull()
+    const plain = hit('plain')
+    const matched = hit('cand', { measuredRoadFact: measuredFact({ hitId: 'cand', departAtMin: 735, arriveMin: 20, detourMin: 60 }) })
+    expect(candidateArrivalMin({ hit: plain, etaMinutes: 735, detourMin: 60 })).toBe(765)
+    expect(candidateArrivalMin({ hit: matched, etaMinutes: 735, detourMin: 60 })).toBe(755)
+    // A mismatched clock, identity, route or origin is UNKNOWN — never half the total.
+    expect(candidateArrivalMin({ hit: matched, etaMinutes: 800, detourMin: 60 })).toBeNull()
+    expect(candidateArrivalMin({ hit: hit('other', { measuredRoadFact: measuredFact({ hitId: 'cand', departAtMin: 735, arriveMin: 20, detourMin: 60 }) }), etaMinutes: 735, detourMin: 60 })).toBeNull()
+    expect(candidateArrivalMin({ hit: matched, etaMinutes: 735, detourMin: 60, context: { route: { generation: 2, routeFingerprint: 'route-a' } } })).toBeNull()
+    expect(candidateArrivalMin({ hit: matched, etaMinutes: 735, detourMin: 60, context: { originKey: 'other-origin' } })).toBeNull()
+    expect(candidateArrivalMin({ hit: matched, etaMinutes: 735, detourMin: 60, context: { route: { generation: 1, routeFingerprint: 'route-a' }, originKey: 'origin-a' } })).toBe(755)
+    expect(candidateArrivalMin({ hit: plain, etaMinutes: null, detourMin: 60 })).toBeNull()
+    expect(candidateArrivalMin({ hit: plain, etaMinutes: 735, detourMin: null })).toBeNull()
   })
 })
 
@@ -173,7 +194,7 @@ describe('the trip calendar still supplies the date', () => {
   })
 })
 
-describe('measured road evidence reaches the candidate without doubling', () => {
+describe('measured road evidence is context-bound, never stale', () => {
   const active = { generation: 3, routeFingerprint: 'route-a' }
   const measurement = roadDetourFromLegs({
     hitId: 'cand',
@@ -192,20 +213,58 @@ describe('measured road evidence reaches the candidate without doubling', () => 
     expect(measurement.departAtMin).toBe(720)
   })
 
-  it('copies a current measurement and ignores a stale or foreign one', () => {
-    const current = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active)
-    expect(current.measuredRoadDetourMin).toBe(24)
-    expect(current.measuredRoadArriveMin).toBe(25)
-    expect(current.measuredRoadDepartAtMin).toBe(720)
-
-    const stale = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, { generation: 4, routeFingerprint: 'route-a' })
-    expect(stale.measuredRoadDetourMin).toBeUndefined()
-    const foreign = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, { generation: 3, routeFingerprint: 'route-b' })
-    expect(foreign.measuredRoadArriveMin).toBeUndefined()
+  it('stamps one context-bound fact when identity, route and generation match', () => {
+    const current = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active, 'origin-a')
+    expect(current.measuredRoadFact).toEqual({
+      hitId: 'cand', originKey: 'origin-a', routeFingerprint: 'route-a', generation: 3,
+      departAtMin: 720, detourMin: 24, arriveMin: 25,
+    })
   })
 
-  it('the copied evidence drives the same arrival rule as the slot and card', () => {
-    const current = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active)
-    expect(candidateArrivalMin({ hit: current, etaMinutes: 720, detourMin: current.measuredRoadDetourMin })).toBe(745)
+  it('an already stamped hit loses the stamp when no current measurement is supplied', () => {
+    const stamped = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active, 'origin-a')
+    expect(withRoadMeasurement(stamped, undefined, active, 'origin-a').measuredRoadFact).toBeUndefined()
+    expect(withoutRoadMeasurement(stamped).measuredRoadFact).toBeUndefined()
+  })
+
+  it('a changed route or generation invalidates an existing stamp', () => {
+    const stamped = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active, 'origin-a')
+    const staleGeneration = withRoadMeasurement(stamped, measurement as RoadMeasurement, { generation: 4, routeFingerprint: 'route-a' }, 'origin-a')
+    expect(staleGeneration.measuredRoadFact).toBeUndefined()
+    const foreignRoute = withRoadMeasurement(stamped, measurement as RoadMeasurement, { generation: 3, routeFingerprint: 'route-b' }, 'origin-a')
+    expect(foreignRoute.measuredRoadFact).toBeUndefined()
+  })
+
+  it('a measurement for another hit is rejected, including over an existing stamp', () => {
+    const other = withRoadMeasurement(hit('different-place'), measurement as RoadMeasurement, active, 'origin-a')
+    expect(other.measuredRoadFact).toBeUndefined()
+    const stamped = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active, 'origin-a')
+    const mismatched = withRoadMeasurement(stamped, { ...(measurement as RoadMeasurement), hitId: 'cand' }, active, 'origin-a')
+    expect(mismatched.measuredRoadFact).toBeDefined() // same identity: accepted
+    const foreign = withRoadMeasurement(hit('other-place'), { ...(measurement as RoadMeasurement), hitId: 'cand' }, active, 'origin-a')
+    expect(foreign.measuredRoadFact).toBeUndefined()
+  })
+
+  it('a mismatched measured clock leaves the scorer and slot arrival unknown, never halved', () => {
+    const stamped = withRoadMeasurement(hit('cand', { category: 'food' }), measurement as RoadMeasurement, active, 'origin-a')
+    // departure 720, read at ETA 800: unknown, not 812 from 24/2.
+    expect(candidateArrivalMin({ hit: stamped, etaMinutes: 800, detourMin: 24 })).toBeNull()
+    const bare = hit('bare', { category: 'food', offRouteKm: 8 }) // 8 km at 40 km/h = 24 return estimate
+    const scored = scoreHitForSegment(stamped, seg({ etaMinutes: 800 }), anchors)
+    const scoredBare = scoreHitForSegment(bare, seg({ etaMinutes: 800 }), anchors)
+    expect(scored).not.toBeNull()
+    expect(scored).toBe(scoredBare) // hours stay neutral on an unknown arrival
+    const slot = daySlots(0, {
+      haltSegments: [{ segment: seg({ purpose: 'meal', etaMinutes: 800 }), hit: null, score: 0 }],
+      dayStops: [], anchors, altPool: [stamped], travelStyle: 'relaxed',
+    })[0]
+    expect(slot.candidates[0]?.arriveMin).toBeNull()
+  })
+
+  it('a matching context drives the same arrival rule as the slot and card', () => {
+    const stamped = withRoadMeasurement(hit('cand'), measurement as RoadMeasurement, active, 'origin-a')
+    expect(candidateArrivalMin({ hit: stamped, etaMinutes: 720, detourMin: 24 })).toBe(745)
+    expect(candidateArrivalMin({ hit: stamped, etaMinutes: 720, detourMin: 24, context: { route: active, originKey: 'origin-a' } })).toBe(745)
+    expect(candidateArrivalMin({ hit: stamped, etaMinutes: 720, detourMin: 24, context: { route: active, originKey: 'other-origin' } })).toBeNull()
   })
 })

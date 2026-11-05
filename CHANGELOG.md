@@ -32,7 +32,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Map suggestions now score opening hours against the trip's own day.** The visit date comes from the trip calendar. The intended visit length comes from the pacing the add path already uses. A Monday closure and a visit that overruns closing time are scored, not guessed. Cards show the intervals that apply to that day, so a split place no longer shows only its first period. The drive rail now renders the presentation adapter's rows.
 
-- **Map suggestions now use the arrival clock they show, and rain cannot make a wrong kind eligible.** The hours check adds the outward leg before it tests a close. It uses the directed measured leg when its clock matches. A closed weekday still shows its note when no interval is provable. Rain adjusts the score only: it never turns zero fit into a valid need. A measured road detour is charged once, and its arrival leg is used instead of half the total.
+- **Map suggestions now use the arrival clock they show, and rain cannot make a wrong kind eligible.** The hours check adds the outward leg before it tests a close. It uses the directed measured leg when its clock matches. A closed weekday still shows its note when no interval is provable. Rain adjusts the score only: it never turns zero fit into a valid need. A measured road detour is charged once, and its arrival leg is used instead of half the total. Measured evidence is bound to the hit, origin, route and departure clock. A mismatch shows unknown arrival, and a stale stamp is removed.
 
 ### Changed
 

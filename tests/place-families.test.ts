@@ -9,6 +9,7 @@ import {
   familyFromName,
   familyFromOsmTags,
   familyFactsFor,
+  weatherAdjustedPurposeFit,
   FAMILY_CATEGORY,
   FAMILY_TYPE_ENTRIES,
 } from '../src/lib/providers/families'
@@ -152,6 +153,38 @@ describe('rain sets align with the confirmed source rows', () => {
     const dry = scoreHitForSegment(hit({ category: 'adventure', offRouteKm: 0 }), seg(false), anchors)
     const wet = scoreHitForSegment(hit({ category: 'adventure', offRouteKm: 0 }), seg(true), anchors)
     expect(wet).toBe(dry)
+  })
+})
+
+// RECHECK P1 (no-wrong-kind): the pure eligibility contract. The reproduced
+// case: a fort (= museum/heritage, NO confirmed rain row) fell through the
+// category sheltered fallback (+1), turning fuel fit 0 into 1 — rejected on a
+// dry day but a fuel candidate in rain. Weather never crosses the eligibility
+// gate; unconfirmed family rain evidence stays unknown (no category fallback).
+describe('recheck — weather never hardens purpose eligibility (pure contract)', () => {
+  const fort = { category: 'museum', family: 'heritage' as const, subtype: 'fort' }
+
+  it('a fort with zero fuel-fit stays zero in rain — no sheltered rescue', () => {
+    expect(fitScoreForPurpose(hit(fort), 'fuel')).toBe(0) // dry-day gate
+    expect(weatherAdjustedPurposeFit({ baseFit: 0, ...fort, rainy: true })).toBe(0)
+  })
+
+  it('a museum-sheltered boost applies ONLY to eligibility-fit hits and only via family rows', () => {
+    // an eligible museum hit with a CONFIRMED sheltered row gets the +1
+    expect(weatherAdjustedPurposeFit({ baseFit: 2, category: 'museum', family: undefined, rainy: true })).toBe(3)
+    // but a family-bearing hit with NO confirmed rain row stays PUT (unknown ≠ sheltered)
+    expect(weatherAdjustedPurposeFit({ baseFit: 2, ...fort, rainy: true })).toBe(2)
+    // and even with a confirmed sheltered row it cannot exceed the 0..3 gate
+    expect(weatherAdjustedPurposeFit({ baseFit: 3, ...fort, rainy: true })).toBe(3)
+  })
+
+  it('confirmed family rows still adjust eligible fits; non-family hits keep the legacy sets', () => {
+    // heritage is unconfirmed → neutral for the family hit (both weathers)
+    expect(weatherAdjustedPurposeFit({ baseFit: 3, ...fort, rainy: false })).toBe(3)
+    // legacy path for a family-less hit: 'nature' sensitive −1
+    expect(weatherAdjustedPurposeFit({ baseFit: 3, category: 'nature', family: undefined, rainy: true })).toBe(2)
+    // 'temple' sheltered +1 via the legacy set for family-less hits
+    expect(weatherAdjustedPurposeFit({ baseFit: 2, category: 'temple', family: undefined, rainy: true })).toBe(3)
   })
 })
 

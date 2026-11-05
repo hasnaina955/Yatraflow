@@ -157,6 +157,59 @@ export function familyFactsFor(category: string | undefined, subtype: string | n
   return undefined
 }
 
+/**
+ * RECHECK P1 (no-wrong-kind contract): weather preference may never HARDEN
+ * purpose eligibility. This pure helper is the single decision the ridePlan
+ * consumer (DeepSeek's edit) must use for the weather step:
+ *
+ *   - HARD ELIGIBILITY comes from the unadjusted purpose fit (PURPOSE_FIT /
+ *     DEFAULT_FIT). fit 0 = wrong kind of place — rain never rescues it.
+ *     A fort (museum/heritage) has fuel fit 0 and stays 0 on a rainy day;
+ *     before this contract the category-level 'museum' sheltered boost (+1)
+ *     turned that 0 into 1 and the fort scored as a fuel candidate.
+ *   - When the hit carries a family fact, ONLY that family's CONFIRMED rain
+ *     row adjusts the fit (heritage rows have none → no adjustment, unknown
+ *     stays unknown). The category fallback sets apply ONLY to hits without
+ *     a family fact.
+ *
+ * Returns the adjusted fit for ELIGIBLE candidates only — never above the
+ * caller's eligibility gate, never above 0 for a wrong-kind place.
+ */
+export function weatherAdjustedPurposeFit(args: {
+  /** the hit's unadjusted purpose fit (from fitScoreForPurpose) */
+  baseFit: number
+  category: string | undefined
+  family?: PlaceFamily
+  subtype?: string | null
+  rainy: boolean
+}): number {
+  const { baseFit, category, family, subtype, rainy } = args
+  // 1. hard gate first: a wrong-kind place stays wrong-kind in any weather
+  if (baseFit <= 0) return 0
+  if (!rainy) return baseFit
+  // 2. family fact present → only its CONFIRMED rain row adjusts
+  if (family) {
+    const facts = familyFactsFor(category, subtype ?? null, family)
+    if (facts != null) {
+      if (facts.rain === 'exposed') return Math.max(0, baseFit - 1)
+      if (facts.rain === 'sheltered') return Math.min(3, baseFit + 1)
+      return baseFit // 'mixed' or rain-unconfirmed row → no invention
+    }
+    // family with NO confirmed facts (e.g. heritage): unknown stays unknown —
+    // the category fallback must NOT kick in for family-bearing hits
+    return baseFit
+  }
+  // 3. no family fact → the pre-existing category sets adjust (unchanged legacy)
+  const cat = category ?? 'sightseeing'
+  if (WEATHER_SENSITIVE_CATEGORIES.has(cat)) return Math.max(0, baseFit - 1)
+  if (WEATHER_SHELTERED_CATEGORIES.has(cat)) return Math.min(3, baseFit + 1)
+  return baseFit
+}
+
+/** Category-level rain sets — legacy fallback for hits WITHOUT a family fact only. */
+const WEATHER_SENSITIVE_CATEGORIES = new Set(['nature', 'beach'])
+const WEATHER_SHELTERED_CATEGORIES = new Set(['museum', 'cafe', 'shopping', 'temple'])
+
 // ---- provider-type evidence (source "Detected from" — Google types) ----
 // Only NEW or source-corrected mappings live here; the pre-existing
 // GOOGLE_TYPE_TO_CATEGORY in google.ts is checked FIRST so existing behavior

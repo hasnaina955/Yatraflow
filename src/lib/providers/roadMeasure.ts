@@ -162,8 +162,17 @@ export const MEASUREMENT_TOP_CANDIDATES = 15
  * id so a duplicate never spends two ceiling slots.
  */
 export function topCandidatesForMeasurement<T>(ranked: readonly T[], idOf: (item: T) => string, requestedLimit?: number): T[] {
-  // hard ceiling: a caller-supplied limit above 15 does not widen the batch
-  const limit = Math.min(requestedLimit ?? MEASUREMENT_TOP_CANDIDATES, MEASUREMENT_TOP_CANDIDATES)
+  // hard ceiling (recheck P2): a caller-supplied limit above 15 does not widen
+  // the batch, and an INVALID limit (NaN/±∞) never disables the stop condition
+  // — Math.min(NaN, 15) is NaN, which made `length >= NaN` false forever and
+  // selected the whole probe list. Rule: garbage limits (non-finite) resolve
+  // to the standard ceiling; finite limits floor (fractional/0 respect the
+  // caller, bounded [0, 15]).
+  let limit = MEASUREMENT_TOP_CANDIDATES
+  if (requestedLimit != null && Number.isFinite(requestedLimit)) {
+    limit = Math.max(0, Math.floor(requestedLimit))
+  }
+  limit = Math.min(limit, MEASUREMENT_TOP_CANDIDATES)
   const seen = new Set<string>()
   const out: T[] = []
   for (const item of ranked) {

@@ -55,6 +55,46 @@ describe('parsing provider periods into intervals', () => {
     expect(hours?.pattern).toHaveLength(14)
   })
 
+  // RECHECK P1: hour 0 is a valid 00:00 time — `!hour` guards rejected it and
+  // both period shapes disappeared (24h open-at-midnight; 20:00→next-day 00:00).
+  it('recheck — an open 00:00 with no close parses as an open-ended period (hour 0 is valid)', () => {
+    const hours = placeHoursFromPeriods(
+      [{ open: { day: 1, hour: 0, minute: 0 } }], // 24/7 shape: opens midnight, no close stated
+      undefined,
+      '2026-01-05',
+    )
+    expect(hours?.basis).toBe('pattern')
+    expect(hours?.pattern).toEqual([{ startDay: 1, startMin: 0, endMin: null }])
+    expect(hours?.uncertainDays).toBeUndefined() // a VALID period, not an uncertain one
+    expect(openingVerdict(hours, MON, hm('03:00'), 30)).toMatchObject({ state: 'open' })
+  })
+
+  it('recheck — a 20:00 to next-day 00:00 span parses (close hour 0 is valid)', () => {
+    // Sat 20:00 → Sun 00:00: endMin = 1440 (Sunday midnight), anchored on Saturday
+    const hours = placeHoursFromPeriods(
+      [{ open: { day: 6, hour: 20, minute: 0 }, close: { day: 0, hour: 0, minute: 0 } }],
+      undefined,
+      '2026-01-05',
+    )
+    expect(hours?.pattern).toEqual([{ startDay: 6, startMin: 1200, endMin: 1440 }])
+    expect(hours?.uncertainDays).toBeUndefined()
+    // a 23:30 Saturday visit fits; a 00:30 Sunday arrival is past the span's close
+    expect(openingVerdict(hours, SAT, hm('23:30'), 20)).toMatchObject({ state: 'open' })
+    expect(openingVerdict(hours, SUN, hm('00:30'), 0).state).toBe('closed')
+  })
+
+  it('a genuinely absent hour (not zero) still fails as malformed', () => {
+    // close.hour undefined (absent) is malformed; close.hour 0 (midnight) is valid
+    const hours = placeHoursFromPeriods(
+      [{ open: { day: 1, hour: 0, minute: 0 }, close: { day: 1, hour: undefined as never, minute: 0 } }],
+      undefined,
+      '2026-01-05',
+    )
+    // nothing survives the malformed close, so there is no confirmed pattern
+    // at all — honest unknown rather than a fabricated interval
+    expect(hours).toBeUndefined()
+  })
+
   it('reads an overnight interval across midnight with the right anchor day', () => {
     const hours = placeHoursFromPeriods([period(6, '22:00', 0, '02:00')], undefined, '2026-01-05')
     expect(hours?.pattern).toEqual([{ startDay: 6, startMin: hm('22:00'), endMin: hm('02:00') + 1440 }])

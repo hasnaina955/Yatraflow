@@ -136,11 +136,15 @@ function intervalsFromPeriods(periods: RawHoursPeriod[] | undefined): { interval
     if (day != null && Number.isInteger(day) && day >= 0 && day <= 6) uncertainDays.add(day as Weekday)
     else unattributableFailure = true
   }
+  // absent-vs-zero guards (recheck P1): hour 0 is a VALID 00:00 time — `!hour`
+  // would reject it. Only absent/non-integer/out-of-range values fail.
+  const validHour = (h: number | undefined | null): h is number =>
+    h != null && Number.isInteger(h) && h >= 0 && h <= 23
   for (const p of periods) {
     const open = p.open
     if (!open) { unattributableFailure = true; continue }
     const dayKnown = open.day != null && Number.isInteger(open.day) && open.day >= 0 && open.day <= 6
-    if (!open.hour || !Number.isInteger(open.hour) || open.hour < 0 || open.hour > 23) {
+    if (!validHour(open.hour)) {
       fail(dayKnown ? open.day : null)
       continue
     }
@@ -158,7 +162,7 @@ function intervalsFromPeriods(periods: RawHoursPeriod[] | undefined): { interval
       continue
     }
     const close = p.close
-    if (!close.hour || !Number.isInteger(close.hour) || close.hour < 0 || close.hour > 23) {
+    if (!validHour(close.hour)) {
       fail(startDay)
       continue
     }

@@ -111,6 +111,21 @@ describe('the hard top-15 ceiling (probe overriddenCap)', () => {
     expect(capped[MEASUREMENT_TOP_CANDIDATES - 1].id).toBe('c14')
   })
 
+  // RECHECK P2: Math.min(NaN, 15) is NaN — `length >= NaN` was always false and
+  // a NaN limit selected the whole list (25 in the recheck probe). Rule: garbage
+  // limits (non-finite) resolve to the standard ceiling; finite limits floor and
+  // respect the caller, bounded [0, 15].
+  it('recheck — invalid limits (NaN, ±∞, fractional, 0) normalize before the clamp', () => {
+    const ranked = Array.from({ length: 25 }, (_, i) => ({ id: `c${i}` }))
+    expect(topCandidatesForMeasurement(ranked, c => c.id, Number.NaN)).toHaveLength(MEASUREMENT_TOP_CANDIDATES)
+    expect(topCandidatesForMeasurement(ranked, c => c.id, Number.POSITIVE_INFINITY)).toHaveLength(MEASUREMENT_TOP_CANDIDATES)
+    expect(topCandidatesForMeasurement(ranked, c => c.id, Number.NEGATIVE_INFINITY)).toHaveLength(MEASUREMENT_TOP_CANDIDATES)
+    expect(topCandidatesForMeasurement(ranked, c => c.id, 12.7)).toHaveLength(12) // fractional floors
+    expect(topCandidatesForMeasurement(ranked, c => c.id, 0)).toHaveLength(0) // an explicit zero measures nothing
+    expect(topCandidatesForMeasurement(ranked, c => c.id, -3)).toHaveLength(0) // negative respects the caller's intent, never widens
+    expect(topCandidatesForMeasurement(ranked, c => c.id)).toHaveLength(MEASUREMENT_TOP_CANDIDATES) // absent = the ceiling
+  })
+
   it('duplicates never spend two ceiling slots; the defense re-applies in the batch runner', async () => {
     const dupes = ['a', 'a', 'b', 'b', 'c'].map(id => ({ id, lat: 10, lng: 10.1 }))
     const out = await measureRoadDetours({

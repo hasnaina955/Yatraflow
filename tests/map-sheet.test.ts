@@ -138,7 +138,7 @@ describe('the wiring is declared exactly once (A415)', () => {
 })
 
 describe('the phone top row (Phone 390 board, one row on top)', () => {
-  const phone = css.slice(css.lastIndexOf('/* Map V2 phone: the omnibar and the lens pill share one row'))
+  const phone = css.slice(css.lastIndexOf('/* Map V2 phone: search and the lens pill share one row'))
 
   it('puts the omnibar and the lens pill on the same top offset', () => {
     expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses \{ top: 60px;/)

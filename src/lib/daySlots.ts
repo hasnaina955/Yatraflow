@@ -198,6 +198,12 @@ export interface DaySlotsDeps {
   /** The day's road-km span (start inclusive, end inclusive) for positioning
    *  synthesized slots on the corridor. Absent = the day's own stops only. */
   daySpanKm?: (dayIndex: number) => { fromKm: number; toKm: number } | null
+  /**
+   * Runtime hours (repair of #887): the local ISO date of a trip day. Candidate
+   * scoring uses it so a weekday closure and a full-visit overrun are real
+   * facts. Absent = undated, and the verdict stays unknown rather than guessed.
+   */
+  dayDateOf?: (dayIndex: number) => string | null
 }
 
 const SLOT_LABELS: Record<SlotKey, string> = {
@@ -527,12 +533,18 @@ function candidatesFor(
   seg: RideSegment | null,
   segHits: SegmentHit[],
   deps: DaySlotsDeps,
+  dayIndex: number,
 ): SlotCandidate[] {
   const limit = deps.limit ?? 3
   const win = windowFor(draft)
   const speed = speedFor(deps.transportMode)
   const purpose = purposeFor(draft.kind)
   const synth = synthSegment(draft, seg)
+  // Runtime hours (repair of #887): the bench is the day's own calendar date.
+  // Absent date stays unknown in scoring — never today's date, never a guess.
+  const visitDate = deps.dayDateOf?.(dayIndex) ?? null
+  const visitDates: (string | null)[] = []
+  visitDates[synth.index] = visitDate
   // The budget base is THIS day's active stops, derived beside the budget
   // itself so slot and rail cannot disagree about the day's density (#344:
   // the prop existed, was documented, and was passed by nobody).
@@ -543,6 +555,7 @@ function candidatesFor(
     speedKmph: speed,
     ...(deps.dnaVector ? { dnaVector: deps.dnaVector } : {}),
     ...(deps.homeCenter ? { homeCenter: deps.homeCenter } : {}),
+    visitDates,
   }
   const seen = new Set<string>()
   const rows: Array<{ hit: PlaceHit; score: number }> = []
@@ -796,7 +809,7 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       auto,
       drift,
       urgencyMin,
-      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps),
+      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps, dayIndex),
       ...(filledStop ? {} : { vote: voteFor(draft, deps) }),
       reason: auto ? 'Engine-managed stretch' : null,
     }

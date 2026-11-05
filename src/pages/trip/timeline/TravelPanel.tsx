@@ -26,6 +26,7 @@ import { toast } from '../../../components/ui'
 import { Select } from '../../../components/Select'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPoisMulti, searchCitiesAlong, corridorAnchors, reasonForHit, filterPlannedNearby, asymmetricDetourMinutes, googleEnabled, googleCitiesAlong, anchorHash, routeHash } from '../../../lib/geocode'
+import { visitDatesForPlan } from '../../../lib/hoursContext'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import { kmFromStartForHit, type HaltPurpose } from '../../../lib/providers/hits'
 import { segmentsFromPlan, assignSegmentHits, annotateSegmentHits, type HaltPlanItem } from '../../../lib/ridePlan'
@@ -338,7 +339,14 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           .slice(0, 12),
       )
       const assigned = annotateSegmentHits(
-        assignSegmentHits(unplanned, segments, anchors, { homeCenter: trip.startLocationCoords ?? null, routePolyline: roadNow ?? (routePts.length >= 2 ? routePts : null), speedKmph: MODE_SPEED[trip.transportMode] ?? 40 }),
+        assignSegmentHits(unplanned, segments, anchors, {
+          homeCenter: trip.startLocationCoords ?? null,
+          routePolyline: roadNow ?? (routePts.length >= 2 ? routePts : null),
+          speedKmph: MODE_SPEED[trip.transportMode] ?? 40,
+          // Runtime hours (repair of #887): score each halt against its own trip
+          // day date, so a weekday closure and a full-visit overrun are real facts.
+          visitDates: visitDatesForPlan(segments, trip.startDate),
+        }),
         candidates,
       )
       const hitById = new Map<string, PlaceHit | null>()

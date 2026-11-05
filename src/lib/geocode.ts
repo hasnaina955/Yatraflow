@@ -51,6 +51,7 @@ import {
   preferTownGrade,
   type DrivingPlan, type SegmentHit,
 } from './ridePlan'
+import { visitDatesForPlan } from './hoursContext'
 import { resolveVehicleRange } from './vehicleProfile'
 import { addMinutesToClock } from './engine'
 
@@ -309,7 +310,7 @@ export async function planJourneyHalts(
   anchors: { lat: number; lng: number }[],
   totalKm: number,
   driveMinutes: number,
-  opts: NearbyOpts & { plan: DrivingPlan },
+  opts: NearbyOpts & { plan: DrivingPlan; tripStartDate?: string },
   radiusM = 35000,
 ): Promise<SegmentHit[]> {
   // 1. Plan segments first so we know which purposes we need to search for
@@ -423,7 +424,15 @@ export async function planJourneyHalts(
     ? filterPlannedNearby(candidates, opts.plannedStops)
     : candidates
   const routePolyline = (opts.routeCoords ?? []).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1])).map(c => ({ lat: c[1], lng: c[0] }))
-  const assignOpts = { homeCenter: opts.homeCenter ?? null, routePolyline: routePolyline.length >= 2 ? routePolyline : null, speedKmph: opts.speedKmph, dnaVector: opts.dnaVector }
+  // Runtime hours (repair of #887): each segment scores against its own trip day
+  // date. Without a start date the entries stay null, so the verdict stays unknown.
+  const assignOpts = {
+    homeCenter: opts.homeCenter ?? null,
+    routePolyline: routePolyline.length >= 2 ? routePolyline : null,
+    speedKmph: opts.speedKmph,
+    dnaVector: opts.dnaVector,
+    visitDates: visitDatesForPlan(segments, opts.tripStartDate),
+  }
   const assigned = assignSegmentHits(unplanned, segments, anchors, assignOpts)
   // Unassigned corridor hits surface as See & do — otherwise the sightseeing
   // column is empty by construction (the planner never makes 'sight' segments).

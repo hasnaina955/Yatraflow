@@ -161,7 +161,11 @@ export function useCorridorCache({
     // clock defers, tonight's hop otherwise. NEVER the planned day count: a
     // 700 km 1-day plan still needs its night halt; a 3-day 200 km trip none.
     planJourneyHalts(anchors, planKm, wholeTripMin, {
-      ...nearbyOpts, plan: drivingPlan, signal: controller.signal, rejectOnFailure: true,
+      ...nearbyOpts, plan: drivingPlan, signal: controller.signal,
+      rejectOnFailure: true,
+      // Runtime hours (repair of #887): the corridor scores each halt against
+      // its own trip day date. The trip's own start date, never today's date.
+      tripStartDate: trip.startDate,
     }, scopeKm * 1000)
       .then(plan => {
         if (!cancelled) {

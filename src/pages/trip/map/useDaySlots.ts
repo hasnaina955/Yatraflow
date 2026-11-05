@@ -14,6 +14,7 @@ import {
 } from '../../../lib/daySlots'
 import type { PlaceIdentity } from '../../../lib/placeIdentity'
 import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, slotPatternHint, type CrewSeed } from '../../../lib/tripDna'
+import { visitDateForDay } from '../../../lib/hoursContext'
 import { slotPinsFor } from './railLabels'
 import type { LatLng } from './weatherGeometry'
 
@@ -31,6 +32,7 @@ export type DaySlotsArgs = {
   members: Trip['members']
   travellers: Trip['travellers']
   startLocationCoords: Trip['startLocationCoords']
+  startDate: Trip['startDate']
   tripId: string
   crewSeeds: CrewSeed[]
   dnaTick: number
@@ -44,7 +46,7 @@ export type DaySlotsArgs = {
 export function useDaySlots({
   pois, anchors, routePolyline, transportMode, travelStyle, existingNames,
   identity, altPool, dayAttribution, decisions, travellers, startLocationCoords,
-  tripId, crewSeeds, dnaTick, addedIds, dismissedIds, days, activeDayIndex,
+  startDate, tripId, crewSeeds, dnaTick, addedIds, dismissedIds, days, activeDayIndex,
   daySlotSig, members,
 }: DaySlotsArgs) {
   // One derivation feeds the rail, the meter and the fill flow: slots derive
@@ -81,7 +83,10 @@ export function useDaySlots({
     // own road-km span (the same road-true km dayForKm trusts).
     fillSkeleton: true,
     daySpanKm: dayAttribution.daySpanKm,
-  }), [pois, anchors, routePolyline, transportMode, travelStyle, existingNames, identity, altPool, dayAttribution, decisions, members, travellers, startLocationCoords, tripId, crewSeeds, dnaTick, addedIds, dismissedIds]) // eslint-disable-line react-hooks/exhaustive-deps -- refresh tokens: dnaTick re-reads the DNA log, travellers re-runs the cadence
+    // Runtime hours (repair of #887): the slot scores against the day's own
+    // calendar date, never today's date.
+    dayDateOf: (dayIndex: number) => visitDateForDay(startDate, dayIndex),
+  }), [pois, anchors, routePolyline, transportMode, travelStyle, existingNames, identity, altPool, dayAttribution, decisions, members, travellers, startLocationCoords, startDate, tripId, crewSeeds, dnaTick, addedIds, dismissedIds]) // eslint-disable-line react-hooks/exhaustive-deps -- refresh tokens: dnaTick re-reads the DNA log, travellers re-runs the cadence
   /** This day's stops - one lookup, shared by the slots, the shape and the fills. */
   const activeDayStops = useMemo(
     () => days.find(d => d.index === activeDayIndex)?.stops ?? [],

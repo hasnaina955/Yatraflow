@@ -19,6 +19,7 @@ import type { TransportMode } from '../data/types'
 import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
 import { openingVerdict } from './providers/hours'
 import { familyFactsFor } from './providers/families'
+import { intendedVisitMinutes } from './hoursContext'
 import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
@@ -1681,8 +1682,10 @@ export function scoreHitForSegment(
   // Opening-hours fit: a hit closed when you'd arrive is degraded. Structured
   // hours (ticket 02) resolve the visit weekday from visitDates when the
   // projection supplies one; undated verdicts stay honest (neutral, not guessed).
+  // The visit length is the pacing the add path already intends for this kind,
+  // never a zero-length stand-in, so a visit that would overrun close is scored.
   const visitDate = opts.visitDates?.[seg.index] ?? null
-  const hours = hoursFitAdj(h, seg.etaMinutes, { date: visitDate })
+  const hours = hoursFitAdj(h, seg.etaMinutes, { date: visitDate, visitMin: intendedVisitMinutes(h) })
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0
   return distPenalty + detourCost + hours + (3 - fit) * 4 - dna

@@ -30,6 +30,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Opening verdicts now use the visit's local weekday and every known interval.** Google hours were read from the first period only. A split day collapsed to its morning block, and a Monday closure read as open. `providers/hours.ts` parses all weekday-attributable periods and keeps split and overnight spans. It separates a known closure from missing or unknown hours. The scorer uses the verdict when the projection supplies a visit date. A fetch date stays a freshness stamp, not proof that the place is open on a future date.
 
+- **Map suggestions now score opening hours against the trip's own day.** The visit date comes from the trip calendar. The intended visit length comes from the pacing the add path already uses. A Monday closure and a visit that overruns closing time are scored, not guessed. Cards show the intervals that apply to that day, so a split place no longer shows only its first period. The drive rail now renders the presentation adapter's rows.
+
 ### Changed
 
 - **Development fixtures use explicit status and root checks.** Source checks use literal patterns, and the fixture config imports the package version.

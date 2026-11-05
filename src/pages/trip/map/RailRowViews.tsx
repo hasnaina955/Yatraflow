@@ -10,7 +10,7 @@ import { ChevronDown, CircleCheck, Star } from 'lucide-react'
 import { InlineIcon } from '../../../components/icons'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import type { RailChip } from '../../../lib/railReasons'
-import { alternativesFor, chipsFor, type ChipFacts } from './railRows'
+import { alternativesFor } from './railRows'
 import type { AltPool } from './sightRows'
 
 /** A corridor halt the engine found no place for. The action raises the
@@ -60,7 +60,7 @@ export function LedgerRow({
   added,
   detourMin,
   hitDay,
-  chipFacts,
+  chips,
   altPool,
   chipFilter,
   editable,
@@ -77,7 +77,8 @@ export function LedgerRow({
   added: boolean
   detourMin: number | null | undefined
   hitDay: number | null
-  chipFacts: ChipFacts
+  /** the presentation adapter's chips for this row (ticket 03 repair) */
+  chips: RailChip[]
   altPool: AltPool
   chipFilter: string | null
   editable: boolean
@@ -92,7 +93,6 @@ export function LedgerRow({
   const hit = sh.hit
   if (dismissed) return null
   if (!hit) return <GapRow sh={sh} dismissed={false} onWiden={onWiden} /> // gaps keep their honest row
-  const chips: RailChip[] = chipsFor(sh, hit, chipFacts)
   const alts = alternativesFor(sh, hit, altPool).filter(e => e.h.id !== hit.id)
   const shelf = (
     <div className="ledger-shelf">

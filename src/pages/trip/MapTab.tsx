@@ -42,7 +42,9 @@ import {
   SEE_VISIBLE, SCOPE_KM_STEPS, SCOPE_STORAGE_KEY,
   googleMapsUrl, newStopId, poiVisitMinutes, smallThumb,
 } from './map/pageHelpers'
-import { chipsFor, activeReadinessLabel, activeDayLabel } from './map/railRows'
+import { activeReadinessLabel, activeDayLabel } from './map/railRows'
+import { driveRowsFromSegments } from './map/driveSuggestionView'
+import { hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import { LedgerRow } from './map/RailRowViews'
 import { filingOptionsFor, manualCandidateFor, mergeSlotCandidates } from './map/slotFiling'
 import {
@@ -886,7 +888,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const detourMinFor = (hit: PlaceHit): number | null =>
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
-  const chipFacts = { detourMinFor, days: trip.days, dayForKm, travelStyle: trip.travelStyle }
 
   // #420 slice 2: the shortlist feature lives in its own hook now — the collection,
   // the shared "already mine?" filter, and both batch writers. Called here rather
@@ -910,7 +911,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     busy: addingAny,
     setBusy: setAddingAny,
   })
-  const seeForRail = chipFilter ? seeAndDoLive.filter(sh => sh.hit && chipsFor(sh, sh.hit, chipFacts).some(c => c.key === chipFilter)) : seeAndDoLive
   const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
@@ -944,6 +944,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       }
     }
   }
+  // Ticket 03 repair: the rail renders the presentation adapter's rows. The
+  // page still owns state, order and writes; the adapter supplies the facts it
+  // already knows. Identity is the engine's own hit, never a new key.
+  const driveFacts = {
+    detourMinFor,
+    days: trip.days,
+    dayForKm,
+    travelStyle: trip.travelStyle,
+    added: (h: PlaceHit) => isAlreadyAdded(h, identity),
+    dismissed: (h: PlaceHit) => dismissedIds.has(String(h.id)),
+    heldBack: budgetHeldIds,
+  }
+  const driveRows = driveRowsFromSegments(pois, driveFacts)
+  const driveRowById = new Map(driveRows.map(r => [r.id, r]))
+  const seeForRail = chipFilter
+    ? seeAndDoLive.filter(sh => sh.hit && (driveRowById.get(String(sh.hit.id))?.chips ?? []).some(c => c.key === chipFilter))
+    : seeAndDoLive
   // Quota honesty (Google-only directive): when the textSearchPro soft cap is
   // hit, every Google-mode corridor scan returns [] — say why instead of
   // rendering an empty state that reads like "nothing around".
@@ -961,10 +978,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // other local row helper, so no hook boundary is involved.
   const ledgerRow = (sh: SegmentHit) => {
     const hit = sh.hit
-    const detourMin = hit
-      ? (hitEngine.get(String(hit.id))?.detourMin
-        ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40))
-      : undefined
+    // The row is the adapter's own row for this hit: same identity, same order,
+    // and the facts the rail draws (detour, day, chips, state) come from it.
+    const row = hit ? driveRowById.get(String(hit.id)) : undefined
+    const detourMin = row
+      ? row.detourMin
+      : hit
+        ? (hitEngine.get(String(hit.id))?.detourMin
+          ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40))
+        : undefined
     const dismissHit = () => {
       if (!hit) return
       recordDnaEvent({ tripId: trip.id, action: 'decline', haltKind: sh.segment.purpose, category: hit.category, detourMin: detourMin ?? undefined })
@@ -977,11 +999,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       <LedgerRow
         key={hit ? String(hit.id) : `gap-${sh.segment.index}`}
         sh={sh}
-        dismissed={!!hit && dismissedIds.has(hit.id as string)}
-        added={hit ? isAlreadyAdded(hit, identity) : false}
+        dismissed={row ? row.state === 'dismissed' : !!hit && dismissedIds.has(hit.id as string)}
+        added={row ? row.state === 'added' : hit ? isAlreadyAdded(hit, identity) : false}
         detourMin={detourMin}
-        hitDay={hit ? dayForKm(hit.cumKm) : null}
-        chipFacts={chipFacts}
+        hitDay={row ? row.dayIndex : hit ? dayForKm(hit.cumKm) : null}
+        chips={row?.chips ?? []}
         altPool={altPool}
         chipFilter={chipFilter}
         editable={editable}
@@ -1009,6 +1031,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     pois, anchors, routePolyline, transportMode: trip.transportMode, travelStyle: trip.travelStyle,
     existingNames, identity, altPool, dayAttribution, decisions, members: trip.members,
     travellers: trip.travellers, startLocationCoords: trip.startLocationCoords, tripId: trip.id,
+    startDate: trip.startDate,
     crewSeeds, dnaTick, addedIds, dismissedIds, days: trip.days, activeDayIndex, daySlotSig,
   })
 
@@ -1163,7 +1186,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                     {h.name}{h.nearestCity ? ` · ${h.nearestCity}` : ''}
                     {/* Google hits carry a trusted rating + reported hours — surface them. */}
                     {h.rating != null && (h.ratingCount ?? 0) >= 10 ? `, ${h.rating.toFixed(1)}★` : ''}
-                    {(h.openTime || h.closeTime) ? `, ${formatHMRange(h.openTime, h.closeTime, timeFormat)}` : ''}
+                    {/* Runtime hours (repair of #887): a place with structured hours
+                        shows the intervals that apply to the chosen day, not the
+                        first legacy period. No structured hours keeps the old pair. */}
+                    {(() => {
+                      if (h.hours) {
+                        const shown = hoursDisplayFor(h, { date: visitDateForDay(trip.startDate, pickDay), arrivalMin: null })
+                        return shown.ranges ? `, ${shown.ranges.map(r => formatHMRange(r.open, r.close, timeFormat)).join(' · ')}` : ''
+                      }
+                      return (h.openTime || h.closeTime) ? `, ${formatHMRange(h.openTime, h.closeTime, timeFormat)}` : ''
+                    })()}
                     <span className="muted">{', '}
                       {(() => {
                         const labelled = kmLabelFor(km)
@@ -1679,7 +1711,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                                 <span>
                                   {c.detourMin == null ? 'position unknown' : `+${Math.round(c.detourMin)} min`}
                                   {c.arriveLabel ? ` · arrive ${c.arriveLabel}` : ''}
-                                  {(c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''}
+                                  {/* Runtime hours (repair of #887): the candidate's own day
+                                      date and intended visit length decide the shown intervals
+                                      and the closed note. Structured hours never fall back to
+                                      the first legacy period; no structured hours keeps it. */}
+                                  {(() => {
+                                    if (c.hit.hours) {
+                                      const shown = hoursDisplayFor(c.hit, {
+                                        date: visitDateForDay(trip.startDate, activeDayIndex),
+                                        arrivalMin: c.arriveMin,
+                                        visitMin: intendedVisitMinutes(c.hit),
+                                      })
+                                      if (!shown.ranges) return ''
+                                      const span = shown.ranges.map(r => formatHMRange(r.open, r.close, timeFormat)).join(' · ')
+                                      return ` · ${span}${shown.note ? ` (${shown.note})` : ''}`
+                                    }
+                                    return (c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''
+                                  })()}
                                   {c.detourMin == null ? 'position unknown' : c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
                                   {c.reason ? ` · ${c.reason}` : ''}
                                 </span>

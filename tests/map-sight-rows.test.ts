@@ -136,7 +136,10 @@ describe('#420 — slice 5 wiring', () => {
     expect(mapTab).toContain("from './map/RailRowViews'")
     expect(mapTab).toContain('<LedgerRow')
     expect(views).toMatch(/alternativesFor\(sh, hit, altPool\)/)
-    expect(views).toMatch(/chipsFor\(sh, hit, chipFacts\)/)
+    // Ticket 03 repair: the view renders the adapter row's chips; it no longer
+    // recomputes them from page facts (one presentation path, not two).
+    expect(views).toMatch(/chips: RailChip\[\]/)
+    expect(views).not.toMatch(/chipsFor\(sh, hit, chipFacts\)/)
     expect(mapTab).not.toContain('altPool.byPurpose.get(sh.segment.purpose)')
     expect(mapTab).not.toContain('railReasonChips(')
     expect(railRows).toContain("from './sightRows'")

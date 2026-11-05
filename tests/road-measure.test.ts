@@ -1,11 +1,18 @@
-// Ticket 11 (#896): road-measured detours. Pure fixtures — the transport is
-// injected, so nothing here touches the network or the quota store. Covers:
-// matching-input math, invalid/negative stays unknown, staleness merge, the
-// top-15 cap, the quota pause, and the measured fact winning over estimates.
+// Ticket 11 (#896) repaired — road-measured detours. Pure fixtures; the
+// transport is injected, so nothing touches the network or the quota store.
+// Each progress-review probe is reproduced as a named regression:
+//   roadDelta:      60 baseline + 84 via → 24 extra minutes (NOT 48)
+//   overriddenCap:  a caller limit of 20 stays at the hard 15
+//   quotaBatch:     the quota guard rechecks before EVERY request and HALTS
+//                   the remaining batch when it goes false
+//   plus: directed arrival leg measured separately (never halved), matching
+//   explicit clock inputs, stale/old-route replies can never replace current
+//   measurements.
 import { describe, it, expect } from 'vitest'
 import {
   roadDetourFromLegs,
   mergeMeasurement,
+  isCurrentForRoute,
   topCandidatesForMeasurement,
   measureRoadDetours,
   MEASUREMENT_TOP_CANDIDATES,
@@ -19,75 +26,133 @@ const FP = 'route-fp-1'
 
 function measurement(over: Partial<RoadMeasurement> = {}): RoadMeasurement {
   return {
-    hitId: 'h1', detourMin: 12, returnDetourMin: 24, oneWayArriveMin: 12,
-    measured: true, generation: 1, routeFingerprint: FP, measuredAt: 1000, ...over,
+    hitId: 'h1', detourMin: 24, arrivalLegMin: 12,
+    measured: true, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600, ...over,
   }
 }
 
-describe('matching-input math (AC 1, AC 5)', () => {
-  it('derives the directed delta and the return-driving fact (8 km spur → 12 min one-way → 24 return)', () => {
-    const m = roadDetourFromLegs({ hitId: 'h1', baselineMin: 60, viaTotalMin: 72, generation: 1, routeFingerprint: FP, measuredAt: 1000 })
-    expect(m).toMatchObject({ detourMin: 12, returnDetourMin: 24, oneWayArriveMin: 12, measured: true })
+describe('the corrected fact contract (probe roadDelta)', () => {
+  it('baseline 60 + complete via 84 → 24 extra minutes, NOT 48', () => {
+    const m = roadDetourFromLegs({
+      hitId: 'h1', baselineMin: 60,
+      via: { totalMin: 84, arrivalLegMin: 40 },
+      generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600,
+    })
+    expect('invalid' in m && m.invalid).toBe(false)
+    if (!('invalid' in m)) {
+      expect(m.detourMin).toBe(24) // the probe's returnDetourMin 48 is GONE
+      expect(m.arrivalLegMin).toBe(40) // directed arrival evidence, measured
+    }
+  })
+
+  it('the directed arrival leg is its own fact — never derived by halving', () => {
+    // asymmetric one-way roads: out 40, back 20 → delta 24 with arrival 40 (not 12)
+    const m = roadDetourFromLegs({
+      hitId: 'h', baselineMin: 36,
+      via: { totalMin: 60, arrivalLegMin: 40 },
+      generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 540,
+    })
+    if (!('invalid' in m)) {
+      expect(m.detourMin).toBe(24)
+      expect(m.arrivalLegMin).toBe(40)
+      expect((m as RoadMeasurement).departAtMin).toBe(540) // explicit matching clock recorded
+    }
   })
 
   it('a zero delta is a valid on-road fact, never unknown', () => {
-    expect(roadDetourFromLegs({ hitId: 'h1', baselineMin: 60, viaTotalMin: 60, generation: 1, routeFingerprint: FP, measuredAt: 1000 }))
-      .toMatchObject({ detourMin: 0, returnDetourMin: 0 })
+    const m = roadDetourFromLegs({ hitId: 'h1', baselineMin: 60, via: { totalMin: 60, arrivalLegMin: 30 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 })
+    if (!('invalid' in m)) expect(m.detourMin).toBe(0)
   })
 
-  it('a negative delta is engine noise and stays unknown', () => {
-    expect(roadDetourFromLegs({ hitId: 'h1', baselineMin: 72, viaTotalMin: 60, generation: 1, routeFingerprint: FP, measuredAt: 1000 }))
-      .toMatchObject({ invalid: true })
-  })
-
-  it('missing, non-finite or negative inputs stay unknown', () => {
-    for (const bad of [null, undefined, Number.NaN, Number.POSITIVE_INFINITY, -5]) {
-      expect(roadDetourFromLegs({ hitId: 'h', baselineMin: bad as never, viaTotalMin: 72, generation: 1, routeFingerprint: FP, measuredAt: 1000 }).invalid).toBe(true)
-      expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 60, viaTotalMin: bad as never, generation: 1, routeFingerprint: FP, measuredAt: 1000 }).invalid).toBe(true)
-    }
+  it('a negative delta, missing legs or non-finite values stay unknown', () => {
+    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 84, via: { totalMin: 60, arrivalLegMin: 30 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
+    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: null, via: { totalMin: 84, arrivalLegMin: 40 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
+    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 60, via: { totalMin: 84, arrivalLegMin: Number.NaN }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
+    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 60, via: null, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
   })
 })
 
-describe('staleness merge (AC 4)', () => {
-  it('a stale (lower-generation) result never replaces a newer measurement', () => {
-    const newer = measurement({ generation: 2, detourMin: 20, returnDetourMin: 40, oneWayArriveMin: 20 })
-    const stale = measurement({ generation: 1, detourMin: 99, returnDetourMin: 198, oneWayArriveMin: 99 })
-    expect(mergeMeasurement(newer, stale)).toBe(newer)
+describe('the active-route staleness binding', () => {
+  const ACTIVE = { generation: 2, routeFingerprint: FP }
+
+  it('a late reply from an OLD route (probe late-reply) never replaces a current measurement', () => {
+    const current = measurement({ generation: 2, detourMin: 20, arrivalLegMin: 10, measuredAt: 2000 })
+    const lateOldRoute = measurement({ generation: 2, routeFingerprint: 'old-route', detourMin: 99, measuredAt: 5000 })
+    expect(isCurrentForRoute(lateOldRoute, ACTIVE)).toBe(false)
+    expect(mergeMeasurement(current, lateOldRoute, ACTIVE)).toBe(current)
   })
 
-  it('a route change (different fingerprint) invalidates the old record', () => {
-    const old = measurement({ generation: 1, routeFingerprint: 'fp-old' })
-    const rerouted = measurement({ generation: 1, routeFingerprint: 'fp-new', detourMin: 30 })
-    expect(mergeMeasurement(old, rerouted)).toBe(rerouted)
+  it('a stale (lower-generation) reply never replaces a newer measurement', () => {
+    const current = measurement({ generation: 2, detourMin: 20, measuredAt: 2000 })
+    const stale = measurement({ generation: 1, detourMin: 99, measuredAt: 9000 })
+    expect(mergeMeasurement(current, stale, ACTIVE)).toBe(current)
   })
 
-  it('equal generation on the same route keeps the newest measurement', () => {
-    const older = measurement({ measuredAt: 1000 })
-    const fresher = measurement({ measuredAt: 2000, detourMin: 14 })
-    expect(mergeMeasurement(older, fresher)).toBe(fresher)
-    expect(mergeMeasurement(fresher, older)).toBe(fresher)
+  it('among current-route candidates the newest measuredAt wins; non-current pairs resolve honestly', () => {
+    const older = measurement({ generation: 2, measuredAt: 1000, detourMin: 22 })
+    const fresher = measurement({ generation: 2, measuredAt: 2000, detourMin: 24 })
+    expect(mergeMeasurement(older, fresher, ACTIVE)).toBe(fresher)
+    expect(mergeMeasurement(fresher, older, ACTIVE)).toBe(fresher)
+    // both foreign to the active route → nothing effective
+    expect(mergeMeasurement(
+      measurement({ routeFingerprint: 'x' }),
+      measurement({ routeFingerprint: 'y' }),
+      ACTIVE,
+    )).toBeUndefined()
   })
 })
 
-describe('the bounded top-15 budget (AC 2)', () => {
-  it('caps at 15 unique candidates in ranked order; duplicates never spend two slots', () => {
+describe('the hard top-15 ceiling (probe overriddenCap)', () => {
+  it('a caller requesting 20 still gets the hard 15, in ranked order, unique by id', () => {
     const ranked = Array.from({ length: 20 }, (_, i) => ({ id: `c${i}` }))
-    expect(topCandidatesForMeasurement(ranked, c => c.id)).toHaveLength(MEASUREMENT_TOP_CANDIDATES)
-    expect(topCandidatesForMeasurement(ranked, c => c.id)[0].id).toBe('c0')
-    const dupes = ['a', 'a', 'b', 'b', 'c'].map(id => ({ id }))
-    expect(topCandidatesForMeasurement(dupes, c => c.id).map(c => c.id)).toEqual(['a', 'b', 'c'])
+    const capped = topCandidatesForMeasurement(ranked, c => c.id, 20) // the probe's override attempt
+    expect(capped).toHaveLength(MEASUREMENT_TOP_CANDIDATES)
+    expect(capped[0].id).toBe('c0')
+    expect(capped[MEASUREMENT_TOP_CANDIDATES - 1].id).toBe('c14')
+  })
+
+  it('duplicates never spend two ceiling slots; the defense re-applies in the batch runner', async () => {
+    const dupes = ['a', 'a', 'b', 'b', 'c'].map(id => ({ id, lat: 10, lng: 10.1 }))
+    const out = await measureRoadDetours({
+      origin: { lat: 10, lng: 10 }, destination: { lat: 10, lng: 10.05 },
+      candidates: dupes, generation: 1, routeFingerprint: FP, departAtMin: 600,
+      transport: { baselineMin: async () => 60, viaRoute: async () => ({ totalMin: 84, arrivalLegMin: 40 }) },
+      quotaAllows: () => true,
+      limit: 20, // ignored above the ceiling
+    })
+    expect(out.measurements.map(m => m.hitId)).toEqual(['a', 'b', 'c'])
   })
 })
 
-describe('the batch runner: quota pause, failures, estimates retained (AC 3, AC 6 gate)', () => {
+describe('the batch runner: per-request quota recheck and halting (probe quotaBatch)', () => {
   const origin = { lat: 10, lng: 10 }
-  const destination = { lat: 10, lng: 10.5 }
-  const candidates = Array.from({ length: 3 }, (_, i) => ({ id: `c${i}`, lat: 10, lng: 10.1 + i / 100 }))
+  const destination = { lat: 10, lng: 10.05 }
+  const candidates = Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, lat: 10, lng: 10.01 + i / 1000 }))
 
-  it('quota says no → nothing measured, every candidate skipped as quota (estimates stay)', async () => {
+  it('the guard flipping false mid-batch halts the remaining candidates with quota skips', async () => {
+    let calls = 0
+    const quotaLog: string[] = []
     const out = await measureRoadDetours({
-      origin, destination, candidates, generation: 1, routeFingerprint: FP,
-      transport: { baselineMin: async () => 60, viaTotalMin: async () => 72 },
+      origin, destination, candidates, generation: 1, routeFingerprint: FP, departAtMin: 600,
+      transport: {
+        baselineMin: async () => { quotaLog.push('baseline'); return 60 },
+        viaRoute: async (_o, _d, place) => { quotaLog.push(`via:${place.lng}`); return { totalMin: 84, arrivalLegMin: 40 } },
+      },
+      // true for the baseline check, the first two via checks, then false
+      quotaAllows: () => (calls++ < 3 ? true : false),
+      now: 5000,
+    })
+    expect(out.measurements).toHaveLength(2)
+    expect(out.measurements[0]).toMatchObject({ detourMin: 24, arrivalLegMin: 40, departAtMin: 600 })
+    expect(out.skipped.map(s => s.reason)).toEqual(['quota', 'quota', 'quota', 'quota'])
+    expect(out.haltedOnQuota).toBe(true)
+    expect(quotaLog).toEqual(['baseline', `via:${candidates[0].lng}`, `via:${candidates[1].lng}`]) // no calls after the guard flipped
+  })
+
+  it('quota false before the first request measures nothing and skips everything', async () => {
+    const out = await measureRoadDetours({
+      origin, destination, candidates: candidates.slice(0, 3), generation: 1, routeFingerprint: FP, departAtMin: 600,
+      transport: { baselineMin: async () => 60, viaRoute: async () => ({ totalMin: 84, arrivalLegMin: 40 }) },
       quotaAllows: () => false,
     })
     expect(out.measurements).toHaveLength(0)
@@ -96,43 +161,33 @@ describe('the batch runner: quota pause, failures, estimates retained (AC 3, AC 
 
   it('a baseline failure skips the whole batch as failed — no fabricated measurements', async () => {
     const out = await measureRoadDetours({
-      origin, destination, candidates, generation: 1, routeFingerprint: FP,
-      transport: { baselineMin: async () => { throw new Error('HTTP 500') }, viaTotalMin: async () => 72 },
+      origin, destination, candidates: candidates.slice(0, 3), generation: 1, routeFingerprint: FP, departAtMin: 600,
+      transport: { baselineMin: async () => { throw new Error('HTTP 500') }, viaRoute: async () => ({ totalMin: 84, arrivalLegMin: 40 }) },
       quotaAllows: () => true,
     })
     expect(out.measurements).toHaveLength(0)
     expect(out.skipped.map(s => s.reason)).toEqual(['failed', 'failed', 'failed'])
+    expect(out.haltedOnQuota).toBe(false)
   })
 
   it('a per-candidate failure skips only that candidate', async () => {
     const out = await measureRoadDetours({
-      origin, destination, candidates, generation: 1, routeFingerprint: FP,
+      origin, destination, candidates, generation: 1, routeFingerprint: FP, departAtMin: 600,
       transport: {
         baselineMin: async () => 60,
-        viaTotalMin: async (_o, _d, place) => { if (place.lng > 10.11) throw new Error('HTTP 500'); return 72 },
+        viaRoute: async (_o, _d, place) => { if (place.lng >= 10.012) throw new Error('HTTP 500'); return { totalMin: 84, arrivalLegMin: 40 } },
       },
       quotaAllows: () => true,
     })
     expect(out.measurements.map(m => m.hitId)).toEqual(['c0', 'c1'])
-    expect(out.skipped.map(s => s.id)).toEqual(['c2'])
-  })
-
-  it('successful pairs become measurements with the batch generation and fingerprint', async () => {
-    const out = await measureRoadDetours({
-      origin, destination, candidates, generation: 7, routeFingerprint: FP,
-      transport: { baselineMin: async () => 60, viaTotalMin: async () => 72 },
-      quotaAllows: () => true,
-      now: 5000,
-    })
-    expect(out.measurements).toHaveLength(3)
-    expect(out.measurements[0]).toMatchObject({ generation: 7, routeFingerprint: FP, detourMin: 12, measuredAt: 5000 })
+    expect(out.skipped.map(s => s.id)).toEqual(['c2', 'c3', 'c4', 'c5'])
   })
 })
 
 describe('the measured fact wins over estimates in the unified consumer', () => {
-  it('asymmetricDetourMinutes returns the measured return minutes, charged once', () => {
-    // measured 12-min one-way delta → 24 return minutes (not 48)
-    const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadDetourMin: 12 }
+  it('asymmetricDetourMinutes returns the measured extra driving VERBATIM — charged once', () => {
+    // probe roadDelta: measured 24 via-minus-baseline → the unified fact is 24, NOT 48
+    const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadDetourMin: 24 }
     expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBe(24)
   })
 
@@ -144,17 +199,17 @@ describe('the measured fact wins over estimates in the unified consumer', () => 
     expect(asymmetricDetourKm({ latitude: 10, longitude: 10.09, offRouteKm: 8, measuredRoadDetourMin: Number.NaN } as never, [], EAST)).toBe(8)
   })
 
-  it('the scorer uses the road-true fact: the measured gap is exactly the delta, not a speed conversion', () => {
+  it('the scorer uses the road-true fact verbatim regardless of the speed guess', () => {
     const anchors2 = [{ lat: 10, lng: 10 }]
     const seg = { index: 0, purpose: 'meal' as const, label: 'Lunch', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 750 }
     const base = { name: 'Eat', latitude: 10, longitude: 10, kind: 'poi' as const, category: 'food', offRouteKm: 0 }
     const estimated = scoreHitForSegment({ ...base, offRouteKm: 8 } as never, seg, anchors2, {})
-    const measured = scoreHitForSegment({ ...base, measuredRoadDetourMin: 12 } as never, seg, anchors2, {})
+    const measured = scoreHitForSegment({ ...base, measuredRoadDetourMin: 24 } as never, seg, anchors2, {})
     expect(estimated).not.toBeNull()
     expect(measured).not.toBeNull()
-    // estimate: 8 km at 40 km/h = 12 one-way = 24 return; measured 12 one-way = 24 return — equal here,
-    // so pin the mechanism differently: the measured fact is used VERBATIM regardless of speed.
-    const slow = scoreHitForSegment({ ...base, measuredRoadDetourMin: 12 } as never, seg, anchors2, { speedKmph: 10 })
-    expect(slow).toBe(measured) // a measured fact does not rescale with the speed guess
+    // estimate: 24 return minutes; measured: 24 extra driving — equal here, so pin
+    // the mechanism: the measured fact does not rescale with the speed guess
+    const slow = scoreHitForSegment({ ...base, measuredRoadDetourMin: 24 } as never, seg, anchors2, { speedKmph: 10 })
+    expect(slow).toBe(measured)
   })
 })

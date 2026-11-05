@@ -16,7 +16,16 @@ import type { HaltPurpose } from './providers/hits'
  *  its listed subtypes; the category-level entry keeps tea/spice estates
  *  competitive without inventing per-subtype fit). Faith, heritage, museum
  *  and culture stay out of the stretch list — the source does not put them
- *  there, and nothing is invented. */
+ *  there, and nothing is invented.
+ *
+ *  Repair R1 (progress review): every KEY is a StopCategory value — the
+ *  family-bearing hits persist as 'nature'/'museum'/'sightseeing'/'temple',
+ *  so the 'water'/'views'/'heritage' rows are GONE (they were unreachable
+ *  in-domain and would have scored 0 via DEFAULT_FIT for family hits). The
+ *  legacy 'water'/'views'/'heritage'/'culture' categories kept resolving
+ *  through these rows for pre-repair persisted data; that now flows through
+ *  weatherAdjustedFit's family-fact path instead, and scoring fits ride the
+ *  StopCategory rows only. */
 export const PURPOSE_FIT: Record<string, Partial<Record<HaltPurpose, number>>> = {
   food: { meal: 3, stretch: 2, rest: 2 },
   'transport-hub': { fuel: 3, stretch: 2, meal: 1, rest: 1 },
@@ -24,15 +33,10 @@ export const PURPOSE_FIT: Record<string, Partial<Record<HaltPurpose, number>>> =
   cafe: { stretch: 3, meal: 1 },
   rest: { stretch: 2, rest: 3, meal: 1 },
   sightseeing: { sight: 3 },
-  water: { sight: 3, stretch: 3 },
   beach: { sight: 3 },
   nature: { sight: 3, stretch: 3 },
-  views: { sight: 3, stretch: 3 },
   temple: { sight: 3 },
-  heritage: { sight: 3 },
   museum: { sight: 3 },
-  culture: { sight: 3 },
-  adventure: { sight: 3 },
 }
 
 /** Fit for a category the table does not name. */

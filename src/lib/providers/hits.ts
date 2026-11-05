@@ -57,11 +57,15 @@ export interface PlaceHit {
   /** real road detour in km (Google routingSummaries); undefined when unknown */
   offRouteKm?: number
   /**
-   * ROAD-MEASURED directed one-way detour in minutes (ticket 11, from
-   * providers/roadMeasure.ts) — a baseline-vs-via measurement with matching
-   * inputs. Wins over every geometric estimate; invalid values are ignored,
-   * never read as free. The unified return-driving fact doubles it once in
-   * asymmetricDetourMinutes (the return leg is not separately measured yet).
+   * ROAD-MEASURED EXTRA DRIVING in minutes (ticket 11, repaired: from
+   * providers/roadMeasure.ts) — the complete via route minus the complete
+   * baseline with matching endpoints, clock and direction. The delta already
+   * INCLUDES the out-and-back extra, so it is charged ONCE and must never be
+   * doubled again (60 baseline + 84 via → 24 extra minutes, not 48).
+   * Wins over every geometric estimate; invalid values are ignored, never
+   * read as free. The directed arrival leg evidence rides the measurement
+   * record (`directedArriveExtraMin` in roadMeasure's handoff), NOT this
+   * field, and is never derived by halving.
    */
   measuredRoadDetourMin?: number
   // ---- ride-plan annotations (filled by src/lib/ridePlan.ts + providers) ----
@@ -251,13 +255,15 @@ export function asymmetricDetourMinutes(
   speedKmph?: number,
 ): number | null {
   const speed = speedKmph != null && Number.isFinite(speedKmph) && speedKmph > 0 ? speedKmph : DEFAULT_SPEED_KMH
-  // Ticket 11: a road-measured fact wins over every estimate. The stored
-  // value is the DIRECTED one-way delta; the return-driving fact doubles it
-  // exactly once here (the return leg is not separately measured yet — the
-  // symmetric assumption roadMeasure.ts documents). Invalid values are
-  // ignored — never read as free — and the estimate paths apply as before.
+  // Ticket 11 (repaired): a road-measured fact wins over every estimate. The
+  // stored value is the COMPLETE extra driving (via − baseline, out-and-back
+  // inherent) — charged ONCE, returned VERBATIM. Doubling it (the old
+  // `×2`) manufactured 48 minutes out of a real 24 (progress review P1).
+  // Invalid values are ignored — never read as free — and the estimate paths
+  // apply as before. DeepSeek's daySlots arrival consumes the directed
+  // arrival-leg evidence from the measurement record, never detour/2.
   const measured = h.measuredRoadDetourMin
-  if (measured != null && Number.isFinite(measured) && measured >= 0) return measured * 2
+  if (measured != null && Number.isFinite(measured) && measured >= 0) return measured
   const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
   if (km == null) return null
   return ((km / speed) * 60) * 2

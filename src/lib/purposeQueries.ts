@@ -116,7 +116,7 @@ export const FAMILY_QUERY_SETS: Record<PlaceFamily, PurposeQuerySet> = {
   water: {
     googleQueries: ['waterfalls', 'lakes and dams', 'beaches'],
     overpassSelectors: ['natural=water', 'waterway=waterfall', 'waterway=dam', 'natural=beach'],
-    categoryBias: ['water', 'beach'],
+    categoryBias: ['nature', 'beach'],
   },
   nature: {
     googleQueries: ['national parks and wildlife sanctuaries', 'forests and caves'],
@@ -126,7 +126,7 @@ export const FAMILY_QUERY_SETS: Record<PlaceFamily, PurposeQuerySet> = {
   views: {
     googleQueries: ['viewpoints and sunset points', 'peaks and hills'],
     overpassSelectors: ['tourism=viewpoint', 'natural=peak', 'natural=hill'],
-    categoryBias: ['views'],
+    categoryBias: ['nature'],
   },
   faith: {
     googleQueries: ['temples', 'mosques dargahs churches gurudwaras'],
@@ -136,12 +136,12 @@ export const FAMILY_QUERY_SETS: Record<PlaceFamily, PurposeQuerySet> = {
   heritage: {
     googleQueries: ['forts and palaces', 'monuments and heritage sites'],
     overpassSelectors: ['historic=fort', 'historic=castle', 'historic=palace'],
-    categoryBias: ['heritage'],
+    categoryBias: ['museum'],
   },
   culture: {
     googleQueries: ['markets and bazaars', 'adventure activities', 'amusement and water parks'],
     overpassSelectors: ['amenity=marketplace'],
-    categoryBias: ['culture'],
+    categoryBias: ['sightseeing'],
   },
 }
 

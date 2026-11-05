@@ -18,6 +18,7 @@ import { plannerDrives, transportPolicy } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
 import { openingVerdict } from './providers/hours'
+import { familyFactsFor } from './providers/families'
 import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
@@ -1579,10 +1580,22 @@ const WEATHER_SENSITIVE = new Set(['nature', 'beach'])
 /** Categories that shelter from it. */
 const WEATHER_SHELTERED = new Set(['museum', 'cafe', 'shopping', 'temple'])
 
-/** purpose-fit adjusted for rain: exposed sights lose a point, sheltered picks gain one. */
+/** purpose-fit adjusted for rain: exposed sights lose a point, sheltered picks gain one.
+ *  Repair R1: the rain rule rides the hit's FAMILY fact (confirmed source rows) when
+ *  present — family-bearing hits persist in StopCategory vocabulary, so the category
+ *  alone can no longer distinguish a waterfall (row: no rule) from a wildlife park
+ *  (row: exposed). Category sets remain the fallback for hits without a family fact. */
 function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): number {
   const base = fitScoreForPurpose(h, purpose)
   if (!rainy) return base
+  if (h.family) {
+    const facts = familyFactsFor(h.category, h.subtype ?? null, h.family)
+    if (facts?.rain === 'exposed') return Math.max(0, base - 1)
+    if (facts?.rain === 'sheltered') return Math.min(3, base + 1)
+    if (facts?.rain === 'mixed') return base
+    // family present but its row has no confirmed rain rule → neutral (no invention)
+    if (facts != null) return base
+  }
   const cat = h.category ?? 'sightseeing'
   if (WEATHER_SENSITIVE.has(cat)) return Math.max(0, base - 1)
   if (WEATHER_SHELTERED.has(cat)) return Math.min(3, base + 1)

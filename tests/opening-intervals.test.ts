@@ -169,6 +169,56 @@ describe('AC5 — missing hours and known closures stay distinct', () => {
     expect(openingVerdict(hours, SUN, hm('10:00'), 30)).toMatchObject({ state: 'unknown' })
   })
 
+  // Repair R2 (progress review P2): probe.json malformedTuesday — a valid
+  // Monday plus a malformed Tuesday must NOT imply a confirmed Tuesday closure.
+  it('R2 — a valid Monday plus a malformed Tuesday leaves Tuesday unknown while Monday still works', () => {
+    const partial: RawHoursPeriod[] = [
+      period(1, '09:00', 1, '17:00'), // Monday valid
+      { open: { day: 2, hour: 9, minute: 0 }, close: { day: 2, hour: 99, minute: 0 } }, // malformed Tuesday close hour
+    ]
+    const hours = placeHoursFromPeriods(partial, undefined, '2026-01-05')!
+    expect(hours.uncertainDays).toEqual([2])
+    expect(hours.pattern).toHaveLength(1) // Monday's interval survives
+    const tuesday = openingVerdict(hours, '2026-01-06', hm('01:00'), 30)
+    expect(tuesday.state).toBe('unknown')
+    expect(tuesday.reason).toMatch(/incomplete|malformed/)
+    const monday = openingVerdict(hours, MON, hm('10:00'), 30)
+    expect(monday.state).toBe('open') // genuine intervals untouched
+  })
+
+  it('R2 — a genuine complete-pattern closure still works next to a locally uncertain weekday', () => {
+    // museum flavor: Monday ABSENT (genuine closure signal), Tuesday malformed, other days valid
+    const museum: RawHoursPeriod[] = [
+      period(3, '09:00', 3, '17:00'), // Wednesday
+      period(4, '09:00', 4, '17:00'), // Thursday
+      period(5, '09:00', 5, '17:00'), // Friday
+      period(6, '09:00', 6, '17:00'), // Saturday
+      period(0, '09:00', 0, '17:00'), // Sunday
+      { open: { day: 2, hour: 9, minute: 0 }, close: { day: 2, hour: 98, minute: 3 } }, // Tuesday malformed
+    ]
+    const hours = placeHoursFromPeriods(museum, undefined, '2026-01-05')!
+    expect(hours.uncertainDays).toEqual([2])
+    // Wednesday: complete data for its own weekday → interval verdicts still resolve
+    const wednesday = openingVerdict(hours, '2026-01-07', hm('10:00'), 30)
+    expect(wednesday.state).toBe('open')
+    // Monday: ABSENT weekday — the provider sent no Monday period, which is a
+    // genuine closure signal; the malformed Tuesday does not erase it (the
+    // damage is localized to Tuesday, where the closure stays unknown).
+    const monday = openingVerdict(hours, MON, hm('10:00'), 30)
+    expect(monday.state).toBe('closed')
+    expect(monday.reason).toMatch(/weekly pattern/)
+    const tuesday = openingVerdict(hours, '2026-01-06', hm('01:00'), 30)
+    expect(tuesday.state).toBe('unknown') // its own data was malformed
+  })
+
+  it('R2 — the all-weekday museum fixture (no malformed periods anywhere) keeps its Monday closure', () => {
+    const hours = placeHoursFromPeriods(dailyPattern([0, 2, 3, 4, 5, 6], [['09:00', '17:00']]), undefined, '2026-01-05')!
+    expect(hours.uncertainDays).toBeUndefined()
+    const monday = openingVerdict(hours, MON, hm('10:00'), 30)
+    expect(monday.state).toBe('closed')
+    expect(monday.reason).toMatch(/weekly pattern/)
+  })
+
   it('a dated verdict needs the visit weekday; without it only uniform daily hours answer', () => {
     const templeSplit = placeHoursFromPeriods(
       dailyPattern([0, 1, 2, 3, 4, 5, 6], [['05:00', '12:00'], ['16:00', '20:00']]),

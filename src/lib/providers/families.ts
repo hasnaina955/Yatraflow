@@ -13,17 +13,39 @@
 // No network, no provider imports — google.ts adapts its raw hits into this
 // vocabulary; free-mode OSM wiring is a coordinator-flagged follow-up (the
 // pure tag classifier below is ready for it).
+import type { StopCategory } from '../../data/types'
+import { STOP_CATEGORIES } from '../../data/types'
 
 export type PlaceFamily = 'water' | 'nature' | 'views' | 'faith' | 'heritage' | 'culture'
 
-/** The PlaceHit.category each family's query results carry (purposeQueries + provider use). */
-export const FAMILY_CATEGORY: Record<PlaceFamily, string> = {
-  water: 'water',
+/**
+ * The StopCategory each family's query results carry (purposeQueries +
+ * provider use). Repair R1 (progress review, P1): every value is a member of
+ * the existing STOP_CATEGORIES domain (data/types.ts) — 'nature', 'beach',
+ * 'temple', 'museum' and 'sightseeing' — so a saved stop never persists a
+ * category outside StopCategory and the itinerary import validator accepts
+ * it unchanged. The family itself stays a separate fact on the hit
+ * (`family`/`subtype`); it is NOT folded into category, and the domain is
+ * NOT widened.
+ */
+export const FAMILY_CATEGORY: Record<PlaceFamily, StopCategory> = {
+  water: 'nature',
   nature: 'nature',
-  views: 'views',
+  views: 'nature',
   faith: 'temple',
-  heritage: 'heritage',
-  culture: 'culture',
+  heritage: 'museum',
+  culture: 'sightseeing',
+}
+
+/**
+ * The stop category a family's hits must persist as — the single boundary
+ * mapping for saved stops. `s.category` is guaranteed to already be a
+ * StopCategory (R1); this returns it verbatim, defensively narrowed.
+ */
+export function stopCategoryForHit(category: string | undefined): StopCategory {
+  return (STOP_CATEGORIES as readonly string[]).includes(category ?? '')
+    ? (category as StopCategory)
+    : 'sightseeing'
 }
 
 export type RainRule = 'exposed' | 'sheltered' | 'mixed'
@@ -36,7 +58,10 @@ export interface FamilyFacts {
 }
 
 export interface PlaceClassification {
-  /** the PlaceHit.category vocabulary, incl. the new 'water' | 'views' | 'heritage' | 'culture' */
+  /**
+   * a member of the StopCategory domain (R1) — family/subtype carry the
+   * refinement as separate facts
+   */
   category: string
   family: PlaceFamily | null
   subtype: string | null
@@ -98,7 +123,14 @@ const FAMILY_FACTS: Record<PlaceFamily, Record<string, FamilyFacts>> = {
   },
 }
 
-/** family + facts lookup for a PlaceHit category (incl. pre-existing ones that map into a family). */
+/**
+ * Confirmed facts for a hit's family + subtype; undefined → honest generic
+ * fallback. Repair R1: the family comes from the hit's `family` fact when
+ * present, otherwise from the pre-family category vocabulary (beach stays a
+ * Water-family fact; the 'water'/'views'/'heritage'/'culture' entries keep
+ * resolving pre-repair persisted data). The CATEGORY argument is only a
+ * legacy bridge — new hits carry family/subtype directly.
+ */
 const CATEGORY_TO_FAMILY: Record<string, PlaceFamily> = {
   water: 'water',
   beach: 'water',
@@ -108,15 +140,14 @@ const CATEGORY_TO_FAMILY: Record<string, PlaceFamily> = {
   heritage: 'heritage',
   museum: 'heritage',
   culture: 'culture',
+  sightseeing: 'culture', // family-bearing hits persist as sightseeing (R1)
   adventure: 'culture',
 }
 
-/** Confirmed facts for a hit's category + subtype; undefined → honest generic fallback. */
-export function familyFactsFor(category: string | undefined, subtype: string | null | undefined): FamilyFacts | undefined {
-  if (!category) return undefined
-  const family = CATEGORY_TO_FAMILY[category]
-  if (!family) return undefined
-  const table = FAMILY_FACTS[family]
+export function familyFactsFor(category: string | undefined, subtype: string | null | undefined, family?: PlaceFamily): FamilyFacts | undefined {
+  const resolvedFamily = family ?? (category ? CATEGORY_TO_FAMILY[category] : undefined)
+  if (!resolvedFamily) return undefined
+  const table = FAMILY_FACTS[resolvedFamily]
   if (!table) return undefined
   if (subtype && table[subtype] != null) {
     const facts = table[subtype]
@@ -130,9 +161,8 @@ export function familyFactsFor(category: string | undefined, subtype: string | n
 // Only NEW or source-corrected mappings live here; the pre-existing
 // GOOGLE_TYPE_TO_CATEGORY in google.ts is checked FIRST so existing behavior
 // for food/hotel/fuel/travel/shopping is untouched.
-const FAMILY_TYPE_MAP: Record<string, { category: string; family: PlaceFamily; subtype: string | null }> = {
-  natural_feature: { category: 'water', family: 'water', subtype: null }, // source Water row; rain row empty → neutral
-  marina: { category: 'water', family: 'water', subtype: 'backwater' },
+const FAMILY_TYPE_MAP: Record<string, { category: string; family: PlaceFamily; subtype: string | null }> = {  natural_feature: { category: 'nature', family: 'water', subtype: null }, // source Water row; rain row empty → neutral
+  marina: { category: 'nature', family: 'water', subtype: 'backwater' },
   national_park: { category: 'nature', family: 'nature', subtype: 'wildlife' },
   state_park: { category: 'nature', family: 'nature', subtype: 'garden' },
   zoo: { category: 'nature', family: 'nature', subtype: 'wildlife' },
@@ -140,15 +170,18 @@ const FAMILY_TYPE_MAP: Record<string, { category: string; family: PlaceFamily; s
   // 'adventure' mapping; without this entry the primary type would be
   // unrecognized and the query's purpose could leak in as a category (B2).
   hiking_area: { category: 'nature', family: 'nature', subtype: 'trek' },
-  observation_deck: { category: 'views', family: 'views', subtype: 'viewpoint' },
+  observation_deck: { category: 'nature', family: 'views', subtype: 'viewpoint' },
   monastery: { category: 'temple', family: 'faith', subtype: 'monastery' },
-  historical_landmark: { category: 'heritage', family: 'heritage', subtype: null },
-  monument: { category: 'heritage', family: 'heritage', subtype: 'monument' }, // API-type validity flagged for verification
-  performing_arts_theater: { category: 'culture', family: 'culture', subtype: 'show' },
-  amusement_park: { category: 'culture', family: 'culture', subtype: 'park' },
-  water_park: { category: 'culture', family: 'culture', subtype: 'park' },
-  market: { category: 'culture', family: 'culture', subtype: 'market' }, // source Culture row (was 'shopping')
+  historical_landmark: { category: 'museum', family: 'heritage', subtype: null },
+  monument: { category: 'museum', family: 'heritage', subtype: 'monument' }, // API-type validity flagged for verification
+  performing_arts_theater: { category: 'sightseeing', family: 'culture', subtype: 'show' },
+  amusement_park: { category: 'sightseeing', family: 'culture', subtype: 'park' },
+  water_park: { category: 'sightseeing', family: 'culture', subtype: 'park' },
+  market: { category: 'sightseeing', family: 'culture', subtype: 'market' }, // source Culture row (was 'shopping')
 }
+
+/** The full type→family table as an ordered list — the boundary-invariant test sweep reads it. */
+export const FAMILY_TYPE_ENTRIES = Object.values(FAMILY_TYPE_MAP)
 
 /** Family classification from a provider machine type; null when the type is not a source-confirmed family type. */
 export function familyFromType(type: string | undefined): { category: string; family: PlaceFamily; subtype: string | null } | null {
@@ -162,14 +195,14 @@ export function familyFromType(type: string | undefined): { category: string; fa
 // hit (google.ts gates it on the sight-land fallback).
 type TypeEvidence = { category: string; family: PlaceFamily; subtype: string }
 const NAME_TOKENS: Record<string, TypeEvidence> = {
-  falls: { category: 'water', family: 'water', subtype: 'waterfall' },
-  lake: { category: 'water', family: 'water', subtype: 'lake' },
-  dam: { category: 'water', family: 'water', subtype: 'dam' },
-  reservoir: { category: 'water', family: 'water', subtype: 'dam' },
-  beach: { category: 'water', family: 'water', subtype: 'beach' },
-  backwater: { category: 'water', family: 'water', subtype: 'backwater' },
-  boat: { category: 'water', family: 'water', subtype: 'backwater' },
-  ghat: { category: 'water', family: 'water', subtype: 'river' },
+  falls: { category: 'nature', family: 'water', subtype: 'waterfall' },
+  lake: { category: 'nature', family: 'water', subtype: 'lake' },
+  dam: { category: 'nature', family: 'water', subtype: 'dam' },
+  reservoir: { category: 'nature', family: 'water', subtype: 'dam' },
+  beach: { category: 'nature', family: 'water', subtype: 'beach' },
+  backwater: { category: 'nature', family: 'water', subtype: 'backwater' },
+  boat: { category: 'nature', family: 'water', subtype: 'backwater' },
+  ghat: { category: 'nature', family: 'water', subtype: 'river' },
   forest: { category: 'nature', family: 'nature', subtype: 'forest' },
   sanctuary: { category: 'nature', family: 'nature', subtype: 'wildlife' },
   reserve: { category: 'nature', family: 'nature', subtype: 'wildlife' },
@@ -177,33 +210,33 @@ const NAME_TOKENS: Record<string, TypeEvidence> = {
   trek: { category: 'nature', family: 'nature', subtype: 'trek' },
   estate: { category: 'nature', family: 'nature', subtype: 'estate' },
   plantation: { category: 'nature', family: 'nature', subtype: 'estate' },
-  peak: { category: 'views', family: 'views', subtype: 'peak' },
-  hill: { category: 'views', family: 'views', subtype: 'hill' },
-  top: { category: 'views', family: 'views', subtype: 'peak' },
-  mala: { category: 'views', family: 'views', subtype: 'hill' },
-  betta: { category: 'views', family: 'views', subtype: 'hill' },
+  peak: { category: 'nature', family: 'views', subtype: 'peak' },
+  hill: { category: 'nature', family: 'views', subtype: 'hill' },
+  top: { category: 'nature', family: 'views', subtype: 'peak' },
+  mala: { category: 'nature', family: 'views', subtype: 'hill' },
+  betta: { category: 'nature', family: 'views', subtype: 'hill' },
   gurudwara: { category: 'temple', family: 'faith', subtype: 'gurdwara' },
   gompa: { category: 'temple', family: 'faith', subtype: 'monastery' },
   monastery: { category: 'temple', family: 'faith', subtype: 'monastery' },
   dargah: { category: 'temple', family: 'faith', subtype: 'mosque' },
-  fort: { category: 'heritage', family: 'heritage', subtype: 'fort' },
-  kota: { category: 'heritage', family: 'heritage', subtype: 'fort' },
-  qila: { category: 'heritage', family: 'heritage', subtype: 'fort' },
-  palace: { category: 'heritage', family: 'heritage', subtype: 'palace' },
-  mahal: { category: 'heritage', family: 'heritage', subtype: 'palace' },
-  stupa: { category: 'heritage', family: 'heritage', subtype: 'monument' },
-  bazaar: { category: 'culture', family: 'culture', subtype: 'market' },
-  kalari: { category: 'culture', family: 'culture', subtype: 'show' },
-  kathakali: { category: 'culture', family: 'culture', subtype: 'show' },
-  rafting: { category: 'culture', family: 'culture', subtype: 'adventure' },
-  paragliding: { category: 'culture', family: 'culture', subtype: 'adventure' },
-  zipline: { category: 'culture', family: 'culture', subtype: 'adventure' },
+  fort: { category: 'museum', family: 'heritage', subtype: 'fort' },
+  kota: { category: 'museum', family: 'heritage', subtype: 'fort' },
+  qila: { category: 'museum', family: 'heritage', subtype: 'fort' },
+  palace: { category: 'museum', family: 'heritage', subtype: 'palace' },
+  mahal: { category: 'museum', family: 'heritage', subtype: 'palace' },
+  stupa: { category: 'museum', family: 'heritage', subtype: 'monument' },
+  bazaar: { category: 'sightseeing', family: 'culture', subtype: 'market' },
+  kalari: { category: 'sightseeing', family: 'culture', subtype: 'show' },
+  kathakali: { category: 'sightseeing', family: 'culture', subtype: 'show' },
+  rafting: { category: 'sightseeing', family: 'culture', subtype: 'adventure' },
+  paragliding: { category: 'sightseeing', family: 'culture', subtype: 'adventure' },
+  zipline: { category: 'sightseeing', family: 'culture', subtype: 'adventure' },
 }
 const NAME_PHRASES: Record<string, TypeEvidence> = {
-  'view point': { category: 'views', family: 'views', subtype: 'viewpoint' },
-  viewpoint: { category: 'views', family: 'views', subtype: 'viewpoint' },
-  'sunrise point': { category: 'views', family: 'views', subtype: 'sunrise-sunset' },
-  'sunset point': { category: 'views', family: 'views', subtype: 'sunrise-sunset' },
+  'view point': { category: 'nature', family: 'views', subtype: 'viewpoint' },
+  viewpoint: { category: 'nature', family: 'views', subtype: 'viewpoint' },
+  'sunrise point': { category: 'nature', family: 'views', subtype: 'sunrise-sunset' },
+  'sunset point': { category: 'nature', family: 'views', subtype: 'sunrise-sunset' },
   'tea estate': { category: 'nature', family: 'nature', subtype: 'estate' },
   'spice estate': { category: 'nature', family: 'nature', subtype: 'estate' },
   'national park': { category: 'nature', family: 'nature', subtype: 'wildlife' },
@@ -241,17 +274,17 @@ export function familyFromName(name: string | undefined): { category: string; fa
 // list is truncated mid-entry in the source MD — no heritage tag classifier
 // until the coordinator confirms the missing tags. Do not reconstruct them.
 const FAMILY_OSM_MAP: Record<string, TypeEvidence> = {
-  'waterway=waterfall': { category: 'water', family: 'water', subtype: 'waterfall' },
-  'natural=water': { category: 'water', family: 'water', subtype: 'lake' },
-  'waterway=dam': { category: 'water', family: 'water', subtype: 'dam' },
-  'natural=beach': { category: 'water', family: 'water', subtype: 'beach' },
+  'waterway=waterfall': { category: 'nature', family: 'water', subtype: 'waterfall' },
+  'natural=water': { category: 'nature', family: 'water', subtype: 'lake' },
+  'waterway=dam': { category: 'nature', family: 'water', subtype: 'dam' },
+  'natural=beach': { category: 'nature', family: 'water', subtype: 'beach' },
   'landuse=forest': { category: 'nature', family: 'nature', subtype: 'forest' },
   'leisure=nature_reserve': { category: 'nature', family: 'nature', subtype: 'wildlife' },
   'boundary=national_park': { category: 'nature', family: 'nature', subtype: 'wildlife' },
   'natural=cave_entrance': { category: 'nature', family: 'nature', subtype: 'cave' },
-  'tourism=viewpoint': { category: 'views', family: 'views', subtype: 'viewpoint' },
-  'natural=peak': { category: 'views', family: 'views', subtype: 'peak' },
-  'natural=hill': { category: 'views', family: 'views', subtype: 'hill' },
+  'tourism=viewpoint': { category: 'nature', family: 'views', subtype: 'viewpoint' },
+  'natural=peak': { category: 'nature', family: 'views', subtype: 'peak' },
+  'natural=hill': { category: 'nature', family: 'views', subtype: 'hill' },
 }
 
 /**

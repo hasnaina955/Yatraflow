@@ -22,6 +22,12 @@ const ELEMENTS = [
   { type: 'node', id: 7, lat: 10.08, lon: 76.08, tags: { name: 'Corner Cafe', amenity: 'cafe', tourism: 'viewpoint' } },
   { type: 'node', id: 8, lat: 10.09, lon: 76.09, tags: { name: 'Hill Hotel', tourism: 'hotel', waterway: 'waterfall' } },
   { type: 'node', id: 9, lat: 10.1, lon: 76.1, tags: { name: 'Old Temple', amenity: 'place_of_worship', natural: 'peak' } },
+  // The legacy classifier checks natural/leisure before food and lodging, so a
+  // functional hit with a scenic secondary tag can inherit a scenic category.
+  // The raw functional tag must still block any scenic family fact.
+  { type: 'node', id: 13, lat: 10.11, lon: 76.11, tags: { name: 'Peak Cafe', amenity: 'cafe', natural: 'peak' } },
+  { type: 'node', id: 14, lat: 10.12, lon: 76.12, tags: { name: 'Peak Hotel', tourism: 'hotel', natural: 'peak' } },
+  { type: 'node', id: 15, lat: 10.13, lon: 76.13, tags: { name: 'Reserve Guest House', tourism: 'guest_house', leisure: 'nature_reserve' } },
   // Duplicate name: the nearer node survives, unchanged behaviour.
   { type: 'node', id: 11, lat: 10.011, lon: 76.011, tags: { name: 'Twin Lake', natural: 'water' } },
   { type: 'node', id: 12, lat: 10.4, lon: 76.4, tags: { name: 'Twin Lake', natural: 'water' } },
@@ -111,6 +117,44 @@ describe('unknown and conflicting evidence stays absent', () => {
       expect(hit!.family, name).toBeUndefined()
       expect(hit!.subtype, name).toBeUndefined()
     }
+  })
+})
+
+describe('raw functional tags block scenic enrichment from secondary tags', () => {
+  it('a cafe with natural=peak keeps its legacy nature category and gains no family', async () => {
+    const hits = await searchNearbyPoisMultiFree([ANCHOR], 10000, 20, { includeFuel: true })
+    const cafe = hits.find(h => h.name === 'Peak Cafe')
+    expect(cafe).toBeDefined()
+    // Legacy classification is preserved, even where it is imperfect.
+    expect(cafe!.category).toBe('nature')
+    expect(cafe!.description).toBe('Peak')
+    expect(cafe!.id).toBe('osm_node_13')
+    expect(cafe!.latitude).toBe(10.11)
+    expect(cafe!.longitude).toBe(76.11)
+    expect(cafe!.family).toBeUndefined()
+    expect(cafe!.subtype).toBeUndefined()
+  })
+
+  it('a hotel with natural=peak keeps its legacy category and gains no family', async () => {
+    const hits = await searchNearbyPoisMultiFree([ANCHOR], 10000, 20, { includeFuel: true })
+    const hotel = hits.find(h => h.name === 'Peak Hotel')
+    expect(hotel).toBeDefined()
+    expect(hotel!.category).toBe('nature')
+    expect(hotel!.description).toBe('Peak')
+    expect(hotel!.id).toBe('osm_node_14')
+    expect(hotel!.family).toBeUndefined()
+    expect(hotel!.subtype).toBeUndefined()
+  })
+
+  it('a lodging hit with leisure=nature_reserve gains no wildlife family', async () => {
+    const hits = await searchNearbyPoisMultiFree([ANCHOR], 10000, 20, { includeFuel: true })
+    const stay = hits.find(h => h.name === 'Reserve Guest House')
+    expect(stay).toBeDefined()
+    expect(stay!.category).toBe('nature')
+    expect(stay!.description).toBe('Nature reserve')
+    expect(stay!.id).toBe('osm_node_15')
+    expect(stay!.family).toBeUndefined()
+    expect(stay!.subtype).toBeUndefined()
   })
 })
 

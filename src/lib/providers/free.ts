@@ -287,12 +287,28 @@ function classifyOsmTags(tags: Record<string, string>): { cat: string; label: st
  */
 const SCENIC_FAMILY_CATEGORIES = new Set(['nature', 'beach', 'sightseeing'])
 
+/**
+ * Functional tags that own a place's identity. The legacy classifier checks
+ * natural/leisure before food and lodging, so a cafe or hotel with a scenic
+ * secondary tag can inherit a scenic category. The saved category stays as it
+ * is, but such a hit never gains scenic family metadata.
+ */
+const FUNCTIONAL_AMENITIES = new Set(['fuel', 'restaurant', 'fast_food', 'food_court', 'cafe', 'ice_cream', 'place_of_worship'])
+const FUNCTIONAL_TOURISM = new Set(['hotel', 'guest_house', 'hostel', 'resort', 'motel'])
+
+function hasFunctionalTag(tags: Record<string, string>): boolean {
+  return FUNCTIONAL_AMENITIES.has(tags.amenity ?? '') || FUNCTIONAL_TOURISM.has(tags.tourism ?? '')
+}
+
 /** The helper's confirmed family facts, only for a compatible scenic hit. */
 function scenicFamilyFact(
   tags: Record<string, string>,
   category: string,
 ): { family: PlaceFamily; subtype: string } | null {
   if (!SCENIC_FAMILY_CATEGORIES.has(category)) return null
+  // Functional evidence wins: fuel, food, lodging and worship hits get no
+  // scenic family from a secondary natural/leisure/tourism tag.
+  if (hasFunctionalTag(tags)) return null
   const evidence = familyFromOsmTags(tags)
   // No matching confirmed tag evidence → no fact (unknown stays absent).
   return evidence ? { family: evidence.family, subtype: evidence.subtype } : null

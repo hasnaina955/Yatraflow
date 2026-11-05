@@ -263,3 +263,43 @@
 @media (prefers-reduced-motion: reduce) {
   .mv2-workspace *, .mv2-workspace *::before, .mv2-workspace *::after { transition: none; animation: none; scroll-behavior: auto; }
 }
+
+/* Map workspace marks retain the current day palette. */
+.mv2-workspace .mv2-map-stop, .mv2-map-key .mv2-map-stop { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; flex: 0 0 auto; border: 2px solid var(--card); border-radius: var(--radius-pill); background: var(--pin-color, var(--color-primary)); color: var(--mv2-marker-ink, var(--color-primary-foreground)); box-shadow: var(--shadow-sm); text-shadow: none; font-size: 13px; font-weight: 700; transform: none; transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mv2-workspace .mv2-map-stop:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+.mv2-stop-symbol { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-variant-numeric: tabular-nums; }
+.mv2-workspace .mv2-map-stop.is-stay, .mv2-map-key .mv2-map-stop.is-stay { width: 36px; height: 36px; background: var(--warn-soft); border-color: var(--ink-amber); color: var(--ink-amber); }
+.mv2-stay-order { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; min-width: 16px; height: 16px; padding-inline: 2px; border-radius: var(--radius-pill); background: var(--card); color: var(--text); font-size: 11px; box-shadow: var(--shadow-sm); }
+.mv2-stop-lock { position: absolute; right: -5px; bottom: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
+.mv2-workspace .mv2-map-stop.is-tentative, .mv2-map-key .mv2-map-stop.is-tentative { border-style: dashed; opacity: 1; background: var(--card); color: var(--text); border-color: var(--pin-color, var(--color-primary)); }
+.mv2-workspace .yf-map-pin-idea { width: 30px; height: 30px; border-radius: var(--radius-xs); color: #02080D; text-shadow: none; box-shadow: var(--shadow-sm); animation: none; transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mv2-workspace .yf-map-pin-search { color: var(--color-primary-foreground); }
+.mv2-workspace .yf-map-pin-idea--active, .mv2-workspace .yf-map-pin-search--active { width: 40px; height: 40px; border: 2px solid var(--color-primary); box-shadow: 0 0 0 2px var(--card), var(--shadow-soft); transform: none; }
+.mv2-workspace .map-legend:has(.mv2-map-key) { z-index: 7; }
+.mv2-workspace .mv2-map-key { position: absolute; right: 0; bottom: calc(100% + var(--space-3)); width: 296px; max-width: calc(100vw - 48px); max-height: min(440px, calc(var(--mv2-canvas-height, 640px) - 140px)); overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--space-7) var(--space-5); border: 0; border-radius: var(--radius); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: none; backdrop-filter: none; scrollbar-width: thin; }
+.mv2-map-key > header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; min-height: 52px; background: var(--card); color: var(--text); }
+.mv2-map-key > header > strong { font-family: var(--font-display); font-size: 15px; }
+.mv2-map-key dl { margin: 0; display: grid; gap: var(--space-5); }
+.mv2-map-key dl > div { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--space-4); align-items: center; min-height: 40px; }
+.mv2-map-key dt { color: var(--text); font-size: 12px; font-weight: 700; }
+.mv2-map-key dd { margin: var(--space-1) 0 0; color: var(--text-2); font-size: 11px; line-height: 1.5; font-weight: 500; }
+.mv2-key-mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; width: 30px; height: 30px; flex: 0 0 auto; font-size: 12px; font-weight: 700; }
+.mv2-key-pick { border: 2px dashed var(--ink-amber); border-radius: var(--radius-xs); background: var(--warn-soft); color: var(--ink-amber); }
+.mv2-key-pick.is-selected { width: 40px; height: 40px; border: 2px solid var(--color-primary); }
+.mv2-key-slot { border: 2px solid var(--ink-amber); border-radius: var(--radius-pill); background: var(--card); color: var(--ink-amber); }
+.mv2-key-search, .mv2-key-endpoint { border-radius: var(--radius-xs); background: var(--color-primary); color: var(--color-primary-foreground); }
+.mv2-key-endpoint { border-radius: var(--radius-pill); }
+.mv2-key-cluster { border-radius: var(--radius-pill); background: #0B6E66; color: #FFFFFF; }
+.mv2-key-route { height: 5px; background: var(--color-primary); border-radius: var(--radius-pill); }
+.mv2-key-route.is-estimated { height: 0; border-top: 3px dashed var(--ink-amber); background: transparent; }
+.mv2-workspace .maplibregl-marker:has(.mv2-map-stop) { z-index: 2; }
+.mv2-workspace .maplibregl-marker:has(.yf-map-pin-idea--active), .mv2-workspace .maplibregl-marker:has(.yf-map-pin-search--active) { z-index: 3; }
+@media (pointer: coarse) {
+  .mv2-workspace .mv2-map-stop::before, .mv2-workspace .yf-map-pin-idea::before { inset: auto; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+}
+@media (max-width: 760px) {
+  .mv2-workspace .mv2-map-key { right: -40px; width: calc(100vw - 56px); max-width: none; max-height: clamp(120px, calc(var(--mv2-canvas-height, 640px) - var(--mv2-sheet-height) - 180px), 320px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv2-workspace .mv2-map-stop, .mv2-workspace .yf-map-pin-idea { transition: none; }
+}

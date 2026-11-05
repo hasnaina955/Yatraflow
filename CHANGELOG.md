@@ -18,6 +18,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **Map stops use clear numbers and a visual key.** The Map workspace shows round stop marks, larger house marks for stays and lock badges for timed commitments. Suggested places use tiles. The key explains the marks and distinguishes road geometry from estimates. Other map surfaces keep their current marks.
+
 - **The Map workspace keeps the journey beside the map.** A timed day list, one place search and a folding pick panel use the existing engine facts. Place details keep the current preview and add flow. The journey clock follows supplied road geometry and labels missing road positions. Phones use a day switcher and a sheet with three heights. No new provider search or live-routing service is enabled.
 
 - **The map's drive picks now pass through one presentation adapter.** The adapter copies the engine's public picks in their original sequence. It keeps each place's identity. It carries the corrected detour, arrival and window facts unchanged. It starts no search and holds no write authority. The map workspace will render from it. Timeline sharing waits for issue 841.

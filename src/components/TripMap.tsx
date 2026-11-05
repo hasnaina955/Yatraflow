@@ -39,6 +39,7 @@ import {
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
+import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
 import {
   Map as MapLibreMap,
   MapMarker,
@@ -562,6 +563,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Map key (legend) visibility — hidden by default so it stops covering the
   // bottom-right of the map; the choice persists per browser via uiPrefs.
   const [legendOpen, setLegendOpen] = useState(() => loadFlag('map_legend_open', false))
+  const keyId = useId()
+  const keyToggle = useRef<HTMLButtonElement>(null)
+  function closeWorkspaceKey() {
+    setLegendOpen(false)
+    saveFlag('map_legend_open', false)
+    keyToggle.current?.focus()
+  }
   function toggleLegend() {
     setLegendOpen(open => {
       saveFlag('map_legend_open', !open)
@@ -1556,16 +1564,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     <MarkerContent>
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
-                        className={`yf-map-pin yf-map-tear${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
-                        style={{ '--pin-color': colorForDay(p.dayIndex) } as React.CSSProperties}
+                        className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
+                        style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': p.dayIndex % DAY_COLORS.length === 6 ? '#FFFFFF' : '#02080D' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
-                        aria-label={`Stop ${num}: ${p.title}`}
+                        aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}
                       >
-                        <span className="yf-pin-face">
+                        {workspaceChrome ? <MapStopSymbol order={num} stay={p.category === 'hotel'} fixed={trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex)} /> : <span className="yf-pin-face">
                           <span className="yf-pin-ico" aria-hidden><CatIcon category={p.category} size={15} className="yf-pin-svg" /></span>
                           <i className="yf-pin-num">{num}</i>
-                        </span>
+                        </span>}
                       </button>
                       </span>
                       {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>}
@@ -1698,22 +1706,24 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
           </button>
           <button
+            ref={keyToggle}
             className="map-legend-toggle"
             onClick={toggleLegend}
             aria-expanded={legendOpen}
+            aria-controls={workspaceChrome ? keyId : undefined}
             title={legendOpen ? 'Hide the map key' : 'Show the map key'}
             aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
           >
             {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
           </button>
-          {legendOpen && (
+          {legendOpen && (workspaceChrome ? <MapWorkspaceKey id={keyId} onClose={closeWorkspaceKey} /> : (
             <div className="map-legend-body">
               {dayFilter === 'all'
                 ? <>main line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
               pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · a teal count badge groups nearby ideas — zoom in to open one · click a pin for details · hollow amber pin = an unplanned part · tap to open it
             </div>
-          )}
+          ))}
         </div>
       </div>
       {/* #417: the badges are drawn on the canvas, which the accessibility tree

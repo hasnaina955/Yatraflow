@@ -37,6 +37,7 @@ const trip: Trip = {
     stop('fixture-boat', 'Periyar boat', 'nature', 9.585, 77.177, 4, 60),
   ] }, { id: 'fixture-day-2', index: 1, title: 'Around Thekkady', startTime: '09:00', stops: [stop('fixture-forest', 'Forest walk', 'nature', 9.57, 77.18, 1, 60)] }],
 }
+if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
 const chain = buildRoadChain(trip)
 const assumptions = getAssumptions(trip)
 const legs = chain.points.slice(1).map((point, index) => ({ ...legBetween(chain.points[index], point, assumptions), source: 'estimate' as const, geometry: [], estimated: true }))

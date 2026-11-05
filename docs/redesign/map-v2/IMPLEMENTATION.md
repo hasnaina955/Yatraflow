@@ -12,6 +12,8 @@ The day list and phone day switcher share the workspace day focus. The suggestio
 
 The phone sheet has peek, half and full heights. Its handle supports pointer movement, activation and arrow keys. The ribbon sits above the sheet. Map tools opens the zoom and layer controls on phones. The canvas uses the space below the workspace header. Map camera padding reserves space for floating controls and clamps large insets to retain usable map space.
 
+The Map workspace uses 32-pixel numbered stops and 36-pixel house marks for stays. A lock badge follows a stop's fixed commitment on its trip day. Tentative stops have a dashed ring. Suggested places use 30-pixel tiles, with a 40-pixel selected tile. The visual key explains existing marks and road estimates. Close or Escape restores focus to the key control. Other map surfaces retain their current marks. The current day palette remains in use.
+
 ## Local fixture
 
 Run `node node_modules/vite/bin/vite.js --config vite.map-fixture.config.ts` from the repository root. Open `http://127.0.0.1:5211/dev/map-workspace-fixture.html`.

@@ -29,6 +29,7 @@ import { plannerDrives } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 
 import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
+import type { PlaceFamily } from './providers/families'
 import { haversineKm } from './geo'
 import {
   searchPlacesFree,
@@ -176,8 +177,16 @@ export async function requireHitCoords(hit: PlaceHit): Promise<PlaceHit | null> 
   return null
 }
 
+/**
+ * Facade options that may also ask for specific place families (ticket 09).
+ * The family table and its query entries already exist; this is the input the
+ * provider scan consumes. Family SELECTION stays the caller's decision, so an
+ * absent or empty list leaves every request exactly as it was.
+ */
+export type FamilyScanOpts = NearbyOpts & { families?: readonly PlaceFamily[] }
+
 /** Single-anchor convenience wrapper (empty-day chips). */
-export async function searchNearbyPois(lat: number, lng: number, radiusM = 10000, count = 10, opts: NearbyOpts = {}): Promise<PlaceHit[]> {
+export async function searchNearbyPois(lat: number, lng: number, radiusM = 10000, count = 10, opts: FamilyScanOpts = {}): Promise<PlaceHit[]> {
   return searchNearbyPoisMulti([{ lat, lng }], radiusM, count, opts)
 }
 
@@ -244,7 +253,7 @@ export async function searchNearbyPoisMulti(
   anchors: { lat: number; lng: number }[],
   radiusM = 10000,
   count = 16,
-  opts: NearbyOpts = {},
+  opts: FamilyScanOpts = {},
 ): Promise<PlaceHit[]> {
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 12)
   if (capped.length === 0) return []
@@ -258,6 +267,9 @@ export async function searchNearbyPoisMulti(
       const hits = await googleNearbyAlongRoute({
         routeCoords: route, count,
         includeFuel: opts.includeFuel, purposes: opts.purposes, signal: opts.signal,
+        // Ticket 09: the provider already turns families into text queries and
+        // classifies their hits. Forward them; an empty list changes nothing.
+        ...(opts.families && opts.families.length > 0 ? { families: opts.families } : {}),
       })
       if (hits.length > 0) return rankAndCap(hits, capped, radiusM, count, opts)
       // Round-trip routes (origin ≈ destination) legitimately return zero
@@ -292,7 +304,7 @@ export async function searchNearbyPoisMulti(
       return [] as PlaceHit[]
     }
   }
-  return searchNearbyPoisMultiFree(capped, radiusM, count, opts, opts.purposes)
+  return searchNearbyPoisMultiFree(capped, radiusM, count, opts, opts.purposes, opts.families)
 }
 
 /**
@@ -310,7 +322,7 @@ export async function planJourneyHalts(
   anchors: { lat: number; lng: number }[],
   totalKm: number,
   driveMinutes: number,
-  opts: NearbyOpts & { plan: DrivingPlan; tripStartDate?: string },
+  opts: FamilyScanOpts & { plan: DrivingPlan; tripStartDate?: string },
   radiusM = 35000,
 ): Promise<SegmentHit[]> {
   // 1. Plan segments first so we know which purposes we need to search for

@@ -7,7 +7,7 @@
 import { haversineKm } from '../geo'
 import { hasCoords, distToNearest, normWords, rankAndCap, spurKm, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
 import { familyFromOsmTags, type PlaceFamily } from './families'
-import { queriesForPurpose } from '../purposeQueries'
+import { queriesForPurpose, queriesForFamily } from '../purposeQueries'
 import { cap } from '../labels'
 
 // Mappls autosuggest (when VITE_MAPPLS_KEY is set) → India's best place/POI
@@ -346,10 +346,22 @@ async function fetchOverpass(query: string): Promise<OverpassElement[]> {
   return []
 }
 
-async function searchNearbyOverpass(anchors: { lat: number; lng: number }[], radiusM: number, count: number, includeFuel = false, selectors?: string[]): Promise<PlaceHit[]> {
+async function searchNearbyOverpass(
+  anchors: { lat: number; lng: number }[],
+  radiusM: number,
+  count: number,
+  includeFuel = false,
+  selectors?: string[],
+  familySelectors?: readonly string[],
+): Promise<PlaceHit[]> {
   const radius = Math.min(Math.max(radiusM, 2000), 120000)
   const baseSelectors = selectors ?? (includeFuel ? [...OVERPASS_NEARBY_SELECTORS, 'amenity=fuel'] : OVERPASS_NEARBY_SELECTORS)
-  const stmts = baseSelectors.flatMap(sel =>
+  // Ticket 09: requested families ADD their confirmed tag selectors to the same
+  // single Overpass query. No extra request, and no change when none are asked.
+  const allSelectors = familySelectors && familySelectors.length > 0
+    ? [...new Set([...baseSelectors, ...familySelectors])]
+    : baseSelectors
+  const stmts = allSelectors.flatMap(sel =>
     anchors.map(a => `nwr(around:${radius},${a.lat},${a.lng})[${sel}];`)
   ).join('')
   const elements = await fetchOverpass(`[out:json][timeout:20];(${stmts});out center tags ${Math.max(60, count * 6)};`)
@@ -591,6 +603,7 @@ export async function searchNearbyPoisMultiFree(
   count = 10,
   opts: NearbyOpts = {},
   purposes?: HaltPurpose[],
+  families?: readonly PlaceFamily[],
 ): Promise<PlaceHit[]> {
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 12)
   if (capped.length === 0) return []
@@ -598,8 +611,13 @@ export async function searchNearbyPoisMultiFree(
   const selectors = purposes && purposes.length > 0
     ? [...new Set(purposes.flatMap(p => queriesForPurpose(p).overpassSelectors))]
     : undefined
+  // Requested families contribute their confirmed tag selectors to the same
+  // single scan, so the request COUNT never changes.
+  const familySelectors = families && families.length > 0
+    ? [...new Set(families.flatMap(f => queriesForFamily(f).overpassSelectors))]
+    : undefined
   const [osm, wiki, mappls] = await Promise.all([
-    searchNearbyOverpass(capped, radiusM, count, opts.includeFuel, selectors).catch(() => [] as PlaceHit[]),
+    searchNearbyOverpass(capped, radiusM, count, opts.includeFuel, selectors, familySelectors).catch(() => [] as PlaceHit[]),
     searchNearbyWikipedia(capped, radiusM, Math.min(count, 6)).catch(() => [] as PlaceHit[]),
     searchNearbyMappls(capped[0], radiusM, count, opts.includeFuel).catch(() => [] as PlaceHit[]),
   ])

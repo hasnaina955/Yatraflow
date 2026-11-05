@@ -19,6 +19,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ### Added
 
 - **The phone Map puts search and the panel switcher on one row.** The switcher keeps its counts and drops its words. Some states need the width: typed text, Clear, a busy search and a paused search. A folded deck on a narrow phone needs it too. The switcher then moves into the search card. On desktop the map credit no longer sits under the Key control. Escape closes the place card and returns focus to the control that opened it.
+- **A requested place family now reaches the providers.** The facade forwards it to the Google along-route scan and to the single free OpenStreetMap scan. Default scans keep their exact queries and request count. Nothing enables family selection on its own.
 
 - **The Map workspace uses Linen and Night map paint.** Land, water, vegetation, roads and town labels follow the supplied palette on the existing OpenFreeMap vector tiles. Basemap place icons stay hidden. A failed tile read keeps the stops and route estimates visible, with a retry control. Other map surfaces keep their current basemaps.
 

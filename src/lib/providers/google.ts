@@ -291,7 +291,7 @@ export interface AlongRouteArgs {
    * SELECTION per day and operating limits need coordinator agreement
    * before any live expansion (ticket 10 owns the day-context selection).
    */
-  families?: PlaceFamily[]
+  families?: readonly PlaceFamily[]
   signal?: AbortSignal
 }
 

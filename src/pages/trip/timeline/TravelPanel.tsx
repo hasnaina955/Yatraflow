@@ -539,7 +539,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
       {/* Along the drive: the covered suggestions, from the shared projection.
           A sibling of the halt planner; the user halt/slack paths below are
           unchanged and outside this projection's coverage. */}
-      <div className="travel-panel-suggestions" style={{ marginTop: 10 }}>
+      <div className="travel-panel-suggestions">
         <div className="small muted">
           <InlineIcon icon={RouteIcon} size={13} gap={4} />
           Along the drive · Day {day.index + 1}
@@ -608,7 +608,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           <div className="hint-text ts-warn-note" role="status">
             {projectedAddError}
             {projectedRetryAvailable && onRetryProjectedRow && (
-              <button type="button" className="btn btn-outline btn-sm" onClick={onRetryProjectedRow} style={{ marginLeft: 8 }}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={onRetryProjectedRow}>
                 Retry save
               </button>
             )}

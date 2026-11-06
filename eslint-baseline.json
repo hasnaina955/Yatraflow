@@ -1,7 +1,7 @@
 {
   "generatedBy": "npm run lint:ratchet -- --update",
-  "errors": 133,
-  "warnings": 27,
+  "errors": 131,
+  "warnings": 25,
   "files": {
     "src/App.tsx": {
       "react-hooks/set-state-in-effect": 1
@@ -99,7 +99,7 @@
     },
     "src/pages/trip/MapTab.tsx": {
       "@typescript-eslint/no-unused-vars": 12,
-      "react-hooks/exhaustive-deps": 3
+      "react-hooks/exhaustive-deps": 1
     },
     "src/pages/trip/ShareTab.tsx": {
       "@typescript-eslint/no-unused-vars": 1
@@ -107,7 +107,7 @@
     "src/pages/trip/TimelineTab.tsx": {
       "@typescript-eslint/no-unused-vars": 5,
       "react-hooks/exhaustive-deps": 2,
-      "react-hooks/refs": 7,
+      "react-hooks/refs": 5,
       "react-hooks/set-state-in-effect": 3
     },
     "src/pages/trip/timeline/DaySection.tsx": {

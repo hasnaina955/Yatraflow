@@ -200,7 +200,12 @@ describe('the workspace markup consumes the rules', () => {
   })
 
   it('clears a pending map target when the workspace switches trips', () => {
-    expect(ws).toMatch(/useEffect\(\(\) => \{ setMapInputs\(null\); setMapTarget\(null\) \}, \[tripId\]\)/)
+    const start = ws.indexOf('setMapInputs(null)')
+    const reset = ws.slice(start, ws.indexOf('}, [tripId])', start))
+    expect(start).toBeGreaterThan(-1)
+    expect(reset).toContain('setMapInputs(null)')
+    expect(reset).toContain('setCorridorSnapshot(null)')
+    expect(reset).toContain('setMapTarget(null)')
   })
 
   it('passes the timeline focus block and consume callback to the timeline consumer', () => {

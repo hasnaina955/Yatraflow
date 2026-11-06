@@ -1081,6 +1081,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    after a silent change. A whole-trip row list is not a day slice: scope by the stable day before
    rendering or writing.
 
+6bh. A test that runs a real generator with `--update` must snapshot the file and restore it
+   in `finally`. The generated file is production input, not a scratch copy.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

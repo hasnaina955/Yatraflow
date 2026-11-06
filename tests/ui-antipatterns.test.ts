@@ -20,8 +20,8 @@ describe('ui anti-pattern gate', () => {
     expect(check(ok)).toEqual([])
   })
 
-  it('exposes three enforced rules, each with a reason', () => {
-    expect(RULES.map(r => r.id)).toEqual(['U1', 'U2', 'U3'])
+  it('exposes four enforced rules, each with a reason', () => {
+    expect(RULES.map(r => r.id)).toEqual(['U1', 'U2', 'U3', 'U4'])
     for (const r of RULES) expect(r.why.length).toBeGreaterThan(20)
   })
 
@@ -74,6 +74,55 @@ describe('ui anti-pattern gate', () => {
     it('reports a line carrying both zoom blocks once, not twice', () => {
       const both = '<meta name="viewport" content="width=device-width, user-scalable=no, maximum-scale=1" />'
       expect(check({ 'index.html': both })).toHaveLength(1)
+    })
+  })
+
+  describe('U4 Map V2 44px floor', () => {
+    // The two shipped misses that made this rule: the desktop fold button
+    // measured 32x32 and the deck shelf buttons 25-26px (ticket 06 reports).
+    it('catches a 32px fold button (the shipped desktop miss), once per line', () => {
+      const f = check({ 'src/styles.css': '.mv2-deck-header > .mv2-icon-btn { width: 32px; }' })
+      expect(f).toHaveLength(1)
+      expect(f[0]).toMatchObject({ rule: 'U4' })
+      expect(f[0].text).toContain('width: 32px')
+    })
+
+    it('catches a 26px shelf chip and a 24px scoped poi-fold', () => {
+      const css = [
+        '.mv2-workspace .lrow-deck .ledger-shelf > button { min-height: 26px; }',
+        '.mv2-workspace .poi-fold { width: 24px; height: 24px; }',
+      ].join('\n')
+      const f = check({ 'src/styles.css': css })
+      expect(f).toHaveLength(2)
+    })
+
+    it('does not fire on the legacy unscoped surfaces the graph still ships', () => {
+      const css = [
+        '.ledger-shelf { display: flex; flex-wrap: wrap; }',
+        '.poi-fold { width: 24px; height: 24px; }',
+        '.ledger-shelf { padding: 8px 10px; }',
+      ].join('\n')
+      expect(check({ 'src/styles.css': css })).toEqual([])
+    })
+
+    it('does not fire on non-Map controls at 40px (repo-wide floor)', () => {
+      expect(check({ 'src/styles.css': '.map-day-chip { min-width: 40px; min-height: 44px; }' })).toEqual([])
+    })
+
+    it('does not fire at 44px or on non-size uses like min-width: 0', () => {
+      const css = [
+        '.mv2-icon-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }',
+        '.mv2-icon-btn { min-width: 0; }',
+        '.mv2-workspace .map-ideas-map { min-width: 0; }',
+      ].join('\n')
+      expect(check({ 'src/styles.css': css })).toEqual([])
+    })
+
+    it('reports the offending line so the fix is actionable', () => {
+      const f = check({ 'src/styles.css': '.mv2-workspace .poi-fold { height: 30px; }' })
+      expect(f).toHaveLength(1)
+      expect(f[0].text).toContain('height: 30px')
+      expect(f[0].rule).toBe('U4')
     })
   })
 

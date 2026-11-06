@@ -157,7 +157,6 @@
 .mv2-deck-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-7); border-bottom: 1px solid var(--line); }
 .mv2-deck-header h2 { display: flex; align-items: center; gap: var(--space-3); font: var(--pw-title); margin: var(--space-2) 0 0; }
 .mv2-deck-header h2 > span { font-size: var(--text-xs); color: var(--text-2); }
-.mv2-deck-header > .mv2-icon-btn { width: 32px; height: 32px; }
 .mv2-reopen-day { position: absolute; top: var(--mv2-inset); left: var(--mv2-inset); z-index: 5; box-shadow: var(--shadow-soft); }
 .mv2-workspace.is-day-folded { --mv2-day-width: 48px; }
 .mv2-workspace.is-deck-folded { --mv2-deck-width: 0px; }
@@ -288,7 +287,7 @@
   .mv2-clock-label { display: none; }
   .mv2-clock-label[data-phone-label='true'] { display: block; }
   .mv2-workspace .poi-col--needs > .poi-col-head { padding-top: 0; }
-  .mv2-workspace .poi-fold, .mv2-deck-header > .mv2-icon-btn { width: 44px; height: 44px; }
+  .mv2-workspace .poi-fold { width: 44px; height: 44px; }
   .mv2-tools > summary { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -371,3 +370,33 @@
 @media (min-width: 761px) {
   .mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10) + 116px); }
 }
+/* Timeline phone: the fixed Add pill lives at the card's bottom-right. Keep the
+   day fold control on the leading edge there so the pill cannot cover its
+   pointer target. Desktop keeps the artboard's trailing fold. */
+@media (max-width: 720px) {
+  .day-header > .day-collapse {
+    order: 0;
+    margin-inline-start: 0;
+    margin-inline-end: var(--space-2);
+  }
+}
+
+/* Map V2 pick deck: the ledger rows as the approved flat rail. Scoped to the
+   mv2 workspace so the legacy ledger keeps its own look; the legacy rules in
+   src/styles/legacy/* stay untouched, and night tokens inherit by variable. */
+.mv2-workspace .lrow-deck { border: 0; border-bottom: 1px solid var(--pw-line-soft, var(--line)); border-radius: 0; background: transparent; margin: 0; }
+.mv2-workspace .lrow-deck:last-of-type { border-bottom: 0; }
+.mv2-workspace .lrow-deck[open] { padding-bottom: 0; }
+.mv2-workspace .lrow-deck .lrow-sum { grid-template-columns: 34px 1fr 16px; padding: var(--space-7) 0; border-radius: var(--radius-sm); transition: none; }
+.mv2-workspace .lrow-deck .lrow-sum:hover { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
+.mv2-workspace .lrow-deck .lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.mv2-workspace .lrow-deck .lrow-tile { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--pw-sunken, var(--bg-soft)); color: var(--ink-teal, var(--color-primary)); }
+.mv2-workspace .lrow-deck .lr-name { font: var(--pw-ui); font-size: 13px; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.mv2-workspace .lrow-deck .lr-meta { font: var(--pw-caption); font-variant-numeric: tabular-nums; color: var(--text-2); }
+.mv2-workspace .lrow-deck .lr-go { color: var(--text-2); }
+.mv2-workspace .lrow-deck .ledger-shelf { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3) var(--space-9); }
+/* Map V2 44px target floor. The base .mv2-icon-btn rule carries the fold
+   size. The two shelf rules carry the shelf buttons. check:ui rule U4 fails
+   the gate on a px size below 44 here. */
+.mv2-workspace .lrow-deck .ledger-shelf > button { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.mv2-workspace .lrow-deck .ledger-shelf > .shelf-alt { min-height: 44px; }

@@ -42,6 +42,9 @@
 //     The repo floors at 40px on purpose (WCAG 2.5.8 AA), reached on coarse
 //     pointers through a `::after { inset: -6px }` hit-area extension. 44px is
 //     2.5.5 AAA. Changing this is a product decision, not a lint.
+//     One surface is floored higher by product decision: the Map V2 workspace
+//     (ticket 06 approval) floors its controls at 44px. That floor is rule U4
+//     below, on the named Map control classes only.
 //
 //   EXCLUDED — contrast ratios
 //     Already owned by `tests/design-system.test.ts`'s baseline ratchet, which
@@ -53,6 +56,16 @@
 
 import { readFileSync } from 'node:fs'
 import { CssGraphError, loadCssGraph } from './css-source-graph.mjs'
+
+// The Map V2 target floor (44px, ticket 06 product decision). These are the
+// Map control classes the floor covers. A px size below 44 on a selector that
+// names one of them is a U4 finding. Keep the list small and named: it is the
+// contract, not a heuristic.
+export const MAP_TARGET_FLOOR_CLASSES = [
+  'mv2-icon-btn',
+  'poi-fold',
+  'ledger-shelf',
+]
 
 export const RULES = [
   {
@@ -75,6 +88,38 @@ export const RULES = [
     why: 'user-scalable=no / maximum-scale in the viewport meta stops a user from zooming. WCAG 1.4.4.',
     file: 'index.html',
     find: s => [...s.matchAll(/user-scalable\s*=\s*no|maximum-scale\s*=\s*1/g)],
+  },
+  {
+    id: 'U4',
+    title: 'Map V2 control below the 44px floor',
+    why: 'The Map V2 controls floor at 44px by product decision (ticket 06) after two shipped misses: a 32px fold button and 25-26px shelf buttons. Set a Map control to 44px or more, or move it under a class that is not on the Map floor list.',
+    file: 'src/styles.css',
+    find: (s) => {
+      const out = []
+      // One px size (width / height / min-width / min-height) below 44 on a
+      // selector line that names a Map floor class. A one-line rule keeps its
+      // selector on the same line, which is this file's shape for these rules.
+      const decl = /(^|[\s,{}])(width|height|min-width|min-height)\s*:\s*(\d+(?:\.\d+)?)px/gi
+      for (const m of s.matchAll(decl)) {
+        if (Number(m[3]) >= 44) continue
+        const lineStart = s.lastIndexOf('\n', m.index) + 1
+        const lineEnd = s.indexOf('\n', m.index)
+        const line = s.slice(lineStart, lineEnd === -1 ? s.length : lineEnd)
+        const brace = line.indexOf('{')
+        if (brace === -1) continue
+        const selector = line.slice(0, brace).trim()
+        // mv2-icon-btn exists only in the Map V2 workspace. poi-fold and
+        // ledger-shelf also style the legacy surfaces, so those need the
+        // .mv2-workspace scope to count as Map floor selectors.
+        const scoped = selector.includes('mv2-workspace')
+        const cls = MAP_TARGET_FLOOR_CLASSES.find(
+          (c) => selector.includes(c) && (c === 'mv2-icon-btn' || scoped),
+        )
+        if (!cls) continue
+        out.push({ index: m.index, text: line.trim().slice(0, 100) })
+      }
+      return out
+    },
   },
 ]
 

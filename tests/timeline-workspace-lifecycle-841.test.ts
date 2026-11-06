@@ -787,6 +787,7 @@ describe('real uncertain save survives a Timeline remount with a null/changed ho
     controller: TimelineWriterController,
     config: ReturnType<typeof timelineConfig> | null,
     generation: number,
+    previewOpen = false,
   ) {
     let slots: unknown[] = []
     let deps: unknown[][] = []
@@ -798,6 +799,8 @@ describe('real uncertain save survives a Timeline remount with a null/changed ho
       createTimelineWriterController,
       runTimelineProjectedAdd,
       runTimelineProjectedRetry,
+      PREVIEW_RETRY_BLOCK: 'Resolve the unconfirmed save in Saved edits before retrying.',
+      BUSY_RETRY_BLOCK: 'Wait for the current save action to finish before retrying.',
       useMemo(fn: () => unknown, values: unknown[]) {
         const i = index++
         if (!deps[i] || values.some((v, k) => !Object.is(v, deps[i][k]))) { deps[i] = values; slots[i] = fn() }
@@ -822,12 +825,12 @@ describe('real uncertain save survives a Timeline remount with a null/changed ho
     runInContext(HOOK_JS, createContext(context))
     const hook = (context.exports as Record<string, unknown>).useTimelineProjectedWriter as (
       c: unknown, p: boolean, g: number, owner: string, ctrl: unknown,
-    ) => { retryAvailable: boolean; unresolved: boolean; retry?: () => void }
+    ) => { retryAvailable: boolean; unresolved: boolean; retryBlockedReason: string | null; retry?: () => void }
     index = 0
     slots = []
     deps = []
     effects = []
-    const result = hook(config, false, generation, tripIdForTest, controller)
+    const result = hook(config, previewOpen, generation, tripIdForTest, controller)
     for (const effect of effects.splice(0)) effect()
     return result
   }
@@ -860,6 +863,17 @@ describe('real uncertain save survives a Timeline remount with a null/changed ho
     expect(controller.getSnapshot().ticket?.operationId).toBe(operationId)
     expect(gate.isReserved(PICK_A, trip.id)).toBe(true)
     const sent = transport.updates.length
+
+    // While the failed Keep preview is still open, Retry must be explicitly
+    // blocked, not an enabled silent no-op.
+    const blocked = mountHook(controller, config, 1, true)
+    expect(blocked.retryAvailable).toBe(true)
+    expect(blocked.retryBlockedReason).toMatch(/Saved edits/i)
+    blocked.retry?.()
+    await settleTicks()
+    expect(transport.updates).toHaveLength(sent)
+    expect(resolverCalls.count).toBe(1)
+    expect(controller.getSnapshot().ticket?.operationId).toBe(operationId)
 
     // The Timeline tab unmounts; the Workspace-owned controller survives and the
     // hook remounts with a null hop. The live measurement then changes.

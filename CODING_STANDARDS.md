@@ -1090,6 +1090,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
 6bj. A lifecycle ticket and its unresolved state must be owned outside a conditionally mounted
    tab, keyed by the Workspace owner. A per-mount controller loses the only recovery control.
 
+6bk. A blocked recovery control must name the supported recovery path, not an action the open
+   preview cannot perform.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

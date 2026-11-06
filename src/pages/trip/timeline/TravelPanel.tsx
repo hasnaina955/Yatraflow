@@ -57,7 +57,7 @@ function modeLabelMode(m: string): string {
  * route corridor. Replaces the old split where long rides got a completely
  * different "LongRidePanel" with its own ride-style options.
  */
-export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved }: {
+export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason }: {
   trip: Trip
   day: Trip['days'][number]
   editable: boolean
@@ -78,10 +78,12 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   projectedRetryAvailable?: boolean
   projectedTerminal?: string | null
   projectedUnresolved?: boolean
+  projectedRetryBlockedReason?: string | null
 }) {
   const A = getAssumptions(trip)
   const hasAirLeg = journey.points.some(p => p.legIn?.kind === 'air')
   const timeFormat = useTimeFormat()
+  const retryReasonId = useId()
   const { cache: sugCache, setHaltCache } = suggestionCache
   // S4: the covered rows come from the shared producer. The panel does not
   // derive slots, drive rows or a second projection.
@@ -615,9 +617,20 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           <div className="hint-text ts-warn-note" role="status">
             {projectedAddError}
             {projectedRetryAvailable && onRetryProjectedRow && (
-              <button type="button" className="btn btn-outline btn-sm" onClick={onRetryProjectedRow}>
-                Retry save
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={projectedRetryBlockedReason ? undefined : onRetryProjectedRow}
+                  disabled={!!projectedRetryBlockedReason}
+                  aria-describedby={projectedRetryBlockedReason ? retryReasonId : undefined}
+                >
+                  Retry save
+                </button>
+                {projectedRetryBlockedReason && (
+                  <span id={retryReasonId} className="muted small">{projectedRetryBlockedReason}</span>
+                )}
+              </>
             )}
           </div>
         )}

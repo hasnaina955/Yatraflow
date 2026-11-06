@@ -433,7 +433,7 @@ function useFold(open: boolean): FoldState {
 // (whose travel panel searches against the whole itinerary). A closed card
 // therefore cannot read the trip at all: `trip` is optional, so a `trip.x` on
 // the collapsed path is a compile error rather than a stale render.
-export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved }: {
+export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason }: {
   day: Trip['days'][number]
   /** MR8: this trip's saved ids, and the one toggle every heart on the page uses. */
   savedIds: string[]
@@ -503,6 +503,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   projectedRetryAvailable?: boolean
   projectedTerminal?: string | null
   projectedUnresolved?: boolean
+  projectedRetryBlockedReason?: string | null
 }) {
   // One unified journey per day — start → halts/visits → destination with an
   // arrival clock — regardless of distance. This is the single travel system.
@@ -1078,7 +1079,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
       {bodyTrip && <TravelPanel trip={bodyTrip} day={day} editable={editable} journey={journey} suggestionCache={suggestionCache} legCorrections={legCorrections}
         journeyDay={journeyDay} journeyStatus={journeyStatus}
         onAddProjectedRow={onAddProjectedRow} projectedAddBusy={projectedAddBusy} previewOpen={previewOpen}
-        projectedAddError={projectedAddError} onRetryProjectedRow={onRetryProjectedRow} projectedRetryAvailable={projectedRetryAvailable} projectedTerminal={projectedTerminal} projectedUnresolved={projectedUnresolved}
+        projectedAddError={projectedAddError} onRetryProjectedRow={onRetryProjectedRow} projectedRetryAvailable={projectedRetryAvailable} projectedTerminal={projectedTerminal} projectedUnresolved={projectedUnresolved} projectedRetryBlockedReason={projectedRetryBlockedReason}
         onSetDayStart={onSetDayStart} onAddPlannedHalts={onAddPlannedHalts} />}
 
       {ordered.length === 0 && (<>

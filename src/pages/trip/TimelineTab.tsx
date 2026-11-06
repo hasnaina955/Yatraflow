@@ -951,7 +951,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         {days.map((day, ordinal) => (
           <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} journeyDay={journeyDays.byDay.get(day.index)} journeyStatus={journeyDays.status} editable={planEditable} open={openDayIndex === day.index || (reviewAll && revealStep > Math.min(ordinal, REVEAL_STEPS - 1))} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
             onAddProjectedRow={projectedAdd.add} projectedAddBusy={projectedAdd.busy} previewOpen={previewOpen}
-            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable} projectedTerminal={projectedAdd.terminal} projectedUnresolved={projectedAdd.unresolved}
+            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable} projectedTerminal={projectedAdd.terminal} projectedUnresolved={projectedAdd.unresolved} projectedRetryBlockedReason={projectedAdd.retryBlockedReason}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}

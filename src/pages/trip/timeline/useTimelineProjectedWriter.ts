@@ -14,8 +14,13 @@ export interface TimelineProjectedWriter {
   terminal: string | null
   unresolved: boolean
   retryAvailable: boolean
+  /** A held ticket that cannot be invoked yet (open preview or same-tick busy). */
+  retryBlockedReason: string | null
   retry?: () => void
 }
+
+const PREVIEW_RETRY_BLOCK = 'Resolve the unconfirmed save in Saved edits before retrying.'
+const BUSY_RETRY_BLOCK = 'Wait for the current save action to finish before retrying.'
 
 export function useTimelineProjectedWriter(
   config: TimelineProjectedWriterConfig | null,
@@ -64,6 +69,13 @@ export function useTimelineProjectedWriter(
     terminal: snapshot.terminal,
     unresolved: snapshot.unresolved,
     retryAvailable: snapshot.ticket != null,
+    retryBlockedReason: snapshot.ticket == null
+      ? null
+      : previewOpen
+        ? PREVIEW_RETRY_BLOCK
+        : snapshot.busy
+          ? BUSY_RETRY_BLOCK
+          : null,
     ...(snapshot.ticket ? { retry } : {}),
   }
 }

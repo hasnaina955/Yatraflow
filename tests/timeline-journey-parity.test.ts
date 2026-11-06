@@ -355,6 +355,32 @@ describe('actual TravelPanel render', () => {
     expect(empty).not.toContain('No places matched along this route')
   })
 
+  it('disables Retry with a visible accessible reason while the preview is open', () => {
+    const html = renderPanel({
+      projectedRetryAvailable: true,
+      projectedAddError: 'The save is not confirmed yet.',
+      projectedRetryBlockedReason: 'Resolve the unconfirmed save in Saved edits before retrying.',
+      onRetryProjectedRow: () => {},
+    })
+    const start = html.indexOf('Retry save')
+    const button = html.slice(html.lastIndexOf('<button', start), start)
+    expect(button).toContain('disabled')
+    expect(button).toContain('aria-describedby')
+    expect(html).toContain('Resolve the unconfirmed save in Saved edits before retrying.')
+  })
+
+  it('keeps Retry enabled when a ticket exists and no block applies', () => {
+    const html = renderPanel({
+      projectedRetryAvailable: true,
+      projectedAddError: 'The save is not confirmed yet.',
+      projectedRetryBlockedReason: null,
+      onRetryProjectedRow: () => {},
+    })
+    const start = html.indexOf('Retry save')
+    const button = html.slice(html.lastIndexOf('<button', start), start)
+    expect(button).not.toContain('disabled')
+  })
+
   it('renders the unscanned and ready-empty states distinctly', () => {
     const { trip, day } = producerDay()
     const journey = buildJourney(trip, trip.days[0])

@@ -1093,6 +1093,23 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
 6bk. A blocked recovery control must name the supported recovery path, not an action the open
    preview cannot perform.
 
+6bl. **One shared Map floor rule beats a stack of one-off size overrides.** Two misses
+   (a 32px fold button, 25–26px shelf buttons) each shipped because a local repair
+   guarded one selector. A px size below 44 on a Map floor selector is now a gate
+   failure (`check:ui` rule U4, `scripts/uiAntipatterns.mjs`). The floor classes are
+   `.mv2-icon-btn` (Map V2 only) and `.poi-fold`/`.ledger-shelf` (scoped to
+   `.mv2-workspace`, because the legacy modules style them too). When you add a Map
+   control, size it with one of those classes or extend the list — never with a
+   smaller one-off override.
+
+6bm. **A focused test list from memory is a miss waiting to happen.** Two runs selected
+   tests by hand and both omitted files the change had touched
+   (`tests/production-road-binding.test.ts`; changed prose). Select with
+   `npm run test:changed` (git union of branch/staged/unstaged/untracked plus
+   `--extra`). It refuses the empty-green trap: a source change that selects no test
+   exits 1. It never replaces the full gate. `verify` and CI still run the whole
+   suite.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

@@ -73,6 +73,8 @@ git rev-list --count origin/main..origin/test
 17. Promote `test` to `main` once per finished batch: a minor release for a feature, a patch release for a fix. Full text: docs/agents/AGENTS-FULL.md §2.17
 18. Search for prior art before you build: compare up to three maintained GitHub projects. Adapt code only from MIT, Apache-2.0, BSD or ISC sources. Full text: docs/agents/AGENTS-FULL.md §2.18
 19. Claim an issue before you start it, and check for an existing claim. A claim holds even when its branch is not pushed. Full text: docs/agents/AGENTS-FULL.md §2.19
+20. Map V2 controls carry a 44px target floor by product decision. check:ui rule U4 fails the gate on a px size below 44 on a Map floor selector. Full text: docs/agents/AGENTS-FULL.md §2.20
+21. A focused test run derives its list with `npm run test:changed` (git-derived union: branch, staged, unstaged, untracked, plus explicit `--extra`). A source change with no selected test fails the run. Full text: docs/agents/AGENTS-FULL.md §2.21
 
 ### What enforces each rule
 
@@ -98,6 +100,8 @@ A rule with no row here is a judgment call.
 | §2.17 promote | Judgment; `git rev-list --count origin/main..origin/test` |
 | §2.18 prior art | Judgment; the PR description lists projects, licences and choice |
 | §2.19 claim before you start | Judgment; the issue assignee, the claim comment and `git ls-remote --heads origin` |
+| §2.20 Map 44px floor | `npm run check:ui` rule U4; `tests/map-deck-targets.test.ts` |
+| §2.21 focused tests | `npm run test:changed`; `tests/test-changed-selector.test.ts` |
 | §3 gate, CI, migrations | `npm run verify`; `ci.yml`; `npm run check:migrations`; live probe |
 | §4 conventions | `CODING_STANDARDS.md`; `supabase/tests/rls_contract.test.sql`; `tests/design-system.test.ts` |
 | §6 roadmap version | `tests/roadmap-status.test.ts` |

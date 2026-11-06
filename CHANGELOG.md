@@ -22,6 +22,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **The slot and writer adapters now use safe field and index lookups for their dynamic keys.** Object and array reads use own-field maps and index-keyed maps. A missing key reads as undefined. A geometry pair is checked before it is read. The retry and Undo guards keep the same checks. (#910)
+
 - **Development fixtures use explicit status and root checks.** Source checks use literal patterns, and the fixture config imports the package version.
 
 - **Status chips and Settings controls use clearer colours.** The Settings rail fades at its edges on narrow screens.

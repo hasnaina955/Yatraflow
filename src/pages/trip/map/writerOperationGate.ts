@@ -270,10 +270,11 @@ export function createWriterOperationGate(): WriterOperationGate {
 
   function releaseItems(operationId: string, itemIds: readonly string[]): void {
     const ids = new Set(itemIds)
-    for (let index = reservations.length - 1; index >= 0; index -= 1) {
-      const reservation = reservations[index]
-      if (reservation.operationId === operationId && ids.has(reservation.itemId)) reservations.splice(index, 1)
+    const removeAt: number[] = []
+    for (const [index, reservation] of reservations.entries()) {
+      if (reservation.operationId === operationId && ids.has(reservation.itemId)) removeAt.push(index)
     }
+    for (const index of removeAt.reverse()) reservations.splice(index, 1)
   }
 
   function settle(operationId: string, itemIds: readonly string[]): void {
@@ -294,11 +295,13 @@ export function createWriterOperationGate(): WriterOperationGate {
     if (operation.context.dayId !== request.context.dayId) return false
     if (operation.context.dayIndex !== request.context.dayIndex) return false
     if (operation.items.length !== request.entries.length) return false
+    const entriesByIndex = new Map(request.entries.entries())
     return operation.items.every((item, index) => {
-      const entry = request.entries[index]
+      const entry = entriesByIndex.get(index)
+      if (!entry) return false
       if (item.slotKey !== entry.slotKey) return false
       if ((item.dayId ?? null) !== (entry.dayId ?? request.context.dayId ?? null)) return false
-      if ((item.dayIndex ?? request.context.dayIndex) !== (entry.dayIndex ?? request.context.dayIndex)) return false
+      if (item.dayIndex !== (entry.dayIndex ?? request.context.dayIndex)) return false
       // The saved-stop note is content. A retry that changes it must not pass
       // the payload comparison and then write different text under the old id.
       if (item.notes !== (entry.notes ?? null)) return false
@@ -324,24 +327,22 @@ export function createWriterOperationGate(): WriterOperationGate {
         // refused instead of silently creating work under the old id.
         return { status: 'busy', reason: 'operation-unknown', itemIds: [], operationId: requestedId }
       }
-      if (existing) {
-        if (!isLive(existing)) {
-          // A settled operation id is never reusable: its write already has a
-          // known outcome.
-          return { status: 'busy', reason: 'operation-settled', itemIds: [], operationId: existing.id }
-        }
-        if (!requestMatchesOperation(existing, request)) {
-          // F2: changed request content cannot be restaged under the old id.
-          return { status: 'busy', reason: 'payload-mismatch', itemIds: [], operationId: existing.id }
-        }
-        if (existing.phase !== 'uncertain') {
-          return { status: 'busy', reason: 'request-in-flight', itemIds: [], operationId: existing.id }
-        }
-        if (!resumePayloadIsProvable(existing)) {
-          return { status: 'busy', reason: 'resume-unverifiable', itemIds: [], operationId: existing.id }
-        }
-        return { status: 'resumed', operation: existing }
+      if (!isLive(existing)) {
+        // A settled operation id is never reusable: its write already has a
+        // known outcome.
+        return { status: 'busy', reason: 'operation-settled', itemIds: [], operationId: existing.id }
       }
+      if (!requestMatchesOperation(existing, request)) {
+        // F2: changed request content cannot be restaged under the old id.
+        return { status: 'busy', reason: 'payload-mismatch', itemIds: [], operationId: existing.id }
+      }
+      if (existing.phase !== 'uncertain') {
+        return { status: 'busy', reason: 'request-in-flight', itemIds: [], operationId: existing.id }
+      }
+      if (!resumePayloadIsProvable(existing)) {
+        return { status: 'busy', reason: 'resume-unverifiable', itemIds: [], operationId: existing.id }
+      }
+      return { status: 'resumed', operation: existing }
     }
     const requestInFlight = liveRequests.get(request.requestKey)
     if (requestInFlight) {

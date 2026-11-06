@@ -88,11 +88,13 @@ export function createManualSlotStore(): ManualSlotStore {
     },
     candidatesBySlot: (context, shapes) => {
       const prefix = `${context.tripId}\u0000${context.dayId}\u0000`
-      const out: Record<string, SlotCandidate[]> = {}
+      // A slot key is caller data. A Map keeps it off the prototype chain.
+      // Object.fromEntries gives each key its own data property.
+      const out = new Map<string, SlotCandidate[]>()
       for (const [key, picks] of buckets) {
         if (!key.startsWith(prefix)) continue
         const slotKey = key.slice(prefix.length)
-        out[slotKey] = picks.map(hit => manualCandidateFor({
+        out.set(slotKey, picks.map(hit => manualCandidateFor({
           hit,
           detourMin: shapes.detourMin?.(hit) ?? null,
           detourKm: shapes.detourKm?.(hit) ?? null,
@@ -101,9 +103,9 @@ export function createManualSlotStore(): ManualSlotStore {
           // pair the manual candidate shape already documents.
           budgetMin: 1,
           sharePct: () => 100,
-        }))
+        })))
       }
-      return out
+      return Object.fromEntries(out)
     },
     clear: () => { buckets.clear() },
     size: () => [...buckets.values()].reduce((sum, picks) => sum + picks.length, 0),

@@ -613,6 +613,14 @@ export function applyPlannedStops(draft: Trip, planned: readonly WriterPlannedIt
  *  cannot be deleted by a guard that only remembered four columns. */
 const NON_CONTENT_STOP_FIELDS = new Set<string>(['orderInDay'])
 
+// Own enumerable fields as a Map. A missing own key reads as undefined.
+// No prototype value stands in for a key that one side does not carry.
+function ownFieldMap(value: object): Map<string, unknown> {
+  const fields = new Map<string, unknown>()
+  for (const [key, fieldValue] of Object.entries(value)) fields.set(key, fieldValue)
+  return fields
+}
+
 function sameContentValue(actual: unknown, expected: unknown): boolean {
   if (actual === expected) return true
   if (typeof actual === 'number' && typeof expected === 'number') {
@@ -621,13 +629,14 @@ function sameContentValue(actual: unknown, expected: unknown): boolean {
   if (actual == null || expected == null) return actual == null && expected == null
   if (Array.isArray(actual) || Array.isArray(expected)) {
     if (!Array.isArray(actual) || !Array.isArray(expected) || actual.length !== expected.length) return false
-    return actual.every((value, index) => sameContentValue(value, expected[index]))
+    const expectedByIndex = new Map(expected.entries())
+    return actual.every((value, index) => sameContentValue(value, expectedByIndex.get(index)))
   }
   if (typeof actual === 'object' && typeof expected === 'object') {
-    const left = actual as Record<string, unknown>
-    const right = expected as Record<string, unknown>
-    const keys = new Set([...Object.keys(left), ...Object.keys(right)])
-    for (const key of keys) if (!sameContentValue(left[key], right[key])) return false
+    const left = ownFieldMap(actual)
+    const right = ownFieldMap(expected)
+    const keys = new Set([...left.keys(), ...right.keys()])
+    for (const key of keys) if (!sameContentValue(left.get(key), right.get(key))) return false
     return true
   }
   return false
@@ -641,12 +650,12 @@ function sameContentValue(actual: unknown, expected: unknown): boolean {
  */
 export function sameStopContent(actual: ItineraryStop, expected: ItineraryStop): boolean {
   if (actual.id !== expected.id) return false
-  const left = actual as unknown as Record<string, unknown>
-  const right = expected as unknown as Record<string, unknown>
-  const keys = new Set([...Object.keys(left), ...Object.keys(right)])
+  const left = ownFieldMap(actual)
+  const right = ownFieldMap(expected)
+  const keys = new Set([...left.keys(), ...right.keys()])
   for (const key of keys) {
     if (NON_CONTENT_STOP_FIELDS.has(key)) continue
-    if (!sameContentValue(left[key], right[key])) return false
+    if (!sameContentValue(left.get(key), right.get(key))) return false
   }
   return true
 }
@@ -808,14 +817,14 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
 
   const resolved: Array<{ itemId: string; slotKey: string | null; hit: PlaceHit; stopId: string; dayId: string; dayIndex: number; notes?: string }> = []
   const unpinned: WriterSkippedItem[] = []
+  const notesByIndex = new Map(pickNotes.entries())
   try {
     if (resumed) {
       // F2: a true retry reuses the EXACT payload captured on the first
       // operation. The resolver is never called again: a second resolve could
       // mint new coordinates or provider keys under the old operation id and
       // stop id. Items without a captured payload stay out with a reason.
-      for (let index = 0; index < operation.items.length; index += 1) {
-        const item = operation.items[index]
+      for (const item of operation.items) {
         if (!item.resolvedHit) {
           unpinned.push({
             itemId: item.itemId, slotKey: item.slotKey, dayId: item.dayId ?? request.context.dayId ?? '',
@@ -839,8 +848,7 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
         })
       }
     } else {
-      for (let index = 0; index < operation.items.length; index += 1) {
-        const item = operation.items[index]
+      for (const [index, item] of operation.items.entries()) {
         const pinned = await deps.resolvePick(item.hit)
         if (!pinned) {
           unpinned.push({
@@ -860,9 +868,10 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
           })
           continue
         }
+        const note = notesByIndex.get(index)
         resolved.push({
           itemId: item.itemId, slotKey: item.slotKey, hit: pinned, stopId: item.stopId, dayId, dayIndex: item.dayIndex,
-          ...(pickNotes[index] ? { notes: pickNotes[index] } : {}),
+          ...(note ? { notes: note } : {}),
         })
       }
     }

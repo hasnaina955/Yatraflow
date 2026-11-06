@@ -105,9 +105,12 @@ export function slotResolutionRoadFor(
 ): SlotRoadContext {
   const view = mapRoadViewFromLegs(road?.chain ?? null, road?.legs ?? null, trip.days.map(d => d.index))
   const polyline: Array<{ lat: number; lng: number }> = []
+  // A transport can send a malformed pair. The type says tuple, so read each
+  // entry as unknown here and check it before it reaches the polyline.
   for (const pair of view.geometry ?? []) {
-    const lng = pair?.[0]
-    const lat = pair?.[1]
+    const entry: unknown = pair
+    if (!Array.isArray(entry)) continue
+    const [lng, lat] = entry
     if (typeof lng === 'number' && Number.isFinite(lng)
       && typeof lat === 'number' && Number.isFinite(lat)) {
       polyline.push({ lat, lng })
@@ -243,8 +246,13 @@ export function planDecisionResolution(input: DecisionResolutionInput): Decision
   } catch {
     return refused('planning-refused')
   }
-  const planned = result.planned[0]
-  if (!planned) return refused('missing-anchor', result.skipped[0]?.reason)
+  // The planner can return no planned item. Read the first with an explicit
+  // guard so a missing item stays undefined, and a short skipped list stays safe.
+  const planned = result.planned.length > 0 ? result.planned[0] : undefined
+  if (!planned) {
+    const skippedReason = result.skipped.length > 0 ? result.skipped[0].reason : undefined
+    return refused('missing-anchor', skippedReason)
+  }
   return {
     kind: 'ordered',
     target: { dayId, orderedPlacement: { dayId, beforeStopId: planned.beforeStopId, expectedRevision: revision } },

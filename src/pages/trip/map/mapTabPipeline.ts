@@ -85,9 +85,16 @@ export function measuredRoadFacts(input: {
   if (!resolvedLegs(road.legs)) return { measured: false, routeKey: null, reason: 'estimate-only' }
   const current = buildRoadChain(trip)
   const measured = road.chain
+  // Index-keyed maps replace computed reads. A hole reads as undefined, so a
+  // malformed chain cannot project a point from the wrong position.
+  const measuredPoints = new Map(measured.points.entries())
+  const currentStopIds = new Map(current.ptStopId.entries())
   const sameChain = current.points.length === measured.points.length
-    && current.points.every((point, index) => samePoint(point, measured.points[index]))
-    && (!measured.ptStopId || measured.ptStopId.every((id, index) => id === current.ptStopId[index]))
+    && current.points.every((point, index) => {
+      const other = measuredPoints.get(index)
+      return other !== undefined && samePoint(point, other)
+    })
+    && (!measured.ptStopId || measured.ptStopId.every((id, index) => id === currentStopIds.get(index)))
   if (!sameChain) return { measured: false, routeKey: null, reason: 'stale-chain' }
   if (!input.hasLine) return { measured: false, routeKey: null, reason: 'no-line' }
   const routeKey = roadChainSig(trip)

@@ -1,6 +1,6 @@
 // ============ MapPickCard projected-fact proof (#08 L2) ============
 // Server-renders the REAL card export with the real providers. No DOM is
-// required: MapPickCard's clock hook has a deterministic server snapshot.
+// needed. MapPickCard's clock hook has a deterministic server snapshot.
 // Known-bad expectations prove a projected null never falls back to a computed
 // visit, and projected actions can only remove an existing control.
 import { describe, expect, it } from 'vitest'

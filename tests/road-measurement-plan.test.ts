@@ -44,8 +44,16 @@ function baseInput(over: Partial<RoadMeasurementPlanInput> = {}): RoadMeasuremen
     activeRoute: ACTIVE_ROUTE,
     departAtMin: DEPART_AT_MIN,
     generation: ACTIVE_ROUTE.generation,
+    enabled: true, // every caller under test explicitly enables the gate
     ...over,
   }
+}
+
+/** The production default: no `enabled` key at all, so the gate stays closed. */
+function gatedInput(over: Partial<RoadMeasurementPlanInput> = {}): RoadMeasurementPlanInput {
+  const input = baseInput(over)
+  delete input.enabled
+  return input
 }
 
 function fakeTransport() {
@@ -68,7 +76,7 @@ describe('the activation gate (AC 6 stays open)', () => {
   it('defaults to gated: zero transport calls and every candidate kept as a labelled estimate', async () => {
     const { transport, baselineMin, viaRoute } = fakeTransport()
     const quotaAllows = vi.fn(() => true)
-    const plan = await planRoadMeasurements(baseInput({ candidates: ranked(4), transport, quotaAllows }))
+    const plan = await planRoadMeasurements(gatedInput({ candidates: ranked(4), transport, quotaAllows }))
 
     expect(plan.activation).toBe('gated')
     expect(plan.measuredCount).toBe(0)
@@ -174,6 +182,27 @@ describe('the enabled caller (injected fake transport only)', () => {
       expect(planRow).toMatchObject({ detourMin: null, arrivalLegMin: null, grade: 'estimate', reason: 'quota' })
     }
   })
+
+  it('pins the real helper quota and failed labels in one batch', async () => {
+    const { transport, viaRoute } = fakeTransport()
+    viaRoute.mockImplementation(async (_origin: Point, _destination: Point, place: Point): Promise<ViaMeasurement> => {
+      if (place.lng === 10.001) throw new Error('HTTP 500')
+      return { totalMin: 84, arrivalLegMin: 40 }
+    })
+    let checks = 0
+    // The baseline check and the first two via checks pass; the third via stops.
+    const plan = await planRoadMeasurements(baseInput({
+      candidates: ranked(3),
+      transport,
+      quotaAllows: () => checks++ < 3,
+    }))
+
+    expect(viaRoute).toHaveBeenCalledTimes(2)
+    expect(plan.rows.map(planRow => planRow.status)).toEqual(['failed', 'measured', 'quota-skipped'])
+    expect(plan.rows[0]).toMatchObject({ grade: 'estimate', reason: 'failed', detourMin: null, arrivalLegMin: null })
+    expect(plan.rows[2]).toMatchObject({ grade: 'estimate', reason: 'quota', detourMin: null, arrivalLegMin: null })
+    expect(plan.measuredCount).toBe(1)
+  })
 })
 
 describe('truthful value labels', () => {
@@ -232,6 +261,25 @@ describe('truthful value labels', () => {
     expect(plan.measuredCount).toBe(1)
   })
 
+  it('treats the shared mixed-placeholder sentinel as coordinates pending', async () => {
+    const { transport, baselineMin, viaRoute } = fakeTransport()
+    const plan = await planRoadMeasurements(baseInput({
+      candidates: [
+        candidate('mixed-latitude', { latitude: 0, longitude: 10.2 }),
+        candidate('mixed-longitude', { latitude: 10.2, longitude: 0 }),
+      ],
+      transport,
+      quotaAllows: () => true,
+    }))
+
+    expect(baselineMin).not.toHaveBeenCalled()
+    expect(viaRoute).not.toHaveBeenCalled()
+    expect(plan.rows).toHaveLength(2)
+    expect(plan.rows.every(planRow =>
+      planRow.status === 'pending' && planRow.grade === 'estimate' && planRow.reason === 'coordinates-pending')).toBe(true)
+    expect(plan.measuredCount).toBe(0)
+  })
+
   it('refuses a candidate whose hit identity differs from its rank id', async () => {
     const { transport, baselineMin, viaRoute } = fakeTransport()
     const plan = await planRoadMeasurements(baseInput({
@@ -250,6 +298,60 @@ describe('truthful value labels', () => {
       reason: 'identity-mismatch',
       detourMin: null,
     })
+  })
+})
+
+describe('duplicate candidate ids', () => {
+  it('measures only the first ranked row and labels a different-coordinate duplicate', async () => {
+    const { transport, baselineMin, viaRoute } = fakeTransport()
+    const plan = await planRoadMeasurements(baseInput({
+      candidates: [
+        { id: 'same-id', hit: hit('same-id', { latitude: 10.1, longitude: 10.001 }) },
+        { id: 'same-id', hit: hit('same-id', { latitude: 12.9, longitude: 77.6 }) },
+      ],
+      transport,
+      quotaAllows: () => true,
+    }))
+
+    expect(baselineMin).toHaveBeenCalledTimes(1)
+    expect(viaRoute).toHaveBeenCalledTimes(1) // one fact is requested for the id
+    expect(viaRoute.mock.calls[0][2]).toEqual({ id: 'same-id', lat: 10.1, lng: 10.001 })
+    expect(plan.rows).toHaveLength(2)
+    expect(plan.rows[0]).toMatchObject({
+      hitId: 'same-id',
+      status: 'measured',
+      detourMin: 24,
+      arrivalLegMin: 40,
+      grade: 'measured',
+      reason: null,
+    })
+    expect(plan.rows[1]).toMatchObject({
+      hitId: 'same-id',
+      status: 'unmeasured',
+      detourMin: null,
+      arrivalLegMin: null,
+      grade: 'estimate',
+      reason: 'duplicate-id',
+    })
+    expect(plan.measuredCount).toBe(1) // one fact, not one row
+  })
+
+  it('keeps a same-id, same-coordinate duplicate as an explicit unmeasured row', async () => {
+    const { transport, viaRoute } = fakeTransport()
+    const plan = await planRoadMeasurements(baseInput({
+      candidates: [
+        { id: 'same-id', hit: hit('same-id', { latitude: 10.1, longitude: 10.001 }) },
+        { id: 'same-id', hit: hit('same-id', { latitude: 10.1, longitude: 10.001 }) },
+      ],
+      transport,
+      quotaAllows: () => true,
+    }))
+
+    expect(viaRoute).toHaveBeenCalledTimes(1)
+    expect(plan.rows).toHaveLength(2)
+    expect(plan.rows[0]).toMatchObject({ status: 'measured', detourMin: 24, reason: null })
+    expect(plan.rows[1]).toMatchObject({ status: 'unmeasured', reason: 'duplicate-id', detourMin: null })
+    expect(plan.measuredCount).toBe(1)
   })
 })
 
@@ -284,15 +386,47 @@ describe('the stale-route guard', () => {
     expect(viaRoute).not.toHaveBeenCalled()
     expect(plan.rows.every(planRow => planRow.reason === 'route-identity-missing')).toBe(true)
   })
+
+  it('does not admit a result when the active route changes during the await', async () => {
+    const { transport, viaRoute } = fakeTransport()
+    let release: () => void = () => {}
+    const held = new Promise<void>(resolve => { release = resolve })
+    let entered: () => void = () => {}
+    const enteredPromise = new Promise<void>(resolve => { entered = resolve })
+    viaRoute.mockImplementation(async (): Promise<ViaMeasurement> => {
+      entered()
+      await held
+      return { totalMin: 84, arrivalLegMin: 40 }
+    })
+    const mutableRoute = { ...ACTIVE_ROUTE }
+    const input = baseInput({
+      candidates: ranked(2),
+      transport,
+      quotaAllows: () => true,
+      activeRoute: mutableRoute,
+    })
+    const planPromise = planRoadMeasurements(input)
+    await enteredPromise
+    mutableRoute.generation = ACTIVE_ROUTE.generation + 1
+    mutableRoute.routeFingerprint = 'route-fp-changed'
+    release()
+    const plan = await planPromise
+
+    expect(plan.activation).toBe('enabled')
+    expect(plan.measuredCount).toBe(0)
+    expect(plan.rows).toHaveLength(2)
+    expect(plan.rows.every(planRow =>
+      planRow.status === 'unmeasured' && planRow.reason === 'stale-result' && planRow.detourMin === null)).toBe(true)
+  })
 })
 
 describe('isolation', () => {
-  it('imports and runs gated without loading a provider or calling fetch', async () => {
+  it('imports and runs gated without loading a live routing provider or calling fetch', async () => {
     vi.resetModules()
     const fetchSpy = vi.fn()
     vi.stubGlobal('fetch', fetchSpy)
     const module = await import('../src/lib/roadMeasurementPlan')
-    const plan = await module.planRoadMeasurements(baseInput({ candidates: ranked(2) }))
+    const plan = await module.planRoadMeasurements(gatedInput({ candidates: ranked(2) }))
 
     expect(typeof module.planRoadMeasurements).toBe('function')
     expect(plan.activation).toBe('gated')

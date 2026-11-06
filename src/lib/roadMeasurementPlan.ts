@@ -7,7 +7,8 @@
 // The gate is closed by default, so `enabled !== true` or a missing transport
 // returns an estimate for every candidate and makes NO transport call. The
 // quota guard defaults to false. This module never reads or mutates the live
-// quota store, and it never imports a live provider.
+// quota store, and it never loads a live routing provider. It imports the pure
+// hit model only, for the shared coordinate sentinel.
 //
 // When a caller explicitly enables the gate with an INJECTED transport, the
 // existing measureRoadDetours does the work: the hard top-15 cap, one explicit
@@ -18,7 +19,10 @@
 // Identity: the candidate id is the hit id the fact will carry. A hit whose
 // own id disagrees is not measured, because the road-evidence bridge needs
 // `measurement.hitId === String(hit.id)` and would strip that fact later.
-import type { PlaceHit } from './providers/hits'
+// One id owns at most one fact: the first ranked row with an id owns the
+// measurement, and later rows with that id stay in the plan with an explicit
+// reason. A fact measured at one location is never stamped on another.
+import { hasCoords, type PlaceHit } from './providers/hits'
 import {
   isCurrentForRoute,
   measureRoadDetours,
@@ -72,6 +76,7 @@ const ROUTE_IDENTITY_MISSING = 'route-identity-missing'
 const COORDINATES_PENDING = 'coordinates-pending'
 const IDENTITY_MISMATCH = 'identity-mismatch'
 const BEYOND_TOP_CANDIDATES = 'beyond-top-15'
+const DUPLICATE_ID = 'duplicate-id'
 const QUOTA = 'quota'
 const FAILED = 'failed'
 const STALE_RESULT = 'stale-result'
@@ -90,16 +95,12 @@ function row(
 }
 
 /**
- * Usable coordinates, or null while the hit is still "coords pending".
- * providers/hits.ts hasCoords treats either zero axis as the (0,0) placeholder;
- * an India trip never sits on an axis, so the same sentinel is honoured here.
+ * Usable coordinates, or null while the hit is still "coords pending". The
+ * shared hasCoords predicate owns the (0,0)/mixed-placeholder sentinel.
  */
 function coordinateOf(hit: PlaceHit | null | undefined): { lat: number; lng: number } | null {
-  if (!hit) return null
-  const { latitude, longitude } = hit
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
-  if (latitude === 0 || longitude === 0) return null
-  return { lat: latitude, lng: longitude }
+  if (!hit || !hasCoords(hit)) return null
+  return { lat: hit.latitude, lng: hit.longitude }
 }
 
 /** Map one helper skip to a labelled row. Invalid values stay unknown, never zero. */
@@ -144,9 +145,17 @@ export async function planRoadMeasurements(input: RoadMeasurementPlanInput): Pro
   // Rows are indexed by candidate position, so the output keeps rank order and
   // the same length even when a candidate cannot be requested.
   const rows: (RoadMeasurementRow | null)[] = candidates.map(() => null)
+  const owners = new Set<string>()
   const measureable: { index: number; id: string; lat: number; lng: number }[] = []
 
   candidates.forEach((candidate, index) => {
+    if (owners.has(candidate.id)) {
+      // One id owns one fact. Keep the row, but never stamp it with a fact
+      // measured at another candidate's coordinates.
+      rows[index] = row(candidate.id, 'unmeasured', 'estimate', DUPLICATE_ID)
+      return
+    }
+    owners.add(candidate.id)
     if (String(candidate.hit?.id) !== candidate.id) {
       rows[index] = row(candidate.id, 'failed', 'unknown', IDENTITY_MISMATCH)
       return
@@ -163,10 +172,14 @@ export async function planRoadMeasurements(input: RoadMeasurementPlanInput): Pro
     // The null coalesce is a no-drop guard, not a measurement claim.
     const finalRows = rows.map((built, index) => built
       ?? row(candidates[index].id, 'pending', 'estimate', NOT_RETURNED))
+    // Count facts, not rows: one id can own only one measurement.
+    const measuredIds = new Set(
+      finalRows.filter(finalRow => finalRow.status === 'measured').map(finalRow => finalRow.hitId),
+    )
     return {
       activation: 'enabled',
       rows: finalRows,
-      measuredCount: finalRows.filter(finalRow => finalRow.status === 'measured').length,
+      measuredCount: measuredIds.size,
     }
   }
 
@@ -193,7 +206,7 @@ export async function planRoadMeasurements(input: RoadMeasurementPlanInput): Pro
       const outcome = await measureRoadDetours({
         origin,
         destination,
-        candidates: batch,
+        candidates: batch.map(item => ({ id: item.id, lat: item.lat, lng: item.lng })),
         generation: activeRoute.generation,
         routeFingerprint: activeRoute.routeFingerprint,
         transport,

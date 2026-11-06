@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 const styles = readFileSync('src/styles.css', 'utf8')
-const appended = styles.slice(styles.indexOf('/* Issue 841.'))
+// The lane is the 841 append, which ends where the Map V2 rules begin. The Map
+// workspace CSS follows this block, so slicing to end-of-file would judge it as
+// part of the toast lane.
+const laneStart = styles.indexOf('/* Issue 841.')
+const laneEnd = styles.indexOf('/* Map workspace.')
+const appended = styles.slice(laneStart, laneEnd === -1 ? undefined : laneEnd)
 const ui = readFileSync('src/components/ui.tsx', 'utf8')
 const standards = readFileSync('docs/standards/ui-and-design-system.md', 'utf8')
 

@@ -35,7 +35,7 @@ export function nextRoadLatch(latch: RoadLatch, tripId: string, status: RoadLatc
 }
 
 /** True while a re-measure runs after a failure: the banner stays up and says
- *  so, instead of vanishing when the user asked for another attempt. */
+ *  so, instead of vanishing when the user asked for another try. */
 export function isRoadRetryUnderway(latched: boolean, status: RoadLatchStatus): boolean {
   return latched && status === 'pending'
 }

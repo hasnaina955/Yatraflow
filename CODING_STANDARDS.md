@@ -1345,6 +1345,8 @@ process.
 
 - **A stack of overlapping avatars must not paint one colour (learned 2026-10-29).** Three initials circles in the same pale mint merge where they overlap. The stack then reads as one block, not as three people. Give each member a tone from the approved token trio. Two properties must hold together. The tone must be stable for an identity, so a rerender or a reorder does not reshuffle the colours. Neighbours must also differ, which a plain hash cannot promise. The stack resolves collisions in `assignAvatarTones`. Only a colliding member moves. A real photo still wins over a tone. Keep the visible circle and its hit target separate. The target may be 44px tall. A negative margin on a wide target either cancels the overlap or steals the neighbour's hits. `tests/avatar-tone.test.ts` pins the distinctness, the stability and the stylesheet pairing.
 
+- **A real-workspace receipt test must not mock the decision module as its transport (learned 2026-11-06, #841).** A workspace test that stubs the decision layer proves only the stub. Keep the production bridge and pass a controlled persistence under it. The uncertain write must reach the real `onUncertain` bridge. The kept callback must receive the acknowledged receipt, never `undefined`; a test that accepts `undefined` cannot see a fake success. Run this bridge in the focused suite. Label a mocked transport as client-only evidence, and never as server proof.
+
 ## 3. Scripted edits
 
 - **Day-start names must match the resolved origin.** Stored route points can precede a flight. Match location names against the journey coordinates.

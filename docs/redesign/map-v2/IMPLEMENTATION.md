@@ -16,6 +16,8 @@ The Map workspace uses 32-pixel numbered stops and 36-pixel house marks for stay
 
 The authored basemaps use the source land, water, green, road and label colours. The versioned style objects live in `src/lib/workspaceMapStyles.ts`. These are new styles, not the missing JSON files claimed by the source document. Vector data and Noto glyphs use the existing keyless provider. The vector TileJSON supplies attribution. Basemap place icons are absent. Minor roads start at zoom 12. The current 2D, Terrain and 3D behavior remains in place. A failed map source keeps the background, trip stops and route estimates. Its status offers a manual retry. These local styles await full visual acceptance.
 
+**The day plan and its writers (#841).** The rail, the comparison, the vote and Fill the day read one effective day plan per day. Each slot carries a stable trip, day and slot identity. A renamed or reordered day keeps its choices. The writers share one road-order policy. A proposed stop inserts before its measured endpoint. An unmeasured road refuses with a reason. A keep reports success only on a checked receipt and verified stops. The resolved vote lands through the `submit_collab_command` transition with ordered placement. Migration `20261026a` must be applied on the shared backend before the ordered landing serves a live trip.
+
 ## Local fixture
 
 Run `node node_modules/vite/bin/vite.js --config vite.map-fixture.config.ts` from the repository root. Open `http://127.0.0.1:5211/dev/map-workspace-fixture.html`.

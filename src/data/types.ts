@@ -507,6 +507,20 @@ export interface TripDecision {
   resolvedAt?: number
 }
 
+/** Explicit measured placement intent for one resolved slot vote. The captured
+ *  base revision travels with the intent so a route or day change cannot lend a
+ *  newer revision to an older measurement. An absent request keeps the legacy
+ *  append transition. A null anchor appends.
+ *
+ *  `expectedRevision` and `beforeStopId` are CLIENT intent facts. The store
+ *  projects them into the server's wire shape: one top-level `expectedRevision`
+ *  and a nested `orderedPlacement` of exactly `{ dayId, beforeStopId }`. */
+export interface OrderedDecisionResolution {
+  dayId: ID
+  beforeStopId: ID | null
+  expectedRevision: number
+}
+
 export interface ActivityEntry {
   id: ID
   tripId: ID

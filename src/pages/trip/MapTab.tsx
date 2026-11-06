@@ -4,9 +4,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
 import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, MapPin, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, SlidersHorizontal } from 'lucide-react'
 import { uid } from '../../data/seed'
-import type { Trip, ItineraryStop, TripDecision } from '../../data/types'
-import type { ImpactResult } from '../../lib/impact'
-import { removeStopWithUndo } from '../../lib/mutationLifecycle'
+import type { Trip, TripDecision } from '../../data/types'
+import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, type JourneyPoint, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
@@ -24,7 +23,7 @@ import { clockHM, deriveClockMilestones } from '../../lib/clockOverlay'
 import { sheetHiddenClass } from '../../lib/mapSheet'
 import { mapScopeNote } from '../../lib/railA11y'
 import { plannerDrives } from '../../lib/transportPolicy'
-import { candidatesAnnouncement, fillLabel, pickDayCaveat, scopeValueText, voteStatusId } from '../../lib/railA11y'
+import { fillLabel, pickDayCaveat, scopeValueText, voteStatusId } from '../../lib/railA11y'
 import { MapOmnibar } from './MapOmnibar'
 import { useOmnibarPlacement } from './map/useOmnibarPlacement'
 import { useMapSearch } from './map/useMapSearch'
@@ -46,7 +45,18 @@ import { MapItinerary, MapJourneyRibbon, MapPickCard, MapPhoneDay, MapSheetHandl
 import { driveRowsFromSegments } from './map/driveSuggestionView'
 import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import { LedgerRow } from './map/RailRowViews'
-import { filingOptionsFor, manualCandidateFor, mergeSlotCandidates } from './map/slotFiling'
+import { filingOptionsFor } from './map/slotFiling'
+import { arcCompletionEffects, arcPickPlan, arcStageLine, arcUndoLine, retryArcAdd, stageArcAdd, type ArcStageOutcome } from './map/arcAdd'
+import { guardedUndo, type WriterActionDeps, type WriterCompletion } from './map/mapWriterActions'
+import { mapWriterOperationGate } from './map/writerOperationGate'
+import { createSlotSearchGuard, searchContextForSlot } from './map/manualSlotContexts'
+import { isRoadRetryUnderway, nextRoadLatch, type RoadLatch } from './map/roadRetryLatch'
+import { isSlotSearchCurrent, slotSearchResetKey, visibleSlotSearch } from './map/slotSearchView'
+import {
+  measuredRoadFacts, openSlotAnnouncement, runSlotSearchFlow, SLOT_SEARCH_FAILED_COPY, slotRowsOf, slotSearchScopeKey, slotVoteReady, stableDayIdFor,
+} from './map/mapTabPipeline'
+import { batchSelection, planCounts } from '../../lib/dayPlan'
+import { admitTripPreview, tripById } from '../../store/store'
 import {
   dayWeatherJoin, drizzleDayIndex, journeyKmFrom, routePolylineFrom, weatherAnchorFrom, weatherFetchRefusal,
 } from './map/weatherGeometry'
@@ -60,7 +70,7 @@ import { isElectric } from '../../lib/vehicleProfile'
 import { dayShape, tripDayAttribution, SLOT_URGENCY_MIN, type DaySlot, type DaySlotKind } from '../../lib/daySlots'
 import { discardedStagedIds, isAlreadyAdded, normalizePlaceName, tripPresence, type PlaceIdentity } from '../../lib/placeIdentity'
 
-import { dayDetourBudgetMin, budgetSharePct, splitByDetourBudget } from '../../lib/detourBudget'
+import { dayDetourBudgetMin, splitByDetourBudget } from '../../lib/detourBudget'
 import { anyQuotaExhausted } from '../../lib/providers/quota'
 import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
@@ -149,7 +159,10 @@ function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
 export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
   trip: Trip
   editable: boolean
-  applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
+  /** #841: the workspace's shared write type. The first four arguments keep
+   *  their old meaning; the kept callback may receive the acknowledged receipt
+   *  and the fifth argument names the operation (id plus discard callback). */
+  applyChange: ApplyChange
   suggestionCache: ReturnType<typeof useSuggestionCache>
   /** #404: the Map publishes the freshness it scanned under, so the Overview's
    *  slot matrix can qualify stale numbers instead of printing them as current.
@@ -191,13 +204,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   // dismissed suggestion ids — logged as DNA declines, hidden for the session
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
-  // Bumped on every preview close: the staged ref moves to a fresh Map even
-  // when nothing releases, and this tick is what re-reads it into `identity`
-  // (#839 review P2 — an unchanged Set would bail the render out).
-  const [stagedTick, setStagedTick] = useState(0)
+  // The staged map the render reads. Render never touches the ref below: each
+  // stage and each preview close publishes a fresh Map here, so `identity`
+  // rebuilds on a close even when nothing releases (#839 review P2 - an
+  // unchanged Set would bail the render out).
+  const [stagedSnapshot, setStagedSnapshot] = useState<ReadonlyMap<string, string>>(() => new Map())
   // #345: ids this tab staged into a preview, with the name they will land
   // under. The preview-close effect below reads this to release what a
-  // DISCARDED preview staged — the ghost that used to hide a place until
+  // DISCARDED preview staged - the ghost that used to hide a place until
   // reload. A committed stop keeps its id because its name is then in the plan.
   const stagedIdsRef = useRef(new Map<string, string>())
   // DNA freshness: bumped on every accept/decline so scoring + notes re-read
@@ -213,12 +227,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // slot it was typed in, so a query resolved after switching slots can never
   // render its rows into the wrong slot (seq guard + key check), and the
   // manual picks live per slot, re-validated at render like the tray (#179).
-  const [slotSearch, setSlotSearch] = useState<{ key: string; q: string; busy: boolean; hits: PlaceHit[]; err: string | null } | null>(null)
+  // #841: the cell is scoped to the trip + stable day it was typed on. The view
+  // below returns null for any other day, so a lunch query never shows on
+  // another day's lunch slot, even for one render.
+  const [slotSearchCell, setSlotSearch] = useState<{ key: string; q: string; busy: boolean; hits: PlaceHit[]; err: string | null } | null>(null)
+  const [slotSearchScope, setSlotSearchScope] = useState<string | null>(null)
+  // The manual picks themselves live in mapManualSlotStore under trip + day +
+  // slot (candidate membership and counts read only that, through the shared
+  // day plan). This cell is the re-render notification the filing hook bumps;
+  // no candidate list is built from it.
   const [slotManual, setSlotManual] = useState<Record<string, PlaceHit[]>>({})
   const addingIdsRef = useRef(new Set<string>())
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set())
   const [addingAny, setAddingAny] = useState(false)
-  const slotSeq = useRef(0)
+  const slotGuard = useRef(createSlotSearchGuard())
   // detour-scope control — how far off the route suggestions may sit.
   // #181: guarded through uiPrefs (private-mode throw crashes a useState
   // initializer); namespace follows the app's yatraflow_* convention.
@@ -263,6 +285,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const { chipFilter, setChipFilter, folded, setFolded, mapFilter, setMapFilter,
     setLocalDay, activeDayIndex, sheetTab, setSheetTab, sheetApplies,
     showReturn, setShowReturn } = useRailView({ dayFocus, dayIndexes: trip.days.map(d => d.index) })
+  // #841: the persisted id of the day the rail is planning, found by the day's
+  // own index (indexes can skip after a deletion). Undefined = no stable day,
+  // and the writers then refuse instead of guessing one.
+  const activeDayId = stableDayIdFor(trip, activeDayIndex)
+  const searchScopeNow = slotSearchScopeKey(trip.id, activeDayId)
+  const slotSearch = visibleSlotSearch(slotSearchCell, slotSearchScope, searchScopeNow)
 
   // #420 slice 8: the search state moved with the runner into
   // ./map/useMapSearch (called after routeKmOf below) — the list refs and the
@@ -275,8 +303,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // coordinates / explicit skip — before anything is written. Lives with the
   // other hooks, above every path out of this component (AGENTS §6e).
   const { resolvePick, dialog: resolvePickDialog } = useResolvePick()
-  useEffect(() => () => {
-    slotAbort.current?.abort()
+  useEffect(() => {
+    const guard = slotGuard.current
+    return () => {
+      slotAbort.current?.abort()
+      guard.reset()
+    }
   }, [])
   // #345: ONE identity answers "is this already mine?" for every rail, slot,
   // arc, pin and search row. `tripPresence` is the stable half (the plan's own
@@ -291,9 +323,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     added: addedIds, dismissed: dismissedIds,
     // The predicate decides an open preview through `staged`; kept ids remain
     // in `added` as bookkeeping only - they must not outrank the plan (#839).
-    staged: stagedIdsRef.current,
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- stagedTick invalidates the memo on every close; the callback reads the ref the tick guards (#839 P2)
-  }), [tripPresenceIds, addedIds, dismissedIds, stagedTick])
+    staged: stagedSnapshot,
+  }), [tripPresenceIds, addedIds, dismissedIds, stagedSnapshot])
 
   // OSRM road geometry of the whole route — feeds Google Search-Along-Route
   // (the report's killer feature); the free stack ignores it. #188: the
@@ -329,19 +360,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // flagged as rough.
   const routeFailed = road?.status === 'failed'
   // #road-retry: this banner is the one surface that says the road failed, so it
-  // also owns the retry. A ref latches the failure while the re-measure is in
-  // flight — status flips to 'pending' the moment Retry is clicked, and a gate
-  // keyed on `failed` alone would drop the banner mid-retry: the honest state
-  // would vanish exactly when the user asked for another attempt. Latched in
-  // RENDER (not an effect) so a same-tick flip never reads stale. A resolved
-  // measurement clears it; a chain rebuild clears it too — after a route edit
-  // the old verdict is stale and the new chain measures on its own, so the
-  // latched failure must not pin a dead banner up.
-  const roadFailedEverRef = useRef(false)
-  if (road?.status === 'failed') roadFailedEverRef.current = true
-  if (road?.status === 'ok') roadFailedEverRef.current = false
-  const roadRetryUnderway = roadFailedEverRef.current && road?.status === 'pending'
-  const roadNeedsRetry = routeFailed || !!roadRetryUnderway
+  // also owns the retry. A latch holds the failure while the re-measure is in
+  // flight - status flips to 'pending' the moment Retry is clicked, and a gate
+  // keyed on `failed` alone would drop the banner mid-retry. The latch lives in
+  // state and steps while the page renders (map/roadRetryLatch), so a same-tick
+  // flip never reads stale and no ref is touched during render. A resolved
+  // measurement clears it. The latch is keyed to the trip that failed: this
+  // workspace outlives trips, and a carried failure must not read as "measuring
+  // the road again" on a trip that never failed.
+  const [roadLatch, setRoadLatch] = useState<RoadLatch>({ tripId: trip.id, failedEver: false })
+  const roadLatched = nextRoadLatch(roadLatch, trip.id, road?.status)
+  if (roadLatched !== roadLatch) setRoadLatch(roadLatched)
+  const roadRetryUnderway = isRoadRetryUnderway(roadLatched.failedEver, road?.status)
+  const roadNeedsRetry = routeFailed || roadRetryUnderway
   // The terrain profile (#124): the clock and the split convert time↔km
   // through the REAL mix of the road just measured, instead of one blended
   // rate that placed lunch and the night halt too far along a ghat day and
@@ -390,30 +421,36 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     return corridorAnchors(pts, trip.startLocationCoords ?? null, scopeKm * 1000)
   }, [trip, scopeKm])
 
-  // Per-day rain chance for the weather join — best-effort, null until loaded.
-  const [dayRainPct, setDayRainPct] = useState<(number | null)[] | null>(null)
-  // WMO code per day (#141) — separates a drizzle chance from a storm chance
-  // in the cap multiplier. Same loading lifecycle as the rain array.
-  const [dayWeatherCode, setDayWeatherCode] = useState<(number | null)[] | null>(null)
+  // Per-day rain chance and WMO code (#141, which separates a drizzle chance
+  // from a storm chance in the cap multiplier) - best-effort, null until loaded.
+  // The fetched join is keyed to the forecast it was asked for, so a trip that
+  // loses its forecast, or moves to another one, reads as not loaded with no
+  // reset effect.
+  const [fetchedWeather, setFetchedWeather] = useState<{ key: string; rainPct: (number | null)[] | null; codes: (number | null)[] | null } | null>(null)
   // Keep the rain join fresh: re-pull on the cadence and when the tab returns.
   const weatherTick = useWeatherRefreshTick()
+  // #420 slice 6: which stops the forecast may be centred on, and whether it may
+  // be fetched at all, are rules with their own tests now (map/weatherGeometry).
+  const weatherStops = trip.days.flatMap(d => d.stops)
+  const weatherAnchor = weatherAnchorFrom(weatherStops)
+  const weatherBlocked = !weatherAnchor || !!weatherFetchRefusal({ stops: weatherStops, startDate: trip.startDate, forecastAvailable })
+  const weatherKey = weatherAnchor ? `${weatherAnchor.lat},${weatherAnchor.lng}|${trip.startDate}|${trip.days.length}` : ''
+  const shownWeather = !weatherBlocked && fetchedWeather?.key === weatherKey ? fetchedWeather : null
+  const dayRainPct = shownWeather?.rainPct ?? null
+  const dayWeatherCode = shownWeather?.codes ?? null
   useEffect(() => {
-    // #420 slice 6: which stops the forecast may be centred on, and whether it may
-    // be fetched at all, are rules with their own tests now (map/weatherGeometry).
     const stops = trip.days.flatMap(d => d.stops)
     const anchor = weatherAnchorFrom(stops)
-    if (!anchor || weatherFetchRefusal({ stops, startDate: trip.startDate, forecastAvailable })) {
-      setDayRainPct(null); setDayWeatherCode(null); return
-    }
+    if (!anchor || weatherFetchRefusal({ stops, startDate: trip.startDate, forecastAvailable })) return
+    const key = `${anchor.lat},${anchor.lng}|${trip.startDate}|${trip.days.length}`
     let cancelled = false
     fetchDailyWeather(anchor.lat, anchor.lng, trip.startDate, trip.days.length || 1, { force: weatherTick > 0 })
       .then(w => {
         if (cancelled) return
         const join = dayWeatherJoin({ dayCount: trip.days.length, startDate: trip.startDate, byDate: w, isoAddDays })
-        setDayRainPct(join.rainPct)
-        setDayWeatherCode(join.codes)
+        setFetchedWeather({ key, rainPct: join.rainPct, codes: join.codes })
       })
-      .catch(() => { if (!cancelled) { setDayRainPct(null); setDayWeatherCode(null) } })
+      .catch(() => { if (!cancelled) setFetchedWeather({ key, rainPct: null, codes: null }) })
     return () => { cancelled = true }
   }, [trip, weatherTick])
   // OSRM's road total (when resolved AND worth trusting) is the most accurate
@@ -505,8 +542,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       clearHaltPinsForTrip(trip.id)
       toast('Route re-shaped - accepted halt pins cleared')
       suggestionCache.clearMap()
-      setRefreshTick(t => t + 1)
-      setDnaTick(t => t + 1) // nearbyOpts re-reads: the pins bag is now empty
+      // The pins bag is now empty: the planner and the corridor must re-read it.
+      // The request runs after this effect has finished, not from inside it.
+      queueMicrotask(() => { setRefreshTick(t => t + 1); setDnaTick(t => t + 1) })
     }
     savePref(key, endpointHash)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -597,10 +635,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const drizzleDay = drizzleDayIndex(dayRainPct, dayWeatherCode)
   // The split wants more days than planned: propose applying it. Declining is
   // respected — with the honest red fatigue verdict stated, never hidden.
-  const [splitDeclined, setSplitDeclined] = useState(false)
-  // Reset on the single-source count (#123): apply → recompute → same count →
-  // the banner stays dismissed instead of re-firing on its own mutation.
-  useEffect(() => { setSplitDeclined(false) }, [travelDayNeed])
+  // The decline is keyed to the single-source count (#123): apply -> recompute
+  // -> same count -> the banner stays dismissed instead of re-firing on its own
+  // mutation, and a new count reads as not declined with no reset effect.
+  const [splitDeclinedAt, setSplitDeclinedAt] = useState<number | null>(null)
+  const splitDeclined = splitDeclinedAt === travelDayNeed
+  const setSplitDeclined = (declined: boolean) => setSplitDeclinedAt(declined ? travelDayNeed : null)
   const applySplitDays = () => {
     if (clockVerdict.verdict !== 'ok') return // defer/hop: nothing honest to stamp
     const add = travelDayNeed - trip.days.length // #123 single source
@@ -739,6 +779,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const markStaged = useCallback((hits: Array<Pick<PlaceHit, 'id' | 'name'>>) => {
     if (hits.length === 0) return
     for (const h of hits) stagedIdsRef.current.set(String(h.id), normalizePlaceName(h.name))
+    setStagedSnapshot(new Map(stagedIdsRef.current))
     setAddedIds(prev => {
       const next = new Set(prev)
       for (const h of hits) next.add(String(h.id))
@@ -755,12 +796,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     const staged = stagedIdsRef.current
     stagedIdsRef.current = new Map()
     const release = new Set(discardedStagedIds(staged, identity.names))
-    // EVERY close must invalidate the identity memo: the ref just moved to a
-    // fresh Map, and a Keep whose name is already in the plan releases nothing,
-    // so setAddedIds alone would bail out on an unchanged Set and leave the
-    // memo attached to the old Map — a staged namesake of a kept place stayed
-    // hidden forever after its preview was discarded (#839 review P2).
-    setStagedTick(t => t + 1)
+    // EVERY close must publish a fresh staged map to the identity memo: a Keep
+    // whose name is already in the plan releases nothing, so setAddedIds alone
+    // would bail out on an unchanged Set and leave the memo attached to the old
+    // Map - a staged namesake of a kept place stayed hidden forever after its
+    // preview was discarded (#839 review P2).
+    setStagedSnapshot(new Map())
     if (release.size === 0) return
     setAddedIds(prev => {
       const next = new Set(prev)
@@ -788,69 +829,49 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
    *  ./map/slotFiling now, with their tests; this only supplies the day's slots. */
   const filingOptionsForPicked = (h: PlaceHit) => filingOptionsFor(h, activeDaySlots)
 
-  /** A search pick filed into a slot: real detour math from the SAME helpers
-   *  the engine uses (asymmetric against the drawn road + the day's real
-   *  budget). #420 slice 5: the candidate SHAPE — unknown fields honestly null,
-   *  no fabricated arrival time, provenance in the reason line — lives in
-   *  ./map/slotFiling with its tests; this only supplies the math. */
-  function makeManualCandidate(h: PlaceHit) {
-    return manualCandidateFor({
-      hit: h,
-      detourMin: asymmetricDetourMinutes(h, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40),
-      detourKm: asymmetricDetourKm(h, anchors, routePolyline),
-      budgetMin: dayDetourBudgetMin({
-        travelStyle: trip.travelStyle,
-        plannedStops: (trip.days.find(d => d.index === activeDayIndex)?.stops ?? []).filter(x => x.status !== 'rejected').length,
-      }),
-      sharePct: budgetSharePct,
-    })
-  }
-
-  /** Engine candidates plus this slot's own search picks — manual ones first
-   *  (they are the user's explicit picks), re-validated at render per #179: a
-   *  hit later added to the plan or dismissed drops out instead of doubling. */
   /** The mockup's headline interaction: find inside the open part. Mirrors
-   *  onSearch's guards (2-char floor, seq ownership, scope rank, quota class)
-   *  but answers into slot-local state, so the top search card keeps owning
-   *  corridor-wide discovery. Stays here (not in the hook): its quota-mapped
-   *  catch keeps the render compiler compiling — see the 6ad note. */
+   *  onSearch's guards (2-char floor, scope rank, quota class) but answers into
+   *  slot-local state, so the top search card keeps owning corridor-wide
+   *  discovery. #841: the query captures its exact trip, stable day and slot.
+   *  The flow (./map/mapTabPipeline) commits an answer only while that context
+   *  is still current, so a late answer, error or busy reset from another day
+   *  or part is dropped. The provider call and the quota mapping stay here. */
   async function runSlotSearch(slot: DaySlot) {
     const q = (slotSearch?.key === slot.key ? slotSearch.q : '').trim()
     if (q.length < 2 || slotSearch?.busy) return
-    const mySeq = ++slotSeq.current
+    if (!searchContextForSlot(slot)) {
+      toast('This part has no stable day yet - reload the trip before searching inside it.', 'err')
+      return
+    }
     slotAbort.current?.abort()
     const controller = new AbortController()
     slotAbort.current = controller
+    setSlotSearchScope(searchScopeNow)
     setSlotSearch({ key: slot.key, q, busy: true, hits: [], err: null })
     try {
-      const hits = await searchPlacesText(q, { routeCoords: routeGeometry, anchors, signal: controller.signal })
-      if (mySeq !== slotSeq.current) return
-      const ranked = hits
-        .map(h => ({ h, off: asymmetricDetourKm(h, anchors, routePolyline) }))
-        .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999))
-        .map(x => x.h)
-      setSlotSearch(s => (s && mySeq === slotSeq.current ? { ...s, busy: false, hits: ranked } : s))
-      if (hits.length === 0) toast(`No places found for "${q}".`)
+      await runSlotSearchFlow({
+        guard: slotGuard.current,
+        slot,
+        query: q,
+        controller,
+        search: (query, signal) => searchPlacesText(query, { routeCoords: routeGeometry, anchors, signal }),
+        rank: hits => hits
+          .map(h => ({ h, off: asymmetricDetourKm(h, anchors, routePolyline) }))
+          .sort((a, b) => (a.off ?? 9999) - (b.off ?? 9999))
+          .map(x => x.h),
+        isQuotaError: err => err instanceof QuotaExhaustedError,
+        commit: patch => setSlotSearch(s => (s && s.key === slot.key ? { ...s, ...patch } : s)),
+        onEmpty: query => toast(`No places found for "${query}".`),
+      })
     } catch (err) {
-      if (mySeq !== slotSeq.current || controller.signal.aborted) return
-      setSlotSearch(s => (s && mySeq === slotSeq.current
-        ? { ...s, busy: false, err: err instanceof QuotaExhaustedError
-            ? 'Google Places monthly cap reached - text search stays paused until the counter rolls over.'
-            : 'Search failed - try again.' }
-        : s))
+      // The flow reports its own failures. A throw from the commit or toast
+      // callbacks must not leave the box busy for the current context.
+      console.error('[yatraflow] slot search flow threw', err)
+      if (slotGuard.current.current()) {
+        setSlotSearch(cell => (cell && cell.key === slot.key ? { ...cell, busy: false, err: SLOT_SEARCH_FAILED_COPY } : cell))
+      }
     }
   }
-
-  function slotCands(slot: DaySlot) {
-    const manual = (slotManual[slot.key] ?? [])
-      .filter(h => !isAlreadyAdded(h, identity))
-      .map(makeManualCandidate)
-    // #420 slice 5: manual picks first, then the engine's minus their ids — the
-    // merge rule lives in ./map/slotFiling so it cannot drift from the refusal
-    // that reads the same two lists.
-    return mergeSlotCandidates(manual, slot.candidates)
-  }
-
 
   /** Delete straight from the map pin's popup. Since #424 this is THE
    *  destructive-stop path, shared with the Timeline's day row and the Board's
@@ -873,6 +894,70 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     removeStopWithUndo({ trip, stopId, dayIndex: meta.dayIndex, applyChange })
   }
 
+  /** #841: a route arc's "Add all" stages through the shared writer: one
+   *  operation gate, the shared planner, a stable day target per place and a
+   *  guarded Undo. Staging changes nothing the traveller sees as added. Only the
+   *  places the acknowledged save verified become added ids, DNA events and
+   *  Undo targets; the rest stay on the rail with their reason. */
+  async function addArc(arc: { label: string; hitIds: readonly (string | number)[] }) {
+    const label = arc.label.split(':')[0]
+    const plan = arcPickPlan({
+      hitIds: arc.hitIds,
+      arcHits,
+      isAdded: h => isAlreadyAdded(h, identity),
+      dayForKm,
+      dayIdForIndex: index => stableDayIdFor(trip, index),
+    })
+    const arcDeps = (): WriterActionDeps => ({
+      trip,
+      applyChange,
+      resolvePick,
+      mintStopId: newStopId,
+      gate: mapWriterOperationGate,
+      routeKmOf,
+      road: roadGrade.measured ? { routeKey: roadGrade.routeKey } : null,
+      currentTrip: () => tripById(trip.id),
+      poiVisitMinutes,
+      onCompletion: onArcCompletion,
+    })
+    const report = (staged: ArcStageOutcome) => {
+      const line = arcStageLine(label, staged)
+      toast(line.text, line.tone === 'err' ? 'err' : undefined)
+    }
+    function onArcCompletion(completion: WriterCompletion) {
+      const done = arcCompletionEffects(label, completion)
+      if (done.addedIds.length > 0) {
+        setAddedIds(prev => new Set([...prev, ...done.addedIds]))
+        for (const placed of done.dnaHits) {
+          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: placed.haltPurpose, category: placed.category, detourMin: asymmetricDetourMinutes(placed, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(placed.category) })
+        }
+        setDnaTick(t => t + 1)
+      }
+      if (done.line.tone === 'err') {
+        // F2: an uncertain arc carries the gate's exact retry ticket. The
+        // retry replays the captured operation and payload; it never rebuilds
+        // the picks from the current rail.
+        const ticket = completion.retry
+        if (ticket) {
+          toast(done.line.text, 'err', { label: 'Retry', run: () => { void retryArcAdd(arcDeps(), plan, ticket).then(report).catch(err => { console.error('[yatraflow] arc retry threw', err); toast('The retry could not start. Check the day before you try again; Saved edits can still recover the trip.', 'err') }) } })
+          return
+        }
+        toast(done.line.text, 'err')
+        return
+      }
+      undoToast(done.line.text, () => {
+        void guardedUndo(
+          { currentTrip: () => tripById(trip.id), admit: admitTripPreview },
+          { tripId: trip.id, operationId: completion.operationId, stops: done.undoStops },
+        ).then(result => {
+          const undone = arcUndoLine(label, result)
+          toast(undone.text, undone.tone === 'err' ? 'err' : undefined)
+        })
+      })
+    }
+    report(await stageArcAdd(arcDeps(), { tripId: trip.id, plan }))
+  }
+
   const dayOptions = trip.days.map(d => ({ index: d.index }))
 
   // #420 slice 13: the rail content (split, engine, costs, pool, arcs)
@@ -886,6 +971,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const detourMinFor = (hit: PlaceHit): number | null =>
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
+  const detourKmFor = (hit: PlaceHit): number | null => asymmetricDetourKm(hit, anchors, routePolyline)
+
+  // #841: the writers' measured-road grade, read from the workspace's finished
+  // measurement. It starts no routing call. A pending, failed, estimate-only or
+  // stale chain (a stop moved or was added since it was measured) grades as
+  // unmeasured and every placement refuses with a reason, so a line that merely
+  // exists on the map is never presented to the planner as a measured road.
+  const roadGrade = measuredRoadFacts({
+    trip,
+    road,
+    hasLine: !!routePolyline && routePolyline.length > 1,
+  })
 
   // #420 slice 2: the shortlist feature lives in its own hook now — the collection,
   // the shared "already mine?" filter, and both batch writers. Called here rather
@@ -902,12 +999,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     setAddedIds,
     newStopId,
     dayForKm,
-    dayIdForIndex: index => trip.days.find(d => d.index === index)?.id,
+    dayIdForIndex: index => stableDayIdFor(trip, index),
     poiVisitMinutes,
     routeKmOf,
     detourMinFor,
     busy: addingAny,
     setBusy: setAddingAny,
+    // #841: the measured grade and the chain signature the planner binds to.
+    // A line on the map alone never makes a write "measured".
+    roadMeasured: roadGrade.measured,
+    ...(roadGrade.measured ? { routeKey: roadGrade.routeKey } : {}),
   })
   const filterActive = chipFilter != null
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
@@ -1060,10 +1161,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // called from event handlers and the placement hook below, never render.
   const { addManualCandidate } = useSlotSearch({
     slotManual, setSlotManual, setSlotSearch, identity,
+    // #841: a filing is accepted only from the search typed on THIS trip and day.
+    isSearchCurrent: slotKey => isSlotSearchCurrent(slotSearchCell, slotSearchScope, searchScopeNow, slotKey),
   })
-  // P1: closing or switching parts drops the in-flight search (the seq bump
-  // retires any query still in the air so its rows can never land elsewhere).
-  useEffect(() => { slotSeq.current += 1; setSlotSearch(null) }, [openSlotKey])
+  // P1: closing or switching parts, days or trips drops the in-flight search.
+  // #841: the guard reset retires the captured context, so a query still in the
+  // air cannot file rows, an error or a busy reset into the new context.
+  const searchResetKey = slotSearchResetKey(searchScopeNow, openSlotKey)
+  const [searchResetSeen, setSearchResetSeen] = useState(searchResetKey)
+  if (searchResetSeen !== searchResetKey) {
+    setSearchResetSeen(searchResetKey)
+    setSlotSearch(null)
+  }
+  useEffect(() => {
+    slotGuard.current.reset()
+    slotAbort.current?.abort()
+  }, [openSlotKey, activeDayId, trip.id])
   // Plan P2.5's mobile slots summary: collapsed to a count + open on phones,
   // desktop hides the summary so this state never touches it there.
   const [slotsPeek, setSlotsPeek] = useState(false)
@@ -1072,23 +1185,34 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
    *  the stretch hint, which would quietly mislabel any future kind. */
   const slotPattern = (kind: DaySlotKind): string | null => dnaSlotHints[kind] ?? null
   const [fillingDay, setFillingDay] = useState(false)
-  const { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote } = useMapWriters({
+  // #841: the writers get the stable day, the shared presence identity, the
+  // measured-road grade and the detour measures. `dayPlan` is the day's ONE
+  // effective plan: the rows, the counts, the vote button and the batch all read
+  // it, so a pair on screen is the pair the vote and the fill select from.
+  const { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan } = useMapWriters({
     resolvePick, applyChange, trip, pois, routeKmOf, anchors, routePolyline,
     activeDayIndex, activeDaySlots, markStaged, addingAny, addingIdsRef,
     setAddingIds, setAddingAny, fillingDay, setFillingDay, setDnaTick,
     setOpenSlotKey, onOpenGroupInput,
+    dayId: activeDayId ?? null,
+    presence: identity,
+    roadMeasured: roadGrade.measured,
+    ...(roadGrade.measured ? { routeKey: roadGrade.routeKey } : {}),
+    detourMinFor,
+    detourKmFor,
   })
+  const dayCounts = planCounts(dayPlan)
+  // The open part's live-region line reads the same effective rows the cards show.
+  const openAnnouncement = openSlotAnnouncement(dayPlan, openSlotKey)
   /** P6.1: the rail's second reading - the day as a shape on one clock. */
   const [shapeView, setShapeView] = useState(false)
-  const shapeBlocks = useMemo(
-    // Derived only while the Shape view is open (it ran on every render even
-    // with the list showing), and handed the slots already computed for the
-    // rail so the day is not derived a third time.
-    () => (shapeView
-      ? dayShape(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }, activeDaySlots)
-      : []),
-    [shapeView, activeDayIndex, daySlotDeps, activeDayStops, activeDaySlots],
-  )
+  // Derived only while the Shape view is open, and handed the slots already
+  // computed for the rail so the day is not derived a third time. The call is
+  // plain (no manual memo) because a manual memo here made the render-compiler
+  // lint treat the slot list as mutated later.
+  const shapeBlocks = shapeView
+    ? dayShape(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }, activeDaySlots)
+    : []
   const phoneSheet = useMedia('(max-width: 760px)')
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)
@@ -1373,7 +1497,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 title={shapeView ? 'Back to the list' : 'See the day as a shape - drives and parts on one clock'}
                 onClick={() => setShapeView(v => !v)}
               >{shapeView ? 'List' : 'Shape'}</button>
-              {editable && activeDaySlots.some(s => s.state === 'empty' && s.candidates.length > 0) && (
+              {editable && dayCounts.fillable > 0 && batchSelection(dayPlan).items.length > 0 && (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -1494,10 +1618,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {/* #333 A5: the slot's candidates had no live region, so a screen-reader
                   user opening a part heard nothing about what was in reach. Mounted even
                   when a part opens: it starts empty by design, and a region that MOUNTS already carrying its text is never announced. */}
-              <span className="sr-only" role="status" aria-live="polite">{(() => {
-                const open = activeDaySlots.find(s => s.key === openSlotKey)
-                return open ? candidatesAnnouncement(open.label, slotCands(open).length) : ''
-              })()}</span>
+              <span className="sr-only" role="status" aria-live="polite">{openAnnouncement}</span>
                 {activeDaySlots.map(slot => {
                   const isOpen = openSlotKey === slot.key
                   // `urgencyMin` is window-end minus ETA, so it goes NEGATIVE
@@ -1591,8 +1712,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                             <div className="day-slot-hint">
                               Nothing planned yet
                               <span className="n">
-                                {slot.candidates.length > 0
-                                  ? ` · ${slot.candidates.length} candidate${slot.candidates.length === 1 ? '' : 's'} inside, tap to compare`
+                                {slotRowsOf(dayPlan, slot.key).length > 0
+                                  ? ` · ${slotRowsOf(dayPlan, slot.key).length} candidate${slotRowsOf(dayPlan, slot.key).length === 1 ? '' : 's'} inside, tap to compare`
                                   : ' · search the map to source one'}
                               </span>
                             </div>
@@ -1623,7 +1744,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                               aria-label={`Search to source the ${slot.label.toLowerCase()} slot`}
                               disabled={quotaOut}
                               value={slotSearch?.key === slot.key ? slotSearch.q : ''}
-                              onChange={e => setSlotSearch({ key: slot.key, q: e.target.value, busy: false, hits: [], err: null })}
+                              onChange={e => { setSlotSearchScope(searchScopeNow); setSlotSearch({ key: slot.key, q: e.target.value, busy: false, hits: [], err: null }) }}
                               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void runSlotSearch(slot) } }}
                             />
                             <button
@@ -1652,7 +1773,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                               )}
                             </div>
                           )}
-                          {slotCands(slot).map(c => (
+                          {slotRowsOf(dayPlan, slot.key).map(c => (
                             <div key={String(c.hit.id)} className="day-slot-cand">
                               <span className="day-slot-cand-nm">
                                 <b>{c.hit.name}</b>
@@ -1694,12 +1815,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                               >Fill</button>
                             </div>
                           ))}
-                          {slotCands(slot).length === 0 && (
+                          {slotRowsOf(dayPlan, slot.key).length === 0 && (
                             <p className="muted small" style={{ margin: '4px 0 0' }}>
                               No candidates in reach{slot.windowLabel ? ` inside ${slot.windowLabel}` : ''} - add one on the Timeline, or search the map.
                             </p>
                           )}
-                          {editable && !slot.vote && slotCands(slot).length >= 2 && (
+                          {editable && !slot.vote && slotVoteReady(dayPlan, slot.key) && (
                             <button type="button" className="chip chip-sm" disabled={addingAny} onClick={() => void raiseSlotVote(slot)}>
                               Ask the crew to vote
                             </button>
@@ -1845,95 +1966,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   <div>
                     <button
                       className="btn btn-primary btn-sm"
-                      onClick={async () => {
-                        const toAdd: { hit: PlaceHit; dayIndex: number }[] = []
-                        for (const id of arc.hitIds) {
-                          const m = arcHits.find(h => (h.id as string) === (id as string))
-                          if (!m || isAlreadyAdded(m, identity)) continue
-                          const mDay = dayForKm(m.cumKm)
-                          if (mDay == null) continue // no road position — cannot attribute to a day
-                          toAdd.push({ hit: m, dayIndex: mDay })
-                        }
-                        // #346: rows hide locally (setAddedIds below) — no forced re-search.
-                        // Resolve placeholder coords BEFORE writing — both
-                        // providers emit (0,0) "resolve on pick" placeholders
-                        // and a raw write pins the journey to Null Island
-                        // (found live 2026-09-14). Unpinnable hits are skipped
-                        // and stay available to retry.
-                        const resolved: { hit: PlaceHit; dayIndex: number }[] = []
-                        let unpinned = 0
-                        for (const item of toAdd) {
-                          const pinned = await resolvePick(item.hit)
-                          if (!pinned) { unpinned += 1; continue }
-                          recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: pinned.haltPurpose, category: pinned.category, detourMin: asymmetricDetourMinutes(pinned, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(pinned.category) })
-                          resolved.push({ hit: pinned, dayIndex: item.dayIndex })
-                        }
-                        const n = resolved.length
-                        // Batch apply all stops in a single change — each one
-                        // inserted at its road position (same rule as single adds)
-                        if (n > 0) {
-                          applyChange(draft => {
-                            const byDay = new Map<number, { hit: PlaceHit }[]>()
-                            for (const item of resolved) {
-                              const list = byDay.get(item.dayIndex) ?? []
-                              list.push(item)
-                              byDay.set(item.dayIndex, list)
-                            }
-                            for (const [dayIndex, items] of byDay) {
-                              // #563 — a day that reconcile removed mid-scan is
-                              // skipped, not crashed into: its items are dropped
-                              // with the rest of the batch still landing.
-                              const day = draft.days.find(d => d.index === dayIndex)
-                              if (!day) continue
-                              // new stops sorted by road position so sequential
-                              // splices land in journey order
-                              const sorted = [...items].sort((a, b) =>
-                                (routeKmOf(a.hit.latitude, a.hit.longitude) ?? Infinity) -
-                                (routeKmOf(b.hit.latitude, b.hit.longitude) ?? Infinity))
-                              for (const { hit } of sorted) {
-                                const stop = {
-                                  id: newStopId(),
-                                  title: hit.name,
-                                  category: (hit.category as ItineraryStop['category']) ?? 'sightseeing',
-                                  locationName: hit.description ?? hit.name,
-                                  placeId: hit.placeId,
-                                  lat: hit.latitude,
-                                  lng: hit.longitude,
-                                  description: hit.description ?? '',
-                                  notes: hit.haltPurpose ? 'Added from the ride plan' : 'Added from nearby suggestions',
-                                  visitMinutes: poiVisitMinutes(hit.category),
-                                  openTime: hit.openTime ?? '', closeTime: hit.closeTime ?? '',
-                                  entryFeeInrPerPerson: 0,
-                                  transportCostInrTotal: 0,
-                                  priority: 'nice-to-have',
-                                  sourceUrl: '',
-                                  status: 'suggested',
-                                  orderInDay: day.stops.length + 1,
-                                } as unknown as ItineraryStop
-                                const km = routeKmOf(hit.latitude, hit.longitude)
-                                let at = -1
-                                if (km != null) {
-                                  at = day.stops.findIndex(s => {
-                                    const skm = routeKmOf(s.lat, s.lng)
-                                    return skm != null && skm > km
-                                  })
-                                }
-                                if (at === -1) day.stops.push(stop)
-                                else day.stops.splice(at, 0, stop)
-                              }
-                              day.stops.forEach((s, i) => { s.orderInDay = i + 1 })
-                            }
-                          }, 'add', resolved[0].dayIndex)
-                        }
-                        setAddedIds(prev => {
-                          const next = new Set(prev)
-                          for (const { hit } of resolved) next.add(hit.id as string)
-                          return next
-                        })
-                        toast(n > 0
-                          ? `“${arc.label.split(':')[0]}” added (${n} stops)${unpinned > 0 ? ` - ${unpinned} could not be pinned on the map` : ''}`
-                          : (unpinned > 0 ? 'Those places could not be pinned on the map - try again or pick others' : 'All of those are already added'))
-                      }}
+                      onClick={() => { void addArc(arc) }}
                     >Add all ({arc.hitIds.length})</button>
                   </div>
                 </div>

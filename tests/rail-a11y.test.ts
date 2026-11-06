@@ -15,6 +15,9 @@ import {
   searchAnnouncement,
   voteStatusId,
 } from '../src/lib/railA11y'
+import { buildDayPlan } from '../src/lib/dayPlan'
+import type { DaySlot } from '../src/lib/daySlots'
+import { openSlotAnnouncement } from '../src/pages/trip/map/mapTabPipeline'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const mapTabSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
@@ -87,9 +90,21 @@ describe('scopeValueText (A8) and voteStatusId (A6)', () => {
 })
 
 describe('MapTab wires those sentences into the DOM', () => {
-  it('A5: the single search and slot candidates announce their results', () => {
+  it('A5: the search and the open slot announce their results through a live region', () => {
+    // The omnibar owns the search announcement in the Map V2 workspace.
     expect(omniSrc).toMatch(/searchAnnouncement\(/)
-    expect(mapTabSrc).toMatch(/candidatesAnnouncement\(/)
+    // The open part speaks the effective plan's row count (#841), through
+    // candidatesAnnouncement; the page no longer counts a private list.
+    expect(mapTabSrc).toMatch(/openSlotAnnouncement\(dayPlan, openSlotKey\)/)
+    const lunch: DaySlot = {
+      key: 'lunch', kind: 'meal', label: 'Lunch', state: 'empty', windowMin: [720, 900], windowLabel: '12:00 - 15:00',
+      segment: null, filledStop: null, auto: false, drift: null, urgencyMin: null,
+      ref: { tripId: 'trip-a11y', dayId: 'day-a11y', key: 'lunch' }, reason: null, candidates: [],
+    }
+    const plan = buildDayPlan({ dayIndex: 0, slots: [lunch], tripId: 'trip-a11y', dayId: 'day-a11y', manual: {} })
+    expect(openSlotAnnouncement(plan, 'lunch')).toBe(candidatesAnnouncement('Lunch', 0))
+    expect(openSlotAnnouncement(plan, null)).toBe('')
+    expect(openSlotAnnouncement(plan, 'dinner')).toBe('')
     // a polite live region, not a static label the user has to go find
     expect(mapTabSrc).toMatch(/role="status"[^>]*aria-live="polite"|aria-live="polite"[^>]*role="status"/)
   })

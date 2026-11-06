@@ -23,7 +23,7 @@ describe('#420 slice 17 — the filing writer leaves the page', () => {
   it('the page mounts the writer with its cells as deps', () => {
     expect(mapTab).toContain("from './map/useSlotSearch'")
     expect(mapTab).toMatch(/const \{ addManualCandidate \} = useSlotSearch\(\{/)
-    for (const dep of ['slotManual,', 'setSlotManual,', 'setSlotSearch,', 'identity,']) {
+    for (const dep of ['setSlotManual,', 'setSlotSearch,', 'identity,']) {
       expect(hook, `hook lost its ${dep} dep`).toContain(dep)
     }
     expect(mapTab).not.toMatch(/function addManualCandidate\(slot: DaySlot/)
@@ -33,6 +33,9 @@ describe('#420 slice 17 — the filing writer leaves the page', () => {
     expect(hook).toContain("from './slotFiling'")
     expect(hook).toMatch(/slotFileRefusal\(\{/)
     expect(hook).toContain('setSlotManual')
+    // #841: the bare slot-key bucket is retired as a pick source.
+    expect(hook).not.toMatch(/slotManual\[/)
+    expect(hook).not.toMatch(/\[slot\.key\]: \[h,/)
     expect(hook).toContain('setSlotSearch')
     expect(mapTab).not.toContain('slotFileRefusal')
   })

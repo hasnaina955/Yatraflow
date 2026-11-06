@@ -271,16 +271,18 @@ describe('the release effect publishes every preview close (#839 review P2)', ()
   const mapTab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
   const effectStart = mapTab.indexOf('A preview that is DISCARDED must not leave a ghost')
   const effect = mapTab.slice(effectStart, mapTab.indexOf('}, [previewOpen, identity])', effectStart))
-  it('bumps the staged tick before the release early-return', () => {
+  it('publishes the fresh staged map before the release early-return', () => {
     // A close that releases nothing (a Keep whose name is in the plan) must
     // still publish: setAddedIds alone bails out on an unchanged Set, and the
     // memo would stay attached to the old staged Map.
-    const bump = effect.indexOf('setStagedTick(t => t + 1)')
+    const bump = effect.indexOf('setStagedSnapshot(new Map())')
     const bail = effect.indexOf('release.size === 0')
     expect(bump).toBeGreaterThan(-1)
     expect(bail).toBeGreaterThan(bump)
   })
-  it('the identity memo re-reads the staged map on that tick', () => {
-    expect(mapTab).toMatch(/tripPresenceIds, addedIds, dismissedIds, stagedTick\]/)
+  it('the identity memo re-reads the staged map when it is published', () => {
+    expect(mapTab).toMatch(/tripPresenceIds, addedIds, dismissedIds, stagedSnapshot\]/)
+    // Render reads the published snapshot, never the ref the handlers mutate.
+    expect(mapTab).toContain('staged: stagedSnapshot,')
   })
 })

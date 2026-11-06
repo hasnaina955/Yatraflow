@@ -8,11 +8,63 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { railKeyAction } from '../src/lib/railKeys'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const omniSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapOmnibar.tsx'), 'utf8').replace(/\r\n/g, '\n')
 const mapTabSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
+
+// A source-string guard cannot tell a control from a container, and a raw
+// regex stops at the arrow token in an earlier attribute. Read the TSX AST.
+const INTERACTIVE_TAGS = new Set(['button', 'input', 'select', 'textarea', 'a', 'summary'])
+const INTERACTIVE_ROLES = new Set(['button', 'link'])
+
+const attrOf = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement, name: string): ts.JsxAttribute | undefined =>
+  el.attributes.properties.find((a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && ts.isIdentifier(a.name) && a.name.text === name)
+
+const stringAttr = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement, name: string): string | null => {
+  const init = attrOf(el, name)?.initializer
+  if (!init) return null
+  if (ts.isStringLiteralLike(init)) return init.text
+  if (ts.isJsxExpression(init) && init.expression && ts.isStringLiteralLike(init.expression)) return init.expression.text
+  return null
+}
+
+/** True when a JSX tabIndex initializer is the literal -1. */
+const isNegativeOne = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean => {
+  const init = attrOf(el, 'tabIndex')?.initializer
+  if (!init) return false
+  if (ts.isStringLiteralLike(init)) return init.text === '-1'
+  if (!ts.isJsxExpression(init) || !init.expression) return false
+  const e = init.expression
+  return ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.MinusToken
+    && ts.isNumericLiteral(e.operand) && e.operand.text === '1'
+}
+
+/** Native interactive controls, or any element with role button/link. Custom
+ *  components are outside this source guard; a separate a11y review covers them. */
+const isInteractive = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean => {
+  const tag = el.tagName.getText()
+  if (/^[a-z]/.test(tag) && INTERACTIVE_TAGS.has(tag)) return true
+  const role = stringAttr(el, 'role')
+  return role != null && INTERACTIVE_ROLES.has(role)
+}
+
+/** Interactive JSX controls that opt out of the tab order. */
+function unreachableControls(source: string): { tag: string; line: number }[] {
+  const sf = ts.createSourceFile('fixture.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const found: { tag: string; line: number }[] = []
+  const visit = (n: ts.Node): void => {
+    const el = ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n) ? n : null
+    if (el && isInteractive(el) && isNegativeOne(el)) {
+      found.push({ tag: el.tagName.getText(), line: sf.getLineAndCharacterOfPosition(el.getStart(sf)).line + 1 })
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(sf)
+  return found
+}
 
 describe('railKeyAction', () => {
   const count = 5
@@ -92,6 +144,39 @@ describe('the rail uses that grammar, not a one-branch Enter handler', () => {
   })
 })
 
+describe('A4 guard reads the TSX AST, not a raw source regex', () => {
+  const bad = [
+    { label: 'the original #333 A4 button', source: '<button onClick={h} tabIndex={-1}>x</button>' },
+    { label: 'an arrow callback before tabIndex', source: '<button onClick={() => act()} tabIndex={-1}>x</button>' },
+    { label: 'a multiline arrow callback', source: '<button\n  onClick={() => act()}\n  tabIndex={-1}\n>x</button>' },
+    { label: 'tabIndex before the handler', source: '<button tabIndex={-1} onClick={() => act()}>x</button>' },
+    { label: 'a self-closing input', source: '<input tabIndex={-1} />' },
+    { label: 'summary', source: '<summary tabIndex={-1}>x</summary>' },
+    { label: 'a string -1 initializer', source: '<button tabIndex="-1">x</button>' },
+    { label: 'an explicit role button', source: '<div role="button" tabIndex={-1}>x</div>' },
+    { label: 'an explicit role link', source: '<span role="link" tabIndex={-1}>x</span>' },
+  ]
+  const legal = [
+    { label: 'a non-interactive sheet panel region', source: '<div tabIndex={-1} className="poi-col" id="rail-see"></div>' },
+    { label: 'a roving tabIndex expression', source: '<button tabIndex={row === active ? 0 : -1}>x</button>' },
+    { label: 'a zero tab stop', source: '<button tabIndex={0}>x</button>' },
+    { label: 'a plain group role', source: '<div role="group" tabIndex={-1}></div>' },
+    { label: 'a custom component outside this guard', source: '<MyControl tabIndex={-1} />' },
+  ]
+
+  it('flags every interactive control shape with a negative tabIndex', () => {
+    for (const c of bad) expect(unreachableControls(c.source), c.label).not.toEqual([])
+  })
+
+  it('allows non-interactive regions, roving tabIndex and custom components', () => {
+    for (const c of legal) expect(unreachableControls(c.source), c.label).toEqual([])
+  })
+
+  it('finds no interactive control with tabIndex -1 in MapTab', () => {
+    expect(unreachableControls(mapTabSrc)).toEqual([])
+  })
+})
+
 describe('the rail states scope in words, and keeps nothing unreachable (#333 A4, A7)', () => {
   it('A4: the rotating tip dots are indicators, not unreachable buttons', () => {
     // They were <button onClick tabIndex={-1}> inside an aria-hidden container:
@@ -100,13 +185,11 @@ describe('the rail states scope in words, and keeps nothing unreachable (#333 A4
     // (#168), so the dots carry no control at all now.
     expect(mapTabSrc).toMatch(/engine-tips-dots" aria-hidden="true"/)
     expect(mapTabSrc).toMatch(/<span key=\{i\} className=\{`engine-tips-dot/)
-    // No control anywhere in the rail may opt itself out of the tab order —
-    // that is the shape of "focusable things a keyboard cannot reach". A sheet
-    // panel region is not a control, so it may carry tabIndex={-1} as a
+    // No keyboard-reachable control may opt itself out of the tab order. That
+    // is the shape of "focusable things a keyboard cannot reach". A sheet panel
+    // region is not a control, so it may carry a negative tabIndex as a
     // programmatic focus target for a keyboard snap.
-    const unreachableControl = /<(?:button|input|select|textarea|a)\b[^>]*tabIndex=\{-1\}/
-    expect(unreachableControl.test('<button onClick tabIndex={-1}>')).toBe(true)
-    expect(mapTabSrc).not.toMatch(unreachableControl)
+    expect(unreachableControls(mapTabSrc)).toEqual([])
     expect(mapTabSrc).not.toMatch(/engine-tips-dot[^>]*onClick/)
   })
 

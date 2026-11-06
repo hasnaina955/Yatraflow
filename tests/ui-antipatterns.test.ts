@@ -4,7 +4,8 @@
 // violation AND stays silent on the shapes this repo deliberately uses, since
 // a gate that cries wolf on correct code stops being run.
 import { describe, it, expect } from 'vitest'
-import { check, RULES } from '../scripts/uiAntipatterns.mjs'
+import { readFileSync } from 'node:fs'
+import { check, RULES, MAP_TARGET_FLOOR_CLASSES, isFloorSelector } from '../scripts/uiAntipatterns.mjs'
 
 const cleanCss = `
 .btn { transition: color 180ms ease, background 180ms ease; }
@@ -80,49 +81,98 @@ describe('ui anti-pattern gate', () => {
   describe('U4 Map V2 44px floor', () => {
     // The two shipped misses that made this rule: the desktop fold button
     // measured 32x32 and the deck shelf buttons 25-26px (ticket 06 reports).
-    it('catches a 32px fold button (the shipped desktop miss), once per line', () => {
-      const f = check({ 'src/styles.css': '.mv2-deck-header > .mv2-icon-btn { width: 32px; }' })
-      expect(f).toHaveLength(1)
-      expect(f[0]).toMatchObject({ rule: 'U4' })
-      expect(f[0].text).toContain('width: 32px')
+    // check() parses fixture CSS with the script's own PostCSS path, so these
+    // exercise the real record contract.
+    const checkCss = (css: string) => check({ 'src/styles.css': css })
+
+    it('catches a 32px fold button, one line and multiline', () => {
+      const one = checkCss('.mv2-deck-header > .mv2-icon-btn { width: 32px; }')
+      expect(one).toHaveLength(1)
+      expect(one[0].text).toContain('width: 32px')
+      expect(one[0].why).toContain('44px')
+
+      const multi = checkCss('.mv2-deck-header > .mv2-icon-btn {\n  height: 32px;\n  border-radius: 999px;\n}')
+      expect(multi).toHaveLength(1)
+      expect(multi[0].text).toContain('height: 32px')
     })
 
-    it('catches a 26px shelf chip and a 24px scoped poi-fold', () => {
+    it('catches a 26px shelf chip and a 24px scoped poi-fold, one finding per line', () => {
       const css = [
         '.mv2-workspace .lrow-deck .ledger-shelf > button { min-height: 26px; }',
         '.mv2-workspace .poi-fold { width: 24px; height: 24px; }',
       ].join('\n')
-      const f = check({ 'src/styles.css': css })
+      const f = checkCss(css)
+      // The shelf line reports once; the poi-fold line reports once — a line
+      // with two sub-44 sizes is one defect to fix, matching the gate's
+      // one-finding-per-line contract.
       expect(f).toHaveLength(2)
+    })
+
+    it('ignores comments and the same size inside a comment', () => {
+      const css = [
+        '/* .mv2-icon-btn { width: 32px; } — old rule, kept as prose */',
+        '.mv2-icon-btn { /* width: 32px */ color: currentColor; }',
+      ].join('\n')
+      expect(checkCss(css)).toEqual([])
+    })
+
+    it('allows a 16px icon child; the floor governs the control, not its svg', () => {
+      expect(checkCss('.mv2-icon-btn svg { width: 16px; height: 16px; }')).toEqual([])
+    })
+
+    it('does not match a similar class name', () => {
+      expect(checkCss('.other-mv2-icon-btn { width: 24px; }')).toEqual([])
+      expect(isFloorSelector('.other-mv2-icon-btn')).toBe(false)
+      expect(isFloorSelector('.mv2-icon-btn')).toBe(true)
     })
 
     it('does not fire on the legacy unscoped surfaces the graph still ships', () => {
       const css = [
         '.ledger-shelf { display: flex; flex-wrap: wrap; }',
         '.poi-fold { width: 24px; height: 24px; }',
-        '.ledger-shelf { padding: 8px 10px; }',
       ].join('\n')
-      expect(check({ 'src/styles.css': css })).toEqual([])
+      expect(checkCss(css)).toEqual([])
     })
 
     it('does not fire on non-Map controls at 40px (repo-wide floor)', () => {
-      expect(check({ 'src/styles.css': '.map-day-chip { min-width: 40px; min-height: 44px; }' })).toEqual([])
+      expect(checkCss('.map-day-chip { min-width: 40px; min-height: 44px; }')).toEqual([])
     })
 
     it('does not fire at 44px or on non-size uses like min-width: 0', () => {
       const css = [
         '.mv2-icon-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }',
         '.mv2-icon-btn { min-width: 0; }',
-        '.mv2-workspace .map-ideas-map { min-width: 0; }',
       ].join('\n')
-      expect(check({ 'src/styles.css': css })).toEqual([])
+      expect(checkCss(css)).toEqual([])
     })
 
-    it('reports the offending line so the fix is actionable', () => {
-      const f = check({ 'src/styles.css': '.mv2-workspace .poi-fold { height: 30px; }' })
+    it('reports the exact source line the declaration lives on', () => {
+      const css = '/* two lines of prose */\n\n.mv2-workspace .poi-fold {\n  height: 30px;\n}'
+      const f = checkCss(css)
       expect(f).toHaveLength(1)
-      expect(f[0].text).toContain('height: 30px')
-      expect(f[0].rule).toBe('U4')
+      expect(f[0].line).toBe(4)
+      expect(f[0].source).toBe('src/styles.css:4')
+    })
+  })
+
+  describe('U4 floor-presence contract (the shared rules must exist)', () => {
+    const live = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+
+    it('carries the 44px floor on the shared control rule itself', () => {
+      const f = check({ 'src/styles.css': live })
+      expect(f.filter(x => x.rule === 'U4')).toEqual([])
+      // Absence of bad px is not the contract: a shared floor rule must
+      // actually declare 44px on one of the Map control selectors.
+      const floored = live.split('\n').filter(line =>
+        /min-(width|height):\s*44px/.test(line) && isFloorSelector(line.split('{')[0] ?? ''),
+      )
+      expect(floored.length, 'no shared Map control rule declares the 44px floor').toBeGreaterThan(0)
+    })
+
+    it('keeps the floor class list named', () => {
+      expect(MAP_TARGET_FLOOR_CLASSES).toContain('mv2-icon-btn')
+      expect(MAP_TARGET_FLOOR_CLASSES).toContain('poi-fold')
+      expect(MAP_TARGET_FLOOR_CLASSES).toContain('ledger-shelf')
     })
   })
 

@@ -57,6 +57,26 @@ export type DaySlotKind = SlotKind
 export type MealSlotName = 'lunch' | 'dinner'
 export type SlotState = 'filled' | 'empty' | 'auto'
 
+/** Stable identity of one planning slot (#841): the trip, the persisted
+ *  itinerary day (`ItineraryDay.id`) and the day grammar's current slot key.
+ *  A day array position or an editable title is never identity. `null` on a
+ *  `DaySlot` means the caller supplied no stable day context, so a writer must
+ *  refuse rather than guess a day. */
+export interface SlotRef {
+  tripId: string
+  dayId: string
+  key: SlotKey
+}
+
+/** Why an open poll that names a slot did not bind to it. Ambiguity stays
+ *  explicit: the slot never guesses a day, and the poll remains available in
+ *  Group input. */
+export type SlotVoteUnboundReason = 'ambiguous-day-evidence' | 'multiple-open-polls'
+export interface SlotVoteUnbound {
+  decisionId: string
+  reason: SlotVoteUnboundReason
+}
+
 /** One fillable candidate for an empty slot, pre-scored and window-annotated. */
 export interface SlotCandidate {
   hit: PlaceHit
@@ -115,9 +135,15 @@ export interface DaySlot {
   drift: { fromKm: number; toKm: number } | null
   /** window end minus ETA; <= SLOT_URGENCY_MIN means "closing", negative = missed (null = no window or no ETA) */
   urgencyMin: number | null
+  /** Stable trip+day+slot identity; null when the caller gave no stable day
+   *  context (a legacy row), so a write must refuse rather than guess a day. */
+  ref: SlotRef | null
   candidates: SlotCandidate[]
   /** an open crew decision raised for this part (plan P4) */
   vote?: SlotVote
+  /** Open polls that name this part but did not bind to this day. They stay
+   *  available in Group input; the slot never chooses one of them. */
+  voteUnbound?: SlotVoteUnbound[]
   /** why-line for the auto state ("Engine-managed stretch") */
   reason: string | null
 }
@@ -164,6 +190,16 @@ export interface DaySlotsDeps {
   /** The trip's decisions: an open one whose options name this part shows as
    *  the part's live vote instead of its candidates. */
   decisions?: TripDecision[]
+  /** Stable trip identity (`Trip.id`) for the day's `SlotRef`. */
+  tripId?: string
+  /** The persisted id of THIS day (`ItineraryDay.id`). It wins over a legacy
+   *  option's day index. Absent = resolve per day through `dayIdOf`, so a
+   *  caller that does not know the id gets an explicit null ref, never a
+   *  guessed day. */
+  dayId?: string
+  /** Resolve a day's persisted id by index (`ItineraryDay.id`). `tripReadiness`
+   *  uses it so every row carries its own day identity, not the active day's. */
+  dayIdOf?: (dayIndex: number) => string | null
   /** Crew size for the vote's "N of M" reading — the trip's MEMBERS, the
    *  same denominator Group Input divides by, so one poll reads ONE quorum on
    *  both surfaces (#335's product call). `travellers` was a different count
@@ -211,6 +247,32 @@ const SLOT_LABELS: Record<SlotKey, string> = {
 
 const LUNCH_END_MIN = LUNCH_WINDOW[1] // 14:30 - the meal split boundary
 const BREAKFAST_END_MIN = BREAKFAST_WINDOW[1] // 9:30
+
+/** A usable persisted id, or null. Never coerce a non-string into an identity. */
+function nonEmptyId(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+/** The persisted id of this day: the explicit `dayId` wins, then `dayIdOf`.
+ *  Null when neither names a day - identity stays explicit, never guessed. */
+function stableDayIdFor(dayIndex: number, deps: Pick<DaySlotsDeps, 'dayId' | 'dayIdOf'>): string | null {
+  return nonEmptyId(deps.dayId) ?? nonEmptyId(deps.dayIdOf?.(dayIndex))
+}
+
+/**
+ * The stable trip+day+slot reference (#841), or null when the caller supplied
+ * no stable trip/day identity. Every map writer must refuse a null ref instead
+ * of falling back to an array position or Day 1.
+ */
+export function slotRefFor(
+  dayIndex: number,
+  deps: Pick<DaySlotsDeps, 'tripId' | 'dayId' | 'dayIdOf'>,
+  key: SlotKey,
+): SlotRef | null {
+  const tripId = nonEmptyId(deps.tripId)
+  const dayId = stableDayIdFor(dayIndex, deps)
+  return tripId && dayId ? { tripId, dayId, key } : null
+}
 
 /** Day slicing: the caller's attribution (dayOfSegment) wins when given;
  *  otherwise each `dayEnd` segment closes its day. */
@@ -689,13 +751,73 @@ function addSkeleton(drafts: SlotDraft[], deps: DaySlotsDeps, dayIndex: number):
   }
 }
 
-/** The part's live vote, if the crew has one open for it. The option ids a
- *  slot poll raises carry `slot:<key>:` - the join that makes this exact. */
-function voteFor(draft: SlotDraft, deps: DaySlotsDeps): SlotVote | undefined {
-  const prefix = `slot:${draft.key}:`
-  const dec = (deps.decisions ?? []).find(d => d.status === 'open'
-    && d.options.some(o => String(o.id).startsWith(prefix)))
-  if (!dec) return undefined
+/** What one poll's evidence says about THIS day. `other-day` is positive (the
+ *  poll names a different day, so it is not this slot's business); `ambiguous`
+ *  means the evidence cannot pick a day and the poll must not attach here. */
+type PollDayVerdict = 'bound' | 'other-day' | 'ambiguous'
+
+/**
+ * Does one poll bind to the day being rendered? (#841)
+ *
+ * The option ids keep the `slot:<key>:` spelling that the resolver parses, so
+ * the kind join still starts from that prefix. Day evidence then decides:
+ *
+ *  - a stable `place.dayId` is authoritative. It wins over a stale
+ *    `place.dayIndex`, so a reordered day keeps its poll;
+ *  - an index-only legacy option binds only by the day index the caller is
+ *    rendering in the current trip;
+ *  - a unique kind prefix is NOT evidence. Unscoped, mixed or conflicting
+ *    evidence is ambiguous, and the poll stays in Group input;
+ *  - a poll that positively names another day never attaches here.
+ *
+ * Evidence must be unanimous across the options that name this kind. One poll
+ * mixing stable ids, indexes or scopes is ambiguous rather than half-attached.
+ */
+function pollDayVerdict(
+  options: readonly TripDecision['options'][number][],
+  prefix: string,
+  dayIndex: number,
+  dayId: string | null,
+): PollDayVerdict {
+  const named = options.filter(o => String(o.id).startsWith(prefix))
+  if (named.length === 0) return 'other-day'
+
+  const stableIds = new Set<string>()
+  const indexes = new Set<number>()
+  let stableCount = 0
+  let unscopedCount = 0
+
+  for (const option of named) {
+    const place = option.place
+    const optionDayId = nonEmptyId(place?.dayId)
+    const optionIndex =
+      typeof place?.dayIndex === 'number' && Number.isFinite(place.dayIndex) ? place.dayIndex : null
+    if (optionDayId) {
+      stableCount += 1
+      stableIds.add(optionDayId)
+    } else if (optionIndex != null) {
+      indexes.add(optionIndex)
+    } else {
+      unscopedCount += 1
+    }
+  }
+
+  if (stableCount > 0) {
+    // A stable id beside an index-only or unscoped option is mixed evidence.
+    if (stableCount !== named.length || stableIds.size !== 1) return 'ambiguous'
+    const [onlyDayId] = [...stableIds]
+    // Without a current stable id the slot cannot verify the poll.
+    if (!dayId) return 'ambiguous'
+    return onlyDayId === dayId ? 'bound' : 'other-day'
+  }
+  if (unscopedCount > 0) return 'ambiguous'
+  if (indexes.size !== 1) return 'ambiguous'
+  const [onlyIndex] = [...indexes]
+  return onlyIndex === dayIndex ? 'bound' : 'other-day'
+}
+
+/** The bound poll's tally, read exactly as the rail has always read it. */
+function tallyVote(dec: TripDecision, deps: DaySlotsDeps): SlotVote {
   const cast = Object.values(dec.votesByUserId ?? {}).filter(Boolean)
   const tally = new Map<string, number>()
   for (const optionId of cast) tally.set(optionId, (tally.get(optionId) ?? 0) + 1)
@@ -716,6 +838,38 @@ function voteFor(draft: SlotDraft, deps: DaySlotsDeps): SlotVote | undefined {
     voters: deps.memberCount ?? 0,
     leadingLabel: leading,
   }
+}
+
+/**
+ * The part's live vote, if the crew has one open for THIS day. Option ids keep
+ * `slot:<key>:` - the kind join stays exact - while the day comes from the
+ * option's own evidence. More than one matching open poll is ambiguous, not a
+ * race the first row wins; such polls are reported as unbound, never guessed.
+ */
+function voteFor(
+  draft: SlotDraft,
+  deps: DaySlotsDeps,
+  dayIndex: number,
+  dayId: string | null,
+): Pick<DaySlot, 'vote' | 'voteUnbound'> {
+  const prefix = `slot:${draft.key}:`
+  const bound: TripDecision[] = []
+  const unbound: SlotVoteUnbound[] = []
+  for (const dec of deps.decisions ?? []) {
+    if (deps.tripId && dec.tripId !== deps.tripId) continue
+    if (dec.status !== 'open') continue
+    const verdict = pollDayVerdict(dec.options, prefix, dayIndex, dayId)
+    if (verdict === 'bound') bound.push(dec)
+    else if (verdict === 'ambiguous') unbound.push({ decisionId: dec.id, reason: 'ambiguous-day-evidence' })
+  }
+  const fields: Pick<DaySlot, 'vote' | 'voteUnbound'> = {}
+  if (bound.length === 1) {
+    fields.vote = tallyVote(bound[0], deps)
+  } else if (bound.length > 1) {
+    for (const dec of bound) unbound.push({ decisionId: dec.id, reason: 'multiple-open-polls' })
+  }
+  if (unbound.length > 0) fields.voteUnbound = unbound
+  return fields
 }
 
 /**
@@ -752,6 +906,9 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
   if (drafts.length === 0) return []
 
   const claims = fillStopFor(drafts, deps.dayStops)
+  // One day context, shared by every slot: the persisted id (never the array
+  // position) and the trip that owns it. Unknown identity stays null.
+  const dayId = stableDayIdFor(dayIndex, deps)
 
   return drafts.map(draft => {
     const seg = draft.segments[0] ?? null
@@ -792,8 +949,11 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       auto,
       drift,
       urgencyMin,
+      // The day id the vote join and later writers use; null when the caller
+      // did not supply stable context.
+      ref: slotRefFor(dayIndex, deps, draft.key),
       candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps),
-      ...(filledStop ? {} : { vote: voteFor(draft, deps) }),
+      ...(filledStop ? {} : voteFor(draft, deps, dayIndex, dayId)),
       reason: auto ? 'Engine-managed stretch' : null,
     }
   })
@@ -898,9 +1058,15 @@ export function tripReadiness(
   }
   for (let d = 0; d <= maxDay; d++) {
     const dayEntry = days.find(x => x.index === d)
+    // Each row resolves ITS OWN persisted id: an explicit id for the active
+    // day must not label every other day in the matrix.
+    const rowDayId = nonEmptyId(base.dayIdOf?.(d))
     out.push(
       dayReadiness(d, {
         ...base,
+        // `undefined` clears the active day's explicit id; the row still
+        // resolves its own through `dayIdOf` inside `daySlots`.
+        dayId: rowDayId ?? undefined,
         haltSegments,
         dayStops: dayEntry?.stops ?? [],
       }),

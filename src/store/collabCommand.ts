@@ -52,12 +52,16 @@ export type CollabCommand =
   | { type: 'decision.ballot'; decisionId: string; optionId: string | null }
   | { type: 'activity.append'; activityId: string; verb: string; target?: string }
 
+/** The exact wire shape of an ordered resolution request. Client intent metadata
+ *  must never reach the SQL command; it is projected here, not transmitted. */
+export type OrderedDecisionResolutionWire = { dayId: string; beforeStopId: string | null }
+
 /** Server-owned workflow transitions. These commands share the Stage A
  *  idempotency ledger, but return placement facts separately from winner state. */
 export type CollabTransitionCommand =
   | { type: 'suggestion.accept'; suggestionId: string; expectedRevision: number; dayId?: string; dayIndex?: number; allowDuplicate?: boolean }
   | { type: 'suggestion.decline'; suggestionId: string }
-  | { type: 'decision.resolve'; decisionId: string; optionId: string; expectedRevision: number; dayId?: string; dayIndex?: number }
+  | { type: 'decision.resolve'; decisionId: string; optionId: string; expectedRevision: number; dayId?: string; dayIndex?: number; orderedPlacement?: OrderedDecisionResolutionWire }
 
 export type AcceptanceOutcome =
   | { status: 'applied'; tripRevision: number; stopId: string; suggestion?: StopSuggestion }

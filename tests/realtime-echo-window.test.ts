@@ -174,18 +174,60 @@ describe('the echo guard is armed before the write is awaited', () => {
     expect(orderOf(trip.id)).toEqual(afterLocal)
   })
 
-  it('persistTripFieldNow arms the guard before awaiting (source-level pin)', () => {
+  it('persistTripFieldNow arms the guard before awaiting through the shared sender (source-level pin)', () => {
     // The behavioural test above is the real proof; this pins the ordering so a
     // future refactor cannot quietly move markLocalWrite back below the await.
+    //
+    // #841 moved the write literals out of persistTripFieldNow into the shared
+    // persistCapturedTripField sender. Pinning only the wrapper's body was a
+    // stale changed-scope assertion: the wrapper now delegates. Follow the real
+    // producer chain instead, and add producer + strong-ordering checks. No
+    // safety assertion is weakened.
     const src = readFileSync(resolve(__dirname, '../src/store/store.ts'), 'utf8')
-    const start = src.indexOf('async function persistTripFieldNow')
-    expect(start, 'persistTripFieldNow must exist').toBeGreaterThan(-1)
-    const body = src.slice(start, src.indexOf('\n}', start))
-    const arm = body.indexOf("markLocalWrite('trips', id)")
-    const write = body.indexOf('sendQueuedTripWrite(')
-    expect(arm, 'persistTripFieldNow must call markLocalWrite').toBeGreaterThan(-1)
-    expect(write, 'persistTripFieldNow must perform a row update').toBeGreaterThan(-1)
+    const lines = src.split(/\r?\n/)
+
+    // One top-level function body: from its declaration to the first brace at
+    // column 0. Inner closures are indented, so this follows a refactor that
+    // moves literals without pinning one exact line count.
+    const bodyOf = (declaration: string): string => {
+      const start = lines.findIndex(line => line.startsWith(`async function ${declaration}`))
+      expect(start, `${declaration} must exist`).toBeGreaterThan(-1)
+      if (start < 0) return ''
+      const out: string[] = []
+      for (let i = start; i < lines.length; i += 1) {
+        out.push(lines[i])
+        if (i > start && lines[i].startsWith('}')) break
+      }
+      return out.join('\n')
+    }
+
+    const wrapper = bodyOf('persistTripFieldNow')
+    const producer = bodyOf('persistCapturedTripField')
+
+    // Producer check #1: the entry point still delegates to the one shared
+    // sender. A direct unguarded write here would drop the guard.
+    expect(wrapper, 'persistTripFieldNow must delegate to the guarded shared sender')
+      .toContain('persistCapturedTripField(')
+
+    // Producer check #2: sendQueuedTripWrite is the real trips row UPDATE, not
+    // a stub. An arm before a no-op sender would not protect the write.
+    const sender = bodyOf('sendQueuedTripWrite')
+    expect(sender, 'sendQueuedTripWrite must issue the trips row UPDATE')
+      .toContain(".from('trips')")
+    expect(sender, 'sendQueuedTripWrite must perform an update').toContain('.update(')
+
+    // Ordering: the guard is armed immediately before the awaited write is
+    // issued, inside the shared sender's serialized callback.
+    const arm = producer.indexOf("markLocalWrite('trips', id)")
+    const write = producer.indexOf('sendQueuedTripWrite(')
+    const serialized = producer.indexOf('serializeTripWrite(')
+    expect(arm, 'the shared sender must call markLocalWrite').toBeGreaterThan(-1)
+    expect(write, 'the shared sender must issue the row update').toBeGreaterThan(-1)
     expect(arm, 'the echo guard must be armed BEFORE the row update is issued').toBeLessThan(write)
+    // Strong ordering: the guard is armed at send time, inside the serialized
+    // write callback — not at admission time, and not only after the await.
+    expect(serialized, 'the write must be serialized').toBeGreaterThan(-1)
+    expect(arm, 'the guard must be armed inside the serialized sender').toBeGreaterThan(serialized)
   })
 })
 

@@ -49,3 +49,34 @@
 @media (max-width: 860px) {
   .tset-nav { padding-inline: 16px; scroll-padding-inline: 16px; mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent); }
 }
+
+/* Issue 841. Keep the uncertain Retry toast clickable while the impact sheet
+   is open. Do not let any toast cover the sheet's decision controls.
+
+   The impact sheet is a fixed host at --z-impact (210). The toast zone is a
+   fixed host at --z-toast (200). Their boxes used to overlap. The opaque
+   sheet then hid the toast and caught its pointer events. A plain toast on
+   top would instead cover Keep, Move or Remove.
+
+   Fix the two HOSTS, not a child z-index. ToastZone measures its own stack
+   and sets --toast-lane-h on the root element. The sheet reserves that lane.
+   Its bottom edge then meets the toast zone's top edge. The two hosts do not
+   overlap in any state. Plain, action and mixed stacks all work. The pills
+   keep their pointer events, so hover and focus hold still work.
+
+   The base .impact-sheet rule is in 02-select-and-print.css. This append-only
+   rule uses a distinct selector, so each top-level selector stays unique.
+   The lane is zero when no toast is up. The sheet then sits at bottom 0. */
+.impact-sheet[role='status'] {
+  bottom: var(--toast-lane-h, 0px);
+  max-height: calc(100dvh - var(--toast-lane-h, 0px));
+}
+
+/* Short viewports. A tall stack must not push the sheet off the screen. The
+   toast zone keeps at most the viewport minus a 160px sheet and its own 18px
+   bottom offset. The lane then stays below the viewport. The sheet keeps a
+   usable height. Extra toasts scroll. The newest toast stays in view. */
+.toast-zone[role='status'] {
+  max-height: calc(100dvh - 178px);
+  overflow-y: auto;
+}

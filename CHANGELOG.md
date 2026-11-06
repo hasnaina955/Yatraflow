@@ -16,7 +16,13 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **Day slots now share one candidate truth, one road order, one acknowledged save path, and one atomic vote.** Every slot now carries a stable trip and day identity. A renamed or reordered day keeps its choices, and a lunch cannot leak into another day. Search results, manual comparisons, votes and single or batch fills read one effective candidate projection. All placement writers share one road-order policy. A new stop inserts before the correct endpoint in road order. An unmeasured road refuses with an explicit reason. A batch reserves its places within the operation, and an explicit repeat stays possible. Preview, save and Undo now have distinct states. A staged change never touches the shortlist. Success reads only from a checked server acknowledgement. A late or superseded acknowledgement recovers to the exact generation that sent it. Undo deletes only the stops its own operation placed. A preview discard releases only that operation's reservations. Only a verified stop leaves the shortlist, so a skipped place stays available with its reason. A resolved slot vote now lands through one atomic server transition that also resolves the road order. Legacy poll ids and recorded ballots stay readable. The vote-order migration `20261026a` is authored in the repo, and no shared backend has it yet. The atomic vote path stays local until its approved apply. The impact preview now reserves the toast zone's bottom lane. The uncertain Retry stays clickable. A plain, action or mixed toast stack never covers Keep, Move or Remove. A short viewport caps the toast lane so the sheet keeps a usable height. (#841)
+
 ### Changed
+
+- **The slot and writer adapters now use safe field and index lookups for their dynamic keys.** Object and array reads use own-field maps and index-keyed maps. A missing key reads as undefined. A geometry pair is checked before it is read. The retry and Undo guards keep the same checks. (#910)
 
 - **Development fixtures use explicit status and root checks.** Source checks use literal patterns, and the fixture config imports the package version.
 

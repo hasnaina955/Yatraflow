@@ -799,25 +799,35 @@ describe('fill provenance (plan P3)', () => {
 })
 
 describe('slot voting (plan P4)', () => {
+  // #841: a poll joins by the persisted day id its options carry, not by its
+  // kind alone. This day is the fixture's stable day.
+  const DAY = 'trip-day-1'
+  const onDay = {
+    title: 'Grand Hotel', category: 'food' as const, locationName: 'Ernakulam',
+    lat: 10.01, lng: 76.3, visitMinutes: 45, dayId: DAY,
+  }
   const decision = (over: Partial<TripDecision> = {}): TripDecision => ({
     id: 'd1', tripId: 't1', question: 'Day 1 lunch - where?', context: 'Voting from the day plan',
     options: [
-      { id: 'slot:lunch:h1', label: 'Grand Hotel' },
-      { id: 'slot:lunch:h2', label: 'Halais' },
+      { id: 'slot:lunch:h1', label: 'Grand Hotel', place: onDay },
+      { id: 'slot:lunch:h2', label: 'Halais', place: onDay },
     ],
     votesByUserId: { u1: 'slot:lunch:h2', u2: 'slot:lunch:h2', u3: 'slot:lunch:h1' },
     comments: [], status: 'open', raisedBy: 'u1', createdAt: 1,
     ...over,
   } as TripDecision)
+  const dayBase = (over: Partial<DaySlotsDeps> = {}): DaySlotsDeps =>
+    base({ tripId: 't1', dayId: DAY, ...over })
 
   it('an open vote for a part surfaces on that part with its tally', () => {
-    const slots = daySlots(0, base({
+    const slots = daySlots(0, dayBase({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       decisions: [decision()],
       memberCount: 4,
     }))
     const lunch = slots.find(s => s.key === 'lunch')
+    expect(lunch?.ref).toEqual({ tripId: 't1', dayId: DAY, key: 'lunch' })
     expect(lunch?.vote?.decisionId).toBe('d1')
     expect(lunch?.vote?.votesCast).toBe(3)
     // #335: the denominator is the crew (members), the same one Group Input
@@ -827,7 +837,7 @@ describe('slot voting (plan P4)', () => {
   })
 
   it('a vote raised for another part does not leak onto this one', () => {
-    const slots = daySlots(0, base({
+    const slots = daySlots(0, dayBase({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       decisions: [decision({ options: [{ id: 'slot:stay:h9', label: 'X' }] })],
@@ -836,7 +846,7 @@ describe('slot voting (plan P4)', () => {
   })
 
   it('a resolved decision is no longer a live vote', () => {
-    const slots = daySlots(0, base({
+    const slots = daySlots(0, dayBase({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       decisions: [decision({ status: 'resolved' })],
@@ -845,7 +855,7 @@ describe('slot voting (plan P4)', () => {
   })
 
   it('a filled part carries no vote (the decision is moot)', () => {
-    const slots = daySlots(0, base({
+    const slots = daySlots(0, dayBase({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [stop('s1', 'Grand Hotel')],
       decisions: [decision()],

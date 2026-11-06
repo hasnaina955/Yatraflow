@@ -28,7 +28,14 @@ Other legacy sections keep their order. Shared tokens and motion remain in legac
   shell 70 / ai-fab 70 (tie — DOM order decides) > nav glass 60 > mobile dock 55.
   Any full-page overlay (e.g. the map's `⤢ Expand` mode, `.map-shell--expanded`) must sit BELOW the dialogs it can spawn, so modals/impact sheets opened from it still layer on top — no
   collapse-on-open coordination needed. The impact sheet is DELIBERATELY above toasts
-  (210 > 200): a transient toast must never cover the Keep/Remove controls. Corollary: container-size changes need
+  (210 > 200): a transient toast must never cover the Keep/Remove controls.
+  The sheet keeps that rung. `ToastZone` sets `--toast-lane-h` to the stack
+  height. The sheet reserves that lane, so its bottom edge meets the toast
+  zone's top edge. The two fixed hosts never overlap. A plain, action or mixed
+  stack keeps all controls reachable. The uncertain Retry stays clickable.
+  The pills keep their pointer events. Toast hover and focus hold still work.
+  A short viewport caps the toast lane, so the sheet keeps a usable height.
+  Corollary: container-size changes need
   no manual `map.resize()` — mapcn's wrapper already runs a ResizeObserver
   that re-fits the canvas (map.tsx).
 

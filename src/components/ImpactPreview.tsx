@@ -1,27 +1,36 @@
 // ============ Impact Preview panel ============
-import { AlarmClock, ArrowUpRight, ClipboardList, Clock, Repeat, Zap } from 'lucide-react'
+import { AlarmClock, ArrowUpRight, ClipboardList, Clock, Repeat, TriangleAlert, Zap } from 'lucide-react'
 import { InlineIcon } from './icons'
 import type { ImpactResult } from '../lib/impact'
 import { minutesToHM, formatInr } from '../lib/engine'
+import type { KeepOutcome } from '../lib/previewChain'
 
-export function ImpactPreviewPanel({ result, onKeep, onMoveDay, onRemove, onScrollToDay }: {
+export function ImpactPreviewPanel({ result, busy = false, uncertain = false, onKeep, onMoveDay, onRemove, onScrollToDay }: {
   result: ImpactResult
-  onKeep: () => void
+  /** A Keep is in flight: the write is not acknowledged yet. */
+  busy?: boolean
+  /** The last Keep was not confirmed and the change may already be saved on
+   *  this device. The sheet points to Saved edits and does not offer a retry. */
+  uncertain?: boolean
+  onKeep: () => void | Promise<KeepOutcome>
   onMoveDay: () => void
-  onRemove: () => void
+  onRemove: () => void | boolean | Promise<boolean>
   onScrollToDay?: (dayIndex: number) => void
 }) {
   const signMin = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${minutesToHM(Math.abs(v))}`
   const signKm = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(0)} km`
   const cls = (v: number) => (v > 0 ? 'delta-pos' : v < 0 ? 'delta-neg' : 'delta-zero')
 
+  // Scroll only once the save is acknowledged, never on a refused Keep.
   const handleKeep = () => {
-    onKeep()
-    if (onScrollToDay && result.dayIndex != null) onScrollToDay(result.dayIndex)
+    if (busy) return
+    void Promise.resolve(onKeep()).then(outcome => {
+      if (outcome && outcome.kind === 'acknowledged' && onScrollToDay && result.dayIndex != null) onScrollToDay(result.dayIndex)
+    })
   }
 
   return (
-    <div className="impact-sheet" role="status">
+    <div className="impact-sheet" role="status" aria-busy={busy}>
       <div className="impact-panel">
         <div className="impact-head">
           <span><Zap size={14} aria-hidden /></span>
@@ -105,12 +114,20 @@ export function ImpactPreviewPanel({ result, onKeep, onMoveDay, onRemove, onScro
             <p className="small chip chip-ok" style={{ marginTop: 10 }}>This change actually clears an earlier warning. Nice.</p>
           )}
 
+          {uncertain && (
+            <div className="warn-item sev-high" style={{ marginTop: 12 }} role="alert">
+              <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>
+              <div><div className="warn-title">Save not confirmed</div>
+                <div className="warn-fix">This change may already be saved on this device. Open Saved edits to retry or discard it.</div></div>
+            </div>
+          )}
+
           <div className="assumptions" style={{ marginTop: 12 }}><InlineIcon icon={ClipboardList} size={12} gap={3} />{result.assumptions}</div>
 
           <div className="impact-actions">
-            <button className="btn btn-primary btn-sm" onClick={handleKeep}>Keep change</button>
-            <button className="btn btn-outline btn-sm" onClick={onMoveDay}>Move to another day</button>
-            <button className="btn btn-danger btn-sm" onClick={onRemove}>Remove change</button>
+            <button className="btn btn-primary btn-sm" onClick={handleKeep} disabled={busy}>{busy ? 'Saving…' : 'Keep change'}</button>
+            <button className="btn btn-outline btn-sm" onClick={onMoveDay} disabled={busy}>Move to another day</button>
+            <button className="btn btn-danger btn-sm" onClick={() => { onRemove() }} disabled={busy}>Remove change</button>
           </div>
         </div>
       </div>

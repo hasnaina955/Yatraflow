@@ -64,7 +64,7 @@ export interface SlotPlacementPolicy {
   dayId: string
   /** One identity for this operation. */
   operationId: string
-  /** Existing road-evidence keys permitted for this operation. */
+  /** Existing road-evidence keys allowed for this operation. */
   acceptedRouteKeys?: readonly string[]
   /** Explicit product decision to place a repeat of a visit already on the plan. */
   allowRepeatVisit?: boolean

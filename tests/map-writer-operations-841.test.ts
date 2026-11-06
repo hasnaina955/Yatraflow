@@ -1100,7 +1100,7 @@ describe('#841 planned stops apply in dependency order, never by input order', (
     expect(pending).not.toBeNull()
     expect(pending!.proposed.days.find(d => d.id === DAY_A)!.stops.map(s => s.id)).toEqual([START.id, LUNCH_A.id])
     expect(completions).toHaveLength(0)
-    // Keeping that untouched preview must not fabricate a completion.
+    // An untouched preview must not fabricate a completion.
     workspace.acknowledge(RECEIPT)
     expect(completions).toHaveLength(0)
   })

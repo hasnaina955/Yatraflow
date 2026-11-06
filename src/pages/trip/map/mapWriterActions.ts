@@ -569,7 +569,7 @@ function planPlannedInsertPass(trip: Trip, planned: readonly WriterPlannedItem[]
   return { ok: true, layouts, alreadyPresentItemIds }
 }
 
-/** Validate a planned insert pass against a trip without changing it. The hooks
+/** Check a planned insert pass against a trip without changing it. The hooks
  *  use this against the page's staged base before they stage anything; the
  *  mutator then revalidates against the ACTUAL draft. */
 export function validatePlannedStops(
@@ -885,7 +885,7 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
   for (const [dayId, items] of byDay) {
     const dayIndex = items[0]?.dayIndex ?? request.context.dayIndex
     const plannedDay = planWriterDay({
-      // Validate the policy against the CURRENT committed trip. A retry after
+      // Check the policy against the CURRENT committed trip. A retry after
       // an uncertain save sees an already-saved stop as in-plan instead of
       // proposing it a second time.
       trip: deps.currentTrip() ?? deps.trip,

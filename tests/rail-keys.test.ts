@@ -101,8 +101,12 @@ describe('the rail states scope in words, and keeps nothing unreachable (#333 A4
     expect(mapTabSrc).toMatch(/engine-tips-dots" aria-hidden="true"/)
     expect(mapTabSrc).toMatch(/<span key=\{i\} className=\{`engine-tips-dot/)
     // No control anywhere in the rail may opt itself out of the tab order —
-    // that is the shape of "focusable things a keyboard cannot reach".
-    expect(mapTabSrc).not.toMatch(/tabIndex=\{-1\}/)
+    // that is the shape of "focusable things a keyboard cannot reach". A sheet
+    // panel region is not a control, so it may carry tabIndex={-1} as a
+    // programmatic focus target for a keyboard snap.
+    const unreachableControl = /<(?:button|input|select|textarea|a)\b[^>]*tabIndex=\{-1\}/
+    expect(unreachableControl.test('<button onClick tabIndex={-1}>')).toBe(true)
+    expect(mapTabSrc).not.toMatch(unreachableControl)
     expect(mapTabSrc).not.toMatch(/engine-tips-dot[^>]*onClick/)
   })
 

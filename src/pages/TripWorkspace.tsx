@@ -5,23 +5,29 @@
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
-import { useDb, tripById, currentUser, roleOf, canEdit, trackTripPreview, tripPreviewPending, observeTripPreview, userById, readSharedTrip, useIdentityGeneration } from '../store/store'
+import { useDb, tripById, currentUser, roleOf, canEdit, trackTripPreview, tripPreviewPending, observeTripPreview, userById, readSharedTrip, useIdentityGeneration, admitTripPreview } from '../store/store'
 import { SegmentedTabs } from '../components/page/SegmentedTabs'
 import { StateBlock } from '../components/page/StateBlock'
 import { authNext } from '../lib/authNext'
 import { computeHealth, computeTotals, getAssumptions, isRoadMeasuredMode } from '../lib/engine'
 import type { LegEstimate } from '../lib/engine'
-import { buildRoadChain, measureRoadChain, correctionsFromLegs, type RoadStatus, type TripRoadView } from '../lib/tripRoad'
+import { buildRoadChain, measureRoadChain, correctionsFromLegs, mapRoadViewFromLegs, type RoadStatus, type TripRoadView } from '../lib/tripRoad'
 import { computeImpact, type ImpactResult } from '../lib/impact'
 import { routeParts } from '../lib/pageTitle'
 import { currentQuery, currentRoute, replaceRoute } from '../lib/router'
 import { scrollBehavior } from '../lib/motion'
-import { Avatar, toast } from '../components/ui'
+import { Avatar, toast, undoToast } from '../components/ui'
 import { assignAvatarTones } from '../lib/avatarTone'
 import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
 import { ImpactPreviewPanel } from '../components/ImpactPreview'
 import { useSuggestionCache } from '../hooks/useSuggestionCache'
+import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, crewSeedsFromSuggestions } from '../lib/tripDna'
+import { placeIdentity } from '../lib/placeIdentity'
+import type { PlaceHit } from '../lib/providers/hits'
+import { useJourneyDays } from './trip/journey/useJourneyDays'
+import type { WorkspaceJourneyDays } from './trip/journey/journeyDays'
+import { corridorSnapshotKey, type CorridorSnapshot } from './trip/map/corridorSnapshot'
 // Board also embeds TripMap (so it pulls the same lazy map chunk) — load the whole
 // view lazily so the Board tab never adds app-start cost either. TripMap itself
 // is lazily imported inside MapTab.
@@ -60,6 +66,10 @@ import { ShareTab } from './trip/ShareTab'
 import { TripSettingsForm } from './trip/TripSettingsForm'
 import { cap } from './trip/shared'
 import { roadChainSig } from '../lib/tripRoad'
+import { routePolylineFrom } from './trip/map/weatherGeometry'
+import { measuredRoadFacts } from './trip/map/mapTabPipeline'
+import { projectOntoPolyline } from '../lib/providers/hits'
+import { acknowledgedStopsFrom, guardedUndo, type WriterCompletion } from './trip/map/mapWriterActions'
 import { normalizeFocus, canFocusDay, focusDayRequest, dayFromFocus, focusForDay, type TripFocus } from '../lib/tripFocus'
 import {
   KEEP_CLOSED_UNCERTAIN, KEEP_IN_FLIGHT, KEEP_LEFT_BEHIND, KEEP_LEFT_UNSAVED, KEEP_REFUSAL, LEAVE_UNCERTAIN, KEEP_UNCERTAIN, KEEP_UNCERTAIN_HOLD, KEEP_UNCERTAIN_RESOLVED, REMOVE_PREVIEW_CHANGED,
@@ -536,14 +546,49 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // trips (it is not keyed by trip id), and a previous trip's hash compared
   // against this trip's cache would brand the matrix stale forever.
   const [mapInputs, setMapInputs] = useState<{ hash: string; scopeKm: number } | null>(null)
+  const mapInputsRef = useRef<{ hash: string; scopeKm: number } | null>(null)
   const [mapTarget, setMapTarget] = useState<MapTarget | null>(null)
-  useEffect(() => { setMapInputs(null); setMapTarget(null) }, [tripId])
+  // S3: the Map publishes its corridor snapshot; the workspace keeps it across
+  // tab switches. A foreign trip or an older query context is refused.
+  const [corridorSnapshot, setCorridorSnapshot] = useState<CorridorSnapshot | null>(null)
+  // Session identity lifted from MapTab: one owner for the producer and the Map.
+  const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set())
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set())
+  const [stagedSnapshot, setStagedSnapshot] = useState<ReadonlyMap<string, string>>(() => new Map())
+  const stagedIdsRef = useRef(new Map<string, string>())
+  const [slotManual, setSlotManual] = useState<Record<string, PlaceHit[]>>({})
+  const [dnaTick, setDnaTick] = useState(0)
+  useEffect(() => {
+    setMapInputs(null)
+    mapInputsRef.current = null
+    setMapTarget(null)
+    setCorridorSnapshot(null)
+    setAddedIds(new Set())
+    setDismissedIds(new Set())
+    setStagedSnapshot(new Map())
+    stagedIdsRef.current = new Map()
+    setSlotManual({})
+    setDnaTick(0)
+  }, [tripId])
   // Stable identity so the Map's publish effect fires on hash/scope changes,
   // never on our re-renders (their ref guard makes inline safe too; this is
   // the calmer form — it cannot ping-pong even if that guard ever goes).
   const publishMapInputs = useCallback((hash: string, scopeKm: number) => {
-    setMapInputs({ hash, scopeKm })
+    const next = { hash, scopeKm }
+    mapInputsRef.current = next
+    setMapInputs(next)
   }, [])
+  const publishCorridor = useCallback((incoming: CorridorSnapshot | null) => {
+    if (!incoming) { setCorridorSnapshot(null); return }
+    if (incoming.tripId !== tripId) return
+    const current = mapInputsRef.current
+    // A snapshot from another query/scope is not this workspace's context.
+    if (current && (incoming.inputsHash !== current.hash || incoming.scopeKm !== current.scopeKm)) return
+    setCorridorSnapshot(prev => {
+      if (prev && prev.tripId === incoming.tripId && corridorSnapshotKey(prev) === corridorSnapshotKey(incoming)) return prev
+      return incoming
+    })
+  }, [tripId])
 
   // Pending change: a proposed plan held until the user keeps or discards it.
   const [pending, setPending] = useState<PendingChange | null>(null)
@@ -566,6 +611,74 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // proposal never admitted is discarded, so its operations release; a save in
   // flight or uncertain keeps its records.
   useEffect(() => () => { abandonPreview() }, [abandonPreview])
+
+  // S3: one owner for the shared per-day model. The Map still scans; this
+  // producer only reads the published snapshot and the committed/effective trip.
+  const crewSuggestions = useMemo(() => db.suggestions.filter(s => s.tripId === trip?.id), [db.suggestions, trip?.id])
+  const crewSeeds = useMemo(() => crewSeedsFromSuggestions(crewSuggestions), [crewSuggestions])
+  const decisions = useMemo(() => db.decisions.filter(d => d.tripId === trip?.id), [db.decisions, trip?.id])
+  const dnaVector = useMemo(() => {
+    // dnaTick is a refresh token: the log is read here, not on every render.
+    void dnaTick
+    return trip ? buildDnaVectorAcrossTrips(loadDnaLog(), crewSeedEvents(trip.id, crewSeeds)) : null
+  }, [trip, crewSeeds, dnaTick])
+  const effectiveTrip = pending?.proposed ?? trip
+  const journeyPresence = useMemo(
+    () => (effectiveTrip ? placeIdentity(effectiveTrip, addedIds, dismissedIds, stagedSnapshot) : null),
+    [effectiveTrip, addedIds, dismissedIds, stagedSnapshot],
+  )
+  const journeyDays: WorkspaceJourneyDays = useJourneyDays({
+    trip: effectiveTrip ?? null,
+    committedTrip: trip ?? null,
+    snapshot: corridorSnapshot,
+    presence: journeyPresence,
+    editable,
+    decisions,
+    dnaVector,
+    legCorrections,
+    slotManual,
+    dnaTick,
+  })
+
+  // S4: the Timeline's covered Add reads the same workspace measurement as the
+  // Map. It starts no routing call; a pending/failed/estimate-only/stale chain
+  // grades unmeasured and the hop is absent, so Add refuses honestly.
+  const timelineRoadView = useMemo(
+    () => mapRoadViewFromLegs(road.chain, road.legs, trip ? trip.days.map(d => d.index) : []),
+    [road, trip],
+  )
+  const timelineRoute = useMemo(() => routePolylineFrom(timelineRoadView.geometry) ?? [], [timelineRoadView])
+  const timelineGrade = useMemo(
+    () => (trip ? measuredRoadFacts({ trip, road, hasLine: timelineRoute.length > 1 }) : null),
+    [trip, road, timelineRoute],
+  )
+  const projectedWriterHop = useMemo(() => {
+    const committed = trip
+    if (!committed || !timelineGrade?.measured || !timelineGrade.routeKey || timelineRoute.length < 2) return undefined
+    const routeKey = timelineGrade.routeKey
+    return {
+      road: {
+        routeKmOf: (lat: number, lng: number) => {
+          const snap = projectOntoPolyline({ latitude: lat, longitude: lng }, timelineRoute)
+          return snap?.km ?? null
+        },
+        road: { routeKey },
+      },
+      currentTrip: () => tripById(committed.id),
+      onAcknowledged: (completion: WriterCompletion) => {
+        const stops = acknowledgedStopsFrom(completion)
+        if (stops.length === 0) return
+        const count = `${stops.length} ${stops.length === 1 ? 'place' : 'places'}`
+        toast(`${count} added to the plan`)
+        undoToast(`Added ${count}`, () => {
+          void guardedUndo(
+            { currentTrip: () => tripById(committed.id), admit: admitTripPreview },
+            { tripId: committed.id, operationId: completion.operationId, stops },
+          )
+        })
+      },
+    }
+  }, [trip, timelineGrade, timelineRoute])
 
   // Phase 3 (the living plan): a halt label on the map asks the timeline to open
   // that day. One-shot signal — TimelineTab consumes it on mount, then the
@@ -715,7 +828,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     return <div className="container page-enter"><StateBlock kind="loading" titleLevel="h1" title="Loading trip" /></div>
   }
 
-  const effective = pending?.proposed ?? trip
+  const effective = effectiveTrip ?? trip
   const health = computeHealth(effective, legCorrections)
   const totals = computeTotals(effective, legCorrections)
 
@@ -862,7 +975,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={openTimeline} onOpenMap={openMap} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} mapInputs={mapInputs} mapCache={suggestionCache.cache.map} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} />}
       {tab === 'board' && (
         <React.Suspense fallback={<StateBlock kind="loading" size="compact" title="Loading board" />}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals} legCorrections={legCorrections} previewOpen={!!pending} road={road}
@@ -874,8 +987,14 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
         <React.Suspense fallback={<MapTabSkeleton />}>
           <MapTab trip={effective} editable={editable} applyChange={applyChange}
             suggestionCache={suggestionCache} onInputsHash={publishMapInputs}
-            crewSuggestions={db.suggestions.filter(s => s.tripId === trip.id)}
-            decisions={db.decisions.filter(d => d.tripId === trip.id)} road={road}
+            onCorridorState={publishCorridor}
+            journeyDays={journeyDays} presence={journeyDays.presence} crewSeeds={crewSeeds}
+            dnaVector={dnaVector ?? undefined} dnaTick={dnaTick} setDnaTick={setDnaTick}
+            setAddedIds={setAddedIds}
+            dismissedIds={dismissedIds} setDismissedIds={setDismissedIds}
+            setStagedSnapshot={setStagedSnapshot} stagedIdsRef={stagedIdsRef}
+            slotManual={slotManual} setSlotManual={setSlotManual}
+            road={road}
             onOpenTimeline={stopId => openTimeline({ stopId })} onOpenBoard={() => setTab('board')}
             onOpenDay={dayIndex => openTimeline({ dayIndex })}
             onOpenGroupInput={() => setTab('group')} previewOpen={!!pending}

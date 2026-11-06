@@ -8,16 +8,32 @@ const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8').re
 const mapTab = read('../src/pages/trip/MapTab.tsx')
 const railRows = read('../src/pages/trip/map/RailRowViews.tsx')
 const adapter = read('../src/pages/trip/map/driveSuggestionView.ts')
+const producer = read('../src/pages/trip/journey/journeyDays.ts')
+const mapRows = read('../src/pages/trip/map/mapJourneyRows.ts')
 
 describe('the map renderer consumes the presentation adapter', () => {
-  it('builds rows from the engine output and keys them by the engine hit id', () => {
-    expect(mapTab).toMatch(/const driveRows = driveRowsFromSegments\(pois, driveFacts\)/)
-    expect(mapTab).toMatch(/const driveRowById = new Map\(driveRows\.map\(r => \[r\.id, r\]\)\)/)
+  function assertLivePin(label: string, pattern: RegExp, marker: string) {
+    expect(mapTab, `${label}: live source`).toMatch(pattern)
+    expect(mapTab, `${label}: marker present`).toContain(marker)
+    expect(mapTab.replace(marker, ''), `${label}: negative control`).not.toMatch(pattern)
+  }
+
+  it('reads the producer rows and the whole-trip adapter, not a raw-id map', () => {
+    expect(mapTab).toContain('const driveRows = journeyDays.allDriveRows')
+    expect(mapTab).toMatch(/mapAllJourneyRowsForDays\(journeyDays\.byDay\.values\(\), journeyDays\.allDriveRows\)/)
+    assertLivePin('rail row lookup', /mapRailRowForHit\(mapRows, hit, dayForKm\(hit\.cumKm\)\)/, 'mapRailRowForHit(mapRows, hit, dayForKm(hit.cumKm))')
+    expect(producer).toMatch(/driveRowsFromSegments\(\[\.\.\.snapshot\.pois\], driveFacts\)/)
+    expect(producer).toMatch(/projectJourney\(\{/)
+    expect(mapRows).toMatch(/export function mapAllJourneyRowsForDays\(/)
     expect(adapter).toMatch(/id: String\(hit\.id\)/)
+    // Known-bad controls: the active-day-only path and the raw-id view must not return.
+    expect(mapTab).not.toMatch(/driveRowById/)
+    expect(mapTab).not.toMatch(/driveRows\.map\(r => \[r\.id, r\]\)/)
+    expect(mapTab).not.toMatch(/mapAllJourneyRows\(journeyDay\.projection, journeyDays\.allDriveRows\)/)
   })
 
   it('the ledger row renders the adapter chips, not a second chip computation', () => {
-    expect(mapTab).toMatch(/chips=\{row\?\.chips \?\? \[\]\}/)
+    expect(mapTab).toMatch(/chips=\{row\?\.chips \?\? drive\?\.chips \?\? \[\]\}/)
     expect(railRows).toMatch(/chips: RailChip\[\]/)
     expect(railRows).not.toContain('chipsFor(')
   })

@@ -105,7 +105,7 @@ describe('the Map tab turns the failure into its own note (#704)', () => {
 
   it('the cache hook exposes the failure to the Map tab', () => {
     expect(corridorCache).toMatch(/poisFailed: scanFailed \|\| fractionFailed/)
-    expect(mapTab).toMatch(/loadingPois, poisFailed \} = useCorridorCache\(/)
+    expect(mapTab).toMatch(/loadingPois, poisFailed, scanFailed,/)
   })
 
   it('the failed note comes before the default copy, so a failure never reads as an empty route', () => {

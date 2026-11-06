@@ -54,7 +54,7 @@ import {
 import { fixedRowsFor, worstFixedTone } from '../../lib/fixedTimes'
 import type { LegEstimate, ScheduleWarning } from '../../lib/engine'
 import type { RoadStatus } from '../../lib/tripRoad'
-import type { ImpactResult } from '../../lib/impact'
+
 import { loadOpenDay, loadReviewAll, saveOpenDay, saveReviewAll } from '../../lib/uiPrefs'
 import { accordionNext } from '../../lib/daySummary'
 import { scrollBehavior, motionTiming } from '../../lib/motion'
@@ -64,7 +64,10 @@ import { RemoteEditBanner } from '../../components/RemoteEditBanner'
 import { useStopConflict } from '../../components/useStopConflict'
 import { stopInitialValues, stopLegContext, stopEditorKey, stopDayIndex, type StopEditorTarget } from '../../lib/stopForm'
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
-import { refuseWhileStaged, removeStopWithUndo } from '../../lib/mutationLifecycle'
+import { refuseWhileStaged, removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
+import { useResolvePick } from '../../components/ResolvePickDialog'
+import { useTimelineProjectedWriter } from './timeline/useTimelineProjectedWriter'
+import type { TimelineProjectedWriterHop } from './timeline/timelineProjectedWriter'
 import { kmFromStartForHit } from '../../lib/providers/hits'
 import { insertStopAt, moveStopToDay, moveStopWithinDay, nextOrderInDay, pendingStopId, stopsInOrder } from '../../lib/stopOrder'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
@@ -72,7 +75,8 @@ import { ToolbarMenu } from './timeline/ToolbarMenu'
 import { downloadTripIcs } from '../../lib/ics'
 import { PillNav } from '../../components/PillNav'
 import { DaySection } from './timeline/DaySection'
-import { buildDayCards, reuseDayTotals, reuseWarningGroups, type DayCards, type DayTotals } from '../../lib/dayCards'
+import { reuseDayTotals, reuseWarningGroups, type DayTotals } from '../../lib/dayCards'
+import type { WorkspaceJourneyDays } from './journey/journeyDays'
 import { insertionWhere } from '../../lib/labels'
 import { canFocusDay } from '../../lib/tripFocus'
 import { QuickAddStop, type QuickAddTarget } from './timeline/QuickAddStop'
@@ -118,12 +122,12 @@ function measureStickyStack(): number {
 }
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
    *  Undo toasts hang off (the day plan's Fill uses the same one). */
-  applyChange: (mutator: (d: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) => void
+  applyChange: ApplyChange
   /** true while the workspace has a staged change — day rename / ride start
    *  write the committed row directly, so they must not race a preview (#334). */
   previewOpen?: boolean
@@ -132,6 +136,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
    *  their distance is a measured road number or a straight-line estimate. */
   roadStatus?: RoadStatus
   suggestionCache: ReturnType<typeof useSuggestionCache>
+  /** S3: the one shared per-day model. The Timeline does not build cards or slots. */
+  journeyDays: WorkspaceJourneyDays
   /** M5: the doc's §6.3 "Open in Board" bridge — Board now exists. */
   onOpenBoard?: () => void
   /** Phase 3 (the living plan): the map's halt label handed us a day to open.
@@ -146,6 +152,10 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   focusBlock?: 'trip-wide' | null
   /** clears the workspace's focusDay signal once the request is handled */
   onFocusConsumed?: () => void
+  /** S4 repair: measured road facts + the existing completion handler. The
+   *  Workspace/Map owner supplies this after the producer repair. Absent keeps
+   *  the covered Add unavailable with an honest reason. */
+  projectedWriter?: TimelineProjectedWriterHop
 }) {
   const [editorState, setEditorState] = useState<StopEditorTarget>(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
@@ -162,6 +172,23 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   const openEditorState = useCallback((next: StopEditorTarget) => {
     conflictState.openEditor(next, setEditorState)
   }, [conflictState.openEditor])
+
+  // S4 repair: the covered Add enters the shared #841 writer, never the km-halt
+  // path. The hop carries measured road facts and the existing completion
+  // handler; without it Add is unavailable with a visible reason.
+  const resolvePick = useResolvePick()
+  const projectedAdd = useTimelineProjectedWriter(projectedWriter ? {
+    trip,
+    applyChange,
+    resolvePick: resolvePick.resolvePick,
+    road: projectedWriter.road,
+    currentTrip: projectedWriter.currentTrip,
+    onAcknowledged: projectedWriter.onAcknowledged,
+    ...(projectedWriter.onUncertain ? { onUncertain: projectedWriter.onUncertain } : {}),
+    ...(projectedWriter.poiVisitMinutes ? { poiVisitMinutes: projectedWriter.poiVisitMinutes } : {}),
+    ...(projectedWriter.gate ? { gate: projectedWriter.gate } : {}),
+    ...(projectedWriter.allowRepeatVisit ? { allowRepeatVisit: true } : {}),
+  } : null, !!previewOpen)
 
   // Sorted once per trip change — a stable array of stable day references so
   // the memoized DaySections below only re-render when their own data changes.
@@ -413,12 +440,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   // per day while that day's own inputs are unchanged — so one stop edit
   // re-renders that card (plus, deliberately, the open one, whose travel panel
   // searches against the whole itinerary) instead of all of them.
-  const cardsCache = useRef<DayCards | null>(null)
-  const cards = useMemo(() => {
-    const next = buildDayCards(trip, days, legCorrections, cardsCache.current)
-    cardsCache.current = next
-    return next
-  }, [trip, days, legCorrections])
+  // S3: the cards come from the shared producer, built once above the tabs.
+  const cards = journeyDays.cards
 
   // The ribbon's per-day state. Distance is the day's own money slice (the
   // number its cost chip prints); status reads the same warning groups and the
@@ -920,7 +943,9 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         </section>
 
         {days.map((day, ordinal) => (
-          <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} editable={planEditable} open={openDayIndex === day.index || (reviewAll && revealStep > Math.min(ordinal, REVEAL_STEPS - 1))} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
+          <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} journeyDay={journeyDays.byDay.get(day.index)} journeyStatus={journeyDays.status} editable={planEditable} open={openDayIndex === day.index || (reviewAll && revealStep > Math.min(ordinal, REVEAL_STEPS - 1))} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
+            onAddProjectedRow={projectedAdd.add} projectedAddBusy={projectedAdd.busy} previewOpen={previewOpen}
+            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -1001,6 +1026,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           setMoveModalStop(null)
         }}
       />
+      {resolvePick.dialog}
     </div>
   )
 }

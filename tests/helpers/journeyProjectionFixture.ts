@@ -83,7 +83,7 @@ function makeStop(overrides: Partial<ItineraryStop> & Pick<ItineraryStop, 'id' |
     entryFeeInrPerPerson: 0,
     transportCostInrTotal: 0,
     priority: 'nice-to-have',
-    status: 'planned',
+    status: 'confirmed',
     orderInDay: 0,
     ...overrides,
   }
@@ -187,7 +187,7 @@ export function journeyFixture(): JourneyFixture {
   const stayStop = makeStop({
     id: 'stop-stay',
     title: 'Filled Stay',
-    category: 'lodging',
+    category: 'hotel',
     placeId: 'g-stay',
     placeSource: 'google',
     lat: stay.latitude,
@@ -199,7 +199,7 @@ export function journeyFixture(): JourneyFixture {
   const fuelStop = makeStop({
     id: 'stop-fuel',
     title: 'Filled Fuel Stop',
-    category: 'fuel',
+    category: 'rest',
     placeId: 'g-fuel',
     placeSource: 'google',
     lat: fuel.latitude,
@@ -258,7 +258,7 @@ export function journeyFixture(): JourneyFixture {
   })
   const staySlot = makeSlot({
     key: 'stay',
-    kind: 'stay',
+    kind: 'overnight',
     label: 'Stay',
     state: 'filled',
     windowMin: null,

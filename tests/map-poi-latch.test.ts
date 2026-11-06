@@ -46,8 +46,8 @@ describe('#544 — the corridor scan releases its loading latch', () => {
   it('the flag has exactly one writer — the scan effect alone', () => {
     // A second component path writing this flag is how the latch re-enters.
     // (The useState destructure does not call the setter, so the call sites
-    // are: raise, the finally clear, the cleanup release.)
+    // are: raise, the finally clear, the cleanup release, and the no-anchor clear.)
     const calls = src.match(/setLoadingPois\(/g) ?? []
-    expect(calls.length).toBe(3)
+    expect(calls.length).toBe(4)
   })
 })

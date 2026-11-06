@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
 import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, MapPin, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, SlidersHorizontal } from 'lucide-react'
 import { uid } from '../../data/seed'
-import type { Trip, TripDecision } from '../../data/types'
+import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import { buildJourney, type JourneyPoint, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
@@ -35,14 +35,13 @@ import { useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
 import { useRailContent } from './map/useRailContent'
 import { useSlotSearch } from './map/useSlotSearch'
-import { useDaySlots } from './map/useDaySlots'
 import {
   SEE_VISIBLE, SCOPE_KM_STEPS, SCOPE_STORAGE_KEY,
   googleMapsUrl, newStopId, poiVisitMinutes,
 } from './map/pageHelpers'
 import { activeReadinessLabel, activeDayLabel } from './map/railRows'
 import { MapItinerary, MapJourneyRibbon, MapPickCard, MapPhoneDay, MapSheetHandle, MapDeckHeader, type SheetSnap } from '../../components/map/MapWorkspaceChrome'
-import { driveRowsFromSegments } from './map/driveSuggestionView'
+import { driveRowForHit, mapAllJourneyRowsForDays, mapCardActions, mapRailRowForHit, mapRowForHit, mapRowsForHit, type MapRowBinding } from './map/mapJourneyRows'
 import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import { LedgerRow } from './map/RailRowViews'
 import { filingOptionsFor } from './map/slotFiling'
@@ -68,11 +67,13 @@ import { isSightCategory, roadProfileFromLegs } from '../../lib/ridePlan'
 import { QuotaExhaustedError } from '../../lib/providers/google'
 import { isElectric } from '../../lib/vehicleProfile'
 import { dayShape, tripDayAttribution, SLOT_URGENCY_MIN, type DaySlot, type DaySlotKind } from '../../lib/daySlots'
-import { discardedStagedIds, isAlreadyAdded, normalizePlaceName, tripPresence, type PlaceIdentity } from '../../lib/placeIdentity'
+import { corridorSnapshotKey, corridorStatusFor, dayAttributionKeyFor, type CorridorSnapshot } from './map/corridorSnapshot'
+import { discardedStagedIds, isAlreadyAdded, normalizePlaceName, type PlaceIdentity } from '../../lib/placeIdentity'
 
 import { dayDetourBudgetMin, splitByDetourBudget } from '../../lib/detourBudget'
+import type { WorkspaceJourneyDays } from './journey/journeyDays'
 import { anyQuotaExhausted } from '../../lib/providers/quota'
-import { buildDnaVectorAcrossTrips, loadDnaLog, recordDnaEvent, dnaNoteForHit, crewSeedsFromSuggestions, crewSeedsToPlannedStops, crewSeedEvents, crewNoteForHit } from '../../lib/tripDna'
+import { recordDnaEvent, dnaNoteForHit, crewSeedsToPlannedStops, crewNoteForHit, type CrewSeed, type DnaVector } from '../../lib/tripDna'
 import { visitMinutesForCategory } from '../../lib/slackPrompts'
 import { scrollBehavior } from '../../lib/motion'
 import type { SegmentHit } from '../../lib/geocode'
@@ -156,7 +157,7 @@ function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
   const G = label === 'Breakfast' ? Coffee : KIND_GLYPH[kind]
   return G ? <InlineIcon icon={G} size={12} /> : null
 }
-export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, crewSuggestions, decisions, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, onCorridorState, journeyDays, presence, crewSeeds, dnaVector, dnaTick, setDnaTick, setAddedIds, dismissedIds, setDismissedIds, setStagedSnapshot, stagedIdsRef, slotManual, setSlotManual, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
   trip: Trip
   editable: boolean
   /** #841: the workspace's shared write type. The first four arguments keep
@@ -169,7 +170,28 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
    *  The hash cannot be recomputed outside this component — it reads the OSRM
    *  geometry and the weather join, both of which are this tab's state. */
   onInputsHash?: (inputsHash: string, scopeKm: number) => void
-  crewSuggestions?: { status: string; title: string; category?: string; lat: number; lng: number }[]
+  /** S2: publish the corridor facts the workspace producer reads. The callback
+   *  identity alone never republishes; only a changed snapshot key does. */
+  onCorridorState?: (snapshot: CorridorSnapshot | null) => void
+  /** S3: the one shared per-day model, built above the tabs. */
+  journeyDays: WorkspaceJourneyDays
+  /** S3: the shared presence identity (committed plan + session sets). */
+  presence: PlaceIdentity
+  /** S3: crew seeds, lifted so the producer and the scan use the same list. */
+  crewSeeds: CrewSeed[]
+  /** S3: the shared DNA vector; the Map no longer re-reads the log itself. */
+  dnaVector?: DnaVector
+  /** S3: lifted DNA freshness token. */
+  dnaTick: number
+  setDnaTick: React.Dispatch<React.SetStateAction<number>>
+  /** S3: lifted session identity. */
+  setAddedIds: React.Dispatch<React.SetStateAction<Set<string>>>
+  dismissedIds: ReadonlySet<string>
+  setDismissedIds: React.Dispatch<React.SetStateAction<Set<string>>>
+  setStagedSnapshot: React.Dispatch<React.SetStateAction<ReadonlyMap<string, string>>>
+  stagedIdsRef: React.MutableRefObject<Map<string, string>>
+  slotManual: Record<string, PlaceHit[]>
+  setSlotManual: React.Dispatch<React.SetStateAction<Record<string, PlaceHit[]>>>
   /** #188: the workspace's ONE road measurement — the Map tab no longer measures. */
   road: TripRoadView
   onOpenTimeline?: (stopId: string) => void
@@ -183,8 +205,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
    *  (the popup's stop delete) would make Keep refuse as stale, so it refuses
    *  instead (#334, same policy as the timeline and Group input). */
   previewOpen?: boolean
-  /** This trip's decisions - an open one raised for a part shows as its vote. */
-  decisions?: TripDecision[]
+
   /** #425 PR 2: the shared day-focus axis (same value the Board's columns
    *  read). The map's day-filter chips and the slots rail's day strip report
    *  their choice through it, so the Board and this tab agree whichever was
@@ -201,22 +222,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 }) {
   const [pois, setPois] = useState<SegmentHit[]>([])
   const timeFormat = useTimeFormat()
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
-  // dismissed suggestion ids — logged as DNA declines, hidden for the session
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
-  // The staged map the render reads. Render never touches the ref below: each
-  // stage and each preview close publishes a fresh Map here, so `identity`
-  // rebuilds on a close even when nothing releases (#839 review P2 - an
-  // unchanged Set would bail the render out).
-  const [stagedSnapshot, setStagedSnapshot] = useState<ReadonlyMap<string, string>>(() => new Map())
-  // #345: ids this tab staged into a preview, with the name they will land
-  // under. The preview-close effect below reads this to release what a
-  // DISCARDED preview staged - the ghost that used to hide a place until
-  // reload. A committed stop keeps its id because its name is then in the plan.
-  const stagedIdsRef = useRef(new Map<string, string>())
-  // DNA freshness: bumped on every accept/decline so scoring + notes re-read
-  // the log instead of serving the memoised vector
-  const [dnaTick, setDnaTick] = useState(0)
+
   // bump to force a corridor re-search — the only refetch path besides a
   // detour-scope change or a first-ever load (empty cache)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -232,11 +238,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // another day's lunch slot, even for one render.
   const [slotSearchCell, setSlotSearch] = useState<{ key: string; q: string; busy: boolean; hits: PlaceHit[]; err: string | null } | null>(null)
   const [slotSearchScope, setSlotSearchScope] = useState<string | null>(null)
-  // The manual picks themselves live in mapManualSlotStore under trip + day +
-  // slot (candidate membership and counts read only that, through the shared
-  // day plan). This cell is the re-render notification the filing hook bumps;
-  // no candidate list is built from it.
-  const [slotManual, setSlotManual] = useState<Record<string, PlaceHit[]>>({})
+
   const addingIdsRef = useRef(new Set<string>())
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set())
   const [addingAny, setAddingAny] = useState(false)
@@ -310,21 +312,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       guard.reset()
     }
   }, [])
-  // #345: ONE identity answers "is this already mine?" for every rail, slot,
-  // arc, pin and search row. `tripPresence` is the stable half (the plan's own
-  // stops, rejected ones excluded so a turned-down suggestion stays
-  // re-addable, normalized so `" Hotel Taj "` matches); `identity` adds this
-  // session's staged/dismissed ids. Split in two so the day-slot deps below
-  // don't re-derive on every add — only the trip's own stops move those.
-  const tripPresenceIds = useMemo(() => tripPresence(trip), [trip])
-  const existingNames = tripPresenceIds.names
-  const identity = useMemo<PlaceIdentity>(() => ({
-    names: tripPresenceIds.names, keys: tripPresenceIds.keys, places: tripPresenceIds.places,
-    added: addedIds, dismissed: dismissedIds,
-    // The predicate decides an open preview through `staged`; kept ids remain
-    // in `added` as bookkeeping only - they must not outrank the plan (#839).
-    staged: stagedSnapshot,
-  }), [tripPresenceIds, addedIds, dismissedIds, stagedSnapshot])
+  // S3: one shared identity owner. The workspace builds it; the Map reads it.
+  const identity = presence
 
   // OSRM road geometry of the whole route — feeds Google Search-Along-Route
   // (the report's killer feature); the free stack ignores it. #188: the
@@ -387,7 +376,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // reads (stop ids, road order, coords) — the days ARRAY identity changes on
   // every store commit, so memoising the whole-trip budget on `trip` re-fired
   // this on unrelated keystrokes.
-  const stopSig = trip.days.map(d => d.stops.map(s => `${s.id}@${s.lat},${s.lng}`).join('+')).join('|')
   // day start signature: the clock walk reads every day's startTime (rest days
   // stamped 08:30 by #133 shells), never the days array itself.
   const dayStartSig = trip.days.map(d => d.startTime ?? '').join(',')
@@ -407,7 +395,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       min += j.driveMinutes
     }
     return { km: routeTotalKm ?? km, min: routeTotalMin ?? min }
-  }, [trip, stopSig, routeTotalKm, routeTotalMin])
+  }, [trip, routeTotalKm, routeTotalMin])
 
 
 
@@ -462,14 +450,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const routePolyline = useMemo(() => routePolylineFrom(routeGeometry), [routeGeometry])
 
 
-  // Crew seeds: open group-input ideas suppress near-duplicates and bias the
-  // corridor toward crew-proposed kinds.
-  const crewSeeds = useMemo(() => crewSeedsFromSuggestions(crewSuggestions ?? []), [crewSuggestions])
+
 
   // The wheel decides whether a fuel or charge halt exists (2026-10-19). This
   // is the planner boundary, so it is asked HERE, once, and not by the form:
   // the stored vehicle profile stays on the row for a later driving trip.
-  const wheel = plannerDrives({ transportMode: trip.transportMode, drivesPart: trip.drivesPart })
+  // Memoized because `nearbyOpts` reads it; a fresh object every render would
+  // invalidate the corridor cache's input identity and re-arm the scan effect.
+  const wheel = useMemo(
+    () => plannerDrives({ transportMode: trip.transportMode, drivesPart: trip.drivesPart }),
+    [trip.transportMode, trip.drivesPart],
+  )
 
   const nearbyOpts: NearbyOpts = useMemo(() => ({
     // The wheel answer rides every planner call (2026-10-19); without it a
@@ -504,7 +495,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     // user keeps picking (cross-trip learning) — scoped per-trip would forget a
     // waterfall hire on a past journey.
     // dnaTick re-reads the log after every accept/decline on this tab.
-    dnaVector: buildDnaVectorAcrossTrips(loadDnaLog(), crewSeedEvents(trip.id, crewSeeds)),
+    ...(dnaVector ? { dnaVector } : {}),
     plannedStops: [
       ...trip.days.flatMap(d => d.stops)
         .filter(s => s.status !== 'rejected' && Number.isFinite(s.lat) && Number.isFinite(s.lng))
@@ -516,7 +507,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     dayRainPct: dayRainPct ?? undefined,
     dayWeatherCode: dayWeatherCode ?? undefined,
     transportMode: trip.transportMode,
-  }), [trip, routeGeometry, dayRainPct, dayWeatherCode, crewSeeds, dnaTick])
+  }), [trip, routeGeometry, dayRainPct, dayWeatherCode, crewSeeds, dnaVector, wheel])
 
   // #143 — overnight ordinal by position: the planner keys accepted-halt pins
   // on WHICH night (in route order), not the segment's slot, so the map here
@@ -671,7 +662,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 
   // #420 slice 11: the corridor cache (hash, publish, both scans) lives in
   // ./map/useCorridorCache. It returns values only, never callbacks.
-  const { fractionPois, corridorQuotaOut, loadingPois, poisFailed } = useCorridorCache({
+  const { fractionPois, corridorQuotaOut, loadingPois, poisFailed, scanFailed, scanQuotaOut, mapInputsHash, corridorSource, poisInputsHash, poisScopeKm } = useCorridorCache({
     trip, anchors, routeGeometry, scopeKm, dayRainPct, dayWeatherCode, crewSeeds,
     dnaTick, onInputsHash, pois, setPois, nearbyOpts, planKm,
     wholeTripMin: wholeTrip.min, drivingPlan,
@@ -690,6 +681,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     [trip, dayRoadKm, effectiveDays],
   )
   const dayForKm = dayAttribution.dayForKm
+  /** The exact data the attribution closures close over. */
+  const dayAttributionKey = useMemo(
+    () => dayAttributionKeyFor(dayRoadKm, effectiveDays),
+    [dayRoadKm, effectiveDays],
+  )
   // #420 slice 9: the add draft reads the same attribution. A known km with no
   // derived plan day still discloses its pick-day guess.
   const {
@@ -785,7 +781,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       for (const h of hits) next.add(String(h.id))
       return next
     })
-  }, [])
+  }, [setAddedIds, setStagedSnapshot, stagedIdsRef])
 
   // A preview that is DISCARDED must not leave a ghost: when the preview slot
   // closes, release every id this tab staged whose place is not in the plan.
@@ -808,7 +804,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       for (const id of release) next.delete(id)
       return next
     })
-  }, [previewOpen, identity])
+  }, [previewOpen, identity, setAddedIds, setStagedSnapshot, stagedIdsRef])
 
   /** P2: fill one empty part of the day with a candidate. The stop id is
    *  minted here so Undo can delete exactly what was added (addPoiToDay's
@@ -968,10 +964,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     travelStyle: trip.travelStyle, days: trip.days, dayForKm, identity,
   })
 
-  const detourMinFor = (hit: PlaceHit): number | null =>
+  const detourMinFor = useCallback((hit: PlaceHit): number | null =>
     hitEngine.get(String(hit.id))?.detourMin
-      ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40)
-  const detourKmFor = (hit: PlaceHit): number | null => asymmetricDetourKm(hit, anchors, routePolyline)
+      ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40),
+  [hitEngine, anchors, routePolyline, trip.transportMode])
+  const detourKmFor = useCallback(
+    (hit: PlaceHit): number | null => asymmetricDetourKm(hit, anchors, routePolyline),
+    [anchors, routePolyline],
+  )
 
   // #841: the writers' measured-road grade, read from the workspace's finished
   // measurement. It starts no routing call. A pending, failed, estimate-only or
@@ -1017,9 +1017,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // hits, spend each one's detour minutes against that day's budget, and mark
   // whatever no longer fits as HELD BACK — counted and shown as a line, never
   // offered as an addable card.
-  const budgetHeldIds = new Set<string>()
-  let budgetHeldCount = 0
-  {
+  const { budgetHeldIds, budgetHeldCount } = useMemo(() => {
+    const heldIds = new Set<string>()
+    let heldCount = 0
     const byDay = new Map<number, SegmentHit[]>()
     for (const sh of seeAndDoLive) {
       if (!sh.hit) continue
@@ -1038,27 +1038,55 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         budget,
       )
       for (const { sh } of deferred) {
-        budgetHeldIds.add(sh.hit!.id as string)
-        budgetHeldCount += 1
+        heldIds.add(sh.hit!.id as string)
+        heldCount += 1
       }
     }
-  }
-  // Ticket 03 repair: the rail renders the presentation adapter's rows. The
-  // page still owns state, order and writes; the adapter supplies the facts it
-  // already knows. Identity is the engine's own hit, never a new key.
-  const driveFacts = {
-    detourMinFor,
-    days: trip.days,
-    dayForKm,
-    travelStyle: trip.travelStyle,
-    added: (h: PlaceHit) => isAlreadyAdded(h, identity),
-    dismissed: (h: PlaceHit) => dismissedIds.has(String(h.id)),
-    heldBack: budgetHeldIds,
-  }
-  const driveRows = driveRowsFromSegments(pois, driveFacts)
-  const driveRowById = new Map(driveRows.map(r => [r.id, r]))
+    return { budgetHeldIds: heldIds, budgetHeldCount: heldCount }
+  }, [seeAndDoLive, dayForKm, detourMinFor, trip.travelStyle, trip.days])
+  // S2: publish the corridor facts the future workspace producer reads. The
+  // callback is read through a ref, so a parent re-render cannot republish.
+  // Only a changed snapshot key reaches the workspace.
+  const corridorStatus: CorridorSnapshot['status'] = corridorStatusFor({ quota: scanQuotaOut, scanFailed, loading: loadingPois })
+  const onCorridorStateRef = useRef(onCorridorState)
+  useEffect(() => { onCorridorStateRef.current = onCorridorState }, [onCorridorState])
+  const publishedCorridorKeyRef = useRef<string | null>(null)
+  const corridorSnapshot = useMemo<CorridorSnapshot | null>(() => {
+    if (corridorSource === 'none') return null
+    return {
+      tripId: trip.id,
+      inputsHash: poisInputsHash ?? mapInputsHash,
+      scopeKm: poisScopeKm ?? scopeKm,
+      status: corridorStatus,
+      source: corridorSource,
+      pois,
+      anchors,
+      routePolyline: routePolyline ?? null,
+      drivingPlan,
+      dayAttribution,
+      dayAttributionKey,
+      altPool: altPool.all.map(entry => entry.h),
+      detourMinFor,
+      detourKmFor,
+      heldBackIds: budgetHeldIds,
+    }
+  }, [corridorSource, trip.id, mapInputsHash, scopeKm, poisInputsHash, poisScopeKm, corridorStatus, pois, anchors, routePolyline, drivingPlan, dayAttribution, dayAttributionKey, altPool, detourMinFor, detourKmFor, budgetHeldIds])
+  useEffect(() => {
+    const next = corridorSnapshot
+    // P2: an initial `none` while a route exists is "not initialized yet", not
+    // a clear. Only a genuinely route-less Map clears the workspace snapshot.
+    const clear = !next && corridorSource === 'none' && anchors.length === 0
+    if (!next && !clear) return
+    const key = next ? corridorSnapshotKey(next) : 'none'
+    if (publishedCorridorKeyRef.current === key) return
+    publishedCorridorKeyRef.current = key
+    onCorridorStateRef.current?.(next)
+  }, [corridorSnapshot, corridorSource, anchors.length])
+  // S3: the rail reads the shared producer's one drive-row assembly. The page
+  // no longer re-assembles the same rows.
+  const driveRows = journeyDays.allDriveRows
   const seeForRail = chipFilter
-    ? seeAndDoLive.filter(sh => sh.hit && (driveRowById.get(String(sh.hit.id))?.chips ?? []).some(c => c.key === chipFilter))
+    ? seeAndDoLive.filter(sh => sh.hit && (driveRowForHit(driveRows, sh.hit)?.chips ?? []).some(c => c.key === chipFilter))
     : seeAndDoLive
   // Quota honesty (Google-only directive): when the textSearchPro soft cap is
   // hit, every Google-mode corridor scan returns [] — say why instead of
@@ -1072,68 +1100,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
    * computed once per hit here; rows only rank the already-filtered pool.
    */
 
-  // #420 slice 16: thin JSX factory — one rail row's data lives here, its
-  // rendering lives in map/RailRowViews. Called during render like every
-  // other local row helper, so no hook boundary is involved.
-  const ledgerRow = (sh: SegmentHit) => {
-    const hit = sh.hit
-    // The row is the adapter's own row for this hit: same identity, same order,
-    // and the facts the rail draws (detour, day, chips, state) come from it.
-    const row = hit ? driveRowById.get(String(hit.id)) : undefined
-    const detourMin = row
-      ? row.detourMin
-      : hit
-        ? (hitEngine.get(String(hit.id))?.detourMin
-          ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40))
-        : undefined
-    const dismissHit = () => {
-      if (!hit) return
-      recordDnaEvent({ tripId: trip.id, action: 'decline', haltKind: sh.segment.purpose, category: hit.category, detourMin: detourMin ?? undefined })
-      // Dismiss is a local rail decision: keep the current plan visible
-      // and do not invalidate/rebill the corridor. DNA is persisted and
-      // will be read by the next explicit replan.
-      setDismissedIds(prev => new Set(prev).add(hit.id as string))
-    }
-    return (
-      <LedgerRow
-        key={hit ? String(hit.id) : `gap-${sh.segment.index}`}
-        sh={sh}
-        dismissed={row ? row.state === 'dismissed' : !!hit && dismissedIds.has(hit.id as string)}
-        added={row ? row.state === 'added' : hit ? isAlreadyAdded(hit, identity) : false}
-        detourMin={detourMin}
-        hitDay={row ? row.dayIndex : hit ? dayForKm(hit.cumKm) : null}
-        chips={row?.chips ?? []}
-        altPool={altPool}
-        chipFilter={chipFilter}
-        editable={editable}
-        shortlisted={hit ? isShortlisted(hit) : false}
-        onSelectChip={key => setChipFilter(prev => (prev === key ? null : key))}
-        onAdd={() => { if (hit) openAddModal(hit) }}
-        onDismiss={dismissHit}
-        onToggleShortlist={() => { if (hit) toggleShortlist(hit) }}
-        onOpenAlt={h => openAddModal(h)}
-        onWiden={widenScope}
-        onInspect={() => { if (hit) inspectHit(hit) }}
-      />
-    )
-  }
-
-
   // ---- P2: the day's plan (slots rail) ----
-  // One derivation feeds the rail, the meter and the fill flow: slots derive
-  // from engine output alone (src/lib/daySlots.ts), so the view can never
-  // drift from the engine. stopSig/refreshTick keep the memo honest against
-  // store writes; the deps memo carries the expensive shared inputs.
-  const daySlotSig = `${stopSig}|${refreshTick}|${dismissedIds.size}|${addedIds.size}|${shortlist.length}`
-  // #420 slice 14: the day's plan derivations (deps, stops, slots, readiness,
-  // rows, hints, pins) live in ./map/useDaySlots. Values only, never callbacks.
-  const { daySlotDeps, activeDayStops, activeDaySlots, activeDayReadiness, tripReadinessRows, dnaSlotHints, slotPins } = useDaySlots({
-    pois, anchors, routePolyline, transportMode: trip.transportMode, travelStyle: trip.travelStyle,
-    existingNames, identity, altPool, dayAttribution, decisions, members: trip.members,
-    travellers: trip.travellers, startLocationCoords: trip.startLocationCoords, tripId: trip.id,
-    startDate: trip.startDate,
-    crewSeeds, dnaTick, addedIds, dismissedIds, days: trip.days, activeDayIndex, daySlotSig,
-  })
+  // S3: the shared producer derives every day once. The Map reads its active
+  // entry; it does not call `daySlots`, `tripReadiness` or `useDaySlots`.
+  const journeyDay = journeyDays.byDay.get(activeDayIndex)
+  const activeDayStops = journeyDay?.dayStops ?? []
+  const activeDaySlots = journeyDay?.slots ?? []
+  const activeDayReadiness = journeyDays.readinessByDay.get(activeDayIndex)
+    ?? { dayIndex: activeDayIndex, filled: 0, total: 0, auto: 0, required: 0 }
+  const tripReadinessRows = journeyDays.readinessRows
+  const dnaSlotHints = journeyDays.dnaSlotHints
+  const slotPins = journeyDays.slotPinsByDay.get(activeDayIndex) ?? []
+  const daySlotDeps = journeyDays.daySlotDeps
 
   // #I-41: the day the stop editor opens on lives in ./map/useOmnibarPlacement
   // now (moved there by #420 slice 7) — one lookup feeds the placement label
@@ -1194,23 +1172,70 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     activeDayIndex, activeDaySlots, markStaged, addingAny, addingIdsRef,
     setAddingIds, setAddingAny, fillingDay, setFillingDay, setDnaTick,
     setOpenSlotKey, onOpenGroupInput,
-    dayId: activeDayId ?? null,
+    dayId: journeyDay?.dayId ?? activeDayId ?? null,
     presence: identity,
     roadMeasured: roadGrade.measured,
     ...(roadGrade.measured ? { routeKey: roadGrade.routeKey } : {}),
     detourMinFor,
     detourKmFor,
+    displayDayPlan: journeyDay?.dayPlan,
+    slotManual,
   })
   const dayCounts = planCounts(dayPlan)
   // The open part's live-region line reads the same effective rows the cards show.
   const openAnnouncement = openSlotAnnouncement(dayPlan, openSlotKey)
+  /** The day's detour budget, read by the itinerary. */
+  const mapBudget = journeyDay?.budgetMin ?? dayDetourBudgetMin({ travelStyle: trip.travelStyle, plannedStops: activeDayStops.filter(stop => stop.status !== 'rejected').length })
+  // P1: the rail and card read the whole-trip producer, not only the active day.
+  const mapRows = mapAllJourneyRowsForDays(journeyDays.byDay.values(), journeyDays.allDriveRows)
+  // #420 slice 16: thin JSX factory — one rail row's data lives here, its
+  // rendering lives in map/RailRowViews. Every fact below comes from the shared
+  // projection row; chips and rail state are the only presentation extras.
+  const ledgerRow = (sh: SegmentHit) => {
+    const hit = sh.hit
+    const row = hit ? mapRailRowForHit(mapRows, hit, dayForKm(hit.cumKm)) : undefined
+    // Unknown/out-of-range rows keep the existing unprojected search facts and
+    // are never guessed onto a day. The whole-trip adapter covers other days.
+    const drive = hit ? driveRowForHit(journeyDays.allDriveRows, hit) : undefined
+    const detourMin = row ? row.detourMin : drive?.detourMin ?? (hit ? detourMinFor(hit) : undefined)
+    const dismissHit = () => {
+      if (!hit) return
+      recordDnaEvent({ tripId: trip.id, action: 'decline', haltKind: sh.segment.purpose, category: hit.category, detourMin: detourMin ?? undefined })
+      // Dismiss is a local rail decision: keep the current plan visible
+      // and do not invalidate/rebill the corridor. DNA is persisted and
+      // will be read by the next explicit replan.
+      setDismissedIds(prev => new Set(prev).add(hit.id as string))
+    }
+    return (
+      <LedgerRow
+        key={hit ? String(hit.id) : `gap-${sh.segment.index}`}
+        sh={sh}
+        dismissed={row ? row.state === 'dismissed' : drive ? drive.state === 'dismissed' : !!hit && dismissedIds.has(hit.id as string)}
+        added={row ? row.state === 'added' : hit ? isAlreadyAdded(hit, identity) : false}
+        detourMin={detourMin}
+        hitDay={row ? row.dayIndex : hit ? dayForKm(hit.cumKm) : null}
+        chips={row?.chips ?? drive?.chips ?? []}
+        altPool={altPool}
+        chipFilter={chipFilter}
+        editable={editable}
+        shortlisted={hit ? isShortlisted(hit) : false}
+        onSelectChip={key => setChipFilter(prev => (prev === key ? null : key))}
+        onAdd={() => { if (hit) openAddModal(hit) }}
+        onDismiss={dismissHit}
+        onToggleShortlist={() => { if (hit) toggleShortlist(hit) }}
+        onOpenAlt={h => openAddModal(h)}
+        onWiden={widenScope}
+        onInspect={() => { if (hit) inspectHit(hit, { slotKey: row?.slotKey ?? null, slotRef: row?.slotRef ?? null, stopId: row?.stopId ?? null }) }}
+      />
+    )
+  }
   /** P6.1: the rail's second reading - the day as a shape on one clock. */
   const [shapeView, setShapeView] = useState(false)
   // Derived only while the Shape view is open, and handed the slots already
   // computed for the rail so the day is not derived a third time. The call is
   // plain (no manual memo) because a manual memo here made the render-compiler
   // lint treat the slot list as mutated later.
-  const shapeBlocks = shapeView
+  const shapeBlocks = shapeView && daySlotDeps
     ? dayShape(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }, activeDaySlots)
     : []
   const phoneSheet = useMedia('(max-width: 760px)')
@@ -1218,11 +1243,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const [itineraryOpen, setItineraryOpen] = useState(true)
   const [deckOpen, setDeckOpen] = useState(true)
   const [snap, setSnap] = useState<SheetSnap>('peek')
-  const [detailSelection, setDetailSelection] = useState<{ tripId: string; id: string | number } | null>(null)
+  const [detailSelection, setDetailSelection] = useState<{ tripId: string; id: string | number; binding: MapRowBinding | null } | null>(null)
   const detailId = detailSelection?.tripId === trip.id ? detailSelection.id : null
+  const detailBinding = detailSelection?.tripId === trip.id ? detailSelection.binding : null
   const [targetRequest, setTargetRequest] = useState<{ contextKey: string; target: MapTarget; instant: boolean } | null>(null)
   const [scrubCursor, setScrubCursor] = useState<{ contextKey: string; coordinate: { lat: number; lng: number }; minute: number } | null>(null)
-  function setDetailId(id: string | number | null) { setDetailSelection(id == null ? null : { tripId: trip.id, id }) }
+  function setDetailId(id: string | number | null, binding: MapRowBinding | null = null) { setDetailSelection(id == null ? null : { tripId: trip.id, id, binding }) }
   function setLocalTarget(target: MapTarget | null, instant = false) { setTargetRequest(target ? { contextKey: scrubContext, target, instant } : null) }
   const [selectedStop, setSelectedStop] = useState<string | null>(null)
   const detailOpener = useRef<HTMLElement | null>(null)
@@ -1256,11 +1282,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     }
   }, [])
   const selectedHit = mapPois.find(hit => hit.id === detailId) ?? null
-  const selectedRow = selectedHit ? driveRowById.get(String(selectedHit.id)) : undefined
   const detailDay = selectedHit ? dayForKm(selectedHit.cumKm) : null
+  // A projected row is the card's fact source. The rail selection names its
+  // slot occurrence; a map pin names only the place, so repeated slot
+  // occurrences stay ambiguous instead of borrowing another row's facts.
+  const selectedMatches = selectedHit ? mapRowsForHit(mapRows, selectedHit, detailDay) : []
+  const selectedProjected = selectedMatches.length > 0
+  const selectedRow = selectedHit ? mapRowForHit(mapRows, selectedHit, detailDay, detailBinding) : undefined
   const mapShowsAll = mapFilter === 'all' || dayFocus === 'all'
   function showAllMapDays() { setMapFilter('all'); onDayFocusChange?.('all') }
-  const mapBudget = dayDetourBudgetMin({ travelStyle: trip.travelStyle, plannedStops: activeDayStops.filter(stop => stop.status !== 'rejected').length })
   function chooseDay(index: number) {
     setLocalDay(index)
     setMapFilter(index)
@@ -1268,10 +1298,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     setDetailId(null)
     setSelectedStop(null)
   }
-  function inspectHit(hit: PlaceHit) {
+  function inspectHit(hit: PlaceHit, binding: MapRowBinding | null = null) {
     detailOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     detailOpenerSnap.current = snap
-    setDetailId(hit.id)
+    setDetailId(hit.id, binding)
     setActiveHitId(hit.id)
     setDeckOpen(true)
     setSnap('half')
@@ -1999,7 +2029,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} />
-            <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={selectedRow?.detourMin ?? detourMinFor(selectedHit) ?? null} reason={selectedRow?.reason ?? null}
+            <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null} reason={selectedRow?.reason ?? null}
+              visitMin={selectedRow ? selectedRow.visitMin : selectedProjected ? null : undefined}
+              budgetSharePct={selectedRow ? selectedRow.budgetSharePct : selectedProjected ? null : undefined}
+              source={selectedRow ? selectedRow.source : selectedProjected ? null : undefined}
+              freshness={selectedRow ? selectedRow.freshness : selectedProjected ? 'unknown' : undefined}
+              actions={mapCardActions(selectedRow, selectedProjected)}
+              arriveMin={selectedRow ? selectedRow.arriveMin : selectedProjected ? null : undefined}
               added={isAlreadyAdded(selectedHit, identity)} editable={editable} busy={addingAny || !!previewOpen} shortlisted={isShortlisted(selectedHit)}
               onAdd={() => openAddModal(selectedHit)} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
           </div>}

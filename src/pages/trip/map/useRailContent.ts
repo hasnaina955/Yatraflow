@@ -37,8 +37,14 @@ export function useRailContent({
   // (fuel/food/rest/stretch/overnight/stay) on the LEFT in teal-amber, and
   // see-&-do / sightseeing + detours on the RIGHT in scenic purple — so the
   // map tab needs no scrolling to reach either kind (§6.10 CTI tone coding).
-  const needs = pois.filter(sh => sh.segment && NEED_PURPOSES.has(sh.segment.purpose))
-  const seeAndDo = pois.filter(sh => sh.segment && !NEED_PURPOSES.has(sh.segment.purpose))
+  const needs = useMemo(
+    () => pois.filter(sh => sh.segment && NEED_PURPOSES.has(sh.segment.purpose)),
+    [pois],
+  )
+  const seeAndDo = useMemo(
+    () => pois.filter(sh => sh.segment && !NEED_PURPOSES.has(sh.segment.purpose)),
+    [pois],
+  )
   // Rail derivations for the V2 pass: one chip filter narrows both rails, and the
   // ruler marks reuse each card's own cumulative km so a dot never disagrees with
   // #178: per-hit engine math in ONE memo keyed by hit id. Every card's
@@ -78,9 +84,12 @@ export function useRailContent({
   // A resolved group vote lands its winner on the timeline; those stops then
   // drop out of the see-&-do rail entirely (count included), same as the
   // “Added” state does for need halts. Name-match matches the rail's dedupe.
-  const voteResolvedOut = (sh: { hit?: PlaceHit | null }) =>
-    !!sh.hit && isAlreadyAdded(sh.hit, identity)
-  const seeAndDoLive = seeAndDo.filter(sh => !voteResolvedOut(sh))
+  // Stable derivation: the Map's held-back budget walk and the corridor
+  // snapshot key must not rebuild on a hover or chip-filter render.
+  const seeAndDoLive = useMemo(
+    () => seeAndDo.filter(sh => !(sh.hit && isAlreadyAdded(sh.hit, identity))),
+    [seeAndDo, identity],
+  )
   // Story arcs: themed bundles from live, not-yet-added sights. Memoised so
   // the clustering pass (#166) only re-runs when membership actually changes.
   const arcHits = useMemo(() => seeAndDoLive.flatMap(sh => {

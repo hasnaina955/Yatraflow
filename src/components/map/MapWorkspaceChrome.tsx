@@ -8,6 +8,7 @@ import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { clockHM } from '../../lib/clockOverlay'
 import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import type { PlaceHit } from '../../lib/geocode'
+import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
 import { ribbonStops, ribbonPosition, type RibbonPosition } from '../../lib/mapJourneyRibbon'
 
@@ -144,14 +145,31 @@ export function MapJourneyRibbon({ journey, corrections, onScrub }: {
   </section>
 }
 
-export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, onAdd, onShortlist, onClose, onDirections }: {
+export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, source, freshness, actions, arriveMin, onAdd, onShortlist, onClose, onDirections }: {
   hit: PlaceHit; trip: Trip; dayIndex: number | null; detourMin: number | null; reason: string | null; added: boolean; editable: boolean; busy: boolean; shortlisted: boolean
+  /** Projected visit length. Undefined = unprojected (existing fallback); null = unknown. */
+  visitMin?: number | null
+  /** Projected share of the day's detour budget; null or absent adds nothing. */
+  budgetSharePct?: number | null
+  /** Projected source. Undefined = unprojected; null = unknown source. */
+  source?: PlaceHit['source'] | null
+  /** Projected evidence freshness. Undefined = unprojected. */
+  freshness?: JourneyFreshness
+  /** Projected permissions. They can only restrict the existing controls. */
+  actions?: JourneyActions
+  /** Projected arrival clock for the existing hours note. */
+  arriveMin?: number | null
   onAdd: () => void; onShortlist: () => void; onClose: () => void; onDirections: () => void
 }) {
   const format = useTimeFormat()
-  const visit = intendedVisitMinutes(hit)
-  const hours = hit.hours ? hoursCardText(hoursDisplayFor(hit, { date: dayIndex == null ? null : visitDateForDay(trip.startDate, dayIndex), arrivalMin: null, visitMin: visit }), (open, close) => formatHMRange(open, close, format)) : null
-  const source = hit.source === 'google' ? 'Google Places' : hit.source === 'osm' ? 'OpenStreetMap' : hit.source === 'wikipedia' ? 'Wikipedia' : hit.source === 'mappls' ? 'Mappls' : hit.source === 'open-meteo' ? 'Open-Meteo' : 'Source not supplied'
+  const visit = visitMin !== undefined ? visitMin : intendedVisitMinutes(hit)
+  const hours = hit.hours && visit != null ? hoursCardText(hoursDisplayFor(hit, { date: dayIndex == null ? null : visitDateForDay(trip.startDate, dayIndex), arrivalMin: arriveMin !== undefined ? arriveMin : null, visitMin: visit }), (open, close) => formatHMRange(open, close, format)) : null
+  const sourceValue = source !== undefined ? source : hit.source
+  const sourceLabel = sourceValue === 'google' ? 'Google Places' : sourceValue === 'osm' ? 'OpenStreetMap' : sourceValue === 'wikipedia' ? 'Wikipedia' : sourceValue === 'mappls' ? 'Mappls' : sourceValue === 'open-meteo' ? 'Open-Meteo' : 'Source not supplied'
+  const freshnessLabel = freshness === undefined ? null : freshness === 'live' ? 'Live result' : freshness === 'retained' ? 'Retained result' : freshness === 'stale' ? 'Stale result' : 'Freshness unknown'
+  const canAdd = actions?.add ?? true
+  const canShortlist = actions?.shortlist ?? true
+  const canNavigate = actions?.navigate ?? true
   const hasReportedHours = (hit.hours != null && hit.hours.basis !== 'none') || !!hit.openTime || !!hit.closeTime
   const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
   return <article className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
@@ -162,11 +180,11 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
       {hit.rating != null && <p className="mv2-rating"><Star size={14} aria-hidden /><strong>{hit.rating.toFixed(1)}</strong>{hit.ratingCount != null && <span>· {hit.ratingCount.toLocaleString('en-IN')} reviews</span>}</p>}
       {hit.description && <p className="mv2-place-description">{hit.description}</p>}
       {(hours || reason) && <div className="mv2-reason-chips">{hours && <span>{hours}</span>}{reason && <span>{reason}</span>}</div>}
-      <dl className="mv2-cost-strip"><div><dt>Extra driving</dt><dd>{detourMin == null ? 'Unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min` : 'On route'}</dd></div><div><dt>Visit</dt><dd>{visit} min</dd></div><div><dt>Placement</dt><dd>{dayIndex == null ? 'Choose day' : `Day ${dayIndex + 1}`}</dd></div></dl>
+      <dl className="mv2-cost-strip"><div><dt>Extra driving</dt><dd>{detourMin == null ? 'Unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min` : 'On route'}{budgetSharePct != null ? ` · ${Math.round(budgetSharePct)}% of budget` : ''}</dd></div><div><dt>Visit</dt><dd>{visit == null ? 'Unknown' : `${visit} min`}</dd></div><div><dt>Placement</dt><dd>{dayIndex == null ? 'Choose day' : `Day ${dayIndex + 1}`}</dd></div></dl>
       <div className="mv2-preview-note"><Clock3 size={17} aria-hidden /><p>Check the impact before you keep it. Travel and visit time can move later stops.</p></div>
-      {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : 'Add to a day'}</button><button className="mv2-icon-btn" type="button" disabled={added || busy} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
-      <button type="button" className="mv2-directions" onClick={onDirections}><ExternalLink size={15} aria-hidden />View place in Google Maps</button>
-      <p className="mv2-source"><MapPin size={13} aria-hidden />{source} · {hit.measuredRoadFact ? 'Road evidence supplied' : 'Driving estimate'} · {hoursNote}</p>
+      {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : 'Add to a day'}</button><button className="mv2-icon-btn" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
+      <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={15} aria-hidden />View place in Google Maps</button>
+      <p className="mv2-source"><MapPin size={13} aria-hidden />{sourceLabel} · {hit.measuredRoadFact ? 'Road evidence supplied' : 'Driving estimate'} · {hoursNote}{freshnessLabel ? ` · ${freshnessLabel}` : ''}</p>
     </div>
   </article>
 }

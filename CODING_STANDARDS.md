@@ -1076,6 +1076,11 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    The gate compares legacy files with the extraction commit. It checks new and edited lines.
    If that commit is missing, the gate checks all changed lines. `--file` checks the whole file.
 
+6bg. **A covered row's snapshot key must include every visible identity, cost and time fact.**
+   Each consumer must read its own day. A key that omits a display fact republishes a stale card
+   after a silent change. A whole-trip row list is not a day slice: scope by the stable day before
+   rendering or writing.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

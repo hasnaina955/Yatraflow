@@ -18,6 +18,8 @@ The authored basemaps use the source land, water, green, road and label colours.
 
 **The day plan and its writers (#841).** The rail, the comparison, the vote and Fill the day read one effective day plan per day. Each slot carries a stable trip, day and slot identity. A renamed or reordered day keeps its choices. The writers share one road-order policy. A proposed stop inserts before its measured endpoint. An unmeasured road refuses with a reason. A keep reports success only on a checked receipt and verified stops. The resolved vote lands through the `submit_collab_command` transition with ordered placement. Migration `20261026a` must be applied on the shared backend before the ordered landing serves a live trip.
 
+**The shared journey projection (#08).** The Map is the one corridor publisher and refreshes its snapshot as facts change. The workspace derives every day's slots, plan, drive rows and shared rows from it. The Map and Timeline read the same covered suggestion rows, so identity, cost and time agree. Manual picks use one shared manual-pick read adapter and one pure builder. Current schedules supply arrivals; a stored label is marked saved. A missing fact stays unknown and a known zero stays zero. Every change keeps the existing impact preview and acknowledged Keep path. The existing halt and slack planners stay outside coverage, so AC5 is partial. Freshness stays unknown until #842. Ticket 11 stays off by default with AC6 unapproved, and the #841 live SQL gates remain open.
+
 ## Local fixture
 
 Run `node node_modules/vite/bin/vite.js --config vite.map-fixture.config.ts` from the repository root. Open `http://127.0.0.1:5211/dev/map-workspace-fixture.html`.
@@ -30,6 +32,6 @@ These checks do not prove provider performance, hosted persistence, server ackno
 
 ## Remaining work
 
-The shared Map and Timeline suggestion model still needs the reserved owner handoffs. The Around Stay, Gap and Fix lenses retain their approved dependencies and policy gates. Provider photos, live-position changes and advanced map edits also retain their gates. The two current planning controls do not add those four future lenses.
+The shared Map and Timeline suggestion model is locally integrated. The Around Stay, Gap and Fix lenses retain their approved dependencies and policy gates. Provider photos, live-position changes and advanced map edits also retain their gates. The two current planning controls do not add those four future lenses. The combined gate and live acceptance remain parent-owned.
 
 Coordinate the final phone acceptance with the phone lane before integration. The root phone checkout and its shared files were not edited by this UI pass.

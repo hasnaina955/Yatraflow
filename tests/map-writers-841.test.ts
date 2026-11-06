@@ -37,7 +37,8 @@ describe('#841 writer hooks use the exported action factories', () => {
   })
 
   it('the writers hook reads ONE effective plan for the single, batch and vote paths', () => {
-    expect(writers).toContain('buildDayPlan(')
+    expect(writers).toContain('buildDayPlanForDay(')
+    expect(writers).toContain('readManualPicksForDay(')
     expect(writers).toContain('batchSelection(')
     expect(writers).toContain('voteSelection(')
     expect(writers).toContain('effectiveDaySlotOf(')
@@ -100,7 +101,7 @@ describe('#841 hook surface stays compatible for the MapTab lease', () => {
 
   it('the writers hook returns the additive effective day plan for MapTab', () => {
     expect(writers).toContain('dayPlan: DayPlan')
-    expect(writers).toContain('dayPlan: planForDay()')
+    expect(writers).toContain('dayPlan: displayDayPlan ?? planForDay()')
     // The return value and every action read the SAME producer.
     expect(writers.match(/planForDay\(\)/g)?.length).toBeGreaterThanOrEqual(4)
   })

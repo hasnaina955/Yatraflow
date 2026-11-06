@@ -40,10 +40,9 @@ import { addDecision, admitTripPreview, tripById } from '../../../store/store'
 import { reportCollabOutcome } from '../../../lib/collabFeedback'
 import { persistedPlaceFromHit } from '../../../lib/placeDraft'
 import { isSameEntity, type PlaceIdentity } from '../../../lib/placeIdentity'
-import type { DaySlot, SlotCandidate } from '../../../lib/daySlots'
+import type { DaySlot } from '../../../lib/daySlots'
 import {
   batchSelection,
-  buildDayPlan,
   effectiveDaySlotOf,
   voteSelection,
   type DayPlan,
@@ -70,7 +69,7 @@ import {
   type WriterOperationGate,
 } from './writerOperationGate'
 import { mapManualSlotStore, manualContextForSlot } from './manualSlotContexts'
-import { manualCandidateFor } from './slotFiling'
+import { buildDayPlanForDay, readManualPicksForDay } from './manualPicks'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
 /** Every page value the four writes touch. */
@@ -142,6 +141,9 @@ export type UseMapWritersDeps = {
   detourKmFor?: (hit: PlaceHit) => number | null
   /** #841: explicit repeat visit, a separate product action. */
   allowRepeatVisit?: boolean
+  /** S3: the shared producer's display plan. Actions still revalidate with
+   *  `planForDay()` at call time, so a stale display can never place a stop. */
+  displayDayPlan?: DayPlan
 }
 
 /** The one line a refusal speaks. Kept here so each refusal has a reason the
@@ -183,6 +185,7 @@ export function useMapWriters({
   detourMinFor,
   detourKmFor,
   allowRepeatVisit,
+  displayDayPlan,
 }: UseMapWritersDeps): {
   addPoiToDay: (hit: PlaceHit, dayIndex: number) => Promise<void>
   fillSlot: (slot: DaySlot, hit: PlaceHit) => Promise<void>
@@ -228,41 +231,26 @@ export function useMapWriters({
   }
 
   /** The day's ONE effective plan: manual picks (stable store + the page's
-   *  legacy bucket) then the engine's rows, over the complete derived slots. */
+   *  legacy bucket) then the engine's rows, over the complete derived slots.
+   *  The store read and the pure merge live in ./manualPicks, so the future
+   *  shared producer calls the same pair and no second merge exists. */
   function planForDay(): DayPlan {
     const context = writerContextFor(trip, activeDayIndex)
     const stableDayId = context?.dayId ?? null
-    const manual: Record<string, SlotCandidate[]> = {}
-    const deps = { detourMin: detourMinFor, detourKm: detourKmFor }
-    if (stableDayId) {
-      const fromStore = mapManualSlotStore.candidatesBySlot({ tripId: trip.id, dayId: stableDayId }, deps)
-      for (const [key, candidates] of Object.entries(fromStore)) manual[key] = [...candidates]
-    }
-    for (const [key, hits] of Object.entries(slotManual ?? {})) {
-      // The page bucket carries no day of its own. It is read only while the
-      // last filing for that key came from THIS stable day; otherwise the
-      // stable store above is the only source, so Day A's lunch cannot be
-      // placed on Day B.
-      const bound = stableDayId
-        ? mapManualSlotStore.legacyPicksFor(key, { tripId: trip.id, dayId: stableDayId })
-        : []
-      if (bound.length === 0) continue
-      const rows = hits.map(hit => manualCandidateFor({
-        hit,
-        detourMin: detourMinFor?.(hit) ?? null,
-        detourKm: detourKmFor?.(hit) ?? null,
-        budgetMin: 1,
-        sharePct: () => 100,
-      }))
-      manual[key] = [...(manual[key] ?? []), ...rows]
-    }
-    return buildDayPlan({
-      dayIndex: activeDayIndex,
-      slots: activeDaySlots,
+    return buildDayPlanForDay({
       tripId: trip.id,
-      ...(stableDayId ? { dayId: stableDayId } : {}),
-      manual,
-      ...(presence ? { identity: presence } : {}),
+      dayIndex: activeDayIndex,
+      dayId: stableDayId,
+      slots: activeDaySlots,
+      manual: readManualPicksForDay({
+        store: mapManualSlotStore,
+        tripId: trip.id,
+        dayId: stableDayId,
+        slotManual: slotManual ?? {},
+        detourMinFor,
+        detourKmFor,
+      }),
+      identity: presence ?? null,
     })
   }
 
@@ -655,5 +643,5 @@ export function useMapWriters({
     } finally { setAddingAny(false) }
   }
 
-  return { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan: planForDay(), retryUncertain }
+  return { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan: displayDayPlan ?? planForDay(), retryUncertain }
 }

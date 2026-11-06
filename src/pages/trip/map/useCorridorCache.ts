@@ -22,6 +22,7 @@ import { planInputsHash, isMapCacheFresh, useSuggestionCache } from '../../../ho
 import { loadHaltPinsForTrip } from '../../../lib/uiPrefs'
 import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, type CrewSeed } from '../../../lib/tripDna'
 import type { MapRoadView } from '../../../lib/tripRoad'
+import { retainCorridorRowsOnFailure } from './corridorSnapshot'
 
 export type CorridorCacheArgs = {
   trip: Trip
@@ -50,6 +51,11 @@ export function useCorridorCache({
   drivingPlan, refreshTick, suggestionCache,
 }: CorridorCacheArgs) {
   const [loadingPois, setLoadingPois] = useState(false)
+  /** Which branch produced the current corridor rows: cache, scan, retained or none. */
+  const [corridorSource, setCorridorSource] = useState<'cache' | 'scan' | 'none' | 'retained'>('none')
+  /** The query the CURRENT rows came from. Never relabelled by a newer query. */
+  const [poisMeta, setPoisMeta] = useState<{ hash: string; scopeKm: number } | null>(null)
+  const poisMetaRef = useRef<{ hash: string; scopeKm: number } | null>(null)
 
   // #331: one hash is shared by the main plan and the light fraction fallback.
   // Missing fields stay optional for older callers/tests; the Map tab passes all
@@ -106,6 +112,8 @@ export function useCorridorCache({
   // one light corridor fetch feeds the ¼/½/¾ rows.
   const [fractionPois, setFractionPois] = useState<PlaceHit[] | null>(null)
   const [corridorQuotaOut, setCorridorQuotaOut] = useState(false)
+  /** Main-scan quota only. The fraction fallback has its own note. */
+  const [scanQuotaOut, setScanQuotaOut] = useState(false)
   // #704: a failed search is not an empty one. The Map tab shows a note for it.
   const [scanFailed, setScanFailed] = useState(false)
   const [fractionFailed, setFractionFailed] = useState(false)
@@ -137,7 +145,24 @@ export function useCorridorCache({
   }, [loadingPois, pois, anchors, nearbyOpts, scopeKm, refreshTick, mapInputsHash, suggestionCache])
 
   useEffect(() => {
-    if (anchors.length === 0) { setScanFailed(false); return } // eslint-disable-line react-hooks/set-state-in-effect -- the guard clears a stale failure note, since no stops means no scan
+    if (anchors.length === 0) {
+      // No route means no current corridor. Clear the rows and their query after
+      // the render commits so an old snapshot cannot survive as if it belonged
+      // to this trip state.
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled) return
+        setScanFailed(false)
+        setScanQuotaOut(false)
+        setCorridorQuotaOut(false)
+        setCorridorSource('none')
+        setPois([])
+        poisMetaRef.current = null
+        setPoisMeta(null)
+        setLoadingPois(false)
+      })
+      return () => { cancelled = true }
+    }
     const cached = suggestionCache.cache.map
     // #331: the shared hash covers route shape, weather/time cadence, pinned
     // halts, DNA preferences, speed, crew/fuel/budget and scope. Cache hits
@@ -149,13 +174,26 @@ export function useCorridorCache({
     // real road corridor; only ↻ Refresh, a scope change, new anchors, or an
     // empty cache starts another paid scan.
     if (cached && isMapCacheFresh(cached, scopeKm, inputsHash)) {
-      setCorridorQuotaOut(false); setScanFailed(false) // a fresh cache answers at once: publish it instead of starting a paid scan
-      setPois(cached.segments)
-      return
+      // A fresh cache answers at once: publish it instead of starting a paid
+      // scan. Deferred one microtask so the effect commits no state inline.
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled) return
+        setCorridorQuotaOut(false); setScanQuotaOut(false); setScanFailed(false)
+        setCorridorSource('cache')
+        setPois(cached.segments)
+        poisMetaRef.current = { hash: inputsHash, scopeKm }
+        setPoisMeta({ hash: inputsHash, scopeKm })
+      })
+      return () => { cancelled = true }
     }
     let cancelled = false
     const controller = new AbortController()
-    setLoadingPois(true)
+    queueMicrotask(() => {
+      if (cancelled) return
+      setLoadingPois(true)
+      setCorridorSource('scan')
+    })
     // Day Planner arming (P1-B/#121): the ROUTE arms the split — the clock
     // walk when it speaks ('ok' → its day count), the drive-day split when the
     // clock defers, tonight's hop otherwise. NEVER the planned day count: a
@@ -170,8 +208,11 @@ export function useCorridorCache({
       .then(plan => {
         if (!cancelled) {
           setCorridorQuotaOut(false)
+          setScanQuotaOut(false)
           setScanFailed(false)
           setPois(plan)
+          poisMetaRef.current = { hash: inputsHash, scopeKm }
+          setPoisMeta({ hash: inputsHash, scopeKm })
           // Never cache an empty plan: the first search can run before the
           // route resolves, and a persisted [] would stick until Refresh.
           // #185: also never cache a DEGRADED plan — when the road hasn't
@@ -187,9 +228,24 @@ export function useCorridorCache({
       })
       .catch((err: unknown) => {
         if (cancelled || controller.signal.aborted) return
-        if (err instanceof QuotaExhaustedError) { setCorridorQuotaOut(true); setPois([]) }
+        // Approved decision #3: retain valid rows for the SAME query. A changed
+        // route/scope is never relabelled as current.
+        const retain = retainCorridorRowsOnFailure({
+          hasRows: pois.length > 0,
+          meta: poisMetaRef.current,
+          inputsHash,
+          scopeKm,
+        })
+        if (retain) setCorridorSource('retained')
+        else {
+          setPois([])
+          poisMetaRef.current = null
+          setPoisMeta(null)
+          setCorridorSource('scan')
+        }
+        if (err instanceof QuotaExhaustedError) { setCorridorQuotaOut(true); setScanQuotaOut(true) }
         // #704: a failed scan is not an empty one, so the Map tab shows a note for it.
-        else { setScanFailed(true); setPois([]) }
+        else { setScanQuotaOut(false); setScanFailed(true) }
       })
       .finally(() => { if (!cancelled) setLoadingPois(false) })
     return () => {
@@ -206,5 +262,18 @@ export function useCorridorCache({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchors, nearbyOpts, scopeKm, mapInputsHash, planKm, wholeTripMin, drivingPlan, refreshTick])
 
-  return { mapInputsHash, fractionPois, corridorQuotaOut, loadingPois, poisFailed: scanFailed || fractionFailed }
+  return {
+    mapInputsHash,
+    fractionPois,
+    corridorQuotaOut,
+    loadingPois,
+    // The page note keeps the old "any search failed" meaning; the snapshot
+    // status uses `scanFailed` only (P7).
+    poisFailed: scanFailed || fractionFailed,
+    scanFailed,
+    scanQuotaOut,
+    corridorSource,
+    poisInputsHash: poisMeta?.hash ?? null,
+    poisScopeKm: poisMeta?.scopeKm ?? null,
+  }
 }

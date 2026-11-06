@@ -10,11 +10,14 @@ import { readFileSync } from 'node:fs'
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 const tab = read('src/pages/trip/TimelineTab.tsx')
 const day = read('src/pages/trip/timeline/DaySection.tsx')
+const producer = read('src/pages/trip/journey/journeyDays.ts')
 
 describe('TimelineTab hands each day its facts (#347)', () => {
-  it('builds the cards once per trip change, through the reusable builder', () => {
-    expect(tab).toMatch(/buildDayCards\(trip, days, legCorrections, cardsCache\.current\)/)
-    expect(tab).toMatch(/cardsCache\.current = next/)
+  it('reads the producer cards and keeps the reusable builder + day reuse', () => {
+    expect(tab).toMatch(/const cards = journeyDays\.cards/)
+    expect(producer).toMatch(/buildDayCards\(trip, trip\.days, input\.legCorrections, input\.prev\?\.cards \?\? null\)/)
+    expect(producer).toMatch(/previous\.revision === revision/)
+    expect(producer).toMatch(/previous && previous\.revision === revision/)
   })
 
   it('passes the resolved facts to the card instead of a fresh day-scoped slice', () => {

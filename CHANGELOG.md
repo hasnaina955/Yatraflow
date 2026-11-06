@@ -18,6 +18,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **Road measurements now have a gated planning caller.** The plan turns ranked candidates into bounded, truthful rows. It stays off by default. It makes no routing call and changes no quota. The hard top-15 cap and one departure clock stay with the helper. Duplicate candidate ids stay unmeasured with a reason. AC 6 rights and operating limits remain unapproved.
+
 - **The Map V2 work is recomposed onto the released day-slot code.** The map workspace, basemaps, marks and road-retry latch keep their approved behavior. The released store, writer, preview, group input, toast and safe-field fixes stay byte-identical. The shared day-slot, workspace, style and documentation files combine both changes. Map tickets 08 and 11 are not started, and the issue 841 live gates stay open.
 
 - **The phone Map puts search and the panel switcher on one row.** The switcher keeps its counts and drops its words. Some states need the width: typed text, Clear, a busy search and a paused search. A folded deck on a narrow phone needs it too. The switcher then moves into the search card. On desktop the map credit no longer sits under the Key control. Escape closes the place card and returns focus to the control that opened it.

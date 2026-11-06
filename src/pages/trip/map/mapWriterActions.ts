@@ -1193,5 +1193,3 @@ export function acknowledgedStopsFrom(completion: WriterCompletion): Acknowledge
     expected: structuredClone(item.stop) as ItineraryStop,
   }))
 }
-
-

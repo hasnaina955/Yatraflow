@@ -229,6 +229,7 @@ const TOAST_DWELL_UNDO = 7000
 
 export function ToastZone() {
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const zoneRef = useRef<HTMLDivElement | null>(null)
   // One timer per toast, not one per batch: a hold has to bank the elapsed time
   // and resume where it stopped. The undo toast is the ONLY way back from a
   // destructive action, so it must not expire out from under the user while they
@@ -268,6 +269,35 @@ export function ToastZone() {
     }
   }, [])
 
+  /** Publish the toast stack's measured height as --toast-lane-h. The impact
+      sheet reserves that lane, so the two fixed hosts never overlap. The lane
+      is zero when no toast is up. */
+  useEffect(() => {
+    const el = zoneRef.current
+    if (!el) return
+    const root = document.documentElement
+    const measure = () => {
+      const r = el.getBoundingClientRect()
+      root.style.setProperty('--toast-lane-h', r.height > 0 ? `${Math.ceil(window.innerHeight - r.top)}px` : '0px')
+      el.scrollTop = el.scrollHeight
+    }
+    measure()
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(measure); ro.observe(el) }
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+      root.style.removeProperty('--toast-lane-h')
+    }
+  }, [])
+
+  /** Keep the newest toast (and its action) in view when the stack scrolls. */
+  useEffect(() => {
+    const el = zoneRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [toasts])
+
   /** Reconcile the hold against both reasons: bank the elapsed time on the way
       in, re-arm each toast with what it had left (never under a beat) on the way
       out. Only acts on an actual change, so a stray repeat event is a no-op. */
@@ -292,6 +322,7 @@ export function ToastZone() {
   }
   return (
     <div
+      ref={zoneRef}
       className="toast-zone"
       role="status"
       aria-live="polite"

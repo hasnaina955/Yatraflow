@@ -18,6 +18,7 @@ const read = (path: string): string =>
 
 const writers = read('../src/pages/trip/map/useMapWriters.ts')
 const shortlist = read('../src/pages/trip/map/useShortlist.ts')
+const resume = read('../src/pages/trip/map/writerResumeDisposition.ts')
 const filing = read('../src/pages/trip/map/useSlotSearch.ts')
 const gate = read('../src/pages/trip/map/writerOperationGate.ts')
 const mapTab = read('../src/pages/trip/MapTab.tsx')
@@ -189,13 +190,30 @@ describe('#841 writer contract fixes at the owned call sites', () => {
     }
   })
 
-  it('the hooks speak the precise resume dispositions', () => {
-    // F2: a changed request under an uncertain operation is a distinct
+  it('the hooks speak the precise resume dispositions through the one helper', () => {
+    // F3: a changed request under an uncertain operation is a distinct
     // boundary, and an unverifiable retry points at Saved edits recovery.
     for (const source of [writers, shortlist]) {
-      expect(source).toContain('payload-changed')
-      expect(source).toContain('resume-unverifiable')
+      expect(source).toContain("from './writerResumeDisposition'")
+      expect(source).toContain('writerResumePresentation(result.resume.disposition)')
+      expect(source).not.toMatch(/resume\.disposition === 'payload-changed'/)
       expect(source).toContain('already-in-plan')
     }
+    // The shared table is exhaustive: every disposition has its own mapping and
+    // terminal action, so a changed/unknown retry cannot fall through to
+    // "already completed".
+    for (const disposition of [
+      'payload-changed', 'resume-unverifiable', 'operation-settled',
+      'operation-unknown', 'road-changed', 'trip-changed',
+    ]) {
+      expect(resume).toContain(`'${disposition}': {`)
+    }
+    expect(resume.match(/terminal: true/g)?.length).toBe(6)
+    expect(resume).not.toMatch(/text:.*already completed/i)
+  })
+
+  it('deletion control: a hook that stops calling the helper loses the pin', () => {
+    const disconnected = writers.replace(/writerResumePresentation\(result\.resume\.disposition\)/g, '')
+    expect(disconnected).not.toContain('writerResumePresentation(')
   })
 })

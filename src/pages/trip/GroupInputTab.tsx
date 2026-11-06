@@ -37,10 +37,9 @@ import { dayRefFor } from '../../lib/dayRef'
 import { editPlaceDraft, persistedPlace, pickPlaceDraft, unresolvedPlace, type PlaceDraft } from '../../lib/placeDraft'
 import { cap, timeAgo } from './shared'
 import {
-  planDecisionResolution,
-  SLOT_RESOLUTION_COPY,
+  runDecisionResolution,
   type LegacyResolutionTarget,
-  type SlotResolutionRoad,
+  type SlotResolutionContext,
 } from './slotResolutionAdapter'
 
 // ================= Group input tab =================
@@ -101,15 +100,15 @@ function useBusyClaim(key: string): { busy: boolean; claim: () => boolean; relea
   return { busy: isClaimed(claims, key), claim, release }
 }
 
-export function GroupInputTab({ trip, editable, me, previewOpen, slotRoad }: {
+export function GroupInputTab({ trip, editable, me, previewOpen, slotResolution }: {
   trip: Trip
   editable: boolean
   me: NonNullable<ReturnType<typeof currentUser>>
   /** true while the workspace holds a staged change — the crew-signal buttons
    *  below write the committed row, so they must not race a preview (#334). */
   previewOpen?: boolean
-  /** Measured workspace road facts for resolved slot votes. Null when unmeasured. */
-  slotRoad?: SlotResolutionRoad | null
+  /** The committed trip and graded workspace road for slot-vote resolution. */
+  slotResolution: SlotResolutionContext | null
 }) {
   const db = useDb()
   const memberCount = (trip.members ?? []).length
@@ -234,7 +233,7 @@ export function GroupInputTab({ trip, editable, me, previewOpen, slotRoad }: {
             ? <SuggestionCard key={item.sg.id} sg={item.sg} trip={trip} me={me} editable={editable} memberCount={memberCount}
                 needsMe={suggestionNeedsMe(item.sg)} previewOpen={previewOpen} />
             : <DecisionCard key={item.d.id} d={item.d} me={me} editable={editable}
-                needsMe={decisionNeedsMe(item.d)} trip={trip} previewOpen={previewOpen} slotRoad={slotRoad} />
+                needsMe={decisionNeedsMe(item.d)} trip={trip} previewOpen={previewOpen} slotResolution={slotResolution} />
           )}
 
           <Surface className="card gin-panel">
@@ -574,14 +573,14 @@ function CommentForm({ onSubmit }: { onSubmit: (text: string) => Promise<CollabO
 
 // ================= Decision card =================
 
-function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotRoad }: {
+function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotResolution }: {
   d: TripDecision
   me: { id: string }
   editable: boolean
   needsMe: boolean
   trip: Trip
   previewOpen?: boolean
-  slotRoad?: SlotResolutionRoad | null
+  slotResolution: SlotResolutionContext | null
 }) {
   const tally = d.options.map(o => Object.values(d.votesByUserId).filter(v => v === o.id).length)
   const totalVotes = tally.reduce((s, t) => s + t, 0)
@@ -595,43 +594,37 @@ function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotRoad }:
   const { busy, claim, release } = useBusyClaim(d.id)
   const [placementDayId, setPlacementDayId] = useState('')
   const [placementDays, setPlacementDays] = useState<Array<{ id: string; index: number; title?: string }> | null>(null)
+  const [openDayOptionId, setOpenDayOptionId] = useState<string | null>(null)
+  const [roadRefusal, setRoadRefusal] = useState<{ copy: string; recoverable: boolean } | null>(null)
   const resolvedOption = d.options.find(o => o.id === d.resolvedOptionId)
   const needsPlacement = d.status === 'resolved' && !!d.resolvedOptionId && !d.resolvedStopId && !!resolvedOption?.place
+  // An open legacy poll can reach this picker after a missing-day refusal.
+  const pickerOptionId = needsPlacement ? (d.resolvedOptionId ?? null) : openDayOptionId
+  const pickerOption = pickerOptionId ? d.options.find(o => o.id === pickerOptionId) : undefined
   const availablePlacementDays = placementDays ?? trip.days.map(day => ({
     id: day.id, index: day.index, ...(day.title ? { title: day.title } : {}),
   }))
 
-  // The adapter captures day, route, anchor and revision as one snapshot.
+  // The orchestration captures day, route, anchor and revision as one snapshot.
   // It is pure, so no await can lend a newer trip to an older measurement.
-  // A slot poll that cannot prove those facts refuses instead of appending.
+  // Every resolve route goes through it, including the day-picker retry.
   async function resolveChoice(optionId: string, target: LegacyResolutionTarget = {}) {
-    if (!claim()) return
-    try {
-      const plan = planDecisionResolution({ trip, decision: d, optionId, target, road: slotRoad ?? null })
-      if (plan.kind === 'refused') {
-        toast(SLOT_RESOLUTION_COPY[plan.reason], 'err')
-        return
-      }
-      const outcome = await resolveDecision(d.id, optionId, plan.target)
-      if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') {
-        if (outcome.placement.status === 'needsDay') {
-          setPlacementDays(outcome.placement.availableDays)
-          setPlacementDayId('')
-          toast('The vote is resolved. Choose a current day to place the winning stop.', 'err')
-        } else if (outcome.placement.status === 'needsPlace') {
-          toast('The vote is resolved, but its winning place needs a valid location.', 'err')
-        } else {
-          setPlacementDays(null)
-          toast(outcome.placement.status === 'notRequired' ? 'Decision resolved' : 'Decision resolved and placed')
-        }
-        return
-      }
-      reportCollabOutcome(outcome)
-    } catch {
-      toast('Could not resolve this vote. It is still open — try again.', 'err')
-    } finally {
-      release()
+    const flow = await runDecisionResolution(
+      { context: slotResolution, decision: d, optionId, target, previewOpen },
+      {
+        resolveDecision, toast, reportCollabOutcome, refuseWhileStaged,
+        claim, release, onPlacementDays: setPlacementDays, onPlacementDayId: setPlacementDayId,
+      },
+    )
+    if (flow.kind === 'refused') {
+      setRoadRefusal(flow.reason === 'missing-road' || flow.reason === 'stale-road' || flow.reason === 'road-unavailable'
+        ? { copy: flow.copy, recoverable: flow.recoverable }
+        : null)
+      setOpenDayOptionId(flow.reason === 'missing-day' ? optionId : null)
+      return
     }
+    setRoadRefusal(null)
+    setOpenDayOptionId(flow.kind === 'settled' && flow.needsDayPicker ? (d.resolvedOptionId ?? optionId) : null)
   }
 
   return (
@@ -708,9 +701,11 @@ function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotRoad }:
           ))}
         </div>
       )}
-      {needsPlacement && (
+      {pickerOptionId && pickerOption?.place && (
         <div className="gin-item-actions gin-followup" role="group" aria-label="Choose a day for the winning stop">
-          <p className="small muted">{resolvedOption?.place?.title} won the vote. Choose a current day to place it.</p>
+          <p className="small muted">{needsPlacement
+            ? `${pickerOption.place.title} won the vote. Choose a current day to place it.`
+            : 'This slot vote has no day. Choose a current day, then place it.'}</p>
           {availablePlacementDays.length === 0 ? (
             <p className="small">This trip has no days. Add a day in the timeline, then choose a day here.</p>
           ) : (
@@ -723,13 +718,21 @@ function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotRoad }:
                 </option>)}
               </select>
               <button className="btn btn-primary btn-sm" disabled={busy || !placementDayId} aria-busy={busy}
-                onClick={() => {
-                  const optionId = d.resolvedOptionId
-                  if (optionId) void resolveChoice(optionId, { dayId: placementDayId })
-                }}>
-                Place winning stop
+                onClick={() => { void resolveChoice(pickerOptionId, { dayId: placementDayId }) }}>
+                {needsPlacement ? 'Place winning stop' : 'Place on chosen day'}
               </button>
             </>
+          )}
+        </div>
+      )}
+      {roadRefusal && (
+        <div className="gin-item-actions gin-followup" role="group" aria-label="Route for ordered placement">
+          <p className="small muted">{roadRefusal.copy}</p>
+          {roadRefusal.recoverable && slotResolution?.road?.retry && (
+            <button className="btn btn-outline btn-sm"
+              onClick={() => slotResolution?.road?.retry()}>
+              {slotResolution?.road?.status === 'failed' ? 'Retry measurement' : 'Measure route'}
+            </button>
           )}
         </div>
       )}

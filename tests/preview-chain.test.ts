@@ -145,7 +145,7 @@ describe('the surfaces that must not race a preview (#334)', () => {
     expect(src).not.toMatch(/refuseWhilePreviewing|PREVIEW_BUSY/)
     // …and the workspace actually tells the tab that a preview is open.
     const ws = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8')
-    expect(ws).toMatch(/<GroupInputTab trip=\{effective\} editable=\{editable\} me=\{me\} previewOpen=\{!!pending\} slotRoad=\{groupInputRoad\} \/>/)
+    expect(ws).toMatch(/<GroupInputTab trip=\{effective\} editable=\{editable\} me=\{me\} previewOpen=\{!!pending\} slotResolution=\{groupInputResolution\} \/>/)
   })
 })
 

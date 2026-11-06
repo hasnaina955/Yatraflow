@@ -1,9 +1,10 @@
 // ============ Resolved slot vote caller adapter (#841) ============
-// Production Group input calls planDecisionResolution before resolveDecision.
+// Production Group input calls this module before it calls the store.
 // A slot poll wins one atomic ordered target from the shared planner.
-// The workspace road facts are measured before this call.
+// The workspace grades its road before this call.
 // This module starts no routing call and applies no SQL.
 import type { DecisionPlacePayload, ID, OrderedDecisionResolution, Trip, TripDecision } from '../../data/types'
+import type { DecisionResolutionOutcome } from '../../store/collabCommand'
 import type { PlaceHit } from '../../lib/providers/hits'
 import type { VisitPlaceLike } from '../../lib/placeIdentity'
 import {
@@ -13,17 +14,11 @@ import {
   type SlotPlacementItem,
   type SlotPlacementResult,
 } from '../../lib/slotPlacement'
-import { isAirMode } from '../../lib/engine'
-import {
-  buildRoadChain,
-  mapRoadViewFromLegs,
-  resolvedLegs,
-  roadChainSig,
-  type TripRoadView,
-} from '../../lib/tripRoad'
+import { mapRoadViewFromLegs, type RoadStatus, type TripRoadView } from '../../lib/tripRoad'
 import { projectOntoPolyline } from '../../lib/providers/hits'
+import { measuredRoadFacts, type RoadUnmeasuredReason } from './map/mapTabPipeline'
 
-// The workspace road facts a measured slot resolution needs.
+// The measured road facts one slot resolution needs.
 export interface SlotResolutionRoad {
   // The stable key of the measured chain.
   routeKey: string
@@ -31,9 +26,28 @@ export interface SlotResolutionRoad {
   routeKmOf: (lat: number, lng: number) => number | null
 }
 
+// The workspace road context the Group tab receives.
+// A null measured field keeps the grade reason and the retry action.
+export interface SlotRoadContext {
+  measured: SlotResolutionRoad | null
+  reason: RoadUnmeasuredReason | null
+  status: RoadStatus
+  // True when a retry can make the road measurable.
+  recoverable: boolean
+  // The workspace retry action. It starts no new call here.
+  retry: () => void
+}
+
+// One resolution context. The trip is committed, never a staged draft.
+export interface SlotResolutionContext {
+  trip: Trip
+  road: SlotRoadContext | null
+}
+
 export type SlotResolutionRefusal =
   | 'missing-winner' | 'missing-place' | 'missing-day' | 'day-changed'
-  | 'missing-road' | 'stale-road' | 'missing-anchor' | 'stale-base' | 'planning-refused'
+  | 'missing-road' | 'stale-road' | 'road-unavailable' | 'missing-anchor'
+  | 'stale-base' | 'planning-refused'
 
 export type OrderedResolutionTarget = { dayId: ID; orderedPlacement: OrderedDecisionResolution }
 export type LegacyResolutionTarget = { dayId?: ID; dayIndex?: number }
@@ -49,16 +63,17 @@ export interface DecisionResolutionInput {
   decision: TripDecision
   optionId: ID
   target?: LegacyResolutionTarget
-  road: SlotResolutionRoad | null
+  road: SlotRoadContext | null
 }
 
 export const SLOT_RESOLUTION_COPY: Record<SlotResolutionRefusal, string> = {
   'missing-winner': 'The chosen option is no longer in this vote.',
   'missing-place': 'The winning place has no valid location. It was not placed.',
-  'missing-day': 'This slot vote has no current day. The winning stop was not placed.',
+  'missing-day': 'This slot vote has no current day. Choose a day below, then place it.',
   'day-changed': 'The day changed since this vote was raised. It was not placed.',
-  'missing-road': 'The road is not measured yet. Try again when the route is ready.',
-  'stale-road': 'The measured route is out of date. Try again when the route is ready.',
+  'missing-road': 'The road is not measured yet. Measure the route, then resolve again.',
+  'stale-road': 'The measured route is out of date. Measure the route, then resolve again.',
+  'road-unavailable': 'Ordered placement is unavailable for this trip. The winning stop was not placed.',
   'missing-anchor': 'The winning place is off the measured route. It was not placed.',
   'stale-base': 'The trip changed during this vote. Try again.',
   'planning-refused': 'The winning stop has no road-order place. It was not placed.',
@@ -73,39 +88,52 @@ function refused(reason: SlotResolutionRefusal, detail?: string): DecisionResolu
   return detail ? { kind: 'refused', reason, detail } : { kind: 'refused', reason }
 }
 
-function samePoint(a: { lat: number; lng: number }, b: { lat: number; lng: number }): boolean {
-  return Math.abs(a.lat - b.lat) < 0.000005 && Math.abs(a.lng - b.lng) < 0.000005
+// A retry helps a pending, failed, estimate-only or stale grade.
+// Air and a trip with fewer than two chain points have no road to measure.
+function recoverableGrade(reason: RoadUnmeasuredReason, status: RoadStatus): boolean {
+  if (reason === 'air-journey') return false
+  if (reason === 'no-measurement' && status === 'ok') return false
+  return true
 }
 
-// Grade the workspace measurement. A line alone is not evidence.
-// This mirrors measuredRoadFacts with the same chain helpers.
+// Grade the workspace measurement with the Map tab grade function.
+// A line alone is not evidence.
+// The polyline comes from the same road view the Map tab draws.
 export function slotResolutionRoadFor(
   trip: Trip,
-  road: Pick<TripRoadView, 'status' | 'chain' | 'legs'> | null | undefined,
-): SlotResolutionRoad | null {
-  if (isAirMode(trip.transportMode)) return null
-  if (!road || road.status !== 'ok' || !road.chain || !road.legs || road.legs.length === 0) return null
-  const legs = road.legs
-  const chain = road.chain
-  if (!resolvedLegs(legs)) return null
-  const current = buildRoadChain(trip)
-  const sameChain = current.points.length === chain.points.length
-    && current.points.every((point, index) => samePoint(point, chain.points[index]))
-    && (!chain.ptStopId || chain.ptStopId.every((id, index) => id === current.ptStopId[index]))
-  if (!sameChain) return null
-  const view = mapRoadViewFromLegs(chain, legs, trip.days.map(d => d.index))
+  road: TripRoadView | null | undefined,
+): SlotRoadContext {
+  const view = mapRoadViewFromLegs(road?.chain ?? null, road?.legs ?? null, trip.days.map(d => d.index))
   const polyline: Array<{ lat: number; lng: number }> = []
   for (const pair of view.geometry ?? []) {
     const lng = pair?.[0]
     const lat = pair?.[1]
-    if (Number.isFinite(lng) && Number.isFinite(lat)) polyline.push({ lat: lat as number, lng: lng as number })
+    if (typeof lng === 'number' && Number.isFinite(lng)
+      && typeof lat === 'number' && Number.isFinite(lat)) {
+      polyline.push({ lat, lng })
+    }
   }
-  if (polyline.length < 2) return null
-  const routeKey = roadChainSig(trip)
-  if (!routeKey) return null
+  const grade = measuredRoadFacts({ trip, road, hasLine: polyline.length >= 2 })
+  const status: RoadStatus = road?.status ?? 'pending'
+  const retry = road?.retry ?? (() => {})
+  if (!grade.measured) {
+    return {
+      measured: null,
+      reason: grade.reason,
+      status,
+      recoverable: !!road && recoverableGrade(grade.reason, status),
+      retry,
+    }
+  }
   return {
-    routeKey,
-    routeKmOf: (lat, lng) => projectOntoPolyline({ latitude: lat, longitude: lng }, polyline)?.km ?? null,
+    measured: {
+      routeKey: grade.routeKey,
+      routeKmOf: (lat, lng) => projectOntoPolyline({ latitude: lat, longitude: lng }, polyline)?.km ?? null,
+    },
+    reason: null,
+    status,
+    recoverable: false,
+    retry,
   }
 }
 
@@ -162,19 +190,23 @@ export function planDecisionResolution(input: DecisionResolutionInput): Decision
   const day = trip.days.find(d => d.id === dayId)
   if (!day) return refused('missing-day')
 
-  if (!road || typeof road.routeKey !== 'string' || road.routeKey.length === 0) return refused('missing-road')
-  if (roadChainSig(trip) !== road.routeKey) return refused('stale-road')
+  if (!road || !road.measured) {
+    const reason = road?.reason === 'stale-chain' ? 'stale-road'
+      : road?.recoverable ? 'missing-road'
+        : 'road-unavailable'
+    return refused(reason, road?.reason ?? undefined)
+  }
   const revision = trip.writeVersion
-  if (typeof revision !== 'number' || !Number.isFinite(revision) || revision < 0) return refused('stale-base')
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) return refused('stale-base')
 
-  const km = road.routeKmOf(place.lat, place.lng)
+  const km = road.measured.routeKmOf(place.lat, place.lng)
   if (km == null || !Number.isFinite(km) || km < 0) return refused('missing-anchor')
 
-  const routeKey = road.routeKey
+  const routeKey = road.measured.routeKey
   const existingRoadPositions: ExistingRoadPosition[] = []
   for (const stop of day.stops) {
     if (stop.status === 'rejected') continue
-    const stopKm = road.routeKmOf(stop.lat, stop.lng)
+    const stopKm = road.measured.routeKmOf(stop.lat, stop.lng)
     if (stopKm == null || !Number.isFinite(stopKm) || stopKm < 0) continue
     existingRoadPositions.push({ stopId: stop.id, km: stopKm, routeKey, dayId })
   }
@@ -216,5 +248,91 @@ export function planDecisionResolution(input: DecisionResolutionInput): Decision
   return {
     kind: 'ordered',
     target: { dayId, orderedPlacement: { dayId, beforeStopId: planned.beforeStopId, expectedRevision: revision } },
+  }
+}
+
+export interface DecisionResolutionDeps {
+  resolveDecision: (decisionId: ID, optionId: ID, target: LegacyResolutionTarget | OrderedResolutionTarget) => Promise<DecisionResolutionOutcome>
+  toast: (message: string, kind?: 'ok' | 'err') => void
+  reportCollabOutcome: (outcome: DecisionResolutionOutcome) => void
+  refuseWhileStaged: (staged?: boolean) => boolean
+  claim: () => boolean
+  release: () => void
+  onPlacementDays: (days: Array<{ id: string; index: number; title?: string }> | null) => void
+  onPlacementDayId: (id: string) => void
+}
+
+export interface DecisionResolutionFlowInput {
+  context: SlotResolutionContext | null
+  decision: TripDecision
+  optionId: ID
+  target?: LegacyResolutionTarget
+  previewOpen?: boolean
+}
+
+// Each result names the state the card must show.
+export type DecisionResolutionFlow =
+  | { kind: 'staged' }
+  | { kind: 'not-claimed' }
+  | { kind: 'refused'; reason: SlotResolutionRefusal; detail: string | null; copy: string; recoverable: boolean }
+  | { kind: 'settled'; outcome: DecisionResolutionOutcome; needsDayPicker: boolean }
+  | { kind: 'threw' }
+
+// The production Group input resolves a decision through this one branch.
+// The adapter, the planner and the store stay real. Only transports are injected.
+export async function runDecisionResolution(
+  input: DecisionResolutionFlowInput,
+  deps: DecisionResolutionDeps,
+): Promise<DecisionResolutionFlow> {
+  if (deps.refuseWhileStaged(input.previewOpen)) return { kind: 'staged' }
+  if (!deps.claim()) return { kind: 'not-claimed' }
+  try {
+    if (!input.context) {
+      const copy = SLOT_RESOLUTION_COPY['road-unavailable']
+      deps.toast(copy, 'err')
+      return { kind: 'refused', reason: 'road-unavailable', detail: 'no-context', copy, recoverable: false }
+    }
+    const plan = planDecisionResolution({
+      trip: input.context.trip,
+      road: input.context.road,
+      decision: input.decision,
+      optionId: input.optionId,
+      target: input.target,
+    })
+    if (plan.kind === 'refused') {
+      const copy = SLOT_RESOLUTION_COPY[plan.reason]
+      deps.toast(copy, 'err')
+      return {
+        kind: 'refused',
+        reason: plan.reason,
+        detail: plan.detail ?? null,
+        copy,
+        recoverable: (plan.reason === 'missing-road' || plan.reason === 'stale-road')
+          && !!input.context.road?.recoverable,
+      }
+    }
+    const outcome = await deps.resolveDecision(input.decision.id, input.optionId, plan.target)
+    let needsDayPicker = false
+    if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') {
+      if (outcome.placement.status === 'needsDay') {
+        deps.onPlacementDays(outcome.placement.availableDays)
+        deps.onPlacementDayId('')
+        needsDayPicker = true
+        deps.toast('The vote is resolved. Choose a current day to place the winning stop.', 'err')
+      } else if (outcome.placement.status === 'needsPlace') {
+        deps.toast('The vote is resolved, but its winning place needs a valid location.', 'err')
+      } else {
+        deps.onPlacementDays(null)
+        deps.toast(outcome.placement.status === 'notRequired' ? 'Decision resolved' : 'Decision resolved and placed')
+      }
+    } else {
+      deps.reportCollabOutcome(outcome)
+    }
+    return { kind: 'settled', outcome, needsDayPicker }
+  } catch {
+    deps.toast('Could not resolve this vote. It is still open — try again.', 'err')
+    return { kind: 'threw' }
+  } finally {
+    deps.release()
   }
 }

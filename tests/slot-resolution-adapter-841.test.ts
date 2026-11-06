@@ -7,7 +7,6 @@ const { transport } = vi.hoisted(() => ({
     calls: [] as Array<{ commandId: string; command: Record<string, unknown> }>,
     response: null as unknown,
     error: null as { code?: string; message?: string } | null,
-    throws: false,
   },
 }))
 
@@ -16,7 +15,6 @@ vi.mock('../src/lib/supabase', () => ({
   supabase: {
     rpc: async (_name: string, args: { p_command_id: string; p_command: Record<string, unknown> }) => {
       transport.calls.push({ commandId: args.p_command_id, command: args.p_command })
-      if (transport.throws) throw new Error('transport down')
       return { data: transport.response, error: transport.error }
     },
     auth: { getSession: async () => ({ data: { session: null }, error: null }) },
@@ -24,13 +22,13 @@ vi.mock('../src/lib/supabase', () => ({
 }))
 
 import type { Trip, TripDecision } from '../src/data/types'
-import { buildRoadChain, roadChainSig } from '../src/lib/tripRoad'
+import { buildRoadChain, roadChainSig, type TripRoadView } from '../src/lib/tripRoad'
 import type { RoadLeg } from '../src/lib/routing'
 import {
   planDecisionResolution,
   slotResolutionRoadFor,
   type DecisionResolutionInput,
-  type SlotResolutionRoad,
+  type SlotRoadContext,
 } from '../src/pages/trip/slotResolutionAdapter'
 
 const owner = 'owner-841'
@@ -39,22 +37,27 @@ const decisionId = 'decision-841'
 const tripId = 'trip-841'
 const dayId = 'day-a'
 
-function trip(): Trip {
-  return {
-    id: tripId, title: 'Trip', destination: 'Test', startDate: '2026-11-01', endDate: '2026-11-02',
-    attendees: 2, ownerId: owner, writeVersion: 7, createdAt: 1, updatedAt: 1,
-    transportMode: 'car', roundTrip: false,
-    days: [
-      { id: dayId, index: 0, date: '2026-11-01', label: 'Day 1', stops: [
+// Typed fixture builder. It returns a real Trip, with no as-cast.
+function makeTrip(overrides: Partial<Trip> = {}): Trip {
+  const base: Trip = {
+    id: tripId, name: 'Trip', startLocation: 'Kochi', destinations: ['Munnar'],
+    startDate: '2026-11-01', endDate: '2026-11-02', travellers: 2,
+    transportMode: 'car', budgetPerPersonInr: 5000, travelStyle: 'balanced',
+    fixedCommitments: [],
+    days: [{
+      id: dayId, index: 0, date: '2026-11-01', label: 'Day 1',
+      stops: [
         { id: 'st-start', title: 'Start', category: 'travel', locationName: 'Start', lat: 10.0, lng: 76.0,
           visitMinutes: 0, orderInDay: 1, status: 'confirmed' },
         { id: 'st-stay', title: 'Stay', category: 'hotel', locationName: 'Stay', lat: 10.5, lng: 76.5,
           visitMinutes: 0, orderInDay: 2, status: 'confirmed' },
-      ] },
-    ],
-    members: [{ userId: owner, role: 'owner', joinedAt: 1 }],
-    expenses: [], collaborators: [],
-  } as Trip
+      ],
+    }],
+    expenses: [], members: [{ userId: owner, role: 'owner', joinedAt: 1 }],
+    coverEmoji: '🧭', visibility: 'private', createdAt: 1, updatedAt: 1,
+    writeVersion: 7, roundTrip: false,
+  }
+  return { ...base, ...overrides }
 }
 
 function slotDecision(): TripDecision {
@@ -99,16 +102,17 @@ function applied(winner = optionId, status = 'applied') {
   }
 }
 
-function measuredRoad(t: Trip): SlotResolutionRoad {
-  const km: Record<string, number> = {
-    '10,76': 0,
-    '10.5,76.5': 100,
-    '10.2,76.2': 40,
-  }
-  return {
-    routeKey: roadChainSig(t),
-    routeKmOf: (lat, lng) => km[`${lat},${lng}`] ?? null,
-  }
+// The measured context comes from the real production grade, not a fabricated
+// route key. A route key built from the same trip proves nothing about freshness.
+function measuredRoadView(trip: Trip): TripRoadView {
+  const chain = buildRoadChain(trip)
+  const geometry: [number, number][] = [[76, 10], [76.5, 10.5]]
+  const legs: RoadLeg[] = [{ source: 'osrm', distanceKm: 100, durationMinutes: 90, geometry }]
+  return { status: 'ok', chain, legs, retry: () => {} }
+}
+
+function measuredContext(trip: Trip): SlotRoadContext {
+  return slotResolutionRoadFor(trip, measuredRoadView(trip))
 }
 
 const freshStore = async () => {
@@ -125,14 +129,13 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     transport.calls = []
     transport.response = applied()
     transport.error = null
-    transport.throws = false
   })
 
   async function setup(decision: TripDecision = slotDecision()) {
     store = await freshStore()
     const db = store.getSnapshot()
     db.sessionUserId = owner
-    db.trips = [trip()]
+    db.trips = [makeTrip()]
     db.decisions = [decision]
     return { liveTrip: store.tripById(tripId)!, decision }
   }
@@ -148,7 +151,7 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
 
   it('sends one ordered atomic RPC with the captured revision for a winner before the stay', async () => {
     const { liveTrip, decision } = await setup()
-    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('ordered')
     expect(outcome).toMatchObject({ status: 'applied', placement: { status: 'applied', stopId: 'st_winner' } })
     expect(transport.calls).toHaveLength(1)
@@ -161,14 +164,14 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
 
   it('keeps the stored ballot id on the ordered command', async () => {
     const { liveTrip, decision } = await setup()
-    await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(transport.calls).toHaveLength(1)
     expect(transport.calls[0].command.optionId).toBe(optionId)
   })
 
   it('captures day, anchor and revision as one unchanged snapshot', async () => {
     const { liveTrip, decision } = await setup()
-    const road = measuredRoad(liveTrip)
+    const road = measuredContext(liveTrip)
     const first = planDecisionResolution({ trip: liveTrip, decision, optionId, road })
     const second = planDecisionResolution({ trip: liveTrip, decision, optionId, road })
     expect(first).toEqual(second)
@@ -179,7 +182,7 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     expect(first.target).toEqual(snapshot)
   })
 
-  it('refuses before any RPC when the measured road is absent', async () => {
+  it('refuses before any RPC when the road context is absent', async () => {
     const { liveTrip, decision } = await setup()
     const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: null })
     expect(plan.kind).toBe('refused')
@@ -187,12 +190,20 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     expect(transport.calls).toHaveLength(0)
   })
 
-  it('refuses before any RPC when the measured route is stale', async () => {
+  it('refuses a genuinely stale measurement chain with a truthful reason', async () => {
     const { liveTrip, decision } = await setup()
-    const road: SlotResolutionRoad = { ...measuredRoad(liveTrip), routeKey: 'stale-route-key' }
-    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road })
+    const view = measuredRoadView(liveTrip)
+    const staleChain = { ...view.chain!, points: [...view.chain!.points, { lat: 9, lng: 75 }] }
+    const staleView: TripRoadView = { ...view, chain: staleChain }
+    const context = slotResolutionRoadFor(liveTrip, staleView)
+    expect(context.measured).toBeNull()
+    expect(context.reason).toBe('stale-chain')
+    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road: context })
     expect(plan.kind).toBe('refused')
-    expect(outcome).toBeUndefined()
+    if (plan.kind === 'refused') {
+      expect(plan.reason).toBe('stale-road')
+      expect(plan.detail).toBe('stale-chain')
+    }
     expect(transport.calls).toHaveLength(0)
   })
 
@@ -201,7 +212,7 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     const place = decision.options[0].place!
     decision.options[0] = { ...decision.options[0], place: { ...place, dayId: undefined } }
     const { liveTrip } = await setup(decision)
-    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('refused')
     expect(transport.calls).toHaveLength(0)
   })
@@ -211,25 +222,26 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     const place = decision.options[0].place!
     decision.options[0] = { ...decision.options[0], place: { ...place, dayId: 'day-gone' } }
     const { liveTrip } = await setup(decision)
-    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('refused')
     expect(transport.calls).toHaveLength(0)
   })
 
   it('refuses before any RPC when the winning place is off the measured route', async () => {
     const { liveTrip, decision } = await setup()
-    const road: SlotResolutionRoad = {
-      routeKey: roadChainSig(liveTrip),
-      routeKmOf: (lat) => lat === 10 ? 0 : lat === 10.5 ? 100 : null,
+    const context = measuredContext(liveTrip)
+    const offRoute: SlotRoadContext = {
+      ...context,
+      measured: context.measured ? { ...context.measured, routeKmOf: () => null } : null,
     }
-    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road })
+    const { plan } = await callProduction({ trip: liveTrip, decision, optionId, road: offRoute })
     expect(plan.kind).toBe('refused')
     expect(transport.calls).toHaveLength(0)
   })
 
   it('refuses before any RPC when the captured base became stale', async () => {
     const { liveTrip, decision } = await setup()
-    const plan = planDecisionResolution({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const plan = planDecisionResolution({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('ordered')
     if (plan.kind !== 'ordered') return
     const db = store.getSnapshot()
@@ -239,11 +251,20 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     expect(transport.calls).toHaveLength(0)
   })
 
+  it('refuses a fractional write version before any RPC', async () => {
+    const trip = makeTrip({ writeVersion: 7.5 })
+    const decision = slotDecision()
+    const plan = planDecisionResolution({ trip, decision, optionId, road: measuredContext(trip) })
+    expect(plan.kind).toBe('refused')
+    if (plan.kind === 'refused') expect(plan.reason).toBe('stale-base')
+    expect(transport.calls).toHaveLength(0)
+  })
+
   it('reports a missing server capability truthfully and never falls back to legacy append', async () => {
     const { liveTrip, decision } = await setup()
     transport.response = null
     transport.error = { code: 'PGRST202', message: 'function not found' }
-    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('ordered')
     expect(outcome).toMatchObject({ status: 'unavailable' })
     expect(transport.calls).toHaveLength(1)
@@ -253,7 +274,7 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
   it('refuses when the server rejects the ordered request as invalid', async () => {
     const { liveTrip, decision } = await setup()
     transport.response = { status: 'invalid', tripRevision: 7, reason: 'unknown key orderedPlacement' }
-    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('ordered')
     expect(outcome).toMatchObject({ status: 'unavailable' })
     expect(transport.calls).toHaveLength(1)
@@ -263,7 +284,7 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
   it('keeps the ordered path through an already applied receipt', async () => {
     const { liveTrip, decision } = await setup()
     transport.response = applied(optionId, 'alreadyApplied')
-    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredRoad(liveTrip) })
+    const { plan, outcome } = await callProduction({ trip: liveTrip, decision, optionId, road: measuredContext(liveTrip) })
     expect(plan.kind).toBe('ordered')
     expect(outcome).toMatchObject({ status: 'alreadyApplied' })
     expect(transport.calls).toHaveLength(1)
@@ -274,7 +295,7 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     const decision = genericDecision()
     const { liveTrip } = await setup(decision)
     const { plan, outcome } = await callProduction({
-      trip: liveTrip, decision, optionId: 'o:cafe', target: { dayId }, road: measuredRoad(liveTrip),
+      trip: liveTrip, decision, optionId: 'o:cafe', target: { dayId }, road: measuredContext(liveTrip),
     })
     expect(plan.kind).toBe('legacy')
     expect(outcome).toMatchObject({ status: 'applied' })
@@ -283,26 +304,36 @@ describe('#841 resolved slot vote uses one ordered atomic production caller', ()
     expect(transport.calls[0].command.optionId).toBe('o:cafe')
   })
 
-  it('grades an unfinished workspace road measurement as unusable', async () => {
-    const { liveTrip } = await setup()
-    const chain = buildRoadChain(liveTrip)
-    const geometry: [number, number][] = [[76, 10], [76.5, 10.5]]
-    const legs: RoadLeg[] = [{ source: 'osrm', distanceKm: 100, durationMinutes: 90, geometry }]
-    expect(slotResolutionRoadFor(liveTrip, { status: 'pending', chain, legs })).toBeNull()
-    expect(slotResolutionRoadFor(liveTrip, { status: 'failed', chain, legs })).toBeNull()
-    const estimateOnly: RoadLeg[] = [{ source: 'estimate', distanceKm: 100, durationMinutes: 90, geometry: [] }]
-    expect(slotResolutionRoadFor(liveTrip, { status: 'ok', chain, legs: estimateOnly })).toBeNull()
+  it('grades unfinished, estimate-only, stale and air measurements with honest reasons', () => {
+    const trip = makeTrip()
+    const view = measuredRoadView(trip)
+    const pending = slotResolutionRoadFor(trip, { ...view, status: 'pending' })
+    expect(pending.measured).toBeNull()
+    expect(pending.reason).toBe('pending')
+    expect(pending.recoverable).toBe(true)
+
+    const failed = slotResolutionRoadFor(trip, { ...view, status: 'failed' })
+    expect(failed.reason).toBe('failed')
+    expect(failed.recoverable).toBe(true)
+
+    const estimateOnly: TripRoadView = {
+      ...view, legs: [{ source: 'estimate', distanceKm: 100, durationMinutes: 90, geometry: [] }],
+    }
+    expect(slotResolutionRoadFor(trip, estimateOnly).reason).toBe('estimate-only')
+
+    const airTrip = makeTrip({ transportMode: 'flight' })
+    const air = slotResolutionRoadFor(airTrip, measuredRoadView(airTrip))
+    expect(air.reason).toBe('air-journey')
+    expect(air.recoverable).toBe(false)
+    expect(air.measured).toBeNull()
   })
 
   it('builds one ordered target from the real workspace measured road shape', async () => {
     const { liveTrip, decision } = await setup()
-    const chain = buildRoadChain(liveTrip)
-    const geometry: [number, number][] = [[76, 10], [76.5, 10.5]]
-    const legs: RoadLeg[] = [{ source: 'osrm', distanceKm: 100, durationMinutes: 90, geometry }]
-    const road = slotResolutionRoadFor(liveTrip, { status: 'ok', chain, legs })
-    expect(road).not.toBeNull()
-    expect(road!.routeKey).toBe(roadChainSig(liveTrip))
-    const plan = planDecisionResolution({ trip: liveTrip, decision, optionId, road })
+    const context = measuredContext(liveTrip)
+    expect(context.measured).not.toBeNull()
+    expect(context.measured!.routeKey).toBe(roadChainSig(liveTrip))
+    const plan = planDecisionResolution({ trip: liveTrip, decision, optionId, road: context })
     expect(plan.kind).toBe('ordered')
     if (plan.kind !== 'ordered') return
     expect(plan.target.orderedPlacement).toMatchObject({ dayId, beforeStopId: 'st-stay', expectedRevision: 7 })

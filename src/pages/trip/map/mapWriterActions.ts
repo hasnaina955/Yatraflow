@@ -110,6 +110,7 @@ export type WriterRefusal =
   | 'missing-day'
   | 'gate-busy'
   | 'road-evidence-unavailable'
+  | 'current-trip-unavailable'
   | 'nothing-pinned'
   | 'no-placements'
 

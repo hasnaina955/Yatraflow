@@ -584,10 +584,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                 ? null
                 : !usable
                   ? 'No usable map position for this place.'
+                  : projectedRetryAvailable || projectedUnresolved
+                    ? 'Resolve the unconfirmed save before adding another place.'
                   : !connected
                     ? 'The shared writer is not connected yet.'
-                    : projectedRetryAvailable || projectedUnresolved
-                      ? 'Resolve the unconfirmed save before adding another place.'
                     : previewOpen
                       ? 'Finish or discard the current preview first.'
                       : projectedAddBusy

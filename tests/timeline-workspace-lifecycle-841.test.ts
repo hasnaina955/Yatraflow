@@ -20,6 +20,9 @@
 // below are test observers; they are not a claim about the Workspace's private
 // presentation or a browser render.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { createContext, runInContext } from 'node:vm'
+import ts from 'typescript'
 import { seedData } from '../src/data/seed'
 import type { QueuedWrite, WriteQueueStore } from '../src/lib/writeQueue'
 import type { PlaceHit } from '../src/lib/providers/hits'
@@ -105,6 +108,7 @@ import { mapManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 import { applyVerifiedPlacement } from '../src/pages/trip/map/verifiedPlacementEffects'
 import {
   ABANDONED_COPY,
+  createTimelineWriterController,
   type TimelineWriterController,
 } from '../src/pages/trip/timeline/timelineWriterController'
 import {
@@ -439,7 +443,7 @@ describe('Timeline uncertain capture and completion ownership', () => {
     expect(ack.calls).toHaveLength(0)
   })
 
-  it('runs the captured acknowledgement once after a real late ack, even when a newer hop is present', async () => {
+  it('runs the captured acknowledgement once after a real late ack', async () => {
     const trip = await newTrip()
     const ws = createWorkspace(trip.id)
     const gate = createWriterOperationGate()
@@ -485,7 +489,7 @@ describe('Timeline uncertain capture and completion ownership', () => {
     expect(gate.operation(operationId)?.phase).toBe('applied')
   })
 
-  it('keeps the newer active operation ticket and error when an older operation acknowledges', async () => {
+  it('blocks a newer Add while an older operation is unresolved', async () => {
     const tripA = await newTrip()
     const wsA = createWorkspace(tripA.id)
     const gate = createWriterOperationGate()
@@ -767,5 +771,119 @@ describe('Timeline retry revalidation after a real Keep', () => {
     expect(gate.isReserved(PICK_A, trip.id)).toBe(true)
     expect(controller.getSnapshot().ticket).toBeNull()
     expect(ack.calls).toHaveLength(0)
+  })
+})
+
+describe('real uncertain save survives a Timeline remount with a null/changed hop', () => {
+  const HOOK_FILE = readFileSync(new URL('../src/pages/trip/timeline/useTimelineProjectedWriter.ts', import.meta.url), 'utf8')
+  const hookAst = ts.createSourceFile('hook.ts', HOOK_FILE, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const hookNode = hookAst.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'useTimelineProjectedWriter')
+  if (!hookNode) throw new Error('useTimelineProjectedWriter is missing')
+  const HOOK_JS = ts.transpileModule(hookNode.getText(hookAst), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText
+
+  function mountHook(
+    controller: TimelineWriterController,
+    config: ReturnType<typeof timelineConfig> | null,
+    generation: number,
+  ) {
+    let slots: unknown[] = []
+    let deps: unknown[][] = []
+    let index = 0
+    let effects: Array<() => void> = []
+    const context: Record<string, unknown> = {
+      exports: {},
+      module: { exports: {} },
+      createTimelineWriterController,
+      runTimelineProjectedAdd,
+      runTimelineProjectedRetry,
+      useMemo(fn: () => unknown, values: unknown[]) {
+        const i = index++
+        if (!deps[i] || values.some((v, k) => !Object.is(v, deps[i][k]))) { deps[i] = values; slots[i] = fn() }
+        return slots[i]
+      },
+      useRef(initial: unknown) {
+        const i = index++
+        return slots[i] ?? (slots[i] = { current: initial })
+      },
+      useCallback(fn: unknown, values: unknown[]) {
+        const i = index++
+        if (!deps[i] || values.some((v, k) => !Object.is(v, deps[i][k]))) { deps[i] = values; slots[i] = fn }
+        return slots[i]
+      },
+      useEffect(fn: () => void, values: unknown[]) {
+        const i = index++
+        if (!deps[i] || values.some((v, k) => !Object.is(v, deps[i][k]))) { deps[i] = values; effects.push(fn) }
+      },
+      useSyncExternalStore(_s: unknown, get: () => unknown) { return get() },
+    }
+    context.module = { exports: context.exports }
+    runInContext(HOOK_JS, createContext(context))
+    const hook = (context.exports as Record<string, unknown>).useTimelineProjectedWriter as (
+      c: unknown, p: boolean, g: number, owner: string, ctrl: unknown,
+    ) => { retryAvailable: boolean; unresolved: boolean; retry?: () => void }
+    index = 0
+    slots = []
+    deps = []
+    effects = []
+    const result = hook(config, false, generation, tripIdForTest, controller)
+    for (const effect of effects.splice(0)) effect()
+    return result
+  }
+  let tripIdForTest = ''
+
+  it('keeps the real ticket/reservation and terminalizes on a changed live road', async () => {
+    const trip = await newTrip()
+    tripIdForTest = trip.id
+    const ws = createWorkspace(trip.id)
+    const gate = createWriterOperationGate()
+    const ack = probe()
+    const uncertain = probe()
+    const binding = bindingFor(trip)
+    let live = binding
+    const resolverCalls = { count: 0 }
+    const config = timelineConfig({
+      tripId: trip.id,
+      applyChange: ws.applyChange,
+      resolvePick: async hit => { resolverCalls.count += 1; return hit },
+      onAcknowledged: ack.onAcknowledged,
+      onUncertain: uncertain.onAcknowledged,
+      gate,
+      binding,
+      currentRoad: () => live,
+    })
+    const controller = controllerFor(trip.id)
+    await runTimelineProjectedAdd({ controller, config, row: rowFor(trip, PICK_A), dayIndex: 0 })
+    const operationId = operationIdOf(ws)
+    await keepUncertain(ws)
+    expect(controller.getSnapshot().ticket?.operationId).toBe(operationId)
+    expect(gate.isReserved(PICK_A, trip.id)).toBe(true)
+    const sent = transport.updates.length
+
+    // The Timeline tab unmounts; the Workspace-owned controller survives and the
+    // hook remounts with a null hop. The live measurement then changes.
+    const remounted = mountHook(controller, null, 1)
+    expect(remounted.retryAvailable).toBe(true)
+    expect(remounted.unresolved).toBe(true)
+    live = bindingFor(trip, { distanceKm: 13 })
+    remounted.retry?.()
+    await settleTicks()
+
+    expect(controller.getSnapshot().terminal).toMatch(/changed/i)
+    expect(controller.getSnapshot().ticket).toBeNull()
+    expect(controller.hasUnresolved()).toBe(true)
+    expect(resolverCalls.count).toBe(1)
+    expect(transport.updates).toHaveLength(sent)
+    expect(gate.operation(operationId)?.phase).toBe('uncertain')
+    expect(gate.isReserved(PICK_A, trip.id)).toBe(true)
+    expect(ack.calls).toHaveLength(0)
+
+    // The real Saved-edits discard settles the captured operation.
+    expect(await resolveQueuedTripWrite(trip.id, 'discard')).toBe(true)
+    await settleTicks()
+    expect(gate.operation(operationId)?.phase).toBe('abandoned')
+    expect(controller.hasUnresolved()).toBe(false)
+    expect(controller.getSnapshot().terminal).toBe(ABANDONED_COPY)
   })
 })

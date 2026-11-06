@@ -61,6 +61,8 @@ export function createTimelineWriterController(): TimelineWriterController {
   let liveIdentity: TimelineIdentity = { tripId: '', identityGeneration: 0 }
   const captures = new Map<string, TimelineOperationCapture>()
   const unresolvedOps = new Set<string>()
+  const acknowledgedOps = new Set<string>()
+  const appliedStops = new Set<string>()
 
   const publish = (next: Partial<TimelineLifecycleSnapshot>) => {
     snapshot = { ...snapshot, ...next }
@@ -69,6 +71,13 @@ export function createTimelineWriterController(): TimelineWriterController {
   const completedOperation = (operationId: string) => {
     unresolvedOps.delete(operationId)
     captures.delete(operationId)
+  }
+  /** Only stops not already applied by this operation reach the effect callback. */
+  const freshCompletion = (completion: WriterCompletion): WriterCompletion | null => {
+    const fresh = completion.placed.filter(item => !appliedStops.has(item.stopId))
+    if (fresh.length === 0) return null
+    for (const item of fresh) appliedStops.add(item.stopId)
+    return { ...completion, placed: fresh }
   }
 
   return {
@@ -120,8 +129,27 @@ export function createTimelineWriterController(): TimelineWriterController {
         }
         return
       }
+      if (completion.acknowledged && completion.phase === 'partial') {
+        // A partial Kept save confirms only some stops. The operation is still
+        // unresolved in the gate; keep its ticket/reservation and its active
+        // record so a later full ack can clear it. Effects run once per stop.
+        unresolvedOps.add(completion.operationId)
+        acknowledgedOps.add(completion.operationId)
+        if (isActive) {
+          publish({
+            ticket: completion.retry ?? snapshot.ticket,
+            error: 'Part of the save was confirmed. The remaining stops still need recovery.',
+            terminal: null,
+            unresolved: true,
+          })
+        }
+        const fresh = freshCompletion(completion)
+        if (fresh) capture.config.onAcknowledged(fresh)
+        return
+      }
       if (completion.acknowledged && completion.placed.length > 0) {
         capture.done = true
+        acknowledgedOps.delete(completion.operationId)
         completedOperation(completion.operationId)
         if (isActive) {
           active = null
@@ -132,7 +160,8 @@ export function createTimelineWriterController(): TimelineWriterController {
             publish({ error: null, terminal: null, unresolved: unresolvedOps.size > 0 })
           }
         }
-        capture.config.onAcknowledged(completion)
+        const fresh = freshCompletion(completion)
+        if (fresh) capture.config.onAcknowledged(fresh)
         return
       }
       if (completion.retry) {

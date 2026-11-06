@@ -122,7 +122,7 @@ function measureStickyStack(): number {
 }
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId, projectedController }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
@@ -160,6 +160,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   identityGeneration?: number
   /** Stable owner trip id, independent of whether the road hop is available. */
   ownerTripId?: string
+  /** Workspace-owned controller: survives a conditional tab unmount/remount. */
+  projectedController?: import('./timeline/timelineWriterController').TimelineWriterController
 }) {
   const [editorState, setEditorState] = useState<StopEditorTarget>(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
@@ -192,7 +194,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     ...(projectedWriter.poiVisitMinutes ? { poiVisitMinutes: projectedWriter.poiVisitMinutes } : {}),
     ...(projectedWriter.gate ? { gate: projectedWriter.gate } : {}),
     ...(projectedWriter.allowRepeatVisit ? { allowRepeatVisit: true } : {}),
-  } : null, !!previewOpen, identityGeneration ?? 0, ownerTripId)
+  } : null, !!previewOpen, identityGeneration ?? 0, ownerTripId, projectedController)
 
   // Sorted once per trip change — a stable array of stable day references so
   // the memoized DaySections below only re-render when their own data changes.

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import type { TimelineProjectedWriterConfig } from './timelineProjectedWriter'
-import { createTimelineWriterController } from './timelineWriterController'
+import { createTimelineWriterController, type TimelineWriterController } from './timelineWriterController'
 import { runTimelineProjectedAdd, runTimelineProjectedRetry } from './timelineWriterRunner'
 
 export interface TimelineProjectedWriter {
@@ -22,8 +22,9 @@ export function useTimelineProjectedWriter(
   previewOpen: boolean,
   identityGeneration: number,
   ownerTripId?: string,
+  externalController?: TimelineWriterController,
 ): TimelineProjectedWriter {
-  const controller = useMemo(() => createTimelineWriterController(), [])
+  const controller = useMemo(() => externalController ?? createTimelineWriterController(), [externalController])
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const configRef = useRef(config)
   useEffect(() => { configRef.current = config }, [config])

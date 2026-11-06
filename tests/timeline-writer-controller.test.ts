@@ -144,6 +144,25 @@ describe('captured operation completion', () => {
     expect(controller.getSnapshot().terminal).toBeNull()
   })
 
+  it('keeps a partial ack unresolved and applies each verified stop once', () => {
+    const controller = createTimelineWriterController()
+    const a = config()
+    const capture = bound(controller, a)
+    const ticket = { operationId: 'op-1' } as WriterRetryTicket
+    const s1 = { itemId: 'i1', dayId: 'day-a', stopId: 's1', hit: { id: 'h1', name: 'A', latitude: 10, longitude: 76, kind: 'poi' } }
+    const s2 = { itemId: 'i2', dayId: 'day-a', stopId: 's2', hit: { id: 'h2', name: 'B', latitude: 10.1, longitude: 76.1, kind: 'poi' } }
+    controller.settle(capture, completion({ placed: [s1] as never, phase: 'partial', retry: ticket }), identity)
+    expect(controller.getSnapshot().ticket).toBe(ticket)
+    expect(controller.hasUnresolved()).toBe(true)
+    expect(a.onAcknowledged).toHaveBeenCalledTimes(1)
+    expect((vi.mocked(a.onAcknowledged).mock.calls[0]?.[0] as WriterCompletion).placed).toHaveLength(1)
+    controller.settle(capture, completion({ placed: [s1, s2] as never }), identity)
+    expect(controller.getSnapshot().ticket).toBeNull()
+    expect(controller.hasUnresolved()).toBe(false)
+    expect(a.onAcknowledged).toHaveBeenCalledTimes(2)
+    expect((vi.mocked(a.onAcknowledged).mock.calls[1]?.[0] as WriterCompletion).placed.map(p => p.stopId)).toEqual(['s2'])
+  })
+
   it('uses the live identity set by the adapter, not the capture identity', () => {
     const controller = createTimelineWriterController()
     const a = config()

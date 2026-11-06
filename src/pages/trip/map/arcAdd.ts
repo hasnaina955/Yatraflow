@@ -26,6 +26,7 @@ import {
   type WriterRetryTicket,
   type WriterStageResult,
 } from './mapWriterActions'
+import { writerResumePresentation } from './writerResumeDisposition'
 
 export type ArcUnresolvedReason = 'not-found' | 'no-road-position' | 'no-stable-day'
 
@@ -133,6 +134,7 @@ const REFUSAL_COPY: Record<WriterRefusal, string> = {
   'missing-day': 'A target day has no saved identity yet - reload the trip, then try again.',
   'gate-busy': 'Another change already uses one of those places. Wait for it to finish.',
   'road-evidence-unavailable': 'The road has not been measured yet, so those places cannot be placed. Try again after the route finishes measuring.',
+  'current-trip-unavailable': 'The current saved trip is unavailable, so this retry cannot start.',
   'nothing-pinned': 'Those places could not be pinned on the map - nothing was added.',
   'no-placements': 'Nothing could be placed from that arc. The places stay available.',
 }
@@ -153,16 +155,7 @@ export function arcStageLine(label: string, outcome: ArcStageOutcome): { text: s
   }
   if (outcome.status === 'refused') {
     if (outcome.resume) {
-      return {
-        text: outcome.resume.disposition === 'payload-changed'
-          ? 'That arc choice changed since the last save was not confirmed, so it needs a separate action. The list was not changed.'
-          : outcome.resume.disposition === 'resume-unverifiable'
-            ? 'The earlier arc save is still unconfirmed and cannot be retried from here. Saved edits can recover the trip.'
-            : outcome.resume.disposition === 'operation-unknown'
-              ? 'That earlier arc change is no longer known on this page. Check the plan before you retry; Saved edits can still recover the trip.'
-              : 'That arc add already completed - check the plan before you retry.',
-        tone: 'err',
-      }
+      return { text: writerResumePresentation(outcome.resume.disposition).text, tone: 'err' }
     }
     return { text: REFUSAL_COPY[outcome.reason], tone: 'err' }
   }

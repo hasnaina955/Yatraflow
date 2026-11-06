@@ -4,6 +4,10 @@
 // loop with the real workspace/store without a React mount.
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import {
+  CURRENT_TRIP_UNAVAILABLE_COPY,
+  writerResumePresentation,
+} from '../map/writerResumeDisposition'
+import {
   retryProjectedRow,
   stageProjectedRow,
   type TimelineProjectedWriterConfig,
@@ -75,8 +79,13 @@ export async function runTimelineProjectedRetry(input: {
       operationId => controller.bind(capture, operationId),
     )
     if (result.status === 'refused') {
-      if (result.resume?.disposition === 'trip-changed' || result.resume?.disposition === 'road-changed') {
-        controller.terminal('The saved trip changed after Keep; this retry cannot replay. Check Saved edits.')
+      const d = result.resume?.disposition
+      if (d) {
+        const presentation = writerResumePresentation(d)
+        if (presentation.terminal) controller.terminal(presentation.text)
+        else controller.refuse(presentation.text)
+      } else if (result.reason === 'current-trip-unavailable') {
+        controller.refuse(CURRENT_TRIP_UNAVAILABLE_COPY)
       } else {
         controller.refuse(REFUSAL_COPY[result.reason] ?? 'The retry did not start.')
       }

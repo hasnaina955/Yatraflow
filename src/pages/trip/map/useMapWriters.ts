@@ -71,6 +71,7 @@ import {
 } from './writerOperationGate'
 import { mapManualSlotStore, manualContextForSlot } from './manualSlotContexts'
 import type { WriterRoadBinding } from './writerRoadBinding'
+import { writerResumePresentation } from './writerResumeDisposition'
 import { buildDayPlanForDay, readManualPicksForDay } from './manualPicks'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
@@ -157,6 +158,7 @@ const REFUSAL_MESSAGE: Record<WriterRefusal, string> = {
   'missing-day': 'This day has no saved identity yet - reload the trip, then try again.',
   'gate-busy': 'Another change is already using that place. Wait for it to finish.',
   'road-evidence-unavailable': 'The road has not been measured yet, so the app cannot place this stop. Try again after the route finishes measuring.',
+  'current-trip-unavailable': 'The current saved trip is unavailable, so this retry cannot start.',
   'nothing-pinned': 'That place could not be pinned on the map - nothing was placed.',
   'no-placements': 'Nothing could be placed from that choice - the day was not changed.',
 }
@@ -422,15 +424,7 @@ export function useMapWriters({
       return
     }
     if (result.resume) {
-      // F2: a refused retry speaks its precise disposition. A changed choice
-      // is a distinct operation; an unverifiable retry points at Saved edits.
-      toast(result.resume.disposition === 'payload-changed'
-        ? 'That choice changed since the last save was not confirmed, so it needs a separate action. The day was not changed.'
-        : result.resume.disposition === 'resume-unverifiable'
-          ? 'The earlier save is still unconfirmed and cannot be retried from here. Saved edits can recover the trip.'
-          : result.resume.disposition === 'operation-unknown'
-            ? 'That earlier change is no longer known on this page. Check the day before you retry; Saved edits can still recover the trip.'
-            : 'That change already completed - check the day before you retry.', 'err')
+      toast(writerResumePresentation(result.resume.disposition).text, 'err')
       return
     }
     if (result.apply) {

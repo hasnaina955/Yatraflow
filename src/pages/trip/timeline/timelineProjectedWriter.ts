@@ -168,7 +168,7 @@ export async function retryProjectedRow(
 ): Promise<WriterStageResult> {
   const current = config.currentTrip()
   if (!current) {
-    return { status: 'refused', reason: 'road-evidence-unavailable', unresolved: [], skipped: [] } as WriterStageResult
+    return { status: 'refused', reason: 'current-trip-unavailable', unresolved: [], skipped: [] }
   }
   const deps = projectedWriterDeps({ ...config, trip: current }, onCompletion)
   if (onOperationStart) deps.onOperationStart = onOperationStart

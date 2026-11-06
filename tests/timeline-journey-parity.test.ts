@@ -27,6 +27,13 @@ import {
   travelJourneyRows,
 } from '../src/pages/trip/timeline/travelJourneyRows'
 import { projectedPickFor } from '../src/pages/trip/timeline/timelineProjectedWriter'
+import {
+  timelineAddAvailability,
+  timelineAddUnavailableCopy,
+  TIMELINE_ADD_UNAVAILABLE_COPY,
+  type TimelineAddAvailability,
+} from '../src/pages/trip/timeline/timelineAddAvailability'
+import { measuredRoadFacts, type RoadUnmeasuredReason } from '../src/pages/trip/map/mapTabPipeline'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8').replace(/\r\n/g, '\n')
@@ -443,6 +450,51 @@ describe('context and purity', () => {
   })
 })
 
+describe('covered Add availability from the measured road grade', () => {
+  const ESTIMATE_ONLY: TimelineAddAvailability = { kind: 'road-unmeasured', reason: 'estimate-only' }
+
+  it('maps the canonical measuredRoadFacts grade to a typed availability', () => {
+    // A null road is the canonical grader's own no-measurement case.
+    const grade = measuredRoadFacts({ trip: makeTrip(), road: null, hasLine: true })
+    expect(grade).toMatchObject({ measured: false, reason: 'no-measurement' })
+    expect(timelineAddAvailability(grade)).toEqual({ kind: 'road-unmeasured', reason: 'no-measurement' })
+    expect(timelineAddAvailability({ measured: true, routeKey: 'k' })).toEqual({ kind: 'available' })
+    expect(timelineAddAvailability(null)).toEqual({ kind: 'road-unmeasured', reason: 'no-measurement' })
+  })
+
+  it('gives every canonical reason truthful copy, never a lost-writer claim', () => {
+    for (const [reason, copy] of Object.entries(TIMELINE_ADD_UNAVAILABLE_COPY)) {
+      expect(copy.length).toBeGreaterThan(0)
+      expect(copy).not.toContain('writer is not connected')
+      expect(timelineAddUnavailableCopy({ kind: 'road-unmeasured', reason: reason as RoadUnmeasuredReason })).toBe(copy)
+    }
+    expect(timelineAddUnavailableCopy({ kind: 'available' })).toBeNull()
+    expect(timelineAddUnavailableCopy(undefined)).toBeNull()
+  })
+
+  it('shows the truthful road reason for a disabled estimate-only Add', () => {
+    const html = renderPanel({ onAddProjectedRow: undefined, projectedAvailability: ESTIMATE_ONLY })
+    expect(html).toContain(TIMELINE_ADD_UNAVAILABLE_COPY['estimate-only'])
+    // The road reason wins over the false disconnected-writer line.
+    expect(html).not.toContain('The shared writer is not connected yet.')
+    expect(html).toMatch(/aria-describedby="[^"]+"/)
+    const start = html.indexOf('aria-label="Add A to Day 1"')
+    const button = html.slice(html.lastIndexOf('<button', start), start)
+    expect(button).toContain('disabled')
+  })
+
+  it('keeps the measured road free of a road-unavailable reason', () => {
+    const html = renderPanel({ onAddProjectedRow: undefined, projectedAvailability: { kind: 'available' } })
+    expect(html).toContain('The shared writer is not connected yet.')
+    expect(html).not.toContain(TIMELINE_ADD_UNAVAILABLE_COPY['estimate-only'])
+  })
+
+  it('lets an unconfirmed save stay the first reason', () => {
+    const html = renderPanel({ onAddProjectedRow: undefined, projectedAvailability: ESTIMATE_ONLY, projectedUnresolved: true })
+    expect(html).toContain('Resolve the unconfirmed save before adding another place.')
+  })
+})
+
 describe('S4 wiring pins', () => {
   const panel = read('src/pages/trip/timeline/TravelPanel.tsx')
   const daySection = read('src/pages/trip/timeline/DaySection.tsx')
@@ -477,5 +529,20 @@ describe('S4 wiring pins', () => {
     expect(daySection).toContain('journeyDay={journeyDay} journeyStatus={journeyStatus}')
     expect(panel).toContain('journeyDay?: JourneyDay')
     expect(panel).toContain('journeyStatus?: JourneyStatus')
+  })
+
+  it('threads the typed Add availability through Workspace, Timeline, Day and Panel', () => {
+    const workspace = read('src/pages/TripWorkspace.tsx')
+    expect(workspace).toContain('timelineAddAvailability(')
+    expect(workspace).toContain('measuredRoadFacts({')
+    expect(workspace).toContain('projectedAvailability={projectedAvailability}')
+    expect(timeline).toContain('projectedAvailability?: TimelineAddAvailability')
+    expect(timeline).toContain('projectedAvailability={projectedAvailability}')
+    expect(daySection).toContain('projectedAvailability?: TimelineAddAvailability')
+    expect(daySection).toContain('projectedAvailability={projectedAvailability}')
+    expect(panel).toContain('projectedAvailability?: TimelineAddAvailability')
+    expect(panel).toContain('timelineAddUnavailableCopy(')
+    // The road reason sits before the disconnected-writer fallback in the cascade.
+    expect(panel).toMatch(/roadUnavailableReason\s*\n\s*\? roadUnavailableReason[\s\S]*?The shared writer is not connected yet\./)
   })
 })

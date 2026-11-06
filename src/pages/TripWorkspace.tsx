@@ -71,6 +71,8 @@ import { projectOntoPolyline } from '../lib/providers/hits'
 import { acknowledgedStopsFrom, guardedUndo, type WriterCompletion } from './trip/map/mapWriterActions'
 import type { WriterRoadBinding } from './trip/map/writerRoadBinding'
 import { buildTimelineRoadBinding } from './trip/timeline/timelineRoadBinding'
+import { timelineAddAvailability, type TimelineAddAvailability } from './trip/timeline/timelineAddAvailability'
+import { measuredRoadFacts } from './trip/map/mapTabPipeline'
 import { createTimelineWriterController } from './trip/timeline/timelineWriterController'
 import { applyVerifiedPlacement, undoRefusalMessage } from './trip/map/verifiedPlacementEffects'
 import { mapManualSlotStore } from './trip/map/manualSlotContexts'
@@ -666,6 +668,14 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const roadBindingRef = useRef<WriterRoadBinding | null>(roadBinding)
   useEffect(() => { roadBindingRef.current = roadBinding }, [roadBinding])
   const currentRoadBinding = useCallback(() => roadBindingRef.current, [])
+  // One typed reason for a disabled covered Add. It comes from the canonical
+  // measured road grade, so an unmeasured road never reads as a lost writer.
+  const projectedAvailability = useMemo<TimelineAddAvailability>(() => {
+    const committed = tripById(tripId)
+    return timelineAddAvailability(
+      committed ? measuredRoadFacts({ trip: committed, road, hasLine: timelineRoute.length > 1 }) : null,
+    )
+  }, [road, tripId, timelineRoute])
   // Workspace-owned so a conditional Timeline unmount cannot discard a held
   // operation's captured completion/recovery record.
   const timelineWriterController = useMemo(() => createTimelineWriterController(), [])
@@ -1011,7 +1021,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={openTimeline} onOpenMap={openMap} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} mapInputs={mapInputs} mapCache={suggestionCache.cache.map} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} identityGeneration={identityGeneration} ownerTripId={tripId} projectedController={timelineWriterController} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} identityGeneration={identityGeneration} ownerTripId={tripId} projectedController={timelineWriterController} projectedAvailability={projectedAvailability} />}
       {tab === 'board' && (
         <React.Suspense fallback={<StateBlock kind="loading" size="compact" title="Loading board" />}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals} legCorrections={legCorrections} previewOpen={!!pending} road={road}

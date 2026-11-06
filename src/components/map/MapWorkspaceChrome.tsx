@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Route, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
@@ -10,9 +10,9 @@ import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay }
 import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
-import { ribbonStops, ribbonPosition, type RibbonPosition } from '../../lib/mapJourneyRibbon'
+import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, type RibbonPosition } from '../../lib/mapJourneyRibbon'
 
-export type SheetSnap = 'peek' | 'half' | 'full'
+export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
 
 export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void }) {
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -25,26 +25,7 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
   </div>
 }
 
-export function MapSheetHandle({ snap, onChange }: { snap: SheetSnap; onChange: (snap: SheetSnap) => void }) {
-  const start = useRef({ y: 0, id: -1, dragged: false })
-  function finish(event: PointerEvent<HTMLButtonElement>) {
-    if (start.current.id !== event.pointerId) return
-    const delta = event.clientY - start.current.y
-    start.current.id = -1
-    if (Math.abs(delta) < 24) return
-    start.current.dragged = true
-    onChange(delta < 0 ? (snap === 'peek' ? 'half' : 'full') : (snap === 'full' ? 'half' : 'peek'))
-  }
-  return <button type="button" className="mv2-sheet-handle" aria-label={`Planning sheet ${snap} height. Use up and down arrows to resize.`}
-    onPointerDown={event => { start.current = { y: event.clientY, id: event.pointerId, dragged: false }; event.currentTarget.setPointerCapture(event.pointerId) }}
-    onPointerUp={finish} onPointerCancel={() => { start.current.id = -1 }}
-    onClick={() => { if (!start.current.dragged) onChange(snap === 'peek' ? 'half' : snap === 'half' ? 'full' : 'peek'); start.current.dragged = false }}
-    onKeyDown={event => {
-      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
-      event.preventDefault()
-      onChange(event.key === 'Home' ? 'peek' : event.key === 'End' ? 'full' : event.key === 'ArrowUp' ? (snap === 'peek' ? 'half' : 'full') : (snap === 'full' ? 'half' : 'peek'))
-    }}><span aria-hidden="true" /></button>
-}
+export { MapPhoneSheetHandle as MapSheetHandle } from './MapPhoneSheetHandle'
 
 export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
@@ -104,23 +85,28 @@ export function MapJourneyRibbon({ journey, corrections, onScrub }: {
 }) {
   const format = useTimeFormat()
   const stops = journey ? ribbonStops(journey) : []
-  const start = stops[0]?.arrive ?? 0
-  const end = Math.max(start + 1, stops[stops.length - 1]?.depart ?? start + 1)
-  const signature = stops.map(stop => `${stop.point.stop.id}:${stop.arrive}:${stop.depart}`).join('|')
+  const range = ribbonRange(stops)
+  const { start, end } = range
+  // Day index and the engine start clock join the stop times, so a new trip or
+  // a new day cannot keep a stored cursor from the previous journey.
+  const signature = ribbonSignature(stops, journey?.dayIndex ?? 0, journey?.startTime ?? '')
   const [cursor, setCursor] = useState({ signature, minute: start })
-  const minute = cursor.signature === signature ? Math.max(start, Math.min(end, cursor.minute)) : start
-  const position = ribbonPosition(stops, minute, corrections)
+  const minute = ribbonResetMinute(range, signature, cursor)
+  const current = ribbonScrub(stops, minute, corrections, range)
+  const position = current.position
   const id = useId()
   const percent = (value: number) => Math.max(0, Math.min(100, (value - start) / (end - start) * 100))
   function scrub(next: number) {
-    const value = Math.max(start, Math.min(end, next))
-    setCursor({ signature, minute: value })
-    const target = ribbonPosition(stops, value, corrections)
-    if (target) onScrub(target, value)
+    const outcome = ribbonScrub(stops, next, corrections, range)
+    setCursor({ signature, minute: outcome.minute })
+    // Report the honest position for every grade. The MapTab consumer clears
+    // its camera cursor for 'estimated' and reveals it only for measured road
+    // or stop grades, so an unmeasured leg never produces a fake camera move.
+    if (outcome.position) onScrub(outcome.position, outcome.minute)
   }
   if (!stops.length) return <section className="mv2-ribbon" aria-label="Journey clock"><span className="mv2-ribbon-title">Journey clock</span><span>No scheduled stops yet.</span></section>
   return <section className="mv2-ribbon" aria-label="Journey clock">
-    <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small>{position?.grade === 'estimated' ? 'Road position unavailable' : 'Planned times'}</small></div>
+    <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small>{current.cameraReveal ? 'Planned times' : 'Road position unavailable'}</small></div>
     <div className="mv2-clock-track">
       <div className="mv2-clock-drawing" aria-hidden="true">
         <span className="mv2-clock-line" />
@@ -131,13 +117,14 @@ export function MapJourneyRibbon({ journey, corrections, onScrub }: {
         </b>)}
         <span className="mv2-clock-cursor" style={{ left: `${percent(minute)}%` }} />
       </div>
-      <label className="sr-only" htmlFor={id}>Journey time. Arrow keys move by five minutes.</label>
-      <input id={id} type="range" min={start} max={end} step={1} value={minute} disabled={!stops.length} aria-valuetext={`${formatHM(clockHM(minute), format)}${minute >= 1440 ? ', next day' : ''}. ${position?.label ?? 'No scheduled stops'}. ${position?.grade === 'estimated' ? 'Road position unavailable.' : 'Planned time.'}`}
+      <label className="sr-only" htmlFor={id}>Journey time. Arrow keys move by five minutes. Home and End jump to the start and end.</label>
+      <input id={id} type="range" min={start} max={end} step={1} value={minute} disabled={!stops.length} aria-valuetext={`${formatHM(clockHM(minute), format)}${minute >= 1440 ? ', next day' : ''}. ${position?.label ?? 'No scheduled stops'}. ${current.cameraReveal ? 'Planned time.' : 'Road position unavailable.'}`}
         onChange={event => scrub(Number(event.target.value))}
         onKeyDown={event => {
-          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+          const next = ribbonKeyMinute(range, minute, event.key)
+          if (next === null) return
           event.preventDefault()
-          scrub(minute + (event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 5 : -5))
+          scrub(next)
         }} />
       <div className="mv2-clock-ticks" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <span key={index}>{formatHM(clockHM(start + (end - start) * index / 4), format)}</span>)}</div>
     </div>

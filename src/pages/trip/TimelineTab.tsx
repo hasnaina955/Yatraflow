@@ -68,6 +68,7 @@ import { refuseWhileStaged, removeStopWithUndo, type ApplyChange } from '../../l
 import { useResolvePick } from '../../components/ResolvePickDialog'
 import { useTimelineProjectedWriter } from './timeline/useTimelineProjectedWriter'
 import type { TimelineProjectedWriterHop } from './timeline/timelineProjectedWriter'
+import type { TimelineAddAvailability } from './timeline/timelineAddAvailability'
 import { kmFromStartForHit } from '../../lib/providers/hits'
 import { insertStopAt, moveStopToDay, moveStopWithinDay, nextOrderInDay, pendingStopId, stopsInOrder } from '../../lib/stopOrder'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
@@ -122,7 +123,7 @@ function measureStickyStack(): number {
 }
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId, projectedController }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId, projectedController, projectedAvailability }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
@@ -162,6 +163,9 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   ownerTripId?: string
   /** Workspace-owned controller: survives a conditional tab unmount/remount. */
   projectedController?: import('./timeline/timelineWriterController').TimelineWriterController
+  /** Typed covered-Add reason from the measured road grade. Optional so a
+   *  direct render without the hop keeps its own disabled reason. */
+  projectedAvailability?: TimelineAddAvailability
 }) {
   const [editorState, setEditorState] = useState<StopEditorTarget>(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
@@ -951,7 +955,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         {days.map((day, ordinal) => (
           <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} journeyDay={journeyDays.byDay.get(day.index)} journeyStatus={journeyDays.status} editable={planEditable} open={openDayIndex === day.index || (reviewAll && revealStep > Math.min(ordinal, REVEAL_STEPS - 1))} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
             onAddProjectedRow={projectedAdd.add} projectedAddBusy={projectedAdd.busy} previewOpen={previewOpen}
-            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable} projectedTerminal={projectedAdd.terminal} projectedUnresolved={projectedAdd.unresolved} projectedRetryBlockedReason={projectedAdd.retryBlockedReason}
+            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable} projectedTerminal={projectedAdd.terminal} projectedUnresolved={projectedAdd.unresolved} projectedRetryBlockedReason={projectedAdd.retryBlockedReason} projectedAvailability={projectedAvailability}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}

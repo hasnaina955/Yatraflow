@@ -42,6 +42,7 @@ import type { TimeFormat } from '../../../lib/timefmt'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import type { JourneyDay, JourneyStatus } from '../journey/journeyDays'
 import { journeyRowMeta, travelJourneyRows } from './travelJourneyRows'
+import { timelineAddUnavailableCopy, type TimelineAddAvailability } from './timelineAddAvailability'
 function modeLabelMode(m: string): string {
   const map: Record<string, string> = {
     car: 'Car', motorcycle: 'Motorcycle', taxi: 'Taxi', bus: 'Bus',
@@ -57,7 +58,7 @@ function modeLabelMode(m: string): string {
  * route corridor. Replaces the old split where long rides got a completely
  * different "LongRidePanel" with its own ride-style options.
  */
-export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason }: {
+export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
   trip: Trip
   day: Trip['days'][number]
   editable: boolean
@@ -79,6 +80,9 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   projectedTerminal?: string | null
   projectedUnresolved?: boolean
   projectedRetryBlockedReason?: string | null
+  /** S4: typed covered-Add reason from the measured road grade. Optional so a
+   *  direct render without the hop keeps its own disabled reason. */
+  projectedAvailability?: TimelineAddAvailability
 }) {
   const A = getAssumptions(trip)
   const hasAirLeg = journey.points.some(p => p.legIn?.kind === 'air')
@@ -581,6 +585,10 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
             {journeyRows.map(row => {
               const usable = hasCoords(row.hit)
               const connected = onAddProjectedRow != null
+              // The typed road reason is the truthful cause of an absent hop.
+              // It wins over the writer-disconnected line, so an unmeasured road
+              // never reads as a lost writer. canAdd keeps its own gate below.
+              const roadUnavailableReason = timelineAddUnavailableCopy(projectedAvailability)
               const canAdd = editable && row.actions.add && usable && connected && !projectedAddBusy && !previewOpen && !projectedRetryAvailable && !projectedUnresolved
               const addReason = !editable || !row.actions.add
                 ? null
@@ -588,6 +596,8 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                   ? 'No usable map position for this place.'
                   : projectedRetryAvailable || projectedUnresolved
                     ? 'Resolve the unconfirmed save before adding another place.'
+                  : roadUnavailableReason
+                    ? roadUnavailableReason
                   : !connected
                     ? 'The shared writer is not connected yet.'
                     : previewOpen

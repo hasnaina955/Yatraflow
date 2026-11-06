@@ -2,7 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
-import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, MapPin, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, SlidersHorizontal } from 'lucide-react'
+import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, SlidersHorizontal } from 'lucide-react'
 import { uid } from '../../data/seed'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
@@ -41,7 +41,7 @@ import {
   googleMapsUrl, newStopId, poiVisitMinutes,
 } from './map/pageHelpers'
 import { activeReadinessLabel, activeDayLabel } from './map/railRows'
-import { MapItinerary, MapJourneyRibbon, MapPickCard, MapPhoneDay, MapSheetHandle, MapDeckHeader, type SheetSnap } from '../../components/map/MapWorkspaceChrome'
+import { MapItinerary, MapJourneyRibbon, MapPickCard, MapPhoneDay, MapSheetHandle, MapDeckHeader, type SheetSnap, type SheetSnapSource } from '../../components/map/MapWorkspaceChrome'
 import { driveRowForHit, mapAllJourneyRowsForDays, mapCardActions, mapRailRowForHit, mapRowForHit, mapRowsForHit, type MapRowBinding } from './map/mapJourneyRows'
 import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import { LedgerRow } from './map/RailRowViews'
@@ -1227,6 +1227,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         chips={row?.chips ?? drive?.chips ?? []}
         altPool={altPool}
         chipFilter={chipFilter}
+        presentation="deck"
         editable={editable}
         shortlisted={hit ? isShortlisted(hit) : false}
         onSelectChip={key => setChipFilter(prev => (prev === key ? null : key))}
@@ -1333,6 +1334,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   function toggleItinerary(open: boolean) {
     setItineraryOpen(open)
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLButtonElement>(open ? '.mv2-fold-day' : '.mv2-reopen-day')?.focus({ preventScroll: true }))
+  }
+  /** Ticket 07: only a keyboard snap moves focus into the sheet region it just
+   *  revealed. A pointer or touch snap keeps focus on the handle. The guard
+   *  refuses a hidden panel, so focus never lands in content that is not shown. */
+  function settleSheetSnap(source: SheetSnapSource, panelId: string) {
+    if (source !== 'keyboard') return
+    requestAnimationFrame(() => {
+      const panel = document.getElementById(panelId)
+      if (panel?.isConnected && !panel.hasAttribute('hidden') && panel.getClientRects().length) panel.focus({ preventScroll: true })
+    })
   }
   function selectPoint(point: JourneyPoint) {
     setSelectedStop(point.stop.id)
@@ -1522,8 +1533,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           <button type="button" aria-label="Day plan" aria-controls="rail-needs" aria-pressed={sheetTab === 'needs' && deckOpen && !selectedHit} onClick={() => { setSheetTab('needs'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><List size={16} aria-hidden /><span>Plan</span><b>{activeDaySlots.length}</b></button>
           {!deckOpen && <button type="button" aria-label="Show suggestions" onClick={() => setDeckOpen(true)}><PanelRightOpen size={18} /></button>}
         </div>
-        <div className={'poi-col poi-col--needs' + sheetHiddenClass('needs', sheetTab, sheetApplies)} id="rail-needs" hidden={!deckOpen || sheetTab !== 'needs' || !!selectedHit}>
-            <MapSheetHandle snap={snap} onChange={setSnap} />
+        <div tabIndex={-1} className={'poi-col poi-col--needs' + sheetHiddenClass('needs', sheetTab, sheetApplies)} id="rail-needs" hidden={!deckOpen || sheetTab !== 'needs' || !!selectedHit}>
+            <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-needs')} />
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div className="poi-col-head-txt">
@@ -1962,8 +1973,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onShowReturnChange={setShowReturn}
             />
           </div>
-          <div className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
-            <MapSheetHandle snap={snap} onChange={setSnap} />
+          <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
+            <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
             <div className="mv2-peek">
               {seeForRail[0]?.hit ? <>
                 <span className="mv2-peek-mark"><CatIcon category={seeForRail[0].hit.category} size={22} /></span>
@@ -1972,23 +1983,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               </> : <p>{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Open search settings to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
             </div>
             <MapDeckHeader title="Along the drive" count={seeForRail.length} onFold={foldDeck} />
-            <div className="poi-col-head">
-              <span className="poi-col-head-ico"><MapPin size={13} aria-hidden /></span>
-              <div className="poi-col-head-txt">
-                <b>Optional extras</b>
-                <span className="small muted">Sights · detours — never required</span>
-              </div>
-              <button
-                type="button"
-                className="poi-fold"
-                aria-expanded={!folded.see}
-                aria-controls="rail-see"
-                title={folded.see ? 'Expand the see-&-do rail' : 'Collapse the see-&-do rail - the map gains the space'}
-                onClick={foldDeck}
-              >
-                <ChevronDown size={13} aria-hidden />
-              </button>
-            </div>
             <div className="poi-plan-list is-ledger">
               {!filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp">
@@ -2018,11 +2012,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 ? <p className="muted small" role="status">{loadingPois ? 'Finding stops along the drive…' : poisFailed ? 'Route suggestions could not be loaded. Open search settings to retry.' : quotaOut ? 'New Google searches are paused by the provider limit.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>
                 : (
                     <>
-                      <div className="poi-grp">
-                        <span className="poi-grp-k">Along your route</span>
-                        <span className="poi-grp-n">{seeForRail.length}</span>
-                        <span className="poi-grp-ln" />
-                      </div>
                       {seeForRail.slice(0, SEE_VISIBLE).map(ledgerRow)}
                       {seeForRail.length > SEE_VISIBLE && (
                         <details className="poi-more">

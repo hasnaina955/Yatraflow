@@ -83,7 +83,16 @@ describe('the guarded write path reaches the real writers', () => {
     // The refusal copy says nothing changed. If updateTrip mutated the cache
     // first and only the async writer refused, the local trip would keep the
     // new answer while the row never got it — the exact lie the copy forbids.
-    expect(src).toMatch(/if \(typeof patchFields\.drivesPart === 'boolean'\) \{\s*\n\s*const cols = lastResolvedOptionalColumns\s*\n\s*if \(!cols\) \{ void tripsHaveOptionalColumns\(\) \}\s*\n\s*if \(!cols \|\| !cols\.drivesPart\) \{[^}]*return false/s)
+    // admitTripUpdate now returns a result object instead of a bare boolean,
+    // so the honest refusal is { accepted: false, receipt: null }. The guard
+    // still runs before any cache mutation, and updateTrip still maps it to
+    // false. Keep all three facts pinned, not just the new return shape.
+    expect(src).toMatch(/if \(typeof patchFields\.drivesPart === 'boolean'\) \{\s*\n\s*const cols = lastResolvedOptionalColumns\s*\n\s*if \(!cols\) \{ void tripsHaveOptionalColumns\(\) \}\s*\n\s*if \(!cols \|\| !cols\.drivesPart\) \{[^}]*accepted: false/s)
+    expect(src).toMatch(/export function updateTrip\(id: ID, patchFields: Partial<Trip>\): boolean \{\s*\n\s*return admitTripUpdate\(id, patchFields\)\.accepted\s*\n\s*\}/)
+    const guardAt = src.indexOf("if (typeof patchFields.drivesPart === 'boolean')")
+    const mutateAt = src.indexOf('const draft = mutateTrip(id, d => {')
+    expect(guardAt).toBeGreaterThan(-1)
+    expect(mutateAt).toBeGreaterThan(guardAt)
   })
 
   it('guards the insert path after the awaited probe', () => {

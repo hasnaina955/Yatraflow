@@ -6,7 +6,7 @@ import { computeImpact } from '../src/lib/impact'
 import { removeStopWithUndo } from '../src/lib/mutationLifecycle'
 import { workspacePreviewActions, type PendingChange } from '../src/pages/TripWorkspace'
 import { seedData } from '../src/data/seed'
-import { duplicateTrip, tripById, updateTrip, _setTripWriteDebounceMs } from '../src/store/store'
+import { duplicateTrip, getSnapshot, tripById, updateTrip, _setTripWriteDebounceMs } from '../src/store/store'
 import type { Trip } from '../src/data/types'
 
 const providers = vi.hoisted(() => ({
@@ -42,7 +42,10 @@ vi.mock('../src/components/ui', async importOriginal => ({
   toast: (message: string) => { messages.push(message) },
   undoToast: (_message: string, run: () => void) => { undoToasts.push({ run }) },
 }))
-vi.mock('../src/lib/supabase', () => {
+vi.mock('../src/lib/writeQueue', async importOriginal =>
+  (await import('./helpers/memoryWriteQueue')).memoryWriteQueue(importOriginal))
+vi.mock('../src/lib/supabase', async () => {
+  const { tripWriteClient } = await import('./helpers/tripWriteClient')
   function from() {
     const builder = {
       update: () => builder, insert: () => builder, delete: () => builder,
@@ -55,7 +58,8 @@ vi.mock('../src/lib/supabase', () => {
     }
     return builder
   }
-  return { isSupabaseConfigured: false, supabase: { from } }
+  // Keep is admitted with a revision-aware session, so the client answers auth too.
+  return { isSupabaseConfigured: false, supabase: tripWriteClient({ auth: { signOut: async () => ({ error: null }) }, from }) }
 })
 
 beforeEach(() => {
@@ -108,14 +112,22 @@ describe('the journey consumer forwards the shared driving plan', () => {
   })
 })
 
+/** The cache write and the persisted copy settle on timers after duplicateTrip. */
+const tick = async () => { await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0)) }
+
 describe('the workspace uses its production preview handlers', () => {
-  it('discards, chains, keeps the displayed proposal, and restores the removed stop with Undo', () => {
+  it('discards, chains, keeps the displayed proposal, and restores the removed stop with Undo', async () => {
     const source = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     expect(source).toContain('() => workspacePreviewActions({ trip, pendingRef, baseRef, legCorrRef, setPending })')
     expect(source).toContain('(...args) => previewActions().applyChange(...args)')
     expect(source).toContain('const keepPending = () => previewActions().keepPending()')
     expect(source).toContain('const removePending = () => previewActions().removePending()')
-    const trip = duplicateTrip(seedData.trips[0], 'wiring-owner')
+    // Keep is admitted through the store, so it needs the owner's real session
+    // and a settled copy of the new trip.
+    getSnapshot().sessionUserId = 'wiring-owner'
+    const created = duplicateTrip(seedData.trips[0], 'wiring-owner')
+    await tick()
+    const trip = tripById(created.id)!
     const day = trip.days.find(candidate => candidate.stops.length >= 2)!
     const victim = day.stops[1]
     const before = structuredClone(trip)
@@ -142,8 +154,10 @@ describe('the workspace uses its production preview handlers', () => {
     expect(displayedStops.map(stop => stop.orderInDay)).toEqual(displayedStops.map((_, index) => index + 1))
     expect(displayed.result).toEqual(computeImpact(trip, displayed.proposed, 'edit', day.index))
     expect(tripById(trip.id)).toEqual(before)
-    actions.keepPending()
-    expect(tripById(trip.id)).toEqual({ ...displayed.proposed, updatedAt: expect.any(Number) })
+    const kept = await actions.keepPending()
+    expect(kept).toMatchObject({ kind: 'acknowledged' })
+    // The acknowledged write carries the version the server assigned.
+    expect(tripById(trip.id)).toEqual({ ...displayed.proposed, updatedAt: expect.any(Number), writeVersion: kept.kind === 'acknowledged' ? kept.writeVersion : -1 })
     expect(pendingRef.current).toBeNull()
     expect(baseRef.current).toBeNull()
     expect(undoToasts).toHaveLength(1)
@@ -151,15 +165,18 @@ describe('the workspace uses its production preview handlers', () => {
     expect(tripById(trip.id)!.days.find(candidate => candidate.index === day.index)!.stops).toEqual(day.stops)
   })
 
-  it('refuses Keep after a direct write changes the preview base', () => {
-    const trip = duplicateTrip(seedData.trips[0], 'wiring-stale-owner')
+  it('refuses Keep after a direct write changes the preview base', async () => {
+    getSnapshot().sessionUserId = 'wiring-stale-owner'
+    const created = duplicateTrip(seedData.trips[0], 'wiring-stale-owner')
+    await tick()
+    const trip = tripById(created.id)!
     const pendingRef: { current: PendingChange | null } = { current: null }
     const baseRef: { current: Trip | null } = { current: null }
     const args = { trip, pendingRef, baseRef, legCorrRef: { current: undefined }, setPending: vi.fn() }
     workspacePreviewActions(args).applyChange(draft => { draft.name = 'Staged name' }, 'edit', 0)
     updateTrip(trip.id, { name: 'Direct write' })
     const current = tripById(trip.id)!
-    workspacePreviewActions({ ...args, trip: current }).keepPending()
+    await expect(workspacePreviewActions({ ...args, trip: current }).keepPending()).resolves.toEqual({ kind: 'stale' })
     expect(tripById(trip.id)).toBe(current)
     expect(pendingRef.current?.proposed.name).toBe('Staged name')
     expect(messages).toEqual([expect.stringContaining('plan changed while you were reviewing')])

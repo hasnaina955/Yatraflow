@@ -30,6 +30,12 @@ import { campaignId, type CampaignId, type ForkOrigin } from '../lib/growthAttri
 import {
   clearWritesFor, dropQueuedWrite, pendingWrites, queueWrite, requeueIfCurrent, shouldRetry, type QueuedWrite,
 } from '../lib/writeQueue'
+import {
+  isPreviewOperation, notifyPreviewObservation, observationOf, samePreviewGeneration, samePreviewContent,
+  observationKey,
+  type PreviewAckRecord, type PreviewOperationState, type TripPreviewObservation,
+  type TripPreviewOperation, type TripPreviewPending,
+} from './tripPreviewRecovery'
 import { ownSuggestedCover, unclaimedCovers, coverCandidates, coverlessPublications } from '../lib/coverUpload'
 import { fetchFirstAvailableThumb } from '../lib/tripThumb'
 import { publishValidation, PUBLISH_FIELD_ORDER, PublishRejected } from '../lib/publishRules'
@@ -41,7 +47,9 @@ import { nextOrderInDay, renumberDay } from '../lib/stopOrder'
 import {
   submitCollabCommand, submitCollabTransition, suggestionRowToEntry, decisionRowToEntry,
   type AcceptanceOutcome, type DecisionResolutionOutcome, type CollabOutcome, type CollabCommand,
+  type OrderedDecisionResolutionWire,
 } from './collabCommand'
+import type { OrderedDecisionResolution } from '../data/types'
 export type { AcceptanceOutcome, DecisionResolutionOutcome } from './collabCommand'
 import { adminFromSession, clearAdminCache, isAdminCached, setAdminForTest } from '../lib/adminSession'
 import {
@@ -4148,9 +4156,25 @@ export function restoreExpense(tripId: ID, expense: Expense, index: number, by: 
   return 'applied'
 }
 
-export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
+let previewAdmissionCapture: ((entry: QueuedWrite) => void) | null = null
+/** Set for the synchronous admission window so a record exists before a
+ *  zero-debounce sender can settle. Restored in the same window. */
+let previewRegistration: ((
+  entry: QueuedWrite, scope: IdentityScope, accessEpoch: number, admission: 'admitted' | 'superseded',
+) => TripPreviewOperation) | null = null
+
+/** Capture candidates for ONE preview admission window. A synchronous cache
+ *  subscriber can queue its own entry before the outer admit persists, so the
+ *  first entry alone is not proof of this operation's generation. */
+interface PreviewCaptureWindow {
+  tripId: ID
+  ownerId: ID
+  candidates: Array<{ entry: QueuedWrite; operation: TripPreviewOperation }>
+}
+
+function admitTripUpdate(id: ID, patchFields: Partial<Trip>, stillAdmissible?: (draft: Trip, intended: Trip) => boolean): { accepted: boolean; receipt: Promise<TripWriteReceipt> | null; intended: Trip | null } {
   const t = tripById(id)
-  if (!t) return false
+  if (!t) return { accepted: false, receipt: null, intended: null }
   // The Mixed driving answer must never be dropped in silence, and a refused
   // save must not have touched the cache yet: the refusal says "nothing else
   // changed", so that has to be true here, not merely true in the row (2026-10-19).
@@ -4160,7 +4184,7 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
   if (typeof patchFields.drivesPart === 'boolean') {
     const cols = lastResolvedOptionalColumns
     if (!cols) { void tripsHaveOptionalColumns() }
-    if (!cols || !cols.drivesPart) { toast(DRIVES_PART_MISSING_REASON, 'err'); return false }
+    if (!cols || !cols.drivesPart) { toast(DRIVES_PART_MISSING_REASON, 'err'); return { accepted: false, receipt: null, intended: null } }
   }
   // Date changes resize the day grid — reconcile BEFORE assigning so the
   // persisted row and the cache carry the same days. Shrinks that would drop
@@ -4180,7 +4204,7 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
     const protectedIdx = new Set([...t.fixedCommitments, ...(t.flights ?? [])].map(c => c.dayIndex))
     const baseDays = patchFields.days ?? t.days
     const rec = reconcileDays(baseDays, newStart, newEnd, protectedIdx)
-    if (rec.error) { toast(rec.error, 'err'); return false }
+    if (rec.error) { toast(rec.error, 'err'); return { accepted: false, receipt: null, intended: null } }
     patchFields = { ...patchFields, days: rec.days }
   }
   // Mutate the cache FIRST, then persist the draft that already contains the
@@ -4188,9 +4212,176 @@ export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
   // applied the edit in memory — settings edits (cover, title, budget…)
   // silently vanished on reload unless a later unrelated write happened to
   // persist the trip.
-  const draft = mutateTrip(id, d => Object.assign(d, patchFields, { updatedAt: Date.now() }), { touch: false })
-  if (draft) void persistTripField(id, draft)
-  return true
+  const queuedBefore = queuedLocalTrips.get(id)
+  let intended: Trip | null = null
+  const draft = mutateTrip(id, d => {
+    Object.assign(d, patchFields, { updatedAt: Date.now() })
+    if (stillAdmissible) intended = structuredClone(d)
+  }, { touch: false })
+  // A synchronous subscriber may already have queued a newer local snapshot.
+  const receipt = draft && queuedLocalTrips.get(id) === queuedBefore && (!stillAdmissible || (intended && stillAdmissible(draft, intended)))
+    ? persistTripField(id, draft) : null
+  return { accepted: true, receipt, intended }
+}
+
+export function updateTrip(id: ID, patchFields: Partial<Trip>): boolean {
+  return admitTripUpdate(id, patchFields).accepted
+}
+
+/**
+ * Admit one preview against its complete captured trip base. The base must equal
+ * the current cached trip, including its identity and revision. The patch is
+ * copied before the queue read. Pending or conflicted work must be resolved
+ * first. A success names only this admission's persisted queue generation.
+ */
+export async function admitTripPreview(input: {
+  tripId: ID
+  expectedBase: Trip
+  patch: Partial<Trip>
+}): Promise<TripWriteReceipt | { kind: 'stale' | 'refused' }> {
+  const admission = await admitTrackedPreview(input)
+  if (admission.kind === 'admitted') return admission.receipt ?? { kind: 'unavailable', revision: null }
+  if (admission.kind === 'superseded') return { kind: 'superseded', revision: null }
+  if (admission.kind === 'stale' || admission.kind === 'refused') return { kind: admission.kind }
+  return { kind: admission.kind, revision: null }
+}
+
+/** The one admission window, shared by both preview entry points. It copies the
+ *  expected base/patch, validates the complete current base before and after the
+ *  durable queue read, then admits through the existing sender. It returns the
+ *  exact own queue generation captured at admission, or a pre-admission refusal. */
+async function admitTrackedPreview(input: { tripId: ID; expectedBase: Trip; patch: Partial<Trip> }): Promise<
+  | { kind: 'admitted'; operation: TripPreviewOperation; receipt: Promise<TripWriteReceipt> }
+  | { kind: 'superseded'; operation: TripPreviewOperation; receipt: null }
+  | { kind: 'refused' | 'stale' | 'conflict' | 'unavailable'; reason: string }
+> {
+  const { tripId } = input
+  const expectedBase = structuredClone(input.expectedBase)
+  const patchFields = structuredClone(input.patch)
+  const scope = identityScope()
+  const accessEpoch = tripAccessEpochs.get(tripId) ?? 0
+  if (!scope || !canSendTripWrite(scope, tripId, accessEpoch)) return { kind: 'refused', reason: 'no-edit-right' }
+  if (expectedBase.id !== tripId || (patchFields.id !== undefined && patchFields.id !== tripId)) {
+    return { kind: 'refused', reason: 'base-id-mismatch' }
+  }
+  const baseMatches = () => JSON.stringify(tripById(tripId)) === JSON.stringify(expectedBase)
+  const writeKey = `${scope.epoch}:${scope.userId}:${tripId}`
+  if (!baseMatches()) return { kind: 'stale', reason: 'base-changed' }
+  if (queuedLocalTrips.has(tripId) || tripWriteTails.has(writeKey) || pendingTripWrites.has(tripId)) {
+    return { kind: 'conflict', reason: 'unresolved-local-write' }
+  }
+  let writes: QueuedWrite[]
+  try { writes = await pendingWrites() } catch { return { kind: 'unavailable', reason: 'queue-read-failed' } }
+  if (!canSendTripWrite(scope, tripId, accessEpoch)) return { kind: 'refused', reason: 'no-edit-right' }
+  if (!baseMatches()) return { kind: 'stale', reason: 'base-changed' }
+  if (writes.some(write => write.ownerId === scope.userId && write.tripId === tripId)
+    || queuedLocalTrips.has(tripId) || tripWriteTails.has(writeKey) || pendingTripWrites.has(tripId)) {
+    return { kind: 'conflict', reason: 'unresolved-local-write' }
+  }
+  const queuedBefore = queuedLocalTrips.get(tripId)
+  const captureWindow: PreviewCaptureWindow = { tripId, ownerId: scope.userId, candidates: [] }
+  const previousCapture = previewAdmissionCapture
+  const previousRegistration = previewRegistration
+  previewRegistration = (entry, admissionScope, admissionEpoch, admissionKind) =>
+    openPreviewOperation(admissionScope, tripId, admissionEpoch, entry, admissionKind)
+  previewAdmissionCapture = entry => {
+    if (entry.tripId !== captureWindow.tripId || entry.ownerId !== captureWindow.ownerId) return
+    // Register every candidate synchronously, before any sender response can
+    // settle. The final generation is chosen by exact object identity after
+    // the whole admission window, never by JSON equality or arrival order.
+    if (previewRegistration) {
+      const operation = previewRegistration(entry, scope, accessEpoch, 'admitted')
+      captureWindow.candidates.push({ entry, operation })
+    }
+  }
+  let admission: ReturnType<typeof admitTripUpdate>
+  try {
+    admission = admitTripUpdate(tripId, patchFields, (draft, intended) =>
+      tripById(tripId) === draft && JSON.stringify(draft) === JSON.stringify(intended)
+      && canSendTripWrite(scope, tripId, accessEpoch))
+  } finally {
+    previewAdmissionCapture = previousCapture
+    previewRegistration = previousRegistration
+  }
+  if (!admission.accepted) return { kind: 'refused', reason: 'admission-check-failed' }
+  // A synchronous subscriber can queue the only generation that really sends:
+  // the outer draft's persist is then skipped by the held-entry guard, so its
+  // receipt is null. The receipt observer names that exact generation. Bind by
+  // object identity, never by JSON equality or arrival order, and keep the
+  // observer's promise as the operation's receipt.
+  const observer = tripReceiptObservers.get(tripId)
+  const observerEntry = observer?.entry ?? null
+  const heldEntry = queuedLocalTrips.get(tripId) ?? null
+  const ownCandidate = captureWindow.candidates.find(candidate => candidate.entry === observerEntry)
+  const ownEntry = ownCandidate?.entry ?? null
+  const receipt = admission.receipt ?? observer?.promise ?? null
+  const contentMatches = !ownEntry || !admission.intended
+    || samePreviewContent(ownEntry.trip, admission.intended)
+  if (!receipt || !ownEntry || !ownEntry.revision || !contentMatches
+    || heldEntry !== ownEntry || observerEntry !== ownEntry || ownEntry === queuedBefore) {
+    // The cache was mutated, but a synchronous subscriber replaced the draft or
+    // its queue generation. A nested subscriber's entry must NEVER become this
+    // operation's identity: discard it and use a synthetic generation that no
+    // real sender row can match. Keep this distinct from a pre-admission refusal.
+    const marker: QueuedWrite = {
+      tripId, ownerId: scope.userId, capturedAt: Date.now(),
+      revision: `superseded-${++previewOperationSeq}-${randomToken(8)}`,
+      baseVersion: tripById(tripId)?.writeVersion, attempts: 0, trip: null,
+    }
+    for (const candidate of captureWindow.candidates) previewOperations.delete(candidate.operation.operationId)
+    const operation = openPreviewOperation(scope, tripId, accessEpoch, marker, 'superseded')
+    return { kind: 'superseded', operation, receipt: null }
+  }
+  for (const candidate of captureWindow.candidates) {
+    if (candidate.entry !== ownEntry) previewOperations.delete(candidate.operation.operationId)
+  }
+  const operation = ownCandidate?.operation
+    ?? openPreviewOperation(scope, tripId, accessEpoch, ownEntry, 'admitted')
+  return { kind: 'admitted', operation, receipt }
+}
+
+export type TripPreviewAdmission =
+  | { kind: 'admitted'; operation: TripPreviewOperation; receipt: Promise<TripWriteReceipt> }
+  | { kind: 'superseded'; operation: TripPreviewOperation }
+  | { kind: 'refused' | 'stale' | 'conflict' | 'unavailable'; reason: string | null }
+
+/** Register the operation record before the first receipt await. The record is
+ *  created from the exact queue generation captured at admission, never from a
+ *  later cache read, and never from a nested subscriber's newer generation. */
+function openPreviewOperation(scope: IdentityScope, tripId: ID, accessEpoch: number,
+  entry: QueuedWrite, admission: 'admitted' | 'superseded'): TripPreviewOperation {
+  const operation: TripPreviewOperation = {
+    operationId: `preview-${++previewOperationSeq}-${randomToken(8)}`,
+    tripId, userId: scope.userId, epoch: scope.epoch, accessEpoch,
+    revision: entry.revision ?? '', capturedAt: entry.capturedAt, baseVersion: entry.baseVersion,
+  }
+  const state: PreviewOperationState = {
+    operation, admission, outcome: 'pending', notified: new Set(), listeners: new Set(), ack: null,
+  }
+  previewOperations.set(operation.operationId, state)
+  for (const existing of previewOperations.values()) {
+    if (existing === state || existing.outcome !== 'acknowledged' || !existing.ack) continue
+    if (previewGenerationKey(existing.operation) !== previewGenerationKey(operation)) continue
+    state.ack = existing.ack
+    state.outcome = 'acknowledged'
+    break
+  }
+  prunePreviewOperations()
+  return operation
+}
+
+/** Admit one preview and return the exact operation facts. A pre-admission
+ *  refusal stays distinguishable from an admitted operation that a synchronous
+ *  subscriber then superseded, even when all current cache fields differ. */
+export async function trackTripPreview(input: {
+  tripId: ID
+  expectedBase: Trip
+  patch: Partial<Trip>
+}): Promise<TripPreviewAdmission> {
+  const admission = await admitTrackedPreview(input)
+  if (admission.kind === 'admitted') return { kind: 'admitted', operation: admission.operation, receipt: admission.receipt }
+  if (admission.kind === 'superseded') return { kind: 'superseded', operation: admission.operation }
+  return { kind: admission.kind, reason: admission.reason }
 }
 
 // ---- Debounced trip writes (P4) ----
@@ -4323,6 +4514,152 @@ const pendingTripVerdicts = new Map<ID, TripVerdict>()
 /** The verdict of the newest write for each trip, until that write settles. */
 const newestTripVerdicts = new Map<ID, TripVerdict>()
 
+export type TripWriteReceipt =
+  | { kind: 'acknowledged'; revision: string; writeVersion: number }
+  | { kind: 'superseded' | 'conflict' | 'forbidden' | 'unavailable'; revision: string | null }
+
+type ReceiptObserver = {
+  entry: QueuedWrite
+  scope: IdentityScope
+  accessEpoch: number
+  promise: Promise<TripWriteReceipt>
+  settle: (result: TripWriteReceipt) => void
+}
+const tripReceiptObservers = new Map<ID, ReceiptObserver>()
+
+/** One record per admitted preview operation, keyed by its own operation id.
+ *  A record is created BEFORE the first receipt await, so a response or
+ *  listener race cannot miss the exact generation's acknowledgement. Settled
+ *  records stay in this bounded map so a late subscriber can replay the exact
+ *  receipt without a second write. */
+const previewOperations = new Map<string, PreviewOperationState>()
+const PREVIEW_OPERATION_LIMIT = 64
+let previewOperationSeq = 0
+
+function previewWriteKey(operation: TripPreviewOperation): ID {
+  return `${operation.epoch}:${operation.userId}:${operation.tripId}`
+}
+
+function previewGenerationKey(operation: TripPreviewOperation): string {
+  return `${operation.epoch}:${operation.userId}:${operation.tripId}:${operation.revision}:${operation.capturedAt}`
+}
+
+function operationIsCurrent(operation: TripPreviewOperation): boolean {
+  return isCurrentIdentity({ userId: operation.userId, epoch: operation.epoch })
+    && (tripAccessEpochs.get(operation.tripId) ?? 0) === operation.accessEpoch
+}
+
+function previewStateFor(operation: unknown): PreviewOperationState | null {
+  if (!isPreviewOperation(operation)) return null
+  const state = previewOperations.get(operation.operationId)
+  if (!state) return null
+  const stored = state.operation
+  if (stored.operationId !== operation.operationId || stored.tripId !== operation.tripId
+    || stored.userId !== operation.userId || stored.epoch !== operation.epoch
+    || stored.accessEpoch !== operation.accessEpoch || stored.revision !== operation.revision
+    || stored.capturedAt !== operation.capturedAt) return null
+  return state
+}
+
+/** Record the exact validated row for this generation. Only an existing
+ *  sender's success calls this, through the one receipt settlement path. */
+function recordPreviewAck(entry: QueuedWrite, writeVersion: number): void {
+  for (const state of previewOperations.values()) {
+    if (!samePreviewGeneration(state.operation, { ownerId: entry.ownerId, tripId: entry.tripId,
+      revision: entry.revision, capturedAt: entry.capturedAt })) continue
+    if (state.outcome === 'acknowledged') continue
+    if (!operationIsCurrent(state.operation)) continue
+    const ack: PreviewAckRecord = { operation: state.operation, writeVersion }
+    state.ack = ack
+    state.outcome = 'acknowledged'
+    notifyPreviewObservation(state)
+  }
+}
+
+/** A settlement that is not a validated save or explicit discard leaves the
+ *  operation unresolved. A failed first send stays recoverable, not settled. */
+function recordPreviewUnresolved(entry: QueuedWrite): void {
+  for (const state of previewOperations.values()) {
+    if (!samePreviewGeneration(state.operation, { ownerId: entry.ownerId, tripId: entry.tripId,
+      revision: entry.revision, capturedAt: entry.capturedAt })) continue
+    if (state.outcome !== 'pending') continue
+    state.outcome = 'unknown'
+    notifyPreviewObservation(state)
+  }
+}
+
+/** An explicit discard of a queue generation, through the one Saved edits path.
+ *  A disappearance we cannot attribute stays unknown, never discarded. */
+function recordPreviewDiscard(entry: QueuedWrite): void {
+  for (const state of previewOperations.values()) {
+    if (!samePreviewGeneration(state.operation, { ownerId: entry.ownerId, tripId: entry.tripId,
+      revision: entry.revision, capturedAt: entry.capturedAt })) continue
+    if (state.outcome === 'acknowledged') continue
+    state.outcome = 'discarded'
+    notifyPreviewObservation(state)
+  }
+}
+
+/** Keep the record set bounded. Pending operations with listeners are never
+ *  evicted; the oldest settled, listener-free record goes first. */
+function prunePreviewOperations(): void {
+  if (previewOperations.size <= PREVIEW_OPERATION_LIMIT) return
+  for (const [id, state] of previewOperations) {
+    if (previewOperations.size <= PREVIEW_OPERATION_LIMIT) break
+    if (state.outcome === 'pending' || state.listeners.size > 0) continue
+    previewOperations.delete(id)
+  }
+}
+
+/** Retire records whose identity, access or owner no longer matches. An old
+ *  account's late acknowledgement must not notify a new identity. */
+function retireForeignPreviewOperations(): void {
+  for (const state of previewOperations.values()) {
+    if (operationIsCurrent(state.operation)) continue
+    if (state.outcome === 'acknowledged' || state.outcome === 'discarded') continue
+    state.outcome = 'foreign'
+    notifyPreviewObservation(state)
+    prunePreviewOperations()
+  }
+}
+
+function settleTripReceipt(entry: QueuedWrite, result: TripWriteReceipt): void {
+  // Record the generation outcome BEFORE the observer check. A Saved edits
+  // retry has no live observer, but its validated row must still settle the
+  // exact operation. The guards keep a later `unavailable` finally from
+  // downgrading an already validated acknowledgement.
+  if (result.kind === 'acknowledged' && typeof entry.revision === 'string'
+    && validWriteVersion(result.writeVersion)) {
+    recordPreviewAck(entry, result.writeVersion)
+  } else if (result.kind !== 'superseded') {
+    recordPreviewUnresolved(entry)
+  }
+  const observer = tripReceiptObservers.get(entry.tripId)
+  if (!observer || !sameQueuedWrite(observer.entry, entry)) return
+  tripReceiptObservers.delete(entry.tripId)
+  observer.settle(result)
+  prunePreviewOperations()
+}
+
+/** Observe the current locally captured write. This does not start or retry a write. */
+export function tripWriteReceipt(id: ID): Promise<TripWriteReceipt> {
+  const observer = tripReceiptObservers.get(id)
+  const held = queuedLocalTrips.get(id)
+  if (!observer || !held || !sameQueuedWrite(observer.entry, held)
+    || !canSendTripWrite(observer.scope, id, observer.accessEpoch)) {
+    return Promise.resolve({ kind: 'unavailable', revision: null })
+  }
+  return observer.promise
+}
+
+function openTripReceipt(entry: QueuedWrite, scope: IdentityScope, accessEpoch: number): void {
+  const previous = tripReceiptObservers.get(entry.tripId)
+  if (previous) settleTripReceipt(previous.entry, { kind: 'superseded', revision: previous.entry.revision ?? null })
+  let settle: (result: TripWriteReceipt) => void = () => {}
+  const promise = new Promise<TripWriteReceipt>(resolve => { settle = resolve })
+  tripReceiptObservers.set(entry.tripId, { entry, scope, accessEpoch, promise, settle })
+}
+
 function openTripVerdict(): TripVerdict {
   let settle: (saved: boolean) => void = () => {}
   const promise = new Promise<boolean>(resolve => { settle = resolve })
@@ -4376,6 +4713,10 @@ export function _setTripWriteDebounceMs(ms: number): void {
  *  departing account captured is theirs alone, exactly like the durable queue
  *  entry the sign-out wipe discards. Test hook mirror of _flushTripWrites. */
 export function _cancelTripWrites(): void {
+  for (const observer of tripReceiptObservers.values()) {
+    settleTripReceipt(observer.entry, { kind: 'unavailable', revision: observer.entry.revision ?? null })
+  }
+  retireForeignPreviewOperations()
   for (const id of [...pendingTripWrites.keys()]) {
     const pending = pendingTripWrites.get(id)
     if (pending) clearTimeout(pending.timer)
@@ -4407,6 +4748,102 @@ export function _flushTripWrites(): void {
     pendingTripVerdicts.delete(id)
     sendUnderVerdict(id, v, persistTripFieldNow(id, pending))
   }
+}
+
+/** Observe one exact admitted generation. Register before awaiting the first
+ *  receipt; `observation()` replays a stored validated acknowledgement for a
+ *  late subscriber. Only the existing sender's validated row can acknowledge. */
+export function observeTripPreview(
+  operation: TripPreviewOperation,
+  listener: (observation: TripPreviewObservation) => void,
+): { observation(): TripPreviewObservation; subscribe(next: (observation: TripPreviewObservation) => void): void; dispose(): void } {
+  const state = previewStateFor(operation)
+  if (!state) {
+    return {
+      observation: () => ({ kind: 'foreign', reason: 'unknown-operation' }),
+      subscribe: next => next({ kind: 'foreign', reason: 'unknown-operation' }),
+      dispose: () => {},
+    }
+  }
+  state.listeners.add(listener)
+  retireForeignPreviewOperations()
+  const settled = observationOf(state)
+  if (settled) {
+    state.notified.add(observationKey(settled))
+    try { listener(settled) } catch { /* A subscriber must not stop a save. */ }
+  }
+  return {
+    observation: () => observationOf(state) ?? { kind: 'unknown', reason: 'unresolved' },
+    subscribe: next => {
+      state.listeners.add(next)
+      const current = observationOf(state)
+      if (current) {
+        state.notified.add(observationKey(current))
+        try { next(current) } catch { /* A subscriber must not stop a save. */ }
+      }
+    },
+    dispose: () => {
+      state.listeners.delete(listener)
+      prunePreviewOperations()
+    },
+  }
+}
+
+/** Identity-scoped pending state for one exact admitted generation. A failed
+ *  storage read is unknown, never empty. Queue absence alone never proves that
+ *  a write settled. After each await the owner, identity, access and in-memory
+ *  facts are rechecked. Unrelated trips or users cannot block this query. */
+export async function tripPreviewPending(operation: TripPreviewOperation): Promise<TripPreviewPending> {
+  if (!isPreviewOperation(operation)) return { state: 'foreign', reason: 'invalid-operation', sources: [] }
+  const state = previewStateFor(operation)
+  const writeKey = previewWriteKey(operation)
+  // A proven terminal outcome is identity-scoped at settlement time. A later
+  // access-generation bump must not turn a validated save or explicit discard
+  // into a foreign or unknown result.
+  if (state?.outcome === 'acknowledged' && state.ack) {
+    return { state: 'settled', reason: 'validated-saved-row', sources: ['acknowledgement'] }
+  }
+  if (state?.outcome === 'discarded') return { state: 'discarded', reason: 'explicit-discard', sources: ['discard'] }
+  const owned = (): boolean => operationIsCurrent(operation)
+  if (!owned()) return { state: 'foreign', reason: 'identity-or-access-changed', sources: ['scope'] }
+  if (!state) return { state: 'unknown', reason: 'no-operation-record', sources: [] }
+  const sources: string[] = []
+  const exactGeneration = (candidate: QueuedWrite): boolean =>
+    samePreviewGeneration(operation, { ownerId: candidate.ownerId, tripId: candidate.tripId,
+      revision: candidate.revision, capturedAt: candidate.capturedAt })
+  const inMemoryPending = (): boolean => {
+    const held = queuedLocalTrips.get(operation.tripId)
+    const debounce = pendingTripWrites.get(operation.tripId)
+    return (!!held && (exactGeneration(held) || held.ownerId === operation.userId))
+      || (!!debounce && (exactGeneration(debounce.entry) || debounce.entry.ownerId === operation.userId))
+  }
+  const tailPending = (): boolean => tripWriteTails.has(writeKey)
+    || [...activeReplays.keys()].some(key => key === `${operation.epoch}:${operation.userId}`)
+  if (inMemoryPending()) sources.push('memory')
+  if (tailPending()) sources.push('sender-tail')
+  if (!owned()) return { state: 'foreign', reason: 'identity-or-access-changed', sources: [...sources, 'scope'] }
+  let writes: QueuedWrite[]
+  try { writes = await pendingWrites() } catch {
+    return { state: 'unknown', reason: 'queue-read-failed', sources: [...sources, 'read-failed'] }
+  }
+  if (!owned()) return { state: 'foreign', reason: 'identity-or-access-changed', sources: [...sources, 'scope'] }
+  const sameGenerationQueued = writes.some(exactGeneration)
+  if (sameGenerationQueued) sources.push('durable-queue')
+  if (inMemoryPending() && !sources.includes('memory')) sources.push('memory')
+  if (tailPending() && !sources.includes('sender-tail')) sources.push('sender-tail')
+  const currentState = previewStateFor(operation)
+  if (currentState?.outcome === 'acknowledged' && currentState.ack) {
+    return { state: 'settled', reason: 'validated-saved-row', sources: [...sources, 'acknowledgement'] }
+  }
+  if (currentState?.outcome === 'discarded') {
+    return { state: 'discarded', reason: 'explicit-discard', sources: [...sources, 'discard'] }
+  }
+  if (sameGenerationQueued || sources.includes('memory') || sources.includes('sender-tail')) {
+    return { state: 'pending', reason: 'generation-or-sender-unresolved', sources }
+  }
+  const otherTripWork = writes.some(write => write.tripId === operation.tripId && write.ownerId === operation.userId)
+  if (otherTripWork) return { state: 'unknown', reason: 'unattributed-disappearance', sources: [...sources, 'other-generation'] }
+  return { state: 'unknown', reason: 'unattributed-disappearance', sources }
 }
 
 /** Match the exact local edit, including edits captured in the same millisecond. */
@@ -4648,9 +5085,12 @@ async function retainRevokedCopy(entry: QueuedWrite, scope: IdentityScope, reaso
 }
 
 /** Stop pending callbacks for one trip. The saved edit stays queued until the server confirms a deletion. */
-function revokeTripWork(tripId: string): void {
+function revokeTripWork(tripId: string, outcome: 'forbidden' | 'unavailable' = 'unavailable'): void {
+  const observer = tripReceiptObservers.get(tripId)
+  if (observer) settleTripReceipt(observer.entry, { kind: outcome, revision: observer.entry.revision ?? null })
   editableTripGrants.delete(tripId)
   tripAccessEpochs.set(tripId, (tripAccessEpochs.get(tripId) ?? 0) + 1)
+  retireForeignPreviewOperations()
   const pending = pendingTripWrites.get(tripId)
   if (pending) clearTimeout(pending.timer)
   pendingTripWrites.delete(tripId)
@@ -4690,7 +5130,7 @@ function invalidateTripWork(tripId: string, userId: string, reason?: QueuedWrite
   // The reason is kept beside the generation and the identity that recorded
   // it, so a removal that was in flight when the generation moved can put the
   // copy back, and a later account cannot inherit the reason.
-  revokeTripWork(tripId)
+  revokeTripWork(tripId, reason === 'access-revoked' || reason === 'access-removed' ? 'forbidden' : 'unavailable')
   const accessEpoch = tripAccessEpochs.get(tripId) ?? 0
   if (reason) tripInvalidationReasons.set(tripId, { reason, userId, generation: accessEpoch })
   else tripInvalidationReasons.delete(tripId)
@@ -5008,6 +5448,7 @@ async function sendQueuedTripWrite(entry: QueuedWrite, scope: IdentityScope, acc
     if (!validWriteVersion(entry.baseVersion) || !validWriteVersion(current.write_version)
       || current.write_version !== entry.baseVersion) {
       await retainQueuedState(entry, scope, { state: 'conflict' })
+      if (live()) settleTripReceipt(entry, { kind: 'conflict', revision: entry.revision ?? null })
       return false
     }
     const cols = await tripsHaveOptionalColumns()
@@ -5035,6 +5476,7 @@ async function sendQueuedTripWrite(entry: QueuedWrite, scope: IdentityScope, acc
     if (!row || row.id !== entry.tripId || !validWriteVersion(row.write_version)
       || row.write_version <= entry.baseVersion) {
       await retainQueuedState(entry, scope, { state: 'conflict' })
+      if (live()) settleTripReceipt(entry, { kind: 'conflict', revision: entry.revision ?? null })
       return false
     }
     recordServerTripTimestamp(entry.tripId, row.updated_at)
@@ -5053,6 +5495,7 @@ async function sendQueuedTripWrite(entry: QueuedWrite, scope: IdentityScope, acc
     if (held && sameQueuedWrite(held, entry)) queuedLocalTrips.delete(entry.tripId)
     const cached = tripById(entry.tripId)
     if (cached) cached.writeVersion = row.write_version
+    if (entry.revision) settleTripReceipt(entry, { kind: 'acknowledged', revision: entry.revision, writeVersion: row.write_version })
     commit()
     return true
   } catch {
@@ -5061,6 +5504,14 @@ async function sendQueuedTripWrite(entry: QueuedWrite, scope: IdentityScope, acc
 }
 
 async function persistTripFieldNow(id: ID, captured: CapturedTripWrite): Promise<boolean> {
+  try {
+    return await persistCapturedTripField(id, captured)
+  } finally {
+    settleTripReceipt(captured.entry, { kind: 'unavailable', revision: captured.entry.revision ?? null })
+  }
+}
+
+async function persistCapturedTripField(id: ID, captured: CapturedTripWrite): Promise<boolean> {
   const scope = { userId: captured.sessionId, epoch: captured.epoch }
   if (!canSendTripWrite(scope, id, captured.accessEpoch)) return false
   const durable = await captured.durable
@@ -5152,6 +5603,7 @@ export async function resolveQueuedTripWrite(tripId: ID, choice: 'retry' | 'repl
       // remove. So a reasoned copy is removed either way.
       if (!refresh && isHeldCopy(current) && cache.trips.some(t => t.id === tripId)) return false
       const durable = await dropQueuedWrite(current)
+      if (durable) recordPreviewDiscard(current)
       // A scope change means the removal did not complete under this scope.
       // It reports false, so the caller does not claim a clean removal.
       if (!stillLive(scope, tripId, accessEpoch)) {
@@ -5246,9 +5698,9 @@ export async function resolveQueuedTripWrite(tripId: ID, choice: 'retry' | 'repl
   })
 }
 
-function persistTripField(id: ID, t: Trip): void {
+function persistTripField(id: ID, t: Trip): Promise<TripWriteReceipt> | null {
   const scope = identityScope()
-  if (!scope || !isCurrentIdentity(scope)) return
+  if (!scope || !isCurrentIdentity(scope)) return null
   markLocalWrite('trips', id)
   const snapshot = structuredClone(t)
   const previous = queuedLocalTrips.get(id)
@@ -5257,13 +5709,16 @@ function persistTripField(id: ID, t: Trip): void {
     revision: randomToken(16), baseVersion: previous?.baseVersion ?? t.writeVersion,
     attempts: 0, state: previous?.state === 'conflict' ? 'conflict' : undefined, trip: snapshot }
   queuedLocalTrips.set(id, entry)
+  previewAdmissionCapture?.(entry)
+  openTripReceipt(entry, scope, tripAccessEpochs.get(id) ?? 0)
+  const receipt = tripReceiptObservers.get(id)?.promise ?? null
   const captured: CapturedTripWrite = { trip: snapshot, sessionId: scope.userId, epoch: scope.epoch,
     accessEpoch: tripAccessEpochs.get(id) ?? 0, entry, durable: queueWrite(entry) }
   if (TRIP_WRITE_DEBOUNCE_MS <= 0) {
     const v = openTripVerdict()
     newestTripVerdicts.set(id, v)
     sendUnderVerdict(id, v, persistTripFieldNow(id, captured))
-    return
+    return receipt
   }
   const prev = pendingTripWrites.get(id)
   if (prev) clearTimeout(prev.timer)
@@ -5276,6 +5731,7 @@ function persistTripField(id: ID, t: Trip): void {
     sendUnderVerdict(id, v, persistTripFieldNow(id, captured))
   }, TRIP_WRITE_DEBOUNCE_MS)
   pendingTripWrites.set(id, { ...captured, timer })
+  return receipt
 }
 
 // ---------------- Members & collaboration ----------------
@@ -6099,6 +6555,7 @@ type PendingCollabAction = {
 }
 
 const pendingCollabActions = new Map<string, PendingCollabAction>()
+const pendingOrderedResolutions = new Map<string, { commandId: string; fingerprint: string }>()
 
 function collabKey(
   scope: IdentityScope,
@@ -7041,8 +7498,65 @@ export function voteOnDecision(decisionId: ID, optionId: ID): Promise<CollabOutc
   })
 }
 
+/** One explicit measured placement intent. The revision is captured WITH the
+ *  intent: a route or day change cannot lend a newer cache revision to an older
+ *  measurement. An uncertain retry replays this exact value and its wire bytes. */
+type CapturedOrderedResolution = {
+  dayId: ID
+  dayIndex?: number
+  orderedPlacement: OrderedDecisionResolution
+  expectedRevision: number
+  wire: OrderedDecisionResolutionWire
+}
+
+/** Check the caller's captured intent at the boundary. Absent or malformed
+ *  metadata is a refusal, not a silent borrow of the current cache revision. */
+function captureOrderedResolution(
+  target: { dayId?: ID; dayIndex?: number; orderedPlacement?: OrderedDecisionResolution },
+): CapturedOrderedResolution | null {
+  const ordered = target.orderedPlacement
+  if (!ordered || typeof ordered !== 'object') return null
+  if (!nonEmptyString(ordered.dayId)) return null
+  if (ordered.beforeStopId !== null && !nonEmptyString(ordered.beforeStopId)) return null
+  if (!validWriteVersion(ordered.expectedRevision)) return null
+  if (target.dayId !== undefined && target.dayId !== ordered.dayId) return null
+  const values = Object.keys(ordered).sort()
+  if (values.length !== 3 || values[0] !== 'beforeStopId' || values[1] !== 'dayId' || values[2] !== 'expectedRevision') return null
+  return {
+    dayId: ordered.dayId,
+    ...(target.dayIndex !== undefined ? { dayIndex: target.dayIndex } : {}),
+    orderedPlacement: ordered,
+    expectedRevision: ordered.expectedRevision,
+    wire: { dayId: ordered.dayId, beforeStopId: ordered.beforeStopId },
+  }
+}
+
+/** Earlier, still unresolved whole-trip work for this identity and trip.
+ *  `serializeTripWrite` only sees ACTIVE tails; a debounced edit, a held local
+ *  overlay or a durable queued write can all precede the tail. */
+function orderedResolutionPending(tripId: ID, writeKey: ID): boolean {
+  return orderedResolutionLocalPending(tripId) || tripWriteTails.has(writeKey)
+}
+
+/** Work that can appear while this resolution waits behind an earlier sender.
+ *  The resolution's OWN tail is expected here, so it is not part of this test. */
+function orderedResolutionLocalPending(tripId: ID): boolean {
+  return queuedLocalTrips.has(tripId) || pendingTripWrites.has(tripId)
+}
+
+/** Include durable queued writes that have not taken a tail yet. A read failure
+ *  is not an empty queue, so it refuses conservatively. */
+async function orderedResolutionBlocked(scope: IdentityScope, tripId: ID, writeKey: ID): Promise<boolean | null> {
+  if (orderedResolutionPending(tripId, writeKey)) return true
+  let writes: QueuedWrite[]
+  try { writes = await pendingWrites() } catch { return null }
+  if (!isCurrentIdentity(scope)) return true
+  return writes.some(write => write.ownerId === scope.userId && write.tripId === tripId)
+    || orderedResolutionPending(tripId, writeKey)
+}
+
 export function resolveDecision(decisionId: ID, optionId: ID,
-  target: { dayId?: ID; dayIndex?: number } = {}): Promise<DecisionResolutionOutcome> {
+  target: { dayId?: ID; dayIndex?: number; orderedPlacement?: OrderedDecisionResolution } = {}): Promise<DecisionResolutionOutcome> {
   const scope = identityScope()
   if (!scope) return Promise.resolve({ status: 'forbidden' })
   const dIdx = cache.decisions.findIndex(x => x.id === decisionId)
@@ -7050,15 +7564,67 @@ export function resolveDecision(decisionId: ID, optionId: ID,
   const rowBefore = cache.decisions[dIdx]
   const trip = tripById(rowBefore.tripId)
   if (!trip || !validWriteVersion(trip.writeVersion)) return Promise.resolve({ status: 'unavailable' })
+  const captured = target.orderedPlacement ? captureOrderedResolution(target) : null
+  if (target.orderedPlacement && !captured) return Promise.resolve({ status: 'unavailable' })
+  const legacy = !captured
+  const accessEpoch = tripAccessEpochs.get(rowBefore.tripId) ?? 0
+  const writeKey = `${scope.epoch}:${scope.userId}:${rowBefore.tripId}`
+  const cacheRevision = trip.writeVersion
+  const expectedRevision = captured ? captured.expectedRevision : trip.writeVersion
   const command = {
     type: 'decision.resolve' as const,
     decisionId,
     optionId,
-    expectedRevision: trip.writeVersion,
-    ...(target.dayId !== undefined ? { dayId: target.dayId } : {}),
-    ...(target.dayIndex !== undefined ? { dayIndex: target.dayIndex } : {}),
+    expectedRevision,
+    ...(captured ? { dayId: captured.dayId } : target.dayId !== undefined ? { dayId: target.dayId } : {}),
+    ...(captured?.dayIndex !== undefined ? { dayIndex: captured.dayIndex } : target.dayIndex !== undefined ? { dayIndex: target.dayIndex } : {}),
+    ...(captured ? { orderedPlacement: structuredClone(captured.wire) } : {}),
   }
-  return submitCollabTransition(uuid(), rowBefore.tripId, command).then(outcome => {
+  const fingerprint = JSON.stringify(command)
+  const pendingKey = captured
+    ? `${scope.epoch}:${scope.userId}:decision.resolve:${rowBefore.tripId}:${decisionId}:${fingerprint}`
+    : null
+  const pending = pendingKey ? pendingOrderedResolutions.get(pendingKey) : null
+  const commandId = pending?.commandId ?? uuid()
+  if (pendingKey && !pending) pendingOrderedResolutions.set(pendingKey, { commandId, fingerprint })
+  let sentToServer = false
+  const send = () => {
+    sentToServer = true
+    return submitCollabTransition(commandId, rowBefore.tripId, command)
+  }
+  // The measurement belonged to the revision the caller captured. A NEW intent
+  // older than the current cache is stale: refuse instead of lending it a newer
+  // revision or silently rebasing the exact trip/day/option/anchor. A caller
+  // may deliberately reevaluate against a newer base and carry that revision.
+  // An uncertain RETRY keeps its stored envelope and replays the same bytes
+  // even after the cache changed, so it must not take this refusal.
+  const staleCapturedBase = !!captured && !pending && trip.writeVersion > captured.expectedRevision
+
+  const runOrdered = async (): Promise<DecisionResolutionOutcome> => {
+    const conflict = (): DecisionResolutionOutcome => ({ status: 'conflict', tripRevision: cacheRevision })
+    if (staleCapturedBase) return conflict()
+    if (!canSendTripWrite(scope, rowBefore.tripId, accessEpoch)) return { status: 'forbidden' }
+    const blocked = await orderedResolutionBlocked(scope, rowBefore.tripId, writeKey)
+    if (blocked === null) return { status: 'unavailable' }
+    if (blocked) return conflict()
+    // The queue read awaited storage. Recheck identity, access and pending work
+    // before the RPC, so a sign-in, demotion or intervening edit cannot leak.
+    if (!canSendTripWrite(scope, rowBefore.tripId, accessEpoch)) return { status: 'forbidden' }
+    if (orderedResolutionLocalPending(rowBefore.tripId)) return conflict()
+    // Chain onto the existing sender tail without holding a second tail, then
+    // recheck identity and access after every await before reporting success.
+    return serializeTripWrite(writeKey, async (): Promise<DecisionResolutionOutcome> => {
+      if (!canSendTripWrite(scope, rowBefore.tripId, accessEpoch)) return { status: 'forbidden' }
+      if (orderedResolutionLocalPending(rowBefore.tripId)) return conflict()
+      return send()
+    })
+  }
+
+  const finish = (outcome: DecisionResolutionOutcome): DecisionResolutionOutcome => {
+    if (pendingKey && (outcome.status === 'applied' || outcome.status === 'alreadyApplied'
+      || outcome.status === 'forbidden')) {
+      pendingOrderedResolutions.delete(pendingKey)
+    }
     if (!isCurrentIdentity(scope)) return outcome
     if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') {
       const current = cache.decisions.find(x => x.id === decisionId)
@@ -7069,12 +7635,14 @@ export function resolveDecision(decisionId: ID, optionId: ID,
         void refetchContributionRow('decision', decisionId, scope)
       }
       noteTripRevision(rowBefore.tripId, outcome.tripRevision)
-    } else if (outcome.status === 'conflict') {
+    } else if (outcome.status === 'conflict' && sentToServer) {
       void refetchContributionRow('decision', decisionId, scope)
       noteTripRevision(rowBefore.tripId, outcome.tripRevision)
     }
     return outcome
-  })
+  }
+
+  return (legacy ? send() : runOrdered()).then(finish)
 }
 
 // ---------------- Publishing ----------------

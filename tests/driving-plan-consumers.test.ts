@@ -204,7 +204,10 @@ vi.mock('../src/components/ui', async (importOriginal) => {
   return { ...actual, undoToast: (msg: string, run: () => void) => { toasts.push({ msg, run }) } }
 })
 
-vi.mock('../src/lib/supabase', () => {
+vi.mock('../src/lib/writeQueue', async importOriginal =>
+  (await import('./helpers/memoryWriteQueue')).memoryWriteQueue(importOriginal))
+vi.mock('../src/lib/supabase', async () => {
+  const { tripWriteClient } = await import('./helpers/tripWriteClient')
   const makeBuilder = (table: string) => {
     let method: string | undefined
     const builder: Record<string, unknown> = {}
@@ -228,20 +231,27 @@ vi.mock('../src/lib/supabase', () => {
   }
   return {
     isSupabaseConfigured: false,
-    supabase: { from: (t: string) => makeBuilder(t) },
+    // Keep is admitted with a revision-aware session, so the client answers auth too.
+    supabase: tripWriteClient({ auth: { signOut: async () => ({ error: null }) }, from: (t: string) => makeBuilder(t) }),
   }
 })
 
 describe('case 5 — rejected previews change nothing; Keep applies the proposal; Undo restores', () => {
   it('stages, discards, keeps and undoes a removal through the workspace\'s own wiring', async () => {
     const { seedData } = await import('../src/data/seed')
-    const { duplicateTrip, tripById, _setTripWriteDebounceMs } = await import('../src/store/store')
+    const { duplicateTrip, getSnapshot, tripById, _setTripWriteDebounceMs } = await import('../src/store/store')
     const { removeStopWithUndo } = await import('../src/lib/mutationLifecycle')
     _setTripWriteDebounceMs(0)
     calls.length = 0
     toasts.length = 0
     const seedTrip = seedData.trips[0]
-    const trip = duplicateTrip(seedTrip, 'lane3-owner')
+    // Keep is admitted through the store, so it needs the owner's real session
+    // and a settled copy of the new trip.
+    getSnapshot().sessionUserId = 'lane3-owner'
+    const created = duplicateTrip(seedTrip, 'lane3-owner')
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    const trip = tripById(created.id)!
     const pendingRef: { current: PendingChange | null } = { current: null }
     const baseRef: { current: Trip | null } = { current: null }
     const { applyChange, keepPending, removePending } = workspacePreviewActions({
@@ -266,7 +276,7 @@ describe('case 5 — rejected previews change nothing; Keep applies the proposal
     removeStopWithUndo({ trip: tripById(trip.id)!, stopId: victim, dayIndex: day.index, applyChange })
     const displayed = pendingRef.current!.proposed
     expect(displayed.days[day.index].stops.map(s => s.id)).toEqual(before.filter(id => id !== victim))
-    keepPending()
+    await expect(keepPending()).resolves.toMatchObject({ kind: 'acknowledged' })
     expect(pendingRef.current).toBeNull()
     expect(tripById(trip.id)!.days[day.index].stops.map(s => s.id)).toEqual(before.filter(id => id !== victim))
 

@@ -47,7 +47,13 @@ describe('the Map tab is a real chunk boundary (#332 R4)', () => {
 
 describe('#563 — the batch-add skips a day that reconcile removed', () => {
   it('the byDay loop guards the day lookup with continue, never a bang', () => {
+    // #841: the arc button no longer owns this loop. It stages through the shared
+    // writer, whose planner answers `missing-day` for a day that is no longer in
+    // the trip (behavior pinned in tests/map-tab-pipeline-841.test.ts).
     const map = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
-    expect(map).toMatch(/const day = draft\.days\.find\(d => d\.index === dayIndex\)\r?\n\s*if \(!day\) continue/)
+    expect(map).not.toContain('const byDay = new Map<number, { hit: PlaceHit }[]>()')
+    expect(map).toContain('stageArcAdd(')
+    const actions = readFileSync(new URL('../src/pages/trip/map/mapWriterActions.ts', import.meta.url), 'utf8')
+    expect(actions).toMatch(/if \(!day\) \{?\s*return/)
   })
 })

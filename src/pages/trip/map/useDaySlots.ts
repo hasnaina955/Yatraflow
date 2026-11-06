@@ -61,6 +61,9 @@ export function useDaySlots({
     identity,
     altPool: altPool.all.map(e => e.h),
     decisions,
+    // #841: the trip identity every slot's stable ref needs. The DAY id is
+    // resolved per day below, never from the active day's array position.
+    tripId,
     memberCount: (members ?? []).length,
     // #344: the slot re-scores its pool with the same extras the corridor
     // ranked by — DNA (per-trip learning + crew seeds) and the home point —
@@ -87,9 +90,21 @@ export function useDaySlots({
     () => days.find(d => d.index === activeDayIndex)?.stops ?? [],
     [days, activeDayIndex],
   )
+  /** #841: the day's PERSISTED id (`ItineraryDay.id`), the only stable day
+   *  identity. It never comes from the index or the title. A legacy day row
+   *  without one leaves every slot ref null, so writers refuse rather than
+   *  guess. */
+  const activeDayId = useMemo(
+    () => days.find(d => d.index === activeDayIndex)?.id ?? null,
+    [days, activeDayIndex],
+  )
   const activeDaySlots = useMemo<DaySlot[]>(
-    () => daySlots(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }),
-    [activeDayIndex, daySlotDeps, activeDayStops, daySlotSig], // eslint-disable-line react-hooks/exhaustive-deps -- refresh token: re-runs after store writes the inputs miss
+    () => daySlots(activeDayIndex, {
+      ...daySlotDeps,
+      dayStops: activeDayStops,
+      ...(activeDayId ? { dayId: activeDayId } : {}),
+    }),
+    [activeDayIndex, activeDayId, daySlotDeps, activeDayStops, daySlotSig], // eslint-disable-line react-hooks/exhaustive-deps -- refresh token: re-runs after store writes the inputs miss
   )
   /** Counted off the very slots the rail renders, not re-derived: a second
    *  `daySlots` call here was a whole extra derivation of the same day, and a
@@ -110,7 +125,12 @@ export function useDaySlots({
    *  the entire corridor pool through `scoreHitForSegment`, two geometry
    *  projections per hit. */
   const tripReadinessRows = useMemo(
-    () => tripReadiness(pois, days.map(d => ({ index: d.index, stops: d.stops })), daySlotDeps),
+    () => tripReadiness(pois, days.map(d => ({ index: d.index, stops: d.stops })), {
+      ...daySlotDeps,
+      // #841: every row resolves its own persisted day id; the active day's id
+      // must not label the whole matrix.
+      dayIdOf: (dayIndex: number) => days.find(d => d.index === dayIndex)?.id ?? null,
+    }),
     [pois, days, daySlotDeps, daySlotSig], // eslint-disable-line react-hooks/exhaustive-deps -- refresh token: re-runs after store writes the inputs miss
   )
   /** P7.2: what the log has learned about each KIND of part - shown on an open
@@ -129,7 +149,7 @@ export function useDaySlots({
   const slotPins = useMemo(() => slotPinsFor(activeDaySlots), [activeDaySlots])
 
   return {
-    daySlotDeps, activeDayStops, activeDaySlots, activeDayReadiness,
+    daySlotDeps, activeDayStops, activeDayId, activeDaySlots, activeDayReadiness,
     tripReadinessRows, dnaSlotHints, slotPins,
   }
 }

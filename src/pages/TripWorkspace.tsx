@@ -5,7 +5,7 @@
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
-import { useDb, tripById, currentUser, roleOf, canEdit, updateTrip, userById, readSharedTrip, useIdentityGeneration } from '../store/store'
+import { useDb, tripById, currentUser, roleOf, canEdit, trackTripPreview, tripPreviewPending, observeTripPreview, userById, readSharedTrip, useIdentityGeneration } from '../store/store'
 import { SegmentedTabs } from '../components/page/SegmentedTabs'
 import { StateBlock } from '../components/page/StateBlock'
 import { authNext } from '../lib/authNext'
@@ -60,18 +60,39 @@ import { TripSettingsForm } from './trip/TripSettingsForm'
 import { cap } from './trip/shared'
 import { roadChainSig } from '../lib/tripRoad'
 import { normalizeFocus, canFocusDay, focusDayRequest, dayFromFocus, focusForDay, type TripFocus } from '../lib/tripFocus'
-import { keepIsStale, stagedChange } from '../lib/previewChain'
+import {
+  KEEP_CLOSED_UNCERTAIN, KEEP_IN_FLIGHT, KEEP_LEFT_BEHIND, KEEP_LEFT_UNSAVED, KEEP_REFUSAL, LEAVE_UNCERTAIN, KEEP_UNCERTAIN, KEEP_UNCERTAIN_HOLD, KEEP_UNCERTAIN_RESOLVED, REMOVE_PREVIEW_CHANGED,
+  acknowledgedReceiptOf, composeOperations, createPreviewGate, discardOperations, keepIsStale, keepOutcomeOf, markAttempted, markUnadmitted, notifyUncertain, pendingVerdict, releaseWatch, runOperations, settleStoreDiscardedWatch, settleWatch,
+  stagedChange, withoutOperations,
+  type AcknowledgedReceipt, type KeepOutcome, type KeptCallback, type OperationMeta, type PreviewGate, type PreviewOperation, type PreviewWatch,
+} from '../lib/previewChain'
 import type { ApplyChange } from '../lib/mutationLifecycle'
+import type { TripPreviewObservation, TripPreviewOperation, TripPreviewPending } from '../store/tripPreviewRecovery'
 
 /** A staged change: the proposed shape, its impact against the committed trip,
- *  and an optional follow-up its caller runs when the change is kept. */
-export type PendingChange = { proposed: Trip; result: ImpactResult; onKept?: () => void }
+ *  the detached complete base it was built on, and the completion records of
+ *  every operation chained into it. `gate` is shared by the whole chain, so a
+ *  Keep in flight stays visible after a newer staged edit replaces this object. */
+export type PendingChange = {
+  proposed: Trip
+  result: ImpactResult
+  base: Trip
+  operations: readonly PreviewOperation[]
+  gate: PreviewGate
+  revision: number
+  busy?: boolean
+  /** The last Keep was not confirmed and the change may already be on this
+   *  device. The sheet says so, and Remove refuses until Saved edits decides. */
+  uncertain?: boolean
+}
 
 type PreviewState = {
   pendingRef: { current: PendingChange | null }
   baseRef: { current: Trip | null }
   setPending: (next: PendingChange | null) => void
 }
+
+let nextRevision = 1
 
 function stageWorkspacePreview({ pendingRef, baseRef, setPending }: PreviewState, next: PendingChange | null) {
   pendingRef.current = next
@@ -88,35 +109,328 @@ export function workspacePreviewActions({ trip, pendingRef, baseRef, legCorrRef,
     stageWorkspacePreview({ pendingRef, baseRef, setPending }, next)
   }
 
-  function applyChange(mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: () => void) {
+  function applyChange(mutator: (draft: Trip) => void, kind: ImpactResult['kind'], dayIndex: number, onKept?: KeptCallback, operation?: OperationMeta) {
     if (!trip) return
     const staged = pendingRef.current
     const proposed = stagedChange(trip, staged?.proposed ?? null, mutator)
     const result = computeImpact(trip, proposed, kind, dayIndex, legCorrRef.current)
     if (!staged) baseRef.current = trip
-    stage({ proposed, result, onKept: onKept ?? staged?.onKept })
+    stage({
+      proposed,
+      result,
+      // The complete base is captured once, when staging starts.
+      base: staged?.base ?? structuredClone(trip),
+      operations: composeOperations(staged?.operations ?? [], onKept, operation),
+      gate: staged?.gate ?? createPreviewGate(),
+      revision: nextRevision++,
+      busy: staged?.busy,
+      uncertain: staged?.uncertain,
+    })
   }
 
-  function keepPending() {
-    const pending = pendingRef.current
-    if (!pending || !trip) return
-    if (keepIsStale(baseRef.current, trip)) {
-      toast('The plan changed while you were reviewing — remove this preview and redo the change.', 'err')
-      return
+  /** An acknowledgement for a Keep's exact write generation arrived (the first
+   *  receipt, a late replay, or a Saved edits retry). It runs the records that
+   *  Keep captured, once. It clears the preview only when that preview is still
+   *  the same chain at the same revision; later edits in the chain stay, and a
+   *  newer or different preview is never touched. When the preview is gone the
+   *  records still run: the user left, and the save landed. */
+  function settleAcknowledged(gate: PreviewGate, watch: PreviewWatch, receipt: AcknowledgedReceipt): number {
+    const ran = settleWatch(watch, receipt)
+    if (ran < 0) return ran
+    if (gate.watch === watch) gate.watch = null
+    gate.uncertain = null
+    const current = pendingRef.current
+    const sameChain = current?.gate === gate
+    if (current && sameChain && current.revision === watch.revision) stage(null)
+    else if (current && sameChain) stage({ ...current, operations: withoutOperations(current.operations, watch.records), busy: false, uncertain: false })
+    if (ran === 0) toast('Change saved to your plan')
+    return ran
+  }
+
+  /** The exact generation can no longer acknowledge: the store POSITIVELY
+   *  proved it was discarded in Saved edits or is no longer this identity's.
+   *  This is a proven-abandoned settlement, NOT a pre-admission discard and NOT
+   *  an acknowledged success. It runs only the captured records' once-only
+   *  proven-discard settlement, so each operation's owner can release its OWN
+   *  reservation and settle truthfully. Unknown, pending and in-flight states
+   *  never reach here and keep their reservations. */
+  function settleUnacknowledged(gate: PreviewGate, watch: PreviewWatch) {
+    if (watch.settled) return
+    settleStoreDiscardedWatch(watch)
+    if (gate.watch === watch) gate.watch = null
+    if (gate.uncertain) gate.uncertain.resolved = true
+    const current = pendingRef.current
+    if (current?.gate === gate && current.revision === watch.revision && current.uncertain) stage({ ...current, uncertain: false })
+  }
+
+  /** Subscribe to the exact write generation BEFORE the first receipt is
+   *  awaited, so an early or late acknowledgement cannot be missed. */
+  function openWatch(gate: PreviewGate, operation: TripPreviewOperation, records: readonly PreviewOperation[], revision: number): PreviewWatch {
+    const watch: PreviewWatch = { operation, records, revision, subscription: null, settled: false, receipt: null }
+    gate.watch = watch
+    const onObservation = (observation: TripPreviewObservation) => {
+      if (watch.settled) return
+      if (observation.kind === 'acknowledged') {
+        const receipt = acknowledgedReceiptOf(observation.receipt)
+        if (receipt) settleAcknowledged(gate, watch, receipt)
+      } else if (observation.kind === 'discarded' || observation.kind === 'foreign') {
+        settleUnacknowledged(gate, watch)
+      }
     }
-    const onKept = pending.onKept
-    updateTrip(trip.id, pending.proposed)
-    stage(null)
-    if (onKept) onKept()
-    else toast('Change saved to your plan')
+    watch.subscription = observeTripPreview(operation, onObservation)
+    // A listener that ran during subscribe settled the watch before the handle existed.
+    if (watch.settled) {
+      watch.subscription.dispose()
+      watch.subscription = null
+    }
+    return watch
   }
 
-  function removePending() {
+  /** A stored same-generation receipt, replayed. The store never lends a receipt
+   *  from another generation, so this is the only way a late ack is read. */
+  function replayedReceipt(gate: PreviewGate, watch: PreviewWatch): AcknowledgedReceipt | null {
+    if (watch.receipt) return watch.receipt
+    const replay = watch.subscription?.observation()
+    const receipt = replay?.kind === 'acknowledged' ? acknowledgedReceiptOf(replay.receipt) : null
+    if (receipt) settleAcknowledged(gate, watch, receipt)
+    return receipt
+  }
+
+  async function pendingOf(watch: PreviewWatch): Promise<TripPreviewPending> {
+    try {
+      return await tripPreviewPending(watch.operation)
+    } catch (err) {
+      console.error('[yatraflow] preview pending read failed', err)
+      return { state: 'unknown', reason: 'read-failed', sources: [] }
+    }
+  }
+
+  /** Ask the store whether the exact write generation of this Keep is still
+   *  held. `pending` and `unknown` keep the hold: a queue that cannot be read,
+   *  or an in-memory write with no durable row, is never resolved. An exact
+   *  acknowledgement runs the captured records and returns its receipt. A
+   *  generation that is saved without a retained receipt, discarded, or foreign
+   *  is resolved, and nothing here claims which. The read is async, so
+   *  the caller names the exact revision it asked for. A newer proposal in the
+   *  same chain is never flagged or cleared. */
+  async function reconcileUncertain(gate: PreviewGate, revision: number): Promise<'held' | 'resolved' | AcknowledgedReceipt> {
+    const uncertain = gate.uncertain
+    if (!uncertain) return 'resolved'
+    if (uncertain.resolved) return 'resolved'
+    const watch = gate.watch
+    // No store identity means nothing can prove the write is gone.
+    if (!watch) return 'held'
+    const early = replayedReceipt(gate, watch)
+    if (early) return early
+    const pending = await pendingOf(watch)
+    const late = replayedReceipt(gate, watch)
+    if (late) return late
+    if (pendingVerdict(pending) === 'held') return 'held'
+    // The pending read can itself be the positive proof. Only the two proven
+    // abandoned states run the exact-operation settlement; a settled save with
+    // no retained receipt stays a no-callback release. The watch's once-only
+    // settled flag keeps this from firing a second time after the observer.
+    if (pending.state === 'discarded' || pending.state === 'foreign') settleStoreDiscardedWatch(watch)
+    else releaseWatch(watch)
+    if (gate.watch === watch) gate.watch = null
+    uncertain.resolved = true
+    const current = pendingRef.current
+    if (current?.gate === gate && current.revision === revision && current.uncertain) stage({ ...current, uncertain: false })
+    return 'resolved'
+  }
+
+  /** Keep after an uncertain save never writes again. It reads the store and
+   *  says what is true. */
+  async function keepUncertain(gate: PreviewGate, revision: number): Promise<KeepOutcome> {
+    const state = await reconcileUncertain(gate, revision)
+    if (state === 'held') {
+      toast(KEEP_UNCERTAIN_HOLD, 'err')
+      return { kind: 'conflict', uncertain: true }
+    }
+    if (state !== 'resolved') return state
+    toast(KEEP_UNCERTAIN_RESOLVED, 'err')
+    return { kind: 'stale', uncertain: true }
+  }
+
+  /** Keep admits the staged proposal against its captured base. Only a validated
+   *  acknowledgement clears the preview and runs the completion records. Every
+   *  other outcome keeps the preview. A second Keep joins the one in flight. */
+  function keepPending(): Promise<KeepOutcome> {
+    const pending = pendingRef.current
+    if (!pending || !trip) return Promise.resolve({ kind: 'none' })
+    if (pending.gate.inFlight) return pending.gate.inFlight
+    // An earlier save may already be on this device. Admitting again would be a
+    // blind retry, so Keep reads Saved edits instead.
+    if (pending.gate.uncertain) return keepUncertain(pending.gate, pending.revision)
+    if (keepIsStale(baseRef.current, trip)) {
+      toast(KEEP_REFUSAL.stale, 'err')
+      return Promise.resolve({ kind: 'stale' })
+    }
+    const { gate, revision, operations, base } = pending
+    const patch = structuredClone(pending.proposed)
+    // These records are in the patch. A record chained after this point is not,
+    // so a later close or leave may release it while these stay unclaimed.
+    markAttempted(operations)
+    const run = (async (): Promise<KeepOutcome> => {
+      let outcome: KeepOutcome
+      let watch: PreviewWatch | null = null
+      // True only when this Keep admitted an exact generation and the store has
+      // NOT proven it gone: its write is still pending or its outcome is
+      // unknown. A pre-admission refusal, a thrown admission and a proven
+      // discard leave it false, so no operation is told it may be saved.
+      let admittedHeld = false
+      try {
+        const admission = await trackTripPreview({ tripId: base.id, expectedBase: base, patch })
+        if (admission.kind === 'admitted' || admission.kind === 'superseded') {
+          // The store admitted this exact generation. Subscribe before the
+          // first receipt is awaited, so no acknowledgement can be missed.
+          watch = openWatch(gate, admission.operation, operations, revision)
+          if (admission.kind === 'admitted') {
+            try {
+              outcome = keepOutcomeOf(await admission.receipt)
+            } catch (err) {
+              console.error('[yatraflow] keep receipt threw', err)
+              outcome = { kind: 'unavailable' }
+            }
+          } else {
+            outcome = { kind: 'superseded' }
+          }
+        } else {
+          // Refused before any cache write: nothing of this Keep exists, so
+          // the never-admitted records may be discarded again.
+          outcome = keepOutcomeOf({ kind: admission.kind })
+          markUnadmitted(operations)
+        }
+      } catch (err) {
+        // No store identity came back, so nothing can be queried or released.
+        // The records stay captured; the preview stays and Keep may be tried again.
+        console.error('[yatraflow] keep admission threw', err)
+        outcome = { kind: 'unavailable' }
+      }
+      if (watch && outcome.kind !== 'acknowledged') {
+        const arrived = watch.receipt
+        if (arrived) {
+          outcome = arrived
+        } else {
+          const pending = await pendingOf(watch)
+          const replay = replayedReceipt(gate, watch)
+          if (replay) {
+            outcome = replay
+          } else if (pending.state === 'discarded' || pending.state === 'foreign') {
+            // Explicitly discarded, or no longer this identity's. Not uncertain.
+            settleUnacknowledged(gate, watch)
+          } else if (outcome.kind !== 'none') {
+            // pending, unknown, or saved with no retained receipt: never a success.
+            outcome = { kind: outcome.kind, uncertain: true }
+            // Only a held generation (pending or unknown) is notified as
+            // uncertain. A save the store already settled is not unconfirmed,
+            // so it must not offer a retry.
+            admittedHeld = pendingVerdict(pending) === 'held'
+          }
+        }
+      }
+      try {
+        const current = pendingRef.current
+        const sameChain = current?.gate === gate
+        if (outcome.kind === 'acknowledged') {
+          // The watch settles at most once, whichever of the first receipt or
+          // the observer arrives first.
+          if (watch) settleAcknowledged(gate, watch, outcome)
+          else if (runOperations(operations, outcome) === 0) toast('Change saved to your plan')
+        } else if (outcome.kind !== 'none') {
+          // The records stay: no discard callback runs for a save that failed.
+          const uncertain = outcome.uncertain === true
+          if (uncertain) {
+            gate.uncertain = { tripId: base.id, kind: outcome.kind, resolved: false }
+            // The exact generation this Keep admitted is still held. Tell only
+            // the records that Keep captured, once, so a writer can keep its
+            // reservation and offer its own captured retry. This is neither an
+            // acknowledgement nor a discard: no state changes, and a later
+            // acknowledgement or proven discard still settles the record.
+            if (admittedHeld) notifyUncertain(operations)
+          }
+          if (current && sameChain) {
+            toast(uncertain ? KEEP_UNCERTAIN : KEEP_REFUSAL[outcome.kind], 'err')
+            stage({ ...current, busy: false, uncertain })
+          } else {
+            toast(uncertain ? KEEP_LEFT_BEHIND : KEEP_LEFT_UNSAVED, 'err')
+          }
+        }
+      } finally {
+        gate.inFlight = null
+      }
+      return outcome
+    })()
+    gate.inFlight = run
+    stage({ ...pending, busy: true })
+    return run
+  }
+
+  /** Close a preview whose save was uncertain. The change may be admitted, so
+   *  this is not a discard and no line says "discarded". Records a Keep captured
+   *  stay unclaimed. Records chained later were never in the saved patch, so
+   *  they release. It closes only the exact chain and revision the user asked
+   *  to remove: a newer proposal, even in the same chain, stays open. */
+  function closeUncertain(gate: PreviewGate, revision: number): boolean {
+    const current = pendingRef.current
+    if (!current) return false
+    if (current.gate !== gate || current.revision !== revision) {
+      if (current.gate === gate) toast(REMOVE_PREVIEW_CHANGED, 'err')
+      return false
+    }
     stage(null)
+    discardOperations(current.operations)
+    toast(KEEP_CLOSED_UNCERTAIN)
+    return true
+  }
+
+  /** Remove discards only a proposal that was never admitted. While a Keep may
+   *  be admitted it refuses. After an uncertain save it waits for Saved edits,
+   *  and then closes the preview without a discard claim. */
+  function removePending(): boolean | Promise<boolean> {
+    const pending = pendingRef.current
+    if (pending?.gate.inFlight) {
+      toast(KEEP_IN_FLIGHT, 'err')
+      return false
+    }
+    if (pending?.gate.uncertain) {
+      const { gate, revision } = pending
+      // Always a promise on this path: the store may have just told the gate the
+      // write is resolved, and the caller waits for the same answer either way.
+      if (gate.uncertain?.resolved) return Promise.resolve(closeUncertain(gate, revision))
+      return reconcileUncertain(gate, revision).then(state => {
+        // An exact acknowledgement arrived while the store was read: the
+        // preview was already cleared and its records ran.
+        if (typeof state === 'object') return true
+        if (state === 'resolved') return closeUncertain(gate, revision)
+        if (pendingRef.current?.gate === gate) toast(KEEP_UNCERTAIN_HOLD, 'err')
+        return false
+      })
+    }
+    stage(null)
+    if (pending) discardOperations(pending.operations)
     toast('Change discarded')
+    return true
   }
 
   return { applyChange, keepPending, removePending, stage }
+}
+
+/** The preview is going away because the user left the trip or the workspace
+ *  unmounted. A record a Keep captured may be admitted, so it keeps its state:
+ *  a late acknowledgement still reaches it and nothing claims a discard. A
+ *  record chained after that Keep was never in the saved patch, so it releases
+ *  now, and an older acknowledgement cannot run its callbacks. It reads no trip, so the effect that calls it keeps
+ *  a stable identity. */
+export function abandonPendingPreview({ pendingRef, baseRef, setPending }: PreviewState): 'none' | 'discarded' | 'saving' | 'uncertain' {
+  const pending = pendingRef.current
+  if (!pending) return 'none'
+  stageWorkspacePreview({ pendingRef, baseRef, setPending }, null)
+  // Records a Keep captured are skipped inside discardOperations.
+  discardOperations(pending.operations)
+  if (pending.gate.inFlight) return 'saving'
+  if (pending.gate.uncertain) return 'uncertain'
+  return 'discarded'
 }
 
 type TabKey = WorkspaceTabKey
@@ -239,9 +553,11 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const applyChange = useCallback<ApplyChange>((...args) => previewActions().applyChange(...args), [previewActions])
   const keepPending = () => previewActions().keepPending()
   const removePending = () => previewActions().removePending()
-  const stage = useCallback((next: PendingChange | null) => {
-    stageWorkspacePreview({ pendingRef, baseRef, setPending }, next)
-  }, [])
+  const abandonPreview = useCallback(() => abandonPendingPreview({ pendingRef, baseRef, setPending }), [])
+  // An unmounted workspace cannot keep or discard on the user's behalf. A
+  // proposal never admitted is discarded, so its operations release; a save in
+  // flight or uncertain keeps its records.
+  useEffect(() => () => { abandonPreview() }, [abandonPreview])
 
   // Phase 3 (the living plan): a halt label on the map asks the timeline to open
   // that day. One-shot signal — TimelineTab consumes it on mount, then the
@@ -330,10 +646,14 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // so a pending preview must not survive a trip switch — Keep would write one
   // trip's shape into another. Cleared on switch, and said out loud.
   useEffect(() => {
-    if (!pendingRef.current) return
-    stage(null)
-    toast('Staged change discarded — you switched trips', 'err')
-  }, [trip?.id, stage])
+    const left = abandonPreview()
+    if (left === 'none') return
+    // A Keep in flight or uncertain may already be admitted, so "discarded"
+    // would be untrue for it.
+    if (left === 'saving') toast('Your last change is still saving on the trip you left.', 'err')
+    else if (left === 'uncertain') toast(LEAVE_UNCERTAIN, 'err')
+    else toast('Staged change discarded — you switched trips', 'err')
+  }, [trip?.id, abandonPreview])
 
   // F-16: a reload or tab close while a proposed change is pending silently
   // discards the preview the user is studying — ask before leaving. (The soft
@@ -572,6 +892,8 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {pending && (
         <ImpactPreviewPanel
           result={pending.result}
+          busy={!!pending.busy}
+          uncertain={!!pending.uncertain}
           onKeep={keepPending}
           onMoveDay={moveToAnotherDay}
           onRemove={removePending}

@@ -330,6 +330,8 @@ const daySection = page('../src/pages/trip/timeline/DaySection.tsx')
 const mapTab = page('../src/pages/trip/MapTab.tsx')
 const board = page('../src/components/BoardView.tsx')
 const lifecycle = page('../src/lib/mutationLifecycle.ts')
+const placement = page('../src/lib/slotPlacement.ts')
+const writerActions = page('../src/pages/trip/map/mapWriterActions.ts')
 
 describe('the writers use the shared implementation', () => {
   it('the Timeline deletes, reorders and moves through lib/stopOrder', () => {
@@ -397,8 +399,12 @@ describe('the writers use the shared implementation', () => {
 
   it('the Map’s slot fill numbers the appended stop 1-based', () => {
     // #337: this one shipped as `day.stops.length` — a duplicate of the last
-    // stop's order, saved only by V8's stable sort.
-    expect(mapTab).toMatch(/orderInDay: day\.stops\.length \+ 1,/)
+    // stop's order, saved only by V8's stable sort. #841: the Map no longer builds
+    // the stop itself. The shared planner numbers it 1-based, and the writer
+    // renumbers the whole day, so no Map path can repeat the old shape.
     expect(mapTab).not.toMatch(/orderInDay: day\.stops\.length,/)
+    expect(placement).toMatch(/orderInDay: proposedStops\.length \+ 1,/)
+    expect(placement).not.toMatch(/orderInDay: proposedStops\.length,/)
+    expect(writerActions).toMatch(/orderInDay: index \+ 1/)
   })
 })

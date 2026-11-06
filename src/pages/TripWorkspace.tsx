@@ -22,7 +22,7 @@ import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
 import { ImpactPreviewPanel } from '../components/ImpactPreview'
 import { useSuggestionCache } from '../hooks/useSuggestionCache'
-import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, crewSeedsFromSuggestions } from '../lib/tripDna'
+import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, crewSeedsFromSuggestions, recordDnaEvent } from '../lib/tripDna'
 import { placeIdentity } from '../lib/placeIdentity'
 import type { PlaceHit } from '../lib/providers/hits'
 import { useJourneyDays } from './trip/journey/useJourneyDays'
@@ -67,9 +67,13 @@ import { TripSettingsForm } from './trip/TripSettingsForm'
 import { cap } from './trip/shared'
 import { roadChainSig } from '../lib/tripRoad'
 import { routePolylineFrom } from './trip/map/weatherGeometry'
-import { measuredRoadFacts } from './trip/map/mapTabPipeline'
 import { projectOntoPolyline } from '../lib/providers/hits'
 import { acknowledgedStopsFrom, guardedUndo, type WriterCompletion } from './trip/map/mapWriterActions'
+import type { WriterRoadBinding } from './trip/map/writerRoadBinding'
+import { buildTimelineRoadBinding } from './trip/timeline/timelineRoadBinding'
+import { applyVerifiedPlacement, undoRefusalMessage } from './trip/map/verifiedPlacementEffects'
+import { mapManualSlotStore } from './trip/map/manualSlotContexts'
+import { visitMinutesForCategory } from '../lib/slackPrompts'
 import { normalizeFocus, canFocusDay, focusDayRequest, dayFromFocus, focusForDay, type TripFocus } from '../lib/tripFocus'
 import {
   KEEP_CLOSED_UNCERTAIN, KEEP_IN_FLIGHT, KEEP_LEFT_BEHIND, KEEP_LEFT_UNSAVED, KEEP_REFUSAL, LEAVE_UNCERTAIN, KEEP_UNCERTAIN, KEEP_UNCERTAIN_HOLD, KEEP_UNCERTAIN_RESOLVED, REMOVE_PREVIEW_CHANGED,
@@ -638,6 +642,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     legCorrections,
     slotManual,
     dnaTick,
+    identityGeneration,
   })
 
   // S4: the Timeline's covered Add reads the same workspace measurement as the
@@ -648,37 +653,64 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     [road, trip],
   )
   const timelineRoute = useMemo(() => routePolylineFrom(timelineRoadView.geometry) ?? [], [timelineRoadView])
-  const timelineGrade = useMemo(
-    () => (trip ? measuredRoadFacts({ trip, road, hasLine: timelineRoute.length > 1 }) : null),
-    [trip, road, timelineRoute],
-  )
+  const roadBinding = useMemo<WriterRoadBinding | null>(() => {
+    const committed = tripById(tripId)
+    if (!committed) return null
+    return buildTimelineRoadBinding({
+      trip: committed,
+      road,
+      hasLine: timelineRoute.length > 1,
+    })
+  }, [road, tripId, timelineRoute])
+  const roadBindingRef = useRef<WriterRoadBinding | null>(roadBinding)
+  useEffect(() => { roadBindingRef.current = roadBinding }, [roadBinding])
+  const currentRoadBinding = useCallback(() => roadBindingRef.current, [])
   const projectedWriterHop = useMemo(() => {
     const committed = trip
-    if (!committed || !timelineGrade?.measured || !timelineGrade.routeKey || timelineRoute.length < 2) return undefined
-    const routeKey = timelineGrade.routeKey
+    if (!committed || !roadBinding || timelineRoute.length < 2) return undefined
     return {
       road: {
         routeKmOf: (lat: number, lng: number) => {
           const snap = projectOntoPolyline({ latitude: lat, longitude: lng }, timelineRoute)
           return snap?.km ?? null
         },
-        road: { routeKey },
+        road: roadBinding ? { routeKey: roadBinding.routeKey } : null,
+        binding: roadBinding,
+        currentRoad: currentRoadBinding,
       },
       currentTrip: () => tripById(committed.id),
       onAcknowledged: (completion: WriterCompletion) => {
+        const applied = applyVerifiedPlacement(completion, {
+          onDna: item => recordDnaEvent({
+            tripId: committed.id,
+            action: 'accept',
+            haltKind: item.hit.haltPurpose,
+            category: item.hit.category,
+            detourMin: undefined,
+            visitMin: visitMinutesForCategory(item.hit.category),
+          }),
+          onDrop: item => {
+            const context = { tripId: committed.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
+            if (context.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
+          },
+          onPlaced: () => setDnaTick(t => t + 1),
+        })
         const stops = acknowledgedStopsFrom(completion)
-        if (stops.length === 0) return
+        if (applied === 0 || stops.length === 0) return
         const count = `${stops.length} ${stops.length === 1 ? 'place' : 'places'}`
         toast(`${count} added to the plan`)
         undoToast(`Added ${count}`, () => {
           void guardedUndo(
             { currentTrip: () => tripById(committed.id), admit: admitTripPreview },
             { tripId: committed.id, operationId: completion.operationId, stops },
-          )
+          ).then(outcome => {
+            const message = undoRefusalMessage(outcome)
+            if (message) toast(message, 'err')
+          })
         })
       },
     }
-  }, [trip, timelineGrade, timelineRoute])
+  }, [trip, timelineRoute, roadBinding, currentRoadBinding, setDnaTick])
 
   // Phase 3 (the living plan): a halt label on the map asks the timeline to open
   // that day. One-shot signal — TimelineTab consumes it on mount, then the
@@ -975,7 +1007,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={openTimeline} onOpenMap={openMap} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} mapInputs={mapInputs} mapCache={suggestionCache.cache.map} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} identityGeneration={identityGeneration} ownerTripId={tripId} />}
       {tab === 'board' && (
         <React.Suspense fallback={<StateBlock kind="loading" size="compact" title="Loading board" />}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals} legCorrections={legCorrections} previewOpen={!!pending} road={road}
@@ -988,7 +1020,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
           <MapTab trip={effective} editable={editable} applyChange={applyChange}
             suggestionCache={suggestionCache} onInputsHash={publishMapInputs}
             onCorridorState={publishCorridor}
-            journeyDays={journeyDays} presence={journeyDays.presence} crewSeeds={crewSeeds}
+            journeyDays={journeyDays} presence={journeyDays.presence} crewSeeds={crewSeeds} roadBinding={roadBinding} currentRoad={currentRoadBinding}
             dnaVector={dnaVector ?? undefined} dnaTick={dnaTick} setDnaTick={setDnaTick}
             setAddedIds={setAddedIds}
             dismissedIds={dismissedIds} setDismissedIds={setDismissedIds}

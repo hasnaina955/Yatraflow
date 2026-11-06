@@ -7,6 +7,7 @@ import { uid } from '../../data/seed'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
+import type { WriterRoadBinding } from './map/writerRoadBinding'
 import { buildJourney, type JourneyPoint, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
@@ -157,7 +158,7 @@ function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
   const G = label === 'Breakfast' ? Coffee : KIND_GLYPH[kind]
   return G ? <InlineIcon icon={G} size={12} /> : null
 }
-export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, onCorridorState, journeyDays, presence, crewSeeds, dnaVector, dnaTick, setDnaTick, setAddedIds, dismissedIds, setDismissedIds, setStagedSnapshot, stagedIdsRef, slotManual, setSlotManual, road, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, onCorridorState, journeyDays, presence, crewSeeds, dnaVector, dnaTick, setDnaTick, setAddedIds, dismissedIds, setDismissedIds, setStagedSnapshot, stagedIdsRef, slotManual, setSlotManual, road, roadBinding, currentRoad, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
   trip: Trip
   editable: boolean
   /** #841: the workspace's shared write type. The first four arguments keep
@@ -194,6 +195,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   setSlotManual: React.Dispatch<React.SetStateAction<Record<string, PlaceHit[]>>>
   /** #188: the workspace's ONE road measurement — the Map tab no longer measures. */
   road: TripRoadView
+  /** Strict measured-road bytes from the Workspace's one road measurement. */
+  roadBinding?: WriterRoadBinding | null
+  /** Live measured-road bytes for strict post-await revalidation. */
+  currentRoad?: () => WriterRoadBinding | null
   onOpenTimeline?: (stopId: string) => void
   onOpenBoard?: () => void
   /** Phase 3: tapping a halt label asks the workspace to open that day's plan
@@ -915,6 +920,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       currentTrip: () => tripById(trip.id),
       poiVisitMinutes,
       onCompletion: onArcCompletion,
+      ...(roadBinding ? { roadBinding } : {}),
+      ...(currentRoad ? { currentRoad } : {}),
     })
     const report = (staged: ArcStageOutcome) => {
       const line = arcStageLine(label, staged)
@@ -1003,6 +1010,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     poiVisitMinutes,
     routeKmOf,
     detourMinFor,
+    roadBinding,
+    currentRoad,
     busy: addingAny,
     setBusy: setAddingAny,
     // #841: the measured grade and the chain signature the planner binds to.
@@ -1169,6 +1178,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // it, so a pair on screen is the pair the vote and the fill select from.
   const { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan } = useMapWriters({
     resolvePick, applyChange, trip, pois, routeKmOf, anchors, routePolyline,
+    roadBinding, currentRoad,
     activeDayIndex, activeDaySlots, markStaged, addingAny, addingIdsRef,
     setAddingIds, setAddingAny, fillingDay, setFillingDay, setDnaTick,
     setOpenSlotKey, onOpenGroupInput,

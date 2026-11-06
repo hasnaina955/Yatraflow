@@ -7,6 +7,7 @@
 import type { Trip } from '../../../data/types'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import { hasCoords, type PlaceHit } from '../../../lib/providers/hits'
+import type { WriterRoadBinding } from '../map/writerRoadBinding'
 import {
   retryWriterStage,
   stageWriterPicks,
@@ -26,6 +27,10 @@ import { newStopId, poiVisitMinutes } from '../map/pageHelpers'
 export interface TimelineProjectedWriterRoad {
   routeKmOf: (lat: number, lng: number) => number | null
   road: WriterRoadFacts | null
+  /** Captured measured-road bytes, when the Workspace has a measured chain. */
+  binding?: WriterRoadBinding | null
+  /** Live measured-road bytes read at call time, never a stale closure. */
+  currentRoad?: () => WriterRoadBinding | null
 }
 
 /**
@@ -114,6 +119,8 @@ export function projectedWriterDeps(
     currentTrip: config.currentTrip,
     onCompletion,
     poiVisitMinutes: config.poiVisitMinutes ?? poiVisitMinutes,
+    ...(config.road.binding ? { roadBinding: config.road.binding } : {}),
+    ...(config.road.currentRoad ? { currentRoad: config.road.currentRoad } : {}),
     ...(config.allowRepeatVisit ? { allowRepeatVisit: true } : {}),
   }
 }
@@ -128,6 +135,7 @@ export async function stageProjectedRow(
   row: JourneyRow,
   dayIndex: number,
   onCompletion: (completion: WriterCompletion) => void,
+  onOperationStart?: (operationId: string) => void,
 ): Promise<WriterStageResult | { status: 'refused'; reason: TimelineProjectedRefusal }> {
   const current = config.currentTrip()
   if (!current) return { status: 'refused', reason: 'current-trip-unavailable' }
@@ -137,6 +145,7 @@ export async function stageProjectedRow(
     return { status: 'refused', reason: hasCoords(row.hit) ? 'mismatched-day' : 'invalid-row' }
   }
   const deps = projectedWriterDeps({ ...config, trip: current }, onCompletion)
+  if (onOperationStart) deps.onOperationStart = onOperationStart
   return stageWriterPicks(deps, {
     context: { tripId: current.id, dayId: pick.dayId, dayIndex: pick.dayIndex },
     intent: 'single',
@@ -155,6 +164,13 @@ export async function retryProjectedRow(
   config: TimelineProjectedWriterConfig,
   ticket: WriterRetryTicket,
   onCompletion: (completion: WriterCompletion) => void,
+  onOperationStart?: (operationId: string) => void,
 ): Promise<WriterStageResult> {
-  return retryWriterStage(projectedWriterDeps(config, onCompletion), ticket)
+  const current = config.currentTrip()
+  if (!current) {
+    return { status: 'refused', reason: 'road-evidence-unavailable', unresolved: [], skipped: [] } as WriterStageResult
+  }
+  const deps = projectedWriterDeps({ ...config, trip: current }, onCompletion)
+  if (onOperationStart) deps.onOperationStart = onOperationStart
+  return retryWriterStage(deps, ticket)
 }

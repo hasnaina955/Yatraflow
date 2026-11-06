@@ -188,6 +188,12 @@ export interface ArcCompletionEffects {
 /** What the page may do after the save settles. An unacknowledged or unverified
  *  operation yields no added ids, no DNA, no Undo and no success line. */
 export function arcCompletionEffects(label: string, completion: WriterCompletion): ArcCompletionEffects {
+  if (completion.phase === 'abandoned') {
+    return {
+      addedIds: [], dnaHits: [], undoStops: [], retained: completion.unresolved.length,
+      line: { text: 'This saved edit was discarded; choose again.', tone: 'err' },
+    }
+  }
   if (!completion.acknowledged) {
     return {
       addedIds: [], dnaHits: [], undoStops: [], retained: completion.unresolved.length,

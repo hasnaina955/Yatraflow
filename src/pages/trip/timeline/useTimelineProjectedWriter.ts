@@ -1,106 +1,68 @@
-// ============ Timeline covered-row writer hook (#08 S4 repair) ============
-// One hook around `stageProjectedRow`. It owns a synchronous busy latch so a
-// same-tick second click cannot stage twice, refuses while the workspace preview
-// is open, keeps the real uncertain retry ticket, and reports truthful failures.
-import { useCallback, useEffect, useRef, useState } from 'react'
+// ============ Timeline covered-row writer hook (#08 R4/R8) ============
+// Thin React adapter. The real add/retry loop lives in timelineWriterRunner and
+// the ownership state in the pure controller, so node tests call the same code.
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { JourneyRow } from '../../../lib/journeyProjection'
-import type { WriterCompletion, WriterRetryTicket } from '../map/mapWriterActions'
-import {
-  retryProjectedRow,
-  stageProjectedRow,
-  type TimelineProjectedRefusal,
-  type TimelineProjectedWriterConfig,
-} from './timelineProjectedWriter'
+import type { TimelineProjectedWriterConfig } from './timelineProjectedWriter'
+import { createTimelineWriterController } from './timelineWriterController'
+import { runTimelineProjectedAdd, runTimelineProjectedRetry } from './timelineWriterRunner'
 
 export interface TimelineProjectedWriter {
-  /** Undefined when the Workspace/Map owner has not supplied the writer hop. */
   add?: (row: JourneyRow, dayIndex: number) => void
   busy: boolean
   error: string | null
-  /** True only while a real uncertain ticket is held. */
+  terminal: string | null
+  unresolved: boolean
   retryAvailable: boolean
   retry?: () => void
-}
-
-const REFUSAL_COPY: Record<TimelineProjectedRefusal | string, string> = {
-  'invalid-row': 'This place has no usable day or map position.',
-  'current-trip-unavailable': 'The current saved trip is not available, so nothing was added.',
-  'foreign-trip': 'This row belongs to another trip, so nothing was added.',
-  'mismatched-day': 'This row does not match the current day or slot, so nothing was added.',
-  'gate-busy': 'Another save is already in progress.',
-  'road-evidence-unavailable': 'The measured road cannot place this stop, so nothing was added.',
-  'no-placements': 'The measured road did not accept this stop.',
-  'nothing-pinned': 'The place could not be pinned on the map, so nothing was added.',
 }
 
 export function useTimelineProjectedWriter(
   config: TimelineProjectedWriterConfig | null,
   previewOpen: boolean,
+  identityGeneration: number,
+  ownerTripId?: string,
 ): TimelineProjectedWriter {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [ticket, setTicket] = useState<WriterRetryTicket | null>(null)
-  const busyRef = useRef(false)
+  const controller = useMemo(() => createTimelineWriterController(), [])
+  const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const configRef = useRef(config)
   useEffect(() => { configRef.current = config }, [config])
+  const ownerKeyRef = useRef<string | null>(null)
 
-  const handleCompletion = useCallback((completion: WriterCompletion) => {
-    const hop = configRef.current
-    if (!hop) return
-    if (completion.acknowledged && completion.placed.length > 0) {
-      setTicket(null)
-      setError(null)
-      hop.onAcknowledged(completion)
-      return
-    }
-    if (completion.retry) {
-      setTicket(completion.retry)
-      hop.onUncertain?.(completion)
-      setError('The save is not confirmed yet. Retry to resend the same write.')
-      return
-    }
-    setError('The place was not saved.')
-  }, [])
+  // The live owner context is updated outside render. Async completion reads it
+  // through the controller; the captured config still owns the callback.
+  useEffect(() => {
+    const ownerKey = `${ownerTripId ?? ''}|${identityGeneration}`
+    if (ownerKeyRef.current !== null && ownerKeyRef.current !== ownerKey) controller.retireOwner()
+    ownerKeyRef.current = ownerKey
+    const current = configRef.current
+    controller.setCurrentIdentity({
+      tripId: ownerTripId ?? current?.currentTrip()?.id ?? '',
+      identityGeneration,
+    })
+  }, [identityGeneration, ownerTripId, controller])
 
   const add = useCallback((row: JourneyRow, dayIndex: number) => {
     const current = configRef.current
-    if (!current || previewOpen || busyRef.current) return
-    busyRef.current = true
-    setBusy(true)
-    setError(null)
-    void stageProjectedRow(current, row, dayIndex, handleCompletion)
-      .then(result => {
-        if (result.status === 'refused') setError(REFUSAL_COPY[result.reason] ?? 'The place was not added.')
-      })
-      .catch(() => setError('The save could not start. Nothing was added.'))
-      .finally(() => {
-        busyRef.current = false
-        setBusy(false)
-      })
-  }, [previewOpen, handleCompletion])
+    if (!current || previewOpen || controller.getSnapshot().busy || controller.currentTicket() || controller.hasUnresolved()) return
+    void runTimelineProjectedAdd({ controller, config: current, row, dayIndex })
+  }, [previewOpen, controller])
 
   const retry = useCallback(() => {
-    const current = configRef.current
-    if (!current || !ticket || busyRef.current || previewOpen) return
-    busyRef.current = true
-    setBusy(true)
-    setError(null)
-    void retryProjectedRow(current, ticket, handleCompletion)
-      .then(result => {
-        if (result.status === 'refused') setError(REFUSAL_COPY[result.reason] ?? 'The retry did not start.')
-      })
-      .catch(() => setError('The retry failed. The write is still unconfirmed.'))
-      .finally(() => {
-        busyRef.current = false
-        setBusy(false)
-      })
-  }, [ticket, previewOpen, handleCompletion])
+    const ticket = controller.currentTicket()
+    if (!ticket || previewOpen || controller.getSnapshot().busy) return
+    const captured = controller.capturedConfig(ticket.operationId) ?? configRef.current
+    if (!captured) return
+    void runTimelineProjectedRetry({ controller, config: captured })
+  }, [previewOpen, controller])
 
   return {
     ...(config ? { add } : {}),
-    busy,
-    error,
-    retryAvailable: ticket != null,
-    ...(config && ticket ? { retry } : {}),
+    busy: snapshot.busy,
+    error: snapshot.error,
+    terminal: snapshot.terminal,
+    unresolved: snapshot.unresolved,
+    retryAvailable: snapshot.ticket != null,
+    ...(snapshot.ticket ? { retry } : {}),
   }
 }

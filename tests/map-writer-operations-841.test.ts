@@ -1334,7 +1334,8 @@ describe('#841 production stageWriterPicks wires the exact uncertainty notificat
     expect(h.gate.operation(id)?.phase).toBe('abandoned')
     operation.onUncertain!()
     expect(h.gate.operation(id)?.phase).toBe('abandoned')
-    expect(h.completions).toHaveLength(1)
+    expect(h.completions).toHaveLength(2)
+    expect(h.completions.at(-1)?.phase).toBe('abandoned')
     expect(h.gate.isReserved(PICK_50, TRIP_ID)).toBe(false)
   })
 })
@@ -1366,7 +1367,8 @@ describe('#841 production stageWriterPicks wires the proven-discard settlement',
     // A late acknowledged receipt cannot re-acknowledge an abandoned operation:
     // the production kept callback returns before completeWriterOperation.
     h.acknowledge(RECEIPT)
-    expect(h.completions, 'no fabricated completion after an abandoned write').toHaveLength(0)
+    expect(h.completions, 'only the terminal abandoned event, never a fabricated ack').toHaveLength(1)
+    expect(h.completions[0]?.phase).toBe('abandoned')
     expect(h.gate.operation(id)?.phase).toBe('abandoned')
     expect(h.gate.isReserved(PICK_50, TRIP_ID)).toBe(false)
   })

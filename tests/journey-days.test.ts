@@ -23,6 +23,7 @@ import type { DnaVector } from '../src/lib/tripDna'
 import type { ItineraryStop, Trip } from '../src/data/types'
 import type { ManualPicksForDay } from '../src/pages/trip/map/manualPicks'
 import { captureManualPicks } from '../src/pages/trip/journey/useJourneyDays'
+import { createJourneySelector } from '../src/pages/trip/journey/journeySelector'
 import { mapManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -252,6 +253,41 @@ describe('authoritative schedule and context', () => {
 })
 
 describe('S2 stable per-day objects', () => {
+  function selectorInput(trip: Trip, identityGeneration = 1) {
+    return {
+      trip,
+      committedTrip: trip,
+      snapshot: makeSnapshot(),
+      presence: placeIdentity(trip),
+      editable: true,
+      decisions: [],
+      dnaVector: DNA,
+      legCorrections: undefined,
+      manualPicksByDay: new Map<number, ManualPicksForDay>(),
+      identityGeneration,
+    }
+  }
+
+  it('reuses day A across a same-id clone, and clears on identity change', () => {
+    const selector = createJourneySelector()
+    const trip = makeTrip()
+    const first = selector(selectorInput(trip))
+    const clone: Trip = {
+      ...trip,
+      days: trip.days.map(day => day.index === 1 ? {
+        ...day,
+        stops: day.stops.map(stop => ({ ...stop, visitMinutes: 75 })),
+      } : day),
+    }
+    const second = selector(selectorInput(clone))
+    expect(second.byDay.get(0)).toBe(first.byDay.get(0))
+    expect(second.cards.byDay.get(0)).toBe(first.cards.byDay.get(0))
+    expect(second.byDay.get(1)).not.toBe(first.byDay.get(1))
+
+    const nextIdentity = selector(selectorInput(clone, 2))
+    expect(nextIdentity.byDay.get(0)).not.toBe(first.byDay.get(0))
+  })
+
   it('reuses day A while day B changes', () => {
     const trip = makeTrip()
     const first = build({ trip })

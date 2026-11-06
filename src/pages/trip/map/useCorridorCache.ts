@@ -192,6 +192,8 @@ export function useCorridorCache({
     queueMicrotask(() => {
       if (cancelled) return
       setLoadingPois(true)
+      setScanFailed(false)
+      setScanQuotaOut(false)
       setCorridorSource('scan')
     })
     // Day Planner arming (P1-B/#121): the ROUTE arms the split — the clock

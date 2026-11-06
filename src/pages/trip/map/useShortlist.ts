@@ -44,6 +44,7 @@ import {
   type WriterStageResult,
 } from './mapWriterActions'
 import { mapWriterOperationGate, type WriterOperationGate } from './writerOperationGate'
+import type { WriterRoadBinding } from './writerRoadBinding'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
 export type ShortlistDeps = {
@@ -75,6 +76,9 @@ export type ShortlistDeps = {
   /** #841: explicit measured-route grade. Defaults to "measured when a driving
    *  trip has measured positions", never for an air journey. */
   roadMeasured?: boolean
+  /** Strict measured-road bytes and live accessor. */
+  roadBinding?: WriterRoadBinding | null
+  currentRoad?: () => WriterRoadBinding | null
 }
 
 const REFUSAL_MESSAGE: Record<WriterRefusal, string> = {
@@ -103,6 +107,8 @@ export function useShortlist({
   currentTrip: currentTripProp,
   routeKey: routeKeyProp,
   roadMeasured,
+  roadBinding,
+  currentRoad: currentRoadBindingProp,
 }: ShortlistDeps) {
   const [shortlist, setShortlist] = useState<PlaceHit[]>([])
 
@@ -228,6 +234,8 @@ export function useShortlist({
         currentTrip: currentTripProp ?? (() => tripById(tripId)),
         poiVisitMinutes,
         onCompletion: completion => onCompletion(completion),
+        ...(roadBinding ? { roadBinding } : {}),
+        ...(currentRoadBindingProp ? { currentRoad: currentRoadBindingProp } : {}),
       })
 
       const reportStage = (result: WriterStageResult) => {
@@ -264,6 +272,11 @@ export function useShortlist({
       }
 
       function handleCompletion(completion: WriterCompletion) {
+        if (completion.phase === 'abandoned') {
+          retryRunners.current.delete(completion.operationId)
+          toast('This saved edit was discarded; choose again.', 'err')
+          return
+        }
         const retry = !completion.acknowledged || completion.placed.length === 0
           ? registerRetry(completion, async ticket => {
               // The production retry admission: the captured operation id and

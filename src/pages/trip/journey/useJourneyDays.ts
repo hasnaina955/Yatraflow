@@ -1,9 +1,9 @@
-// ============ The thin workspace journey hook (#08 S3) ============
+// ============ The thin workspace journey hook (#08 S3/R1) ============
 // The pure producer lives in journeyDays.ts. This hook does only the memo work a
-// React tree needs: capture the manual read-adapter output once per day, carry
-// the previous model for day-object/card reuse, read the DNA hints, and memoize
-// the model. It starts no scan, calls no provider and owns no cache (#842 stays
-// separate).
+// React tree needs: capture the manual read-adapter output once per day, run the
+// one per-hook selector for day-object/card reuse, read the DNA hints, and
+// memoize the model. It starts no scan, calls no provider and owns no cache
+// (#842 stays separate).
 import { useMemo } from 'react'
 import type { Trip, TripDecision } from '../../../data/types'
 import type { LegEstimate } from '../../../lib/engine'
@@ -14,11 +14,8 @@ import type { CorridorSnapshot } from '../map/corridorSnapshot'
 import { mapManualSlotStore } from '../map/manualSlotContexts'
 import { readManualPicksForDay, type ManualPicksForDay } from '../map/manualPicks'
 import { readDnaSlotHints } from '../map/useDaySlots'
-import {
-  buildJourneyDays,
-  type JourneyDays,
-  type WorkspaceJourneyDays,
-} from './journeyDays'
+import { createJourneySelector, type JourneySelectorInput } from './journeySelector'
+import type { WorkspaceJourneyDays } from './journeyDays'
 
 export interface UseJourneyDaysInput {
   /** Effective content (preview included). */
@@ -35,6 +32,8 @@ export interface UseJourneyDaysInput {
   readonly slotManual: Readonly<Record<string, readonly PlaceHit[]>>
   /** DNA/store memo token; also re-captures the manual store after a drop. */
   readonly dnaTick: number
+  /** Store identity generation: a user/session change clears structural reuse. */
+  readonly identityGeneration: number
 }
 
 /**
@@ -61,11 +60,13 @@ export function captureManualPicks(
   return out
 }
 
-/** Cross-render model cache for day-object/card reuse. Keyed by the trip object,
- *  not React state, so a render does not mutate a state value. */
-const journeyCache = new WeakMap<Trip, JourneyDays>()
-
 export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays {
+  // One selector per identity generation. Its private closure holds the previous
+  // model; a trip/user change replaces it, so no cross-identity reuse leaks.
+  const selector = useMemo(() => {
+    void input.identityGeneration
+    return createJourneySelector()
+  }, [input.identityGeneration])
   const manualPicksByDay = useMemo(
     // dnaTick is a real dependency: the store's dropPlaced/placement path bumps
     // it, and the captured candidate lists must follow the store, not only a
@@ -77,8 +78,7 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
     [input.trip, input.snapshot, input.slotManual, input.dnaTick],
   )
   const journeyDays = useMemo(() => {
-    const previous = input.trip ? journeyCache.get(input.trip) ?? null : null
-    const next = buildJourneyDays({
+    const modelInput: JourneySelectorInput = {
       trip: input.trip,
       committedTrip: input.committedTrip ?? input.trip,
       snapshot: input.snapshot,
@@ -88,11 +88,11 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
       dnaVector: input.dnaVector,
       legCorrections: input.legCorrections,
       manualPicksByDay,
-      prev: previous,
-    })
-    if (input.trip) journeyCache.set(input.trip, next)
-    return next
+      identityGeneration: input.identityGeneration,
+    }
+    return selector(modelInput)
   }, [
+    selector,
     input.trip,
     input.committedTrip,
     input.snapshot,
@@ -102,6 +102,7 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
     input.dnaVector,
     input.legCorrections,
     manualPicksByDay,
+    input.identityGeneration,
   ])
   const dnaSlotHints = useMemo(() => readDnaSlotHints(input.dnaTick), [input.dnaTick])
   return { ...journeyDays, dnaSlotHints }

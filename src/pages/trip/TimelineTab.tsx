@@ -122,7 +122,7 @@ function measureStickyStack(): number {
 }
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
@@ -156,6 +156,10 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
    *  Workspace/Map owner supplies this after the producer repair. Absent keeps
    *  the covered Add unavailable with an honest reason. */
   projectedWriter?: TimelineProjectedWriterHop
+  /** Store identity generation: a late completion from another identity is retired. */
+  identityGeneration?: number
+  /** Stable owner trip id, independent of whether the road hop is available. */
+  ownerTripId?: string
 }) {
   const [editorState, setEditorState] = useState<StopEditorTarget>(null)
   const [moveModalStop, setMoveModalStop] = useState<ItineraryStop | null>(null)
@@ -188,7 +192,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     ...(projectedWriter.poiVisitMinutes ? { poiVisitMinutes: projectedWriter.poiVisitMinutes } : {}),
     ...(projectedWriter.gate ? { gate: projectedWriter.gate } : {}),
     ...(projectedWriter.allowRepeatVisit ? { allowRepeatVisit: true } : {}),
-  } : null, !!previewOpen)
+  } : null, !!previewOpen, identityGeneration ?? 0, ownerTripId)
 
   // Sorted once per trip change — a stable array of stable day references so
   // the memoized DaySections below only re-render when their own data changes.
@@ -945,7 +949,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
         {days.map((day, ordinal) => (
           <DaySection key={day.id} day={day} trip={openDayIndex === day.index || (reviewAll && visibleDays.has(day.index)) ? trip : undefined} dayCover={dayCoverHint} facts={cards.byDay.get(day.index)!} journeyDay={journeyDays.byDay.get(day.index)} journeyStatus={journeyDays.status} editable={planEditable} open={openDayIndex === day.index || (reviewAll && revealStep > Math.min(ordinal, REVEAL_STEPS - 1))} reviewMode={reviewAll} inView={!reviewAll || visibleDays.has(day.index)} onToggleOpen={toggleDay} onInsertHere={handleInsertHere} legCorrections={legCorrections} roadStatus={roadStatus} suggestionCache={suggestionCache} dayTotals={totalsByDay.get(day.index)}
             onAddProjectedRow={projectedAdd.add} projectedAddBusy={projectedAdd.busy} previewOpen={previewOpen}
-            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable}
+            projectedAddError={projectedAdd.error} onRetryProjectedRow={projectedAdd.retry} projectedRetryAvailable={projectedAdd.retryAvailable} projectedTerminal={projectedAdd.terminal} projectedUnresolved={projectedAdd.unresolved}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}

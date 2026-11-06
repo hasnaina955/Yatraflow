@@ -57,7 +57,7 @@ function modeLabelMode(m: string): string {
  * route corridor. Replaces the old split where long rides got a completely
  * different "LongRidePanel" with its own ride-style options.
  */
-export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable }: {
+export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved }: {
   trip: Trip
   day: Trip['days'][number]
   editable: boolean
@@ -76,6 +76,8 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   projectedAddError?: string | null
   onRetryProjectedRow?: () => void
   projectedRetryAvailable?: boolean
+  projectedTerminal?: string | null
+  projectedUnresolved?: boolean
 }) {
   const A = getAssumptions(trip)
   const hasAirLeg = journey.points.some(p => p.legIn?.kind === 'air')
@@ -577,13 +579,15 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
             {journeyRows.map(row => {
               const usable = hasCoords(row.hit)
               const connected = onAddProjectedRow != null
-              const canAdd = editable && row.actions.add && usable && connected && !projectedAddBusy && !previewOpen
+              const canAdd = editable && row.actions.add && usable && connected && !projectedAddBusy && !previewOpen && !projectedRetryAvailable && !projectedUnresolved
               const addReason = !editable || !row.actions.add
                 ? null
                 : !usable
                   ? 'No usable map position for this place.'
                   : !connected
                     ? 'The shared writer is not connected yet.'
+                    : projectedRetryAvailable || projectedUnresolved
+                      ? 'Resolve the unconfirmed save before adding another place.'
                     : previewOpen
                       ? 'Finish or discard the current preview first.'
                       : projectedAddBusy
@@ -603,6 +607,9 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
               )
             })}
           </div>
+        )}
+        {projectedTerminal && (
+          <div className="hint-text ts-warn-note" role="status">{projectedTerminal}</div>
         )}
         {projectedAddError && (
           <div className="hint-text ts-warn-note" role="status">

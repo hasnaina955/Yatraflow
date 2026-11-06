@@ -64,11 +64,13 @@ import {
   type WriterRetryTicket,
   type WriterStageResult,
 } from './mapWriterActions'
+import { applyVerifiedPlacement } from './verifiedPlacementEffects'
 import {
   mapWriterOperationGate,
   type WriterOperationGate,
 } from './writerOperationGate'
 import { mapManualSlotStore, manualContextForSlot } from './manualSlotContexts'
+import type { WriterRoadBinding } from './writerRoadBinding'
 import { buildDayPlanForDay, readManualPicksForDay } from './manualPicks'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
@@ -129,6 +131,9 @@ export type UseMapWritersDeps = {
   roadMeasured?: boolean
   /** #841: stable identity of the measured chain. Defaults to `roadChainSig`. */
   routeKey?: string
+  /** Strict measured-road bytes and live accessor. */
+  roadBinding?: WriterRoadBinding | null
+  currentRoad?: () => WriterRoadBinding | null
   /** #841: the workspace gate. Defaults to the shared map gate. */
   operationGate?: WriterOperationGate
   /** #841: the CURRENT committed trip, read at acknowledgement and retry time.
@@ -180,6 +185,8 @@ export function useMapWriters({
   slotManual,
   roadMeasured,
   routeKey: routeKeyProp,
+  roadBinding,
+  currentRoad,
   operationGate = mapWriterOperationGate,
   currentTrip: currentTripProp,
   detourMinFor,
@@ -268,6 +275,8 @@ export function useMapWriters({
       currentTrip: currentTripProp ?? (() => tripById(trip.id)),
       onCompletion,
       poiVisitMinutes,
+      ...(roadBinding ? { roadBinding } : {}),
+      ...(currentRoad ? { currentRoad } : {}),
       ...(allowRepeatVisit ? { allowRepeatVisit } : {}),
     }
   }
@@ -347,6 +356,11 @@ export function useMapWriters({
     onPlaced?: (completion: WriterCompletion) => void
     retry?: () => Promise<void>
   }) {
+    if (completion.phase === 'abandoned') {
+      retryRunners.current.delete(completion.operationId)
+      toast('This saved edit was discarded; choose again.', 'err')
+      return
+    }
     const retryAction = input.retry
       ? { label: 'Retry', run: () => { void input.retry!() } }
       : undefined
@@ -364,20 +378,25 @@ export function useMapWriters({
       toast(ZERO_VERIFIED_SAVE_MESSAGE, 'err', retryAction)
       return
     }
-    for (const item of completion.placed) {
-      recordDnaEvent({
-        tripId: trip.id,
-        action: 'accept',
-        haltKind: input.slot?.kind,
-        category: item.hit.category,
-        detourMin: asymmetricDetourMinutes(item.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined,
-        visitMin: visitMinutesForCategory(item.hit.category),
-      })
-      const context = input.slot
-        ? manualContextForSlot(input.slot)
-        : { tripId: trip.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
-      if (context?.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
-    }
+    applyVerifiedPlacement(completion, {
+      onDna: item => {
+        recordDnaEvent({
+          tripId: trip.id,
+          action: 'accept',
+          haltKind: input.slot?.kind,
+          category: item.hit.category,
+          detourMin: asymmetricDetourMinutes(item.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined,
+          visitMin: visitMinutesForCategory(item.hit.category),
+        })
+      },
+      onDrop: item => {
+        const context = input.slot
+          ? manualContextForSlot(input.slot)
+          : { tripId: trip.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
+        if (context?.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
+      },
+      onPlaced: () => setDnaTick(t => t + 1),
+    })
     // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
     if (input.slot && completion.placed.some(item => item.hit.haltPurpose === 'overnight')) {
       const ordinals = pois
@@ -386,7 +405,6 @@ export function useMapWriters({
         .findIndex(x => x.segment.index === input.slot?.segment?.index)
       if (ordinals >= 0) saveHaltPin(trip.id, ordinals, input.slot.segment?.targetKm ?? 0)
     }
-    setDnaTick(t => t + 1)
     if (completion.phase === 'partial') {
       toast(`${completion.unresolved.length} placed stop${completion.unresolved.length === 1 ? '' : 's'} could not be confirmed in the saved day. Check before you retry.`, 'err')
     }

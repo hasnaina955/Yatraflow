@@ -481,7 +481,13 @@ describe('a retry never resumes settled, in-flight or forgotten work', () => {
       operationId: first.operationId,
       context: request.context,
       intent: 'single',
-      picks: request.picks,
+      picks: request.picks.map(pick => ({
+        hit: pick.hit,
+        slotKey: pick.slotKey,
+        dayId: pick.dayId ?? null,
+        dayIndex: pick.dayIndex ?? request.context.dayIndex,
+        ...(pick.notes ? { notes: pick.notes } : {}),
+      })),
     }
     const result = await retryWriterStage(h.deps, ticket)
     expect(result.status).toBe('refused')

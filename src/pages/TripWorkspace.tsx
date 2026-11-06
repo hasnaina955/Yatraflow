@@ -54,6 +54,7 @@ import {
 // static, dependency-free module so the Suspense fallback cannot suspend itself.
 const MapTab = React.lazy(() => import('./trip/MapTab').then(m => ({ default: m.MapTab })))
 import { GroupInputTab } from './trip/GroupInputTab'
+import { slotResolutionRoadFor } from './trip/slotResolutionAdapter'
 import { BudgetTab } from './trip/BudgetTab'
 import { ShareTab } from './trip/ShareTab'
 import { TripSettingsForm } from './trip/TripSettingsForm'
@@ -710,6 +711,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const effective = pending?.proposed ?? trip
   const health = computeHealth(effective, legCorrections)
   const totals = computeTotals(effective, legCorrections)
+  // Group input grades the one workspace road measurement for resolved slot
+  // votes. A pending, failed or stale chain gives null, and the caller refuses.
+  const groupInputRoad = slotResolutionRoadFor(effective, road)
 
   /** Move the previewed day's last stop to the day after it. #334: staged
    *  THROUGH applyChange so the sheet's numbers describe what Save will write
@@ -876,7 +880,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
             onDayFocusChange={(day) => { setFocus(focusForDay(trip!.id, day === 'all' ? null : day)); if (day !== 'all') setTimelineFocusDay(day) }} />
         </React.Suspense>
       )}
-      {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} previewOpen={!!pending} />}
+      {tab === 'group' && <GroupInputTab trip={effective} editable={editable} me={me} previewOpen={!!pending} slotRoad={groupInputRoad} />}
       {tab === 'budget' && <BudgetTab key={editable ? 'budget-edit' : 'budget-view'} trip={effective} totals={totals} editable={editable} previewOpen={!!pending} stagedRef={pendingRef} onOpenSettings={() => setTab('settings')} />}
       {tab === 'share' && <ShareTab trip={trip} me={me} editable={editable} onNavigate={onNavigate} legCorrections={legCorrections} />}
       {/* key=trip.id: TripSettingsForm holds local draft state in useState

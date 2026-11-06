@@ -36,6 +36,12 @@ import { LocationInput } from '../../components/LocationInput'
 import { dayRefFor } from '../../lib/dayRef'
 import { editPlaceDraft, persistedPlace, pickPlaceDraft, unresolvedPlace, type PlaceDraft } from '../../lib/placeDraft'
 import { cap, timeAgo } from './shared'
+import {
+  planDecisionResolution,
+  SLOT_RESOLUTION_COPY,
+  type LegacyResolutionTarget,
+  type SlotResolutionRoad,
+} from './slotResolutionAdapter'
 
 // ================= Group input tab =================
 
@@ -95,13 +101,15 @@ function useBusyClaim(key: string): { busy: boolean; claim: () => boolean; relea
   return { busy: isClaimed(claims, key), claim, release }
 }
 
-export function GroupInputTab({ trip, editable, me, previewOpen }: {
+export function GroupInputTab({ trip, editable, me, previewOpen, slotRoad }: {
   trip: Trip
   editable: boolean
   me: NonNullable<ReturnType<typeof currentUser>>
   /** true while the workspace holds a staged change — the crew-signal buttons
    *  below write the committed row, so they must not race a preview (#334). */
   previewOpen?: boolean
+  /** Measured workspace road facts for resolved slot votes. Null when unmeasured. */
+  slotRoad?: SlotResolutionRoad | null
 }) {
   const db = useDb()
   const memberCount = (trip.members ?? []).length
@@ -226,7 +234,7 @@ export function GroupInputTab({ trip, editable, me, previewOpen }: {
             ? <SuggestionCard key={item.sg.id} sg={item.sg} trip={trip} me={me} editable={editable} memberCount={memberCount}
                 needsMe={suggestionNeedsMe(item.sg)} previewOpen={previewOpen} />
             : <DecisionCard key={item.d.id} d={item.d} me={me} editable={editable}
-                needsMe={decisionNeedsMe(item.d)} trip={trip} previewOpen={previewOpen} />
+                needsMe={decisionNeedsMe(item.d)} trip={trip} previewOpen={previewOpen} slotRoad={slotRoad} />
           )}
 
           <Surface className="card gin-panel">
@@ -566,13 +574,14 @@ function CommentForm({ onSubmit }: { onSubmit: (text: string) => Promise<CollabO
 
 // ================= Decision card =================
 
-function DecisionCard({ d, me, editable, needsMe, trip, previewOpen }: {
+function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotRoad }: {
   d: TripDecision
   me: { id: string }
   editable: boolean
   needsMe: boolean
   trip: Trip
   previewOpen?: boolean
+  slotRoad?: SlotResolutionRoad | null
 }) {
   const tally = d.options.map(o => Object.values(d.votesByUserId).filter(v => v === o.id).length)
   const totalVotes = tally.reduce((s, t) => s + t, 0)
@@ -592,10 +601,18 @@ function DecisionCard({ d, me, editable, needsMe, trip, previewOpen }: {
     id: day.id, index: day.index, ...(day.title ? { title: day.title } : {}),
   }))
 
-  async function resolveChoice(optionId: string, target: { dayId?: string; dayIndex?: number } = {}) {
+  // The adapter captures day, route, anchor and revision as one snapshot.
+  // It is pure, so no await can lend a newer trip to an older measurement.
+  // A slot poll that cannot prove those facts refuses instead of appending.
+  async function resolveChoice(optionId: string, target: LegacyResolutionTarget = {}) {
     if (!claim()) return
     try {
-      const outcome = await resolveDecision(d.id, optionId, target)
+      const plan = planDecisionResolution({ trip, decision: d, optionId, target, road: slotRoad ?? null })
+      if (plan.kind === 'refused') {
+        toast(SLOT_RESOLUTION_COPY[plan.reason], 'err')
+        return
+      }
+      const outcome = await resolveDecision(d.id, optionId, plan.target)
       if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') {
         if (outcome.placement.status === 'needsDay') {
           setPlacementDays(outcome.placement.availableDays)

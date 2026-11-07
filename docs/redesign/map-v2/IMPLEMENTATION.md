@@ -2,7 +2,7 @@
 
 The map is a full canvas behind a timed day list, one search and a pick panel. The panels fold without clearing their contents. Place details use the existing add dialog and impact preview. The UI does not own ranking, placement or acknowledged writes.
 
-The supplied six HTML boards in the MapTab redesign folder are the visual target. The current UI implements their workspace composition. The Map workspace uses authored Linen and Night paint on the existing OpenFreeMap vector tiles. The user approved the revised day palette, and the six approved tones are in use. The 2D elevation decision remains open. It does not claim complete visual acceptance of all six boards.
+The supplied six HTML boards in the MapTab redesign folder are the visual target. The current UI implements their workspace composition. The Map workspace uses authored Linen and Night paint on the existing OpenFreeMap vector tiles. The user approved the revised day palette, and the six changed tones of the seven are in use. The existing 2D behavior is retained. New elevation changes and full visual acceptance remain unapproved. It does not claim complete visual acceptance of all six boards.
 
 ## Data and interaction
 

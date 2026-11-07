@@ -73,6 +73,7 @@ git rev-list --count origin/main..origin/test
 17. Promote `test` to `main` once per finished batch: a minor release for a feature, a patch release for a fix. Full text: docs/agents/AGENTS-FULL.md §2.17
 18. Search for prior art before you build: compare up to three maintained GitHub projects. Adapt code only from MIT, Apache-2.0, BSD or ISC sources. Full text: docs/agents/AGENTS-FULL.md §2.18
 19. Claim an issue before you start it, and check for an existing claim. A claim holds even when its branch is not pushed. Full text: docs/agents/AGENTS-FULL.md §2.19
+20. Run every Claude model through the Claude Code harness (`claudeAgent` driver). The user mandated it: CommandCode and other harnesses host non-Claude models only. When a Claude task starts on another harness, cancel it and relaunch it on Claude Code, keeping its partial work.
 
 ### What enforces each rule
 

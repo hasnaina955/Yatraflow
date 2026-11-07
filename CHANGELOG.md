@@ -22,6 +22,12 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **The create trip ticket now shows the draft route cover and a tear line.** The cover comes from the same route art as the created trip. The ticket keeps its six rows, the Change links and the honest per-head estimate. No category split and no new field is added.
+
+- **The guided create flow now matches the Plan-a-trip reference on four details.** The hero accent word is upright teal over a flat marigold band. The script swash is gone on this page. The ticket head band is deep sea in both themes, and the brand wordmark splits into its two tones. The step questions read in the display face at 28px, with a 22px phone rung. The Where step shows a visible Stops header with an honest arrows hint.
+
+- **The create trip flow now follows the Plan-a-trip reference on both screens, Where and Review.** The three zones use the reference widths: a 210px step rail, a 560px form and a 340px ticket. The rail rows, the location fields and the stop rows use the reference sizes. Back and Next are pills. The stop arrows point up and down, and the route note is one pill. The ticket head, rows and total use the reference sizes. On Review, a new Rough bill card shows the real stay, transport and food costs in one bar. It also says how far the cost per head is above or below your budget. A trip the engine cannot price says so, and an unknown transport cost reads "Not priced". The card has three categories because the engine has no activities cost. The answer grids on How, When, Who and Budget stay boxed.
+
 - **The slot and writer adapters now use safe field and index lookups for their dynamic keys.** Object and array reads use own-field maps and index-keyed maps. A missing key reads as undefined. A geometry pair is checked before it is read. The retry and Undo guards keep the same checks. (#910)
 
 - **Development fixtures use explicit status and root checks.** Source checks use literal patterns, and the fixture config imports the package version.

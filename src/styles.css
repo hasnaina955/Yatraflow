@@ -80,3 +80,379 @@
   max-height: calc(100dvh - 178px);
   overflow-y: auto;
 }
+
+/* ============================================================================
+   PW-09b Create trip ticket: region cover, tear line, token type.
+   Scoped to `.ctk` on the ticket root. The legacy `.gcf-ticket-*` rules keep
+   the base cascade, so the shape and the copy stay.
+   ========================================================================= */
+
+.ctk {
+  border-color: var(--pw-line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--pw-card);
+  color: var(--pw-ink);
+  box-shadow: var(--elev-3);
+}
+
+/* The band keeps its own two-theme ink. Only the type roles move. */
+.ctk .gcf-ticket-head > b {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: inherit;
+}
+.ctk .gcf-ticket-head > span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--pw-route);
+}
+
+/* The cover is the real draft route art from `CoverMedia`. The frame clips,
+   the image fills it, and the emoji is the last fallback. */
+.ctk__cover {
+  position: relative;
+  height: 112px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--pw-lagoon-50), var(--pw-lagoon-100));
+}
+.ctk__scenery {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+[data-theme='dark'] .ctk__scenery {
+  filter: brightness(.78) saturate(.9);
+}
+.ctk__emoji {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  color: var(--pw-sea-900);
+}
+/* The scalloped cut in the card colour. It is a ticket perforation, not a
+   texture. */
+.ctk__perf {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  background: radial-gradient(circle at 6px 10px, var(--pw-card) 5px, transparent 5.5px) 0 0 / 16px 10px repeat-x;
+  pointer-events: none;
+}
+
+.ctk .gcf-ticket-body { padding: 16px 20px 6px; }
+.ctk .gcf-ticket-body h3 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--pw-ink);
+}
+.ctk .gcf-ticket-row dt {
+  font: var(--pw-caption);
+  color: var(--pw-ink-3);
+}
+.ctk .gcf-ticket-row dd {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--pw-ink);
+}
+.ctk .gcf-ticket-icon { color: var(--pw-ink-3); }
+.ctk .gcf-ticket-row { gap: 12px; padding: 10px 0; border-top-color: var(--pw-line-soft); }
+.ctk .gcf-route-line { color: var(--pw-lagoon-600); }
+
+/* One hover moment on named motion tokens. The button keeps its 40px target
+   and its focus ring. */
+.ctk .gcf-ticket-row button {
+  font-size: 13px;
+  font-weight: 700;
+  transition: transform var(--motion-fast) var(--ease-paper);
+}
+.ctk .gcf-ticket-row button:hover { transform: translateY(-1px); }
+.ctk .gcf-ticket-row button:active { transform: translateY(0); }
+
+/* The bill is a detached stub. The computed total, the per-head estimate and
+   the honest copy stay unchanged. No category split is added. */
+.ctk .gcf-ticket-bill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 14px 20px 18px;
+  border-top: 1.5px dashed var(--pw-line);
+  background: color-mix(in srgb, var(--pw-lagoon-100) 55%, var(--pw-card));
+}
+.ctk .gcf-ticket-bill p { margin: 0; }
+.ctk .gcf-ticket-bill > b {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.ctk .gcf-ticket-total { font-size: 12.5px; }
+.ctk .gcf-ticket-total b { font-size: inherit; }
+.ctk .gcf-ticket-bill .gcf-ticket-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1;
+  color: var(--pw-ink);
+}
+.ctk .gcf-ticket-price span { font-family: var(--font-body); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+
+/* Reduced motion. The one authored transition stops. */
+@media (prefers-reduced-motion: reduce) {
+  .ctk .gcf-ticket-row button,
+  .ctk .gcf-ticket-row button:hover,
+  .ctk .gcf-ticket-row button:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   PW-09b gap pass (G1-G4): corrections from the source review in
+   scratch-832/larger-redesign-20261107/plantrip-review/source-gaps.md.
+   Every top-level selector here is new, so the duplicate count stays flat.
+   The legacy base rules keep the cascade; these appends win by position.
+   ========================================================================= */
+
+/* G1. The hero accent word: upright teal over a flat marigold band, as the
+   reference draws it. The hand-drawn saffron swash retires on this page only;
+   the shared .yf-header-title rules keep it everywhere else. */
+.gcf .yf-header-title em {
+  font-style: normal;
+  color: var(--pw-lagoon-600);
+  background: linear-gradient(transparent 82%, color-mix(in srgb, var(--pw-marigold-500) 55%, transparent) 82%);
+}
+.gcf .yf-header-title em::after {
+  content: none;
+}
+
+/* G2. The ticket head takes the reference's deep-sea band. The sea/on-sea
+   pair flips with the theme and holds AA in both. The legacy dark override
+   for .gcf-ticket-head sits in an imported sheet. This later rule of the
+   same weight wins in both themes, so no second dark block is needed. */
+.ctk .gcf-ticket-head {
+  height: 50px;
+  padding: 0 20px;
+  background: var(--pw-sea-900);
+  color: var(--pw-on-sea);
+}
+.ctk .gcf-ticket-head > b span {
+  color: var(--pw-route);
+}
+
+/* G3. The step questions, the review title and the budget title read in the
+   display face at the ladder's 28px rung. They drop to the 22px rung on a
+   phone. The hints under them take the body role. Focus targets are
+   untouched. */
+.gcf :is(.ct-q, .ct-review, .ct-budget) h2 {
+  font: var(--pw-display-m);
+}
+.gcf .ct-flow .ct-hint {
+  font: var(--pw-body);
+}
+@media (max-width: 720px) {
+  .gcf :is(.ct-q, .ct-review, .ct-budget) h2 {
+    font: var(--pw-display-s);
+  }
+}
+
+/* G4. The stop group carries the reference's visible header row. The hint is
+   honest: the arrows are buttons, and drag is not claimed. */
+.gcf .ct-stops-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0 0;
+}
+.gcf .ct-stops-row + .ct-chips {
+  margin-top: 12px;
+}
+.gcf .ct-stops-lab {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.gcf .ct-stops-hint {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pw-ink-3);
+}
+
+/* ============================================================================
+   PW-09b parity pass (2026-11-07). Source: PlanTrip.dc.html, Where and Review.
+   The grid, the rail, the fields, the stop rows, the nav and the Review bill
+   follow the reference sizes. Choice grids on How, When, Who and Budget stay
+   boxed, as the approved mockup draws them. Every top-level selector is new.
+   ========================================================================= */
+
+/* The three zones: 210, 560, 340. The shared route width stays at 1200. */
+@media (min-width: 1024px) {
+  .container.form-page.gcf > .ts-layout { grid-template-columns: 210px minmax(0, 560px) 340px; }
+}
+.gcf .yf-header .yf-header-title {
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+}
+.container.form-page.gcf .yf-header { margin-bottom: 22px; }
+
+/* The step rail: 50px rows, a 6px gap, an 18px radius and a sea glow on the
+   current row. The tablet row layout keeps its own sizes. */
+@media (min-width: 1024px) {
+  .gcf .ct-progress-list { gap: 6px; }
+  .gcf .ct-progress-item > :is(.ct-progress-plain, .ct-progress-link) {
+    align-items: center; min-height: 50px; padding: 0 14px;
+    border-radius: var(--radius); font-size: 16px;
+  }
+  .gcf .ct-progress-item .ct-progress-n { flex-basis: 28px; width: 28px; height: 28px; }
+  .gcf .ct-progress-item.done > :is(.ct-progress-plain, .ct-progress-link) { color: var(--text); }
+  .gcf .ct-progress-item > .ct-progress-link:hover { background: var(--bg-soft); }
+  .gcf .ct-progress-item.now > .ct-progress-plain { font-weight: 700; box-shadow: var(--glow-sea); }
+}
+
+/* Labels over the fields read 13.5px and 700 in the ink colour. */
+.gcf .ct-q-field label.label,
+.gcf .tpl-nameblock h2 { font-size: 13.5px; font-weight: 700; color: var(--text); }
+
+/* The location fields: 58px, an 18px radius, a press shadow and a leading
+   icon drawn from the input's own wrapper. The add-stop field is dashed. */
+.gcf :is(#gcf-start-location, #ct-dest-input) {
+  --input-padding: 0 16px 0 48px; --input-radius: var(--radius);
+  min-height: 58px; font-size: 16px; font-weight: 600;
+  box-shadow: var(--elev-press);
+}
+.gcf #ct-dest-input { border-style: dashed; background: transparent; box-shadow: none; font-weight: 500; }
+.gcf :is(div:has(> #gcf-start-location), div:has(> #ct-dest-input))::before {
+  content: ''; position: absolute; left: 18px; top: 50%; z-index: 1;
+  width: 19px; height: 19px; transform: translateY(-50%); pointer-events: none;
+  background: var(--pw-sea-700);
+  -webkit-mask: var(--cfp-icon) center / contain no-repeat;
+  mask: var(--cfp-icon) center / contain no-repeat;
+}
+.gcf div:has(> #gcf-start-location) {
+  --cfp-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z'/><circle cx='12' cy='10' r='3'/></svg>");
+}
+.gcf div:has(> #ct-dest-input) {
+  --cfp-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M5 12h14'/></svg>");
+}
+.gcf div:has(> #ct-dest-input)::before { background: var(--text-3); }
+
+/* The stop rows: 58px, an 18px radius, vertical order arrows. */
+.gcf .ct-chips .ct-dchip {
+  gap: 12px; min-height: 58px; padding: 0 10px 0 16px;
+  border-radius: var(--radius); font-size: 16px; font-weight: 600;
+  box-shadow: var(--elev-press);
+}
+.gcf .ct-q-body .ct-chips { gap: 12px; }
+.gcf .ct-chips .ct-dchip :is(.mv, .x) {
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-2);
+}
+.gcf .ct-chips .ct-dchip :is(.mv, .x):hover:not(:disabled) { background: var(--bg-soft); }
+.gcf .ct-chips .ct-dchip .mv:disabled { opacity: .35; }
+@media (pointer: coarse) {
+  .gcf .ct-chips .ct-dchip :is(.mv, .x) { width: 44px; height: 44px; }
+}
+
+/* The route note: a lagoon pill with a ringed info mark. */
+.gcf .ct-q-body .route-iq {
+  display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 14px 16px;
+  border: 1px solid var(--pw-lagoon-100); border-radius: var(--radius);
+  background: var(--pw-lagoon-50); color: var(--pw-sea-900);
+  font-size: 14.5px; font-weight: 600; line-height: 1.4;
+}
+.gcf .route-iq .iq-tile {
+  flex: none; display: grid; place-items: center; width: 18px; height: 18px;
+  border: 1.5px solid currentColor; border-radius: 50%; background: transparent;
+  color: var(--pw-sea-700); font-size: 11px; font-weight: 800; font-style: normal;
+}
+
+/* Back and Next: pill buttons from tablet up. The phone keeps its fixed bar
+   and its own sizes, with the pill radius. */
+.gcf .ct-nav :is(.ct-back, .ct-next, .ct-create) { border-radius: var(--radius-pill); }
+.gcf .ct-nav .ct-back { background: transparent; box-shadow: none; }
+@media (min-width: 700px) and (min-height: 500px) {
+  .gcf .ct-nav { margin-top: 10px; }
+  .gcf .ct-nav :is(.ct-next, .ct-create) {
+    gap: 8px; height: 52px; padding: 0 22px 0 28px; font-size: 16px;
+    box-shadow: var(--glow-sea);
+    transition: transform var(--motion-fast) var(--ease-paper);
+  }
+  .gcf .ct-nav :is(.ct-next, .ct-create):hover { transform: translateY(-1px); }
+  .gcf .ct-nav .ct-back { gap: 6px; height: 48px; padding: 0 14px 0 8px; font-size: 15px; color: var(--text); }
+  .gcf .ct-nav .ct-back:hover { background: var(--bg-soft); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gcf .ct-nav :is(.ct-next, .ct-create), .gcf .ct-nav :is(.ct-next, .ct-create):hover { transition: none; transform: none; }
+}
+
+/* Review: the name field, the details toggle and the action row. */
+.gcf .tpl-nameblock .tpl-warm-head { margin: 0; }
+.gcf .tpl-nameblock .tpl-name { margin-top: 12px; }
+.gcf .tpl-nameblock .namebox-in { min-height: 58px; padding: 0 16px; gap: 12px; border-radius: var(--radius); box-shadow: var(--elev-press); }
+.gcf .tpl-nameblock .namebox-in svg { width: 18px; height: 18px; color: var(--pw-sea-700); }
+.gcf .tpl-nameblock .namebox-input { font-size: 16px; font-weight: 600; }
+.gcf .ct-flow .gcf-details-toggle { min-height: 52px; border-radius: var(--radius); }
+.gcf .gcf-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* Selected by position, not by the button classes: the button owner keeps those. */
+.gcf .gcf-review-actions > button:nth-of-type(1) {
+  min-height: 46px; padding: 0 18px; border-radius: 999px; font-size: 14.5px; font-weight: 700;
+}
+.gcf .gcf-review-actions > button:nth-of-type(2) {
+  min-height: 48px; padding: 0 12px; border-radius: 999px; font-size: 15px; font-weight: 700; color: var(--text);
+}
+.gcf .gcf-review-actions > .gcf-printed-bill { flex: 0 0 100%; }
+@media (min-width: 700px) and (min-height: 500px) {
+  .gcf .gcf-review-actions > p { flex: 0 0 100%; margin: -6px 0 4px; text-align: right; font-size: 12.5px; color: var(--text-2); }
+}
+
+/* The Review rough bill: one card, three real categories, a budget verdict. */
+.cfb {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 4px; padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--text);
+}
+.cfb__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 12.5px; color: var(--text-2); }
+.cfb__kicker { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.cfb__bar { display: flex; gap: 2px; height: 12px; margin-top: 4px; }
+.cfb__seg { flex: 1 1 0; min-width: 4px; border-radius: 2px; }
+.cfb__bar > .cfb__seg:first-child { border-top-left-radius: var(--radius-mark); border-bottom-left-radius: var(--radius-mark); }
+.cfb__bar > .cfb__seg:last-child { border-top-right-radius: var(--radius-mark); border-bottom-right-radius: var(--radius-mark); }
+.cfb__seg--stay { background: var(--pw-lagoon-600); }
+.cfb__seg--transport { background: var(--cat-transport); }
+.cfb__seg--food { background: var(--cat-food); }
+.cfb__legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 12.5px; }
+.cfb__legend li { display: flex; align-items: center; gap: 6px; }
+.cfb__dot { flex: none; width: 10px; height: 10px; border-radius: var(--radius-mark); }
+.cfb__verdict {
+  display: flex; align-items: center; gap: 10px; margin: 4px 0 0; padding: 14px 16px;
+  border-radius: var(--radius); font-size: 14.5px; font-weight: 600; line-height: 1.4;
+  background: color-mix(in srgb, var(--ok-500) 14%, var(--card)); color: var(--ink-ok);
+}
+.cfb__verdict svg { flex: none; }
+.cfb__verdict--over { background: var(--pw-marigold-50); color: var(--pw-marigold-ink); }
+.cfb__note { margin: 0; font-size: 12px; color: var(--text-2); }
+.cfb__none { margin: 0; font-size: 14px; color: var(--text-2); }
+.cfb__none b { display: block; color: var(--text); }
+@media (max-width: 699px), (max-height: 499px) {
+  .gcf .cfb { order: 3; }
+}

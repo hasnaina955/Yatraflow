@@ -1128,6 +1128,13 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    runs in render. `commit` runs in `useEffect`. The next render then reuses the
    committed day and card objects.
 
+6bp. **A camera readiness latch cannot authorize a style write (learned
+   2026-11-07, map style readiness).** `mapLoaded` opens on a 4 s watchdog, so it
+   can be true while MapLibre's `Style._loaded` is false, and `addSource` then
+   throws. Gate style writes on the provider's readiness (`useMap().isLoaded`,
+   which closes for a swap and reopens on `style.load`). Put the write in a child
+   overlay and list that value in the effect dependencies, or it never retries.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

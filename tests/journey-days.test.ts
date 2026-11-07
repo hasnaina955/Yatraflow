@@ -252,26 +252,28 @@ describe('authoritative schedule and context', () => {
   })
 })
 
-describe('S2 stable per-day objects', () => {
-  function selectorInput(trip: Trip, identityGeneration = 1) {
-    return {
-      trip,
-      committedTrip: trip,
-      snapshot: makeSnapshot(),
-      presence: placeIdentity(trip),
-      editable: true,
-      decisions: [],
-      dnaVector: DNA,
-      legCorrections: undefined,
-      manualPicksByDay: new Map<number, ManualPicksForDay>(),
-      identityGeneration,
-    }
+function selectorInput(trip: Trip, identityGeneration = 1) {
+  return {
+    trip,
+    committedTrip: trip,
+    snapshot: makeSnapshot(),
+    presence: placeIdentity(trip),
+    editable: true,
+    decisions: [],
+    dnaVector: DNA,
+    legCorrections: undefined,
+    manualPicksByDay: new Map<number, ManualPicksForDay>(),
+    identityGeneration,
   }
+}
 
+describe('S2 stable per-day objects', () => {
   it('reuses day A across a same-id clone, and clears on identity change', () => {
     const selector = createJourneySelector()
     const trip = makeTrip()
-    const first = selector(selectorInput(trip))
+    const firstSelection = selector.select(selectorInput(trip))
+    selector.commit(firstSelection)
+    const first = firstSelection.model
     const clone: Trip = {
       ...trip,
       days: trip.days.map(day => day.index === 1 ? {
@@ -279,12 +281,12 @@ describe('S2 stable per-day objects', () => {
         stops: day.stops.map(stop => ({ ...stop, visitMinutes: 75 })),
       } : day),
     }
-    const second = selector(selectorInput(clone))
+    const second = selector.select(selectorInput(clone)).model
     expect(second.byDay.get(0)).toBe(first.byDay.get(0))
     expect(second.cards.byDay.get(0)).toBe(first.cards.byDay.get(0))
     expect(second.byDay.get(1)).not.toBe(first.byDay.get(1))
 
-    const nextIdentity = selector(selectorInput(clone, 2))
+    const nextIdentity = selector.select(selectorInput(clone, 2)).model
     expect(nextIdentity.byDay.get(0)).not.toBe(first.byDay.get(0))
   })
 
@@ -302,6 +304,46 @@ describe('S2 stable per-day objects', () => {
     expect(second.byDay.get(0)).toBe(first.byDay.get(0))
     expect(second.cards.byDay.get(0)).toBe(first.cards.byDay.get(0))
     expect(second.byDay.get(1)).not.toBe(first.byDay.get(1))
+  })
+})
+
+// F6: a selection made during render must not move the reuse cache. Only the
+// commit that follows a React commit may.
+describe('F6 render-pure selection', () => {
+  it('never lets an uncommitted selection replace the committed cache', () => {
+    const selector = createJourneySelector()
+    const trip = makeTrip()
+    const committedA = selector.select(selectorInput(trip))
+    selector.commit(committedA)
+    const first = committedA.model
+
+    // A speculative render whose every day changed. Selection happens during
+    // render, and nothing commits it.
+    const speculativeTrip: Trip = {
+      ...trip,
+      days: trip.days.map(day => ({
+        ...day,
+        stops: day.stops.map(stop => ({ ...stop, visitMinutes: stop.visitMinutes + 1 })),
+      })),
+    }
+    const speculative = selector.select(selectorInput(speculativeTrip))
+    expect(speculative.model.byDay.get(0)).not.toBe(first.byDay.get(0))
+
+    // Back to A with no commit in between: A's exact objects must be reused.
+    const again = selector.select(selectorInput(trip))
+    expect(again.model.byDay.get(0)).toBe(first.byDay.get(0))
+    expect(again.model.cards.byDay.get(0)).toBe(first.cards.byDay.get(0))
+
+    // Only a real commit moves the cache.
+    selector.commit(speculative)
+    const afterCommit = selector.select(selectorInput(trip))
+    expect(afterCommit.model.byDay.get(0)).not.toBe(first.byDay.get(0))
+  })
+
+  it('wires select into render and commit into an effect', () => {
+    const hook = readFileSync(new URL('../src/pages/trip/journey/useJourneyDays.ts', import.meta.url), 'utf8')
+    expect(hook).toContain('selector.select(modelInput)')
+    expect(hook).toMatch(/useEffect\(\(\) => \{\s*selector\.commit\(selection\)/)
   })
 })
 

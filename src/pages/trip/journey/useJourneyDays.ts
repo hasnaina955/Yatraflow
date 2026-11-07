@@ -3,8 +3,9 @@
 // React tree needs: capture the manual read-adapter output once per day, run the
 // one per-hook selector for day-object/card reuse, read the DNA hints, and
 // memoize the model. It starts no scan, calls no provider and owns no cache
-// (#842 stays separate).
-import { useMemo } from 'react'
+// (#842 stays separate). Render stays pure: the selector only selects here, and
+// an effect commits that selection after React commits.
+import { useEffect, useMemo } from 'react'
 import type { Trip, TripDecision } from '../../../data/types'
 import type { LegEstimate } from '../../../lib/engine'
 import type { PlaceHit } from '../../../lib/providers/hits'
@@ -77,7 +78,7 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
     },
     [input.trip, input.snapshot, input.slotManual, input.dnaTick],
   )
-  const journeyDays = useMemo(() => {
+  const selection = useMemo(() => {
     const modelInput: JourneySelectorInput = {
       trip: input.trip,
       committedTrip: input.committedTrip ?? input.trip,
@@ -90,7 +91,7 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
       manualPicksByDay,
       identityGeneration: input.identityGeneration,
     }
-    return selector(modelInput)
+    return selector.select(modelInput)
   }, [
     selector,
     input.trip,
@@ -104,6 +105,10 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
     manualPicksByDay,
     input.identityGeneration,
   ])
+  // Commit after React commits. An uncommitted selection does not move the cache.
+  useEffect(() => {
+    selector.commit(selection)
+  }, [selector, selection])
   const dnaSlotHints = useMemo(() => readDnaSlotHints(input.dnaTick), [input.dnaTick])
-  return { ...journeyDays, dnaSlotHints }
+  return { ...selection.model, dnaSlotHints }
 }

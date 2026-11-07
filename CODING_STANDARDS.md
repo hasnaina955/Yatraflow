@@ -1121,6 +1121,13 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    neither. Read the computed style in the browser for every new focus ring
    and font-size override.
 
+6bo. **A reuse cache must move after React commits, not during render (learned
+   2026-11-07, journey model).** A memo body can run for a render that React
+   discards. If it writes the cache, that discarded render replaces the committed
+   base. Keep one selector with `select` and `commit`. `select` reads only and
+   runs in render. `commit` runs in `useEffect`. The next render then reuses the
+   committed day and card objects.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

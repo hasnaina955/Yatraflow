@@ -1,6 +1,6 @@
 {
   "generatedBy": "npm run lint:ratchet -- --update",
-  "errors": 131,
+  "errors": 129,
   "warnings": 25,
   "files": {
     "src/App.tsx": {
@@ -28,9 +28,7 @@
     },
     "src/components/TripMap.tsx": {
       "react-hooks/set-state-in-effect": 4,
-      "react-hooks/exhaustive-deps": 5,
-      "react-hooks/immutability": 1,
-      "react-hooks/preserve-manual-memoization": 1
+      "react-hooks/exhaustive-deps": 5
     },
     "src/components/mapcn/map.tsx": {
       "react-hooks/refs": 9,

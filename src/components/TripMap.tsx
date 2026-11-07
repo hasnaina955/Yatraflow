@@ -64,7 +64,7 @@ function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
   return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
 }
 
-const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B03A2E'] // #B7791F sat 1.6° from #F59E2D (two orange days); brick clears it by 28°
+const DAY_COLORS = ['#0D8D82', '#C27109', '#7D5EFC', '#E15279', '#228CC8', '#4A9539', '#CE5245'] // brick clears amber by 28° in hue; no two orange days
 
 // #370: a line that is NOT a measured road is drawn dashed and in the --warn
 // ink the detour spur already uses (read at paint time, with this file's hex
@@ -1571,7 +1571,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
                         className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
-                        style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': p.dayIndex % DAY_COLORS.length === 6 ? '#FFFFFF' : '#02080D' } : {}) } as React.CSSProperties}
+                        style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#02080D' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
                         aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}

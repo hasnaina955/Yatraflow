@@ -1985,14 +1985,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <MapDeckHeader title="Along the drive" count={seeForRail.length} onFold={foldDeck} />
             <div className="poi-plan-list is-ledger">
               {!filterActive && arcs.slice(0, 2).length > 0 && (
-                <div className="poi-grp">
+                <div className="poi-grp mv2-deck-arc-group">
                   <span className="poi-grp-k">Route arcs</span>
                   <span className="poi-grp-n">{arcs.slice(0, 2).length}</span>
                   <span className="poi-grp-ln" />
                 </div>
               )}
               {arcs.slice(0, 2).map(arc => (
-                <div key={arc.theme} className="poi-plan-row poi-plan-arc">
+                <div key={arc.theme} className="poi-plan-row poi-plan-arc mv2-deck-arc">
                   <div className="ride-spot-title">
                     <span className="ride-purpose ride-purpose-sight">{arc.theme}</span>
                     <b>{arc.arcBody}</b>
@@ -2014,7 +2014,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                     <>
                       {seeForRail.slice(0, SEE_VISIBLE).map(ledgerRow)}
                       {seeForRail.length > SEE_VISIBLE && (
-                        <details className="poi-more">
+                        <details className="poi-more mv2-deck-more">
                           <summary><ChevronDown className="poi-chev" size={12} aria-hidden />{seeForRail.length - SEE_VISIBLE} more picks</summary>
                           <div className="poi-more-list">{seeForRail.slice(SEE_VISIBLE).map(ledgerRow)}</div>
                         </details>

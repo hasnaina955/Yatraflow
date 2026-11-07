@@ -1110,6 +1110,17 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    exits 1. It never replaces the full gate. `verify` and CI still run the whole
    suite.
 
+6bn. **`--ring` is already a complete shadow; compose nothing around it, and
+   check the computed cascade (learned 2026-11-07, pick deck batch).** The
+   summary rule declared `box-shadow: 0 0 0 3px var(--ring)`. The token already
+   expands to a whole shadow, so the value is invalid: the browser drops the
+   declaration, keyboard focus renders nothing, and a source read still says
+   "covered". The fix is `box-shadow: var(--ring)`. The same pass hid a
+   specificity loss: a three-class override lost to the legacy four-class
+   ledger rule, so a 12px size computed at 10px. A static gate read catches
+   neither. Read the computed style in the browser for every new focus ring
+   and font-size override.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

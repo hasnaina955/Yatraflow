@@ -400,3 +400,18 @@
    the gate on a px size below 44 here. */
 .mv2-workspace .lrow-deck .ledger-shelf > button { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .mv2-workspace .lrow-deck .ledger-shelf > .shelf-alt { min-height: 44px; }
+
+/* Map V2 pick deck: the overflow accordion and the route-arc rows use the
+   same flat row anatomy as the ledger rows. The markup keeps details and
+   summary. The legacy rules stay untouched, and night tokens inherit by
+   variable. */
+.mv2-workspace .poi-plan-list.is-ledger .mv2-deck-arc { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-4); padding: var(--space-7) 0; border-left: 0; border-bottom: 1px solid var(--pw-line-soft, var(--line)); }
+.mv2-workspace .poi-plan-list.is-ledger .mv2-deck-arc::before { content: none; }
+.mv2-workspace .mv2-deck-arc .ride-spot-title { min-width: 0; }
+.mv2-workspace .poi-plan-list.is-ledger .mv2-deck-arc .ride-purpose { font-size: 12px; }
+.mv2-workspace .mv2-deck-arc .btn-sm { min-height: 44px; }
+.mv2-workspace .poi-plan-list.is-ledger .mv2-deck-arc-group { padding-left: 0; }
+.mv2-workspace .poi-plan-list.is-ledger .mv2-deck-more { padding-left: 0; margin-top: 0; }
+.mv2-workspace .mv2-deck-more > summary { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-5) 0; border-radius: var(--radius-sm); font: var(--pw-ui); font-size: 13px; color: var(--text-2); }
+.mv2-workspace .mv2-deck-more > summary:hover { color: var(--text); }
+.mv2-workspace .mv2-deck-more > summary:focus-visible { outline: none; box-shadow: var(--ring); }

@@ -7,10 +7,10 @@
 // stay out of the page for the rails slice; the rail panels stay with the
 // page until a later slice moves them.
 import { ChevronDown, CircleCheck, Star } from 'lucide-react'
-import { InlineIcon } from '../../../components/icons'
+import { CatIcon, InlineIcon } from '../../../components/icons'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import type { RailChip } from '../../../lib/railReasons'
-import { alternativesFor, chipsFor, type ChipFacts } from './railRows'
+import { alternativesFor } from './railRows'
 import type { AltPool } from './sightRows'
 
 /** A corridor halt the engine found no place for. The action raises the
@@ -60,7 +60,7 @@ export function LedgerRow({
   added,
   detourMin,
   hitDay,
-  chipFacts,
+  chips,
   altPool,
   chipFilter,
   editable,
@@ -71,13 +71,16 @@ export function LedgerRow({
   onToggleShortlist,
   onOpenAlt,
   onWiden,
+  onInspect,
+  presentation = 'boxed',
 }: {
   sh: SegmentHit
   dismissed: boolean
   added: boolean
   detourMin: number | null | undefined
   hitDay: number | null
-  chipFacts: ChipFacts
+  /** the presentation adapter's chips for this row (ticket 03 repair) */
+  chips: RailChip[]
   altPool: AltPool
   chipFilter: string | null
   editable: boolean
@@ -88,11 +91,15 @@ export function LedgerRow({
   onToggleShortlist: () => void
   onOpenAlt: (h: PlaceHit) => void
   onWiden: () => void
+  onInspect?: () => void
+  /** Row visual world. 'deck' is the Map V2 flat rail: a category tile,
+   *  a wrapping name and a 12px meta line on a hairline separator. The
+   *  default keeps the pre-existing boxed markup unchanged. */
+  presentation?: 'boxed' | 'deck'
 }) {
   const hit = sh.hit
   if (dismissed) return null
   if (!hit) return <GapRow sh={sh} dismissed={false} onWiden={onWiden} /> // gaps keep their honest row
-  const chips: RailChip[] = chipsFor(sh, hit, chipFacts)
   const alts = alternativesFor(sh, hit, altPool).filter(e => e.h.id !== hit.id)
   const shelf = (
     <div className="ledger-shelf">
@@ -147,10 +154,15 @@ export function LedgerRow({
     detourMin == null ? 'position unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
     hitDay != null ? `Day ${hitDay + 1}` : null,
   ].filter(Boolean).join(' \u00b7 ')
+  const deck = presentation === 'deck'
   return (
-    <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
-      <summary className="lrow-sum" title={hit.name}>
-        <span className="xdot" aria-hidden />
+    <details key={hit.id as string} className={deck ? 'lrow-new lrow-deck' : 'lrow-new'} onToggle={undefined}>
+      <summary className="lrow-sum" title={hit.name} onClick={onInspect}>
+        {deck ? (
+          <span className="lrow-tile" aria-hidden="true"><CatIcon category={hit.category} size={18} /></span>
+        ) : (
+          <span className="xdot" aria-hidden />
+        )}
         <span className="lr-name">{hit.name}</span>
         <span className="lr-meta">{meta}</span>
         <ChevronDown className="lr-go" size={12} aria-hidden />

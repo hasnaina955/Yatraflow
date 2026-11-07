@@ -108,13 +108,13 @@
     "src/pages/trip/MapOmnibar.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 18,
+      "inlineStyle": 17,
       "rawH1": 0
     },
     "src/pages/trip/MapTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 32,
+      "inlineStyle": 19,
       "rawH1": 0
     },
     "src/pages/trip/MapTabSkeleton.tsx": {

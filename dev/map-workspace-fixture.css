@@ -1,0 +1,8 @@
+.map-fixture-header { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:16px 0; }
+.map-fixture-header > div { display:flex; flex-direction:column; }
+.map-fixture-header > div > strong { font:var(--pw-title); }
+.map-fixture-header span { color:var(--text-2); font-size:12px; }
+.map-fixture-header nav { display:flex; align-items:center; gap:24px; padding:8px 16px; border-radius:var(--radius-pill); background:var(--bg-soft); }
+.map-fixture-header nav strong { padding:8px 16px; border-radius:var(--radius-pill); background:var(--color-primary); color:var(--color-primary-foreground); font-size:13px; }
+.map-fixture-status { margin:0; font-size:11px; color:var(--text-2); }
+@media(max-width:760px) { .map-fixture-header { padding:8px; }.map-fixture-header nav { gap:8px; padding:4px; }.map-fixture-header nav span { display:none; }.map-fixture-status { margin-inline:8px; font-size:10px; } }

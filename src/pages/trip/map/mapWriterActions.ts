@@ -36,6 +36,12 @@ import type { EffectiveDaySlot } from '../../../lib/dayPlan'
 import { acknowledgedReceiptOf, type AcknowledgedReceipt } from '../../../lib/previewChain'
 import type { WriterOperationContext, WriterOperationGate, WriterRetryTicket } from './writerOperationGate'
 import { writerRequestKey } from './writerOperationGate'
+import { roadChainSig } from '../../../lib/tripRoad'
+import {
+  bindingMatchesTrip,
+  sameWriterBinding,
+  type WriterRoadBinding,
+} from './writerRoadBinding'
 
 /** The exact retry proof is owned by the gate and re-exported here so every
  *  writer caller imports one contract. */
@@ -104,6 +110,7 @@ export type WriterRefusal =
   | 'missing-day'
   | 'gate-busy'
   | 'road-evidence-unavailable'
+  | 'current-trip-unavailable'
   | 'nothing-pinned'
   | 'no-placements'
 
@@ -119,6 +126,8 @@ export type WriterResumeDisposition =
   | 'resume-unverifiable'
   | 'operation-settled'
   | 'operation-unknown'
+  | 'road-changed'
+  | 'trip-changed'
 
 /** F3: the truthful disposition for an acknowledged write whose operation's
  *  stops could not be verified on the saved trip. The receipt is a fact about
@@ -221,7 +230,7 @@ export interface WriterUnresolvedItem {
 export interface WriterCompletion {
   operationId: string
   context: WriterOperationContext
-  phase: 'applied' | 'partial' | 'uncertain'
+  phase: 'applied' | 'partial' | 'uncertain' | 'abandoned'
   acknowledged: boolean
   receipt: WriterReceipt | null
   /** Verified against the actual stop in the saved trip. */
@@ -253,6 +262,12 @@ export interface WriterActionDeps {
   poiVisitMinutes: (category?: string) => number
   /** Explicit product action: a repeat visit already on the plan is allowed. */
   allowRepeatVisit?: boolean
+  /** Strict measured-road bytes. Present activates the revalidation contract. */
+  roadBinding?: WriterRoadBinding
+  /** The live measured-road binding. Needed when `roadBinding` is present. */
+  currentRoad?: () => WriterRoadBinding | null
+  /** Synchronous after gate admission, before any resolver await. */
+  onOperationStart?: (operationId: string) => void
 }
 
 const HIT_CATEGORIES = new Set<string>([...STOP_CATEGORIES, 'cafe'])
@@ -767,6 +782,33 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
     slotKeys: entries.map(entry => entry.slotKey),
     hits: entries.map(entry => entry.hit),
   })
+  const strictRequested = deps.roadBinding !== undefined || deps.currentRoad !== undefined
+  const strictBinding = deps.roadBinding ?? null
+  if (strictRequested) {
+    const liveStart = deps.currentRoad?.() ?? null
+    const tripStart = deps.currentTrip()
+    const disposition: 'road-changed' | 'trip-changed' | null =
+      !strictBinding || !liveStart || !deps.currentRoad
+        ? 'road-changed'
+        : !tripStart || !bindingMatchesTrip(strictBinding, tripStart, roadChainSig(tripStart))
+          ? 'trip-changed'
+          : !sameWriterBinding(liveStart, strictBinding)
+            ? 'road-changed'
+            : null
+    if (disposition) {
+      if (request.operationId) {
+        return {
+          status: 'refused',
+          reason: 'road-evidence-unavailable',
+          operationId: request.operationId,
+          unresolved: [],
+          skipped: [],
+          resume: { disposition, operationId: request.operationId },
+        }
+      }
+      return { status: 'refused', reason: 'road-evidence-unavailable', unresolved: [], skipped: [] }
+    }
+  }
   // F2 caller boundary: a production caller that repeats the SAME logical
   // choice after closing the preview still supplies the uncertain operation's
   // identity here. The gate's exact comparison decides; a request-key match
@@ -788,6 +830,7 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
     entries,
     mintStopId: deps.mintStopId,
     allowRepeat: request.allowRepeatVisit ?? deps.allowRepeatVisit,
+    ...(strictBinding ? { binding: strictBinding } : {}),
   })
   if (decision.status === 'busy') {
     const resumeDisposition: WriterResumeDisposition | null =
@@ -814,6 +857,30 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
   // identity and reservations stay until acknowledgement or an explicit Saved
   // edits decision. Only a NEW operation's pre-admission refusal releases.
   const releaseNewOperation = () => { if (!resumed) deps.gate.discard(operationId) }
+  deps.onOperationStart?.(operationId)
+
+  /** Strict road/trip drift after an await. A new operation releases; a resumed
+   *  uncertain operation keeps its record and reservations untouched. */
+  const staleBinding = (): 'road-changed' | 'trip-changed' | null => {
+    if (!strictRequested) return null
+    if (!strictBinding) return 'road-changed'
+    const live = deps.currentRoad?.() ?? null
+    const trip = deps.currentTrip()
+    if (!live) return 'road-changed'
+    if (!trip || !bindingMatchesTrip(strictBinding, trip, roadChainSig(trip))) return 'trip-changed'
+    if (!sameWriterBinding(live, strictBinding)) return 'road-changed'
+    return null
+  }
+  const refuseStale = (disposition: 'road-changed' | 'trip-changed') => {
+    if (!resumed) releaseNewOperation()
+    return {
+      status: 'refused' as const,
+      reason: 'road-evidence-unavailable' as const,
+      unresolved: [],
+      skipped: [],
+      ...(resumed ? { operationId, resume: { disposition, operationId } } : {}),
+    }
+  }
 
   const resolved: Array<{ itemId: string; slotKey: string | null; hit: PlaceHit; stopId: string; dayId: string; dayIndex: number; notes?: string }> = []
   const unpinned: WriterSkippedItem[] = []
@@ -850,6 +917,8 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
     } else {
       for (const [index, item] of operation.items.entries()) {
         const pinned = await deps.resolvePick(item.hit)
+        const stale = staleBinding()
+        if (stale) return refuseStale(stale)
         if (!pinned) {
           unpinned.push({
             itemId: item.itemId, slotKey: item.slotKey, dayId: item.dayId ?? request.context.dayId ?? '',
@@ -885,6 +954,12 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
   const planned: WriterPlannedItem[] = []
   const skipped: WriterSkippedItem[] = [...unpinned]
   let refusal: WriterRefusal | null = null
+  const afterResolve = staleBinding()
+  if (afterResolve) return refuseStale(afterResolve)
+  if (strictBinding && deps.road && deps.road.routeKey !== strictBinding.routeKey) {
+    if (!resumed) releaseNewOperation()
+    return { status: 'refused', reason: 'road-evidence-unavailable', unresolved: [], skipped: [] }
+  }
   const byDay = new Map<string, typeof resolved>()
   for (const item of resolved) {
     const list = byDay.get(item.dayId) ?? []
@@ -995,7 +1070,18 @@ export async function stageWriterPicks(deps: WriterActionDeps, request: {
       // gate must release only this operation's own reservation and settle it
       // truthfully — not a pre-admission discard, not an acknowledged success.
       // Resumed (retried) operations get the same exact-operation settlement.
-      onStoreDiscarded: () => { deps.gate.settleProvenDiscarded(operationId) },
+      onStoreDiscarded: () => {
+        if (!deps.gate.settleProvenDiscarded(operationId)) return
+        const completion = completeWriterOperation({
+          operationId,
+          context: request.context,
+          receipt: undefined,
+          planned,
+          skipped,
+          savedTrip: deps.currentTrip(),
+        })
+        deps.onCompletion({ ...completion, phase: 'abandoned', acknowledged: false })
+      },
       // The admitted generation is still pending or unknown. This is the ONE
       // uncertainty notification: it keeps every reservation (so the same place
       // cannot enter twice), marks the operation uncertain and delivers the
@@ -1081,12 +1167,15 @@ export function retryWriterStage(
   deps: WriterActionDeps,
   ticket: WriterRetryTicket,
 ): Promise<WriterStageResult> {
-  return stageWriterPicks(deps, {
-    context: ticket.context,
-    intent: ticket.intent,
-    picks: ticket.picks,
-    operationId: ticket.operationId,
-  })
+  return stageWriterPicks(
+    { ...deps, ...(ticket.binding ? { roadBinding: ticket.binding } : {}) },
+    {
+      context: ticket.context,
+      intent: ticket.intent,
+      picks: ticket.picks,
+      operationId: ticket.operationId,
+    },
+  )
 }
 
 // ---- Guarded Undo ----

@@ -377,6 +377,34 @@ that notices the drift.
     owner. When two lanes own the same files, the later claim waits. Record the
     outcome in the issue, not in chat.
 
+20. **Map V2 controls carry a 44px target floor (product decision,
+    ticket 06, 2026-11-07).** The Map V2 workspace sets 44px as the smallest
+    touch target for its interactive controls. Two shipped misses forced the
+    rule: a 32×32 fold button in the deck header, and 25–26px buttons in the
+    pick-deck shelf. Do not repair one instance with a local px override —
+    that is how the misses shipped. The base `.mv2-icon-btn` rule carries the
+    fold-button size, and the deck-scoped shelf rules carry the shelf sizes.
+    The floor covers the shared Map classes `.mv2-icon-btn`, `.poi-fold` and
+    `.ledger-shelf`; the last two also style legacy surfaces, so the gate
+    reads them only inside `.mv2-workspace`. 32px stop marks, map tiles and
+    stop discs keep their own sizes: they are markers, not controls, and the
+    floor does not apply to them.
+
+21. **Derive a focused test list with `npm run test:changed`; never hand-write
+    it (2026-11-07).** Two focused runs omitted tests the change had touched:
+    a report omitted `tests/production-road-binding.test.ts` after a builder
+    move, and the full gate went red on a green local run. A second run missed
+    changed prose. Memory is the failure mode; git is not. The script unions
+    the branch diff vs the batch base with the staged, unstaged and untracked
+    files, plus every `--extra` path. The batch base defaults to the merge
+    base with `origin/test`. Pass `--base <ref>` for a batch off the
+    integration branch. The script runs vitest on the union and passes the
+    child's exit code through. A source change that selects no test fails the
+    run — add or name a test with `--extra`, or run the full gate. The script
+    does not replace the full suite: `verify` and CI still run everything.
+    Types and lint cannot see a missed test file, so this gate has no
+    higher-level substitute.
+
 ### What enforces each rule
 
 A rule nobody checks fails silently. This table pairs each rule above (and the
@@ -429,6 +457,8 @@ an operator corrects you on a rule with no row, add the check in the same change
 | A panel painted with the glass token must carry its blur (§4 / `CODING_STANDARDS` 6an) | `tests/design-system.test.ts` → *one rule owns the popover glass*: only `.popover` may paint `var(--popover-bg)`, and it must declare `backdrop-filter` …; and *every glass paint carries its blur*: any rule painting a translucent glass token must declare `backdrop-filter`, or sit in that test's reason-carrying exception list, and a stale entry fails too |
 | A page block must move in the real app, not only in CSS text (§2.10) | CI job `motion` → `npm run check:motion` (`scripts/browser-motion-check.mjs`): serves the build, samples each page root's blocks once per animation frame from before navigation, and fails a block that appears between two frames. `npm run verify` stays browser-free |
 | §4 conventions (RLS, SQL, providers, scripted edits) | `CODING_STANDARDS.md` + `supabase/tests/rls_contract.test.sql`; the CSS gates land in `tests/design-system.test.ts` |
+| §2.20 Map V2 44px target floor | `npm run check:ui` rule U4 (graph-backed: flags a px size below 44 on `.mv2-icon-btn` anywhere and on `.poi-fold`/`.ledger-shelf` inside `.mv2-workspace`); `tests/map-deck-targets.test.ts` pins the shared floor contract |
+| §2.21 focused test list comes from git | `npm run test:changed` (git union + `--extra`; empty-green refusal); `tests/test-changed-selector.test.ts` pins the selector and the historical omission |
 
 Both local runs and CI run the same command: `npm run verify`.
 

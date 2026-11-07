@@ -40,10 +40,9 @@ import { addDecision, admitTripPreview, tripById } from '../../../store/store'
 import { reportCollabOutcome } from '../../../lib/collabFeedback'
 import { persistedPlaceFromHit } from '../../../lib/placeDraft'
 import { isSameEntity, type PlaceIdentity } from '../../../lib/placeIdentity'
-import type { DaySlot, SlotCandidate } from '../../../lib/daySlots'
+import type { DaySlot } from '../../../lib/daySlots'
 import {
   batchSelection,
-  buildDayPlan,
   effectiveDaySlotOf,
   voteSelection,
   type DayPlan,
@@ -65,12 +64,15 @@ import {
   type WriterRetryTicket,
   type WriterStageResult,
 } from './mapWriterActions'
+import { applyVerifiedPlacement } from './verifiedPlacementEffects'
 import {
   mapWriterOperationGate,
   type WriterOperationGate,
 } from './writerOperationGate'
 import { mapManualSlotStore, manualContextForSlot } from './manualSlotContexts'
-import { manualCandidateFor } from './slotFiling'
+import type { WriterRoadBinding } from './writerRoadBinding'
+import { writerResumePresentation } from './writerResumeDisposition'
+import { buildDayPlanForDay, readManualPicksForDay } from './manualPicks'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
 /** Every page value the four writes touch. */
@@ -130,6 +132,9 @@ export type UseMapWritersDeps = {
   roadMeasured?: boolean
   /** #841: stable identity of the measured chain. Defaults to `roadChainSig`. */
   routeKey?: string
+  /** Strict measured-road bytes and live accessor. */
+  roadBinding?: WriterRoadBinding | null
+  currentRoad?: () => WriterRoadBinding | null
   /** #841: the workspace gate. Defaults to the shared map gate. */
   operationGate?: WriterOperationGate
   /** #841: the CURRENT committed trip, read at acknowledgement and retry time.
@@ -142,6 +147,9 @@ export type UseMapWritersDeps = {
   detourKmFor?: (hit: PlaceHit) => number | null
   /** #841: explicit repeat visit, a separate product action. */
   allowRepeatVisit?: boolean
+  /** S3: the shared producer's display plan. Actions still revalidate with
+   *  `planForDay()` at call time, so a stale display can never place a stop. */
+  displayDayPlan?: DayPlan
 }
 
 /** The one line a refusal speaks. Kept here so each refusal has a reason the
@@ -150,6 +158,7 @@ const REFUSAL_MESSAGE: Record<WriterRefusal, string> = {
   'missing-day': 'This day has no saved identity yet - reload the trip, then try again.',
   'gate-busy': 'Another change is already using that place. Wait for it to finish.',
   'road-evidence-unavailable': 'The road has not been measured yet, so the app cannot place this stop. Try again after the route finishes measuring.',
+  'current-trip-unavailable': 'The current saved trip is unavailable, so this retry cannot start.',
   'nothing-pinned': 'That place could not be pinned on the map - nothing was placed.',
   'no-placements': 'Nothing could be placed from that choice - the day was not changed.',
 }
@@ -178,11 +187,14 @@ export function useMapWriters({
   slotManual,
   roadMeasured,
   routeKey: routeKeyProp,
+  roadBinding,
+  currentRoad,
   operationGate = mapWriterOperationGate,
   currentTrip: currentTripProp,
   detourMinFor,
   detourKmFor,
   allowRepeatVisit,
+  displayDayPlan,
 }: UseMapWritersDeps): {
   addPoiToDay: (hit: PlaceHit, dayIndex: number) => Promise<void>
   fillSlot: (slot: DaySlot, hit: PlaceHit) => Promise<void>
@@ -228,41 +240,26 @@ export function useMapWriters({
   }
 
   /** The day's ONE effective plan: manual picks (stable store + the page's
-   *  legacy bucket) then the engine's rows, over the complete derived slots. */
+   *  legacy bucket) then the engine's rows, over the complete derived slots.
+   *  The store read and the pure merge live in ./manualPicks, so the future
+   *  shared producer calls the same pair and no second merge exists. */
   function planForDay(): DayPlan {
     const context = writerContextFor(trip, activeDayIndex)
     const stableDayId = context?.dayId ?? null
-    const manual: Record<string, SlotCandidate[]> = {}
-    const deps = { detourMin: detourMinFor, detourKm: detourKmFor }
-    if (stableDayId) {
-      const fromStore = mapManualSlotStore.candidatesBySlot({ tripId: trip.id, dayId: stableDayId }, deps)
-      for (const [key, candidates] of Object.entries(fromStore)) manual[key] = [...candidates]
-    }
-    for (const [key, hits] of Object.entries(slotManual ?? {})) {
-      // The page bucket carries no day of its own. It is read only while the
-      // last filing for that key came from THIS stable day; otherwise the
-      // stable store above is the only source, so Day A's lunch cannot be
-      // placed on Day B.
-      const bound = stableDayId
-        ? mapManualSlotStore.legacyPicksFor(key, { tripId: trip.id, dayId: stableDayId })
-        : []
-      if (bound.length === 0) continue
-      const rows = hits.map(hit => manualCandidateFor({
-        hit,
-        detourMin: detourMinFor?.(hit) ?? null,
-        detourKm: detourKmFor?.(hit) ?? null,
-        budgetMin: 1,
-        sharePct: () => 100,
-      }))
-      manual[key] = [...(manual[key] ?? []), ...rows]
-    }
-    return buildDayPlan({
-      dayIndex: activeDayIndex,
-      slots: activeDaySlots,
+    return buildDayPlanForDay({
       tripId: trip.id,
-      ...(stableDayId ? { dayId: stableDayId } : {}),
-      manual,
-      ...(presence ? { identity: presence } : {}),
+      dayIndex: activeDayIndex,
+      dayId: stableDayId,
+      slots: activeDaySlots,
+      manual: readManualPicksForDay({
+        store: mapManualSlotStore,
+        tripId: trip.id,
+        dayId: stableDayId,
+        slotManual: slotManual ?? {},
+        detourMinFor,
+        detourKmFor,
+      }),
+      identity: presence ?? null,
     })
   }
 
@@ -280,6 +277,8 @@ export function useMapWriters({
       currentTrip: currentTripProp ?? (() => tripById(trip.id)),
       onCompletion,
       poiVisitMinutes,
+      ...(roadBinding ? { roadBinding } : {}),
+      ...(currentRoad ? { currentRoad } : {}),
       ...(allowRepeatVisit ? { allowRepeatVisit } : {}),
     }
   }
@@ -359,6 +358,11 @@ export function useMapWriters({
     onPlaced?: (completion: WriterCompletion) => void
     retry?: () => Promise<void>
   }) {
+    if (completion.phase === 'abandoned') {
+      retryRunners.current.delete(completion.operationId)
+      toast('This saved edit was discarded; choose again.', 'err')
+      return
+    }
     const retryAction = input.retry
       ? { label: 'Retry', run: () => { void input.retry!() } }
       : undefined
@@ -376,20 +380,25 @@ export function useMapWriters({
       toast(ZERO_VERIFIED_SAVE_MESSAGE, 'err', retryAction)
       return
     }
-    for (const item of completion.placed) {
-      recordDnaEvent({
-        tripId: trip.id,
-        action: 'accept',
-        haltKind: input.slot?.kind,
-        category: item.hit.category,
-        detourMin: asymmetricDetourMinutes(item.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined,
-        visitMin: visitMinutesForCategory(item.hit.category),
-      })
-      const context = input.slot
-        ? manualContextForSlot(input.slot)
-        : { tripId: trip.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
-      if (context?.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
-    }
+    applyVerifiedPlacement(completion, {
+      onDna: item => {
+        recordDnaEvent({
+          tripId: trip.id,
+          action: 'accept',
+          haltKind: input.slot?.kind,
+          category: item.hit.category,
+          detourMin: asymmetricDetourMinutes(item.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined,
+          visitMin: visitMinutesForCategory(item.hit.category),
+        })
+      },
+      onDrop: item => {
+        const context = input.slot
+          ? manualContextForSlot(input.slot)
+          : { tripId: trip.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
+        if (context?.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
+      },
+      onPlaced: () => setDnaTick(t => t + 1),
+    })
     // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
     if (input.slot && completion.placed.some(item => item.hit.haltPurpose === 'overnight')) {
       const ordinals = pois
@@ -398,7 +407,6 @@ export function useMapWriters({
         .findIndex(x => x.segment.index === input.slot?.segment?.index)
       if (ordinals >= 0) saveHaltPin(trip.id, ordinals, input.slot.segment?.targetKm ?? 0)
     }
-    setDnaTick(t => t + 1)
     if (completion.phase === 'partial') {
       toast(`${completion.unresolved.length} placed stop${completion.unresolved.length === 1 ? '' : 's'} could not be confirmed in the saved day. Check before you retry.`, 'err')
     }
@@ -416,15 +424,7 @@ export function useMapWriters({
       return
     }
     if (result.resume) {
-      // F2: a refused retry speaks its precise disposition. A changed choice
-      // is a distinct operation; an unverifiable retry points at Saved edits.
-      toast(result.resume.disposition === 'payload-changed'
-        ? 'That choice changed since the last save was not confirmed, so it needs a separate action. The day was not changed.'
-        : result.resume.disposition === 'resume-unverifiable'
-          ? 'The earlier save is still unconfirmed and cannot be retried from here. Saved edits can recover the trip.'
-          : result.resume.disposition === 'operation-unknown'
-            ? 'That earlier change is no longer known on this page. Check the day before you retry; Saved edits can still recover the trip.'
-            : 'That change already completed - check the day before you retry.', 'err')
+      toast(writerResumePresentation(result.resume.disposition).text, 'err')
       return
     }
     if (result.apply) {
@@ -655,5 +655,5 @@ export function useMapWriters({
     } finally { setAddingAny(false) }
   }
 
-  return { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan: planForDay(), retryUncertain }
+  return { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan: displayDayPlan ?? planForDay(), retryUncertain }
 }

@@ -8,14 +8,11 @@
  * `mapPlacement.ts` lists the choices and this renders them, so "no implicit
  * write" is a property of the file rather than a promise in a comment.
  *
- * The rail keeps its own two searches: the corridor search (corridor-wide
- * discovery, ranked by detour) and a slot's own search (fill THIS part). This one
- * exists because discovery and placement were coupled differently on each of
- * them, and there was no map-level surface where a place could be found and then
- * explicitly filed.
+ * This is the workspace's single general place search. A day part can also
+ * search for its own candidate inside the plan panel. Placement stays explicit.
  */
 import { useMemo, useRef, useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, Search } from 'lucide-react'
 import type { PlaceHit } from '../../lib/geocode'
 import { InlineIcon } from '../../components/icons'
 import { searchAnnouncement } from '../../lib/railA11y'
@@ -39,6 +36,7 @@ export function MapOmnibar({
   onSelect,
   onClear,
   onPlace,
+  editable = true,
 }: {
   query: string
   onQueryChange: (q: string) => void
@@ -55,6 +53,7 @@ export function MapOmnibar({
   onSelect: (id: string | number | null) => void
   onClear: () => void
   onPlace: (option: PlacementOption) => void
+  editable?: boolean
 }) {
   const [showAll, setShowAll] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -80,7 +79,7 @@ export function MapOmnibar({
   const short = query.trim().length > 0 && query.trim().length < 2
 
   return (
-    <section className="card" aria-label="Search the map" style={{ padding: 10, marginBottom: 10 }}>
+    <section className="card mv2-omnibar" aria-label="Search the map">
       <form
         className="row-between"
         style={{ gap: 8 }}
@@ -89,12 +88,13 @@ export function MapOmnibar({
           onSubmit()
         }}
       >
+        <Search className="mv2-search-icon" size={18} aria-hidden />
         <input
           className="input"
           value={query}
           disabled={quotaOut}
           onChange={e => onQueryChange(e.target.value)}
-          placeholder="Search the map - find a place, then choose where it goes…"
+          placeholder="Search, or find a stop along your route…"
           aria-label="Search the map for a place to add"
           style={{ flex: 1 }}
         />
@@ -148,9 +148,10 @@ export function MapOmnibar({
                 role="option"
                 aria-selected={isSelected}
                 data-row-index={rowIndex}
+                data-hit-id={r.h.id}
                 tabIndex={rowIndex === roving ? 0 : -1}
                 className={`row-between${isSelected ? ' is-selected' : ''}`}
-                style={{ gap: 8, opacity: inScope ? 1 : 0.66 }}
+                style={{ gap: 8 }}
                 onFocus={() => setHighlight(rowIndex)}
                 onClick={() => onSelect(isSelected ? null : (r.h.id as string | number))}
                 onKeyDown={e => {
@@ -179,6 +180,7 @@ export function MapOmnibar({
                 <span style={{ minWidth: 0 }}>
                   <InlineIcon icon={MapPin} size={12} gap={4} vAlign="-1px" />
                   {r.h.name}
+                  {!inScope && <span className="chip chip-saffron">{r.off == null ? 'detour unknown' : 'beyond your detour scope'}</span>}
                   <span className="muted small">
                     {r.km == null ? ' · position unknown' : ` · ~${Math.round(r.km)} km in`}
                     {r.off == null ? ' · detour unknown' : ` · ${r.off <= scopeKm ? `${Math.round(r.off)} km off-route` : `${Math.round(r.off)} km off-route, beyond your ${scopeKm} km scope`}`}
@@ -200,7 +202,8 @@ export function MapOmnibar({
           choices, and one of them is a click. */}
       {selected && (
         <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-          <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{placementPrompt(selected.h.name)}</p>
+          <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{editable ? placementPrompt(selected.h.name) : `${selected.h.name} is selected. Only this trip's planners can add places.`}</p>
+          {editable && (
           <div className="row-between" style={{ gap: 8, flexWrap: 'wrap' }}>
             {placement.map(option => (
               <span key={`${option.kind}:${option.slotKey ?? ''}`} style={{ minWidth: 0, flex: '1 1 220px' }}>
@@ -219,6 +222,7 @@ export function MapOmnibar({
               </span>
             ))}
           </div>
+          )}
         </div>
       )}
     </section>

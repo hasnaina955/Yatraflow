@@ -127,8 +127,8 @@ describe('#420 — slice 4 wiring', () => {
     // The chip and the pin both printed THIS sentence; it now comes from the module.
     expect(mapTab).not.toContain("of the day's detour budget")
     expect(contentHook).toMatch(/const hitCosts = useMemo\(\(\) => hitCostLabels\(\{/)
-    expect(slotsHook).toMatch(/const slotPins = useMemo\(\(\) => slotPinsFor\(activeDaySlots\)/)
-    expect(mapTab).toContain('} = useDaySlots(')
+    expect(slotsHook).toMatch(/slotPinsByDay\.set\(day\.index, slotPinsFor\(slots\)\)/)
+    expect(mapTab).toContain('journeyDays.slotPinsByDay.get(activeDayIndex)')
   })
 
   it('leaves the two denser variants alone, and pins how many there are', () => {

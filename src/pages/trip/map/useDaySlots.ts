@@ -1,155 +1,134 @@
-// #420 slice 14: the day's plan derivations — the slots the rail renders.
+// #420 slice 14 / #08 S3: the day's plan derivations, now a pure module.
 //
-// The shared deps, the day's stops, the slots, the readiness count, the
-// whole-trip rows, the DNA hints, the shape blocks and the slot pins move
-// together. All of them are data: memos over the corridor plan and the day
-// the rail reads. The hook returns values only, never callbacks. The rail's
-// render helpers (`slotPattern`, labels, row renderers) stay with the page.
-import { useMemo } from 'react'
+// S3 moved the per-day derivation above the tabs. The old hook was active-day
+// only, and `tripReadiness` re-ran `daySlots` for every day a second time. This
+// module derives every day's slots exactly once, then readiness, pins and the
+// shared deps from that one result. The workspace producer calls it; the Map
+// reads the producer's maps. No React, no store, no provider call.
 import type { Trip, ItineraryDay, TripDecision } from '../../../data/types'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import {
-  daySlots, tripReadiness, tripDayAttribution,
-  type DaySlot, type DaySlotsDeps,
+  daySlots, tripDayAttribution,
+  type DayReadiness, type DaySlot, type DaySlotsDeps,
 } from '../../../lib/daySlots'
 import type { PlaceIdentity } from '../../../lib/placeIdentity'
-import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, slotPatternHint, type CrewSeed } from '../../../lib/tripDna'
+import { loadDnaLog, slotPatternHint, type DnaVector } from '../../../lib/tripDna'
+import { visitDateForDay } from '../../../lib/hoursContext'
 import { slotPinsFor } from './railLabels'
-import type { LatLng } from './weatherGeometry'
 
-export type DaySlotsArgs = {
-  pois: SegmentHit[]
-  anchors: { lat: number; lng: number }[]
-  routePolyline: LatLng[] | null
+export type DnaSlotHints = {
+  meal: string | null
+  fuel: string | null
+  overnight: string | null
+  stretch: string | null
+}
+
+export type DaySlotDepsArgs = {
+  tripId: string
+  pois: readonly SegmentHit[]
+  anchors: readonly { lat: number; lng: number }[]
+  routePolyline: readonly { lat: number; lng: number }[] | null
   transportMode: Trip['transportMode']
   travelStyle: Trip['travelStyle']
   existingNames: ReadonlySet<string>
   identity: PlaceIdentity
-  altPool: { all: Array<{ h: PlaceHit }> }
+  altPool: readonly PlaceHit[]
   dayAttribution: Pick<ReturnType<typeof tripDayAttribution>, 'dayOfSegment' | 'daySpanKm'>
-  decisions: TripDecision[] | undefined
+  decisions?: readonly TripDecision[]
   members: Trip['members']
-  travellers: Trip['travellers']
   startLocationCoords: Trip['startLocationCoords']
-  tripId: string
-  crewSeeds: CrewSeed[]
-  dnaTick: number
-  addedIds: Set<string>
-  dismissedIds: Set<string>
-  days: ItineraryDay[]
-  activeDayIndex: number
-  daySlotSig: string
+  startDate: Trip['startDate']
+  dnaVector: DnaVector
+  addedIds: ReadonlySet<string>
+  dismissedIds: ReadonlySet<string>
 }
 
-export function useDaySlots({
-  pois, anchors, routePolyline, transportMode, travelStyle, existingNames,
-  identity, altPool, dayAttribution, decisions, travellers, startLocationCoords,
-  tripId, crewSeeds, dnaTick, addedIds, dismissedIds, days, activeDayIndex,
-  daySlotSig, members,
-}: DaySlotsArgs) {
-  // One derivation feeds the rail, the meter and the fill flow: slots derive
-  // from engine output alone (src/lib/daySlots.ts), so the view can never
-  // drift from the engine. stopSig/refreshTick keep the memo honest against
-  // store writes; the deps memo carries the expensive shared inputs.
-  const daySlotDeps = useMemo<Omit<DaySlotsDeps, 'dayStops'>>(() => ({
-    haltSegments: pois,
-    anchors,
-    routePolyline: routePolyline ?? null,
-    transportMode,
-    travelStyle,
-    existingNames,
-    identity,
-    altPool: altPool.all.map(e => e.h),
-    decisions,
+/**
+ * The shared per-trip deps, built exactly as the old hook built them. `dayStops`
+ * and the day id stay per-day, so no day inherits another day's density, id or
+ * stop list.
+ */
+export function buildDaySlotDeps(args: DaySlotDepsArgs): Omit<DaySlotsDeps, 'dayStops'> {
+  return {
+    haltSegments: [...args.pois],
+    anchors: [...args.anchors],
+    routePolyline: args.routePolyline ? [...args.routePolyline] : null,
+    transportMode: args.transportMode,
+    travelStyle: args.travelStyle,
+    existingNames: args.existingNames,
+    identity: args.identity,
+    altPool: [...args.altPool],
+    decisions: args.decisions ? [...args.decisions] : undefined,
     // #841: the trip identity every slot's stable ref needs. The DAY id is
     // resolved per day below, never from the active day's array position.
-    tripId,
-    memberCount: (members ?? []).length,
+    tripId: args.tripId,
+    memberCount: (args.members ?? []).length,
     // #344: the slot re-scores its pool with the same extras the corridor
-    // ranked by — DNA (per-trip learning + crew seeds) and the home point —
-    // and reads the session add/dismiss bags so a just-added or just-
-    // dismissed hit leaves the open slot with the pool cards. plannedStops
-    // is derived per day inside candidatesFor from `dayStops` (a single
-    // shared count here would charge every day the ACTIVE day's density,
-    // including tripReadiness's matrix).
-    dnaVector: buildDnaVectorAcrossTrips(loadDnaLog(), crewSeedEvents(tripId, crewSeeds)),
-    homeCenter: startLocationCoords ?? null,
-    addedIds,
-    dismissedIds,
-    // The shared attribution object - the same shape the Overview matrix feeds
-    // its own deps, so the two surfaces cannot attribute a halt to two days.
-    dayOfSegment: dayAttribution.dayOfSegment,
-    // P2: the rail always renders the day's grammar - the skeleton supplies
-    // the parts the corridor plan did not halt for, positioned on the day's
-    // own road-km span (the same road-true km dayForKm trusts).
+    // ranked by — DNA (per-trip learning + crew seeds) and the home point.
+    dnaVector: args.dnaVector,
+    homeCenter: args.startLocationCoords ?? null,
+    addedIds: args.addedIds,
+    dismissedIds: args.dismissedIds,
+    dayOfSegment: args.dayAttribution.dayOfSegment,
+    // P2: the rail always renders the day's grammar. The skeleton supplies the
+    // parts the corridor plan did not halt for, on the day's own road-km span.
     fillSkeleton: true,
-    daySpanKm: dayAttribution.daySpanKm,
-  }), [pois, anchors, routePolyline, transportMode, travelStyle, existingNames, identity, altPool, dayAttribution, decisions, members, travellers, startLocationCoords, tripId, crewSeeds, dnaTick, addedIds, dismissedIds]) // eslint-disable-line react-hooks/exhaustive-deps -- refresh tokens: dnaTick re-reads the DNA log, travellers re-runs the cadence
-  /** This day's stops - one lookup, shared by the slots, the shape and the fills. */
-  const activeDayStops = useMemo(
-    () => days.find(d => d.index === activeDayIndex)?.stops ?? [],
-    [days, activeDayIndex],
-  )
-  /** #841: the day's PERSISTED id (`ItineraryDay.id`), the only stable day
-   *  identity. It never comes from the index or the title. A legacy day row
-   *  without one leaves every slot ref null, so writers refuse rather than
-   *  guess. */
-  const activeDayId = useMemo(
-    () => days.find(d => d.index === activeDayIndex)?.id ?? null,
-    [days, activeDayIndex],
-  )
-  const activeDaySlots = useMemo<DaySlot[]>(
-    () => daySlots(activeDayIndex, {
-      ...daySlotDeps,
-      dayStops: activeDayStops,
-      ...(activeDayId ? { dayId: activeDayId } : {}),
-    }),
-    [activeDayIndex, activeDayId, daySlotDeps, activeDayStops, daySlotSig], // eslint-disable-line react-hooks/exhaustive-deps -- refresh token: re-runs after store writes the inputs miss
-  )
-  /** Counted off the very slots the rail renders, not re-derived: a second
-   *  `daySlots` call here was a whole extra derivation of the same day, and a
-   *  meter that could in principle disagree with the list beside it. */
-  const activeDayReadiness = useMemo(() => {
-    const auto = activeDaySlots.filter(s => s.auto).length
-    return {
-      dayIndex: activeDayIndex,
-      filled: activeDaySlots.filter(s => s.state === 'filled').length,
-      total: activeDaySlots.length,
-      auto,
-      required: activeDaySlots.length - auto,
-    }
-  }, [activeDaySlots, activeDayIndex])
-  /** S2: the whole day-chip row in ONE pass. The chips used to call
-   *  `dayReadiness` per day inline in the render body, so every keystroke in
-   *  the search box re-derived every day's slots - and each empty slot scores
-   *  the entire corridor pool through `scoreHitForSegment`, two geometry
-   *  projections per hit. */
-  const tripReadinessRows = useMemo(
-    () => tripReadiness(pois, days.map(d => ({ index: d.index, stops: d.stops })), {
-      ...daySlotDeps,
-      // #841: every row resolves its own persisted day id; the active day's id
-      // must not label the whole matrix.
-      dayIdOf: (dayIndex: number) => days.find(d => d.index === dayIndex)?.id ?? null,
-    }),
-    [pois, days, daySlotDeps, daySlotSig], // eslint-disable-line react-hooks/exhaustive-deps -- refresh token: re-runs after store writes the inputs miss
-  )
-  /** P7.2: what the log has learned about each KIND of part - shown on an open
-   *  part as context, never as a claim (silent until 3+ accepts). */
-  const dnaSlotHints = useMemo(() => {
-    const log = loadDnaLog()
-    return {
-      meal: slotPatternHint(log, 'meal'),
-      fuel: slotPatternHint(log, 'fuel'),
-      overnight: slotPatternHint(log, 'overnight'),
-      stretch: slotPatternHint(log, 'stretch'),
-    }
-  }, [dnaTick]) // eslint-disable-line react-hooks/exhaustive-deps -- refresh token: re-reads the DNA log after each accept or decline
-  // #420 slice 4: the pin's label is the same sentence a corridor row prints, from
-  // the same helper — the two used to assemble it separately.
-  const slotPins = useMemo(() => slotPinsFor(activeDaySlots), [activeDaySlots])
+    daySpanKm: args.dayAttribution.daySpanKm,
+    // Runtime hours (#887): score against the day's own calendar date.
+    dayDateOf: (dayIndex: number) => visitDateForDay(args.startDate, dayIndex),
+  }
+}
 
+export type DaySlotFacts = {
+  daySlotDeps: Omit<DaySlotsDeps, 'dayStops'>
+  slotsByDay: ReadonlyMap<number, DaySlot[]>
+  readinessByDay: ReadonlyMap<number, DayReadiness>
+  readinessRows: readonly DayReadiness[]
+  slotPinsByDay: ReadonlyMap<number, ReturnType<typeof slotPinsFor>>
+}
+
+/**
+ * Derive every day once. `daySlots` is the only slot derivation; readiness and
+ * pins are counted off its result, not re-derived.
+ */
+export function deriveDaySlotFacts(args: DaySlotDepsArgs & { days: readonly ItineraryDay[] }): DaySlotFacts {
+  const daySlotDeps = buildDaySlotDeps(args)
+  const slotsByDay = new Map<number, DaySlot[]>()
+  const readinessByDay = new Map<number, DayReadiness>()
+  const slotPinsByDay = new Map<number, ReturnType<typeof slotPinsFor>>()
+  for (const day of args.days) {
+    const slots = daySlots(day.index, {
+      ...daySlotDeps,
+      dayStops: day.stops,
+      ...(day.id ? { dayId: day.id } : {}),
+    })
+    const auto = slots.filter(slot => slot.auto).length
+    const filled = slots.filter(slot => slot.state === 'filled').length
+    slotsByDay.set(day.index, slots)
+    readinessByDay.set(day.index, {
+      dayIndex: day.index,
+      filled,
+      total: slots.length,
+      auto,
+      required: slots.length - auto,
+    })
+    slotPinsByDay.set(day.index, slotPinsFor(slots))
+  }
+  const readinessRows = [...readinessByDay.values()].sort((a, b) => a.dayIndex - b.dayIndex)
+  return { daySlotDeps, slotsByDay, readinessByDay, readinessRows, slotPinsByDay }
+}
+
+/**
+ * The log-derived hints the open part shows. `dnaTick` is a memo token; reading
+ * the log is the only side effect, and it is a local read, not a provider call.
+ */
+export function readDnaSlotHints(dnaTick: number): DnaSlotHints {
+  void dnaTick
+  const log = loadDnaLog()
   return {
-    daySlotDeps, activeDayStops, activeDayId, activeDaySlots, activeDayReadiness,
-    tripReadinessRows, dnaSlotHints, slotPins,
+    meal: slotPatternHint(log, 'meal'),
+    fuel: slotPatternHint(log, 'fuel'),
+    overnight: slotPatternHint(log, 'overnight'),
+    stretch: slotPatternHint(log, 'stretch'),
   }
 }

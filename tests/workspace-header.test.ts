@@ -178,7 +178,7 @@ describe('the workspace markup consumes the rules', () => {
   })
 
   it('publishes the fold state on the workspace container and page wrapper', () => {
-    expect(ws).toMatch(/<div className="container page-enter yf-workspace" data-wide=\{headerFolded \? 'true' : 'false'\}>/)
+    expect(ws).toMatch(/<div className="container page-enter yf-workspace" data-wide=\{headerFolded \? 'true' : 'false'\} data-map-active=\{tab === 'map' \? 'true' : undefined\}>/)
     expect(ws).toMatch(/<div className="yf-page" data-compact=\{headerFolded \? 'true' : 'false'\}>/)
   })
 
@@ -192,14 +192,20 @@ describe('the workspace markup consumes the rules', () => {
   it('passes the map target and consume callback to the map consumer', () => {
     expect(ws).toMatch(/<MapTab\b[\s\S]*?mapTarget=\{mapTarget\} onMapTargetConsumed=\{consumeMapTarget\}/)
     const mapTab = codeOf('../src/pages/trip/MapTab.tsx')
-    expect(mapTab).toMatch(/<TripMap\b[\s\S]*?mapTarget=\{mapTarget\}[\s\S]{0,160}onMapTargetConsumed=\{onMapTargetConsumed\}/)
+    expect(mapTab).toMatch(/<TripMap\b[\s\S]*?mapTarget=\{localTarget \?\? mapTarget\}/)
+    expect(mapTab).toContain('if (localTarget) setLocalTarget(null); else onMapTargetConsumed?.()')
     const map = codeOf('../src/components/TripMap.tsx')
     expect(map).toMatch(/targetCameraActive\.current = true\s*targetCameraDay\.current = dayFilter\s*onMapTargetConsumed\?\.\(\)/)
     expect(map).toMatch(/!validMapCoordinate\(sourceStop\) \|\| sourceStop\.lat === 0/)
   })
 
   it('clears a pending map target when the workspace switches trips', () => {
-    expect(ws).toMatch(/useEffect\(\(\) => \{ setMapInputs\(null\); setMapTarget\(null\) \}, \[tripId\]\)/)
+    const start = ws.indexOf('setMapInputs(null)')
+    const reset = ws.slice(start, ws.indexOf('}, [tripId])', start))
+    expect(start).toBeGreaterThan(-1)
+    expect(reset).toContain('setMapInputs(null)')
+    expect(reset).toContain('setCorridorSnapshot(null)')
+    expect(reset).toContain('setMapTarget(null)')
   })
 
   it('passes the timeline focus block and consume callback to the timeline consumer', () => {

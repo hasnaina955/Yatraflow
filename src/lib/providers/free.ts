@@ -6,7 +6,8 @@
 // with the free stack in charge the app behaves exactly as it always has.
 import { haversineKm } from '../geo'
 import { hasCoords, distToNearest, normWords, rankAndCap, spurKm, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
-import { queriesForPurpose } from '../purposeQueries'
+import { familyFromOsmTags, type PlaceFamily } from './families'
+import { queriesForPurpose, queriesForFamily } from '../purposeQueries'
 import { cap } from '../labels'
 
 // Mappls autosuggest (when VITE_MAPPLS_KEY is set) → India's best place/POI
@@ -279,6 +280,41 @@ function classifyOsmTags(tags: Record<string, string>): { cat: string; label: st
 }
 
 /**
+ * Scenic categories that may carry a family fact from OSM tags. The persisted
+ * category stays the classifier's own (never the helper's, and never a widened
+ * StopCategory). Fuel, food, lodging and worship hits keep their functional
+ * class and receive no scenic family from a secondary tag.
+ */
+const SCENIC_FAMILY_CATEGORIES = new Set(['nature', 'beach', 'sightseeing'])
+
+/**
+ * Functional tags that own a place's identity. The legacy classifier checks
+ * natural/leisure before food and lodging, so a cafe or hotel with a scenic
+ * secondary tag can inherit a scenic category. The saved category stays as it
+ * is, but such a hit never gains scenic family metadata.
+ */
+const FUNCTIONAL_AMENITIES = new Set(['fuel', 'restaurant', 'fast_food', 'food_court', 'cafe', 'ice_cream', 'place_of_worship'])
+const FUNCTIONAL_TOURISM = new Set(['hotel', 'guest_house', 'hostel', 'resort', 'motel'])
+
+function hasFunctionalTag(tags: Record<string, string>): boolean {
+  return FUNCTIONAL_AMENITIES.has(tags.amenity ?? '') || FUNCTIONAL_TOURISM.has(tags.tourism ?? '')
+}
+
+/** The helper's confirmed family facts, only for a compatible scenic hit. */
+function scenicFamilyFact(
+  tags: Record<string, string>,
+  category: string,
+): { family: PlaceFamily; subtype: string } | null {
+  if (!SCENIC_FAMILY_CATEGORIES.has(category)) return null
+  // Functional evidence wins: fuel, food, lodging and worship hits get no
+  // scenic family from a secondary natural/leisure/tourism tag.
+  if (hasFunctionalTag(tags)) return null
+  const evidence = familyFromOsmTags(tags)
+  // No matching confirmed tag evidence → no fact (unknown stays absent).
+  return evidence ? { family: evidence.family, subtype: evidence.subtype } : null
+}
+
+/**
  * Tourist-worthy OSM selectors. Fuel is appended conditionally (self-drive
  * pit stops only); ATMs/banks/post offices are deliberately absent — they are
  * errands, not itinerary items.
@@ -310,10 +346,22 @@ async function fetchOverpass(query: string): Promise<OverpassElement[]> {
   return []
 }
 
-async function searchNearbyOverpass(anchors: { lat: number; lng: number }[], radiusM: number, count: number, includeFuel = false, selectors?: string[]): Promise<PlaceHit[]> {
+async function searchNearbyOverpass(
+  anchors: { lat: number; lng: number }[],
+  radiusM: number,
+  count: number,
+  includeFuel = false,
+  selectors?: string[],
+  familySelectors?: readonly string[],
+): Promise<PlaceHit[]> {
   const radius = Math.min(Math.max(radiusM, 2000), 120000)
   const baseSelectors = selectors ?? (includeFuel ? [...OVERPASS_NEARBY_SELECTORS, 'amenity=fuel'] : OVERPASS_NEARBY_SELECTORS)
-  const stmts = baseSelectors.flatMap(sel =>
+  // Ticket 09: requested families ADD their confirmed tag selectors to the same
+  // single Overpass query. No extra request, and no change when none are asked.
+  const allSelectors = familySelectors && familySelectors.length > 0
+    ? [...new Set([...baseSelectors, ...familySelectors])]
+    : baseSelectors
+  const stmts = allSelectors.flatMap(sel =>
     anchors.map(a => `nwr(around:${radius},${a.lat},${a.lng})[${sel}];`)
   ).join('')
   const elements = await fetchOverpass(`[out:json][timeout:20];(${stmts});out center tags ${Math.max(60, count * 6)};`)
@@ -326,6 +374,7 @@ async function searchNearbyOverpass(anchors: { lat: number; lng: number }[], rad
     const lng = el.lon ?? el.center?.lon
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
     const cls = classifyOsmTags(tags)
+    const familyFact = scenicFamilyFact(tags, cls.cat)
     const hit: PlaceHit = {
       id: `osm_${el.type}_${el.id}`,
       name,
@@ -335,6 +384,9 @@ async function searchNearbyOverpass(anchors: { lat: number; lng: number }[], rad
       description: cls.label,
       category: cls.cat,
       source: 'osm',
+      // Additive family metadata only; identity, description, category and
+      // coordinates above stay exactly as the classifier produced them.
+      ...(familyFact ?? {}),
     }
     const prev = byName.get(hit.name.toLowerCase())
     if (!prev || distToNearest(hit, anchors) < distToNearest(prev, anchors)) {
@@ -551,6 +603,7 @@ export async function searchNearbyPoisMultiFree(
   count = 10,
   opts: NearbyOpts = {},
   purposes?: HaltPurpose[],
+  families?: readonly PlaceFamily[],
 ): Promise<PlaceHit[]> {
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 12)
   if (capped.length === 0) return []
@@ -558,8 +611,13 @@ export async function searchNearbyPoisMultiFree(
   const selectors = purposes && purposes.length > 0
     ? [...new Set(purposes.flatMap(p => queriesForPurpose(p).overpassSelectors))]
     : undefined
+  // Requested families contribute their confirmed tag selectors to the same
+  // single scan, so the request COUNT never changes.
+  const familySelectors = families && families.length > 0
+    ? [...new Set(families.flatMap(f => queriesForFamily(f).overpassSelectors))]
+    : undefined
   const [osm, wiki, mappls] = await Promise.all([
-    searchNearbyOverpass(capped, radiusM, count, opts.includeFuel, selectors).catch(() => [] as PlaceHit[]),
+    searchNearbyOverpass(capped, radiusM, count, opts.includeFuel, selectors, familySelectors).catch(() => [] as PlaceHit[]),
     searchNearbyWikipedia(capped, radiusM, Math.min(count, 6)).catch(() => [] as PlaceHit[]),
     searchNearbyMappls(capped[0], radiusM, count, opts.includeFuel).catch(() => [] as PlaceHit[]),
   ])

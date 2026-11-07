@@ -1,7 +1,7 @@
 {
   "generatedBy": "npm run lint:ratchet -- --update",
-  "errors": 134,
-  "warnings": 27,
+  "errors": 129,
+  "warnings": 25,
   "files": {
     "src/App.tsx": {
       "react-hooks/set-state-in-effect": 1
@@ -28,9 +28,7 @@
     },
     "src/components/TripMap.tsx": {
       "react-hooks/set-state-in-effect": 4,
-      "react-hooks/exhaustive-deps": 5,
-      "react-hooks/immutability": 1,
-      "react-hooks/preserve-manual-memoization": 1
+      "react-hooks/exhaustive-deps": 5
     },
     "src/components/mapcn/map.tsx": {
       "react-hooks/refs": 9,
@@ -98,8 +96,8 @@
       "react-hooks/set-state-in-effect": 1
     },
     "src/pages/trip/MapTab.tsx": {
-      "@typescript-eslint/no-unused-vars": 13,
-      "react-hooks/exhaustive-deps": 3
+      "@typescript-eslint/no-unused-vars": 12,
+      "react-hooks/exhaustive-deps": 1
     },
     "src/pages/trip/ShareTab.tsx": {
       "@typescript-eslint/no-unused-vars": 1
@@ -107,7 +105,7 @@
     "src/pages/trip/TimelineTab.tsx": {
       "@typescript-eslint/no-unused-vars": 5,
       "react-hooks/exhaustive-deps": 2,
-      "react-hooks/refs": 7,
+      "react-hooks/refs": 5,
       "react-hooks/set-state-in-effect": 3
     },
     "src/pages/trip/timeline/DaySection.tsx": {

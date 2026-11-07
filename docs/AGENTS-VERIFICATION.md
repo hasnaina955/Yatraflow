@@ -57,6 +57,15 @@ The check once read only unstaged edits, so a commit made it inspect zero lines 
 Use `npm run verify` — it runs the full gate:
 `tsc -b --clean` → fresh typecheck → full test suite → production build.
 
+**Between full gate runs, a focused run selects with git, not memory.**
+`npm run test:changed` unions the test files changed vs the batch base with the
+staged, unstaged, untracked and `--extra` paths. The batch base defaults to the
+merge base with `origin/test`. Pass `--base <ref>` when the batch's base is not
+the integration branch. The script runs vitest on the union and passes the
+child's exit code through. A source change that selects no test exits 1 — it
+never reports an empty green. The full gate still runs everything;
+`test:changed` only makes the focused run honest.
+
 On a busy machine, set process-only `VITEST_MAX_WORKERS=1` before `npm run verify`.
 Vitest 4.1.12 resolves this value as `maxWorkers`.
 Keep the test timeouts and lint baseline unchanged.

@@ -265,6 +265,8 @@ type MapProps = {
    * to enable controlled mode where the map viewport is driven by your state.
    */
   onViewportChange?: (viewport: MapViewport) => void;
+  /** Observe errors from construction. Return true when the caller handles an error. */
+  onMapError?: (event: object, styleName: string | undefined) => boolean;
   /** Show a loading indicator on the map */
   loading?: boolean;
 } & Omit<MapLibreGL.MapOptions, "container" | "style">;
@@ -301,6 +303,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     projection,
     viewport,
     onViewportChange,
+    onMapError,
     loading = false,
     ...props
   },
@@ -320,6 +323,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
 
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
+  const onMapErrorRef = useRef(onMapError);
+  useEffect(() => { onMapErrorRef.current = onMapError; }, [onMapError]);
 
   const stableStyles = useStableValue(styles);
 
@@ -372,6 +377,13 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       ...viewport,
     });
 
+    const observesErrors = onMapErrorRef.current !== undefined;
+    const errorHandler = (event: object) => {
+      const handled = onMapErrorRef.current?.(event, map.getStyle()?.name);
+      if (!handled && "error" in event) console.error(event.error);
+    };
+    if (observesErrors) map.on("error", errorHandler);
+
     const styleLoadHandler = () => {
       styleSwapInFlightRef.current = false;
       setIsStyleLoaded(true);
@@ -412,6 +424,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       map.off("load", loadHandler);
       map.off("style.load", styleLoadHandler);
       map.off("move", handleMove);
+      if (observesErrors) map.off("error", errorHandler);
       map.remove();
       setIsLoaded(false);
       setIsStyleLoaded(false);

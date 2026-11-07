@@ -417,6 +417,10 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    counter plus a driven localhost session showed one editor-open re-rendering
    0 columns with the memo and all 12 without (3 columns × the dev
    double-render) — then remove the counter before committing.
+ **Map marker touch areas.** Check the computed width and height of the hit area on a coarse pointer. Borders reduce the space used by an inset calculation. Use a centred 44-pixel box when the visible marker must stay smaller.
+
+ **Initial map errors.** Observe map errors when constructing the map. A failed initial tile request can finish before child effects attach a listener.
+
  6t. **A drawing is a claim about the same measurement the numbers came from —
    and a failure must not wear the mark of success (learned 2026-09-26, #370).**
    The Board's mini-map measured a road of its own over the stops alone, while
@@ -1071,6 +1075,65 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
 6bf. **A move looks like new prose to the STE gate.** The CSS split moved accepted comments.
    The gate compares legacy files with the extraction commit. It checks new and edited lines.
    If that commit is missing, the gate checks all changed lines. `--file` checks the whole file.
+
+6bg. **A covered row's snapshot key must include every visible identity, cost and time fact.**
+   Each consumer must read its own day. A key that omits a display fact republishes a stale card
+   after a silent change. A whole-trip row list is not a day slice: scope by the stable day before
+   rendering or writing.
+
+6bh. A test that runs a real generator with `--update` must snapshot the file and restore it
+   in `finally`. The generated file is production input, not a scratch copy.
+
+6bi. An unresolved write is owned by its operation id, not a global flag. Only that operation's
+   ack or proven discard clears it.
+
+6bj. A lifecycle ticket and its unresolved state must be owned outside a conditionally mounted
+   tab, keyed by the Workspace owner. A per-mount controller loses the only recovery control.
+
+6bk. A blocked recovery control must name the supported recovery path, not an action the open
+   preview cannot perform.
+
+6bl. **One shared Map floor rule beats a stack of one-off size overrides.** Two misses
+   (a 32px fold button, 25–26px shelf buttons) each shipped because a local repair
+   guarded one selector. A px size below 44 on a Map floor selector is now a gate
+   failure (`check:ui` rule U4, `scripts/uiAntipatterns.mjs`). The floor classes are
+   `.mv2-icon-btn` (Map V2 only) and `.poi-fold`/`.ledger-shelf` (scoped to
+   `.mv2-workspace`, because the legacy modules style them too). When you add a Map
+   control, size it with one of those classes or extend the list — never with a
+   smaller one-off override.
+
+6bm. **A focused test list from memory is a miss waiting to happen.** Two runs selected
+   tests by hand and both omitted files the change had touched
+   (`tests/production-road-binding.test.ts`; changed prose). Select with
+   `npm run test:changed` (git union of branch/staged/unstaged/untracked plus
+   `--extra`). It refuses the empty-green trap: a source change that selects no test
+   exits 1. It never replaces the full gate. `verify` and CI still run the whole
+   suite.
+
+6bn. **`--ring` is already a complete shadow; compose nothing around it, and
+   check the computed cascade (learned 2026-11-07, pick deck batch).** The
+   summary rule declared `box-shadow: 0 0 0 3px var(--ring)`. The token already
+   expands to a whole shadow, so the value is invalid: the browser drops the
+   declaration, keyboard focus renders nothing, and a source read still says
+   "covered". The fix is `box-shadow: var(--ring)`. The same pass hid a
+   specificity loss: a three-class override lost to the legacy four-class
+   ledger rule, so a 12px size computed at 10px. A static gate read catches
+   neither. Read the computed style in the browser for every new focus ring
+   and font-size override.
+
+6bo. **A reuse cache must move after React commits, not during render (learned
+   2026-11-07, journey model).** A memo body can run for a render that React
+   discards. If it writes the cache, that discarded render replaces the committed
+   base. Keep one selector with `select` and `commit`. `select` reads only and
+   runs in render. `commit` runs in `useEffect`. The next render then reuses the
+   committed day and card objects.
+
+6bp. **A camera readiness latch cannot authorize a style write (learned
+   2026-11-07, map style readiness).** `mapLoaded` opens on a 4 s watchdog, so it
+   can be true while MapLibre's `Style._loaded` is false, and `addSource` then
+   throws. Gate style writes on the provider's readiness (`useMap().isLoaded`,
+   which closes for a swap and reopens on `style.load`). Put the write in a child
+   overlay and list that value in the effect dependencies, or it never retries.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

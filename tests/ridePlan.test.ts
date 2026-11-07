@@ -218,6 +218,21 @@ describe('fitScoreForPurpose', () => {
     // and the bound is anchor-only — a town can still serve another purpose
     expect(scoreHitForSegment(far, seg('stretch', 350), anchors)).not.toBeNull()
   })
+
+  it('charges the detour as return minutes once — a score weight, not a second duration', () => {
+    // Same road position and fit; only the detour differs. An 8 km spur at the
+    // 40 km/h fallback is 24 minutes there and back, so the score gap is 24
+    // points — not 12 (one-way) and not 48 (doubled twice).
+    const anchors = lineAnchors(100, 1400)
+    const stretch = seg('stretch', 300)
+    const onRoute = hit('Dhaba on the road', 300 / 111.32, 0, { category: 'food', offRouteKm: 0, alongRouteKm: 300 })
+    const spur = hit('Dhaba off the road', 300 / 111.32, 0, { category: 'food', offRouteKm: 8, alongRouteKm: 300 })
+    const a = scoreHitForSegment(onRoute, stretch, anchors)
+    const b = scoreHitForSegment(spur, stretch, anchors)
+    expect(a).not.toBeNull()
+    expect(b).not.toBeNull()
+    expect(b! - a!).toBeCloseTo(24, 5)
+  })
 })
 
 // ============ assignSegmentHits ============

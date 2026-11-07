@@ -40,6 +40,7 @@ import {
   type WriterCompletion,
   type WriterReceipt,
   type WriterRetryTicket,
+  type WriterPick,
 } from '../src/pages/trip/map/mapWriterActions'
 import { createWriterOperationGate } from '../src/pages/trip/map/writerOperationGate'
 import { useMapWriters } from '../src/pages/trip/map/useMapWriters'
@@ -481,7 +482,13 @@ describe('a retry never resumes settled, in-flight or forgotten work', () => {
       operationId: first.operationId,
       context: request.context,
       intent: 'single',
-      picks: request.picks,
+      picks: (request.picks as readonly WriterPick[]).map(pick => ({
+        hit: pick.hit,
+        slotKey: pick.slotKey,
+        dayId: pick.dayId ?? null,
+        dayIndex: pick.dayIndex ?? request.context.dayIndex,
+        ...(pick.notes ? { notes: pick.notes } : {}),
+      })),
     }
     const result = await retryWriterStage(h.deps, ticket)
     expect(result.status).toBe('refused')
@@ -585,7 +592,7 @@ describe('the arc caller stages and retries through the same contract', () => {
     expect(changed.status).toBe('refused')
     if (changed.status === 'refused') {
       expect(changed.resume?.disposition).toBe('payload-changed')
-      expect(arcStageLine('Fort trail', changed).text).toContain('changed since the last save')
+      expect(arcStageLine('Fort trail', changed).text).toContain('replaced this save')
     }
     expect(h.stages).toHaveLength(1)
 

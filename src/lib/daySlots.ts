@@ -37,6 +37,7 @@ import {
 } from './ridePlan'
 import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
 import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { candidateArrivalMin, type ArrivalContext } from './candidateArrival'
 import { MIN_PURPOSE_FIT } from './haltFit'
 import { type DnaVector } from './tripDna'
 import { clockHM } from './clockOverlay'
@@ -234,6 +235,18 @@ export interface DaySlotsDeps {
   /** The day's road-km span (start inclusive, end inclusive) for positioning
    *  synthesized slots on the corridor. Absent = the day's own stops only. */
   daySpanKm?: (dayIndex: number) => { fromKm: number; toKm: number } | null
+  /**
+   * COMPLETE measured-evidence context (active route/generation + origin).
+   * Absent = measured arrival evidence is unknown (fail closed); the unchanged
+   * symmetric estimate applies. Production callers do not supply it yet.
+   */
+  measuredContext?: ArrivalContext
+  /**
+   * Runtime hours (repair of #887): the local ISO date of a trip day. Candidate
+   * scoring uses it so a weekday closure and a full-visit overrun are real
+   * facts. Absent = undated, and the verdict stays unknown rather than guessed.
+   */
+  dayDateOf?: (dayIndex: number) => string | null
 }
 
 const SLOT_LABELS: Record<SlotKey, string> = {
@@ -589,12 +602,18 @@ function candidatesFor(
   seg: RideSegment | null,
   segHits: SegmentHit[],
   deps: DaySlotsDeps,
+  dayIndex: number,
 ): SlotCandidate[] {
   const limit = deps.limit ?? 3
   const win = windowFor(draft)
   const speed = speedFor(deps.transportMode)
   const purpose = purposeFor(draft.kind)
   const synth = synthSegment(draft, seg)
+  // Runtime hours (repair of #887): the bench is the day's own calendar date.
+  // Absent date stays unknown in scoring — never today's date, never a guess.
+  const visitDate = deps.dayDateOf?.(dayIndex) ?? null
+  const visitDates: (string | null)[] = []
+  visitDates[synth.index] = visitDate
   // The budget base is THIS day's active stops, derived beside the budget
   // itself so slot and rail cannot disagree about the day's density (#344:
   // the prop existed, was documented, and was passed by nobody).
@@ -605,6 +624,8 @@ function candidatesFor(
     speedKmph: speed,
     ...(deps.dnaVector ? { dnaVector: deps.dnaVector } : {}),
     ...(deps.homeCenter ? { homeCenter: deps.homeCenter } : {}),
+    visitDates,
+    ...(deps.measuredContext ? { measuredContext: deps.measuredContext } : {}),
   }
   const seen = new Set<string>()
   const rows: Array<{ hit: PlaceHit; score: number }> = []
@@ -667,6 +688,8 @@ function candidatesFor(
   for (const row of rows) {
     if (out.length >= limit) break
     const dKm = detourKm(row.hit, deps.anchors)
+    // Return-driving minutes: the budget (and the card) charge the drive out
+    // plus the drive back, once.
     const dMin = asymmetricDetourMinutes(row.hit, deps.anchors, deps.routePolyline ?? null, speed)
     // Unknown position is never free or auto-kept: the candidate needs a
     // measured road position before it can consume the day's finite budget.
@@ -678,7 +701,16 @@ function candidatesFor(
     if (spent + dMin > budget) continue
     spent += dMin
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
-    const arriveMin = eta != null && dMin != null ? Math.round(eta + dMin) : null
+    // Arrival uses the same clock rule as the scorer and the card: the directed
+    // measured leg at its own departure clock when available, else the symmetric
+    // estimate. Repair (recheck P1) — never a measured total halved as directed.
+    const arrivalMin = candidateArrivalMin({
+      hit: row.hit,
+      etaMinutes: eta,
+      detourMin: dMin,
+      context: deps.measuredContext,
+    })
+    const arriveMin = arrivalMin != null ? Math.round(arrivalMin) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({
       hit: row.hit,
@@ -952,7 +984,7 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       // The day id the vote join and later writers use; null when the caller
       // did not supply stable context.
       ref: slotRefFor(dayIndex, deps, draft.key),
-      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps),
+      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps, dayIndex),
       ...(filledStop ? {} : voteFor(draft, deps, dayIndex, dayId)),
       reason: auto ? 'Engine-managed stretch' : null,
     }

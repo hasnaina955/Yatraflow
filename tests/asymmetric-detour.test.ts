@@ -1,7 +1,7 @@
-// Horizon 2 deferred: on-way detour asymmetry.
-// A destination ON the route is on-the-way (~0 detour — you pass it); a
-// destination off the road pays a one-way spur (scorers double it to out and
-// back). Google's real road detour always wins.
+// Ticket 01 (#886): ONE return-driving fact.
+// An 8 km spur at 40 km/h costs 24 minutes there and back. Supplied road
+// evidence wins over the geometric spur. Unknown or invalid evidence stays
+// unknown and is never read as free.
 import { describe, it, expect } from 'vitest'
 import { spurKm, asymmetricDetourKm, asymmetricDetourMinutes, detourKm } from '../src/lib/providers/hits'
 
@@ -26,28 +26,61 @@ describe('spur distance to the route', () => {
   })
 })
 
-describe('asymmetric detour', () => {
-  it('charges ~0 for an on-route hit when the polyline is known', () => {
+describe('one return-driving fact', () => {
+  it('an 8 km supplied spur at 40 km/h shows 24 minutes there and back', () => {
+    const h = { latitude: 10, longitude: 10.09, offRouteKm: 8 }
+    expect(asymmetricDetourKm(h as never, [], EAST)).toBe(8)
+    expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBeCloseTo(24, 5)
+  })
+
+  it('reads a geometric spur as return minutes too (never one-way)', () => {
+    const m = asymmetricDetourMinutes(OFF_ROAD as never, [], EAST, 40)
+    expect(m).not.toBeNull()
+    // ~5 km one-way at 40 km/h ≈ 7.5 min out, 15 min there and back.
+    expect(m!).toBeGreaterThan(13)
+    expect(m!).toBeLessThan(17)
+  })
+
+  it('charges ~0 for a known on-road candidate', () => {
     expect(asymmetricDetourKm(ON_ROAD as never, [], EAST)).toBeLessThan(0.2)
     expect(asymmetricDetourMinutes(ON_ROAD as never, [], EAST, 40)).toBeLessThan(1)
   })
 
-  it('charges the spur for an off-road hit (not doubled here — scorer doubles)', () => {
-    expect(asymmetricDetourKm(OFF_ROAD as never, [], EAST)).toBeGreaterThan(4)
-  })
-
-  it('stays on the symmetric anchor fallback when no polyline is given', () => {
-    // Without geometry, asymmetricDegenerates to the anchor measure.
-    const appr = asymmetricDetourKm(OFF_ROAD as never, [{ lat: 10, lng: 10.09 }])
-    expect(appr).toBeGreaterThan(2)
-  })
-
-  it('leaves unknown detour as unknown instead of charging zero minutes', () => {
-    expect(asymmetricDetourMinutes({ latitude: 10, longitude: 77 } as never, [], null, 40)).toBeNull()
-  })
-
-  it('never dwarfs Google real road detour', () => {
+  it('keeps supplied road evidence instead of the geometric spur', () => {
     const h = { latitude: 10, longitude: 10.09, offRouteKm: 3 }
     expect(asymmetricDetourKm(h as never, [], EAST)).toBe(3)
+    expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBeCloseTo(9, 5)
+  })
+
+  it('uses supplied evidence on a Google along-route hit instead of calling it free', () => {
+    const h = { latitude: 10, longitude: 10.09, offRouteKm: 8, fromGoogleAlongRoute: true }
+    expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBeCloseTo(24, 5)
+  })
+
+  it('keeps an along-route hit with no evidence unknown, not free', () => {
+    const h = { latitude: 10, longitude: 10.09, fromGoogleAlongRoute: true }
+    expect(asymmetricDetourKm(h as never, [], EAST)).toBeNull()
+    expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBeNull()
+  })
+
+  it('keeps missing, negative or non-finite evidence unknown', () => {
+    expect(asymmetricDetourKm({ latitude: 10, longitude: 77 } as never, [], null)).toBeNull()
+    expect(asymmetricDetourMinutes({ latitude: 10, longitude: 77 } as never, [], null, 40)).toBeNull()
+    for (const bad of [-5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const h = { latitude: 10, longitude: 10.09, offRouteKm: bad }
+      expect(asymmetricDetourKm(h as never, [], EAST)).toBeNull()
+      expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBeNull()
+      expect(detourKm(h as never, [])).toBeNull()
+    }
+  })
+
+  it('keeps a supplied zero as a known on-road fact, not unknown', () => {
+    const h = { latitude: 10, longitude: 10.09, offRouteKm: 0 }
+    expect(asymmetricDetourMinutes(h as never, [], EAST, 40)).toBe(0)
+  })
+
+  it('still measures a symmetric fallback without geometry', () => {
+    const appr = asymmetricDetourKm(OFF_ROAD as never, [{ lat: 10, lng: 10.09 }])
+    expect(appr).toBeGreaterThan(2)
   })
 })

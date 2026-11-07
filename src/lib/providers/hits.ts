@@ -7,7 +7,30 @@ import type { VehicleProfile } from '../../data/types'
 // exercise this module directly.
 import { haversineKm } from '../geo'
 import type { DnaVector } from '../tripDna'
+import type { PlaceHours } from './hours'
+import type { PlaceFamily } from './families'
 import type { PlaceExposure } from '../../data/types'
+
+/**
+ * One road measurement, bound to the hit and the route context it was taken
+ * under. A fact for another hit, another route or another generation must not
+ * be applied; stale fields are removed by the bridge, not left to age.
+ */
+export interface MeasuredRoadFact {
+  /** the hit this fact belongs to */
+  hitId: string
+  /** stable identity of the measurement origin (the pair's shared start) */
+  originKey: string
+  /** route fingerprint and generation of the active route when measured */
+  routeFingerprint: string
+  generation: number
+  /** departure clock (minutes since local midnight) both legs were measured at */
+  departAtMin: number
+  /** measured extra driving for the complete pair — charged once */
+  detourMin: number
+  /** measured directed arrival leg (origin -> place) */
+  arriveMin: number
+}
 
 export interface PlaceHit {
   id: number | string
@@ -33,12 +56,38 @@ export interface PlaceHit {
   /** reported opening hours "HH:MM" — Google hits only, rendered as "reported" */
   openTime?: string
   closeTime?: string
+  /**
+   * structured opening-hours facts (ticket 02): weekday-attributed intervals
+   * (split + overnight), source basis and fetch date. The legacy open/closeTime
+   * pair above stays for undated display and pre-existing consumers; verdicts
+   * (open / closed / unknown for a visit) come from here when present.
+   */
+  hours?: PlaceHours
+  /**
+   * source family + subtype when classification refined the category
+   * (ticket 09) — 'water' | 'nature' | 'views' | 'faith' | 'heritage' |
+   * 'culture'. Undefined = generic (no evidence or a non-family category);
+   * confirmed subtype facts come only from complete source rows.
+   */
+  family?: PlaceFamily
+  subtype?: string
   /** Google rating 1–5 — present on Google hits when the mask returns it */
   rating?: number
   /** Google review count — gates the rating boost against thin samples */
   ratingCount?: number
   /** real road detour in km (Google routingSummaries); undefined when unknown */
   offRouteKm?: number
+  /**
+   * ROAD-MEASURED facts for this hit, bound to the route context they were
+   * measured under (ticket 11, repaired). One record, so cost, arrival and
+   * context can never drift apart: the measured extra driving is charged ONCE
+   * (24 for a 60-baseline/84-via pair, never 48), the directed arrival leg is
+   * the via route's origin-to-place leg, and the departure clock plus route
+   * identity say when the evidence applies. A consumer must check the record
+   * before use; see candidateArrival.ts. Invalid values are ignored, never
+   * read as free.
+   */
+  measuredRoadFact?: MeasuredRoadFact
   // ---- ride-plan annotations (filled by src/lib/ridePlan.ts + providers) ----
   /** road km along the route from the journey origin (Google leg0/1000; free = coarse anchor position) */
   alongRouteKm?: number
@@ -117,6 +166,15 @@ export function distToNearest(h: Pick<PlaceHit, 'latitude' | 'longitude'>, ancho
   return Math.min(...anchors.map(a => haversineKm(h.latitude, h.longitude, a.lat, a.lng) * 1000))
 }
 
+/**
+ * A supplied detour distance is usable only when it is a finite, non-negative
+ * number of km. Missing, negative or non-finite evidence stays unknown — it is
+ * never read as free.
+ */
+function usableDetourKm(v: number | undefined | null): number | null {
+  return v != null && Number.isFinite(v) && v >= 0 ? v : null
+}
+
 /** How far a hit sits off the route corridor, in km (real road detour when known).
  *  Returns null when the detour is genuinely unknown (Google along-route hits with no
  *  computed detour) so the UI can say "on route" instead of a misleading straight-line estimate. */
@@ -124,7 +182,10 @@ export function detourKm(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
   anchors: { lat: number; lng: number }[],
 ): number | null {
-  if (h.offRouteKm != null && Number.isFinite(h.offRouteKm)) return h.offRouteKm
+  const known = usableDetourKm(h.offRouteKm)
+  if (known != null) return known
+  // Supplied but invalid evidence (negative or non-finite) stays unknown.
+  if (h.offRouteKm != null) return null
   // Google Search-Along-Route hits already hug the polyline, so a straight-line fallback
   // would report a misleadingly tiny "off route" distance. When the real detour is unknown,
   // return null and let the UI say "on route".
@@ -177,17 +238,22 @@ export function spurKm(
 }
 
 /**
- * Asymmetric detour: a destination ON the road is on-the-way (~0 detour —
- * you pass it), a destination off the road pays a one-way spur (the caller
- * doubles it to out-and-back). When no polyline is available it falls back to
- * the straight-line-to-anchor measure. Google's real road detour always wins.
+ * Asymmetric one-way detour: a destination ON the road is on-the-way (~0 km —
+ * you pass it), a destination off the road pays a one-way spur. When no
+ * polyline is available it falls back to the straight-line-to-anchor measure.
+ * Supplied road evidence always wins. Returns null when the detour is unknown
+ * or the supplied evidence is invalid; never returns a negative distance.
  */
 export function asymmetricDetourKm(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
 ): number | null {
-  if (h.offRouteKm != null && Number.isFinite(h.offRouteKm)) return h.offRouteKm
+  const known = usableDetourKm(h.offRouteKm)
+  if (known != null) return known
+  // Supplied but invalid evidence stays unknown instead of falling through to
+  // a geometric guess that could read as free.
+  if (h.offRouteKm != null) return null
   if (h.fromGoogleAlongRoute) return null // on the polyline, no real detour known
   if (routePolyline && routePolyline.length >= 2) {
     const spur = spurKm(h, routePolyline)
@@ -197,20 +263,30 @@ export function asymmetricDetourKm(
 }
 
 /**
- * Asymmetric detour in minutes at the trip's speed. On-the-way hits cost ~0;
- * off-road hits are the spur (doubled by scorers). Falls back to the current
- * symmetric minute math when there's no route geometry to measure against.
+ * Return-driving time in minutes at the trip's speed: the one-way detour out
+ * to the place plus the drive back. An on-the-way hit costs 0; an 8 km spur at
+ * 40 km/h costs 24 minutes. Unknown or invalid detours return null — never 0,
+ * so a broken measurement cannot ride for free.
  */
 export function asymmetricDetourMinutes(
-  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
+  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute' | 'measuredRoadFact'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
   speedKmph?: number,
 ): number | null {
   const speed = speedKmph != null && Number.isFinite(speedKmph) && speedKmph > 0 ? speedKmph : DEFAULT_SPEED_KMH
-  if (h.fromGoogleAlongRoute) return 0
+  // Ticket 11 (repaired): a road-measured fact wins over every estimate. The
+  // stored value is the COMPLETE extra driving (via − baseline, out-and-back
+  // inherent) — charged ONCE, returned VERBATIM. Doubling it (the old
+  // `×2`) manufactured 48 minutes out of a real 24 (progress review P1).
+  // Invalid values are ignored — never read as free — and the estimate paths
+  // apply as before. The directed arrival leg lives in the same record and is
+  // consumed by candidateArrival.ts, never derived as detour/2.
+  const measured = h.measuredRoadFact?.detourMin
+  if (measured != null && Number.isFinite(measured) && measured >= 0) return measured
   const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
-  return km == null ? null : (km / speed) * 60
+  if (km == null) return null
+  return ((km / speed) * 60) * 2
 }
 
 /**

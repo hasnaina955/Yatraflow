@@ -117,7 +117,7 @@ describe('the surfaces that must not race a preview (#334)', () => {
     // One spelling of the refusal AND one home for it: since #424 the surfaces
     // import the rule from lib/mutationLifecycle instead of pasting the message,
     // so a drift has nowhere to hide.
-    expect(src).toMatch(/import \{ refuseWhileStaged, removeStopWithUndo \} from '\.\.\/\.\.\/lib\/mutationLifecycle'/)
+    expect(src).toMatch(/import \{ refuseWhileStaged, removeStopWithUndo, type ApplyChange \} from '\.\.\/\.\.\/lib\/mutationLifecycle'/)
     expect(src).not.toMatch(/PREVIEW_BUSY/)
   })
 

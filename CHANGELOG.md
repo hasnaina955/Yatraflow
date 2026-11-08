@@ -45,6 +45,14 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The selected Pace choice now uses sea ink in both themes.** The two-column grid keeps its single-choice behavior and neutral unselected rows.
 
+### Fixed
+
+- **A category-only trip edit now refreshes the map suggestion pool.** The corridor cache key now covers the ranking inputs: category bias, search purposes, planned stops and the provider mode. A keyed and a keyless session no longer share a pool. The version bump clears every stored pool once. (#842)
+
+- **Blank days with only automatic anchors now show nearby-idea chips.** An automatic anchor or a rejected suggestion no longer counts as a planned day. The chips search keys on its real inputs, so a day-title rename no longer re-runs the paid nearby search. A failed search now says so instead of reading as "nothing nearby". (#842)
+
+- **A slow older pick can no longer overwrite a newer pick.** The location field claims ownership when a pick starts. Two picks in flight now settle in pick order, not completion order. (#842)
+
 - **Profile section navigation now clears the header and its phone strip.** Section headings and social actions have space around their content. Long rail labels wrap on desktop, and creator actions wrap on narrow screens.
 
 - **Profile travel-style choices now sit in two columns of rows, like the Trip Settings Pace grid.** The ten styles keep sea ink when selected. Several styles stay selected at once. The instant-save handler does not change. Clock-format pills and Trip Settings stay as they were. Each row is 40px, and 44px on a coarse pointer. Text wraps and stays readable. Both themes resolve from existing tokens.

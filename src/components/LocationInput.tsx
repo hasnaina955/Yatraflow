@@ -107,10 +107,12 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
   }
 
   async function choose(hit: PlaceHit) {
-    // A pick ends any search that is pending or in flight. A late answer cannot reopen the list.
-    // Cancel at the top: the await below must not cancel a search that the user starts later.
+    // A pick ends any search that is pending or in flight, and claims field
+    // ownership (#842 F16): begin() makes every earlier id stale, so two picks
+    // in flight settle in pick order, never completion order. A search the
+    // user starts later still cancels it through runSearch's latest.cancel().
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    latest.cancel()
+    const pickId = latest.begin()
     setLoading(false)
     // Any pick the map cannot pin — a provider placeholder, a mixed (0, lng)
     // zero, or a place with no id to resolve through — goes through the shared
@@ -122,6 +124,8 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
       try {
         const resolved = await resolvePick(hit)
         if (!resolved) { setPickErr('That place was not pinned on the map — pick another suggestion.'); return }
+        // A newer pick owns the field now — this answer must not write (#842 F16).
+        if (!latest.isCurrent(pickId)) return
         hit = resolved
       } finally { setResolving(false) }
     }

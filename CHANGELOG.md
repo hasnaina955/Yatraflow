@@ -53,6 +53,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **The rail's "km off" now shows the same detour the corridor and the omnibar use.** The alternative pool used a straight line to the anchors, so one place could show two detours. The Map now passes its one upstream detour into the rail. An unknown km stays unknown, and a known zero stays zero. A new source test and a behaviour test pin the single source.
+
 - **Drive suggestions now show a realistic arrival and the day's own budget share.** An estimate adds only the outward leg. A measured leg needs its matching context; unknown evidence stays unknown. The rail chip, card and marker share one own-day value, and no unknown day borrows Day 0.
 
 - **A place's confirmed visit length now drives the fit, card, add, vote draft and slack prompt.** A waterfall, temple or park uses its confirmed minutes; explicit overrides and incomplete, heritage or non-family fallbacks stay unchanged.

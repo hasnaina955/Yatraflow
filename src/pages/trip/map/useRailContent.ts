@@ -12,18 +12,18 @@
 // those rows by the rail, the marker and the card. No second suggestion engine.
 import { useMemo } from 'react'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
-import { detourKm } from '../../../lib/providers/hits'
 import { NEED_PURPOSES } from './pageHelpers'
 import { isAlreadyAdded, type PlaceIdentity } from '../../../lib/placeIdentity'
 import { clusterStoryArcs } from '../../../lib/storyArcs'
 
 export type RailContentArgs = {
   pois: SegmentHit[]
-  anchors: { lat: number; lng: number }[]
   identity: PlaceIdentity
+  /** The upstream detour km (MapTab's detourKmFor). Read here, never derived. */
+  detourKmFor: (hit: PlaceHit) => number | null
 }
 
-export function useRailContent({ pois, anchors, identity }: RailContentArgs) {
+export function useRailContent({ pois, identity, detourKmFor }: RailContentArgs) {
   // Split corridor suggestions into two curated columns: need-based halts
   // (fuel/food/rest/stretch/overnight/stay) on the LEFT in teal-amber, and
   // see-&-do / sightseeing + detours on the RIGHT in scenic purple — so the
@@ -79,13 +79,13 @@ export function useRailContent({ pois, anchors, identity }: RailContentArgs) {
       const h = r.hit
       if (!h) continue
       if (isAlreadyAdded(h, identity)) continue
-      const e: AltEntry = { h, dKm: detourKm(h, anchors) }
+      const e: AltEntry = { h, dKm: detourKmFor(h) }
       all.push(e)
       if (h.haltPurpose) push(byPurpose, h.haltPurpose, e)
       if (h.category) push(byCategory, h.category, e)
     }
     return { all, byPurpose, byCategory }
-  }, [pois, identity, anchors])
+  }, [pois, identity, detourKmFor])
 
   return { needs, seeAndDoLive, altPool, arcHits, arcs }
 }

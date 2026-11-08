@@ -967,8 +967,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // #420 slice 13: the rail content (split, pool, arcs)
   // lives in ./map/useRailContent. Values only, never callbacks — the
   // render-called helpers stay with the page for the rails slice.
+  // #08 AC5: the upstream detour km. The rail reads this same function
+  // through the hook, and so does the corridor snapshot. Defined before the hook.
+  const detourKmFor = useCallback(
+    (hit: PlaceHit): number | null => asymmetricDetourKm(hit, anchors, routePolyline),
+    [anchors, routePolyline],
+  )
   const { needs, seeAndDoLive, altPool, arcHits, arcs } = useRailContent({
-    pois, anchors, identity,
+    pois, identity, detourKmFor,
   })
 
   // #08 AC5: the ONE per-hit detour computation. It is upstream of the
@@ -991,11 +997,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40),
   [hitEngine, anchors, routePolyline, trip.transportMode])
-  const detourKmFor = useCallback(
-    (hit: PlaceHit): number | null => asymmetricDetourKm(hit, anchors, routePolyline),
-    [anchors, routePolyline],
-  )
-
   // #841: the writers' measured-road grade, read from the workspace's finished
   // measurement. It starts no routing call. A pending, failed, estimate-only or
   // stale chain (a stop moved or was added since it was measured) grades as

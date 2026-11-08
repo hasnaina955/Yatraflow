@@ -13,6 +13,7 @@ import {
 } from '../src/lib/journeyProjection'
 import { buildDayPlan } from '../src/lib/dayPlan'
 import { isSameEntity, placeKeysOf } from '../src/lib/placeIdentity'
+import { seedData } from '../src/data/seed'
 import type { ItineraryStop } from '../src/data/types'
 import {
   JOURNEY_FIXTURE,
@@ -313,13 +314,40 @@ describe('detour facts are copied, never guessed', () => {
     expect(zero.detourMin).not.toBeNull()
   })
 
-  it('does not derive a visit, buffer or net-added number', () => {
+  it('does not derive a visit, buffer or net-added number without a net-added seam', () => {
     const projection = project(journeyFixture())
     for (const row of projection.rows) {
       expect(row.bufferMin).toBeNull()
+      // The seam is absent here, so no re-simulation runs. A caller that wants
+      // the number supplies `netAdded` (tests/net-added-min.test.ts).
       expect(row.netAddedMin).toBeNull()
       if (row.stopId === null) expect(row.visitMin).toBeNull()
     }
+  })
+
+  it('copies the net-added number from the seam for a candidate row', () => {
+    const fixture = journeyFixture()
+    const seed = structuredClone(seedData.trips[0])
+    const trip = {
+      ...seed,
+      days: [{ ...seed.days[0], index: fixture.dayIndex, id: fixture.dayId, stops: [fixture.stops.fuel] }],
+    }
+    const projection = project(fixture, {
+      netAdded: {
+        trip,
+        stopFor: () => fixture.stops.fuel,
+        insertAtFor: () => 1,
+      },
+    })
+    const candidate = projection.rows.find(row => row.origin === 'engine' || row.origin === 'manual')
+    if (!candidate) throw new Error('fixture candidate row is missing')
+    expect(candidate.netAddedMin).not.toBeNull()
+    expect(typeof candidate.netAddedMin).toBe('number')
+    // A seam that proves no position keeps the row honest.
+    const unknown = project(fixture, {
+      netAdded: { trip, stopFor: () => null, insertAtFor: () => null },
+    })
+    for (const row of unknown.rows) expect(row.netAddedMin).toBeNull()
   })
 
   it('copies a drive row arrival and share, and keeps an absent one an honest unknown', () => {

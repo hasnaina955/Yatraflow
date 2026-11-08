@@ -6,14 +6,16 @@
 // called, no writer is reachable, and no ranking or cost formula lives here.
 // Every fact is copied. A fact the inputs do not carry stays null.
 //
-// #08 AC2 honesty: a drive row now carries the corridor's arrival minute and
-// its own day's budget share (derived once by the drive-row producer), and the
-// projection copies them. `netAddedMin` has no producer: the engine's only
-// time-delta fact is `computeImpact().timeDeltaMin`, which needs a proposed
-// trip and a full re-simulation, so it is not available per suggestion here.
-// `bufferMin` is not in the AC text and the engine's buffer is one whole-day
-// assumption, not a per-row fact. Both stay null rather than inventing a zero,
-// a default duration or a guessed buffer. `visitMin` is the filled stop's own
+// #08 AC2 honesty: a drive row carries the corridor's arrival minute and its
+// own day's budget share (derived once by the drive-row producer), and the
+// projection copies them. `netAddedMin` comes from ONE optional seam,
+// `input.netAdded`: the caller supplies the trip and the stop the writer would
+// insert, and `src/lib/netAddedMin.ts` re-simulates the existing engine/impact
+// function for that insert. So the number is the impact preview's own
+// `timeDeltaMin`. With no seam, or no proven insert position, the row keeps
+// null. `bufferMin` is not in the AC text and the engine's buffer is one
+// whole-day assumption, not a per-row fact, so it stays null rather than
+// inventing a zero, a default duration or a guessed buffer. `visitMin` is the filled stop's own
 // duration; a suggestion has no per-candidate visit fact, so it stays null.
 // Position is carried by the row's `hit` (coordinates, and `cumKm` /
 // `alongRouteKm` when the input had them), never re-invented as a new field.
@@ -42,9 +44,11 @@ import {
   type PlaceKey,
 } from './placeIdentity'
 import type { DriveSuggestionRow } from '../pages/trip/map/driveSuggestionView'
-import type { ItineraryStop } from '../data/types'
+import type { ItineraryStop, Trip } from '../data/types'
 import { hmToMinutes, type DaySchedule } from './engine'
 import { clockHM } from './clockOverlay'
+import type { LegCorrections } from './impact'
+import { createNetAddedProducer, type NetAddedProducer } from './netAddedMin'
 
 /** The four approved lenses. L1 produces only `drive` rows. */
 export type JourneyLens = 'drive' | 'stay' | 'gap' | 'fix'
@@ -139,6 +143,22 @@ export interface JourneyProjectionInput {
   arriveMinByStopId?: Readonly<Record<string, number>>
   /** Already-derived day schedule. L1 copies it; it never calls simulateDay. */
   daySchedule?: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null
+  /**
+   * The one net-added provider. The caller supplies the trip and the stop the
+   * writer would insert; this module asks it for the row's number. Absent keeps
+   * every `netAddedMin` null. It never guesses a position or a duration.
+   */
+  netAdded?: NetAddedInput | null
+}
+
+/** What the projection needs to ask for one row's net added minutes. */
+export interface NetAddedInput {
+  trip: Trip
+  legCorrections?: LegCorrections
+  /** The stop the writer would create, or null when it is not proven yet. */
+  stopFor(row: { key: string; hit: PlaceHit; slotKey: SlotKey | null }): ItineraryStop | null
+  /** Insert index in that day's stop array, or null when position is unknown. */
+  insertAtFor(row: { key: string; hit: PlaceHit; slotKey: SlotKey | null }): number | null
 }
 
 function hasUsablePosition(hit: PlaceHit): boolean {
@@ -291,12 +311,50 @@ function windowOf(slot: EffectiveDaySlot): DaySlot['windowMin'] {
   return slot.windowMin ? [slot.windowMin[0], slot.windowMin[1]] : null
 }
 
+/** One memoised producer plus the caller's stop/position resolvers. */
+interface NetAddedSeam {
+  producer: NetAddedProducer
+  stopFor: NetAddedInput['stopFor']
+  insertAtFor: NetAddedInput['insertAtFor']
+}
+
+function netAddedSeam(input: JourneyProjectionInput): NetAddedSeam | null {
+  const netAdded = input.netAdded
+  if (!netAdded) return null
+  return {
+    producer: createNetAddedProducer({
+      trip: netAdded.trip,
+      dayIndex: input.dayPlan.dayIndex,
+      ...(netAdded.legCorrections ? { legCorrections: netAdded.legCorrections } : {}),
+    }),
+    stopFor: netAdded.stopFor,
+    insertAtFor: netAdded.insertAtFor,
+  }
+}
+
+/** The candidate row's net added minutes, or null when the caller cannot prove them. */
+function netAddedValue(
+  seam: NetAddedSeam | null,
+  key: string,
+  hit: PlaceHit,
+  slotKey: SlotKey | null,
+): number | null {
+  if (!seam) return null
+  const row = { key, hit, slotKey }
+  const stop = seam.stopFor(row)
+  if (!stop) return null
+  const insertAt = seam.insertAtFor(row)
+  if (insertAt === null) return null
+  return seam.producer.netAddedFor({ key, stop, insertAt })
+}
+
 function rowFromCandidate(
   plan: DayPlan,
   slot: EffectiveDaySlot,
   candidate: EffectiveCandidate,
   key: string,
   input: JourneyProjectionInput,
+  seam: NetAddedSeam | null,
 ): JourneyRow {
   const hit = candidate.hit
   const placeKeys = placeKeysOf(hit)
@@ -318,7 +376,7 @@ function rowFromCandidate(
     budgetSharePct: candidate.budgetSharePct,
     visitMin: null,
     bufferMin: null,
-    netAddedMin: null,
+    netAddedMin: netAddedValue(seam, key, hit, slot.key),
     arriveMin: candidate.arriveMin,
     arriveLabel: candidate.arriveLabel,
     arriveSource: 'candidate',
@@ -401,6 +459,7 @@ function rowFromDrive(
   key: string,
   input: JourneyProjectionInput,
   assigned: boolean,
+  seam: NetAddedSeam | null,
 ): JourneyRow {
   const hit = drive.hit
   const placeKeys = placeKeysOf(hit)
@@ -426,7 +485,7 @@ function rowFromDrive(
     budgetSharePct: drive.budgetSharePct,
     visitMin: null,
     bufferMin: null,
-    netAddedMin: null,
+    netAddedMin: assigned ? netAddedValue(seam, key, hit, null) : null,
     arriveMin,
     arriveLabel: drive.arriveLabel,
     arriveSource: arriveMin != null ? 'candidate' : 'none',
@@ -462,6 +521,7 @@ function uniqueKey(base: string, used: Set<string>): string {
  */
 export function projectJourney(input: JourneyProjectionInput): JourneyProjection {
   const plan = input.dayPlan
+  const seam = netAddedSeam(input)
   const used = new Set<string>()
   const entries: { row: JourneyRow; slot: EffectiveDaySlot; stop: ItineraryStop | null }[] = []
 
@@ -479,7 +539,7 @@ export function projectJourney(input: JourneyProjectionInput): JourneyProjection
     if (slot.state !== 'empty') continue
     for (const candidate of slot.candidates) {
       const key = uniqueKey(slotRowKey(plan, slot, candidate.hit), used)
-      entries.push({ row: rowFromCandidate(plan, slot, candidate, key, input), slot, stop: null })
+      entries.push({ row: rowFromCandidate(plan, slot, candidate, key, input, seam), slot, stop: null })
     }
   }
 
@@ -493,7 +553,7 @@ export function projectJourney(input: JourneyProjectionInput): JourneyProjection
         `unassigned:${driveDay ?? 'null'}:${drive.segmentIndex}:${placeKeyId(drive.hit)}`,
         used,
       )
-      unassigned.push(rowFromDrive(plan, drive, key, input, false))
+      unassigned.push(rowFromDrive(plan, drive, key, input, false, seam))
       continue
     }
     const at = entries.findIndex((entry, i) => !taken.has(i) && isSameEntity(entry.row.hit, drive.hit))
@@ -506,7 +566,7 @@ export function projectJourney(input: JourneyProjectionInput): JourneyProjection
       continue
     }
     const key = uniqueKey(`drive:${driveDay}:${drive.segmentIndex}:${placeKeyId(drive.hit)}`, used)
-    rows.push(rowFromDrive(plan, drive, key, input, true))
+    rows.push(rowFromDrive(plan, drive, key, input, true, seam))
   }
   for (let i = 0; i < entries.length; i += 1) {
     if (!taken.has(i)) rows.push(entries[i].row)

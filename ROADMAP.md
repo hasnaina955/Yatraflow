@@ -331,6 +331,10 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 - [x] **v0.75.0** — Every trip card names its next step. The Timeline saves days and stops, and My trips shows a saved shelf. Pages enter with motion. Group input and map panels show failed reads with a retry.
 - [x] **v0.76.0** — YatraFlow took the Ribbon Y logo. Failed reads say so. The landing page links open their pages. Profile and trip settings report saves only after the server accepts them. DMCA and the log-in tabs use the shared page parts.
 
+### Shipped — balanced art batch (2026-11-08)
+
+- [x] **Balanced destination art (#913).** The 55 live landscape scenes were refreshed from the approved balanced masters and keep their ids. Fifty named destinations gained their own `dest-<id>-v2` scene. An exact destination name wins over the state or UT scene. Whole-token aliases cover common spellings. Legacy regional and destination variants stay in the fallback family. The seven square empty-state vignettes are unchanged. The art build table resolves all 112 ids from one relative external staging root. The art caps, the full suite and a localhost card and header pass check the batch.
+
 ### Remaining — in release order (details in the tracks below)
 - [x] **v0.45.0** — Create-flow + invites + settings release (PR #81 + merged test work): Trip Ticket bento starter (bill print, outline seeding), car rental mode + local-train fares, range calendar, invite short codes + join-flow fixes, auth-refresh fix, Plan Bench trip settings + editable dates, My Trips search/filter/sort restore (branch `feat/create-trip-ticket`)
 - [x] **v0.46.0** — Masteradmin console (PR #82): JWT-`app_metadata`-gated `#/admin` god-view (users/trips/invites/content/analytics/audit), audited SECURITY DEFINER RPCs, append-only `admin_audit` log, RESTRICTIVE deny policies for disabled accounts (branch `redesign/masteradmin-v045`, migration applied live)

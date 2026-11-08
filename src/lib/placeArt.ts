@@ -36,6 +36,11 @@ export interface DestinationArtEntry {
   place: string
   /** The jurisdiction that owns it. This is what the cross-state test reads. */
   state: string
+  /**
+   * The scenes the destination owns, primary first. An exact destination
+   * always selects the first id; later ids are fallback variants that stay
+   * available to the cover plan.
+   */
   ids: string[]
   aliases: string[]
 }
@@ -203,8 +208,9 @@ function matchStop(name: string, tables: PlaceArtTables): StopMatch {
  * state. Two or more states give the neutral road scene, because one state's
  * valley scene would be a false claim about the others.
  *
- * `seed` is the trip or publication id, so a place with two scenes keeps the
- * same one across renders.
+ * `seed` is the trip or publication id, so a state with two scenes keeps the
+ * same one across renders. An exact destination always names its primary scene
+ * and uses its legacy variants only as fallbacks.
  */
 export function placeArtFor(
   destinations: readonly string[] | null | undefined,
@@ -243,7 +249,11 @@ export function placeArtFor(
   const distinctPlaces = new Map(destinationStops.map(stop => [(stop.destination as DestinationArtEntry).place, stop.destination as DestinationArtEntry]))
   if (distinctPlaces.size === 1) {
     const chosen = [...distinctPlaces.values()][0]
-    const id = pickFromList(chosen.ids, seed)
+    // The first declared id is the destination's primary scene. The rest are
+    // its fallbacks, so a refreshed destination names its newest scene and
+    // keeps an older variant available behind it. A seed must not swap the
+    // exact destination's own name for a legacy variant.
+    const id = chosen.ids[0] ?? null
     if (id) return { kind: 'destination', id, place: chosen.place, seed }
   }
 
@@ -261,13 +271,17 @@ export function placeArtFor(
 }
 
 /**
- * Every scene the match's own family owns, seeded-first.
+ * Every scene the match's own family owns, in fallback order.
  *
  * A cover that can try only one file goes blank when that file is missing from
  * the build or fails at the network. The family gives it the siblings to try
  * before it leaves the family: the same seeded scene the single-choice chain
  * would show comes first, then the rest in their declared order. The order is
  * a rotation of the declared list, so it is stable for one seed and finite.
+ *
+ * An exact destination is the exception: its list is already ordered, primary
+ * first and legacy variants after, so the newest named scene always leads. A
+ * state or neutral family still rotates by seed, which keeps its variants fair.
  *
  * Empty for a null match and for a family with no ids.
  */
@@ -286,6 +300,7 @@ export function placeArtFamilyFor(
         : fallbacks.neutral
   const list = ids ?? []
   if (list.length === 0) return []
+  if (match.kind === 'destination') return [...list]
   const start = hash(match.seed) % list.length
   return [...list.slice(start), ...list.slice(0, start)]
 }

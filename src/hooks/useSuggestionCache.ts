@@ -76,6 +76,9 @@ export function planInputsHash(input: {
   roundTrip?: boolean | undefined
   vehicleProfile?: VehicleProfile | undefined
   planFingerprint?: string | undefined
+  /** Map V2 ticket 09 AC5: the scanned family set. Sorted in the key so any
+   *  order of the same set shares one cache entry. */
+  families?: readonly string[] | undefined
 }): string {
   return [
     input.anchorsHash,
@@ -102,6 +105,7 @@ export function planInputsHash(input: {
     // legacy Mixed plan starts answering a question nobody was asked.
     input.drivesPart === true ? 'mp-y' : input.drivesPart === false ? 'mp-n' : '-',
     input.planFingerprint ?? '-',
+    input.families && input.families.length > 0 ? [...input.families].sort().join(',') : '-',
   ].join('|')
 }
 

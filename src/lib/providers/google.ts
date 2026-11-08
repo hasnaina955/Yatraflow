@@ -501,6 +501,8 @@ export interface AtPointArgs {
   radiusM: number
   count: number
   includeFuel?: boolean
+  purposes?: HaltPurpose[]
+  families?: readonly PlaceFamily[]
   signal?: AbortSignal
 }
 
@@ -513,7 +515,13 @@ export interface AtPointArgs {
  * distance-to-anchor fallbacks via detourKm).
  */
 export async function googleNearbyAtPoint(args: AtPointArgs): Promise<PlaceHit[]> {
-  const queries = args.includeFuel ? [...ALONG_ROUTE_QUERIES, FUEL_QUERY] : ALONG_ROUTE_QUERIES
+  const staticQueries = args.includeFuel ? [...ALONG_ROUTE_QUERIES, FUEL_QUERY] : ALONG_ROUTE_QUERIES
+  const purposeQueries = args.purposes && args.purposes.length > 0
+    ? args.purposes.flatMap(p => queriesForPurpose(p).googleQueries.map(textQuery => ({ textQuery, cat: p, includedType: queriesForPurpose(p).includedType })))
+    : staticQueries
+  // Ticket 09: family scans ride the same event structure as the along-route
+  // scan — one Text Search event per family query.
+  const queries = [...purposeQueries, ...familyQueryEntries(args.families ?? [])]
   const responses = await Promise.all(queries.map(qv =>
     placesPost('/places:searchText', 'textSearchPro', {
       textQuery: qv.textQuery,

@@ -18,11 +18,19 @@ import {
 } from '../../../lib/geocode'
 import { anchorHash } from '../../../lib/providers/hits'
 import { QuotaExhaustedError } from '../../../lib/providers/google'
+import type { PlaceFamily } from '../../../lib/providers/families'
 import { planInputsHash, isMapCacheFresh, useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { loadHaltPinsForTrip } from '../../../lib/uiPrefs'
 import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, type CrewSeed } from '../../../lib/tripDna'
 import type { MapRoadView } from '../../../lib/tripRoad'
 import { retainCorridorRowsOnFailure } from './corridorSnapshot'
+
+/**
+ * Map V2 ticket 09 AC5: the trip/route-scoped scan asks three place families
+ * — one query per family per scan. Water and views stay out until their
+ * timing facts are confirmed; per-day scans belong to ticket 10.
+ */
+const CORRIDOR_FAMILIES: readonly PlaceFamily[] = ['nature', 'faith', 'culture']
 
 export type CorridorCacheArgs = {
   trip: Trip
@@ -85,6 +93,9 @@ export function useCorridorCache({
     roundTrip: trip.roundTrip,
     vehicleProfile: trip.vehicleProfile,
     planFingerprint: drivingPlanFingerprint(drivingPlan),
+    // Ticket 09 AC5: the family set is part of the scan the cache answers,
+    // so a changed set must never serve the previous set's rows.
+    families: CORRIDOR_FAMILIES,
     // dnaTick re-reads the DNA log after each accept or decline.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [anchors, routeGeometry, trip, scopeKm, dayRainPct, dayWeatherCode, crewSeeds, dnaTick, drivingPlan])
@@ -203,6 +214,7 @@ export function useCorridorCache({
     planJourneyHalts(anchors, planKm, wholeTripMin, {
       ...nearbyOpts, plan: drivingPlan, signal: controller.signal,
       rejectOnFailure: true,
+      families: CORRIDOR_FAMILIES,
       // Runtime hours (repair of #887): the corridor scores each halt against
       // its own trip day date. The trip's own start date, never today's date.
       tripStartDate: trip.startDate,

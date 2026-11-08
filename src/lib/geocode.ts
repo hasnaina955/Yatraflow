@@ -28,7 +28,7 @@ export { hasCoords } from './providers/hits'
 import { plannerDrives } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 
-import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
+import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type HaltPurpose, type NearbyOpts, type PlaceHit } from './providers/hits'
 import type { PlaceFamily } from './providers/families'
 import { haversineKm } from './geo'
 import {
@@ -209,6 +209,8 @@ async function googlePointScan(
   count: number,
   maxAnchors = 4,
   signal?: AbortSignal,
+  families?: readonly PlaceFamily[],
+  purposes?: HaltPurpose[],
 ): Promise<PlaceHit[]> {
   const out: PlaceHit[] = []
   const seen = new Set<string | number>()
@@ -217,7 +219,11 @@ async function googlePointScan(
   for (const a of anchors.slice(0, maxAnchors)) {
     try {
       if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
-      const hits = await googleNearbyAtPoint({ lat: a.lat, lng: a.lng, radiusM, count, signal })
+      const hits = await googleNearbyAtPoint({
+        lat: a.lat, lng: a.lng, radiusM, count, signal,
+        ...(purposes && purposes.length > 0 ? { purposes } : {}),
+        ...(families && families.length > 0 ? { families } : {}),
+      })
       for (const h of hits) {
         if (!h.id || seen.has(h.id)) continue
         seen.add(h.id)
@@ -277,7 +283,7 @@ export async function searchNearbyPoisMulti(
       // Google-only directive stays intact: supplement with point searches at
       // the first anchors rather than falling back to the free stack.
       if (isRoundTripRoute(route)) {
-        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal)
+        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal, opts.families, opts.purposes)
         return rankAndCap(pointHits, capped, radiusM, count, opts)
       }
       return rankAndCap(hits, capped, radiusM, count, opts)
@@ -294,9 +300,12 @@ export async function searchNearbyPoisMulti(
     // day chips) keep the one-anchor search.
     try {
       const hits = capped.length >= 2
-        ? await googlePointScan(capped, radiusM, count, 6, opts.signal)
+        ? await googlePointScan(capped, radiusM, count, 6, opts.signal, opts.families, opts.purposes)
         : await googleNearbyAtPoint({
-            lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel, signal: opts.signal,
+            lat: capped[0].lat, lng: capped[0].lng, radiusM, count,
+            includeFuel: opts.includeFuel, signal: opts.signal,
+            ...(opts.purposes && opts.purposes.length > 0 ? { purposes: opts.purposes } : {}),
+            ...(opts.families && opts.families.length > 0 ? { families: opts.families } : {}),
           })
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch (err) {

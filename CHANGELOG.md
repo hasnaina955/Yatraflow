@@ -22,7 +22,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Net added minutes now appear when the measured road arrives after the first build.** A day that the build reuses no longer keeps an old null.
 
-- **The slot row and the rail now show the same road detour km, and an unknown km no longer reads as on route.**
+- **The slot row and the rail now show the same road detour km.** An unknown km no longer reads as on route.
 
 - **A GPS timeout now shows the unavailable status line, not the denied one.** A native watch that resolves after you stop it is now cleared.
 

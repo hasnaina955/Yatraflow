@@ -1,8 +1,19 @@
 // ============ Explore — hero ============
-// The page title, one line of context, the jump-to-itineraries button, four
-// catalog counts and a trio of papercut postcards with a handwritten note. The
-// search field lives in the filter bar, under the title of the catalog. The
-// shell is PageHero; the postcards and the note stay here, in the visual slot.
+// The page label, the headline, one line of context, the search field, two
+// quick picks, four catalog counts and a trio of papercut postcards with the
+// catalog's own fork count on a note.
+//
+// The search field is the page's only one. It reads and writes the page's query
+// (the same state the URL carries), and the filter bar has none, so there is no
+// second source of truth. Search jumps to the results. A quick pick is a toggle
+// on a filter the bar already has (length, budget), so it needs no state of its
+// own. The count note is real data — the sum of `copies` over
+// the live catalog — and it prints only when that sum is above zero, because a
+// zero here would be a claim over a read that may not have happened.
+//
+// The handwritten note this slot used to carry is gone: the headline says the
+// same words, and the note now carries a figure the reader cannot get anywhere
+// else on the page at a glance.
 //
 // Each postcard shows the scene its own place resolves to. The place layer is
 // asked first with the postcard's place name, so "Srinagar" reaches the J&K
@@ -10,14 +21,14 @@
 // The seven-region scene stays as the answer when the place layer has nothing
 // specific to say. The motif remains the loading and error floor. The postcard
 // set is static, so the seed is the place name: a postcard keeps its scene.
-import { ArrowDown } from 'lucide-react'
 import { ART_MANIFEST, artIdFor } from '../../lib/regionArt'
 import { placeArtFor, placeFallbacksFrom } from '../../lib/placeArt'
 import type { TripRegion } from '../../lib/tripsPage'
 import { RegionArt } from '../RegionArt'
 import { TripArt } from '../trips/TripArt'
+import { SearchField } from '../filters/SearchField'
+import { FilterChip } from '../filters/FilterChip'
 import { PageHero } from '../page/PageHero'
-import { NoteArrow } from '../page/NoteArrow'
 
 export interface HeroStat { label: string; value: number }
 
@@ -34,21 +45,42 @@ const POSTCARDS: { region: TripRegion; place: string; className: string }[] = [
  */
 const POSTCARD_SIZES = '140px'
 
-export function ExploreHero({ stats, onExplore }: {
+export interface QuickPick { key: string; label: string; pressed: boolean; onToggle: () => void }
+
+export function ExploreHero({ stats, forks, query, onQueryChange, onSearch, quickPicks }: {
   stats: HeroStat[]
-  onExplore: () => void
+  /** The live catalog's total forks. The note prints only above zero. */
+  forks: number
+  query: string
+  onQueryChange: (next: string) => void
+  /** Search (button or Enter): bring the results to the top. */
+  onSearch: () => void
+  quickPicks: QuickPick[]
 }) {
   return (
     <PageHero
-      headline={{ lead: 'Find your next', accent: 'great journey.' }}
-      lede="Discover routes shared by the community. Make one your own."
+      kicker="Explore · plans from the community"
+      headline={{ lead: 'Find a plan, fork it,', accent: 'make it yours.' }}
+      lede="Real trips from real travellers, with every drive and stop timed. Fork one into your trips and change anything."
       primary={
-        <button type="button" className="btn btn-primary ex-cta" onClick={onExplore}>
-          Explore itineraries<ArrowDown size={18} aria-hidden />
-        </button>
+        <form className="ex-hero-search" role="search" aria-label="Search itineraries"
+          onSubmit={event => { event.preventDefault(); onSearch() }}>
+          <SearchField value={query} onChange={onQueryChange} label="Search by route, place or creator"
+            placeholder="Search a route, place or creator" shortPlaceholder="Search routes" />
+          <button type="submit" className="btn btn-primary ex-hero-search-go">Search</button>
+        </form>
+      }
+      secondary={
+        <div className="ex-quick" role="group" aria-label="Quick picks">
+          {quickPicks.map(pick => (
+            <FilterChip key={pick.key} className="ex-quick-chip" pressed={pick.pressed} onClick={pick.onToggle}>
+              {pick.label}
+            </FilterChip>
+          ))}
+        </div>
       }
       stats={stats}
-      statsPlacement="inline"
+      statsPlacement="below"
       statsLabel="Catalog at a glance"
       visual={
         <>
@@ -75,14 +107,7 @@ export function ExploreHero({ stats, onExplore }: {
               )
             })}
           </div>
-          <p className="ex-note">
-            <span>
-              <span>Find a plan,</span>
-              <span>fork it,</span>
-              <span className="ex-note-hl">make it yours.</span>
-            </span>
-            <NoteArrow />
-          </p>
+          {forks > 0 && <p className="ex-forks-note"><b>{forks}</b> forks and counting</p>}
         </>
       }
     />

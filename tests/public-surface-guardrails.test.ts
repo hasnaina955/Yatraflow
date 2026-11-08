@@ -38,9 +38,17 @@ describe('the public itinerary page sells what it can deliver', () => {
 describe('the gallery explains its own vocabulary', () => {
   it('says what Fork means before the first card that offers it', () => {
     const explore = read('../src/pages/Explore.tsx')
-    const gloss = explore.indexOf('Fork any itinerary to copy it into your own trips')
-    expect(gloss).toBeGreaterThan(-1)
-    expect(gloss).toBeLessThan(explore.indexOf('<ExploreCard'))
+    // The hero's lede names the verb above every card, at every width.
+    expect(read('../src/components/explore/ExploreHero.tsx')).toMatch(/Fork one into your trips and change anything/)
+    const hero = explore.indexOf('<ExploreHero')
+    expect(hero).toBeGreaterThan(-1)
+    expect(hero).toBeLessThan(explore.indexOf('<FeaturedCard'))
+    expect(hero).toBeLessThan(explore.indexOf('<ExploreCard'))
+    // The side column then spells the three steps out, once.
+    expect(explore).toMatch(/<ForkSteps signedIn=\{Boolean\(me\)\} \/>/)
+    const steps = read('../src/components/explore/ForkSteps.tsx')
+    for (const word of ['Pick', 'Fork', 'Change']) expect(steps).toContain(`<b>${word}</b>`)
+    expect(steps).toMatch(/The creator’s plan never changes/)
   })
 
   it('does not show the featured plan a second time as a grid card', () => {
@@ -83,8 +91,8 @@ describe('the catalog is honest about the login wall behind Fork', () => {
   })
 
   it('says the account requirement before the click, on every fork button', () => {
-    // Explore explains it once, above the cards.
-    expect(read('../src/pages/Explore.tsx')).toMatch(/You’ll need a free account to fork trips/)
+    // Explore explains it once, in the fork steps, and only while signed out.
+    expect(read('../src/components/explore/ForkSteps.tsx')).toMatch(/\{!signedIn && <> You’ll need a free account to fork trips\.<\/>\}/)
     const page = read('../src/pages/PublicItinerary.tsx')
     const forkButtons = [...page.matchAll(/className="btn fork-btn/g)].length
     const labelled = [...page.matchAll(/\{me \? 'Fork this trip' : 'Log in to fork'\}/g)].length

@@ -1,7 +1,7 @@
 // ============ Explore public itineraries — discover, trust and fork (CTI §6.10) ============
 import { useEffect, useMemo, useState } from 'react'
 import { currentQuery, onRouteChange, replaceRoute } from '../lib/router'
-import { Compass, Heart, Lock, Search, TriangleAlert } from 'lucide-react'
+import { Compass, Heart, Search, TriangleAlert } from 'lucide-react'
 import { usePublished, useUsers, useTrips, useSessionUserId, useDb, rereadPublicSlices } from '../store/store'
 import type { PublishedItinerary, CachedUser } from '../data/types'
 import { computeHealth } from '../lib/engine'
@@ -13,7 +13,7 @@ import { scrollBehavior } from '../lib/motion'
 import { toast } from '../components/ui'
 import { TripArtSprite } from '../components/trips/TripArt'
 import { StateVignette } from '../components/RegionArt'
-import { ExploreHero } from '../components/explore/ExploreHero'
+import { ExploreHero, type QuickPick } from '../components/explore/ExploreHero'
 import { ExploreFilterBar, type StyleOption } from '../components/explore/ExploreFilterBar'
 import { ExploreCard } from '../components/explore/ExploreCard'
 import { FeaturedCard } from '../components/explore/FeaturedCard'
@@ -21,6 +21,7 @@ import { ExploreStateBlock } from '../components/explore/ExploreStateBlock'
 import { PlacesPanel } from '../components/explore/PlacesPanel'
 import { CreatorsPanel } from '../components/explore/CreatorsPanel'
 import { SharePanel } from '../components/explore/SharePanel'
+import { ForkSteps } from '../components/explore/ForkSteps'
 import { TrendingShelf } from '../components/explore/TrendingShelf'
 import { livePubs } from '../lib/livePubs'
 import { comparePopularity } from '../lib/discovery'
@@ -31,6 +32,8 @@ type SortKey = 'popular' | 'newest' | 'budget-asc' | 'budget-desc' | 'duration'
 const STYLES = ['relaxed', 'balanced', 'packed', 'adventure', 'luxury', 'budget', 'family', 'spiritual', 'food-focused', 'creator'] as const
 /** P4: the grid renders one page at a time; "Load more" grows the window. */
 const PAGE_SIZE = 12
+/** The hero's "Under ₹20k" quick pick. It is one of the budget select's own values. */
+const UNDER_BUDGET = 20000
 
 // #350 — the gallery's pool lives in lib/livePubs.ts so every public catalog
 // surface shares one predicate copy. Re-exported for the test suite, which
@@ -163,14 +166,17 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   const places = useMemo(() => placeTiles(published, users), [published, users])
   const creators = useMemo(() => creatorList(published, users), [published, users])
   // The hero counts the whole catalog, not the few tiles the side panels show.
+  // The fork total is its own memo: the hero note prints it too, and both read
+  // the same figure rather than two sums that could drift apart.
+  const forkCount = useMemo(() => livePubs(published).reduce((sum, p) => sum + p.copies, 0), [published])
   const heroStats = useMemo(() => [
     { label: 'itineraries', value: liveCount },
-    { label: 'creators', value: creatorList(published, users, Infinity).length },
     { label: 'places', value: placeTiles(published, users, Infinity).length },
-    { label: 'forks', value: livePubs(published).reduce((sum, p) => sum + p.copies, 0) },
-  ], [published, users, liveCount])
+    { label: 'creators', value: creatorList(published, users, Infinity).length },
+    { label: 'forks', value: forkCount },
+  ], [published, users, liveCount, forkCount])
 
-  /** The hero button: bring the catalog to the top and hand it focus. */
+  /** The hero's Search: bring the catalog to the top and hand it focus. */
   function jumpToResults() {
     const target = document.getElementById('explore-results')
     target?.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
@@ -192,6 +198,26 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false)
     syncUrl({ q: '', style: 'all', max: '', dur: 'all' })
   }
+
+  /** The hero's quick picks. Each one toggles a filter the filter bar already has,
+   *  through the same setters and the same URL write, so it can never disagree
+   *  with the length group or the budget select. */
+  const quickPicks: QuickPick[] = [
+    {
+      key: 'weekend', label: 'Weekend · 3 days or less', pressed: duration === 'short',
+      onToggle: () => {
+        const next = duration === 'short' ? 'all' : 'short'
+        setDuration(next); syncUrl({ dur: next })
+      },
+    },
+    {
+      key: 'under-20k', label: 'Under ₹20k', pressed: maxBudget === UNDER_BUDGET,
+      onToggle: () => {
+        const next = maxBudget === UNDER_BUDGET ? '' : UNDER_BUDGET
+        setMaxBudget(next); syncUrl({ max: String(next) })
+      },
+    },
+  ]
 
   /** A place tile searches that place and clears every other filter, so the
    *  list starts from the whole catalog. */
@@ -241,7 +267,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   return (
     <div className="container ex-page page-enter">
       <TripArtSprite />
-      <ExploreHero stats={heroStats} onExplore={jumpToResults} />
+      <ExploreHero stats={heroStats} forks={forkCount} onSearch={jumpToResults}
+        query={q} onQueryChange={value => { setQ(value); syncUrl({ q: value }) }} quickPicks={quickPicks} />
 
       <div className="ex-layout">
         <div className="ex-main" id="explore-results" tabIndex={-1}>
@@ -252,8 +279,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
 
           {/* ---- Filter bar: travel-style chips, Saved, and the three selects ---- */}
           <ExploreFilterBar
-            query={q}
-            onQueryChange={value => { setQ(value); syncUrl({ q: value }) }}
             styles={styleOptions}
             style={style}
             onAllStyles={() => { setStyle('all'); syncUrl({ style: 'all' }) }}
@@ -283,27 +308,6 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               ? `${pubs.length} ${pubs.length === 1 ? 'itinerary matches' : 'itineraries match'}`
               : pubsRead === 'reading' ? 'Loading the catalog' : 'The catalog could not be loaded'}
           </p>
-
-          {/* "Fork" is the product's own word for copying a plan into your trips and
-              the cards never explain it, so it is said once, here, before anyone
-              meets the button that carries the name. */}
-          <section className="ex-howto" aria-labelledby="explore-how-fork">
-            <h3 id="explore-how-fork">How forking works</h3>
-            <ol>
-              <li><span><b>Pick</b><span className="ex-howto-more"> a plan</span></span></li>
-              <li><span><b>Fork</b><span className="ex-howto-more"> it into your trips</span></span></li>
-              <li><span><b>Change</b><span className="ex-howto-more"> days, stays and stops</span></span></li>
-            </ol>
-            <p className="ex-fork-note">
-              <Lock size={15} aria-hidden />
-              <span>
-                Fork any itinerary to copy it into your own trips — then change whatever you like.
-                {/* Signed out, that button navigates to /auth — say so before the click,
-                    not in a toast that the redirect swallows. */}
-                {!me && <> You’ll need a free account to fork trips.</>}
-              </span>
-            </p>
-          </section>
 
           {/* ---- Featured itinerary: credibility explained (§6.10) ----
               #395 — gated on the READ, not only on a featured plan existing. A
@@ -367,6 +371,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         </div>
 
         <div className="ex-aside">
+          <ForkSteps signedIn={Boolean(me)} />
           {pubsRead === 'ready' && <PlacesPanel tiles={places} onPick={searchPlace} />}
           {pubsRead === 'ready' && <CreatorsPanel rows={creators} users={users} />}
           <SharePanel />

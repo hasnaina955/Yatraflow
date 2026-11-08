@@ -22,6 +22,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Explore now has one search field and one shared publication card.** The hero has Search, Weekend and Under ₹20k controls. Quick picks use the existing filters and address query. The filter bar has a segmented length group. The featured card shows its route trail, real facts, style and price. The side column explains forking and shows place thumbnails and creator ranks. The creator page uses the same publication card. Saved plans, failed reads, retry, pagination and paid access keep their existing behavior. Motion uses the shared tokens and respects reduced motion.
+
 - **Published itineraries now have distinct Look inside and Ride along views.** Look inside has a photo cover, a purchase card, day cards and a compact route ribbon. Ride along has photos from readable days, a stop timeline and a day time budget. Day selection keeps keyboard focus and reveals the full ribbon button on long trips. The phone purchase bar keeps its price and action visible. Motion uses the shared tokens and respects reduced motion. Locked days keep names, photos and clock times hidden. Failed access checks and failed reads after purchase keep their Retry actions and suppress price actions.
 
 - **The create trip ticket now shows the draft route cover and a tear line.** The cover comes from the same route art as the created trip. The ticket keeps its six rows, the Change links and the honest per-head estimate. No category split and no new field is added.

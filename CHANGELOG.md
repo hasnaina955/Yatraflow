@@ -20,9 +20,15 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The map corridor scan now asks three place families.** The trip-scoped scan sends one Google query per family for nature, faith and culture. The cache key carries the family set, so a changed set never serves old rows. A failed scan stays a failed scan. Water and views wait for confirmed timing facts. No browser check ran; a live provider call never ran. Map ticket 09 acceptance stays open.
 
-- **A suggestion row can now carry its own net added minutes.** The new `src/lib/netAddedMin.ts` producer re-simulates the existing engine and impact function with the candidate inserted into its day. So the number equals the impact preview's own `timeDeltaMin`, and the rail and the preview cannot disagree. Unknown inputs stay null: no day, no proven insert position, no usable coordinate or no finite visit length. A known zero visit length stays a number. One memoised producer serves each trip and day, so a repeat render costs nothing. The journey projection reads it through one optional seam. The next entry adds the caller that supplies that seam. Map ticket 08 AC2 stays open.
+- **Net added minutes now appear when the measured road arrives after the first build.** A day that the build reuses no longer keeps an old null.
 
-- **The workspace now supplies the net added minutes seam, so a suggestion row reads a real number.** `buildJourneyDays` builds one seam per day. The stop and the insert position come from the same planner the writer calls, with the measured road from `TripWorkspace`. The number is the impact preview's own `timeDeltaMin`. A row with no usable position, no day or no measured road stays null. One memoised producer serves each day, so a repeat render costs nothing. Map ticket 08 AC2 stays open until it is graded.
+- **The slot row and the rail now show the same road detour km, and an unknown km no longer reads as on route.**
+
+- **A GPS timeout now shows the unavailable status line, not the denied one.** A native watch that resolves after you stop it is now cleared.
+
+- **A suggestion row can now carry its own net added minutes.** The new `src/lib/netAddedMin.ts` producer re-simulates the existing engine and impact function with the candidate inserted into its day. So the number equals the impact preview's own `timeDeltaMin`, and the rail and the preview cannot disagree. Unknown inputs stay null: no day, no proven insert position, no usable coordinate or no finite visit length. A known zero visit length stays a number. A repeat build with the same trip, road and corrections runs no impact simulation. The journey projection reads it through one optional seam. The next entry adds the caller that supplies that seam. Map ticket 08 AC2 stays open.
+
+- **The workspace now supplies the net added minutes seam, so a suggestion row reads a real number.** `buildJourneyDays` builds one seam per day. The stop and the insert position come from the same planner the writer calls, with the measured road from `TripWorkspace`. The number is the impact preview's own `timeDeltaMin`. A row with no usable position, no day or no measured road stays null. The first build runs one impact simulation per candidate row. Each simulation still evaluates the whole trip twice. Map ticket 08 AC2 stays open until it is graded.
 
 - **Live position stays private and shows only on the trip day.** The map labels denied, unavailable, loading, failed and stale states apart. A recenter re-arms the camera follow. The fix stays in the map component.
 

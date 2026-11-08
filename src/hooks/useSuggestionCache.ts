@@ -41,8 +41,14 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 4 // 4 hours
  * Bumped to 8 on 2026-10-24 (#832): map entries carry the effective driving
  * plan that produced their boundaries. Readiness and attribution must use that
  * stored projection, never a fresh POI-derived guess.
+ *
+ * Bumped to 9 on 2026-11-08 (#842): the map hash now covers the ranking
+ * inputs — purposes, categoryBias, plannedStops and the provider mode. A
+ * category-only edit used to hit the same hash and serve the old ranked
+ * pool (F18); v8 entries cannot say what ranking they were built for, so
+ * they evict with the bump.
  */
-const CACHE_VERSION = 8
+const CACHE_VERSION = 9
 
 /**
  * Build the cache key from every input the corridor search reads. Kept here
@@ -79,6 +85,13 @@ export function planInputsHash(input: {
   /** Map V2 ticket 09 AC5: the scanned family set. Sorted in the key so any
    *  order of the same set shares one cache entry. */
   families?: readonly string[] | undefined
+  /** #842 F18: the ranking inputs the scan reads — a category-only edit
+   *  changes these without touching any field above, and the cache must
+   *  bust rather than serve the old ranked pool. */
+  purposes?: string[] | undefined
+  categoryBias?: Record<string, number> | undefined
+  plannedStops?: { lat: number; lng: number; name?: string }[] | undefined
+  providerMode?: string | undefined
 }): string {
   return [
     input.anchorsHash,
@@ -106,6 +119,16 @@ export function planInputsHash(input: {
     input.drivesPart === true ? 'mp-y' : input.drivesPart === false ? 'mp-n' : '-',
     input.planFingerprint ?? '-',
     input.families && input.families.length > 0 ? [...input.families].sort().join(',') : '-',
+    // #842 F18: ranking inputs, serialized stably — these arrive as objects
+    // and arrays whose identity changes on every render.
+    (input.purposes ?? []).join(','),
+    input.categoryBias
+      ? JSON.stringify(Object.entries(input.categoryBias).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : '-',
+    input.plannedStops
+      ? input.plannedStops.map(s => `${s.name ?? ''}@${s.lat.toFixed(6)},${s.lng.toFixed(6)}`).join('|')
+      : '-',
+    input.providerMode ?? '-',
   ].join('|')
 }
 

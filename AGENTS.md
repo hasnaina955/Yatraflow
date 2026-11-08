@@ -75,6 +75,7 @@ git rev-list --count origin/main..origin/test
 19. Claim an issue before you start it, and check for an existing claim. A claim holds even when its branch is not pushed. Full text: docs/agents/AGENTS-FULL.md §2.19
 20. Map V2 controls carry a 44px target floor by product decision. check:ui rule U4 fails the gate on a px size below 44 on a Map floor selector. Full text: docs/agents/AGENTS-FULL.md §2.20
 21. A focused test run derives its list with `npm run test:changed` (git-derived union: branch, staged, unstaged, untracked, plus explicit `--extra`). A source change with no selected test fails the run. Full text: docs/agents/AGENTS-FULL.md §2.21
+22. Run every Claude model through the Claude Code harness (`claudeAgent` driver). The user mandated it: CommandCode and other harnesses host non-Claude models only. When a Claude task starts on another harness, cancel it and relaunch it on Claude Code, keeping its partial work.
 
 ### What enforces each rule
 

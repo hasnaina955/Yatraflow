@@ -17,7 +17,7 @@ import {
   type DrivingPlan, type NearbyOpts, type PlaceHit, type SegmentHit,
 } from '../../../lib/geocode'
 import { anchorHash } from '../../../lib/providers/hits'
-import { QuotaExhaustedError } from '../../../lib/providers/google'
+import { QuotaExhaustedError, googleEnabled } from '../../../lib/providers/google'
 import type { PlaceFamily } from '../../../lib/providers/families'
 import { planInputsHash, isMapCacheFresh, useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { loadHaltPinsForTrip } from '../../../lib/uiPrefs'
@@ -96,9 +96,16 @@ export function useCorridorCache({
     // Ticket 09 AC5: the family set is part of the scan the cache answers,
     // so a changed set must never serve the previous set's rows.
     families: CORRIDOR_FAMILIES,
+    // #842 F18: the scan reads these ranking inputs — hash them, or a
+    // category-only edit re-runs the scan but the fresh-cache check still
+    // serves the old ranked pool.
+    purposes: nearbyOpts.purposes,
+    categoryBias: nearbyOpts.categoryBias,
+    plannedStops: nearbyOpts.plannedStops,
+    providerMode: googleEnabled() ? 'google' : 'free',
     // dnaTick re-reads the DNA log after each accept or decline.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [anchors, routeGeometry, trip, scopeKm, dayRainPct, dayWeatherCode, crewSeeds, dnaTick, drivingPlan])
+  }), [anchors, routeGeometry, trip, scopeKm, dayRainPct, dayWeatherCode, crewSeeds, dnaTick, drivingPlan, nearbyOpts])
 
   // #404: the Overview's slot matrix gates on the SAME freshness this tab's cache
   // was written with — `isMapCacheFresh(cache.map, scopeKm, mapInputsHash)` — and

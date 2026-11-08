@@ -1,6 +1,6 @@
 {
   "generatedBy": "npm run lint:ratchet -- --update",
-  "errors": 129,
+  "errors": 127,
   "warnings": 25,
   "files": {
     "src/App.tsx": {
@@ -60,7 +60,7 @@
       "react-hooks/immutability": 1
     },
     "src/pages/CreateTrip.tsx": {
-      "@typescript-eslint/no-unused-vars": 12,
+      "@typescript-eslint/no-unused-vars": 10,
       "react-hooks/set-state-in-effect": 3,
       "react-hooks/exhaustive-deps": 2
     },

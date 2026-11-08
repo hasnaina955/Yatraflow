@@ -33,13 +33,14 @@ function sceneIds(input: CoverInput, manifest?: ArtManifest): string[] {
     .map(candidate => (candidate.kind === 'generated' ? candidate.id : `user:${candidate.url}`))
 }
 
-const GOA_SCENES = ['goa-1', 'goa-2']
+const GOA_PRIMARY = 'dest-goa-v2'
+const GOA_SCENES = [GOA_PRIMARY, 'goa-1', 'goa-2']
 
 describe('the saved emoji never decides the cover', () => {
   it('resolves the real Goa trip to the Goa family, whatever emoji is saved', () => {
     for (const emoji of ['🏖', '🏖️', '🧭', '', '   ', null, undefined]) {
       const ids = sceneIds({ ...GOA, fallbackEmoji: emoji })
-      expect(GOA_SCENES, String(emoji)).toContain(ids[0])
+      expect(ids[0], String(emoji)).toBe(GOA_PRIMARY)
     }
   })
 
@@ -67,7 +68,7 @@ describe('the start place is evidence, but only when the stops say nothing', () 
     // Candolim, Colva and Palolem are real Goan beaches that neither table
     // names, so the destination list is no evidence at all. The start place is.
     expect(regionFor({ destinations: ['Candolim', 'Colva', 'Palolem'] })).toBe('generic')
-    expect(GOA_SCENES).toContain(sceneIds(GOA)[0])
+    expect(sceneIds(GOA)[0]).toBe(GOA_PRIMARY)
     expect(GOA_SCENES).toContain(sceneIds(GOA)[1])
   })
 
@@ -82,7 +83,7 @@ describe('the start place is evidence, but only when the stops say nothing', () 
       destinations: ['Rishikesh'],
       startLocation: 'Mumbai',
     })
-    expect(ids[0]).toBe('rishikesh-v1')
+    expect(ids[0]).toBe('dest-rishikesh-v2')
     expect(ids.indexOf('road-1')).toBeGreaterThan(0)
     expect(ids.indexOf('road-2')).toBeGreaterThan(0)
   })
@@ -103,11 +104,11 @@ describe('the start place is evidence, but only when the stops say nothing', () 
   // this, a recognised stop plus an unrelated origin let the ORIGIN answer, so
   // a Gulmarg trip out of Mumbai showed the Mumbai scene.
   it.each([
-    ['Gulmarg', 'Mumbai', 'kashmir', ['himalaya-1', 'himalaya-2']],
-    ['Kochi', 'Mumbai', 'kerala', ['kerala-1']],
-    ['Thekkady', 'Mumbai', 'kerala', ['kerala-1']],
+    ['Gulmarg', 'Mumbai', 'kashmir', ['dest-gulmarg-v2', 'himalaya-1', 'himalaya-2']],
+    ['Kochi', 'Mumbai', 'kerala', ['dest-kochi-v2', 'kerala-1']],
+    ['Thekkady', 'Mumbai', 'kerala', ['dest-thekkady-v2', 'kerala-1']],
     ['Kushalnagar', 'Mumbai', 'coorg', ['coorg-1', 'coorg-2']],
-    ['Cherrapunji', 'Mumbai', 'meghalaya', ['meghalaya-1', 'meghalaya-2']],
+    ['Cherrapunji', 'Mumbai', 'meghalaya', ['dest-cherrapunji-v2', 'meghalaya-1', 'meghalaya-2']],
     ['Dawki', 'Mumbai', 'meghalaya', ['meghalaya-1', 'meghalaya-2']],
   ])('lets %s beat an unrelated %s origin', (destination, origin, region, family) => {
     const ids = sceneIds({
@@ -128,7 +129,7 @@ describe('the start place is evidence, but only when the stops say nothing', () 
   it('keeps the unknown-beach + Panaji start case on the Goa family', () => {
     // The start still answers when the stops name nothing at all.
     const ids = sceneIds({ ...GOA, destinations: ['Candolim', 'Colva', 'Palolem'] })
-    expect(GOA_SCENES).toContain(ids[0])
+    expect(ids[0]).toBe(GOA_PRIMARY)
   })
 
   it('lists every bundled scene of a recognised region before the neutral family', () => {
@@ -142,8 +143,9 @@ describe('the start place is evidence, but only when the stops say nothing', () 
       destinations: ['Gulmarg'],
       startLocation: '',
     })
-    expect(ids.slice(0, 2).sort()).toEqual(['himalaya-1', 'himalaya-2'])
-    expect(ids.indexOf('city-1')).toBe(2)
+    expect(ids[0]).toBe('dest-gulmarg-v2')
+    expect(ids.slice(1, 3).sort()).toEqual(['himalaya-1', 'himalaya-2'])
+    expect(ids.indexOf('city-1')).toBe(3)
   })
 
   it('keeps the whole region family ahead of the road family on a multi-stop trip', () => {
@@ -154,8 +156,9 @@ describe('the start place is evidence, but only when the stops say nothing', () 
       destinations: ['Gulmarg', 'Pahalgam'],
       startLocation: '',
     })
-    expect(ids.slice(0, 2).sort()).toEqual(['himalaya-1', 'himalaya-2'])
-    expect(ids.indexOf('road-1')).toBeGreaterThan(1)
+    expect(ids[0]).toBe('jammu-and-kashmir-v2')
+    expect(ids.slice(1, 3).sort()).toEqual(['himalaya-1', 'himalaya-2'])
+    expect(ids.indexOf('road-1')).toBeGreaterThan(2)
   })
 
   it('reaches the sibling region scene when the preferred one is refused', () => {
@@ -168,11 +171,11 @@ describe('the start place is evidence, but only when the stops say nothing', () 
         placeCount: 1,
         destinations: ['Gulmarg'],
         startLocation: '',
-      }).candidates.slice(0, 2),
+      }).candidates.slice(0, 3),
       fallbackEmoji: '🧭',
     })
     const scenes = [...new Set(attempts.map(attempt => (attempt.kind === 'scene' ? attempt.id : 'user')))]
-    expect(scenes).toEqual(['himalaya-1', 'himalaya-2'])
+    expect(scenes.sort()).toEqual(['dest-gulmarg-v2', 'himalaya-1', 'himalaya-2'])
   })
 
   it('never repeats a scene when the region family follows a place-layer match', () => {
@@ -185,9 +188,10 @@ describe('the start place is evidence, but only when the stops say nothing', () 
       destinations: ['Munnar'],
       startLocation: '',
     })
-    expect(ids[0]).toBe('munnar-v1')
+    expect(ids[0]).toBe('dest-munnar-v2')
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toContain('kerala-1')
+    expect(ids).toContain('munnar-v1')
   })
 
   it('ignores a start that matches nothing, so the neutral scene answers', () => {
@@ -224,13 +228,13 @@ describe('the upload wins, and artwork follows it', () => {
   it('keeps the artwork behind a failed upload, so a dead photo is not an emoji', () => {
     const ids = sceneIds({ ...GOA, userCover: 'https://example.test/gone.jpg' })
     expect(ids[0]).toBe('user:https://example.test/gone.jpg')
-    expect(GOA_SCENES).toContain(ids[1])
+    expect(ids[1]).toBe(GOA_PRIMARY)
   })
 
   it('treats a blank upload as no upload', () => {
     for (const userCover of ['', '   ', null, undefined]) {
       const ids = sceneIds({ ...GOA, userCover })
-      expect(GOA_SCENES, String(userCover)).toContain(ids[0])
+      expect(ids[0], String(userCover)).toBe(GOA_PRIMARY)
     }
   })
 })
@@ -252,14 +256,13 @@ describe('the plan is finite, deduplicated and stable', () => {
     for (let index = 0; index < 100; index += 1) expect(sceneIds(GOA)[0]).toBe(ids[0])
   })
 
-  it('reaches both Goa scenes across seeds, and only those two first', () => {
-    const firsts = new Set<string>()
+  it('always starts at the exact Goa scene and keeps both legacy scenes behind it', () => {
     for (let index = 0; index < 200; index += 1) {
-      const first = sceneIds({ ...GOA, seed: `seed-${index}` })[0]
-      expect(GOA_SCENES).toContain(first)
-      firsts.add(first)
+      const ids = sceneIds({ ...GOA, seed: `seed-${index}` })
+      expect(ids[0]).toBe(GOA_PRIMARY)
+      expect(ids).toContain('goa-1')
+      expect(ids).toContain('goa-2')
     }
-    expect([...firsts].sort()).toEqual(GOA_SCENES)
   })
 
   it('does not mutate its input', () => {
@@ -331,11 +334,9 @@ describe('the plan key resets failure memory', () => {
     const base = coverPlanKey(coverPlanFor(GOA))
     const other = coverPlanKey({ candidates: [{ kind: 'generated', id: 'goa-1' }], fallbackEmoji: '🏖' })
     expect(other).not.toBe(base)
-    // A seed that reaches the other Goa scene also produces a different key.
-    const flipped = [...Array(40).keys()]
-      .map(index => coverPlanKey(coverPlanFor({ ...GOA, seed: `seed-${index}` })))
-      .find(key => key !== base)
-    expect(flipped, 'no seed reached the other Goa scene').toBeDefined()
+    // A different named destination produces a different key.
+    const otherDestination = coverPlanKey(coverPlanFor({ ...GOA, destinations: ['Coorg'] }))
+    expect(otherDestination).not.toBe(base)
   })
 
   it('differs when the upload changes, and when it is cleared', () => {

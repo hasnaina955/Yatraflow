@@ -36,7 +36,11 @@ describe('the real Goa trip (712a0493)', () => {
     const first = plan().candidates[0]
     expect(first.kind).toBe('generated')
     if (first.kind !== 'generated') throw new Error('expected a generated scene')
-    expect(['goa-1', 'goa-2']).toContain(first.id)
+    // Goa is now a named destination with its own scene. The two legacy
+    // regional scenes stay behind it as image-resort fallbacks.
+    expect(first.id).toBe('dest-goa-v2')
+    const ids = plan().candidates.map(candidate => (candidate.kind === 'generated' ? candidate.id : 'user'))
+    expect(ids).toEqual(expect.arrayContaining(['goa-1', 'goa-2']))
   })
 
   it('never renders the saved beach emoji over that scene', () => {

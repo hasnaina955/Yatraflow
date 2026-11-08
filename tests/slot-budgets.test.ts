@@ -185,8 +185,9 @@ describe('#346 — the halt plan persists its pins', () => {
   it('the cache version bumped so old shapes evict', () => {
     // #414 (2026-09-29): the halt entries gained `inputsHash` — the plan-input
     // stamp a cached plan is checked against — so the version moved to 7, then to 8 for #832, and
-    // un-stamped payloads evict rather than hydrating as "always fresh".
-    expect(cacheSrc).toMatch(/const CACHE_VERSION = 8/)
+    // un-stamped payloads evict rather than hydrating as "always fresh". #842
+    // moved it to 9: the hash now covers the ranking inputs (F18).
+    expect(cacheSrc).toMatch(/const CACHE_VERSION = 9/)
     expect(cacheSrc).toMatch(/#346/)
     expect(cacheSrc).toMatch(/#414/)
   })

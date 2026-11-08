@@ -8,7 +8,7 @@ import {
   type PlaceArtFallbacks,
   type PlaceArtTables,
 } from '../src/lib/placeArt'
-import { ART_MANIFEST, coverFor, focalXFor, focalYFor } from '../src/lib/regionArt'
+import { ART_MANIFEST, coverFor, coverPlanFor, focalXFor, focalYFor } from '../src/lib/regionArt'
 
 const FALLBACKS: PlaceArtFallbacks = placeFallbacksFrom(ART_MANIFEST)
 const TABLES = placeTables()
@@ -67,51 +67,64 @@ describe('tokensOf boundaries: a short substring never matches', () => {
 describe('exact supported destination override', () => {
   it('gives a named destination its own scene, not its state scene', () => {
     const match = placeArtFor(['Rishikesh'], 'seed-1', FALLBACKS, TABLES)
-    expect(match).toMatchObject({ kind: 'destination', id: 'rishikesh-v1', place: 'Rishikesh' })
+    expect(match).toMatchObject({ kind: 'destination', id: 'dest-rishikesh-v2', place: 'Rishikesh' })
   })
 
   it('resolves a destination written with its state after a comma', () => {
     for (const spelling of ['Rishikesh, Uttarakhand', 'rishikesh', '  RISHIKESH  ']) {
-      expect(placeArtFor([spelling], 's', FALLBACKS, TABLES), spelling).toMatchObject({ kind: 'destination', id: 'rishikesh-v1' })
+      expect(placeArtFor([spelling], 's', FALLBACKS, TABLES), spelling).toMatchObject({ kind: 'destination', id: 'dest-rishikesh-v2' })
     }
   })
 
-  it('resolves every one of the nine required destination scenes', () => {
-    const expected: Array<[string, string]> = [
-      ['Udaipur', 'udaipur-v1'],
-      ['Munnar', 'munnar-v1'],
-      ['Darjeeling', 'darjeeling-v1'],
-      ['Jaipur', 'jaipur-v1'],
-      ['Mumbai', 'mumbai-v1'],
-      ['Leh', 'leh-v1'],
-      ['Manali', 'manali-v1'],
-      ['Rishikesh', 'rishikesh-v1'],
-      ['Shillong', 'shillong-v1'],
-    ]
-    for (const [place, id] of expected) {
-      const match = placeArtFor([place], place, FALLBACKS, TABLES)
-      expect(match?.kind, place).toBe('destination')
-      // A single-id destination can only resolve to that id.
-      expect(match?.id, place).toBe(id)
+  it('resolves all fifty named destination scenes by their canonical name', () => {
+    // Sixteen destinations also own legacy variants, so the answer must not
+    // depend on the seed: the primary id always wins. The test reads the
+    // expectation from the destination table. This also proves the table and
+    // the matcher agree on every name.
+    const newScenes = Object.values(TABLES.destination).filter(entry => entry.ids[0]?.startsWith('dest-'))
+    expect(newScenes).toHaveLength(50)
+    for (const entry of newScenes) {
+      for (const seed of [entry.place, 'fixed-seed', `${entry.place}-2`]) {
+        const match = placeArtFor([entry.place], seed, FALLBACKS, TABLES)
+        expect(match?.kind, entry.place).toBe('destination')
+        expect(match?.id, entry.place).toBe(entry.ids[0])
+      }
     }
   })
 
-  it('keeps a place with two scenes inside its own pair', () => {
-    // Coorg owns coorg-1 and coorg-2. Any seed must pick one of them, and both
-    // must be reachable, because the variant choice is seed-driven.
-    const seen = new Set<string>()
+  it('keeps a refreshed destination on its new named scene while its region scenes stay behind it', () => {
+    // Coorg gained an exact destination scene. The older coorg-1 and coorg-2
+    // stay available as the region family after it, so a failed file costs one
+    // step rather than the whole picture.
     for (let index = 0; index < 200; index += 1) {
       const match = placeArtFor(['Coorg'], `seed-${index}`, FALLBACKS, TABLES)
       expect(match?.kind).toBe('destination')
-      expect(['coorg-1', 'coorg-2']).toContain(match?.id)
-      if (match) seen.add(match.id)
+      expect(match?.id).toBe('dest-coorg-v2')
     }
-    expect([...seen].sort()).toEqual(['coorg-1', 'coorg-2'])
+    const plan = coverPlanFor({ region: 'coorg', seed: 's', placeCount: 1, destinations: ['Coorg'] })
+    expect(plan.candidates.slice(0, 3)).toEqual([
+      { kind: 'generated', id: 'dest-coorg-v2' },
+      { kind: 'generated', id: 'coorg-1' },
+      { kind: 'generated', id: 'coorg-2' },
+    ])
+  })
+
+  it('keeps both live Coorg spellings after the refresh', () => {
+    // "madikeri" was a supported alias before this batch. The refresh must not
+    // drop it when it adds the area's own name.
+    for (const spelling of ['Coorg', 'Kodagu', 'Madikeri']) {
+      expect(placeArtFor([spelling], 's', FALLBACKS, TABLES), spelling)
+        .toMatchObject({ kind: 'destination', id: 'dest-coorg-v2' })
+    }
   })
 
   it('honours an explicit alias and only an explicit one', () => {
-    expect(placeArtFor(['Alleppey'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'kerala-1' })
-    expect(placeArtFor(['Bombay'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'mumbai-v1' })
+    expect(placeArtFor(['Alleppey'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-alappuzha-v2' })
+    expect(placeArtFor(['Bombay'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-mumbai-v2' })
+    expect(placeArtFor(['Mysore'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-mysuru-v2' })
+    expect(placeArtFor(['Cochin'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-kochi-v2' })
+    expect(placeArtFor(['Port Blair'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-sri-vijaya-puram-v2' })
+    expect(placeArtFor(['Statue of Unity'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-ekta-nagar-v2' })
     // "Alappy" is not an alias, so it stays unknown.
     expect(placeArtFor(['Alappy'], 's', FALLBACKS, TABLES)?.kind).toBe('generic')
   })
@@ -124,11 +137,8 @@ describe('state and UT representative fallback', () => {
     const expected: Array<[string, string]> = [
       ['Bhubaneswar, Odisha', 'odisha-v1'],
       ['Patna, Bihar', 'bihar-v1'],
-      ['Varanasi, Uttar Pradesh', 'uttar-pradesh-v1'],
       ['Kolkata, West Bengal', 'west-bengal-v1'],
       ['Ahmedabad, Gujarat', 'gujarat-v1'],
-      ['Amritsar, Punjab', 'punjab-v1'],
-      ['Gangtok, Sikkim', 'sikkim-v1'],
       ['Kohima, Nagaland', 'nagaland-v1'],
       ['Agartala, Tripura', 'tripura-v1'],
       ['Imphal, Manipur', 'manipur-v1'],
@@ -143,10 +153,16 @@ describe('state and UT representative fallback', () => {
       ['Chennai, Tamil Nadu', 'tamil-nadu-v1'],
       ['Chandigarh', 'chandigarh-v1'],
       ['Kavaratti, Lakshadweep', 'lakshadweep-v1'],
-      ['Port Blair, Andaman and Nicobar Islands', 'andaman-and-nicobar-islands-v1'],
+      ['Campbell Bay, Andaman and Nicobar Islands', 'andaman-and-nicobar-islands-v1'],
       ['Silvassa', 'dadra-and-nagar-haveli-and-daman-and-diu-v1'],
-      ['New Delhi', 'delhi-v1'],
-      ['Panaji, Goa', 'goa-1,goa-2'],
+      ['Tura, Meghalaya', 'meghalaya-1,meghalaya-2'],
+      // These four are named destinations now, so the exact scene wins over
+      // the jurisdiction representative. The state path stays covered by every
+      // row above.
+      ['Varanasi, Uttar Pradesh', 'dest-varanasi-v2'],
+      ['Amritsar, Punjab', 'dest-amritsar-v2'],
+      ['Gangtok, Sikkim', 'dest-gangtok-v2'],
+      ['New Delhi', 'dest-delhi-v2'],
     ]
     for (const [place, id] of expected) {
       const match = placeArtFor([place], place, FALLBACKS, TABLES)
@@ -162,20 +178,20 @@ describe('state and UT representative fallback', () => {
     // Shillong is a supported destination inside a multi-scene state. The
     // specific scene wins over the jurisdiction's two generic scenes.
     const match = placeArtFor(['Shillong, Meghalaya'], 's', FALLBACKS, TABLES)
-    expect(match).toMatchObject({ kind: 'destination', id: 'shillong-v1' })
+    expect(match).toMatchObject({ kind: 'destination', id: 'dest-shillong-v2' })
   })
 
   it('reaches a multi-scene jurisdiction only through its own ids', () => {
-    // Goa owns goa-1 and goa-2, so a Goa stop must land on one of those two and
-    // never on a neighbouring state's scene.
+    // Meghalaya owns meghalaya-1 and meghalaya-2, so a Meghalaya stop must land
+    // on one of those two and never on a neighbouring state's scene.
     const seen = new Set<string>()
     for (let index = 0; index < 200; index += 1) {
-      const match = placeArtFor(['Panaji, Goa'], `seed-${index}`, FALLBACKS, TABLES)
+      const match = placeArtFor(['Jowai, Meghalaya'], `seed-${index}`, FALLBACKS, TABLES)
       expect(match?.kind).toBe('state')
-      expect(['goa-1', 'goa-2']).toContain(match?.id)
+      expect(['meghalaya-1', 'meghalaya-2']).toContain(match?.id)
       if (match) seen.add(match.id)
     }
-    expect([...seen].sort()).toEqual(['goa-1', 'goa-2'])
+    expect([...seen].sort()).toEqual(['meghalaya-1', 'meghalaya-2'])
   })
 
   it('resolves every one of the 36 jurisdictions in the manifest', () => {
@@ -185,7 +201,14 @@ describe('state and UT representative fallback', () => {
     for (const entry of states) {
       const match = placeArtFor([entry.state], entry.state, FALLBACKS, TABLES)
       expect(['state', 'destination'], entry.state).toContain(match?.kind)
-      expect(entry.ids, entry.state).toContain(match?.id)
+      if (match?.kind === 'destination') {
+        // Goa and Delhi are also named destinations now, so the exact scene
+        // wins. It must still belong to this same jurisdiction.
+        const destination = Object.values(TABLES.destination).find(candidate => candidate.place === entry.state)
+        expect(destination?.ids, entry.state).toContain(match.id)
+      } else {
+        expect(entry.ids, entry.state).toContain(match?.id)
+      }
     }
   })
 })
@@ -210,11 +233,11 @@ describe('cross-state trips', () => {
     // One positive match is one state. An unsupported second stop is not
     // evidence of another state, so the jurisdiction scene still applies.
     const match = placeArtFor(['Rishikesh, Uttarakhand', 'Palolem'], 'trip-3', FALLBACKS, TABLES)
-    expect(match).toMatchObject({ kind: 'destination', id: 'rishikesh-v1' })
+    expect(match).toMatchObject({ kind: 'destination', id: 'dest-rishikesh-v2' })
   })
 
   it('prefers a state scene over the road family when both stops agree', () => {
-    const match = placeArtFor(['Varanasi, Uttar Pradesh', 'Lucknow, Uttar Pradesh'], 'trip-4', FALLBACKS, TABLES)
+    const match = placeArtFor(['Lucknow, Uttar Pradesh', 'Kanpur, Uttar Pradesh'], 'trip-4', FALLBACKS, TABLES)
     expect(match).toMatchObject({ kind: 'state', id: 'uttar-pradesh-v1', state: 'Uttar Pradesh' })
   })
 
@@ -225,7 +248,7 @@ describe('cross-state trips', () => {
 
 describe('unknown and ambiguous controls', () => {
   it('gives the neutral scene for an unsupported name', () => {
-    for (const place of ['Ziro Valley', 'Hampi', 'Palolem', 'Somewhere Else']) {
+    for (const place of ['Ziro Valley', 'Palolem', 'Somewhere Else']) {
       expect(placeArtFor([place], place, FALLBACKS, TABLES)?.kind, place).toBe('generic')
       expect(placeArtFor([place], place, FALLBACKS, TABLES)?.id, place).toBe('generic-1')
     }
@@ -256,7 +279,7 @@ describe('unknown and ambiguous controls', () => {
     for (const place of ['Delhi', 'Puducherry', 'new delhi']) {
       const match = placeArtFor([place], place, FALLBACKS, TABLES)
       expect(match?.kind, place).not.toBe('generic')
-      expect(['delhi-v1', 'puducherry-v1'], place).toContain(match?.id)
+      expect(['dest-delhi-v2', 'puducherry-v1'], place).toContain(match?.id)
     }
   })
 
@@ -333,7 +356,7 @@ describe('coverFor — integration with the place layer', () => {
 
   it('reaches an accepted destination scene through the cover chain', () => {
     expect(coverFor({ region: 'generic', seed: 'trip', placeCount: 1, destinations: ['Rishikesh'] }))
-      .toEqual({ kind: 'generated', id: 'rishikesh-v1' })
+      .toEqual({ kind: 'generated', id: 'dest-rishikesh-v2' })
   })
 
   it('falls through to the region chain for a name the place layer does not know', () => {
@@ -341,7 +364,7 @@ describe('coverFor — integration with the place layer', () => {
     // place layer does not recognise must not short-circuit the seven-region
     // chain: "Munnar" is Kerala there too, and both answers are the same scene.
     expect(coverFor({ region: 'kerala', seed: 'trip', placeCount: 1, destinations: ['Munnar'] }))
-      .toEqual({ kind: 'generated', id: 'munnar-v1' })
+      .toEqual({ kind: 'generated', id: 'dest-munnar-v2' })
     // "Palolem" is unknown to both layers, so the generic scene answers.
     expect(coverFor({ region: 'generic', seed: 'trip', placeCount: 1, destinations: ['Palolem'] }))
       .toEqual({ kind: 'generated', id: 'generic-1' })
@@ -372,8 +395,8 @@ describe('focalXFor', () => {
   })
 
   it('returns 50 for every id that declares no focalX', () => {
-    for (const id of Object.keys(ART_MANIFEST.ids)) {
-      if (id === 'rishikesh-v1') continue
+    for (const [id, entry] of Object.entries(ART_MANIFEST.ids)) {
+      if (entry.focalX !== undefined) continue
       for (const ratio of ['default', '1:1', '16:10', '3:1']) {
         expect(focalXFor(id, ratio), `${id} ${ratio}`).toBe(50)
       }
@@ -412,9 +435,18 @@ describe('focalXFor', () => {
     expect(focalYFor('no-such-id', '3:1')).toBe(50)
   })
 
-  it('declares focalX on exactly the one id whose square crop needs it', () => {
+  it('declares focalX only on ids whose crop needs an offset, at an in-range value', () => {
     const withFocalX = Object.entries(ART_MANIFEST.ids).filter(([, entry]) => entry.focalX !== undefined).map(([id]) => id)
-    expect(withFocalX).toEqual(['rishikesh-v1'])
+    expect(withFocalX).toContain('rishikesh-v1')
+    for (const id of withFocalX) {
+      expect(id === 'rishikesh-v1' || id.startsWith('dest-'), id).toBe(true)
+      for (const ratio of ['default', '1:1', '21:9', '3:1', '3.5:1']) {
+        const value = focalXFor(id, ratio)
+        expect(Number.isFinite(value), `${id} ${ratio}`).toBe(true)
+        expect(value, `${id} ${ratio}`).toBeGreaterThanOrEqual(0)
+        expect(value, `${id} ${ratio}`).toBeLessThanOrEqual(100)
+      }
+    }
   })
 })
 
@@ -446,6 +478,17 @@ describe('manifest places tables', () => {
         if (owner !== undefined) expect(owner, `${entry.state} claims "${alias}"`).toBe(entry.state)
       }
     }
+    // The destination table grew by fifty entries and its own aliases. An alias
+    // must never resolve to a different destination.
+    const destinations = new Map(Object.values(TABLES.destination).map(entry => [entry.place.toLowerCase(), entry.place]))
+    for (const entry of Object.values(TABLES.destination)) {
+      for (const alias of entry.aliases) {
+        const owner = destinations.get(alias)
+        if (owner !== undefined) expect(owner, `${entry.place} claims "${alias}"`).toBe(entry.place)
+        const match = placeArtFor([alias], 'alias-seed', FALLBACKS, TABLES)
+        if (match?.kind === 'destination') expect(match.place, `${entry.place} alias "${alias}"`).toBe(entry.place)
+      }
+    }
   })
 
   it('keeps every alias a whole name, never a fragment', () => {
@@ -470,7 +513,7 @@ describe('retained and superseded assets', () => {
 
   it('resolves Jammu and Kashmir to the active v2, and never to the superseded v1', () => {
     const match = placeArtFor(['Srinagar'], 's', FALLBACKS, TABLES)
-    expect(match).toMatchObject({ kind: 'destination', id: 'jammu-and-kashmir-v2' })
+    expect(match).toMatchObject({ kind: 'destination', id: 'dest-srinagar-v2' })
     expect(placeArtFor(['Jammu and Kashmir'], 's', FALLBACKS, TABLES)?.id).toBe('jammu-and-kashmir-v2')
     expect(Object.keys(ART_MANIFEST.ids)).not.toContain('jammu-and-kashmir-v1')
   })
@@ -479,7 +522,7 @@ describe('retained and superseded assets', () => {
     // Himalaya-1 is the trans-Himalayan lake scene, which belongs to Ladakh. A
     // Kashmir destination must not reach it, or a valley trip would show a
     // barren high-altitude lake.
-    expect(placeArtFor(['Leh'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'leh-v1' })
+    expect(placeArtFor(['Leh'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'destination', id: 'dest-leh-v2' })
     expect(placeArtFor(['Ladakh'], 's', FALLBACKS, TABLES)).toMatchObject({ kind: 'state', id: 'himalaya-1' })
     for (const valley of ['Srinagar', 'Gulmarg', 'Pahalgam', 'Jammu and Kashmir']) {
       expect(placeArtFor([valley], 's', FALLBACKS, TABLES)?.id, valley).not.toBe('himalaya-1')

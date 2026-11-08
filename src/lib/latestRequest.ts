@@ -9,7 +9,8 @@
  */
 
 export interface LatestRequest {
-  /** Start a request. Its id is the only current id. */
+  /** Start a request. Its id is the only current id. A pick claims field
+   *  ownership the same way: begin() before its await, isCurrent() after. */
   begin(): number
   /** True only for the newest id from begin(), and only until cancel(). */
   isCurrent(id: number): boolean

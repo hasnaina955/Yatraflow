@@ -1135,6 +1135,12 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    which closes for a swap and reopens on `style.load`). Put the write in a child
    overlay and list that value in the effect dependencies, or it never retries.
 
+6bq. **Fit, display and saved payload must read the same factual duration
+   (learned 2026-11-07, visit duration).** Route a confirmed subtype visit
+   length through one helper for fit, card, saved stop, vote draft and slack.
+   Keep an explicit visit override. When the fact is absent, keep each
+   surface's existing fallback. Never turn an invalid fact into zero.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.

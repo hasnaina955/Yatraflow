@@ -26,11 +26,11 @@ import { toast } from '../../../components/ui'
 import { Select } from '../../../components/Select'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPoisMulti, searchCitiesAlong, corridorAnchors, reasonForHit, filterPlannedNearby, asymmetricDetourMinutes, googleEnabled, googleCitiesAlong, anchorHash, routeHash } from '../../../lib/geocode'
-import { visitDatesForPlan } from '../../../lib/hoursContext'
+import { intendedVisitMinutes, visitDatesForPlan } from '../../../lib/hoursContext'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import { hasCoords, kmFromStartForHit, type HaltPurpose } from '../../../lib/providers/hits'
 import { segmentsFromPlan, assignSegmentHits, annotateSegmentHits, type HaltPlanItem } from '../../../lib/ridePlan'
-import { daySlackMin, slackPrompt, pickSlackHit, visitMinutesForCategory } from '../../../lib/slackPrompts'
+import { daySlackMin, slackPrompt, pickSlackHit } from '../../../lib/slackPrompts'
 import { pointAtKm } from '../../../lib/geo'
 import { loadHaltPinsForTrip } from '../../../lib/uiPrefs'
 import { planInputsHash, isHaltCacheFresh } from '../../../hooks/useSuggestionCache'
@@ -445,7 +445,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     driveMin: journey.driveMinutes, dwellMin: journey.dwellMinutes,
     planMin: planMinutes, bufferMin: planBuffer,
   })
-  const slackCands = slackPool.map(o => ({ name: o.hit.name, detourMin: o.detourMin == null ? Number.POSITIVE_INFINITY : o.detourMin, category: o.hit.category }))
+  const slackCands = slackPool.map(o => ({ name: o.hit.name, detourMin: o.detourMin == null ? Number.POSITIVE_INFINITY : o.detourMin, category: o.hit.category, visitMin: intendedVisitMinutes(o.hit) }))
   const slackPickHit = (() => {
     const pick = pickSlackHit(slackMin, slackCands)
     if (!pick) return null
@@ -731,7 +731,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                       lat: h.latitude, lng: h.longitude,
                       description: h.description ?? '',
                       notes: "Slack pick — fits the day's leftover time",
-                      visitMinutes: visitMinutesForCategory(h.category),
+                      visitMinutes: intendedVisitMinutes(h),
                       openTime: '', closeTime: '',
                       entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
                       priority: 'nice-to-have', sourceUrl: '', status: 'suggested',

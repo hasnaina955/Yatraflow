@@ -120,13 +120,24 @@ describe('#420 — a row\'s reason chips', () => {
     const exact = sightRowChips({ segment, hit: rated, detourMin: 45.4, dayBudget: 45 })
     const over = sightRowChips({ segment, hit: rated, detourMin: 45.6, dayBudget: 45 })
     expect(JSON.stringify(exact)).not.toBe(JSON.stringify(over))
-    expect(module_).toContain('Math.round(detourMin) > dayBudget')
   })
 
-  it('reads an unknown position as the whole budget, and clamps a fractional detour up', () => {
-    // Both lines are the moved contract, pinned so a future edit cannot soften it.
-    expect(module_).toContain('detourMin != null && detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : detourMin == null ? 100 : null')
-    expect(module_).toContain('overBudget: detourMin == null || Math.round(detourMin) > dayBudget')
+  it('reads an unknown detour against the whole known budget, never a free ride', () => {
+    const chips = sightRowChips({ segment, hit: {}, detourMin: null, dayBudget: 45 })
+    expect(chips.map(c => c.key)).toEqual(['over-budget', 'budget-share'])
+    expect(chips.find(c => c.key === 'budget-share')?.label).toBe('100% of budget')
+  })
+
+  it('shows no budget claim on an unknown day, and never borrows a base budget', () => {
+    expect(sightRowChips({ segment, hit: {}, detourMin: 24, dayBudget: null })).toEqual([])
+    expect(sightRowChips({ segment, hit: {}, detourMin: null, dayBudget: null })).toEqual([])
+  })
+
+  it('prints the known-day share, and lets the producer canonical share win', () => {
+    const known = sightRowChips({ segment, hit: {}, detourMin: 24, dayBudget: 45 })
+    expect(known.find(c => c.key === 'budget-share')?.label).toBe('53% of budget')
+    const canonical = sightRowChips({ segment, hit: {}, detourMin: 24, dayBudget: 45, budgetSharePct: 90 })
+    expect(canonical.find(c => c.key === 'budget-share')?.label).toBe('90% of budget')
   })
 })
 
@@ -144,7 +155,11 @@ describe('#420 — slice 5 wiring', () => {
     expect(mapTab).not.toContain('railReasonChips(')
     expect(railRows).toContain("from './sightRows'")
     expect(railRows).toMatch(/return pickAlternatives\(\{/)
-    expect(railRows).toMatch(/return sightRowChips\(\{ segment: sh\.segment, hit, detourMin, dayBudget \}\)/)
+    // The chips consume the producer's canonical cost when one is handed in, and
+    // resolve a real day's budget (never a base 45) when it is not.
+    expect(railRows).toMatch(/return sightRowChips\(\{/)
+    expect(railRows).toContain('dayBudgetFor(hit, facts)')
+    expect(railRows).toContain('dayBudget: cost ? cost.dayBudget : dayBudgetFor(hit, facts)')
   })
 
   it('the module reuses the one NEED_PURPOSES rather than declaring its own', () => {

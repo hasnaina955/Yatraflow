@@ -6,6 +6,7 @@
 // legacy period.
 import { isoAddDays } from './weather'
 import { visitMinutesForCategory } from './slackPrompts'
+import { familyFactsFor } from './providers/families'
 import { openingVerdict, weekdayOfISO, type HoursVerdict, type OpeningInterval, type PlaceHours } from './providers/hours'
 import type { PlaceHit } from './providers/hits'
 import type { RideSegment } from './ridePlan'
@@ -34,9 +35,22 @@ export function visitDateForDay(startDate: string | null | undefined, dayIndex: 
   return isoAddDays(startDate, dayIndex)
 }
 
+/**
+ * Confirmed subtype visit minutes, or undefined when the source row is
+ * incomplete. Uses the one existing family facts table; no subtype value is
+ * invented here. Heritage rows (and any absent subtype) stay undefined.
+ */
+export function confirmedVisitMinutes(
+  hit: Pick<PlaceHit, 'category'> & Partial<Pick<PlaceHit, 'family' | 'subtype'>>,
+): number | undefined {
+  return familyFactsFor(hit.category, hit.subtype, hit.family)?.visitMin
+}
+
 /** The visit length the add path already intends for this place kind. */
-export function intendedVisitMinutes(hit: Pick<PlaceHit, 'category'>): number {
-  return visitMinutesForCategory(hit.category)
+export function intendedVisitMinutes(
+  hit: Pick<PlaceHit, 'category'> & Partial<Pick<PlaceHit, 'family' | 'subtype'>>,
+): number {
+  return confirmedVisitMinutes(hit) ?? visitMinutesForCategory(hit.category)
 }
 
 /**
@@ -119,7 +133,7 @@ function closedNote(verdict: HoursVerdict): string {
  * period for it.
  */
 export function hoursDisplayFor(
-  hit: Pick<PlaceHit, 'category' | 'hours'>,
+  hit: Pick<PlaceHit, 'category' | 'hours'> & Partial<Pick<PlaceHit, 'family' | 'subtype'>>,
   args: { date: string | null; arrivalMin: number | null; visitMin?: number | null },
 ): HoursDisplay {
   if (!hit.hours) return { ranges: null, verdict: 'unknown', note: null }

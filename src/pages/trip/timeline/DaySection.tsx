@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import {
   ArrowRight, Armchair, BedDouble, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Droplets, ExternalLink, Flag, Fuel, Landmark, Lock, MapPin, Mountain,
@@ -1574,7 +1575,7 @@ function poiQuickStop(h: PlaceHit): Omit<ItineraryStop, 'id' | 'orderInDay'> {
     title: h.name, category: (h.category as ItineraryStop['category']) ?? 'sightseeing', locationName: h.description ?? h.name,
     lat: h.latitude, lng: h.longitude,
     description: h.description ?? '', notes: 'Nearby idea',
-    visitMinutes: h.category === 'food' ? 45 : h.category === 'hotel' ? 0 : 60, openTime: '', closeTime: '',
+    visitMinutes: confirmedVisitMinutes(h) ?? (h.category === 'food' ? 45 : h.category === 'hotel' ? 0 : 60), openTime: '', closeTime: '',
     entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
     priority: 'nice-to-have', sourceUrl: '', status: 'suggested',
   }

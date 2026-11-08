@@ -6,6 +6,18 @@
 // called, no writer is reachable, and no ranking or cost formula lives here.
 // Every fact is copied. A fact the inputs do not carry stays null.
 //
+// #08 AC2 honesty: a drive row now carries the corridor's arrival minute and
+// its own day's budget share (derived once by the drive-row producer), and the
+// projection copies them. `netAddedMin` has no producer: the engine's only
+// time-delta fact is `computeImpact().timeDeltaMin`, which needs a proposed
+// trip and a full re-simulation, so it is not available per suggestion here.
+// `bufferMin` is not in the AC text and the engine's buffer is one whole-day
+// assumption, not a per-row fact. Both stay null rather than inventing a zero,
+// a default duration or a guessed buffer. `visitMin` is the filled stop's own
+// duration; a suggestion has no per-candidate visit fact, so it stays null.
+// Position is carried by the row's `hit` (coordinates, and `cumKm` /
+// `alongRouteKm` when the input had them), never re-invented as a new field.
+//
 // Identity rules (copied from the existing helpers, never re-invented):
 //  - a slot row carries the #841 SlotRef, the slot key and the filled stop id;
 //  - place identity is `placeKeysOf` and `isSameEntity`, so two providers that
@@ -73,7 +85,9 @@ export interface JourneyRow {
   detourKm: number | null
   budgetSharePct: number | null
   visitMin: number | null
+  /** No per-row buffer fact exists; the engine buffers a whole day. Always null. */
   bufferMin: number | null
+  /** No per-suggestion time-delta fact exists (see header). Always null. */
   netAddedMin: number | null
   arriveMin: number | null
   /** The authoritative arrival label when one exists; stored label otherwise. */
@@ -360,7 +374,7 @@ function rowFromFilledSlot(
     origin: stop.auto ? 'engine' : 'manual',
     detourMin: drive?.detourMin ?? null,
     detourKm: null,
-    budgetSharePct: null,
+    budgetSharePct: drive?.budgetSharePct ?? null,
     visitMin: typeof stop.visitMinutes === 'number' ? stop.visitMinutes : null,
     bufferMin: null,
     netAddedMin: null,
@@ -391,6 +405,9 @@ function rowFromDrive(
   const hit = drive.hit
   const placeKeys = placeKeysOf(hit)
   const driveDay = typeof drive.dayIndex === 'number' ? drive.dayIndex : null
+  const arriveMin = typeof drive.arriveMin === 'number' && Number.isFinite(drive.arriveMin)
+    ? drive.arriveMin
+    : null
   return {
     key,
     tripId: plan.tripId,
@@ -406,13 +423,13 @@ function rowFromDrive(
     origin: 'drive',
     detourMin: drive.detourMin,
     detourKm: null,
-    budgetSharePct: null,
+    budgetSharePct: drive.budgetSharePct,
     visitMin: null,
     bufferMin: null,
     netAddedMin: null,
-    arriveMin: null,
+    arriveMin,
     arriveLabel: drive.arriveLabel,
-    arriveSource: 'none',
+    arriveSource: arriveMin != null ? 'candidate' : 'none',
     windowMin: null,
     inWindow: drive.inWindow,
     reason: drive.reason,

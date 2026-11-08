@@ -35,17 +35,48 @@ export type ChipFacts = {
   travelStyle: Trip['travelStyle']
 }
 
+/**
+ * The detour budget of a real day, or null when no real day owns that index.
+ * An unknown day has no budget: it never borrows the base style budget (#08).
+ */
+export function dayBudgetForDay(dayIndex: number | null, facts: ChipFacts): number | null {
+  if (dayIndex == null) return null
+  const day = facts.days.find(item => item.index === dayIndex)
+  if (!day) return null
+  let planned = 0
+  for (const stop of day.stops) if (stop.status !== 'rejected') planned += 1
+  return dayDetourBudgetMin({ travelStyle: facts.travelStyle, plannedStops: planned })
+}
+
+/** The budget of the day a hit's road position belongs to. */
+export function dayBudgetFor(hit: Pick<PlaceHit, 'cumKm'>, facts: ChipFacts): number | null {
+  return dayBudgetForDay(facts.dayForKm(hit.cumKm), facts)
+}
+
+/** The cost facts a row producer already computed for one row. */
+export type ChipCostFacts = {
+  /** the row's measured detour; null = position unknown */
+  detourMin: number | null
+  /** the row's own day budget; null = unknown day/budget, never a base 45 */
+  dayBudget: number | null
+  /** the row's canonical share; undefined = let the chip recalc it */
+  budgetSharePct?: number | null
+}
+
 /** Reason chips for one suggestion, shared by the card and the rail filter. */
-export function chipsFor(sh: SegmentHit, hit: PlaceHit, facts: ChipFacts): RailChip[] {
+export function chipsFor(sh: SegmentHit, hit: PlaceHit, facts: ChipFacts, cost?: ChipCostFacts): RailChip[] {
   // #420 slice 5: the chips themselves (including the #163 rounding predicate) come
-  // from ./sightRows; the trip-aware numbers are resolved here.
-  const detourMin = facts.detourMinFor(hit)
-  const hitDay = facts.days.find(d => d.index === facts.dayForKm(hit.cumKm))
-  const dayBudget = dayDetourBudgetMin({
-    travelStyle: facts.travelStyle,
-    plannedStops: (hitDay?.stops ?? []).filter(s => s.status !== 'rejected').length,
+  // from ./sightRows. A producer that already computed the row's cost hands it in,
+  // so the chip consumes the same fact as the row/card/marker and never recalculates
+  // it against a different budget. With no cost passed, resolve the same facts here;
+  // a hit with no real day has no budget, never the base 45.
+  return sightRowChips({
+    segment: sh.segment,
+    hit,
+    detourMin: cost ? cost.detourMin : facts.detourMinFor(hit),
+    dayBudget: cost ? cost.dayBudget : dayBudgetFor(hit, facts),
+    ...(cost && cost.budgetSharePct !== undefined ? { budgetSharePct: cost.budgetSharePct } : {}),
   })
-  return sightRowChips({ segment: sh.segment, hit, detourMin, dayBudget })
 }
 
 /** The rail's meter copy: the mockup's wording, honest per day. The count is

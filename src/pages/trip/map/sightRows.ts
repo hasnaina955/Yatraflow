@@ -13,7 +13,7 @@
  */
 import type { PlaceHit } from '../../../lib/geocode'
 import { railReasonChips, type RailChip } from '../../../lib/railReasons'
-import { budgetSharePct } from '../../../lib/detourBudget'
+import { budgetSharePct as sharePctOf } from '../../../lib/detourBudget'
 import { NEED_PURPOSES } from './pageHelpers'
 
 /** One alternative in the pool the rail draws from. */
@@ -67,23 +67,42 @@ export type SightChipInput = {
   hit: Pick<PlaceHit, 'rating' | 'ratingCount'>
   /** the row's measured detour; null = position unknown */
   detourMin: number | null
-  /** that day's detour budget */
-  dayBudget: number
+  /** that day's detour budget; null = unknown day/budget, never a base 45 */
+  dayBudget: number | null
+  /**
+   * The row's already-computed budget share. `undefined` = not supplied, so the
+   * unchanged recalc applies; a number or null = the producer's canonical fact
+   * and it wins. Null means the producer knows the share is unknown.
+   */
+  budgetSharePct?: number | null
 }
 
 /** The reason chips for one suggestion, shared by the card and the rail filter. */
-export function sightRowChips({ segment, hit, detourMin, dayBudget }: SightChipInput): RailChip[] {
+export function sightRowChips({ segment, hit, detourMin, dayBudget, budgetSharePct: canonicalShare }: SightChipInput): RailChip[] {
+  // A budget exists only for a real day with a positive budget. An unknown day
+  // must not borrow a base budget, invent a share or claim a budget verdict.
+  const budget = dayBudget != null && Number.isFinite(dayBudget) && dayBudget > 0 ? dayBudget : null
+  const share = canonicalShare !== undefined
+    ? canonicalShare
+    : detourMin == null
+      ? (budget == null ? null : 100)
+      : budget == null || detourMin <= 0.5
+        ? null
+        : sharePctOf(detourMin, budget)
+  const overBudget = detourMin == null
+    ? budget != null
+    : budget != null && Math.round(detourMin) > budget
   return railReasonChips({
     purpose: segment.purpose,
     etaMinutes: segment.etaMinutes ?? null,
     minutesFromPrev: segment.minutesFromPrev,
     isFirstSegment: segment.index === 0,
     detourMinutes: detourMin ?? 0,
-    budgetSharePct: detourMin != null && detourMin > 0.5 ? budgetSharePct(detourMin, dayBudget) : detourMin == null ? 100 : null,
+    budgetSharePct: share,
     // #163: same predicate as the fact strip (round-half-up display math),
     // so a budget-exact halt can't be 'fine' on the card and 'held back' on
     // the rail — or flip between them on a display-rounding nudge.
-    overBudget: detourMin == null || Math.round(detourMin) > dayBudget,
+    overBudget,
     rating: hit.rating,
     ratingCount: hit.ratingCount,
   })

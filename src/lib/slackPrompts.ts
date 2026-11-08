@@ -35,6 +35,9 @@ export interface SlackCandidate {
   name: string
   detourMin: number
   category?: string
+  /** Already-computed visit length. When present it wins over the category
+   *  default; an invalid explicit value rejects the candidate, never zero. */
+  visitMin?: number
 }
 
 /** Round for human display ("~90 min"). */
@@ -51,7 +54,16 @@ export function pickSlackHit(slackMin: number, candidates: SlackCandidate[]): Sl
   let best: SlackCandidate | null = null
   for (const c of candidates) {
     if (!Number.isFinite(c.detourMin) || c.detourMin < 0) continue
-    const cost = c.detourMin + visitMinutesForCategory(c.category)
+    let visitMin: number
+    if (c.visitMin !== undefined) {
+      // A known fact is spent as given. A broken one rejects the pick; it must
+      // not become zero (which would fit) or fall back to a different length.
+      if (!Number.isFinite(c.visitMin) || c.visitMin < 0) continue
+      visitMin = c.visitMin
+    } else {
+      visitMin = visitMinutesForCategory(c.category)
+    }
+    const cost = c.detourMin + visitMin
     if (cost > slackMin) continue
     if (!best || c.detourMin < (best.detourMin as number)) best = c
   }

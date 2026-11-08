@@ -121,6 +121,24 @@ describe('card facts come from the row', () => {
     expect(mapRowForHit(rows, fixture.hits.corridor, fixture.dayIndex, { slotKey: 'lunch' })?.freshness).toBe('retained')
     expect(mapRowForHit(rows, fixture.hits.zero)?.freshness).toBe('unknown')
   })
+
+  it('carries a drive row arrival and share, not a second computation', () => {
+    const fixture = journeyFixture()
+    const zero = fixture.driveRows.find(row => row.hit === fixture.hits.zero)
+    if (!zero) throw new Error('fixture zero drive row is missing')
+    const rows = mapRows(fixture, {
+      driveRows: fixture.driveRows.map(row => row === zero
+        ? { ...row, arriveMin: 600, arriveLabel: '10:00', budgetSharePct: 12 }
+        : row),
+    })
+    const row = mapRowForHit(rows, fixture.hits.zero, fixture.dayIndex)
+    expect(row?.arriveMin).toBe(600)
+    expect(row?.arriveLabel).toBe('10:00')
+    expect(row?.budgetSharePct).toBe(12)
+    // A drive row with no measured cost fact stays an honest unknown.
+    expect(mapRowForHit(rows, fixture.hits.sharedGoogle)?.arriveMin).toBeNull()
+    expect(mapRowForHit(rows, fixture.hits.sharedGoogle)?.budgetSharePct).toBeNull()
+  })
 })
 
 describe('provider-aware repeated identity', () => {

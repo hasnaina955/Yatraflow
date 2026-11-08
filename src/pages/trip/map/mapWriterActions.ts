@@ -33,6 +33,7 @@ import {
   type SlotPlacementResult,
 } from '../../../lib/slotPlacement'
 import type { EffectiveDaySlot } from '../../../lib/dayPlan'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import { acknowledgedReceiptOf, type AcknowledgedReceipt } from '../../../lib/previewChain'
 import type { WriterOperationContext, WriterOperationGate, WriterRetryTicket } from './writerOperationGate'
 import { writerRequestKey } from './writerOperationGate'
@@ -387,7 +388,7 @@ export function planWriterDay(input: {
           category: stopCategoryOf(pinned.category),
           title: pinned.name,
           locationName: pinned.description ?? pinned.name,
-          visitMinutes: input.poiVisitMinutes(pinned.category),
+          visitMinutes: confirmedVisitMinutes(pinned) ?? input.poiVisitMinutes(pinned.category),
           priority: 'nice-to-have',
           notes: entry?.notes ?? 'Filled from the day plan',
           ...(entry?.slotKey ? { slotKey: entry.slotKey } : {}),

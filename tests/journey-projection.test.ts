@@ -231,7 +231,8 @@ describe('slot facts win in place', () => {
       dayPlan: plan,
       driveRows: [{
         id: 'drive-merge', hit, lane: 'need', purpose: 'meal', segmentIndex: 0, dayIndex: 0,
-        detourMin: 7, arriveLabel: null, inWindow: null, reason: 'Drive reason', chips: [], state: 'live',
+        detourMin: 7, arriveMin: null, arriveLabel: null, budgetSharePct: null,
+        inWindow: null, reason: 'Drive reason', chips: [], state: 'live',
       }],
       budgetMin: 45,
       editable: true,
@@ -319,6 +320,37 @@ describe('detour facts are copied, never guessed', () => {
       expect(row.netAddedMin).toBeNull()
       if (row.stopId === null) expect(row.visitMin).toBeNull()
     }
+  })
+
+  it('copies a drive row arrival and share, and keeps an absent one an honest unknown', () => {
+    const fixture = journeyFixture()
+    const zero = fixture.driveRows.find(row => row.hit === fixture.hits.zero)
+    const other = fixture.driveRows.find(row => row.hit === fixture.hits.sharedGoogle)
+    if (!zero || !other) throw new Error('fixture drive row is missing')
+    const projection = project(fixture, {
+      driveRows: fixture.driveRows.map(row => row === zero
+        ? { ...row, arriveMin: 600, arriveLabel: '10:00', budgetSharePct: 12 }
+        : row),
+    })
+    const known = mustRow(projection, row => row.hit === fixture.hits.zero)
+    expect(known.arriveMin).toBe(600)
+    expect(known.arriveLabel).toBe('10:00')
+    expect(known.arriveSource).toBe('candidate')
+    expect(known.budgetSharePct).toBe(12)
+    const unknown = mustRow(projection, row => row.hit === fixture.hits.sharedGoogle)
+    expect(unknown.arriveMin).toBeNull()
+    expect(unknown.arriveSource).toBe('none')
+    expect(unknown.budgetSharePct).toBeNull()
+  })
+
+  it('fills a filled stop budget share from its same-day drive row', () => {
+    const fixture = journeyFixture()
+    const fuelDrive = fixture.driveRows.find(row => row.hit === fixture.hits.fuel)
+    if (!fuelDrive) throw new Error('fixture fuel drive row is missing')
+    const projection = project(fixture, {
+      driveRows: fixture.driveRows.map(row => row === fuelDrive ? { ...row, budgetSharePct: 9 } : row),
+    })
+    expect(mustRow(projection, row => row.slotKey === 'fuel').budgetSharePct).toBe(9)
   })
 })
 

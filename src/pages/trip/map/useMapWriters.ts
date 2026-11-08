@@ -33,6 +33,7 @@ import { isAirMode, MODE_SPEED } from '../../../lib/engine'
 import { roadChainSig } from '../../../lib/tripRoad'
 import type { ApplyChange } from '../../../lib/mutationLifecycle'
 import { visitMinutesForCategory } from '../../../lib/slackPrompts'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import { newStopId, poiVisitMinutes } from './pageHelpers'
 import { saveHaltPin } from '../../../lib/uiPrefs'
 import { recordDnaEvent } from '../../../lib/tripDna'
@@ -626,7 +627,7 @@ export function useMapWriters({
             lat: pinned.latitude,
             lng: pinned.longitude,
             description: c.hit.description,
-            visitMinutes: poiVisitMinutes(c.hit.category),
+            visitMinutes: confirmedVisitMinutes(c.hit) ?? poiVisitMinutes(c.hit.category),
             openTime: c.hit.openTime,
             closeTime: c.hit.closeTime,
             dayIndex: activeDayIndex,

@@ -26,6 +26,7 @@ import { addDecision, admitTripPreview, tripById } from '../../../store/store'
 import { reportCollabOutcome } from '../../../lib/collabFeedback'
 import { persistedPlaceFromHit } from '../../../lib/placeDraft'
 import { isAirMode } from '../../../lib/engine'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import { roadChainSig } from '../../../lib/tripRoad'
 import type { ApplyChange } from '../../../lib/mutationLifecycle'
 import { orderByRoad } from './roadOrder'
@@ -354,7 +355,7 @@ export function useShortlist({
             lat: pinned.latitude,
             lng: pinned.longitude,
             description: h.description,
-            visitMinutes: poiVisitMinutes(h.category),
+            visitMinutes: confirmedVisitMinutes(h) ?? poiVisitMinutes(h.category),
             ...(h.openTime ? { openTime: h.openTime } : {}),
             ...(h.closeTime ? { closeTime: h.closeTime } : {}),
             // Unknown route position: leave the day ABSENT (not Day 1 —

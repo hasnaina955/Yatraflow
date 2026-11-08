@@ -9,6 +9,8 @@ import { describe, expect, it } from 'vitest'
 import {
   activeDayLabel, activeReadinessLabel, alternativesFor, chipsFor,
 } from '../src/pages/trip/map/railRows'
+import type { ChipFacts } from '../src/pages/trip/map/railRows'
+import type { ItineraryDay } from '../src/data/types'
 
 describe('the rail meter copy', () => {
   it('says nothing is scheduled on an empty day', () => {
@@ -57,12 +59,32 @@ describe('the row helpers delegate with the page’s facts', () => {
     hit: { id: 'h1', cumKm: 100, rating: 4.5, ratingCount: 10 },
   } as never
   const hit = (sh as { hit: never }).hit
-  const facts = {
+  const bare = { id: 'bare', cumKm: 100 } as never
+  const facts: ChipFacts = {
     detourMinFor: () => 12,
     days: [],
     dayForKm: () => 0,
     travelStyle: 'balanced',
-  } as never
+  }
+  const day = (index: number, stops: number): ItineraryDay => ({
+    id: `day-${index}`,
+    index,
+    title: `Day ${index}`,
+    stops: Array.from({ length: stops }, (_value, i) => ({
+      id: `s${i}`,
+      title: `Stop ${i}`,
+      category: 'sightseeing',
+      locationName: `Stop ${i}`,
+      lat: 0,
+      lng: 0,
+      visitMinutes: 30,
+      entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0,
+      priority: 'nice-to-have',
+      status: 'confirmed',
+      orderInDay: i + 1,
+    })),
+  })
 
   it('hands the pool to the ranking rule untouched', () => {
     const pool = { all: [], byPurpose: new Map(), byCategory: new Map() }
@@ -73,5 +95,19 @@ describe('the row helpers delegate with the page’s facts', () => {
     const chips = chipsFor(sh, hit, facts)
     expect(Array.isArray(chips)).toBe(true)
     expect(chips.length).toBeGreaterThan(0)
+  })
+
+  it('prints a real day’s share and no share at all for an unknown day', () => {
+    const known = chipsFor(sh, bare, { ...facts, days: [day(0, 2)] })
+    expect(known.find(c => c.key === 'budget-share')?.label).toBe('27% of budget')
+
+    const unknown = chipsFor(sh, bare, facts)
+    expect(unknown.some(c => c.key === 'budget-share')).toBe(false)
+    expect(unknown.some(c => c.key === 'over-budget')).toBe(false)
+  })
+
+  it('consumes the canonical cost a row producer already computed', () => {
+    const chips = chipsFor(sh, bare, facts, { detourMin: 12, dayBudget: 45, budgetSharePct: 90 })
+    expect(chips.find(c => c.key === 'budget-share')?.label).toBe('90% of budget')
   })
 })

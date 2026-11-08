@@ -35,6 +35,7 @@ import { useMapWriters } from './map/useMapWriters'
 import { useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
 import { useRailContent } from './map/useRailContent'
+import { journeyCostLabels } from './map/railLabels'
 import { useSlotSearch } from './map/useSlotSearch'
 import {
   SEE_VISIBLE, SCOPE_KM_STEPS, SCOPE_STORAGE_KEY,
@@ -963,14 +964,29 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 
   const dayOptions = trip.days.map(d => ({ index: d.index }))
 
-  // #420 slice 13: the rail content (split, engine, costs, pool, arcs)
+  // #420 slice 13: the rail content (split, pool, arcs)
   // lives in ./map/useRailContent. Values only, never callbacks — the
   // render-called helpers stay with the page for the rails slice.
-  const { needs, seeAndDoLive, hitEngine, hitCosts, altPool, arcHits, arcs } = useRailContent({
-    pois, anchors, routePolyline, transportMode: trip.transportMode,
-    travelStyle: trip.travelStyle, days: trip.days, dayForKm, identity,
+  const { needs, seeAndDoLive, altPool, arcHits, arcs } = useRailContent({
+    pois, anchors, identity,
   })
 
+  // #08 AC5: the ONE per-hit detour computation. It is upstream of the
+  // corridor snapshot, so the drive rows and every covered surface read the
+  // same number. It is no longer re-derived inside the rail hook.
+  const hitEngine = useMemo(() => {
+    const speedK = MODE_SPEED[trip.transportMode] ?? 40
+    const m = new Map<string, { detourMin: number | null }>()
+    for (const sh of pois) {
+      if (!sh.hit) continue
+      m.set(String(sh.hit.id), { detourMin: asymmetricDetourMinutes(sh.hit, anchors, routePolyline ?? null, speedK) })
+    }
+    return m
+  }, [pois, anchors, routePolyline, trip.transportMode])
+
+  // A hit outside the corridor (a search or omnibar hit) has no drive row, so
+  // its detour is measured here once. This is the honest uncovered fallback,
+  // not a parallel cost path for covered hits.
   const detourMinFor = useCallback((hit: PlaceHit): number | null =>
     hitEngine.get(String(hit.id))?.detourMin
       ?? asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40),
@@ -1094,6 +1110,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // S3: the rail reads the shared producer's one drive-row assembly. The page
   // no longer re-assembles the same rows.
   const driveRows = journeyDays.allDriveRows
+  // #08 AC5: the marker's cost sentence formats the canonical drive-row facts,
+  // never a second detour/arrival/budget computation of its own.
+  const hitCosts = useMemo(() => journeyCostLabels(driveRows), [driveRows])
   const seeForRail = chipFilter
     ? seeAndDoLive.filter(sh => sh.hit && (driveRowForHit(driveRows, sh.hit)?.chips ?? []).some(c => c.key === chipFilter))
     : seeAndDoLive

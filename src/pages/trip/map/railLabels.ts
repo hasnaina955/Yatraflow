@@ -5,14 +5,17 @@
  * rows ("arrive 11:24 · +26 min · 58% of the day's detour budget") and the slot pins
  * on the map, which assemble the identical three bits from a slot's top candidate.
  * The wording was duplicated, so a change to one could quietly leave the other
- * behind — and `hitCosts` also carried the per-day budget cache that makes it cheap.
+ * behind.
  *
- * `detourBits` is that sentence once. `hitCostLabels` and `slotPinsFor` are the two
- * callers, lifted out of the page so their behaviour is pinned by direct tests
+ * `detourBits` is that sentence once. `journeyCostLabels` and `slotPinsFor` are the
+ * two callers, lifted out of the page so their behaviour is pinned by direct tests
  * instead of by rendering 2,700 lines.
+ *
+ * #08 AC5: `journeyCostLabels` formats facts already carried by canonical rows.
+ * It computes no detour, arrival or budget share of its own, so the marker cannot
+ * disagree with the row it is formatting.
  */
 import { clockHM } from '../../../lib/clockOverlay'
-import { budgetSharePct } from '../../../lib/detourBudget'
 import type { DaySlot } from '../../../lib/daySlots'
 
 export type DetourLabelBits = {
@@ -34,47 +37,30 @@ export function detourBits({ arriveLabel, detourMin, budgetSharePct }: DetourLab
   ].filter((bit): bit is string => bit != null)
 }
 
-export type HitCostInput = {
-  /** one entry per corridor hit, in rail order; a hit with no position still gets a label */
-  hits: ReadonlyArray<{
-    id: string
-    cumKm?: number | null
-    detourMin: number | null
-    /** the segment's planned arrival, before the detour is added */
-    etaMinutes?: number | null
-  }>
-  /** the day a hit's road position belongs to */
-  dayForKm: (km: number | null | undefined) => number | null
-  /** that day's detour budget — looked up once per day, not once per hit */
-  detourBudgetMin: (dayIndex: number) => number
+/** The row facts this module may format. A canonical `JourneyRow` satisfies it. */
+export type JourneyCostRow = {
+  readonly hit: { readonly id: string | number }
+  readonly arriveMin: number | null
+  readonly arriveLabel: string | null
+  readonly detourMin: number | null
+  readonly budgetSharePct: number | null
 }
 
-/** The cost chip under every corridor row, keyed by hit id. */
-export function hitCostLabels({ hits, dayForKm, detourBudgetMin }: HitCostInput): Record<string, string> {
-  // One budget per day, not one per hit - the lookup is cheap, the repetition
-  // across every hit on the map was not.
-  const budgetByDay = new Map<number, number>()
-  const budgetFor = (dayIndex: number): number => {
-    const cached = budgetByDay.get(dayIndex)
-    if (cached != null) return cached
-    const budget = detourBudgetMin(dayIndex)
-    budgetByDay.set(dayIndex, budget)
-    return budget
-  }
-
+/**
+ * The cost sentence under a canonical row, keyed by hit id. Every number comes
+ * from the row; the only thing added here is the clock label for an arrival the
+ * row already measured. A hit no row covers simply has no entry (the caller only
+ * hands in rows), so nothing is invented for an unmeasured place.
+ */
+export function journeyCostLabels(rows: readonly JourneyCostRow[]): Record<string, string> {
   const labels: Record<string, string> = {}
-  for (const h of hits) {
-    const dMin = h.detourMin
-    const eta = h.etaMinutes
-    const arriveLabel = eta != null && Number.isFinite(eta) && dMin != null
-      ? clockHM(Math.round(eta + dMin))
-      : null
-    let share: number | null = null
-    if (dMin != null && dMin > 0.5) {
-      const budget = budgetFor(dayForKm(h.cumKm) ?? 0)
-      if (budget > 0) share = budgetSharePct(dMin, budget)
-    }
-    labels[String(h.id)] = detourBits({ arriveLabel, detourMin: dMin, budgetSharePct: share }).join(' · ')
+  for (const row of rows) {
+    const arriveLabel = row.arriveMin != null ? clockHM(row.arriveMin) : row.arriveLabel
+    labels[String(row.hit.id)] = detourBits({
+      arriveLabel,
+      detourMin: row.detourMin,
+      budgetSharePct: row.budgetSharePct,
+    }).join(' · ')
   }
   return labels
 }

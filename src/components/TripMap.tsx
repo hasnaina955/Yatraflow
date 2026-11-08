@@ -22,7 +22,11 @@ import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
 import { haptic } from '../lib/haptics'
-import { nativeWatch } from '../lib/native'
+import { isNative, nativeWatch } from '../lib/native'
+import {
+  deriveLiveLocationState, drawsLiveDot, livePositionAllowed, resolveLiveCamera,
+  LIVE_FIX_STALE_MS, LIVE_LOCATION_COPY, toISODate,
+} from '../lib/liveLocation'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
@@ -102,30 +106,59 @@ const STYLE_LOAD_WATCHDOG_MS = 4000
 // exposure, so they are gone as of issue #23 — there is no satellite layer.
 
 /**
- * Live location: "show me on the map" as a persistent, toggleable layer —
- * the standard Android maps pattern. While on, the user renders as a
- * pulsing blue dot and the camera follows the latest fix (until the user
- * pans away themselves). The watch is driven by the native plugin inside
- * the app (system permission dialog + fused provider) or the browser watch
- * on the web. Toggling off stops the watch entirely — no idle GPS burn.
+ * Map V2 ticket 23. The dot is opt-in and draws on an actual trip day only.
+ * The fix stays in this component. No code writes it to a store, a network,
+ * a log or a URL. Each state gets its own status line.
  */
-function LiveLocationLayer({ active }: { active: boolean }) {
+function LiveLocationLayer({
+  active, startDate, endDate, today, focusDay, recenterSignal,
+}: {
+  active: boolean
+  startDate: string
+  endDate: string
+  today: string
+  focusDay: number | 'all' | undefined
+  recenterSignal: number
+}) {
   const { map, isLoaded } = useMap()
   const [fix, setFix] = useState<GeolocationPosition | null>(null)
-  const [denied, setDenied] = useState(false)
-  // Camera follow is released the first time the user pans/pinches the map
-  // themselves; our own easeTo (below) flips this true around its call so
-  // the movestart it triggers isn't misread as a user pan.
+  const [error, setError] = useState<'denied' | 'failed' | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const hadFix = useRef(false)
   const userPanned = useRef(false)
   const selfMove = useRef(false)
+  const lastRecenter = useRef(recenterSignal)
+
+  const supported = isNative || (typeof navigator !== 'undefined' && 'geolocation' in navigator)
+  const dayAllowed = livePositionAllowed({ optedIn: active, startDate, endDate, today, focusDay })
+  const fixAgeMs = fix ? Math.max(0, now - fix.timestamp) : null
+  const state = deriveLiveLocationState({
+    optedIn: active,
+    dayAllowed,
+    supported,
+    hasFix: fix != null,
+    fixAgeMs,
+    staleAfterMs: LIVE_FIX_STALE_MS,
+    error,
+  })
 
   useEffect(() => {
-    if (!active) { setFix(null); setDenied(false); return }
+    if (!active || !dayAllowed || !supported) {
+      setFix(null)
+      setError(null)
+      hadFix.current = false
+      return
+    }
     userPanned.current = false
     const handle = nativeWatch(pos => {
-      if (!pos) { setDenied(true); return }
-      setDenied(false)
+      if (!pos) {
+        setError(hadFix.current ? 'failed' : 'denied')
+        return
+      }
+      hadFix.current = true
+      setError(null)
       setFix(pos)
+      setNow(Date.now())
     })
     const onMoveStart = () => { if (!selfMove.current) userPanned.current = true }
     map?.on('movestart', onMoveStart)
@@ -133,30 +166,45 @@ function LiveLocationLayer({ active }: { active: boolean }) {
       handle.stop()
       map?.off('movestart', onMoveStart)
     }
-  }, [active, map])
+  }, [active, dayAllowed, supported, map])
+
+  // A clock tick only re-labels an ageing fix. It reads no location.
+  useEffect(() => {
+    if (!active || !dayAllowed || !fix) return
+    const id = setInterval(() => setNow(Date.now()), LIVE_FIX_STALE_MS)
+    return () => clearInterval(id)
+  }, [active, dayAllowed, fix])
 
   useEffect(() => {
-    if (!isLoaded || !map || !fix) return
+    const recentered = lastRecenter.current !== recenterSignal
+    lastRecenter.current = recenterSignal
+    const camera = resolveLiveCamera({ hasFix: fix != null, userPanned: userPanned.current, recentered })
+    if (camera.clearPan) userPanned.current = false
+    if (!isLoaded || !map || !fix || !camera.follow) return
     const center: [number, number] = [fix.coords.longitude, fix.coords.latitude]
-    if (!userPanned.current) {
-      selfMove.current = true
-      map.easeTo({ center, zoom: Math.max(map.getZoom(), 14), duration: 600 })
-      // movestart fires synchronously-ish inside easeTo setup; release on
-      // the next frame so subsequent user pans still count.
-      requestAnimationFrame(() => { selfMove.current = false })
-    }
-  }, [isLoaded, map, fix])
+    selfMove.current = true
+    map.easeTo({ center, zoom: Math.max(map.getZoom(), 14), duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration })
+    requestAnimationFrame(() => { selfMove.current = false })
+  }, [isLoaded, map, fix, recenterSignal])
 
-  if (!active || !fix) return null
+  if (state === 'off') return null
+  const showDot = drawsLiveDot(state) && fix != null
   return (
-    <MapMarker longitude={fix.coords.longitude} latitude={fix.coords.latitude}>
-      <MarkerContent>
-        <VisiblePulse className={`yf-live-dot${denied ? ' yf-live-dot--denied' : ''}`} aria-label="Your live location" role="img">
-          <span className="yf-live-pulse" aria-hidden />
-          <span className="yf-live-core" aria-hidden />
-        </VisiblePulse>
-      </MarkerContent>
-    </MapMarker>
+    <>
+      {showDot && (
+        <MapMarker longitude={fix.coords.longitude} latitude={fix.coords.latitude}>
+          <MarkerContent>
+            <VisiblePulse className={`yf-live-dot yf-live-dot--${state}`} aria-label={LIVE_LOCATION_COPY[state]} role="img">
+              <span className="yf-live-pulse" aria-hidden />
+              <span className="yf-live-core" aria-hidden />
+            </VisiblePulse>
+          </MarkerContent>
+        </MapMarker>
+      )}
+      <div className="yf-live-status" data-state={state} role="status">
+        {LIVE_LOCATION_COPY[state]}
+      </div>
+    </>
   )
 }
 
@@ -559,6 +607,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
   const [liveOn, setLiveOn] = useState(false)
+  const [liveRecenterNonce, setLiveRecenterNonce] = useState(0)
   const toggleLive = () => {
     haptic(liveOn ? 'toggle' : 'select')
     setLiveOn(v => !v)
@@ -1023,6 +1072,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // opens it on a stalled style, where a style write throws.
 
   function fitToTrip() {
+    // With live on, recenter arms the camera follow again.
+    if (liveOn) { setLiveRecenterNonce(n => n + 1); return }
     const m = mapRef.current
     const bounds = boundsOf(fitPoints)
     if (!m || !bounds) return
@@ -1359,8 +1410,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={wantsCooperativeGestures({ dedicated, expanded })} />
-            {/* Live location layer — mounted always, self-gating on `liveOn`. */}
-            <LiveLocationLayer active={liveOn} />
+            <LiveLocationLayer
+              active={liveOn}
+              startDate={trip.startDate}
+              endDate={trip.endDate}
+              today={toISODate(new Date())}
+              focusDay={focusDay}
+              recenterSignal={liveRecenterNonce}
+            />
             {workspaceChrome && <MapBasemapStatus failure={basemapStatus.failure} onRetry={basemapStatus.onRetry} onSourceReady={basemapStatus.onSourceReady} />}
             {journeyCursor && validMapCoordinate(journeyCursor.coordinate) && <MapMarker longitude={journeyCursor.coordinate.lng} latitude={journeyCursor.coordinate.lat}>
               <MarkerContent><span className="mv2-map-clock" aria-hidden="true"><Clock size={13} />{journeyCursor.label}</span></MarkerContent>

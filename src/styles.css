@@ -415,3 +415,10 @@
 .mv2-workspace .mv2-deck-more > summary { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-5) 0; border-radius: var(--radius-sm); font: var(--pw-ui); font-size: 13px; color: var(--text-2); }
 .mv2-workspace .mv2-deck-more > summary:hover { color: var(--text); }
 .mv2-workspace .mv2-deck-more > summary:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* Map V2 ticket 23. Private live-position status. Motion uses tokens only. */
+.yf-live-status { position: absolute; left: var(--space-5); bottom: 12px; z-index: 4; display: inline-flex; align-items: center; max-width: min(320px, calc(100% - 24px)); padding: var(--space-3) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); font-size: 12px; line-height: 1.35; animation: yf-live-status-in var(--motion-fast) var(--ease-paper) both; }
+.yf-live-status[data-state='denied'], .yf-live-status[data-state='failed'], .yf-live-status[data-state='unavailable'], .yf-live-status[data-state='stale'] { color: var(--ink-amber); }
+.yf-live-dot--stale .yf-live-core, .yf-live-dot--failed .yf-live-core { opacity: .55; }
+@keyframes yf-live-status-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .yf-live-status { animation: none; } }

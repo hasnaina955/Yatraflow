@@ -26,7 +26,7 @@ import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, crewSeedsFromSug
 import { placeIdentity } from '../lib/placeIdentity'
 import type { PlaceHit } from '../lib/providers/hits'
 import { useJourneyDays } from './trip/journey/useJourneyDays'
-import type { WorkspaceJourneyDays } from './trip/journey/journeyDays'
+import type { JourneyNetAddedRoad, WorkspaceJourneyDays } from './trip/journey/journeyDays'
 import { corridorSnapshotKey, type CorridorSnapshot } from './trip/map/corridorSnapshot'
 // Board also embeds TripMap (so it pulls the same lazy map chunk) — load the whole
 // view lazily so the Board tab never adds app-start cost either. TripMap itself
@@ -634,20 +634,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     () => (effectiveTrip ? placeIdentity(effectiveTrip, addedIds, dismissedIds, stagedSnapshot) : null),
     [effectiveTrip, addedIds, dismissedIds, stagedSnapshot],
   )
-  const journeyDays: WorkspaceJourneyDays = useJourneyDays({
-    trip: effectiveTrip ?? null,
-    committedTrip: trip ?? null,
-    snapshot: corridorSnapshot,
-    presence: journeyPresence,
-    editable,
-    decisions,
-    dnaVector,
-    legCorrections,
-    slotManual,
-    dnaTick,
-    identityGeneration,
-  })
-
   // S4: the Timeline's covered Add reads the same workspace measurement as the
   // Map. It starts no routing call; a pending/failed/estimate-only/stale chain
   // grades unmeasured and the hop is absent, so Add refuses honestly.
@@ -668,6 +654,36 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const roadBindingRef = useRef<WriterRoadBinding | null>(roadBinding)
   useEffect(() => { roadBindingRef.current = roadBinding }, [roadBinding])
   const currentRoadBinding = useCallback(() => roadBindingRef.current, [])
+  /**
+   * #08 AC2: the ONE measured road the writer and the preview already use, in
+   * the shape the shared day projection needs for a row's net added minutes. A
+   * line without a finished measurement leaves it null, so no row invents a
+   * position or a duration from an unmeasured road.
+   */
+  const journeyNetAddedRoad = useMemo<JourneyNetAddedRoad | null>(() => {
+    if (!roadBinding || timelineRoute.length < 2) return null
+    return {
+      routeKey: roadBinding.routeKey,
+      routeKmOf: (lat: number, lng: number) => {
+        const snap = projectOntoPolyline({ latitude: lat, longitude: lng }, timelineRoute)
+        return snap?.km ?? null
+      },
+    }
+  }, [roadBinding, timelineRoute])
+  const journeyDays: WorkspaceJourneyDays = useJourneyDays({
+    trip: effectiveTrip ?? null,
+    committedTrip: trip ?? null,
+    snapshot: corridorSnapshot,
+    presence: journeyPresence,
+    editable,
+    decisions,
+    dnaVector,
+    legCorrections,
+    slotManual,
+    dnaTick,
+    identityGeneration,
+    netAddedRoad: journeyNetAddedRoad,
+  })
   // One typed reason for a disabled covered Add. It comes from the canonical
   // measured road grade, so an unmeasured road never reads as a lost writer.
   const projectedAvailability = useMemo<TimelineAddAvailability>(() => {

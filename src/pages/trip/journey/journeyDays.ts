@@ -31,6 +31,10 @@ import {
 import type { CorridorSnapshot } from '../map/corridorSnapshot'
 import { driveRowsFromSegments, type DriveSuggestionRow } from '../map/driveSuggestionView'
 import { buildDayPlanForDay, type ManualPicksForDay } from '../map/manualPicks'
+import { intendedVisitMinutes } from '../../../lib/hoursContext'
+import { planSlotPlacements, type SlotPlacementItem } from '../../../lib/slotPlacement'
+import { STOP_CATEGORIES } from '../../../data/types'
+import type { NetAddedInput } from '../../../lib/journeyProjection'
 import {
   deriveDaySlotFacts,
   type DaySlotFacts,
@@ -112,8 +116,21 @@ export interface JourneyDaysInput {
   readonly legCorrections?: Record<string, LegEstimate>
   /** Captured read-adapter output, one entry per day. No store read here. */
   readonly manualPicksByDay: ReadonlyMap<number, ManualPicksForDay>
+  /**
+   * The measured road the writer and the preview already use, or null when no
+   * measurement backs this trip. Absent or null keeps every `netAddedMin` null.
+   */
+  readonly netAddedRoad?: JourneyNetAddedRoad | null
   /** Previous model. Unchanged days reuse their exact JourneyDay object. */
   readonly prev?: JourneyDays | null
+}
+
+/** Measured road facts one day's net added minutes are computed against. */
+export interface JourneyNetAddedRoad {
+  /** The measured chain's stable identity. */
+  routeKey: string
+  /** Along-route km for a point, or null off the measured line. */
+  routeKmOf: (lat: number, lng: number) => number | null
 }
 
 const EMPTY_IDENTITY: PlaceIdentity = {
@@ -132,6 +149,110 @@ const EMPTY_DNA: DnaVector = {
   categoryAffinity: {},
   avgDetourMin: null,
   avgVisitMin: null,
+}
+
+/** The stop category a hit would be saved as, from the stop grammar's own list. */
+const HIT_CATEGORIES = new Set<string>([...STOP_CATEGORIES, 'cafe'])
+
+function stopCategoryOfHit(hit: PlaceHit): ItineraryStop['category'] {
+  return typeof hit.category === 'string' && HIT_CATEGORIES.has(hit.category)
+    ? (hit.category as ItineraryStop['category'])
+    : 'sightseeing'
+}
+
+/** The planner's place shape for one hit; provider keys come from the hit. */
+function placeForNetAddedHit(hit: PlaceHit): SlotPlacementItem['place'] {
+  return {
+    title: hit.name,
+    name: hit.name,
+    locationName: hit.description ?? hit.name,
+    lat: hit.latitude,
+    lng: hit.longitude,
+    ...(hit.placeId ? { placeId: hit.placeId } : {}),
+    ...(hit.eLoc ? { eLoc: hit.eLoc } : {}),
+    ...(hit.source ? { source: hit.source } : {}),
+  }
+}
+
+/**
+ * One day's net-added seam (#08 AC2). The stop and its position come from the
+ * SAME reviewed planner the writer calls, with the day's real measured road, so
+ * the rail card and the impact preview cannot disagree about one place. A
+ * candidate the planner cannot place keeps no stop and no position, so its
+ * number stays null instead of inventing a duration or a slot.
+ *
+ * `insertAt` is proven only when this candidate alone is planned against the
+ * day, so the reported index is that row's own position and not a batch's.
+ */
+function netAddedSeamFor(input: {
+  trip: Trip
+  dayId: string
+  dayIndex: number
+  road: JourneyNetAddedRoad
+  legCorrections?: NetAddedInput['legCorrections']
+}): NetAddedInput {
+  const day = input.trip.days.find(entry => entry.index === input.dayIndex)
+  const existingRoadPositions = day
+    ? day.stops
+      .map(stop => {
+        const km = input.road.routeKmOf(stop.lat, stop.lng)
+        return km == null || !Number.isFinite(km) || km < 0
+          ? null
+          : { stopId: stop.id, km, routeKey: input.road.routeKey, dayId: input.dayId }
+      })
+      .filter((entry): entry is { stopId: string; km: number; routeKey: string; dayId: string } => entry !== null)
+    : []
+  const planned = new Map<string, { stop: ItineraryStop; insertAt: number } | null>()
+
+  const planFor = (row: { key: string; hit: PlaceHit }): { stop: ItineraryStop; insertAt: number } | null => {
+    if (planned.has(row.key)) return planned.get(row.key) ?? null
+    const km = input.road.routeKmOf(row.hit.latitude, row.hit.longitude)
+    const item: SlotPlacementItem = {
+      itemId: row.key,
+      place: placeForNetAddedHit(row.hit),
+      hit: row.hit,
+      road: km != null && Number.isFinite(km) && km >= 0
+        ? { km, routeKey: input.road.routeKey, dayId: input.dayId }
+        : null,
+    }
+    const result = planSlotPlacements({
+      trip: input.trip,
+      items: [item],
+      policy: {
+        tripId: input.trip.id,
+        dayId: input.dayId,
+        operationId: `net-added:${row.key}`,
+        acceptedRouteKeys: [input.road.routeKey],
+        buildStop: () => ({
+          id: `net-added:${row.key}`,
+          category: stopCategoryOfHit(row.hit),
+          title: row.hit.name,
+          locationName: row.hit.description ?? row.hit.name,
+          visitMinutes: intendedVisitMinutes(row.hit),
+          priority: 'nice-to-have',
+          notes: 'Net added minutes',
+          description: row.hit.description ?? '',
+          openTime: row.hit.openTime ?? '',
+          closeTime: row.hit.closeTime ?? '',
+          status: 'suggested',
+        }),
+      },
+      existingRoadPositions,
+    })
+    const outcome = result.outcomes[0]
+    const value = outcome && outcome.phase === 'planned'
+      ? { stop: outcome.stop, insertAt: outcome.insertAt }
+      : null
+    planned.set(row.key, value)
+    return value
+  }
+
+  return {
+    trip: input.trip,
+    ...(input.legCorrections ? { legCorrections: input.legCorrections } : {}),
+    stopFor: row => planFor(row)?.stop ?? null,
+    insertAtFor: row => planFor(row)?.insertAt ?? null,
+  }
 }
 
 function emptyCards(): DayCards {
@@ -331,6 +452,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     })
     const contextKey = `${committed.id}:${snapshot.inputsHash}:${snapshot.scopeKm}:${dayId ?? '-'}:${day.index}`
     const sim = cards.byDay.get(day.index)?.sim ?? null
+    const netAddedRoad = input.netAddedRoad ?? null
     const projection = projectJourney({
       dayPlan,
       driveRows: sameDayRows,
@@ -339,6 +461,17 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       presence,
       contextKey,
       ...(sim ? { daySchedule: sim } : {}),
+      ...(netAddedRoad && dayId
+        ? {
+          netAdded: netAddedSeamFor({
+            trip,
+            dayId,
+            dayIndex: day.index,
+            road: netAddedRoad,
+            legCorrections: input.legCorrections,
+          }),
+        }
+        : {}),
     })
     const revision = journeyDayRevision({
       contextKey,

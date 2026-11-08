@@ -16,7 +16,7 @@ import { mapManualSlotStore } from '../map/manualSlotContexts'
 import { readManualPicksForDay, type ManualPicksForDay } from '../map/manualPicks'
 import { readDnaSlotHints } from '../map/useDaySlots'
 import { createJourneySelector, type JourneySelectorInput } from './journeySelector'
-import type { WorkspaceJourneyDays } from './journeyDays'
+import type { JourneyNetAddedRoad, WorkspaceJourneyDays } from './journeyDays'
 
 export interface UseJourneyDaysInput {
   /** Effective content (preview included). */
@@ -35,6 +35,11 @@ export interface UseJourneyDaysInput {
   readonly dnaTick: number
   /** Store identity generation: a user/session change clears structural reuse. */
   readonly identityGeneration: number
+  /**
+   * The measured road the Map's writer and the preview already use. Null when no
+   * measurement backs this trip, which keeps every `netAddedMin` null.
+   */
+  readonly netAddedRoad?: JourneyNetAddedRoad | null
 }
 
 /**
@@ -90,6 +95,7 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
       legCorrections: input.legCorrections,
       manualPicksByDay,
       identityGeneration: input.identityGeneration,
+      ...(input.netAddedRoad !== undefined ? { netAddedRoad: input.netAddedRoad } : {}),
     }
     return selector.select(modelInput)
   }, [
@@ -104,6 +110,7 @@ export function useJourneyDays(input: UseJourneyDaysInput): WorkspaceJourneyDays
     input.legCorrections,
     manualPicksByDay,
     input.identityGeneration,
+    input.netAddedRoad,
   ])
   // Commit after React commits. An uncommitted selection does not move the cache.
   useEffect(() => {

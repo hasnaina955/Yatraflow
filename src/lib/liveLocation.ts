@@ -78,7 +78,34 @@ export interface LiveLocationSignals {
   hasFix: boolean
   fixAgeMs: number | null
   staleAfterMs: number
-  error: 'denied' | 'failed' | null
+  error: LiveErrorSignal
+}
+
+/**
+ * The watch error the layer keeps. 'unavailable' means the watch got no fix.
+ * It reads as failed once a fix is already held.
+ */
+export type LiveErrorSignal = 'denied' | 'unavailable' | 'failed' | null
+
+/** The three codes the layer can receive. Native and browser errors map onto these. */
+export type LiveWatchErrorCode = 'permission_denied' | 'position_unavailable' | 'timeout'
+
+/** Only a permission refusal reads as denied. A timeout or a lost signal never does. */
+export function liveErrorSignal(code: LiveWatchErrorCode): 'denied' | 'unavailable' {
+  return code === 'permission_denied' ? 'denied' : 'unavailable'
+}
+
+/**
+ * Read the code from a browser GeolocationPositionError (1, 2 or 3) or a
+ * Capacitor geolocation error (OS-PLUG-GLOC-0003 is a refusal, 0010 a timeout).
+ * OS-PLUG-GLOC-0008 is a device restriction, so it reads as unavailable.
+ * Any other shape reads as position_unavailable, never as a refusal.
+ */
+export function watchErrorCode(raw: unknown): LiveWatchErrorCode {
+  const code = typeof raw === 'object' && raw !== null ? (raw as { code?: unknown }).code : undefined
+  if (code === 1 || code === 'OS-PLUG-GLOC-0003') return 'permission_denied'
+  if (code === 3 || code === 'OS-PLUG-GLOC-0010') return 'timeout'
+  return 'position_unavailable'
 }
 
 /** Derive one state. Failed, denied, loading, unavailable and stale stay apart. */
@@ -86,6 +113,7 @@ export function deriveLiveLocationState(s: LiveLocationSignals): LiveLocationSta
   if (!s.optedIn || !s.dayAllowed) return 'off'
   if (!s.supported) return 'unavailable'
   if (s.error === 'denied') return 'denied'
+  if (s.error === 'unavailable') return s.hasFix ? 'failed' : 'unavailable'
   if (s.error === 'failed') return 'failed'
   if (!s.hasFix) return 'locating'
   if (s.fixAgeMs != null && s.fixAgeMs > s.staleAfterMs) return 'stale'

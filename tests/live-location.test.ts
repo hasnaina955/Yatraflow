@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs'
 import {
   isActualTripDay, livePositionAllowed, deriveLiveLocationState,
   drawsLiveDot, resolveLiveCamera, LIVE_LOCATION_COPY, LIVE_FIX_STALE_MS,
-  addDaysISO, toISODate,
-  type LiveLocationState,
+  addDaysISO, toISODate, liveErrorSignal, watchErrorCode,
+  type LiveLocationState, type LiveErrorSignal,
 } from '../src/lib/liveLocation'
 
 // Source guards read both line endings, per the source-contract rule.
@@ -115,6 +115,52 @@ describe('ticket 23: date helpers', () => {
 
   it('reads a local calendar date', () => {
     expect(toISODate(new Date(2026, 10, 9, 23, 30))).toBe('2026-11-09')
+  })
+})
+
+describe('ticket 23 finding 4: a watch error keeps denied and unavailable apart', () => {
+  const base = {
+    optedIn: true, dayAllowed: true, supported: true,
+    hasFix: false, fixAgeMs: null as number | null,
+    staleAfterMs: LIVE_FIX_STALE_MS, error: null as LiveErrorSignal,
+  }
+
+  it('reads only a permission refusal as denied', () => {
+    expect(liveErrorSignal('permission_denied')).toBe('denied')
+    expect(liveErrorSignal('timeout')).toBe('unavailable')
+    expect(liveErrorSignal('position_unavailable')).toBe('unavailable')
+  })
+
+  it('a timeout before any fix never yields denied', () => {
+    const state = deriveLiveLocationState({ ...base, error: liveErrorSignal('timeout') })
+    expect(state).toBe('unavailable')
+    expect(state).not.toBe('denied')
+  })
+
+  it('a timeout after a fix keeps the last position as failed', () => {
+    const state = deriveLiveLocationState({ ...base, error: liveErrorSignal('timeout'), hasFix: true, fixAgeMs: 0 })
+    expect(state).toBe('failed')
+  })
+
+  it('a refusal reads as denied with or without a fix', () => {
+    expect(deriveLiveLocationState({ ...base, error: liveErrorSignal('permission_denied') })).toBe('denied')
+    expect(deriveLiveLocationState({ ...base, error: liveErrorSignal('permission_denied'), hasFix: true, fixAgeMs: 0 })).toBe('denied')
+  })
+
+  it('reads browser codes and Capacitor codes into one error code', () => {
+    expect(watchErrorCode({ code: 1, message: 'User denied Geolocation' })).toBe('permission_denied')
+    expect(watchErrorCode({ code: 2, message: 'Position unavailable' })).toBe('position_unavailable')
+    expect(watchErrorCode({ code: 3, message: 'Timeout expired' })).toBe('timeout')
+    expect(watchErrorCode({ code: 'OS-PLUG-GLOC-0003', message: 'Location permission request was denied.' })).toBe('permission_denied')
+    expect(watchErrorCode({ code: 'OS-PLUG-GLOC-0010', message: 'Could not obtain location in time.' })).toBe('timeout')
+    expect(watchErrorCode({ code: 'OS-PLUG-GLOC-0007' })).toBe('position_unavailable')
+    expect(watchErrorCode({ code: 'OS-PLUG-GLOC-0008' })).toBe('position_unavailable')
+  })
+
+  it('never reads an unknown error as a refusal', () => {
+    expect(watchErrorCode(undefined)).toBe('position_unavailable')
+    expect(watchErrorCode('denied')).toBe('position_unavailable')
+    expect(watchErrorCode({ message: 'denied' })).toBe('position_unavailable')
   })
 })
 

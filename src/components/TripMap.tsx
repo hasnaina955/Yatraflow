@@ -25,6 +25,7 @@ import { haptic } from '../lib/haptics'
 import { isNative, nativeWatch } from '../lib/native'
 import {
   deriveLiveLocationState, drawsLiveDot, livePositionAllowed, resolveLiveCamera,
+  liveErrorSignal, type LiveErrorSignal,
   LIVE_FIX_STALE_MS, LIVE_LOCATION_COPY, toISODate,
 } from '../lib/liveLocation'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
@@ -122,9 +123,8 @@ function LiveLocationLayer({
 }) {
   const { map, isLoaded } = useMap()
   const [fix, setFix] = useState<GeolocationPosition | null>(null)
-  const [error, setError] = useState<'denied' | 'failed' | null>(null)
+  const [error, setError] = useState<LiveErrorSignal>(null)
   const [now, setNow] = useState(() => Date.now())
-  const hadFix = useRef(false)
   const userPanned = useRef(false)
   const selfMove = useRef(false)
   const lastRecenter = useRef(recenterSignal)
@@ -146,20 +146,17 @@ function LiveLocationLayer({
     if (!active || !dayAllowed || !supported) {
       setFix(null)
       setError(null)
-      hadFix.current = false
       return
     }
     userPanned.current = false
-    const handle = nativeWatch(pos => {
-      if (!pos) {
-        setError(hadFix.current ? 'failed' : 'denied')
-        return
-      }
-      hadFix.current = true
-      setError(null)
-      setFix(pos)
-      setNow(Date.now())
-    })
+    const handle = nativeWatch(
+      pos => {
+        setError(null)
+        setFix(pos)
+        setNow(Date.now())
+      },
+      code => setError(liveErrorSignal(code)),
+    )
     const onMoveStart = () => { if (!selfMove.current) userPanned.current = true }
     map?.on('movestart', onMoveStart)
     return () => {

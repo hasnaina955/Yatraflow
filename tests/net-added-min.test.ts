@@ -77,9 +77,9 @@ describe('net added minutes — one producer, one number', () => {
 
 describe('net added minutes — memoised per row', () => {
   it('simulates each distinct candidate once and then serves the cache', () => {
-    // Cost bound: the baseline of each day is simulated once per producer, and
-    // each distinct candidate costs one pass over the days at or after its own
-    // day. A repeat render costs nothing.
+    // Cost bound: each distinct candidate runs computeImpact once. That call
+    // simulates the whole trip twice, for the baseline and for the proposed plan.
+    // A repeat call with the same facts is served from this producer's memo.
     const producer = createNetAddedProducer({ trip: base, dayIndex: 0 })
     expect(producer.memoSize).toBe(0)
     const first = producer.netAddedFor(candidate())

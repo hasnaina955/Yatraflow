@@ -24,9 +24,11 @@
 //
 // Pure: no store, no network, no React, no provider, and no input is mutated.
 //
-// Cost bound: one baseline per direct call, plus one re-simulation of the days
-// at or after the candidate's own day. A memoised producer simulates each
-// distinct candidate fact set once; a repeat render costs nothing.
+// Cost bound: each candidate runs `computeImpact` once. That call simulates the
+// whole trip twice, for the baseline and for the proposed plan. The baseline is
+// not shared between candidates, because `computeImpact` does not expose it.
+// A producer memoises each distinct candidate fact set. A caller that keeps one
+// producer across builds pays nothing for a repeat build with the same facts.
 import type { ItineraryStop, Trip } from '../data/types'
 import { computeImpact, type LegCorrections } from './impact'
 
@@ -109,16 +111,13 @@ function computeNetAdded(context: NetAddedContext, candidate: NetAddedCandidate)
   return Number.isFinite(delta) ? delta : null
 }
 
-/** The producer's memo key: the row key plus every fact the number reads. */
+/**
+ * The producer's memo key: the row key, the insert index and the whole stop.
+ * The impact function reads more of the stop than its coordinates and visit
+ * length, so the key takes the whole stop.
+ */
 function memoKey(candidate: NetAddedCandidate): string {
-  const { stop } = candidate
-  return [
-    candidate.key,
-    candidate.insertAt ?? 'null',
-    String(stop.visitMinutes),
-    String(stop.lat),
-    String(stop.lng),
-  ].join('|')
+  return JSON.stringify([candidate.key, candidate.insertAt ?? null, candidate.stop])
 }
 
 /** One candidate's net added minutes. Pure. No cache. */
@@ -134,8 +133,8 @@ export interface NetAddedProducer {
 }
 
 /**
- * One producer per trip/day. Each distinct candidate fact set is simulated
- * once; a rail of many rows does not re-simulate on every render.
+ * One producer per trip/day. Each distinct candidate fact set is simulated once
+ * for as long as the caller keeps this producer.
  */
 export function createNetAddedProducer(context: NetAddedContext): NetAddedProducer {
   const memo = new Map<string, number | null>()

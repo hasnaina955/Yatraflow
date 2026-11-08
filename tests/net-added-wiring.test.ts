@@ -6,7 +6,7 @@
 // These tests drive the real producer: the real day slots, the real planner and
 // the real impact function. Only the corridor snapshot is constructed here,
 // because it is the Map's published data contract.
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   deriveDrivingPlan,
   type PlaceHit,
@@ -23,9 +23,18 @@ import {
 } from '../src/pages/trip/journey/journeyDays'
 import { computeImpact } from '../src/lib/impact'
 import { confirmedVisitMinutes, intendedVisitMinutes } from '../src/lib/hoursContext'
-import { withCandidateInserted } from '../src/lib/netAddedMin'
+import { workspacePreviewActions } from '../src/pages/TripWorkspace'
 import type { DnaVector } from '../src/lib/tripDna'
 import type { ItineraryStop, Trip } from '../src/data/types'
+
+type PreviewArgs = Parameters<typeof workspacePreviewActions>[0]
+
+// The impact function is wrapped, not replaced: every call still runs the real
+// engine, and the spy counts the simulations one build asks for.
+vi.mock('../src/lib/impact', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/lib/impact')>()
+  return { ...actual, computeImpact: vi.fn(actual.computeImpact) }
+})
 
 const TRIP_ID = 'trip-net-added'
 const DNA: DnaVector = {
@@ -180,7 +189,7 @@ function rowFor(model: ReturnType<typeof buildJourneyDays>, name: string) {
 }
 
 describe('the real caller supplies the net-added seam', () => {
-  it('gives an on-route candidate row a number equal to the impact preview delta', () => {
+  it('gives an on-route candidate row the number the impact-preview handler stages', () => {
     const trip = makeTrip()
     const model = build({ trip })
     const row = rowFor(model, onRoute.name)
@@ -188,20 +197,37 @@ describe('the real caller supplies the net-added seam', () => {
     expect(typeof row?.netAddedMin).toBe('number')
     expect(Number.isFinite(row?.netAddedMin)).toBe(true)
 
-    // The preview's own path: insert the stop the writer would create, at the
-    // position the planner proves, then run the real impact function.
-    const plannedStop: ItineraryStop = {
-      ...stop('planned', onRoute.name, onRoute.latitude, onRoute.longitude, {
-        category: 'sightseeing',
-        visitMinutes: confirmedVisitMinutes(onRoute) ?? intendedVisitMinutes(onRoute),
-      }),
-    }
-    const insertAt = 1
-    const proposedDay = withCandidateInserted(trip.days[0], { key: 'row', stop: plannedStop, insertAt })
-    expect(proposedDay).not.toBeNull()
-    const proposed: Trip = { ...trip, days: trip.days.map(day => (day.index === 0 ? proposedDay! : day)) }
-    const preview = computeImpact(trip, proposed, 'add', 0).timeDeltaMin
-    expect(row?.netAddedMin).toBe(preview)
+    // The app's own preview path: the handler the ImpactPreview sheet uses stages
+    // the insert, then runs the impact function. The insert index is the road
+    // order of the day's stops against the candidate, computed here, not written.
+    const candidateKm = measuredRoad.routeKmOf(onRoute.latitude, onRoute.longitude)
+    expect(candidateKm).not.toBeNull()
+    const insertAt = trip.days[0].stops.filter(entry => {
+      const km = measuredRoad.routeKmOf(entry.lat, entry.lng)
+      return km != null && km < (candidateKm ?? 0)
+    }).length
+    const plannedStop: ItineraryStop = stop('planned', onRoute.name, onRoute.latitude, onRoute.longitude, {
+      category: 'sightseeing',
+      visitMinutes: confirmedVisitMinutes(onRoute) ?? intendedVisitMinutes(onRoute),
+    })
+    const pendingRef = { current: null } as PreviewArgs['pendingRef']
+    const actions = workspacePreviewActions({
+      trip,
+      pendingRef,
+      baseRef: { current: null } as PreviewArgs['baseRef'],
+      legCorrRef: { current: undefined },
+      setPending: () => {},
+    })
+    actions.applyChange(draft => {
+      const target = draft.days.find(entry => entry.index === 0)
+      if (!target) throw new Error('day 0 is missing')
+      target.stops.splice(insertAt, 0, plannedStop)
+      target.stops.forEach((entry, index) => {
+        entry.orderInDay = index + 1
+      })
+    }, 'add', 0)
+    expect(pendingRef.current).not.toBeNull()
+    expect(row?.netAddedMin).toBe(pendingRef.current?.result.timeDeltaMin)
   })
 
   it('keeps every row null when no caller supplies the seam', () => {
@@ -217,5 +243,39 @@ describe('the real caller supplies the net-added seam', () => {
     expect(unknown).toBeDefined()
     expect(unknown?.netAddedMin).toBeNull()
     expect(rowFor(model, onRoute.name)?.netAddedMin).not.toBeNull()
+  })
+})
+
+describe('the net-added seam is reused and invalidated correctly across builds', () => {
+  beforeEach(() => {
+    vi.mocked(computeImpact).mockClear()
+  })
+
+  it('a day reused from a previous build recomputes when the measured road arrives later', () => {
+    const first = build({ netAddedRoad: null })
+    expect(rowFor(first, onRoute.name)?.netAddedMin).toBeNull()
+    const second = build({ netAddedRoad: measuredRoad, prev: first })
+    expect(typeof rowFor(second, onRoute.name)?.netAddedMin).toBe('number')
+    expect(second.byDay.get(0)).not.toBe(first.byDay.get(0))
+    const third = build({ netAddedRoad: measuredRoad, prev: second })
+    expect(third.byDay.get(0)).toBe(second.byDay.get(0))
+  })
+
+  it('a repeat build with unchanged facts runs no net-added simulation', () => {
+    const first = build()
+    const afterFirst = vi.mocked(computeImpact).mock.calls.length
+    expect(afterFirst).toBeGreaterThan(0)
+    const second = build({ prev: first })
+    expect(vi.mocked(computeImpact).mock.calls.length - afterFirst).toBe(0)
+    expect(rowFor(second, onRoute.name)?.netAddedMin).toBe(rowFor(first, onRoute.name)?.netAddedMin)
+  })
+
+  it('a changed trip starts a new memo and simulates again', () => {
+    const first = build()
+    const afterFirst = vi.mocked(computeImpact).mock.calls.length
+    const changed = makeTrip()
+    changed.days[1].stops[0] = { ...changed.days[1].stops[0], lat: 10.9, lng: 76.9 }
+    build({ trip: changed, prev: first })
+    expect(vi.mocked(computeImpact).mock.calls.length - afterFirst).toBeGreaterThan(0)
   })
 })

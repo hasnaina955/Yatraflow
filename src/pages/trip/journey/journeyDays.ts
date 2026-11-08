@@ -11,6 +11,7 @@
 //  - one `buildDayCards` call supplies the canonical schedule slice, reusing
 //    unchanged day facts from the previous call;
 //  - an unchanged day keeps its exact `JourneyDay` object;
+//  - the net-added memo travels with the model, so a repeat build reuses it;
 //  - day ids, refs and the context come from the committed trip, never a preview;
 //  - `contextKey` is query/day provenance only, never a plan revision;
 //  - no provider, store, router, React or writer import.
@@ -35,6 +36,7 @@ import { intendedVisitMinutes } from '../../../lib/hoursContext'
 import { planSlotPlacements, type SlotPlacementItem } from '../../../lib/slotPlacement'
 import { STOP_CATEGORIES } from '../../../data/types'
 import type { NetAddedInput } from '../../../lib/journeyProjection'
+import { createNetAddedProducer, type NetAddedProducer } from '../../../lib/netAddedMin'
 import {
   deriveDaySlotFacts,
   type DaySlotFacts,
@@ -97,6 +99,18 @@ export interface JourneyDays {
   readonly readinessByDay: ReadonlyMap<number, DayReadiness>
   readonly readinessRows: readonly DayReadiness[]
   readonly slotPinsByDay: DaySlotFacts['slotPinsByDay']
+  /** The net-added memo this build used. The next build may reuse it. */
+  readonly netAddedMemo?: NetAddedMemo | null
+}
+
+/** One build's net-added memo. A reuse needs the same fingerprint. */
+export interface NetAddedMemo {
+  /** The whole trip, the measured route and the corrections. Every number reads them. */
+  readonly fingerprint: string
+  /** One producer per day index. Each producer memoises its candidates. */
+  readonly producers: Map<number, NetAddedProducer>
+  /** The planner's stop and position per day, row and hit. Null when unplaceable. */
+  readonly planned: Map<string, { stop: ItineraryStop; insertAt: number } | null>
 }
 
 export interface WorkspaceJourneyDays extends JourneyDays {
@@ -190,6 +204,7 @@ function netAddedSeamFor(input: {
   dayIndex: number
   road: JourneyNetAddedRoad
   legCorrections?: NetAddedInput['legCorrections']
+  memo: NetAddedMemo
 }): NetAddedInput {
   const day = input.trip.days.find(entry => entry.index === input.dayIndex)
   const existingRoadPositions = day
@@ -202,10 +217,12 @@ function netAddedSeamFor(input: {
       })
       .filter((entry): entry is { stopId: string; km: number; routeKey: string; dayId: string } => entry !== null)
     : []
-  const planned = new Map<string, { stop: ItineraryStop; insertAt: number } | null>()
+  const planned = input.memo.planned
 
   const planFor = (row: { key: string; hit: PlaceHit }): { stop: ItineraryStop; insertAt: number } | null => {
-    if (planned.has(row.key)) return planned.get(row.key) ?? null
+    // The memo key takes the day and the whole hit, so a reused entry is the same plan.
+    const memoKey = `${input.dayIndex}|${input.dayId}|${row.key}|${JSON.stringify(row.hit)}`
+    if (planned.has(memoKey)) return planned.get(memoKey) ?? null
     const km = input.road.routeKmOf(row.hit.latitude, row.hit.longitude)
     const item: SlotPlacementItem = {
       itemId: row.key,
@@ -243,8 +260,18 @@ function netAddedSeamFor(input: {
     const value = outcome && outcome.phase === 'planned'
       ? { stop: outcome.stop, insertAt: outcome.insertAt }
       : null
-    planned.set(row.key, value)
+    planned.set(memoKey, value)
     return value
+  }
+
+  let producer = input.memo.producers.get(input.dayIndex)
+  if (!producer) {
+    producer = createNetAddedProducer({
+      trip: input.trip,
+      dayIndex: input.dayIndex,
+      ...(input.legCorrections ? { legCorrections: input.legCorrections } : {}),
+    })
+    input.memo.producers.set(input.dayIndex, producer)
   }
 
   return {
@@ -252,7 +279,27 @@ function netAddedSeamFor(input: {
     ...(input.legCorrections ? { legCorrections: input.legCorrections } : {}),
     stopFor: row => planFor(row)?.stop ?? null,
     insertAtFor: row => planFor(row)?.insertAt ?? null,
+    producer,
   }
+}
+
+/**
+ * The net-added memo a build may reuse. Every net-added number reads the whole
+ * trip, the measured route and the corrections, so a change to any of them makes
+ * a new memo. The same fingerprint means the same numbers.
+ */
+function netAddedMemoFor(
+  prev: NetAddedMemo | null | undefined,
+  facts: { trip: Trip; routeKey: string; legCorrections: NetAddedInput['legCorrections'] },
+): NetAddedMemo {
+  const fingerprint = JSON.stringify([facts.trip, facts.routeKey, facts.legCorrections ?? null])
+  if (prev && prev.fingerprint === fingerprint) return prev
+  return { fingerprint, producers: new Map(), planned: new Map() }
+}
+
+/** The net-added values one day shows. A new number is a new revision. */
+function netAddedRevision(projection: JourneyProjection): string {
+  return JSON.stringify(projection.rows.map(row => [row.key, row.netAddedMin]))
 }
 
 function emptyCards(): DayCards {
@@ -378,6 +425,8 @@ function journeyDayRevision(input: {
   plan: string
   drive: string
   actions: string
+  netAddedRoute: string | null
+  netAdded: string
 }): string {
   return JSON.stringify(input)
 }
@@ -434,6 +483,14 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
   const allDriveRows = driveRowsFromSegments([...snapshot.pois], driveFacts)
   const grouped = sameDayRowsByDay(trip, allDriveRows)
 
+  const netAddedRoad = input.netAddedRoad ?? null
+  const netAddedMemo = netAddedRoad
+    ? netAddedMemoFor(input.prev?.netAddedMemo, {
+      trip,
+      routeKey: netAddedRoad.routeKey,
+      legCorrections: input.legCorrections,
+    })
+    : null
   const byDay = new Map<number, JourneyDay>()
   for (const day of trip.days) {
     const sameDayRows = grouped.byDay.get(day.index) ?? []
@@ -452,7 +509,6 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     })
     const contextKey = `${committed.id}:${snapshot.inputsHash}:${snapshot.scopeKm}:${dayId ?? '-'}:${day.index}`
     const sim = cards.byDay.get(day.index)?.sim ?? null
-    const netAddedRoad = input.netAddedRoad ?? null
     const projection = projectJourney({
       dayPlan,
       driveRows: sameDayRows,
@@ -461,7 +517,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       presence,
       contextKey,
       ...(sim ? { daySchedule: sim } : {}),
-      ...(netAddedRoad && dayId
+      ...(netAddedRoad && netAddedMemo && dayId
         ? {
           netAdded: netAddedSeamFor({
             trip,
@@ -469,6 +525,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
             dayIndex: day.index,
             road: netAddedRoad,
             legCorrections: input.legCorrections,
+            memo: netAddedMemo,
           }),
         }
         : {}),
@@ -484,6 +541,8 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       plan: dayPlanRevision(dayPlan),
       drive: driveRowsRevision(sameDayRows),
       actions: actionsRevision(projection),
+      netAddedRoute: netAddedRoad?.routeKey ?? null,
+      netAdded: netAddedRevision(projection),
     })
     const previous = input.prev?.byDay.get(day.index)
     byDay.set(day.index, previous && previous.revision === revision
@@ -515,6 +574,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     readinessByDay: slotFacts.readinessByDay,
     readinessRows: slotFacts.readinessRows,
     slotPinsByDay: slotFacts.slotPinsByDay,
+    netAddedMemo,
   }
 }
 

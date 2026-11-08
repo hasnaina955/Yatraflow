@@ -91,7 +91,7 @@ export interface JourneyRow {
   visitMin: number | null
   /** No per-row buffer fact exists; the engine buffers a whole day. Always null. */
   bufferMin: number | null
-  /** No per-suggestion time-delta fact exists (see header). Always null. */
+  /** Net added minutes from the net-added seam; null when there is no seam or no proven insert. */
   netAddedMin: number | null
   arriveMin: number | null
   /** The authoritative arrival label when one exists; stored label otherwise. */
@@ -159,6 +159,12 @@ export interface NetAddedInput {
   stopFor(row: { key: string; hit: PlaceHit; slotKey: SlotKey | null }): ItineraryStop | null
   /** Insert index in that day's stop array, or null when position is unknown. */
   insertAtFor(row: { key: string; hit: PlaceHit; slotKey: SlotKey | null }): number | null
+  /**
+   * The memoised producer for this day. A caller that rebuilds the same day passes
+   * its own, so a repeat build reuses the simulated numbers. Absent, this call
+   * memoises for itself only.
+   */
+  producer?: NetAddedProducer
 }
 
 function hasUsablePosition(hit: PlaceHit): boolean {
@@ -311,7 +317,7 @@ function windowOf(slot: EffectiveDaySlot): DaySlot['windowMin'] {
   return slot.windowMin ? [slot.windowMin[0], slot.windowMin[1]] : null
 }
 
-/** One memoised producer plus the caller's stop/position resolvers. */
+/** The producer (the caller's own when it passes one) plus the stop and position resolvers. */
 interface NetAddedSeam {
   producer: NetAddedProducer
   stopFor: NetAddedInput['stopFor']
@@ -322,7 +328,7 @@ function netAddedSeam(input: JourneyProjectionInput): NetAddedSeam | null {
   const netAdded = input.netAdded
   if (!netAdded) return null
   return {
-    producer: createNetAddedProducer({
+    producer: netAdded.producer ?? createNetAddedProducer({
       trip: netAdded.trip,
       dayIndex: input.dayPlan.dayIndex,
       ...(netAdded.legCorrections ? { legCorrections: netAdded.legCorrections } : {}),

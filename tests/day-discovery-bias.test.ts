@@ -16,9 +16,12 @@ function makeTrip(over: Partial<Trip>): Trip {
     ...over,
   } as Trip
 }
+let nextStopId = 0
 function stop(cat: string, lat = 25, lng = 88, over: Record<string, unknown> = {}) {
   return {
-    id: 's_' + Math.random(), title: 'S', category: cat, locationName: 'L', lat, lng,
+    // Deterministic ids: unique per call, and Codacy flags Math.random here
+    // as a weak RNG (test ids are not secrets, but the rule is global).
+    id: `s_${++nextStopId}`, title: 'S', category: cat, locationName: 'L', lat, lng,
     description: '', notes: '', visitMinutes: 60, openTime: '', closeTime: '',
     entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'nice-to-have',
     sourceUrl: '', status: 'confirmed', orderInDay: 1, ...over,

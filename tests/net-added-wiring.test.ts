@@ -138,8 +138,12 @@ function dayForKm(km: number | null | undefined): number | null {
   return km < 60 ? 0 : 1
 }
 
-function makeSnapshot(): CorridorSnapshot {
-  const pois = [segHit(0, 'sight', onRoute), segHit(1, 'sight', noPosition)]
+function makeSnapshot(extraPlaces: PlaceHit[] = []): CorridorSnapshot {
+  const pois = [
+    segHit(0, 'sight', onRoute),
+    segHit(1, 'sight', noPosition),
+    ...extraPlaces.map(place => segHit(2, 'sight', place)),
+  ]
   return {
     tripId: TRIP_ID,
     inputsHash: 'hash-net-added',
@@ -277,5 +281,19 @@ describe('the net-added seam is reused and invalidated correctly across builds',
     changed.days[1].stops[0] = { ...changed.days[1].stops[0], lat: 10.9, lng: 76.9 }
     build({ trip: changed, prev: first })
     expect(vi.mocked(computeImpact).mock.calls.length - afterFirst).toBeGreaterThan(0)
+  })
+})
+
+describe('the planned memo stays bounded inside one fingerprint', () => {
+  it('a full planned memo takes the new row and drops its oldest entry', () => {
+    const first = build()
+    const memo = first.netAddedMemo
+    if (!memo) throw new Error('a measured road must yield a net-added memo')
+    for (let i = 0; i < 512; i++) memo.planned.set(`pre-${i}`, null)
+    const extra = hit({ id: 'extra-bound', name: 'Extra bound place', latitude: 10.25, longitude: 76.25, cumKm: 20, offRouteKm: 1, category: 'sightseeing' })
+    const second = build({ prev: first, snapshot: makeSnapshot([extra]) })
+    expect(second.netAddedMemo).toBe(memo)
+    expect([...memo.planned.keys()].some(key => key.includes('extra-bound'))).toBe(true)
+    expect(memo.planned.size).toBeLessThanOrEqual(512)
   })
 })

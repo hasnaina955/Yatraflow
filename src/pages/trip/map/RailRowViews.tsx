@@ -13,10 +13,12 @@ import type { RailChip } from '../../../lib/railReasons'
 import { alternativesFor } from './railRows'
 import type { AltPool } from './sightRows'
 import { ON_ROUTE_SPUR_KM } from '../../../lib/providers/hits'
+import { ON_ROUTE_DETOUR_MIN } from './railLabels'
 
 /** The km copy for an alternative. A null km is unknown evidence, so it reads
- *  "km unknown", never "on route". "On route" needs a finite km within the
- *  shared on-route spur (hits.ts ON_ROUTE_SPUR_KM). */
+ *  "km unknown", never "on route". "On route" needs a finite km at or under
+ *  ON_ROUTE_SPUR_KM (hits.ts), the perpendicular distance from the route within
+ *  which a place counts as on it. altKmLabel is the only src reader of it. */
 export function altKmLabel(dKm: number | null): string {
   if (dKm == null || !Number.isFinite(dKm)) return 'km unknown'
   return dKm <= ON_ROUTE_SPUR_KM ? 'on route' : `${dKm.toFixed(1)} km off`
@@ -160,7 +162,7 @@ export function LedgerRow({
     </div>
   )
   const meta = [
-    detourMin == null ? 'position unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
+    detourMin == null ? 'position unknown' : detourMin > ON_ROUTE_DETOUR_MIN ? `+${Math.round(detourMin)} min detour` : 'on route',
     hitDay != null ? `Day ${hitDay + 1}` : null,
   ].filter(Boolean).join(' \u00b7 ')
   const deck = presentation === 'deck'

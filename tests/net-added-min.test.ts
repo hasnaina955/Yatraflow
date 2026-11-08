@@ -9,6 +9,7 @@ import type { ItineraryStop, Trip } from '../src/data/types'
 import {
   createNetAddedProducer,
   netAddedMinutes,
+  rememberBounded,
   withCandidateInserted,
   type NetAddedCandidate,
 } from '../src/lib/netAddedMin'
@@ -97,5 +98,37 @@ describe('net added minutes — memoised per row', () => {
     expect(producer.memoSize).toBe(1)
     expect(producer.netAddedFor(candidate({ insertAt: 1 }))).not.toBeNull()
     expect(producer.memoSize).toBe(2)
+  })
+})
+
+describe('net added minutes — the memo is bounded', () => {
+  it('keeps at most 512 entries per producer, and a re-asked number is unchanged', () => {
+    const producer = createNetAddedProducer({ trip: base, dayIndex: 0 })
+    const real = candidate({ key: 'row:kept', insertAt: 1 })
+    const expected = netAddedMinutes({ trip: base, dayIndex: 0 }, real)
+    expect(producer.netAddedFor(real)).toBe(expected)
+    // Unusable rows are memoised as null too. They fill the memo without any simulation.
+    for (let i = 0; i < 600; i++) {
+      producer.netAddedFor(candidate({ key: `row:bulk-${i}`, stop: candidateStop({ lat: Number.NaN }) }))
+    }
+    expect(producer.memoSize).toBeLessThanOrEqual(512)
+    expect(producer.netAddedFor(real)).toBe(expected)
+  })
+})
+
+describe('rememberBounded — the oldest entry leaves first', () => {
+  it('evicts the oldest entry once the memo is full', () => {
+    const memo = new Map<string, number>()
+    rememberBounded(memo, 'k0', 0, 3)
+    rememberBounded(memo, 'k1', 1, 3)
+    rememberBounded(memo, 'k2', 2, 3)
+    rememberBounded(memo, 'k3', 3, 3)
+    expect([...memo.keys()]).toEqual(['k1', 'k2', 'k3'])
+  })
+
+  it('an existing key takes its new value in place and evicts nothing', () => {
+    const memo = new Map<string, number>([['a', 1], ['b', 2]])
+    rememberBounded(memo, 'a', 9, 2)
+    expect([...memo.entries()]).toEqual([['a', 9], ['b', 2]])
   })
 })

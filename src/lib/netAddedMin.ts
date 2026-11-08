@@ -127,14 +127,32 @@ export function netAddedMinutes(context: NetAddedContext, candidate: NetAddedCan
 
 /** A memoised producer for one trip and day. */
 export interface NetAddedProducer {
-  /** Distinct candidate fact sets simulated so far. */
+  /** Memo entries held now. Never more than NET_ADDED_MEMO_MAX. */
   readonly memoSize: number
   netAddedFor(candidate: NetAddedCandidate): number | null
 }
 
+/** The most memo entries one producer, or one planned map, keeps. */
+export const NET_ADDED_MEMO_MAX = 512
+
+/**
+ * Store one memo entry. When the memo is full, the oldest entry leaves first.
+ * A memo holds one fact set, so an evicted value recomputes to the same number.
+ */
+export function rememberBounded<V>(memo: Map<string, V>, key: string, value: V, max = NET_ADDED_MEMO_MAX): void {
+  if (!memo.has(key)) {
+    while (memo.size >= max) {
+      const oldest = memo.keys().next()
+      if (oldest.done) break
+      memo.delete(oldest.value)
+    }
+  }
+  memo.set(key, value)
+}
+
 /**
  * One producer per trip/day. Each distinct candidate fact set is simulated once
- * for as long as the caller keeps this producer.
+ * for as long as the caller keeps this producer, up to NET_ADDED_MEMO_MAX entries.
  */
 export function createNetAddedProducer(context: NetAddedContext): NetAddedProducer {
   const memo = new Map<string, number | null>()
@@ -146,7 +164,7 @@ export function createNetAddedProducer(context: NetAddedContext): NetAddedProduc
       const key = memoKey(candidate)
       if (memo.has(key)) return memo.get(key) ?? null
       const value = computeNetAdded(context, candidate)
-      memo.set(key, value)
+      rememberBounded(memo, key, value)
       return value
     },
   }

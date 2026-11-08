@@ -27,12 +27,16 @@ export type DetourLabelBits = {
   budgetSharePct?: number | null
 }
 
+/** A detour of half a minute or less reads "on route". The rail rows and the
+ *  shared detour sentence both use this cutoff. */
+export const ON_ROUTE_DETOUR_MIN = 0.5
+
 /** The three bits, in the order every surface prints them. A zero share is not a
  *  sentence worth printing, and neither is an arrival nobody measured. */
 export function detourBits({ arriveLabel, detourMin, budgetSharePct }: DetourLabelBits): string[] {
   return [
     arriveLabel ? `arrive ${arriveLabel}` : null,
-    detourMin == null ? 'position unknown' : detourMin > 0.5 ? `+${Math.round(detourMin)} min` : 'on route',
+    detourMin == null ? 'position unknown' : detourMin > ON_ROUTE_DETOUR_MIN ? `+${Math.round(detourMin)} min` : 'on route',
     budgetSharePct != null && budgetSharePct > 0 ? `${budgetSharePct}% of the day's detour budget` : null,
   ].filter((bit): bit is string => bit != null)
 }

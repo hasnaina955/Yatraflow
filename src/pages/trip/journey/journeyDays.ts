@@ -36,7 +36,7 @@ import { intendedVisitMinutes } from '../../../lib/hoursContext'
 import { planSlotPlacements, type SlotPlacementItem } from '../../../lib/slotPlacement'
 import { STOP_CATEGORIES } from '../../../data/types'
 import type { NetAddedInput } from '../../../lib/journeyProjection'
-import { createNetAddedProducer, type NetAddedProducer } from '../../../lib/netAddedMin'
+import { createNetAddedProducer, rememberBounded, type NetAddedProducer } from '../../../lib/netAddedMin'
 import {
   deriveDaySlotFacts,
   type DaySlotFacts,
@@ -109,7 +109,8 @@ export interface NetAddedMemo {
   readonly fingerprint: string
   /** One producer per day index. Each producer memoises its candidates. */
   readonly producers: Map<number, NetAddedProducer>
-  /** The planner's stop and position per day, row and hit. Null when unplaceable. */
+  /** The planner's stop and position per day, row and hit. Null when unplaceable.
+   *  At most NET_ADDED_MEMO_MAX entries; the oldest leaves first. */
   readonly planned: Map<string, { stop: ItineraryStop; insertAt: number } | null>
 }
 
@@ -260,7 +261,7 @@ function netAddedSeamFor(input: {
     const value = outcome && outcome.phase === 'planned'
       ? { stop: outcome.stop, insertAt: outcome.insertAt }
       : null
-    planned.set(memoKey, value)
+    rememberBounded(planned, memoKey, value)
     return value
   }
 

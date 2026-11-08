@@ -18,7 +18,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
-- **The map corridor scan now asks three place families.** The trip-scoped scan sends one Google query per family for nature, faith and culture. The cache key carries the family set, so a changed set never serves old rows. A failed scan stays a failed scan. Water and views wait for confirmed timing facts. No browser check ran; a live provider call never ran. Map ticket 09 acceptance stays open.
+- **Map V2 tickets 06, 08, 09 and 23 now count as complete under the local code bar.** Browser, native, live SQL and provider acceptance stay separate. Ticket 23 still needs its privacy approval and a real-device geolocation check. Ticket 08's net added minutes have no view yet.
+
+- **A detour under half a minute now reads "on route", not "+0 min detour".** The rail row and the shared detour sentence use one cutoff. The net-added memos keep at most 512 entries and evict the oldest first.
+
+- **The map corridor scan now asks three place families.** The trip-scoped scan sends one Google query per family for nature, faith and culture. The cache key carries the family set, so a changed set never serves old rows. A failed scan stays a failed scan. Water and views wait for confirmed timing facts. No browser check ran; a live provider call never ran. Map ticket 09 counts as complete under the local code bar.
 
 - **Net added minutes now appear when the measured road arrives after the first build.** A day that the build reuses no longer keeps an old null.
 
@@ -26,9 +30,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **A GPS timeout now shows the unavailable status line, not the denied one.** A native watch that resolves after you stop it is now cleared.
 
-- **A suggestion row can now carry its own net added minutes.** The new `src/lib/netAddedMin.ts` producer re-simulates the existing engine and impact function with the candidate inserted into its day. So the number equals the impact preview's own `timeDeltaMin`, and the rail and the preview cannot disagree. Unknown inputs stay null: no day, no proven insert position, no usable coordinate or no finite visit length. A known zero visit length stays a number. A repeat build with the same trip, road and corrections runs no impact simulation. The journey projection reads it through one optional seam. The next entry adds the caller that supplies that seam. Map ticket 08 AC2 stays open.
+- **A suggestion row can now carry its own net added minutes.** The new `src/lib/netAddedMin.ts` producer re-simulates the existing engine and impact function with the candidate inserted into its day. So the number equals the impact preview's own `timeDeltaMin`, and the rail and the preview cannot disagree. Unknown inputs stay null: no day, no proven insert position, no usable coordinate or no finite visit length. A known zero visit length stays a number. A repeat build with the same trip, road and corrections runs no impact simulation. The journey projection reads it through one optional seam. The next entry adds the caller that supplies that seam.
 
-- **The workspace now supplies the net added minutes seam, so a suggestion row reads a real number.** `buildJourneyDays` builds one seam per day. The stop and the insert position come from the same planner the writer calls, with the measured road from `TripWorkspace`. The number is the impact preview's own `timeDeltaMin`. A row with no usable position, no day or no measured road stays null. The first build runs one impact simulation per candidate row. Each simulation still evaluates the whole trip twice. Map ticket 08 AC2 stays open until it is graded.
+- **The workspace now supplies the net added minutes seam, so a suggestion row reads a real number.** `buildJourneyDays` builds one seam per day. The stop and the insert position come from the same planner the writer calls, with the measured road from `TripWorkspace`. The number is the impact preview's own `timeDeltaMin`. A row with no usable position, no day or no measured road stays null. The first build runs one impact simulation per candidate row. Each simulation still evaluates the whole trip twice. No view shows the number yet.
 
 - **Live position stays private and shows only on the trip day.** The map labels denied, unavailable, loading, failed and stale states apart. A recenter re-arms the camera follow. The fix stays in the map component.
 

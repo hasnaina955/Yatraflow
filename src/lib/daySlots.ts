@@ -36,7 +36,7 @@ import {
   type SegmentHit,
 } from './ridePlan'
 import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
-import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { asymmetricDetourKm, asymmetricDetourMinutes, type HaltPurpose, type PlaceHit } from './providers/hits'
 import { candidateArrivalMin, type ArrivalContext } from './candidateArrival'
 import { MIN_PURPOSE_FIT } from './haltFit'
 import { type DnaVector } from './tripDna'
@@ -687,7 +687,8 @@ function candidatesFor(
   let spent = 0
   for (const row of rows) {
     if (out.length >= limit) break
-    const dKm = detourKm(row.hit, deps.anchors)
+    // The road spur km: the same measure the rail prints (MapTab detourKmFor).
+    const dKm = asymmetricDetourKm(row.hit, deps.anchors, deps.routePolyline ?? null)
     // Return-driving minutes: the budget (and the card) charge the drive out
     // plus the drive back, once.
     const dMin = asymmetricDetourMinutes(row.hit, deps.anchors, deps.routePolyline ?? null, speed)

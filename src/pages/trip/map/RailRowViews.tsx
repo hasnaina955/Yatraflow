@@ -12,6 +12,15 @@ import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import type { RailChip } from '../../../lib/railReasons'
 import { alternativesFor } from './railRows'
 import type { AltPool } from './sightRows'
+import { ON_ROUTE_SPUR_KM } from '../../../lib/providers/hits'
+
+/** The km copy for an alternative. A null km is unknown evidence, so it reads
+ *  "km unknown", never "on route". "On route" needs a finite km within the
+ *  shared on-route spur (hits.ts ON_ROUTE_SPUR_KM). */
+export function altKmLabel(dKm: number | null): string {
+  if (dKm == null || !Number.isFinite(dKm)) return 'km unknown'
+  return dKm <= ON_ROUTE_SPUR_KM ? 'on route' : `${dKm.toFixed(1)} km off`
+}
 
 /** A corridor halt the engine found no place for. The action raises the
  *  corridor's detour scope - the honest lever the engine actually has. */
@@ -145,7 +154,7 @@ export function LedgerRow({
           onClick={() => onOpenAlt(h)}
         >
           <span className="shelf-alt-nm">{h.name}</span>
-          <span className="shelf-alt-km">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
+          <span className="shelf-alt-km">{altKmLabel(dKm)}</span>
         </button>
       ))}
     </div>

@@ -13,7 +13,7 @@ import {
 } from '../src/lib/daySlots'
 import { BREAKFAST_WINDOW, DINNER_WINDOW, LUNCH_WINDOW, type RideSegment, type SegmentHit } from '../src/lib/ridePlan'
 import { SLOT_KIND_CATEGORIES } from '../src/lib/haltFit'
-import type { PlaceHit } from '../src/lib/providers/hits'
+import { asymmetricDetourKm, asymmetricDetourMinutes, detourKm, type PlaceHit } from '../src/lib/providers/hits'
 import type { ItineraryStop } from '../src/data/types'
 
 /** A minimal engine segment. eta = minutes since midnight; dayEnd marks the overnight. */
@@ -420,6 +420,30 @@ describe('candidates (P1.4)', () => {
     // default budget funds exactly one of them.
     expect(slots[0].candidates).toHaveLength(1)
     expect(slots[0].candidates[0].budgetSharePct).toBe(100)
+  })
+
+  // #08 AC1 and AC5: a slot row's km is the road measure the rail prints. The
+  // only anchor sits at the road's west end, so the far hit is about 48 km from
+  // it in a straight line but only about 2 km off the drawn road.
+  it('a far hit on the road reads its road spur km and minutes, not the anchor distance', () => {
+    const ROAD_EAST = [{ lat: 10, lng: 77 }, { lat: 10, lng: 78.5 }]
+    const SPARSE = [{ lat: 10, lng: 77 }]
+    const far = hit('far', 'Roadside dhaba', { latitude: 10.018, longitude: 77.44, offRouteKm: undefined })
+    const slots = daySlots(0, base({
+      anchors: SPARSE,
+      routePolyline: ROAD_EAST,
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), far)],
+      dayStops: [],
+    }))
+    const c = slots[0].candidates[0]
+    // The rail km (MapTab detourKmFor) is this same road measure on the same inputs.
+    const railKm = asymmetricDetourKm(far, SPARSE, ROAD_EAST) as number
+    expect(detourKm(far, SPARSE)).toBeGreaterThan(40) // the old symmetric read
+    expect(c.detourKm).toBeCloseTo(railKm, 6)
+    expect(railKm).toBeLessThan(3)
+    // The minutes are the return drive of that same km at the default 40 km/h.
+    expect(c.detourMin).toBeCloseTo(((railKm / 40) * 60) * 2, 6)
+    expect(c.detourMin).toBeCloseTo(asymmetricDetourMinutes(far, SPARSE, ROAD_EAST, 40) as number, 6)
   })
 
   it('an on-route candidate spends nothing', () => {

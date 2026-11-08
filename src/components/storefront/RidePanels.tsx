@@ -1,0 +1,94 @@
+// P11 trip kit: the ride-along view. Presentation only.
+// RideDayPanel draws the day on screen. The page hands it the timeline, or the
+// locked note, already built from the read model the viewer is allowed to see.
+// A locked panel takes no photo prop and no timeline, so the type keeps a
+// locked day's picture and names off it.
+import type { CSSProperties, ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { staggerStep } from '../../lib/motion'
+
+export type RideState = 'free' | 'yours' | 'locked'
+
+const TAG: Record<RideState, string> = { free: 'Free to read', yours: 'Yours', locked: 'Paid plan' }
+
+export function RideDayPanel(p: {
+  state: RideState
+  /** Set for a readable day with its own cover. Never for a locked day. */
+  photo?: string
+  /** The day badge, built by the page. */
+  badge: ReactNode
+  title: string
+  /** The pace word. Absent when the card may not claim one. */
+  pace?: string
+  meta: string
+  budget: ReactNode
+  /** The timeline of a readable day, or the lock note of a locked one. */
+  children: ReactNode
+  /** The locked note's action or notice. */
+  footer?: ReactNode
+}): JSX.Element {
+  const photo = p.state === 'locked' ? undefined : p.photo
+  return (
+    <article className={'pi-ride pi-ride--' + p.state} aria-label={`${p.title}, ${TAG[p.state].toLowerCase()}`}>
+      <div className={'pi-ride-band' + (photo ? ' pi-ride-band--photo' : '')}>
+        {photo
+          ? <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true }} />
+          : null}
+        <span className="pi-pill pi-ride-tag">{TAG[p.state]}</span>
+      </div>
+      <div className="pi-ride-head">
+        {p.badge}
+        <div className="pi-ride-titles">
+          <div className="pi-ride-titleline">
+            <h2 className="pi-ride-title">{p.title}</h2>
+            {p.pace ? <span className="pi-pill pi-pill--sand">{p.pace}</span> : null}
+          </div>
+          <p className="pi-ride-meta">{p.meta}</p>
+        </div>
+      </div>
+      <div className="pi-ride-budget">{p.budget}</div>
+      <div className="pi-ride-body">{p.children}</div>
+      {p.footer ? <div className="pi-ride-foot">{p.footer}</div> : null}
+    </article>
+  )
+}
+
+/** One row of "The other days". Every row opens its day: the button is real on
+ *  a locked day too, because opening a locked day shows its counts and the way
+ *  to buy, never a name. */
+export function RideOtherRow(p: {
+  state: RideState
+  index: number
+  title: string
+  photo?: string
+  /** "A → B → C" for a readable day, a count line for a locked one. */
+  line: string
+  km: string
+  drive: string
+  stagger?: number
+  onOpen: () => void
+}): JSX.Element {
+  const photo = p.state === 'locked' ? undefined : p.photo
+  return (
+    <li className={'pi-other pi-other--' + p.state} style={{ '--i': staggerStep(p.stagger ?? 0) } as CSSProperties}>
+      <span className={'pi-other-thumb' + (photo ? ' pi-other-thumb--photo' : '')} aria-hidden="true">
+        {photo ? <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true }} /> : null}
+      </span>
+      <span className="pi-other-num" aria-hidden="true"><small>Day</small><b>{p.index + 1}</b></span>
+      <span className="pi-other-main">
+        <span className="pi-other-titleline">
+          <span className="pi-other-title">{p.title}</span>
+          <span className={'pi-pill pi-pill--' + (p.state === 'locked' ? 'paid' : 'ok')}>{TAG[p.state]}</span>
+        </span>
+        <span className="pi-other-line">{p.line}</span>
+      </span>
+      <span className="pi-other-road">
+        <b>{p.km}</b>
+        <span>{p.drive}</span>
+      </span>
+      <button type="button" className="pi-other-open" aria-label={`Open Day ${p.index + 1}`} onClick={p.onOpen}>
+        <ChevronRight size={18} aria-hidden />
+      </button>
+    </li>
+  )
+}

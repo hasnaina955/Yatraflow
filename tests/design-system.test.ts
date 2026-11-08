@@ -186,11 +186,12 @@ describe('one green (#0D8D82)', () => {
 
 describe('kicker casing: sentence case in source, uppercase via CSS', () => {
   const retyped: Array<[string, string, string]> = [
-    ['src/pages/PublicItinerary.tsx', 'The journey', 'THE JOURNEY'],
-    ['src/pages/PublicItinerary.tsx', 'Trip highlights', 'TRIP HIGHLIGHTS'],
-    ['src/pages/PublicItinerary.tsx', 'The practical bit', 'THE PRACTICAL BIT'],
+    // PW-11a/b: old kickers (The journey / Trip highlights / The practical bit /
+    // Why this route works) no longer exist; the page now uses pi-kicker
+    // ("What is inside", "What you get", "The days") and the route-glance label.
+    ['src/pages/PublicItinerary.tsx', 'What is inside', 'WHAT IS INSIDE'],
+    ['src/pages/PublicItinerary.tsx', 'What you get', 'WHAT YOU GET'],
     ['src/pages/PublicItinerary.tsx', 'The route at a glance', 'THE ROUTE AT A GLANCE'],
-    ['src/pages/PublicItinerary.tsx', 'Why this route works', 'WHY THIS ROUTE WORKS'],
     ['src/pages/Explore.tsx', 'Featured itinerary', 'FEATURED ITINERARY'],
   ]
 

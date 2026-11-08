@@ -22,6 +22,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Published itineraries now have distinct Look inside and Ride along views.** Look inside has a photo cover, a purchase card, day cards and a compact route ribbon. Ride along has photos from readable days, a stop timeline and a day time budget. Day selection keeps keyboard focus and reveals the full ribbon button on long trips. The phone purchase bar keeps its price and action visible. Motion uses the shared tokens and respects reduced motion. Locked days keep names, photos and clock times hidden. Failed access checks and failed reads after purchase keep their Retry actions and suppress price actions.
+
 - **The create trip ticket now shows the draft route cover and a tear line.** The cover comes from the same route art as the created trip. The ticket keeps its six rows, the Change links and the honest per-head estimate. No category split and no new field is added.
 
 - **The guided create flow now matches the Plan-a-trip reference on four details.** The hero accent word is upright teal over a flat marigold band. The script swash is gone on this page. The ticket head band is deep sea in both themes, and the brand wordmark splits into its two tones. The step questions read in the display face at 28px, with a 22px phone rung. The Where step shows a visible Stops header with an honest arrows hint.

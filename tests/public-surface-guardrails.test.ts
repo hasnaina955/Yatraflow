@@ -29,7 +29,7 @@ describe('the public itinerary page sells what it can deliver', () => {
   it('keeps every section class it styles itself with in the stylesheet', () => {
     const page = read('../src/pages/PublicItinerary.tsx')
     const css = readCssSource('src/styles.css')
-    const used = [...page.matchAll(/className="(pub-[a-z-]+)"/g)].map(m => m[1]).sort()
+    const used = [...page.matchAll(/className="((?:pi|pub)-[a-z-]+)"/g)].map(m => m[1]).sort()
     expect(used.length).toBeGreaterThan(5)
     expect(used.filter(c => !css.includes(`.${c}`))).toEqual([])
   })

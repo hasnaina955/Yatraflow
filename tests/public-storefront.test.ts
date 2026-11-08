@@ -12,8 +12,26 @@ import {
 } from '../src/lib/publicStorefront'
 import { originOf, simulateDay } from '../src/lib/engine'
 import { DayCard } from '../src/components/storefront/DayCard'
+import { DayBudgetBar } from '../src/components/storefront/DayBudgetBar'
 import { WhatIsInside } from '../src/components/storefront/WhatIsInside'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
+
+describe('day budget clock privacy', () => {
+  it('renders aggregate minutes without clocks for a locked day', () => {
+    const html = renderToStaticMarkup(createElement(DayBudgetBar, {
+      label: 'Day 4', legend: true, budget: { drive: 60, places: 120, window: 480 },
+    }))
+    expect(html).toContain('Day 4 time budget: driving')
+    expect(html).not.toMatch(/undefined|AM|PM/)
+  })
+
+  it('keeps formatted clock edges for readable days', () => {
+    const html = renderToStaticMarkup(createElement(DayBudgetBar, {
+      label: 'Day 4', budget: { drive: 60, places: 120, window: 480, from: '9:00 AM', to: '5:00 PM' },
+    }))
+    expect(html).toContain('Day 4 time budget, 9:00 AM to 5:00 PM: driving')
+  })
+})
 
 /** A stand-in stop that carries secret data everywhere a name must never leak. */
 function secretStop(category: string, visitMinutes = 60): ItineraryStop {

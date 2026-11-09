@@ -571,6 +571,7 @@
 .pi-hero-tabs {
   grid-area: tabs; position: relative; z-index: var(--z-content);
   width: fit-content; max-width: 100%;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5);
 }
 .pi-hero .pi-hero-tabs .tab-btn { min-height: 44px; }
 
@@ -844,7 +845,7 @@
    plan name then takes the remaining space and truncates earlier; the separate
    price stays visible and stable beside the action. */
 .pi-page .sf-sticky-cta { flex: 0 0 auto; white-space: nowrap; }
-.pi-page .sf-sticky-price { flex: 0 0 auto; }
+.pi-page .sf-sticky-price { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: var(--space-3); font: var(--pw-title); }
 @media (max-width: 720px) {
   /* Clear the fixed bottom bar (68px + safe area) so the last content is
      reachable and never sits behind it. Mirrors the legacy .sf-page clearance. */
@@ -954,7 +955,7 @@
 }
 .pi-page .sf-day-num small { align-self: end; font: var(--pw-kicker); text-transform: uppercase; }
 .pi-page .sf-day-num b { align-self: start; font: var(--pw-figure); color: var(--pw-ink); }
-.pi-page .sf-day-tag { position: absolute; right: 0; top: calc(var(--space-14) * -1); background: var(--pw-card); color: var(--pw-sea-700); }
+.pi-page .sf-day-tag { position: absolute; right: 0; top: calc(var(--space-14) * -1); display: inline-flex; align-items: center; gap: var(--space-2); background: var(--pw-card); color: var(--pw-sea-700); }
 .pi-page .sf-day--locked .sf-day-tag { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
 .pi-page .sf-day:hover { transform: translateY(-3px); }
 
@@ -1516,4 +1517,115 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
   article.ex-card[data-id]:hover, .ex-page .ex-quick-chip:hover { transform: none; }
   .ex-seg::before { transition: none; }
   .ex-seg button, .ex-page .ex-place, .ex-page .ex-share-btn { transition: none; }
+}
+
+/* ==== PR914 fix: Look inside and shared chrome ==== */
+/* Region art fills every image slot that has no photo: the cover, the day
+   cards and the ride-along mosaic. The art and its motif fill the slot. */
+.pi-hero--art { background: var(--pw-sea-900); }
+.pi-hero-art { position: absolute; inset: 0; z-index: var(--z-under); overflow: hidden; }
+.pi-page .sf-day-art { position: relative; height: 104px; background: var(--pw-lagoon-100); }
+.pi-page .sf-day--locked .sf-day-art { background: var(--pw-marigold-100); }
+.pi-page .sf-day--locked .sf-day-art .yf-art-picture { opacity: .55; filter: saturate(.55) sepia(.25); }
+.pi-page .sf-day-locknote {
+  display: flex; align-items: flex-start; gap: var(--space-3); margin: auto 0 0; padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-sm); background: var(--pw-marigold-50); color: var(--pw-marigold-ink);
+  font: var(--pw-caption); font-weight: 700; text-wrap: pretty;
+}
+.pi-page .sf-day-locknote svg { flex: none; margin-top: 2px; }
+.pi-page .sf-day--locked .sf-day-chips { margin-bottom: var(--space-5); }
+.pi-ride-photo--art { position: relative; background: var(--pw-lagoon-100); }
+
+/* Section links: on the cover beside the view toggle, and again in the bar. */
+.pi-sections {
+  display: flex; gap: 2px; padding: var(--space-2); border-radius: var(--radius-pill);
+  background: var(--pw-glass); border: 1px solid var(--pw-glass-edge); box-shadow: var(--elev-1);
+}
+.pi-section-tab {
+  display: inline-flex; align-items: center; min-height: 38px; padding: 0 var(--space-7); border-radius: var(--radius-pill);
+  color: var(--pw-ink-2); font: var(--pw-ui); font-weight: 600; text-decoration: none; white-space: nowrap;
+  transition: background-color var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper);
+}
+.pi-section-tab:hover { background: var(--pw-lagoon-100); color: var(--pw-ink); }
+.pi-section-tab.is-active { background: var(--pw-sea-700); color: var(--pw-on-cover); font-weight: 700; }
+.pi-section-tab:focus-visible { outline: 2px solid var(--pw-sea-700); outline-offset: 2px; }
+.pi-page :is(#pi-sec-top, #pi-sec-inside, #pi-sec-days, #pi-sec-creator) { scroll-margin-top: calc(var(--shell-nav-h, 64px) + var(--space-8)); }
+
+/* The fixed bar: a full-width pill at the bottom of the screen, shown only
+   after the cover has left the screen. It replaces the old top-centre bar,
+   which sat behind the app's own top bar. */
+.pi-page .sf-sticky {
+  top: auto; bottom: var(--space-6); gap: var(--space-7); width: min(100% - 32px, 1120px); height: 64px;
+  padding: 0 var(--space-4) 0 var(--space-5); border-radius: var(--radius-pill);
+  background: var(--pw-glass); border: 1px solid var(--pw-glass-edge); color: var(--pw-ink);
+  -webkit-backdrop-filter: blur(var(--yf-blur-panel)); backdrop-filter: blur(var(--yf-blur-panel)); box-shadow: var(--elev-2);
+  transform: translate(-50%, calc(100% + var(--space-8)));
+}
+.pi-page .sf-sticky.is-visible { transform: translate(-50%, 0); }
+.pi-page .sf-sticky-thumb { position: relative; flex: none; width: 42px; height: 42px; overflow: hidden; border-radius: var(--radius-pill); background: var(--pw-lagoon-100); }
+.pi-page .sf-sticky-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.pi-page .sf-sticky-name { flex: 0 1 auto; }
+.pi-page .sf-sticky-nav { flex: 0 1 auto; min-width: 0; margin-inline: auto; }
+.pi-page .sf-sticky-nav .pi-sections { background: var(--pw-lagoon-100); border: 0; box-shadow: none; }
+.pi-page .sf-sticky-nav .pi-section-tab { min-height: 34px; }
+.pi-page .sf-sticky-price small { font: var(--pw-caption); color: var(--pw-ink-3); }
+@media (max-width: 1100px) {
+  .pi-page .sf-sticky-nav { display: none; }
+  .pi-page .sf-sticky-price { margin-inline-start: auto; }
+}
+@media (max-width: 720px) {
+  .pi-page .sf-sticky {
+    bottom: 0; width: 100%; height: auto; padding: var(--space-5) var(--space-6) calc(var(--space-5) + var(--bottom-ui-offset));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0; transform: translate(-50%, 110%);
+  }
+  .pi-page .sf-sticky-thumb { display: none; }
+  .pi-hero-tabs .pi-sections { display: none; }
+}
+
+/* Before you go: the route and the notes, two even cards. */
+.pi-before { display: flex; flex-direction: column; gap: var(--space-5); }
+.pi-before-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); align-items: stretch; }
+.pi-before-grid > .pi-before-route { margin: 0; }
+.pi-before-notes { display: flex; flex-direction: column; gap: var(--space-5); }
+.pi-before-notes .pi-h2 + .pi-notelist { margin-top: calc(var(--space-3) * -1); }
+.pi-notelist { display: grid; gap: var(--space-4); margin: 0 0 var(--space-4); padding: 0; list-style: none; color: var(--pw-ink-2); }
+.pi-notelist li { display: flex; align-items: flex-start; gap: var(--space-4); text-wrap: pretty; }
+.pi-notelist svg { flex: none; margin-top: 3px; color: var(--pw-sea-700); }
+.pi-notelist--warn svg { color: var(--pw-marigold-ink); }
+@media (max-width: 860px) { .pi-before-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* The creator and Take this trip: two cards of one height, one action each. */
+.pi-page .pi-end { align-items: stretch; }
+.pi-page .pi-creator { justify-content: center; }
+.pi-page .pi-more { min-height: 44px; display: inline-flex; align-items: center; font-weight: 700; }
+.pi-take-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5) var(--space-8); margin-top: auto; }
+.pi-take-actions > .btn { width: auto; }
+.pi-take-read {
+  min-height: 44px; padding: 0; border: 0; background: none; color: inherit;
+  font: var(--pw-ui); font-weight: 700; cursor: pointer; opacity: .9;
+}
+.pi-take-read:hover { text-decoration: underline; }
+.pi-take-more {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6);
+  padding-top: var(--space-6); border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+.pi-take-link {
+  display: inline-flex; align-items: center; gap: var(--space-3); min-height: 36px; padding: 0; border: 0; background: none;
+  color: inherit; opacity: .85; font: var(--pw-caption); font-weight: 700; cursor: pointer;
+}
+.pi-take-link:hover { opacity: 1; text-decoration: underline; }
+.pi-take-link[aria-pressed="true"] { opacity: 1; }
+.pi-take :is(.pi-take-read, .pi-take-link):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (max-width: 720px), (pointer: coarse) {
+  .pi-take-link { min-height: 44px; }
+}
+
+/* Ride along: read and current days on the ribbon, and the read progress bar. */
+.pi-rib--read .pi-rib-sub { color: var(--pw-sea-700); font-weight: 700; }
+.pi-rib--now .pi-rib-sub { color: var(--pw-sea-700); font-weight: 800; }
+.pi-ribbon-progress { display: block; width: 100%; max-width: 160px; height: 6px; margin-top: var(--space-3); border-radius: var(--radius-pill); background: var(--pw-lagoon-100); overflow: hidden; }
+.pi-ribbon-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--pw-sea-700); transform-origin: left; transform: scaleX(var(--pi-progress, 0)); transition: transform var(--motion-med) var(--ease-paper); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pi-section-tab, .pi-ribbon-progress > span { transition: none; }
 }

@@ -10,6 +10,13 @@ export interface RibbonDay {
   title: string
   state: 'free' | 'yours' | 'locked'
   placeCount: number
+  /** Ride along only: "read" after this visitor opened the day, "now" for the day on screen. */
+  status?: 'read' | 'now'
+}
+
+const STATUS_WORD: Record<NonNullable<RibbonDay['status']>, string> = {
+  read: 'read ✓',
+  now: 'open now',
 }
 
 const DOT_LABEL: Record<RibbonDay['state'], string> = {
@@ -38,7 +45,8 @@ function revealDay(host: HTMLElement, day: Element): void {
 
 export function DayRibbon(p: {
   label: string
-  head: { kicker: string; figure: string; sub: string; tag?: ReactNode }
+  /** `progress` is the share of free days read, 0 to 1. Ride along only. */
+  head: { kicker: string; figure: string; sub: string; tag?: ReactNode; progress?: number }
   days: readonly RibbonDay[]
   /** The day on screen in the ride-along view. Absent in the overview. */
   current: number | null
@@ -61,6 +69,11 @@ export function DayRibbon(p: {
         <span className="pi-kicker">{p.head.kicker}</span>
         <b className="pi-ribbon-figure">{p.head.figure}</b>
         <span className="pi-ribbon-sub">{p.head.sub}</span>
+        {p.head.progress !== undefined ? (
+          <span className="pi-ribbon-progress" aria-hidden="true">
+            <span style={{ '--pi-progress': String(Math.min(1, Math.max(0, p.head.progress))) } as CSSProperties} />
+          </span>
+        ) : null}
         {p.head.tag}
       </div>
       <div className="pi-ribbon-track" ref={track}>
@@ -71,10 +84,10 @@ export function DayRibbon(p: {
             <li key={d.index} style={{ '--i': staggerStep(n) } as CSSProperties}>
               <button
                 type="button"
-                className={'pi-rib pi-rib--' + d.state}
+                className={'pi-rib pi-rib--' + d.state + (d.status ? ' pi-rib--' + d.status : '')}
                 aria-current={p.current === d.index ? 'true' : undefined}
                 onFocus={event => { if (track.current) revealDay(track.current, event.currentTarget) }}
-                onClick={() => p.onPick(d.index)}
+                onClick={() => { p.onPick(d.index) }}
               >
                 <span className="pi-rib-top">
                   <span className="pi-rib-day">Day {d.index + 1}</span>
@@ -84,7 +97,9 @@ export function DayRibbon(p: {
                 </span>
                 <span className="pi-rib-title">{d.title}</span>
                 <span className="pi-rib-sub">
-                  {d.state === 'locked' ? p.lockedWord : `${d.placeCount} ${d.placeCount === 1 ? 'place' : 'places'}`}
+                  {d.state === 'locked' ? p.lockedWord
+                    : d.status ? STATUS_WORD[d.status]
+                    : `${d.placeCount} ${d.placeCount === 1 ? 'place' : 'places'}`}
                 </span>
               </button>
             </li>

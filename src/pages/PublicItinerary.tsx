@@ -10,7 +10,7 @@ import {
   MessageCircle, Sparkles, Ticket, TriangleAlert,
 } from 'lucide-react'
 import { InlineIcon, MetaIcon, modeIcon } from '../components/icons'
-import { openExternal } from '../lib/native'
+import { nativeCopyText, openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
 import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
@@ -47,6 +47,16 @@ import { DayBudgetBar, type DayBudget } from '../components/storefront/DayBudget
 import { KindTiles } from '../components/storefront/KindTiles'
 import { KindChip } from '../components/storefront/KindChip'
 import { RideDayPanel, RideOtherRow } from '../components/storefront/RidePanels'
+import { SectionTabs, type SectionTab } from '../components/storefront/SectionTabs'
+import { RegionArt } from '../components/RegionArt'
+import { TripArt } from '../components/trips/TripArt'
+import { regionFor } from '../lib/tripsPage'
+import { pubArtId } from '../lib/pubDayArt'
+
+/** The words of a day title that may name places: "Jaipur → Jodhpur" gives both. */
+function titlePlaces(title: string): string[] {
+  return title.split(/→|—|–|&|,|\bto\b|\bvia\b/u).map(s => s.trim()).filter(Boolean)
+}
 
 /** How long the buyer's entitlement read may take before the page stops
  *  waiting and says so. Mirrors the hub's ledger timeout: far longer than the
@@ -183,9 +193,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const [rideDay, setRideDay] = useState<number | null>(null)
   const panelEl = useRef<HTMLDivElement>(null)
   const [now] = useState(() => Date.now())
+  // The bar shows only after the cover has left the screen. When the view
+  // changes, the old cover unmounts and the new one mounts. The observer can
+  // still report the detached node as "not intersecting", which used to leave
+  // the bar on at scroll 0. A detached entry is ignored, and the bar reads
+  // `coverGone`, which is false while no cover is mounted.
   useEffect(() => {
     if (!heroEl || typeof IntersectionObserver === 'undefined') return
-    const io = new IntersectionObserver(([entry]) => setHeroGone(!entry.isIntersecting))
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.target.isConnected) setHeroGone(!entry.isIntersecting)
+    })
     io.observe(heroEl)
     return () => io.disconnect()
   }, [heroEl])
@@ -473,7 +490,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     )
     // The ticket the plate shows if the photo fails to load.
     const coverFallback = chooseCover({ ...coverBase, coverImageUrl: undefined }, kinds, cap(trip.transportMode))
-    return { cards, kinds, lede, lockedLine, weeks: foldWeeks(cards.length), cover, coverFallback: coverFallback.kind === 'ticket' ? coverFallback : undefined, allFree: orderedDays.every(d => free.has(d.index)) }
+    return { cards, kinds, lede, lockedLine, weeks: foldWeeks(cards.length, 14), cover, coverFallback: coverFallback.kind === 'ticket' ? coverFallback : undefined, allFree: orderedDays.every(d => free.has(d.index)) }
   }, [pub, trip, orderedDays, unlocked, mayShowPriceCta])
 
   // ---- Per-day facts for the trip-kit views. A second memo, so the storefront
@@ -698,13 +715,29 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const ribbonDays: RibbonDay[] = cards.map(c => ({
     index: c.summary.index, title: c.summary.title, state: c.state, placeCount: c.summary.placeCount,
   }))
-  // The ten-days grid. A readable day gets its photo, its places and an open
-  // button; a locked day gets neither a photo nor a button, only its counts.
+  // Most plans have no photos. Every image slot then shows a generated scene
+  // for its own places, so no slot is an empty box. A locked day uses its
+  // title only, which the card shows anyway, so the scene discloses nothing.
+  const planPlaces = [trip.startLocation, ...trip.destinations]
+  const artRegion = regionFor(trip)
+  const artFor = (seed: string, slotPlaces: string[], sizes: string, eager = false) => (
+    <RegionArt
+      id={pubArtId({ seed: `${pub.id}:${seed}`, slotPlaces, planPlaces })}
+      ratio="16:10"
+      sizes={sizes}
+      eager={eager}
+      fallback={<TripArt region={artRegion} />}
+    />
+  )
+  const dayArt = (c: (typeof cards)[number]) =>
+    artFor(`day:${c.summary.index}`, titlePlaces(c.summary.title), '(max-width: 720px) 100vw, 240px')
+  // The ten-days grid. A readable day gets its photo (or its scene), its places
+  // and an open button; a locked day gets its scene under a lock, and counts.
   const dayCards: DayCardProps[] = cards.map((c, i) => {
     const f = dayFacts[i]
     return c.state === 'locked'
-      ? { ...c, budget: f?.budget }
-      : { ...c, photo: f?.photo, budget: f?.budget, onOpen: () => openDay(c.summary.index) }
+      ? { ...c, budget: f?.budget, art: dayArt(c), lockedWord: price !== undefined ? 'Paid plan' : 'Preview only', lockedNote: showUnlockCta ? 'Names, times and notes open when you buy' : 'Names, times and notes stay hidden on this page' }
+      : { ...c, photo: f?.photo, art: f?.photo ? undefined : dayArt(c), budget: f?.budget, onOpen: () => openDay(c.summary.index) }
   })
 
   const kmOf = (km: number) => `${km.toFixed(0)} km`
@@ -780,6 +813,24 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       ]}
     />
   )
+  // The mockup's section links: Overview, What's inside, the days, the creator.
+  // Look inside only; Ride along is one day at a time and has no such parts.
+  const hasDays = !!storefront && storefront.cards.length > 0
+  const sectionTabs: SectionTab[] = view === 'inside' ? [
+    { id: 'pi-sec-top', label: 'Overview' },
+    ...(hasDays ? [
+      { id: 'pi-sec-inside', label: 'What’s inside' },
+      { id: 'pi-sec-days', label: `The ${cards.length} ${cards.length === 1 ? 'day' : 'days'}` },
+    ] : []),
+    { id: 'pi-sec-creator', label: 'The creator' },
+  ] : []
+  const coverGone = heroGone && heroEl !== null && heroEl.isConnected
+  const heroTabs = (
+    <>
+      {kitTabs}
+      {sectionTabs.length > 0 && <SectionTabs tabs={sectionTabs} label="Parts of this plan" />}
+    </>
+  )
 
   const heroFacts = [
     previewSplit && price !== undefined && !unlocked ? `${pub.durationDays} days · ${previewSplit.freeCount} free to read` : `${pub.durationDays} days`,
@@ -820,6 +871,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           photo={heroSrc
             ? <img className="pub-hero-photo pi-hero-photo" src={heroSrc} alt="" aria-hidden="true" width={1600} height={900} loading="eager" decoding="async" onError={(e) => { e.currentTarget.hidden = true }} />
             : null}
+          art={heroSrc ? undefined : artFor('cover', [], '100vw', true)}
           back={<button className="btn btn-sm btn-ghost pi-hero-back" onClick={() => onNavigate('/explore')}>← Explore</button>}
           kicker={`${cap(pub.travelStyle)} itinerary`}
           title={pub.title}
@@ -834,15 +886,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               { value: String(placeTotal), label: 'places' },
               ...(pub.bestSeason ? [{ value: pub.bestSeason, label: 'best season' }] : []),
             ],
-            photos: dayFacts.flatMap((f, i) => f.readable && f.photo
-              ? [{ index: cards[i].summary.index, src: f.photo, title: cards[i].summary.title }]
+            // The first three days this visitor may read: their photo, or their scene.
+            photos: dayFacts.flatMap((f, i) => f.readable
+              ? [{ index: cards[i].summary.index, src: f.photo, art: f.photo ? undefined : dayArt(cards[i]), title: cards[i].summary.title }]
               : []).slice(0, 3),
             notice: gateNotice ? (tripReReadFailed
               ? purchaseLoadNotice
               : <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} />) : undefined,
           } : undefined}
           asideLabel={price === undefined || unlocked ? 'Take this plan' : 'Buy this plan'}
-          tabs={kitTabs}
+          tabs={heroTabs}
           aside={
             <BuyCard
               price={showUnlockCta ? formatInr(price) : gateNotice ? undefined : unlocked && price !== undefined ? 'Yours' : 'Free'}
@@ -852,7 +905,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 : storefront?.allFree === false ? 'free to fork' : 'every day is open to read'}
               split={showUnlockCta ? orderedDays.map(d => (pub.freeDayIndexes.includes(d.index) ? 'open' : 'locked')) : undefined}
               splitLabel={previewSplit ? `${previewSplit.freeCount} of ${previewSplit.dayCount} days are free, ${previewSplit.lockedLabel} are in the paid plan` : undefined}
-              splitNote={showUnlockCta && previewSplit ? `Preview: ${previewSplit.claim}.` : undefined}
+              splitNote={showUnlockCta && previewSplit
+                ? `${previewSplit.freeCount} ${previewSplit.freeCount === 1 ? 'day opens' : 'days open'} free · ${previewSplit.lockedCount} ${previewSplit.lockedCount === 1 ? 'day opens' : 'days open'} when you buy`
+                : undefined}
               quote={!gateNotice && pitch ? pitch : undefined}
               quoteBy={!gateNotice && pitch && creator ? `${creator.profile.name}, who made this plan` : undefined}
             >
@@ -883,10 +938,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
 
         {stickyMode && (
           <StickyPriceBar
-            visible={heroGone}
+            visible={coverGone}
             title={pub.title}
             sub={`by ${creatorName} · ${pub.durationDays} days`}
             priceLabel={stickyMode === 'unlock' ? formatInr(price ?? 0) : unlocked && price !== undefined ? 'Yours' : 'Free'}
+            priceNote={stickyMode === 'unlock' ? 'one payment' : undefined}
+            thumb={heroSrc ? <img src={heroSrc} alt="" decoding="async" /> : artFor('cover', [], '48px')}
+            nav={sectionTabs.length > 0 ? <SectionTabs tabs={sectionTabs} label="Parts of this plan, in the bar" hidden={!coverGone} /> : undefined}
             ctaLabel={stickyMode === 'unlock' ? (buying ? 'Opening payments…' : 'Unlock full plan') : forkLabel}
             mode={stickyMode}
             disabled={stickyMode === 'unlock' && buying}
@@ -921,7 +979,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                   page already shows them. A locked day carries no place list. A
                   plan with no days has nothing to show, so the section is skipped. ---- */}
               {storefront && storefront.cards.length > 0 && (
-                <section className="pi-inside" aria-labelledby="pi-inside-title">
+                <section className="pi-inside" id="pi-sec-inside" aria-labelledby="pi-inside-title">
                   <div className="pi-card pi-inside-main">
                     <span className="pi-kicker">What is inside</span>
                     <h2 className="pi-h2" id="pi-inside-title">{storefront.lede ?? pub.title}</h2>
@@ -954,7 +1012,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               )}
 
               {storefront && storefront.cards.length > 0 && (
-                <section className="pi-days" aria-labelledby="pi-days-title">
+                <section className="pi-days" id="pi-sec-days" aria-labelledby="pi-days-title">
                   <div className="pi-days-head">
                     <div>
                       <span className="pi-kicker">The {cards.length} days</span>
@@ -972,11 +1030,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 </section>
               )}
 
-              <div className="two-col two-col--even">
-                {/* Double-Bezel: this wrapper is the TRAY, the .card inside it is the
-                    PLATE. Same pair Explore uses, so there is one bezel recipe. */}
-                <div className="bezel glass">
-                  <aside className="card route-snap route-glance">
+              {/* ---- Before you go: the route, the creator's tips and the plan's
+                  assumptions, in one row of two even cards. An empty list is
+                  left out, not drawn as an empty heading. ---- */}
+              <section className="pi-before" aria-labelledby="pi-before-title">
+                <span className="pi-kicker" id="pi-before-title">Before you go</span>
+                <div className="pi-before-grid">
+                  <aside className="card route-snap route-glance pi-before-route">
                     <span className="route-glance-label">The route at a glance</span>
                     <RouteSnapshot
                       count={trip.days.length}
@@ -988,28 +1048,26 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
                     <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
                   </aside>
+                  {(pub.travelTips.length > 0 || pub.warningsAndAssumptions.length > 0) && (
+                    <div className="pi-card pi-before-notes">
+                      {pub.travelTips.length > 0 && <>
+                        <h2 className="pi-h2 pi-h2--s">Travel tips</h2>
+                        <ul className="pi-notelist">
+                          {pub.travelTips.map((t, i) => <li key={i}><MessageCircle size={15} aria-hidden />{t}</li>)}
+                        </ul>
+                      </>}
+                      {pub.warningsAndAssumptions.length > 0 && <>
+                        <h2 className="pi-h2 pi-h2--s">Warnings & assumptions</h2>
+                        <ul className="pi-notelist pi-notelist--warn">
+                          {pub.warningsAndAssumptions.map((t, i) => <li key={i}><TriangleAlert size={15} aria-hidden />{t}</li>)}
+                        </ul>
+                      </>}
+                    </div>
+                  )}
                 </div>
-                <div className="bezel glass">
-                  <div className="card">
-                    <h2>Travel tips</h2>
-                    <hr className="divider" />
-                    <ul className="pi-plainlist">
-                      {pub.travelTips.map((t, i) => <li key={i}>{t}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div className="bezel glass">
-                <div className="card">
-                  <h2>Warnings & assumptions</h2>
-                  <hr className="divider" />
-                  <ul className="pi-plainlist">
-                    {pub.warningsAndAssumptions.map((t, i) => <li key={i}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{t}</li>)}
-                  </ul>
-                </div>
-              </div>
+              </section>
 
-              <section className="pi-end" aria-label="The creator and take this trip">
+              <section className="pi-end" id="pi-sec-creator" aria-label="The creator and take this trip">
                 <div className="pi-card pi-creator">
                   <div className="creator-line">
                     <Avatar user={creator} size="lg" />
@@ -1047,27 +1105,35 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     </div>
                   )}
                   {creator && (
-                    <a className="btn btn-outline btn-sm pi-more" {...appLink(`/creator/${creator.id}`)}>
-                      More from {creator.profile.name} →
+                    <a className="pi-link pi-more" {...appLink(`/creator/${creator.id}`)}>
+                      {plans > 1 ? `See all ${plans} of ${creator.profile.name}’s plans →` : `More from ${creator.profile.name} →`}
                     </a>
                   )}
                 </div>
 
+                {/* One clear action, as in the mockup: buy when the plan is for sale,
+                    fork when it is free or owned. Fork-the-preview, save and share
+                    stay, as a quiet row of links under it. */}
                 <div className="pi-card pi-take">
                   <span className="pi-kicker">Take this trip</span>
                   <h2 className="pi-h2">Make it yours. Change the dates, the people and the stops.</h2>
-                  <p className="hint-text">
-                    Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
-                  </p>
-                  <button className="btn fork-btn btn-lg" onClick={copyThis}>
-                    <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
-                  </button>
-                  {showUnlockCta && <>
-                    <button className="btn btn-saffron btn-lg" disabled={buying} onClick={unlockThis}>
-                      <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
-                    </button>
-                    <p className="hint-text">One-time payment. No subscription.</p>
-                  </>}
+                  <div className="pi-take-actions">
+                    {showUnlockCta ? <>
+                      <button className="btn btn-saffron btn-lg" disabled={buying} onClick={unlockThis}>
+                        <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
+                      </button>
+                      {firstOpenPos >= 0 && (
+                        <button type="button" className="pi-take-read" onClick={() => openDay(cards[firstOpenPos].summary.index)}>
+                          Read the free {openCount === 1 ? 'day' : 'days'} first
+                        </button>
+                      )}
+                    </> : !gateNotice && (
+                      <button className="btn fork-btn btn-lg" onClick={copyThis}>
+                        <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
+                      </button>
+                    )}
+                  </div>
+                  {showUnlockCta && <p className="hint-text">One-time payment. No subscription.</p>}
                   {/* #359 — the failed/in-flight read replaces the price button
                       rather than sitting under it, here as in the buy card: a
                       buyer must not meet "Unlock for ₹499" for their own plan. */}
@@ -1077,23 +1143,26 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                   {price !== undefined && unlocked && <p className="hint-text">
                     ✓ Full plan unlocked — forking carries every day as a real, editable plan.
                   </p>}
-                  {/* Which days stay back is read from the publication's own freeDayIndexes
-                      rather than assumed to be the tail. The clause is appended as the
-                      module writes it; capitalising belongs to CSS, not here. */}
-                  {previewSplit && !unlocked && <p className="hint-text">
-                    Preview: {previewSplit.claim}.
-                  </p>}
                   {/* The first screen shows the pitch cut to 140 characters. Only a
                       pitch that was cut shows its full text here. Stored text is
                       never shortened. */}
                   {pub.subscriberCta && !(heroShowsPitch && pitch === pub.subscriberCta) && <p className="hint-text">{pub.subscriberCta}</p>}
-                  <button className="btn save-btn" onClick={saveThis} aria-pressed={savedFlag}>
-                    <InlineIcon icon={Heart} size={13} gap={4} fill={savedFlag ? 'currentColor' : 'none'} />
-                    {savedFlag ? 'Saved' : 'Save itinerary'}
-                  </button>
-                  <hr className="divider" />
-                  {shareBlock}
-                  {!me && <p className="hint-text">You’ll need a free account to fork trips.</p>}
+                  <div className="pi-take-more">
+                    {showUnlockCta && (
+                      <button type="button" className="pi-take-link" onClick={copyThis}>
+                        <GitFork size={14} aria-hidden />{me ? 'Fork the free preview' : 'Log in to fork the free preview'}
+                      </button>
+                    )}
+                    <button type="button" className="pi-take-link" onClick={saveThis} aria-pressed={savedFlag}>
+                      <Heart size={14} aria-hidden fill={savedFlag ? 'currentColor' : 'none'} />{savedFlag ? 'Saved' : 'Save itinerary'}
+                    </button>
+                    <button type="button" className="pi-take-link" onClick={() => { void nativeCopyText(shareLink); toast('Link copied') }}>
+                      <Link2 size={14} aria-hidden />Copy link
+                    </button>
+                    <button type="button" className="pi-take-link" disabled={sendingWhatsApp} onClick={() => void sendOnWhatsApp()}>
+                      <MessageCircle size={14} aria-hidden />{sendingWhatsApp ? 'Opening WhatsApp…' : 'Send on WhatsApp'}
+                    </button>
+                  </div>
                 </div>
               </section>
             </div>

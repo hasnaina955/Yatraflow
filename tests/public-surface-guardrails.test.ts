@@ -164,9 +164,11 @@ describe('grid cards are laid out by the grid, not by the stacked-card beat', ()
 
   it('gives two peer cards equal halves instead of a phantom sidebar', () => {
     expect(css).toMatch(/\.two-col--even \{ grid-template-columns: 1fr 1fr; \}/)
-    expect(read('../src/pages/PublicItinerary.tsx')).toMatch(/className="two-col two-col--even"/)
     // …and the pair still collapses with every other two-col on a narrow screen.
     expect(css).toMatch(/@media \(max-width: 980px\) \{ \.two-col, \.two-col--even \{/)
+    // The public itinerary's "Before you go" pair: two even halves, one column on a phone.
+    expect(read('../src/pages/PublicItinerary.tsx')).toMatch(/className="pi-before-grid"/)
+    expect(css).toMatch(/\.pi-before-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
   })
 
   it('lets the entrance animation release the transform so hover can lift', () => {

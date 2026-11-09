@@ -34,8 +34,9 @@ export function WhatIsInside(p: {
         </div>
       ) : null}
       {p.lockedLine ? <p className="sf-inside-lock">{p.lockedLine}</p> : null}
-      {p.weeks ? p.weeks.map((w, wi) => (
-        <details key={w.label} className="sf-week" open={wi === 0}>
+      {/* Every week starts open: a folded week hid free days the reader may read. */}
+      {p.weeks ? p.weeks.map((w) => (
+        <details key={w.label} className="sf-week" open>
           <summary className="sf-week-summary">
             <h3 className="sf-week-title">{w.label}</h3>
           </summary>

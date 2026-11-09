@@ -570,7 +570,7 @@ describe('page storefront dataflow (the actual page callback)', () => {
     const result = runStorefront(synthTrip, [0])
     const card = result.cards[0]
     expect(card.summary.pace).toEqual({ key: 'flight', label: 'Flight day' })
-    expect(textOf(card)).toBe('Day 1 Free Travel day Flight day 32 m on the road')
+    expect(textOf(card)).toBe('Day 1 Free to read Travel day Flight day 32 m on the road')
     expect(textOf(card)).not.toContain('Nothing planned')
   })
 

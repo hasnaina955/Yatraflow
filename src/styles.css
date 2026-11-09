@@ -1760,6 +1760,8 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
   .pi-ride-skeletons .pi-ride-stop-icon { width: var(--space-12); height: var(--space-12); }
   .pi-ride-skeletons .pi-pill { margin-left: auto; }
   .pi-ride-paid-foot { flex-wrap: wrap; }
+  .pi-ride-paid-foot > svg { display: none; }
+  .pi-ride-paid-foot p { flex-basis: 100%; }
   .pi-ride-paid-foot button { margin-left: auto; }
   .pi-other { grid-template-columns: var(--space-14) var(--space-12) minmax(0, 1fr) var(--space-14); gap: var(--space-4); }
   .pi-other .pi-other-thumb { display: block; grid-column: 1; grid-row: 1; width: var(--space-14); height: var(--space-15); }
@@ -1772,3 +1774,5 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
   .pi-other .pi-other-road { display: none; }
   .pi-ride-group { gap: var(--space-4); }
 }
+.pi-page .pi-ride--locked .pi-ride-band { background: var(--pw-marigold-100); }
+.pi-page .pi-ride--locked .pi-ride-band .yf-art-picture { opacity: .55; filter: saturate(.55) sepia(.25); }

@@ -57,7 +57,7 @@ import { pubArtId } from '../lib/pubDayArt'
 function titlePlaces(title: string): string[] {
   return title.split(/→|—|–|&|,|\bto\b|\bvia\b/u).map(s => s.trim()).filter(Boolean)
 }
-import { RideTimeline } from '../components/storefront/ride/RideTimeline'
+import { RideTimeline, rideNodeLabels } from '../components/storefront/ride/RideTimeline'
 import { RideLockedPreview } from '../components/storefront/ride/RideLockedPreview'
 import { RideProgress, RideReadMark } from '../components/storefront/ride/RideProgress'
 import { freeDaysRead, useRideProgress } from '../lib/rideProgress'
@@ -810,7 +810,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     } else {
       const sim = simulateDay(rideDayRow, trip, originOf(trip, rideDayRow.index), rideDayRow.index)
       const stops = [...rideDayRow.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
-      body = <RideTimeline journey={buildJourney(trip, rideDayRow)} creator={creator} timeFormat={timeFormat}>
+      const journey = buildJourney(trip, rideDayRow)
+      // A neighbour day outside the trip is the public origin or end, so it is readable.
+      const lockedDay = (i: number) => cards.some(c => c.summary.index === i && c.state === 'locked')
+      const labels = rideNodeLabels(journey, {
+        dayNumber: rideDayRow.index + 1,
+        ownStopIds: new Set(stops.filter(s => !s.auto).map(s => s.id)),
+        prevLocked: lockedDay(rideDayRow.index - 1),
+        nextLocked: lockedDay(rideDayRow.index + 1),
+      })
+      body = <RideTimeline journey={journey} labels={labels} creator={creator} timeFormat={timeFormat}>
         <DayStops stops={stops} sim={sim} assumptions={getAssumptions(trip)} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />
       </RideTimeline>
     }
@@ -1190,6 +1199,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 )}
                 {paidPreview && <RideLockedPreview {...rideArt(paidPreview.summary.index)} card={paidPreview}
                   lastIndex={cards[paidRunEnd].summary.index}
+                  facts={dayFacts[paidPreviewPos] ? [kmOf(dayFacts[paidPreviewPos].km), driveOf(paidPreview.summary.travelMinutes)] : undefined}
                   action={showUnlockCta ? <button type="button" className="btn btn-saffron btn-sm" disabled={buying} onClick={unlockThis}>
                     <InlineIcon icon={Lock} size={13} gap={4} />{buying ? 'Opening payments…' : `Unlock ${paidRunLabel}`}
                   </button> : gateNotice && !tripReReadFailed ? <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} /> : null}

@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Journey } from '../src/lib/engine'
-import { RideTimeline, savedRideLeg } from '../src/components/storefront/ride/RideTimeline'
+import { RideTimeline, rideLeg, rideNodeLabels, savedRideLeg } from '../src/components/storefront/ride/RideTimeline'
 import { RideDayPanel } from '../src/components/storefront/RidePanels'
 import { RideLockedPreview } from '../src/components/storefront/ride/RideLockedPreview'
 import { rideHeightPoints } from '../src/components/storefront/ride/RideElevation'
@@ -44,8 +44,49 @@ describe('ride presentation', () => {
     expect(savedRideLeg(stop, leg)).toEqual({ km: 72, minutes: 114 })
   })
 
+  it('shows an engine road leg as approximate and never an air or empty leg', () => {
+    expect(rideLeg(stop, leg)).toEqual({ km: 72, minutes: 114, approx: false })
+    expect(rideLeg({}, leg)).toEqual({ km: 100, minutes: 200, approx: true })
+    expect(rideLeg({}, { ...leg, kind: 'air' })).toBeNull()
+    expect(rideLeg({}, { ...leg, distanceKm: 0, durationMinutes: 0 })).toBeNull()
+    expect(rideLeg({}, null)).toBeNull()
+  })
+
+  describe('start and end lines beside a locked day', () => {
+    // Day 9 follows locked day 8. The engine starts it at day 8's last stop.
+    const borrowedStart = { ...journey.points[0], title: 'Chandratal Lake', stop: { ...stop, id: 'day8-last', auto: true } }
+    const borrowedEnd = { ...journey.points[1], kind: 'end', title: 'Secret Camp', synthesized: true, stop: { ...stop, id: 'day10-first', auto: true } }
+    const j = { ...journey, startTitle: 'Chandratal Lake', endTitle: 'Secret Camp', points: [borrowedStart, journey.points[1], borrowedEnd] } satisfies Journey
+    const own = new Set(['lake'])
+
+    it('names the day, not the place, when the neighbour is locked', () => {
+      const labels = rideNodeLabels(j, { dayNumber: 9, ownStopIds: own, prevLocked: true, nextLocked: true })
+      expect(labels).toEqual({ start: 'Start of day 9', end: 'End of day 9' })
+      const html = renderToStaticMarkup(createElement(RideTimeline, { journey: j, labels, timeFormat: '24h', children: null }))
+      expect(html).not.toContain('Chandratal')
+      expect(html).not.toContain('Secret Camp')
+    })
+
+    it('keeps the place when the neighbour is readable', () => {
+      const labels = rideNodeLabels(j, { dayNumber: 9, ownStopIds: own, prevLocked: false, nextLocked: false })
+      expect(labels).toEqual({ start: 'Leave Chandratal Lake', end: 'Head on to Secret Camp' })
+    })
+
+    it('keeps a line that names one of the day’s own stops', () => {
+      const ownEnd = { ...journey, points: [journey.points[0], journey.points[1]] } satisfies Journey
+      const labels = rideNodeLabels(ownEnd, { dayNumber: 3, ownStopIds: own, prevLocked: false, nextLocked: true })
+      expect(labels.end).toBe('Finish at Nako')
+    })
+
+    it('says Night in only for a stay', () => {
+      const stay = { ...journey, points: [journey.points[0], { ...journey.points[1], stop: { ...stop, category: 'hotel' } }] } satisfies Journey
+      expect(rideNodeLabels(stay, { dayNumber: 3, ownStopIds: own, prevLocked: false, nextLocked: false }).end).toBe('Night in Nako')
+    })
+  })
+
   it('renders real clocks, the saved leg and a separate creator note', () => {
-    const html = renderToStaticMarkup(createElement(RideTimeline, { journey, timeFormat: '24h', children: null }))
+    const labels = rideNodeLabels(journey, { dayNumber: 3, ownStopIds: new Set(['lake']), prevLocked: false, nextLocked: false })
+    const html = renderToStaticMarkup(createElement(RideTimeline, { journey, labels, timeFormat: '24h', children: null }))
     expect(html).toContain('Leave ' + 'Kalpa')
     expect(html).toContain('09:54')
     expect(html).toContain('72 km · 1h 54m')

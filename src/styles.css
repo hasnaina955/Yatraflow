@@ -665,31 +665,31 @@
 
 /* the day grid: the storefront's cards, dressed for the trip kit */
 .pi-page .sf-daygrid { grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); align-items: stretch; gap: var(--space-5); }
-.pi-page .sf-day { background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--elev-1); border-radius: var(--radius-lg); }
-.pi-page .sf-day--locked { background: var(--pw-marigold-50); box-shadow: none; outline: 1px solid var(--pw-marigold-300); outline-offset: -1px; }
-.pi-page .sf-day--yours { background: var(--pw-lagoon-50); }
-.pi-page .sf-day-title { font: var(--pw-title); letter-spacing: var(--pw-title-tracking); }
+.pi-page .sf-day { background: var(--pw-card); border-color: var(--pw-line); color: var(--pw-ink); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24); }
+.pi-page .sf-day--locked { background: #FFF8EC; border-color: #F3DDB4; box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(20,56,66,.05), 0 18px 36px -20px rgba(20,56,66,.24); outline: none; }
+.pi-page .sf-day--yours { background: var(--pw-card); }
+.pi-page .sf-day-title { font: 700 15px/1.3 var(--font-display); letter-spacing: -0.01em; }
 .pi-page .sf-day-photo {
-  display: block; flex: none; height: 96px; margin: calc(var(--space-7) * -1) calc(var(--space-7) * -1) 0;
+  position: relative; display: block; flex: none; height: 104px; margin: 0;
   overflow: hidden; background: var(--pw-lagoon-100);
 }
 .pi-page .sf-day-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sf-day-open {
-  align-self: flex-start; min-height: 44px; margin-top: auto; padding: 0; border: 0; background: none;
-  color: var(--ink-teal); font: var(--pw-ui); font-weight: 700; text-align: left; cursor: pointer;
+  align-self: flex-start; min-height: 44px; margin-top: auto; padding: 4px 0 0; border: 0; background: none;
+  color: var(--ink-teal); font: 700 13px/1.3 var(--font-body); text-align: left; cursor: pointer;
 }
-.sf-day-open:hover { text-decoration: underline; }
+.sf-day-open:hover { text-decoration: none; color: var(--pw-sea-700); }
 
 /* ---- the day's time budget ---- */
 .pi-budget { display: flex; flex-direction: column; gap: var(--space-3); }
 .pi-budget-bar {
-  display: grid; gap: 2px; height: 8px; border-radius: var(--radius-pill); overflow: hidden;
-  background: var(--pw-sunken);
+  display: grid; gap: 4px; height: 7px;
+  border-radius: 0; overflow: visible; background: none;
 }
-.pi-budget-seg { display: block; transform-origin: left center; animation: pi-grow var(--motion-slow) var(--ease-paper) backwards; animation-delay: calc(var(--i, 0) * var(--stagger-step)); }
+.pi-budget-seg { display: block; border-radius: 999px; transform-origin: left center; animation: pi-grow var(--motion-slow) var(--ease-paper) backwards; animation-delay: calc(var(--i, 0) * var(--stagger-step)); }
 .pi-budget-drive { background: var(--pw-time-drive); }
 .pi-budget-places { background: var(--pw-time-stop); }
-.pi-budget-free { background: var(--pw-time-free); box-shadow: inset 0 0 0 1px var(--pw-lagoon-300); }
+.pi-budget-free { background: var(--pw-time-free); }
 .pi-budget-key { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); font: var(--pw-caption); color: var(--pw-ink-2); }
 .pi-budget-key span { display: inline-flex; align-items: center; }
 .pi-budget-dot { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: var(--space-3); border-radius: 50%; }
@@ -946,18 +946,19 @@
 .pi-page .pi-tile { background: var(--pw-lagoon-50); }
 .pi-page .pi-tile-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-xs); background: var(--sf-c-bg); }
 .pi-page .pi-get-foot { margin-top: auto; padding-top: var(--space-6); border-top: 1px dashed var(--pw-line); }
-.pi-page .sf-day-strip { position: relative; height: 96px; opacity: .7; }
+.pi-page .sf-day-strip { position: relative; height: 104px; opacity: 1; }
 .sf-day-lock-mark { position: absolute; inset: 0; display: grid; place-items: center; background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
-.pi-page .sf-day-head { position: relative; margin-top: calc(var(--space-12) * -1); }
+.pi-page .sf-day-head { position: relative; display: flex; align-items: flex-end; gap: 10px; margin-top: 0; }
 .pi-page .sf-day-num {
-  display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--radius-sm);
-  background: var(--pw-card); color: var(--pw-sea-700); box-shadow: var(--elev-2);
+  display: flex; flex-direction: column; align-items: center; width: 54px; padding: 6px 0 8px;
+  border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(236,231,222,.9) 100%);
+  color: var(--pw-ink);
 }
-.pi-page .sf-day-num small { align-self: end; font: var(--pw-kicker); text-transform: uppercase; }
-.pi-page .sf-day-num b { align-self: start; font: var(--pw-figure); color: var(--pw-ink); }
-.pi-page .sf-day-tag { position: absolute; right: 0; top: calc(var(--space-14) * -1); display: inline-flex; align-items: center; gap: var(--space-2); background: var(--pw-card); color: var(--pw-sea-700); }
-.pi-page .sf-day--locked .sf-day-tag { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
-.pi-page .sf-day:hover { transform: translateY(-3px); }
+.pi-page .sf-day-num small { font-size: 11px; font-weight: 700; letter-spacing: .1em; line-height: 1.2; color: #0B5F67; }
+.pi-page .sf-day-num b { font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1; color: var(--pw-ink); }
+.pi-page .sf-day-tag { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 6px; background: rgba(254,253,251,.82); color: #0B5F67; }
+.pi-page .sf-day--locked .sf-day-tag { background: #FBE7C6; color: #8A4F0E; }
+.pi-page .sf-day:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgba(20,56,66,.06), 0 16px 30px -14px rgba(20,56,66,.34); }
 
 .pi-page .pi-ride { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
 .pi-page .pi-ride-band { height: calc(var(--space-17) * 2); }
@@ -1524,12 +1525,12 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
 .pi-hero--art { background: var(--pw-sea-900); }
 .pi-hero-art { position: absolute; inset: 0; z-index: var(--z-under); overflow: hidden; }
 .pi-page .sf-day-art { position: relative; height: 104px; background: var(--pw-lagoon-100); }
-.pi-page .sf-day--locked .sf-day-art { background: var(--pw-marigold-100); }
-.pi-page .sf-day--locked .sf-day-art .yf-art-picture { opacity: .55; filter: saturate(.55) sepia(.25); }
+.pi-page .sf-day--locked .sf-day-art { background: #FFF8EC; }
+.pi-page .sf-day--locked .sf-day-art .yf-art-picture { opacity: 1; filter: saturate(.6) blur(1.5px); transform: scale(1.06); }
 .pi-page .sf-day-locknote {
-  display: flex; align-items: flex-start; gap: var(--space-3); margin: auto 0 0; padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-sm); background: var(--pw-marigold-50); color: var(--pw-marigold-ink);
-  font: var(--pw-caption); font-weight: 700; text-wrap: pretty;
+  display: flex; align-items: flex-start; gap: 8px; margin: auto 0 0; padding: 10px;
+  border-radius: 12px; background: #FBEFD9; color: #8A4F0E;
+  font-size: 12px; font-weight: 600; line-height: 1.35; text-align: left; text-wrap: pretty;
 }
 .pi-page .sf-day-locknote svg { flex: none; margin-top: 2px; }
 .pi-page .sf-day--locked .sf-day-chips { margin-bottom: var(--space-5); }
@@ -1987,3 +1988,113 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 :root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-lock { color: var(--pw-marigold-ink); }
 :root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-title { color: var(--pw-ink); }
 :root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-sub { color: var(--pw-ink-3); }
+
+/* ===== #914 day card mockup match ===== */
+/* The body pulls up over the band, exactly as the Look inside mockup does. */
+.sf-day-body {
+  position: relative;
+  z-index: var(--z-content);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  margin-top: calc((var(--space-8) + 10px) * -1);
+  padding: 0 14px 14px;
+}
+
+/* The band veil fades the picture, or the art, into the card fill. */
+.sf-day-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 35%, var(--pw-card) 100%);
+}
+.sf-day--locked .sf-day-veil {
+  background: linear-gradient(180deg, rgba(242,163,58,.38) 0%, rgba(255,248,236,.2) 40%, #FFF8EC 100%);
+}
+
+/* The glass lock over a locked band. */
+.sf-day-lockcircle {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  margin-left: -20px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.8);
+  background: rgba(254,253,251,.84);
+  backdrop-filter: blur(var(--yf-blur-panel));
+  color: #8A4F0E;
+}
+
+/* The town beside the day badge. A locked card never renders it. */
+.sf-day-town {
+  padding-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0B5F67;
+}
+/* A locked card's day label takes the paid ink. */
+.sf-day--locked .sf-day-num small { color: #8A4F0E; }
+
+.sf-day-meta-icon { display: inline-flex; flex: none; color: #0B5F67; }
+.sf-day-meta b { font-weight: 700; color: #2C3B42; }
+.sf-day-meta-drive { color: #556972; }
+
+/* The chip icon sits in a disc of its own ink. */
+.sf-day-chips .sf-chip-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--sf-c);
+  color: var(--sf-c-bg);
+}
+/* The mockup's three chip pairs. */
+.sf-day-chips .sf-kind--temple { --sf-c: #6E4A7E; --sf-c-bg: #EFE4F1; }
+.sf-day-chips .sf-kind--nature { --sf-c: #2F6B3A; --sf-c-bg: #E3EFDC; }
+.sf-day-chips .sf-kind--sight { --sf-c: #0B5F67; --sf-c-bg: #DDF1EE; }
+
+/* Dark theme. Each new light value gets its own dark value. */
+:root:where([data-theme='dark']) .sf-day {
+  background: var(--pw-card);
+  border-color: var(--pw-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 4px rgba(0,0,0,.24), 0 18px 36px -20px rgba(0,0,0,.6);
+}
+:root:where([data-theme='dark']) .sf-day--locked { background: #241C12; border-color: #4A3A22; }
+:root:where([data-theme='dark']) .sf-day--yours { background: var(--pw-card); }
+:root:where([data-theme='dark']) .sf-day-tag {
+  background: rgba(22,35,58,.82);
+  border-color: rgba(255,255,255,.14);
+  color: var(--pw-sea-700);
+}
+:root:where([data-theme='dark']) .sf-day--locked .sf-day-tag { background: #3A2A12; border-color: transparent; color: #F2C98B; }
+:root:where([data-theme='dark']) .sf-day-num {
+  background: linear-gradient(180deg, rgba(22,35,58,.96) 0%, rgba(16,27,43,.9) 100%);
+  border-color: rgba(255,255,255,.14);
+}
+:root:where([data-theme='dark']) .sf-day-num small { color: var(--pw-sea-700); }
+:root:where([data-theme='dark']) .sf-day--locked .sf-day-num small { color: #F2C98B; }
+:root:where([data-theme='dark']) .sf-day-town,
+:root:where([data-theme='dark']) .sf-day-meta-icon { color: var(--pw-sea-700); }
+:root:where([data-theme='dark']) .sf-day-meta { color: #C9D6E2; }
+:root:where([data-theme='dark']) .sf-day-meta b { color: #E6EEF6; }
+:root:where([data-theme='dark']) .sf-day-meta-drive { color: #93A6B3; }
+:root:where([data-theme='dark']) .sf-day-locknote { background: #2C2214; color: #F2C98B; }
+:root:where([data-theme='dark']) .sf-day-veil { background: linear-gradient(180deg, transparent 35%, var(--pw-card) 100%); }
+:root:where([data-theme='dark']) .sf-day--locked .sf-day-veil {
+  background: linear-gradient(180deg, rgba(242,163,58,.28) 0%, rgba(36,28,18,.35) 40%, #241C12 100%);
+}
+:root:where([data-theme='dark']) .sf-day-lockcircle {
+  background: rgba(22,35,58,.84);
+  border-color: rgba(255,255,255,.14);
+  color: #F2C98B;
+}
+:root:where([data-theme='dark']) .sf-day-chips .sf-kind--temple { --sf-c: #D6BCE2; --sf-c-bg: #2A2030; }
+:root:where([data-theme='dark']) .sf-day-chips .sf-kind--nature { --sf-c: #B5D8B9; --sf-c-bg: #1D2B20; }
+:root:where([data-theme='dark']) .sf-day-chips .sf-kind--sight { --sf-c: #7FD9CE; --sf-c-bg: #13302C; }

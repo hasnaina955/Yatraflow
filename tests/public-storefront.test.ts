@@ -167,7 +167,7 @@ describe('a locked day never invents a pace', () => {
     const html = renderToStaticMarkup(createElement(DayCard, { state: 'locked', summary }))
     expect(summary.title).toBe('Day 3')
     expect(html).not.toContain('Munnar hills')
-    expect(html).toContain('3 h 20 m on the road')
+    expect(html).toContain('3h 20m driving')
   })
 
   it('renders no stop name, location or coordinate on a locked card', () => {
@@ -177,6 +177,36 @@ describe('a locked day never invents a pace', () => {
     for (const secret of ['SECRET-TITLE', 'SECRET-LOCATION', '12.345678', '78.987654']) {
       expect(html).not.toContain(secret)
     }
+  })
+})
+
+describe('#914 the state tag answers to the band, not the head row', () => {
+  const open = () => summariseDay({ id: 'open', index: 0, stops: [] }, 90, false)
+  const card = (town?: string) => renderToStaticMarkup(createElement(DayCard, {
+    state: 'free', summary: open(), places: [], town,
+  }))
+  const head = (html: string) => /<div class="sf-day-head">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? ''
+
+  it('renders the tag before the body, so the band owns it', () => {
+    const html = card()
+    const tagAt = html.indexOf('sf-day-tag')
+    expect(tagAt).toBeGreaterThan(-1)
+    expect(tagAt).toBeLessThan(html.indexOf('sf-day-body'))
+    expect(head(html)).not.toContain('sf-day-tag')
+  })
+
+  it('keeps the same words and the same accessible name', () => {
+    expect(card()).toContain('>Free to read</span>')
+    const locked = renderToStaticMarkup(createElement(DayCard, {
+      state: 'locked', summary: open(), lockedWord: 'Paid plan',
+    }))
+    expect(locked).toContain('>Paid plan</span>')
+  })
+
+  it('shows the town on a readable card and never on a locked one', () => {
+    expect(card('Kaza')).toContain('<span class="sf-day-town">Kaza</span>')
+    const locked = renderToStaticMarkup(createElement(DayCard, { state: 'locked', summary: open() }))
+    expect(locked).not.toContain('sf-day-town')
   })
 })
 
@@ -415,10 +445,10 @@ describe('road minutes (F1)', () => {
     const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
     // The old defect: the engine total counted the 135-minute air sector and
     // the card read it as "2 h 47 m on the road".
-    expect(text).not.toContain('2 h 47 m on the road')
-    expect(text).not.toContain('167 m on the road')
+    expect(text).not.toContain('2h 47m driving')
+    expect(text).not.toContain('167m driving')
     // The real ground transfer time is still there.
-    expect(text).toContain('32 m on the road')
+    expect(text).toContain('32m driving')
   })
 
   it('a readable card keeps the flight pace and still shows the ground time', () => {
@@ -427,8 +457,8 @@ describe('road minutes (F1)', () => {
     const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
     expect(summary.pace).toEqual({ key: 'flight', label: 'Flight day' })
     expect(text).toContain('Flight day')
-    expect(text).not.toContain('2 h 47 m on the road')
-    expect(text).toContain('32 m on the road')
+    expect(text).not.toContain('2h 47m driving')
+    expect(text).toContain('32m driving')
   })
 
   it('a day without a flight keeps every minute on the road', () => {
@@ -571,7 +601,7 @@ describe('page storefront dataflow (the actual page callback)', () => {
     const result = runStorefront(synthTrip, [0])
     const card = result.cards[0]
     expect(card.summary.pace).toEqual({ key: 'flight', label: 'Flight day' })
-    expect(textOf(card)).toBe('Day 1 Free to read Travel day Flight day 32 m on the road')
+    expect(textOf(card)).toBe('Free to read Day 1 Travel day Flight day · 32m driving')
     expect(textOf(card)).not.toContain('Nothing planned')
   })
 
@@ -582,7 +612,7 @@ describe('page storefront dataflow (the actual page callback)', () => {
     const card = result.cards[0]
     expect(card.state).toBe('yours')
     expect(card.summary.pace).toEqual({ key: 'flight', label: 'Flight day' })
-    expect(textOf(card)).toBe('Day 1 Yours Travel day Flight day 32 m on the road')
+    expect(textOf(card)).toBe('Yours Day 1 Travel day Flight day · 32m driving')
     expect(textOf(card)).not.toContain('Nothing planned')
   })
 
@@ -607,7 +637,7 @@ describe('page storefront dataflow (the actual page callback)', () => {
       // No places key, no names, no coordinates, no flight word.
       expect(Object.hasOwn(card, 'places')).toBe(false)
       const text = textOf(card)
-      expect(text).toBe('Day 1 Locked Day 1 32 m on the road')
+      expect(text).toBe('Locked Day 1 Day 1 32m driving')
       expect(text).not.toContain('Flight day')
       expect(text).not.toContain('Nothing planned')
     }

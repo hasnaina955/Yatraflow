@@ -2047,7 +2047,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             </div>
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
-            <MapSheetHandle snap={snap} onChange={setSnap} />
+            <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />
             <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null} reason={selectedRow?.reason ?? null}
               visitMin={selectedRow ? selectedRow.visitMin : selectedProjected ? null : undefined}
               budgetSharePct={selectedRow ? selectedRow.budgetSharePct : selectedProjected ? null : undefined}

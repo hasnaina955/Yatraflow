@@ -17,6 +17,7 @@
  */
 import { clockHM } from '../../../lib/clockOverlay'
 import type { DaySlot } from '../../../lib/daySlots'
+import { detourDisplay } from './driveSuggestionView'
 
 export type DetourLabelBits = {
   /** "HH:MM" when the arrival is known — the caller decides that, not this module */
@@ -32,12 +33,15 @@ export type DetourLabelBits = {
 export const ON_ROUTE_DETOUR_MIN = 0.5
 
 /** The three bits, in the order every surface prints them. A zero share is not a
- *  sentence worth printing, and neither is an arrival nobody measured. */
+ *  sentence worth printing, and neither is an arrival nobody measured. The detour
+ *  words come from `detourDisplay`, so rows, pins and cards agree. An on-route
+ *  detour hides its budget share, so a model 0 and a 0.2 read the same. */
 export function detourBits({ arriveLabel, detourMin, budgetSharePct }: DetourLabelBits): string[] {
+  const display = detourDisplay(detourMin)
   return [
     arriveLabel ? `arrive ${arriveLabel}` : null,
-    detourMin == null ? 'position unknown' : detourMin > ON_ROUTE_DETOUR_MIN ? `+${Math.round(detourMin)} min` : 'on route',
-    budgetSharePct != null && budgetSharePct > 0 ? `${budgetSharePct}% of the day's detour budget` : null,
+    display.kind === 'unknown' ? 'position unknown' : display.kind === 'on-route' ? 'on route' : `+${display.minutes} min`,
+    display.kind === 'extra' && budgetSharePct != null && budgetSharePct > 0 ? `${budgetSharePct}% of the day's detour budget` : null,
   ].filter((bit): bit is string => bit != null)
 }
 

@@ -389,7 +389,7 @@
 .mv2-workspace .lrow-deck[open] { padding-bottom: 0; }
 .mv2-workspace .lrow-deck .lrow-sum { grid-template-columns: 34px 1fr 16px; padding: var(--space-7) 0; border-radius: var(--radius-sm); transition: none; }
 .mv2-workspace .lrow-deck .lrow-sum:hover { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
-.mv2-workspace .lrow-deck .lrow-sum:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.mv2-workspace .lrow-deck .lrow-sum:focus-visible { outline: none; box-shadow: var(--ring); }
 .mv2-workspace .lrow-deck .lrow-tile { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--pw-sunken, var(--bg-soft)); color: var(--ink-teal, var(--color-primary)); }
 .mv2-workspace .lrow-deck .lr-name { font: var(--pw-ui); font-size: 13px; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .mv2-workspace .lrow-deck .lr-meta { font: var(--pw-caption); font-variant-numeric: tabular-nums; color: var(--text-2); }
@@ -796,4 +796,23 @@
 .cfb__none b { display: block; color: var(--text); }
 @media (max-width: 699px), (max-height: 499px) {
   .gcf .cfb { order: 3; }
+}
+
+/* Map V2 shell, package B. Panel targets and the phone ribbon dock.
+   --ring is a full shadow, so a focus rule uses it as the whole value.
+   Motion keeps the tokens, and the workspace reduced-motion rule makes snaps instant. */
+.mv2-itinerary .mv2-fold-day { width: 44px; height: 44px; bottom: -30px; }
+.mv2-workspace .mv2-sheet-handle:focus-visible { outline: none; box-shadow: inset var(--ring); }
+.mv2-workspace .mv2-peek-place:focus-visible, .mv2-workspace .mv2-directions:focus-visible { outline: none; box-shadow: var(--ring); }
+.mv2-workspace .mv2-directions { min-height: 44px; }
+@media (max-width: 760px) {
+  /* The map tools toggle ends 172px below the top. Half keeps the ribbon below
+     it, and full keeps the sheet below it. Each snap stays a distinct height. */
+  .mv2-workspace[data-snap='half'] { --mv2-sheet-height: min(60%, 480px, calc(100% - 248px)); }
+  .mv2-workspace[data-snap='full'] { --mv2-sheet-height: calc(100% - 184px); }
+  /* At full height the sheet would push the ribbon under the omnibar. The ribbon
+     docks into the sheet's top row instead, and the handle leaves room for it. */
+  .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-ribbon { bottom: calc(var(--mv2-sheet-height) - 48px - 56px); box-shadow: none; border: 1px solid var(--line); }
+  .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 64px; }
+  .mv2-workspace .mv2-phone-day > button { min-width: 44px; min-height: 44px; }
 }

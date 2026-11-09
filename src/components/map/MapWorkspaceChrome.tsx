@@ -10,6 +10,7 @@ import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay }
 import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
+import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
 import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, type RibbonPosition } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
@@ -154,12 +155,14 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
   const sourceValue = source !== undefined ? source : hit.source
   const sourceLabel = sourceValue === 'google' ? 'Google Places' : sourceValue === 'osm' ? 'OpenStreetMap' : sourceValue === 'wikipedia' ? 'Wikipedia' : sourceValue === 'mappls' ? 'Mappls' : sourceValue === 'open-meteo' ? 'Open-Meteo' : 'Source not supplied'
   const freshnessLabel = freshness === undefined ? null : freshness === 'live' ? 'Live result' : freshness === 'retained' ? 'Retained result' : freshness === 'stale' ? 'Stale result' : 'Freshness unknown'
+  // One display rule for the detour. An on-route detour hides its budget share.
+  const detour = detourDisplay(detourMin)
   const canAdd = actions?.add ?? true
   const canShortlist = actions?.shortlist ?? true
   const canNavigate = actions?.navigate ?? true
   const hasReportedHours = (hit.hours != null && hit.hours.basis !== 'none') || !!hit.openTime || !!hit.closeTime
   const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
-  return <article className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
+  return <article id="rail-detail" className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
     <div className="mv2-place-art"><CatIcon category={hit.category} size={38} /><span>{titleCase(hit.category ?? 'place')}</span><button className="mv2-icon-btn" type="button" aria-label="Close place details" onClick={onClose}><X size={18} /></button></div>
     <div className="mv2-place-body">
       <span className="mv2-section-label">Along the drive · {dayIndex == null ? 'Choose a day' : `Day ${dayIndex + 1}`}</span>
@@ -167,7 +170,7 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
       {hit.rating != null && <p className="mv2-rating"><Star size={14} aria-hidden /><strong>{hit.rating.toFixed(1)}</strong>{hit.ratingCount != null && <span>· {hit.ratingCount.toLocaleString('en-IN')} reviews</span>}</p>}
       {hit.description && <p className="mv2-place-description">{hit.description}</p>}
       {(hours || reason) && <div className="mv2-reason-chips">{hours && <span>{hours}</span>}{reason && <span>{reason}</span>}</div>}
-      <dl className="mv2-cost-strip"><div><dt>Extra driving</dt><dd>{detourMin == null ? 'Unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min` : 'On route'}{budgetSharePct != null ? ` · ${Math.round(budgetSharePct)}% of budget` : ''}</dd></div><div><dt>Visit</dt><dd>{visit == null ? 'Unknown' : `${visit} min`}</dd></div><div><dt>Placement</dt><dd>{dayIndex == null ? 'Choose day' : `Day ${dayIndex + 1}`}</dd></div></dl>
+      <dl className="mv2-cost-strip"><div><dt>Extra driving</dt><dd>{detourDisplayText(detourMin)}{detour.kind === 'extra' && budgetSharePct != null ? ` · ${Math.round(budgetSharePct)}% of budget` : ''}</dd></div><div><dt>Visit</dt><dd>{visit == null ? 'Unknown' : `${visit} min`}</dd></div><div><dt>Placement</dt><dd>{dayIndex == null ? 'Choose day' : `Day ${dayIndex + 1}`}</dd></div></dl>
       <div className="mv2-preview-note"><Clock3 size={17} aria-hidden /><p>Check the impact before you keep it. Travel and visit time can move later stops.</p></div>
       {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : 'Add to a day'}</button><button className="mv2-icon-btn" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
       <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={15} aria-hidden />View place in Google Maps</button>

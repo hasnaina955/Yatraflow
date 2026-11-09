@@ -1,0 +1,379 @@
+// ============ Fix lens: propose, apply and verify one warning's fixes ============
+// This module is pure. It builds change sets for one engine warning, applies
+// each set to a copy of the trip, and runs the real engine on the result.
+// Rules it keeps:
+//  - The input trip is never mutated. Every apply returns a new trip.
+//  - A set that cannot apply, or an engine throw, is a `failed` check.
+//  - A fix that does not clear its target is never offered.
+//  - A change names stops by id. It never carries a place.
+// It has no UI, no writer call, no store read and no cross-day change.
+import {
+  collectWarnings, getAssumptions, groupWarnings, hmToMinutes, originOf, simulateDay,
+} from '../../../lib/engine'
+import type { DaySchedule } from '../../../lib/engine'
+import { fixIsOffered, isPlaceFree } from '../../../lib/mapLensContracts'
+import type {
+  FixChange, FixChangeSet, FixTarget, FixVerification, FixWarningRef,
+} from '../../../lib/mapLensContracts'
+import type { ItineraryDay, Trip } from '../../../data/types'
+
+/** One row of copy for the Fix panel. The panel renders these strings. */
+export interface FixSummary {
+  title: string
+  change: string
+  result: string
+}
+
+/** A warning ref plus the day it belongs to. The day is needed to match a stop. */
+interface DayRef {
+  dayIndex: number
+  key: string
+  ref: FixWarningRef
+}
+
+/** Minutes of a clock string, or null when the string is not a real clock. */
+function clockMin(value: string | undefined | null): number | null {
+  if (!value) return null
+  const min = hmToMinutes(value)
+  return Number.isFinite(min) ? min : null
+}
+
+/** The "HH:MM" clock for a minute count. The caller checks the range first. */
+function clockOf(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** applyFixChangeSet applies one change to a copy of the day. */
+function applyChange(day: ItineraryDay, change: FixChange): ItineraryDay | null {
+  const stops = day.stops
+  switch (change.kind) {
+    case 'move': {
+      const from = stops.findIndex(stop => stop.id === change.stopId)
+      if (from < 0) return null
+      if (!Number.isInteger(change.toIndex) || change.toIndex < 0 || change.toIndex >= stops.length) return null
+      const next = stops.filter((_, i) => i !== from)
+      next.splice(change.toIndex, 0, stops[from])
+      return { ...day, stops: next }
+    }
+    case 'swap': {
+      const a = stops.findIndex(stop => stop.id === change.stopId)
+      const b = stops.findIndex(stop => stop.id === change.withStopId)
+      if (a < 0 || b < 0) return null
+      const next = [...stops]
+      next[a] = stops[b]
+      next[b] = stops[a]
+      return { ...day, stops: next }
+    }
+    case 'remove': {
+      const at = stops.findIndex(stop => stop.id === change.stopId)
+      if (at < 0) return null
+      return { ...day, stops: stops.filter((_, i) => i !== at) }
+    }
+    case 'set-visit': {
+      const at = stops.findIndex(stop => stop.id === change.stopId)
+      if (at < 0) return null
+      if (!Number.isFinite(change.visitMin) || change.visitMin < 0) return null
+      // ItineraryStop.visitMinutes is the visit-length field (src/data/types.ts:233).
+      if (typeof stops[at].visitMinutes !== 'number') return null
+      const next = [...stops]
+      next[at] = { ...stops[at], visitMinutes: change.visitMin }
+      return { ...day, stops: next }
+    }
+    case 'shift-start': {
+      // ItineraryDay.startTime is the day-start field, "HH:MM" (src/data/types.ts:268).
+      if (!Number.isInteger(change.startMin) || change.startMin < 0 || change.startMin >= 1440) return null
+      return { ...day, startTime: clockOf(change.startMin) }
+    }
+    default:
+      // A change that crossed a JSON boundary with an unknown kind never applies.
+      return null
+  }
+}
+
+/**
+ * Apply a change set to a copy of the trip. The input trip is never touched.
+ * Returns null when the day is missing, a named stop is missing, an index is
+ * out of range or a field the change needs does not exist. It never guesses.
+ */
+export function applyFixChangeSet(trip: Trip, set: FixChangeSet): Trip | null {
+  const at = trip.days.findIndex(day => day.index === set.dayIndex)
+  if (at < 0) return null
+  const source = trip.days[at]
+  // Clone the target day and each of its stops, so no edit can reach the input.
+  let day: ItineraryDay = { ...source, stops: source.stops.map(stop => ({ ...stop })) }
+  for (const change of set.changes) {
+    const next = applyChange(day, change)
+    if (!next) return null
+    day = next
+  }
+  // The engine schedules stops by orderInDay, not by array position. A
+  // reorder must rewrite it, or the engine still sees the old order.
+  const reorders = set.changes.some(change =>
+    change.kind === 'move' || change.kind === 'swap' || change.kind === 'remove')
+  if (reorders) {
+    day = {
+      ...day,
+      stops: day.stops.map((stop, i) =>
+        stop.orderInDay === i + 1 ? stop : { ...stop, orderInDay: i + 1 }),
+    }
+  }
+  const days = trip.days.map((entry, i) => (i === at ? day : entry))
+  return { ...trip, days }
+}
+
+/**
+ * The stop a warning names. ScheduleWarning carries no stop id: an
+ * opening-hours warning leads with the stop title ("Periyar boat: closes too
+ * soon after arrival"). This matches a unique `<stop title>: ` prefix. It
+ * returns null when no stop or more than one stop matches.
+ */
+function warningStopId(warning: { title: string }, day: ItineraryDay | undefined): string | null {
+  if (!day) return null
+  const hits = day.stops.filter(stop => stop.title.length > 0 && warning.title.startsWith(`${stop.title}: `))
+  return hits.length === 1 ? hits[0].id : null
+}
+
+/** The contract ref of one warning. `severity` is the warning's severity field. */
+function toRef(warning: { code: string; severity: string; title: string }, day: ItineraryDay | undefined): FixWarningRef {
+  return {
+    code: warning.code,
+    stopId: warningStopId(warning, day),
+    // ScheduleWarning.severity is 'high' | 'medium' | 'low'. Only 'high' is severe.
+    severe: warning.severity === 'high',
+  }
+}
+
+/** Every warning of the trip, with its day. Trip-wide warnings use day -1. */
+function warningRefsWithDay(trip: Trip): DayRef[] {
+  const dayOf = (index: number) => trip.days.find(day => day.index === index)
+  const { byDay, tripWide } = groupWarnings(collectWarnings(trip))
+  const out: DayRef[] = []
+  const push = (dayIndex: number, warning: { code: string; severity: string; title: string }) => {
+    const ref = toRef(warning, dayOf(dayIndex))
+    // The key names the day too: the same code on two days is two warnings.
+    out.push({ dayIndex, key: `${dayIndex}|${ref.code}|${ref.stopId ?? ''}`, ref })
+  }
+  for (const [dayIndex, list] of byDay) for (const warning of list) push(dayIndex, warning)
+  for (const warning of tripWide) push(-1, warning)
+  return out
+}
+
+/** The warnings the engine reports for one day, as contract refs, in engine order. */
+export function warningRefs(trip: Trip, dayIndex: number): FixWarningRef[] {
+  return warningRefsWithDay(trip).filter(row => row.dayIndex === dayIndex).map(row => row.ref)
+}
+
+/** The day's length in minutes, or null when either clock is unknown. */
+function dayLengthMin(sim: DaySchedule): number | null {
+  const start = clockMin(sim.startsAt)
+  const end = clockMin(sim.endsAt)
+  if (start == null || end == null) return null
+  const span = end - start
+  return span >= 0 ? span : span + 1440
+}
+
+/** A failed check. It never throws, and it is never offered. */
+function failedSet(set: FixChangeSet, reason: string): FixChangeSet {
+  const verification: FixVerification = { kind: 'failed', reason }
+  return { ...set, verification }
+}
+
+function reasonOf(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error)
+  return text.length > 0 ? text : 'The engine failed without a message.'
+}
+
+/**
+ * Run one change set through the real engine and fill `verification`.
+ * A set that cannot apply, or an engine throw, becomes `failed` with a reason.
+ * The error is caught and never rethrown.
+ */
+export function verifyFixSet(trip: Trip, set: FixChangeSet): FixChangeSet {
+  try {
+    const next = applyFixChangeSet(trip, set)
+    if (!next) return failedSet(set, 'The change set does not apply to this trip.')
+    const before = warningRefsWithDay(trip)
+    const after = warningRefsWithDay(next)
+    const beforeKeys = new Set(before.map(row => row.key))
+    const introduced = after.filter(row => !beforeKeys.has(row.key)).map(row => row.ref)
+    const clearsTarget = !after.some(row =>
+      row.dayIndex === set.dayIndex
+      && row.ref.code === set.target.code
+      && (set.target.stopId === null || row.ref.stopId === set.target.stopId))
+    const beforeDay = trip.days.find(day => day.index === set.dayIndex)
+    const afterDay = next.days.find(day => day.index === set.dayIndex)
+    let deltaMin: number | null = null
+    if (beforeDay && afterDay) {
+      // DaySchedule.endsAt is the end-of-day clock. A day length uses both clocks.
+      const beforeSim = simulateDay(beforeDay, trip, originOf(trip, set.dayIndex), set.dayIndex)
+      const afterSim = simulateDay(afterDay, next, originOf(next, set.dayIndex), set.dayIndex)
+      const beforeLen = dayLengthMin(beforeSim)
+      const afterLen = dayLengthMin(afterSim)
+      deltaMin = beforeLen == null || afterLen == null ? null : afterLen - beforeLen
+    }
+    const verification: FixVerification = { kind: 'verified', clearsTarget, introduced, deltaMin }
+    return { ...set, verification }
+  } catch (error) {
+    return failedSet(set, reasonOf(error))
+  }
+}
+
+/**
+ * Unverified change sets for one target, in the order the Fix panel ranks them.
+ * A null stop id makes only the shift-start sets: the target names the day.
+ * There is no move-to-next-day set, because the contract has no cross-day change.
+ */
+export function fixCandidates(trip: Trip, dayIndex: number, target: FixTarget): FixChangeSet[] {
+  const day = trip.days.find(entry => entry.index === dayIndex)
+  if (!day) return []
+  const out: FixChangeSet[] = []
+  const key = target.stopId ?? 'day'
+  const add = (suffix: string, changes: FixChange[]) => {
+    out.push({
+      id: `${target.code}:${key}:${suffix}`,
+      dayIndex,
+      target,
+      changes,
+      verification: { kind: 'unverified' },
+    })
+  }
+  const stopId = target.stopId
+  const at = stopId == null ? -1 : day.stops.findIndex(stop => stop.id === stopId)
+  if (stopId != null && at >= 0) {
+    // Move earlier: one set per earlier position, from the nearest, at most two.
+    for (let j = at - 1, made = 0; j >= 0 && made < 2; j--, made++) {
+      add(`move-earlier-${j}`, [{ kind: 'move', stopId, toIndex: j }])
+    }
+    if (at > 0) {
+      add('swap-previous', [{ kind: 'swap', stopId, withStopId: day.stops[at - 1].id }])
+      const previous = day.stops[at - 1]
+      if (typeof previous.visitMinutes === 'number') {
+        for (const cut of [15, 30]) {
+          const visitMin = previous.visitMinutes - cut
+          // A visit under 15 min is not a real stop. Do not invent one.
+          if (visitMin < 15) continue
+          add(`shorten-previous-${cut}`, [{ kind: 'set-visit', stopId: previous.id, visitMin }])
+        }
+      }
+    }
+  }
+  // The day start is the stored startTime, else the engine's planning default.
+  const stored = clockMin(day.startTime)
+  const startMin = stored ?? clockMin(getAssumptions(trip).dayStart)
+  if (startMin != null) {
+    for (const shift of [30, 60]) {
+      const earlier = startMin - shift
+      // Never start before 05:00.
+      if (earlier < 5 * 60) continue
+      add(`shift-start-${shift}`, [{ kind: 'shift-start', startMin: earlier }])
+    }
+  }
+  return out
+}
+
+/** Absolute day change for ranking. An unknown change sorts last. */
+function rankDelta(set: FixChangeSet): number {
+  const check = set.verification
+  if (check.kind !== 'verified' || check.deltaMin == null) return Number.POSITIVE_INFINITY
+  return Math.abs(check.deltaMin)
+}
+
+/** Introduced warning count for ranking. */
+function rankIntroduced(set: FixChangeSet): number {
+  const check = set.verification
+  return check.kind === 'verified' ? check.introduced.length : Number.POSITIVE_INFINITY
+}
+
+/**
+ * Every candidate, run through the real engine. Keeps only offered sets.
+ * Order: fewest introduced warnings, then smallest absolute day change
+ * (unknown last), then candidate order. Returns the first `cap`.
+ */
+export function fixesForWarning(
+  trip: Trip,
+  dayIndex: number,
+  target: FixTarget,
+  cap = 3,
+): FixChangeSet[] {
+  const verified = fixCandidates(trip, dayIndex, target).map(set => verifyFixSet(trip, set))
+  const order = new Map(verified.map((set, i) => [set.id, i]))
+  const offered = verified.filter(set => fixIsOffered(set) && isPlaceFree(set))
+  offered.sort((a, b) => {
+    const introduced = rankIntroduced(a) - rankIntroduced(b)
+    if (introduced !== 0) return introduced
+    const delta = rankDelta(a) - rankDelta(b)
+    if (delta !== 0) return delta
+    return (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+  })
+  return offered.slice(0, Math.max(0, cap))
+}
+
+/**
+ * The copy for one fix row. Names come only from `nameOf` and the stop ids.
+ * `clock` renders a minute count as the app's clock string.
+ */
+export function fixSummary(
+  set: FixChangeSet,
+  nameOf: (stopId: string) => string,
+  clock: (min: number) => string,
+): FixSummary {
+  const day = `Day ${set.dayIndex + 1}`
+  const titles: string[] = []
+  const changes: string[] = []
+  for (const change of set.changes) {
+    switch (change.kind) {
+      case 'move': {
+        const name = nameOf(change.stopId)
+        titles.push(`Move ${name} to position ${change.toIndex + 1}`)
+        changes.push(`${name} moves to position ${change.toIndex + 1}`)
+        break
+      }
+      case 'swap': {
+        const name = nameOf(change.stopId)
+        const other = nameOf(change.withStopId)
+        titles.push(`Swap ${name} with ${other}`)
+        changes.push(`${name} and ${other} trade places`)
+        break
+      }
+      case 'remove': {
+        const name = nameOf(change.stopId)
+        titles.push(`Remove ${name}`)
+        changes.push(`${name} comes off the day`)
+        break
+      }
+      case 'set-visit': {
+        const name = nameOf(change.stopId)
+        titles.push(`Shorten ${name} to ${change.visitMin} min`)
+        changes.push(`${name} stays ${change.visitMin} min`)
+        break
+      }
+      case 'shift-start': {
+        const at = clock(change.startMin)
+        titles.push(`Start the day at ${at}`)
+        changes.push(`the day starts at ${at}`)
+        break
+      }
+    }
+  }
+  const title = titles.length > 0 ? titles.join(' + ') : 'No change'
+  const change = changes.length > 0 ? `${day}: ${changes.join(' · ')}` : `${day}: no change`
+  const check = set.verification
+  let result: string
+  if (check.kind === 'failed') {
+    result = `Could not run the check: ${check.reason}`
+  } else if (check.kind === 'unverified') {
+    result = 'Not checked'
+  } else if (!check.clearsTarget) {
+    result = 'Does not clear it'
+  } else {
+    result = 'Clears it'
+    if (check.deltaMin != null) {
+      if (check.deltaMin === 0) result += ' · same day length'
+      else result += ` · ${Math.abs(check.deltaMin)} min ${check.deltaMin < 0 ? 'shorter' : 'longer'} day`
+    }
+    if (check.introduced.some(warning => warning.severe)) result += ' · adds a severe warning'
+  }
+  return { title, change, result }
+}

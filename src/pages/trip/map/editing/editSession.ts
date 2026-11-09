@@ -19,6 +19,8 @@ export type EditEvent<P = ReadyAddPreview> =
   | { type: 'keep' }
   | { type: 'settle'; outcome: EditOutcome; undo?: UndoRecord | null }
   | { type: 'reject' }
+  /** The shared writer took the save. It reports the result and owns the Undo. */
+  | { type: 'handoff' }
   | { type: 'undo' }
   | { type: 'undo-settle'; outcome: EditOutcome }
 
@@ -42,6 +44,9 @@ export function editSessionReducer<P = ReadyAddPreview>(state: EditSession<P>, e
     case 'reject':
       if (state.phase !== 'previewing') return state
       return { phase: 'idle', lastOutcome: { kind: 'rejected' } }
+    case 'handoff':
+      if (state.phase !== 'saving') return state
+      return { phase: 'idle', lastOutcome: null }
     case 'undo':
       if (state.phase !== 'done' || !state.undo) return state
       return { phase: 'undoing', preview: state.preview, lastOutcome: state.lastOutcome, undo: state.undo }

@@ -3,8 +3,30 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { keepRoute } from '../src/pages/trip/map/useMapEdit'
+import { editSessionReducer, type EditSession } from '../src/pages/trip/map/editing/editSession'
 
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
+
+describe('the writer handoff closes the preview', () => {
+  const previewing: EditSession<string> = { phase: 'previewing', preview: 'p', lastOutcome: null }
+
+  it('moves a saving session to idle with no outcome of its own', () => {
+    const saving = editSessionReducer(previewing, { type: 'keep' })
+    expect(saving.phase).toBe('saving')
+    expect(editSessionReducer(saving, { type: 'handoff' })).toEqual({ phase: 'idle', lastOutcome: null })
+  })
+
+  it('ignores a handoff in any other phase', () => {
+    expect(editSessionReducer(previewing, { type: 'handoff' })).toBe(previewing)
+  })
+
+  it('uses the handoff, not reject, after the writer call', () => {
+    const src = read('src/pages/trip/map/useMapEdit.ts')
+    const writer = src.slice(src.indexOf('// keep: writer path start'), src.indexOf('// keep: writer path end'))
+    expect(writer).toContain("dispatch({ type: 'handoff' })")
+    expect(writer).not.toContain("type: 'reject'")
+  })
+})
 
 describe('keepRoute', () => {
   it('routes to the writer when a writer is set', () => {

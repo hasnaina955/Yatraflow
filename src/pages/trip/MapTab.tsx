@@ -1263,7 +1263,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     displayDayPlan: journeyDay?.dayPlan,
     slotManual,
   })
-  keepWriterRef.current = addPoiToDay // eslint-disable-line react-hooks/refs -- the ref only holds a writer the hook reads later
+  // The Keep button reads this ref on a click, after the commit.
+  useEffect(() => { keepWriterRef.current = addPoiToDay })
   const dayCounts = planCounts(dayPlan)
   // The open part's live-region line reads the same effective rows the cards show.
   const openAnnouncement = openSlotAnnouncement(dayPlan, openSlotKey)

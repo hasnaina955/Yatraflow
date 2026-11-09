@@ -108,7 +108,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
       } catch {
         setAnnouncement('The add could not start. Try again.')
       } finally {
-        dispatch({ type: 'reject' })
+        dispatch({ type: 'handoff' })
         setUnknown(null)
       }
       return

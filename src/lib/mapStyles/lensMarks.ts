@@ -62,3 +62,46 @@ export function stayRingsGeoJson(rings: readonly StayRing[]): StayRingCollection
     })),
   }
 }
+
+/** One closed Polygon feature per ring. A fill layer draws the lagoon tint. */
+export function stayRingsFillGeoJson(rings: readonly StayRing[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: rings.map(ring => ({
+      type: 'Feature' as const,
+      properties: { id: ring.id },
+      geometry: {
+        type: 'Polygon' as const,
+        coordinates: [closeRing(ring.ring)],
+      },
+    })),
+  }
+}
+
+/** Bounds of one ring as [[minLng, minLat], [maxLng, maxLat]]. Null when empty. */
+export function ringBounds(ring: readonly [number, number][]): [[number, number], [number, number]] | null {
+  let minLng = Infinity
+  let minLat = Infinity
+  let maxLng = -Infinity
+  let maxLat = -Infinity
+  for (const point of ring) {
+    if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) continue
+    if (point[0] < minLng) minLng = point[0]
+    if (point[1] < minLat) minLat = point[1]
+    if (point[0] > maxLng) maxLng = point[0]
+    if (point[1] > maxLat) maxLat = point[1]
+  }
+  if (!Number.isFinite(minLng)) return null
+  return [[minLng, minLat], [maxLng, maxLat]]
+}
+
+/** The label of the fix mark. Unknown parts stay out. */
+export function fixMarkLabel(
+  stopName: string | null,
+  arriveTime: string | null,
+  jettyTime: string | null,
+): string | null {
+  if (stopName == null) return null
+  const head = arriveTime == null ? stopName : `${stopName} ${arriveTime}`
+  return jettyTime == null ? head : `${head} · jetty ${jettyTime}`
+}

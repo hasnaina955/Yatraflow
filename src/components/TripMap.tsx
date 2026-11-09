@@ -37,7 +37,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, layoutMarks, pickLetter, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { pickBandClass, ringLabelPoint, stayRingsGeoJson } from '../lib/mapStyles/lensMarks'
+import { pickBandClass, ringLabelPoint, stayRingsGeoJson, ringBounds, stayRingsFillGeoJson } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -61,6 +61,8 @@ import {
   MarkerContent,
   MarkerTooltip,
   MapRoute,
+  MapGeoJSON,
+  type MapGeoJSONData,
   MapClusterLayer,
   MapControls,
   prefersCooperativeGestures,
@@ -1166,6 +1168,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return () => { observer.disconnect(); window.clearTimeout(timer) }
   }, [workspaceChrome, mapLoaded])
 
+  // W4-B: frame the active stay reach ring when the Stay lens opens one.
+  const stayRingKey = stayRings.map(ring => `${ring.id}:${ring.ring.length}`).join('|')
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return
+    const first = stayRings[0]
+    if (!first) return
+    const bounds = ringBounds(first.ring)
+    if (!bounds) return
+    const m = mapRef.current
+    m.fitBounds(bounds, { padding: 60, maxZoom: 12, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stayRingKey, mapLoaded])
+
   useEffect(() => {
     if (!mapTarget || !mapLoaded || !mapRef.current) return
     const normalized = normalizeMapTarget(mapTarget)
@@ -1705,6 +1720,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* Lens: the stay reach rings sit under the stop marks - a dashed
                 lagoon line, with the walk or drive label chipped at the ring's
                 top point. */}
+            {stayRings.length > 0 && <MapGeoJSON
+              id="yf-stay-rings-fill"
+              data={stayRingsFillGeoJson(stayRings) as unknown as MapGeoJSONData}
+              fillPaint={{ 'fill-color': STAY_RING_INK, 'fill-opacity': 0.1 }}
+              linePaint={false}
+              interactive={false}
+            />}
             {stayRings.length > 0 && stayRingsGeoJson(stayRings).features.map(ring => ring.geometry.coordinates.length > 1 && (
               <MapRoute key={`yf-stay-ring-${ring.properties.id}`} id={`yf-stay-ring-${ring.properties.id}`} coordinates={ring.geometry.coordinates} color={STAY_RING_INK} width={1.5} opacity={0.85} dashArray={[2, 1.5]} interactive={false} />
             ))}

@@ -52,6 +52,7 @@ import { RegionArt } from '../components/RegionArt'
 import { TripArt } from '../components/trips/TripArt'
 import { regionFor } from '../lib/tripsPage'
 import { pubArtId } from '../lib/pubDayArt'
+import { artIdFromCoverUrl } from '../lib/artCover'
 
 /** The words of a day title that may name places: "Jaipur → Jodhpur" gives both. */
 function titlePlaces(title: string): string[] {
@@ -588,7 +589,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // #360 — a row with NO stored cover renders the branded background, and that
   // is the point rather than a gap: it is what `api/i.js` already serves such
   // a row as its card, so the two agree. `undefined` rather than a suggestion.
-  const heroSrc = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : undefined
+  const heroSrc = pub.coverImageUrl && !artIdFromCoverUrl(pub.coverImageUrl) ? sizedCoverUrl(pub.coverImageUrl) : undefined
   // #230 — what leaves through the copy button names the button it left
   // through. Display and copy are the same string: the code box shows exactly
   // what lands on the clipboard.
@@ -905,7 +906,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           photo={heroSrc
             ? <img className="pub-hero-photo pi-hero-photo" src={heroSrc} alt="" aria-hidden="true" width={1600} height={900} loading="eager" decoding="async" onError={(e) => { e.currentTarget.hidden = true }} />
             : null}
-          art={heroSrc ? undefined : artFor('cover', [], '100vw', true)}
+          art={heroSrc ? undefined : artIdFromCoverUrl(pub.coverImageUrl) ? <RegionArt id={artIdFromCoverUrl(pub.coverImageUrl)!} ratio="16:10" sizes="100vw" eager fallback={<TripArt region={artRegion} />} /> : artFor('cover', [], '100vw', true)}
           back={<button className="btn btn-sm btn-ghost pi-hero-back" onClick={() => onNavigate('/explore')}>← Explore</button>}
           kicker={`${cap(pub.travelStyle)} itinerary`}
           title={pub.title}

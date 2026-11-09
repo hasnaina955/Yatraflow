@@ -96,7 +96,7 @@ export function driveTabs(
 
 export type ScopeBand = 'inside' | 'just-past' | 'outside' | 'over-budget' | 'unknown'
 
-/** Band of one row. Held-back ids and a spent budget take priority. */
+/** Band of one row. Held-back ids and a spent budget come first. */
 export function scopeBandOf(
   row: DriveLensRow,
   scopeMinutes: number,

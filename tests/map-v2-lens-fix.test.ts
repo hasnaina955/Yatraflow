@@ -147,7 +147,7 @@ describe('offered fixes', () => {
   })
 
   it('does not offer a fix that adds a severe warning', () => {
-    // The train at 09:40 links to the farm. Pushing the farm later breaks it.
+    // The train at 09:40 links to the farm. A later farm visit breaks it.
     const trip = tripOf([day(0, [farm(), boat()], '09:00')], {
       fixedCommitments: [{ id: 'fc1', title: 'Train', type: 'other', dayIndex: 0, time: '09:40', stopId: 'prev' }],
     })

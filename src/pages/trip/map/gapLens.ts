@@ -8,7 +8,7 @@ import { fitCopy, lensFit, type LensFit } from './lensFit'
 /** One lettered pick. The set never grows past C. */
 export type GapPickLetter = 'A' | 'B' | 'C'
 
-/** The letters in order. A part shows at most this many picks. */
+/** The letters, A first. A part shows at most this many picks. */
 const GAP_PICK_LETTERS: readonly GapPickLetter[] = ['A', 'B', 'C']
 
 /** One recommendation for an empty part. */

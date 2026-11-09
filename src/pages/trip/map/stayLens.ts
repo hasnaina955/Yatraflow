@@ -2,6 +2,7 @@
 // This module has no UI and no schedule logic.
 import type { Trip, ItineraryStop } from '../../../data/types'
 import type { StayBase, StayLensRow, StayLensOutput, LensPhase } from '../../../lib/mapLensContracts'
+import { DEFAULT_SPEED_KMH } from '../../../lib/providers/hits'
 import { lensFit, fitCopy, type FitWindow, type LensFit } from './lensFit'
 
 // The two reach rings: 15 min walk and 30 min drive.
@@ -11,8 +12,8 @@ export const STAY_RINGS = [{ id: 'walk-15', mode: 'walk', minutes: 15 }, { id: '
 export const WALK_KMH_ASSUMED = 4.8
 // Assumption for an estimate, not a measured road factor.
 export const ROAD_FACTOR_ASSUMED = 1.3
-// Matches DEFAULT_SPEED_KMH behind scopeKmForMinutes in minuteScope.ts.
-const DRIVE_KMH = 40
+// The same drive speed as the minute scope in minuteScope.ts.
+const DRIVE_KMH = DEFAULT_SPEED_KMH
 
 // 21:00 in minutes since midnight.
 export const STAY_DAY_END_MIN = 21 * 60

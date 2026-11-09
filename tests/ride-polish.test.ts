@@ -45,11 +45,26 @@ describe('paidHeightBands', () => {
     expect(bands[0].width).toBeCloseTo(0.6 * 280)
     expect(JSON.stringify(bands)).not.toMatch(/Place/)
   })
-  it('draws no band when no paid day sits in the gap', () => {
+  it('draws no gap band when no paid day sits in the gap', () => {
     const points = [point('a', 0, 0), point('b', 2, 50)]
-    expect(paidHeightBands(points, plot, [5, 6])).toEqual([])
+    expect(paidHeightBands(points, plot, [5, 6]).filter(band => !band.edge)).toEqual([])
   })
-  it('draws no band for paid days at the end of the trip', () => {
-    expect(paidHeightBands([point('a', 0, 0), point('b', 1, 40)], plot, [2, 3])).toEqual([])
+  it('marks a paid run at the end of the trip in the right margin', () => {
+    const bands = paidHeightBands([point('a', 0, 0), point('b', 1, 40)], plot, [2, 3])
+    expect(bands).toEqual([{ x: 300, width: 20, label: 'Days 3–4 · paid plan', edge: 'end' }])
+  })
+  it('marks a paid run at the start of the trip in the left margin', () => {
+    const bands = paidHeightBands([point('a', 2, 0), point('b', 3, 40)], plot, [0, 1])
+    expect(bands).toEqual([{ x: 0, width: 20, label: 'Days 1–2 · paid plan', edge: 'start' }])
+  })
+  it('marks both edges and a gap together, in order, by day number only', () => {
+    const points = [point('a', 2, 0), point('b', 3, 20), point('c', 6, 80), point('d', 7, 100)]
+    const bands = paidHeightBands(points, plot, [0, 1, 4, 5, 8])
+    expect(bands.map(band => band.label)).toEqual(['Days 1–2 · paid plan', 'Days 5–6 · paid plan', 'Day 9 · paid plan'])
+    expect(bands.map(band => band.edge)).toEqual(['start', undefined, 'end'])
+    expect(JSON.stringify(bands)).not.toMatch(/Place/)
+  })
+  it('draws no edge band when every paid day sits inside the free run', () => {
+    expect(paidHeightBands([point('a', 0, 0), point('b', 3, 40)], plot, [])).toEqual([])
   })
 })

@@ -20,6 +20,8 @@ export interface PaidHeightBand {
   width: number
   /** "Days 5–8 · paid plan". Built from day numbers only, never from a place. */
   label: string
+  /** Set for a paid run before the first or after the last free place. */
+  edge?: 'start' | 'end'
 }
 
 /** "Day 5" for one day, "Days 5–8" for a run. */
@@ -30,7 +32,9 @@ export function paidDaysLabel(first: number, last: number): string {
 /**
  * One band for each stretch of paid days that sits between two free places.
  * The band spans the chart's own gap, so it carries no height and no name.
- * Paid days at the very start or end have no gap to mark and get no band.
+ * A paid run before the first place or after the last one has no gap.
+ * It gets a thin band in the chart's margin, with `edge` set, and the
+ * page writes its label beside the chart.
  */
 export function paidHeightBands(
   points: readonly RouteHeightPoint[],
@@ -48,6 +52,15 @@ export function paidHeightBands(
     if (between.length === 0) continue
     const x = xOf(points[i - 1].distanceKm)
     bands.push({ x, width: Math.max(0, xOf(points[i].distanceKm) - x), label: paidDaysLabel(between[0], between[between.length - 1]) })
+  }
+  const firstDay = points[0]?.dayIndex
+  const lastDay = points[points.length - 1]?.dayIndex
+  if (firstDay != null && lastDay != null) {
+    const sorted = [...paidIndexes].sort((a, b) => a - b)
+    const before = sorted.filter(day => day < firstDay)
+    const after = sorted.filter(day => day > lastDay)
+    if (before.length > 0) bands.unshift({ x: 0, width: plot.pad.left, label: paidDaysLabel(before[0], before[before.length - 1]), edge: 'start' })
+    if (after.length > 0) bands.push({ x: plot.pad.left + plotW, width: plot.pad.right, label: paidDaysLabel(after[0], after[after.length - 1]), edge: 'end' })
   }
   return bands
 }
@@ -76,10 +89,12 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
   const plot = buildRouteHeightPlot(result.points, result.runs, result.stats, 320, 104)
   const bands = paidHeightBands(result.points, plot, paidIndexes)
   const bandTop = 8
+  const edgeBands = bands.filter(band => band.edge)
   return <section className="pi-card pi-ride-height" aria-labelledby="pi-ride-height-title">
     <div className="pi-height-heading"><h3 id="pi-ride-height-title">The road, by height</h3><span>{Math.round(result.stats.minM).toLocaleString()} to {Math.round(result.stats.maxM).toLocaleString()} m</span></div>
     <svg viewBox="0 0 320 104" role="img" aria-label={`Heights at the free days' places.${bands.length ? ` ${bands.map(band => band.label).join(', ')}: no height data.` : ''} Gaps have no height data.`}>
       {bands.map(band => {
+        if (band.edge) return <g key={band.edge} className="pi-height-paid"><rect className="pi-height-paid-band" x={band.x} y={bandTop} width={band.width} height={plot.baseY - bandTop} /></g>
         const centre = band.x + band.width / 2
         const mid = (bandTop + plot.baseY) / 2
         const [days, plan] = band.label.split(' · ')
@@ -93,6 +108,7 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
       })}
       {plot.runs.map((run, index) => <g key={index}><path className="pi-height-fill" d={run.area} /><path className="pi-height-line" d={run.line} pathLength={1} /></g>)}
     </svg>
+    {edgeBands.length > 0 && <p>{edgeBands.map(band => `${band.label} ${band.edge === 'start' ? 'before the first place' : 'after the last place'}`).join('. ')}.</p>}
     <p>Public terrain heights at the free days&apos; places. The line between places is illustrative.</p>
     <details><summary>Elevation source</summary><p>{ELEVATION_ATTRIBUTION}</p><a href={ELEVATION_CREDIT_URL} target="_blank" rel="noreferrer">Source credits</a></details>
   </section>

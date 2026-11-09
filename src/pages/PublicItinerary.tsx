@@ -210,7 +210,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Keep one persistent price action. Each view observes its own in-page cards.
   useEffect(() => {
     if (!heroEl || typeof IntersectionObserver === 'undefined') return
-    const cards = [...(heroEl.parentElement?.querySelectorAll('.pi-buy, .pi-take, .pi-aside-card') ?? [])]
+    // Watch the price and the buttons that carry it, not the whole card. A card
+    // can be on screen while its price sits below the fold.
+    const cards = [...(heroEl.parentElement?.querySelectorAll('.pi-buy-price, .pi-buy-actions, .pi-take-actions') ?? [])]
     const visible = new Map<Element, boolean>([heroEl, ...cards].map(el => [el, true]))
     const io = new IntersectionObserver(entries => {
       if (!heroEl.isConnected) return

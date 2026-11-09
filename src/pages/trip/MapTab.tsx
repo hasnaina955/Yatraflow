@@ -2099,7 +2099,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onAdd={() => { if (editable && detailDay != null && !isAlreadyAdded(selectedHit, identity)) edit.startAdd(selectedHit, detailDay); else openAddModal(selectedHit) }} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
             <MapEditAddPanel edit={edit} onChooseDay={() => openAddModal(selectedHit)} />
           </div>}
-          {deckOpen && !selectedHit && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}
+          {deckOpen && !selectedHit && editable && selectedStop != null && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}
           <MapEditLive edit={edit} />
           <MapJourneyRibbon journey={journey} corrections={legCorrections} onScrub={(position, minute) => {
             if (position.grade === 'estimated') { setScrubCursor(null); return }

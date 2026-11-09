@@ -35,7 +35,7 @@
 import type { DayPlan, EffectiveCandidate, EffectiveDaySlot } from './dayPlan'
 import { voteSelection } from './dayPlan'
 import type { DaySlot, SlotKey, SlotRef, SlotVote } from './daySlots'
-import type { PlaceHit } from './providers/hits'
+import type { DiscoveryCoverage, PlaceHit, PlacePhotoRef } from './providers/hits'
 import {
   isAlreadyAdded,
   isSameEntity,
@@ -103,6 +103,12 @@ export interface JourneyRow {
   reason: string | null
   source: PlaceHit['source'] | null
   freshness: JourneyFreshness
+  /** When the scan behind this corridor row finished (ms). Null = unknown; never invented. */
+  fetchedAt?: number | null
+  /** How far the scan behind this corridor row reached. Null = unknown. */
+  coverage?: DiscoveryCoverage | null
+  /** Attributed Google photo references. Absent = none; a card loads images on demand. */
+  photos?: readonly PlacePhotoRef[]
   /** Existing vote reference, carried unchanged; null when no poll binds. */
   vote: SlotVote | null
   actions: JourneyActions
@@ -140,6 +146,8 @@ export interface JourneyProjectionInput {
    * Rows built from a committed stop do not copy it: a stop is not scan evidence.
    */
   corridorFreshness?: JourneyFreshness
+  /** Age and reach of that same scan. Copied to corridor rows only, never to stops. */
+  corridorEvidence?: { fetchedAt: number | null; coverage: DiscoveryCoverage | null } | null
   allowed?: Readonly<Record<string, Partial<JourneyActions>>>
   /**
    * Already-derived arrival minutes per stop id, from the caller's
@@ -213,6 +221,18 @@ function lookupKeys(
  * Freshness by the explicit lookup precedence. An absent key takes the
  * fallback, which is unknown unless the caller passes the scan's own state.
  */
+/** Scan evidence for one corridor row. Photos come from the hit itself. */
+function corridorRowEvidence(
+  evidence: JourneyProjectionInput['corridorEvidence'],
+  hit: PlaceHit,
+): Pick<JourneyRow, 'fetchedAt' | 'coverage' | 'photos'> {
+  return {
+    fetchedAt: evidence?.fetchedAt ?? null,
+    coverage: evidence?.coverage ?? null,
+    ...(hit.photos && hit.photos.length > 0 ? { photos: hit.photos } : {}),
+  }
+}
+
 function freshnessFor(
   map: Readonly<Record<string, JourneyFreshness>> | undefined,
   rowKey: string,
@@ -401,6 +421,7 @@ function rowFromCandidate(
     reason: candidate.reason,
     source: hit.source ?? null,
     freshness: freshnessFor(input.freshness, key, placeKeys, hit, null, input.corridorFreshness),
+    ...corridorRowEvidence(input.corridorEvidence, hit),
     vote: slot.vote ?? null,
     actions: actionsFor(hit, input.editable, input.presence, slot, false, allowedFor(input.allowed, key, placeKeys, hit, null)),
   }
@@ -510,6 +531,7 @@ function rowFromDrive(
     reason: drive.reason,
     source: hit.source ?? null,
     freshness: freshnessFor(input.freshness, key, placeKeys, hit, null, input.corridorFreshness),
+    ...corridorRowEvidence(input.corridorEvidence, hit),
     vote: null,
     actions: actionsFor(hit, input.editable, input.presence, null, false, allowedFor(input.allowed, key, placeKeys, hit, null)),
   }

@@ -23,7 +23,7 @@
 // Place Details and Text Search Along-Route all return HTTP 200. One fix was
 // applied from that run: routingSummaries paths are legs-scoped
 // (`routingSummaries.legs.distanceMeters`). See scripts/verify-google-places.mjs.
-import { normWords, hasCoords, spurKm, type PlaceHit, type HaltPurpose } from './hits'
+import { normWords, hasCoords, spurKm, type PlaceHit, type PlacePhotoRef, type HaltPurpose } from './hits'
 import { placeHoursFromPeriods, localISODate, type PlaceHours } from './hours'
 import { familyFromType, familyFromName, type PlaceFamily } from './families'
 import { quotaAllows, quotaCount, type QuotaSku } from './quota'
@@ -190,6 +190,57 @@ interface GooglePlace {
   currentOpeningHours?: { periods?: GooglePeriod[] }
   rating?: number
   userRatingCount?: number
+  photos?: GooglePhoto[]
+}
+
+interface GooglePhoto {
+  /** resource name: "places/ID/photos/REF" */
+  name?: string
+  widthPx?: number
+  heightPx?: number
+  authorAttributions?: { displayName?: string; uri?: string }[]
+}
+
+/** At most this many photo references ride one place. */
+const MAX_PHOTO_REFS = 3
+
+/**
+ * Photo references with attribution. A photo with no author text is dropped,
+ * because Google rules say the text must show with the image.
+ */
+function photoRefsFrom(p: GooglePlace): PlacePhotoRef[] {
+  const out: PlacePhotoRef[] = []
+  for (const photo of p.photos ?? []) {
+    if (out.length >= MAX_PHOTO_REFS) break
+    const name = photo.name?.trim()
+    const author = photo.authorAttributions?.find(a => a.displayName?.trim())
+    if (!name || !author?.displayName) continue
+    out.push({
+      name,
+      widthPx: Number.isFinite(photo.widthPx) ? photo.widthPx ?? null : null,
+      heightPx: Number.isFinite(photo.heightPx) ? photo.heightPx ?? null : null,
+      attribution: { text: author.displayName.trim(), authorUri: author.uri?.trim() || null },
+    })
+  }
+  return out
+}
+
+/**
+ * The photo URL for one reference. Call it only when a card shows the photo.
+ * A scan never calls it. Returns null without a Google key.
+ */
+export function placePhotoUrl(photo: Pick<PlacePhotoRef, 'name'>, maxWidthPx: number): string | null {
+  const key = apiKey()
+  if (!key || !photo.name.startsWith('places/')) return null
+  return `${PLACES}/${photo.name}/media?maxWidthPx=${Math.max(1, Math.round(maxWidthPx))}&key=${encodeURIComponent(key)}`
+}
+
+/**
+ * The references a card may show. Without a Google key the list is empty.
+ * It never reads the Wikipedia thumbnail, so no other source fills the gap.
+ */
+export function cardPhotoRefs(hit: Pick<PlaceHit, 'photos'>): PlacePhotoRef[] {
+  return googleEnabled() ? hit.photos ?? [] : []
 }
 
 interface GooglePeriod {
@@ -244,6 +295,9 @@ export const NEARBY_FIELD_MASK = [
   'places.currentOpeningHours',
   'places.rating',
   'places.userRatingCount',
+  // Photo references ride the same events: the mask already holds Enterprise
+  // fields, so photos add no SKU. Image bytes load later, on demand only.
+  'places.photos',
   'routingSummaries.legs.distanceMeters',
 ].join(',')
 
@@ -411,6 +465,7 @@ function hitsFromResponses(
       const spur = routePolyline ? spurKm({ latitude: lat, longitude: lng }, routePolyline) : null
       const hours = placeHoursFrom(p)
       const classified = classifyGooglePlace(p, queries[qi].cat)
+      const photos = photoRefsFrom(p)
       out.push({
         id: `google_${p.id}`,
         name: p.displayName.text,
@@ -430,6 +485,7 @@ function hitsFromResponses(
         ...(hours ? { hours } : {}),
         ...(p.rating != null && Number.isFinite(p.rating) ? { rating: p.rating } : {}),
         ...(p.userRatingCount != null && Number.isFinite(p.userRatingCount) ? { ratingCount: p.userRatingCount } : {}),
+        ...(photos.length > 0 ? { photos } : {}),
         // leg0 = road km from the route origin to this place — its position
         // along the journey (ride-plan segment assignment + card labels)
         ...(l0 != null && Number.isFinite(l0) ? { alongRouteKm: Math.max(0, l0) / 1000 } : {}),
@@ -482,6 +538,8 @@ const POINT_FIELD_MASK = [
   'places.types',
   'places.regularOpeningHours',
   'places.currentOpeningHours',
+  // Opening hours already set the Enterprise SKU here, so photos add none.
+  'places.photos',
 ].join(',')
 
 // Essentials-only mask for the Nearby Search city layer (places:searchNearby)

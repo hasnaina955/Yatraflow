@@ -32,7 +32,7 @@ import { useAddModal } from './map/useAddModal'
 import { ShortlistTray } from './map/ShortlistTray'
 import { useShortlist } from './map/useShortlist'
 import { useMapWriters } from './map/useMapWriters'
-import { useCorridorCache } from './map/useCorridorCache'
+import { dayStayBase, useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
 import { useRailContent } from './map/useRailContent'
 import { journeyCostLabels } from './map/railLabels'
@@ -668,11 +668,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 
   // #420 slice 11: the corridor cache (hash, publish, both scans) lives in
   // ./map/useCorridorCache. It returns values only, never callbacks.
-  const { fractionPois, corridorQuotaOut, loadingPois, poisFailed, scanFailed, scanQuotaOut, mapInputsHash, corridorSource, poisInputsHash, poisScopeKm } = useCorridorCache({
+  const { fractionPois, corridorQuotaOut, loadingPois, poisFailed, scanFailed, scanQuotaOut, mapInputsHash, corridorSource, poisInputsHash, poisScopeKm, fetchedAt: scanFetchedAt, coverage: scanCoverage, discoveryDayIndex } = useCorridorCache({
     trip, anchors, routeGeometry, scopeKm, dayRainPct, dayWeatherCode, crewSeeds,
     dnaTick, onInputsHash, pois, setPois, nearbyOpts, planKm,
     wholeTripMin: wholeTrip.min, drivingPlan,
     refreshTick, suggestionCache,
+    // One selected day scans on its own. Show-all keeps the trip-wide scan.
+    discoveryDay: mapFilter === 'all' || dayFocus === 'all' ? undefined : {
+      dayIndex: activeDayIndex, routeGeometry: null, stayBase: dayStayBase(trip, activeDayIndex),
+      purposes: [], categoryBias: nearbyOpts.categoryBias,
+    },
   })
 
   // #832: attribution reads the EFFECTIVE plan projection (accepted pins and
@@ -1095,8 +1100,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       detourMinFor,
       detourKmFor,
       heldBackIds: budgetHeldIds,
+      fetchedAt: scanFetchedAt,
+      coverage: scanCoverage,
+      discoveryDayIndex,
     }
-  }, [corridorSource, trip.id, mapInputsHash, scopeKm, poisInputsHash, poisScopeKm, corridorStatus, pois, anchors, routePolyline, drivingPlan, dayAttribution, dayAttributionKey, altPool, detourMinFor, detourKmFor, budgetHeldIds])
+  }, [scanFetchedAt, scanCoverage, discoveryDayIndex, corridorSource, trip.id, mapInputsHash, scopeKm, poisInputsHash, poisScopeKm, corridorStatus, pois, anchors, routePolyline, drivingPlan, dayAttribution, dayAttributionKey, altPool, detourMinFor, detourKmFor, budgetHeldIds])
   useEffect(() => {
     const next = corridorSnapshot
     // P2: an initial `none` while a route exists is "not initialized yet", not

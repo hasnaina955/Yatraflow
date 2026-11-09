@@ -32,6 +32,18 @@ export interface MeasuredRoadFact {
   arriveMin: number
 }
 
+/**
+ * One Google photo reference. It holds no image bytes and no key.
+ * Google rules say the author text must show with the photo.
+ */
+export interface PlacePhotoRef {
+  /** Google resource name, for example "places/ID/photos/REF" */
+  name: string
+  widthPx: number | null
+  heightPx: number | null
+  attribution: { text: string; authorUri: string | null }
+}
+
 export interface PlaceHit {
   id: number | string
   name: string
@@ -75,6 +87,11 @@ export interface PlaceHit {
   rating?: number
   /** Google review count — gates the rating boost against thin samples */
   ratingCount?: number
+  /**
+   * Up to three Google photo references. Each has its own attribution.
+   * Set only when a Google key is on. A scan never fetches the image.
+   */
+  photos?: PlacePhotoRef[]
   /** real road detour in km (Google routingSummaries); undefined when unknown */
   offRouteKm?: number
   /**
@@ -594,6 +611,27 @@ export const CATEGORY_PRIORITY: Record<string, number> = {
   food: 2, event: 2, travel: 2, rest: 3, hotel: 3, 'transport-hub': 4, shopping: 5,
 }
 
+/**
+ * Prior for the quality average. A place with no reviews reads as 4.0.
+ * Twenty reviews weigh as much as the prior.
+ */
+const QUALITY_PRIOR_MEAN = 4.0
+const QUALITY_PRIOR_WEIGHT = 20
+/** Below this many reviews a rating earns no ranking bonus. */
+const MIN_REVIEWS_FOR_BONUS = 10
+
+/**
+ * Bayesian average of a Google rating. Few reviews pull the result towards the
+ * prior, so five stars from three people cannot beat 4.6 from hundreds.
+ * Returns null when the rating or the review count is missing or invalid.
+ */
+export function calibratedQuality(h: Pick<PlaceHit, 'rating' | 'ratingCount'>): number | null {
+  const { rating, ratingCount } = h
+  if (rating == null || !Number.isFinite(rating) || rating < 1 || rating > 5) return null
+  if (ratingCount == null || !Number.isFinite(ratingCount) || ratingCount < 1) return null
+  return (QUALITY_PRIOR_WEIGHT * QUALITY_PRIOR_MEAN + ratingCount * rating) / (QUALITY_PRIOR_WEIGHT + ratingCount)
+}
+
 export function poiTouristScore(
   h: PlaceHit,
   anchors: { lat: number; lng: number }[],
@@ -606,13 +644,11 @@ export function poiTouristScore(
   if ((h.description ?? '').length > 40) s += 3
   if (cat === 'sightseeing' || cat === 'nature' || cat === 'beach' || cat === 'temple' || cat === 'museum') s += 3
   if (categoryBias && categoryBias[cat]) s += categoryBias[cat] // itinerary gaps
-  // Google ratings: trusted samples only (10+ reviews). Strong picks outrank
-  // geography-only equals; free-mode hits without ratings score as before.
-  const rc = h.ratingCount ?? 0
-  if (rc >= 10 && h.rating != null && Number.isFinite(h.rating)) {
-    if (h.rating >= 4.5) s += 4
-    else if (h.rating >= 4.0) s += 2
-  }
+  // Google ratings count only from ten reviews. Above that, the bonus follows
+  // the calibrated quality, grows above the prior and stops at 4, below one
+  // category tier (8). Hits without a usable rating score as before.
+  const quality = (h.ratingCount ?? 0) >= MIN_REVIEWS_FOR_BONUS ? calibratedQuality(h) : null
+  if (quality != null) s += Math.min(4, Math.max(0, (quality - QUALITY_PRIOR_MEAN) * 8))
   const frac = Math.min(1, distToNearest(h, anchors) / Math.max(1, radiusM))
   s -= frac * 6
   return s

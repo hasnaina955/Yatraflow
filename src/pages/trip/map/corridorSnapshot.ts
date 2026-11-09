@@ -7,6 +7,7 @@
 // no cache. `corridorSnapshotKey` is a PUBLICATION identity, never a cache,
 // quota or generation key (#842 keeps those).
 import { drivingPlanFingerprint, type DrivingPlan, type DrivingPlanDay, type PlaceHit, type SegmentHit } from '../../../lib/geocode'
+import type { DiscoveryCoverage } from '../../../lib/providers/hits'
 import type { tripDayAttribution } from '../../../lib/daySlots'
 import { placeKeysOf } from '../../../lib/placeIdentity'
 import type { LatLng } from './weatherGeometry'
@@ -31,6 +32,15 @@ export interface CorridorSnapshot {
   readonly detourKmFor: (hit: PlaceHit) => number | null
   /** ids the Map's detour budget held back, from its existing walk. */
   readonly heldBackIds: ReadonlySet<string>
+  /** When the scan behind these rows finished (ms). Null or absent = unknown. */
+  readonly fetchedAt?: number | null
+  /** How far that scan reached. Null or absent = not measured. */
+  readonly coverage?: DiscoveryCoverage | null
+  /**
+   * The one trip day these rows were scanned for. Null or absent = a trip-wide
+   * scan. A day scan lists its rows on that day only.
+   */
+  readonly discoveryDayIndex?: number | null
 }
 
 /** A provider-aware hit identity plus the position facts a row can read. */
@@ -61,6 +71,7 @@ export function hitFactKey(hit: PlaceHit): string {
     rating: hit.rating ?? null,
     ratingCount: hit.ratingCount ?? null,
     thumb: hit.thumb ?? null,
+    photos: hit.photos?.map(photo => [photo.name, photo.attribution.text, photo.attribution.authorUri]) ?? null,
     lat: hit.latitude,
     lng: hit.longitude,
     cumKm: hit.cumKm ?? null,
@@ -179,5 +190,8 @@ export function corridorSnapshotKey(snapshot: CorridorSnapshot): string {
       hit.offRouteKm ?? null,
     ]),
     heldBackIds: [...snapshot.heldBackIds].map(String).sort(),
+    fetchedAt: snapshot.fetchedAt ?? null,
+    coverage: snapshot.coverage ?? null,
+    discoveryDayIndex: snapshot.discoveryDayIndex ?? null,
   })
 }

@@ -924,6 +924,22 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           route={`${trip.startLocation} → ${trip.destinations.join(' → ')}${isRoundTrip(trip) ? ` → ${trip.startLocation}` : ''}`}
           facts={heroFacts}
           byline={byline}
+          ride={view === 'ride' ? {
+            facts: [
+              { value: String(pub.durationDays), label: 'days' },
+              { value: kmOf(totalsN.totalDistanceKm), label: 'on the route' },
+              { value: String(placeTotal), label: 'places' },
+              ...(pub.bestSeason ? [{ value: pub.bestSeason, label: 'best season' }] : []),
+            ],
+            // The first three days this visitor may read: their photo, or their scene.
+            photos: dayFacts.flatMap((f, i) => f.readable
+              // A mosaic tile crops a 16:10 scene to about 400px high, so it asks for a cover-size file.
+              ? [{ index: cards[i].summary.index, src: f.photo, art: f.photo ? undefined : artFor(`day:${cards[i].summary.index}`, titlePlaces(cards[i].summary.title), '(max-width: 720px) 100vw, 640px'), title: cards[i].summary.title }]
+              : []).slice(0, 3),
+            notice: gateNotice ? (tripReReadFailed
+              ? purchaseLoadNotice
+              : <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} />) : undefined,
+          } : undefined}
           asideLabel={price === undefined || unlocked ? 'Take this plan' : 'Buy this plan'}
           tabs={null}
           aside={

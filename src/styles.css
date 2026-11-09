@@ -1918,3 +1918,74 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   .pi-height-line { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
 }
+
+/* ---- P11 day ribbon: short tiles, one row ----
+   Every tile shares the row width, so the strip never scrolls sideways at
+   1440 px. A hex that matches a pw token uses the token instead.
+   The `--short` marker class keeps each selector distinct from the older
+   ribbon rules, so the stylesheet has one definition per selector. */
+.pi-ribbon-track--short .pi-ribbon-days {
+  display: flex; grid-auto-flow: initial; grid-auto-columns: initial;
+  gap: var(--space-4); padding: 22px 0 0;
+}
+.pi-ribbon-track--short .pi-ribbon-days > li { flex: 1 1 0; min-width: 0; }
+.pi-ribbon-track.pi-ribbon-track--short { grid-template-columns: minmax(0, 1fr); }
+.pi-ribbon-track--short .pi-rib {
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  min-width: 0; padding: 10px 12px; border: 1.5px solid transparent;
+  border-radius: var(--radius-sm); background: #EAF3F2; color: #142329;
+  text-align: start;
+  transition: background-color var(--motion-fast) var(--ease-paper),
+    border-color var(--motion-fast) var(--ease-paper),
+    transform var(--motion-fast) var(--ease-paper),
+    box-shadow var(--motion-fast) var(--ease-paper);
+}
+.pi-ribbon-track--short .pi-rib:hover { background: #EAF3F2; border-color: #CDD8D6; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .pi-ribbon-track--short .pi-rib:hover { transform: translateY(-2px); }
+}
+.pi-ribbon-track--short .pi-rib[aria-current='true'] {
+  background: var(--pw-lagoon-100); border-color: #0D8D82; box-shadow: none;
+}
+.pi-ribbon-track--short .pi-rib--locked {
+  background: var(--pw-marigold-50); border-color: #F6D59E; border-style: dashed;
+}
+.pi-ribbon-track--short .pi-rib--locked:hover { background: var(--pw-marigold-100); border-color: #F6D59E; }
+.pi-ribbon-track--short .pi-rib-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.pi-ribbon-track--short .pi-rib-day {
+  font-size: 12px; font-weight: 700; line-height: 1.2; letter-spacing: 0;
+  text-transform: none; white-space: nowrap; color: #556972;
+}
+.pi-ribbon-track--short .pi-rib[aria-current='true'] .pi-rib-day { color: var(--pw-sea-700); }
+.pi-ribbon-track--short .pi-rib--locked .pi-rib-day { color: #8A4F0E; }
+.pi-ribbon-track--short .pi-rib-dot { width: 8px; height: 8px; border-radius: 50%; background: #0D8D82; }
+.pi-ribbon-track--short .pi-rib-lock { color: #8A4F0E; }
+.pi-ribbon-track--short .pi-rib-title {
+  display: block; -webkit-box-orient: initial; -webkit-line-clamp: unset; line-clamp: unset;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 13.5px; font-weight: 700; line-height: 1.25; color: #142329;
+}
+.pi-ribbon-track--short .pi-rib-sub { font-size: 11.5px; line-height: 1.25; color: #45565D; }
+
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib {
+  background: var(--pw-lagoon-50); color: var(--pw-ink);
+}
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib:hover {
+  background: var(--pw-lagoon-50); border-color: var(--pw-line);
+}
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib[aria-current='true'] {
+  background: var(--pw-lagoon-100); border-color: var(--pw-sea-700);
+}
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib--locked,
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib--locked:hover {
+  background: var(--pw-marigold-50); border-color: var(--pw-marigold-300);
+}
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib--locked:hover { background: var(--pw-marigold-100); }
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-day { color: var(--pw-ink-3); }
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib--locked .pi-rib-day { color: var(--pw-marigold-ink); }
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-dot { background: var(--pw-route-line); }
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-lock { color: var(--pw-marigold-ink); }
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-title { color: var(--pw-ink); }
+:root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-sub { color: var(--pw-ink-3); }
+/* P11 plan figure: "10 days · 1,045 km" stays on one line, as on the board. */
+.pi-ribbon-figure { white-space: nowrap; }

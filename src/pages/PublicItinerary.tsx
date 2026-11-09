@@ -42,7 +42,7 @@ import { WhatIsInside } from '../components/storefront/WhatIsInside'
 import type { DayCardProps } from '../components/storefront/DayCard'
 import { StickyPriceBar } from '../components/storefront/StickyPriceBar'
 import { TripKitHero, BuyCard, updatedAgo } from '../components/storefront/TripKitHero'
-import { DayRibbon, type RibbonDay } from '../components/storefront/DayRibbon'
+import { DayRibbon, ribbonPlaceOf, type RibbonDay } from '../components/storefront/DayRibbon'
 import { DayBudgetBar, type DayBudget } from '../components/storefront/DayBudgetBar'
 import { KindTiles } from '../components/storefront/KindTiles'
 import { KindChip } from '../components/storefront/KindChip'
@@ -734,7 +734,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       : i === rideIndex ? 'now' as const
       : readDays.has(i) ? 'read' as const
       : undefined
-    return { index: i, title: c.summary.title, state: c.state, placeCount: c.summary.placeCount, status }
+    return { index: i, title: c.summary.title, state: c.state, placeCount: c.summary.placeCount, status, place: ribbonPlaceOf({ title: c.summary.title, state: c.state }, undefined) }
   })
   // Most plans have no photos. Every image slot then shows a generated scene
   // for its own places, so no slot is an empty box. Locked days use public
@@ -774,7 +774,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       }]
     : []))
 
-  const kmOf = (km: number) => `${km.toFixed(0)} km`
+  const kmOf = (km: number) => `${Math.round(km).toLocaleString('en-IN')} km`
   const driveOf = (min: number) => (min < 5 ? 'no drive' : `${minutesToHM(min)} driving`)
 
   // ---- Ride along: the day on screen. A readable day carries its timeline,
@@ -1030,7 +1030,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 }}
               days={ribbonDays}
               current={view === 'ride' ? rideCard?.summary.index ?? null : null}
-              lockedWord={price !== undefined ? 'Paid plan' : 'Preview only'}
+              lockedWord={price !== undefined ? 'Paid' : 'Preview'}
               onPick={openDay}
             />
           )}

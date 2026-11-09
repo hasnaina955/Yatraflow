@@ -89,7 +89,7 @@ function within(box: MarkBox, bounds: MarkBounds | undefined): boolean {
 }
 
 /**
- * Place boxes in the order given. The order is the priority: an earlier box never moves for a later one.
+ * Place boxes in the order given. An earlier box never moves for a later one.
  * Boxes are centred on x and y, in pixels. A box that collides tries the smallest slide that clears
  * one blocker, then steps of its own size along eight directions, up to `maxSteps`. The nearest free
  * spot inside `bounds` wins. With no free spot the box is hidden when `droppable` is set, and stays put otherwise.

@@ -956,7 +956,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   }
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
   const spreadMarksRef = useRef(spreadMarks)
-  spreadMarksRef.current = spreadMarks
+  // Effects run top to bottom, so this one feeds the spread and camera effects below it in the same commit.
+  useEffect(() => { spreadMarksRef.current = spreadMarks })
   // Lay out the marks for the camera as it is now. The boxes are where stops and pills end up.
   const layoutOnMap = useCallback((map: MapRef, bounds?: MarkBounds) => {
     const marks: LayoutMark[] = spreadMarksRef.current.map(m => {

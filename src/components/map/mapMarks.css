@@ -38,12 +38,12 @@
 /* The clock pill hangs under its badge. The badge stays on its coordinate. */
 .mv2-pin-anchor { position: relative; display: inline-flex; }
 .mv2-pin-anchor > .mv2-pin-clock { position: absolute; left: 50%; top: calc(100% + 4px); translate: -50% 0; }
-/* Every interactive map mark has a hit area of at least 44 by 44 px, for a mouse and a finger alike.
+/* Every interactive map mark has a 44 by 44 px hit area, for a mouse and a finger.
    The pad is a ::before box. A diamond is a square turned 45 degrees, so its pad is 62px (44 * 1.42). */
 .mv2-workspace .maplibregl-marker :is(.mv2-map-stop, .yf-map-pin--slot, .mv2-warn-diamond, .yf-map-pin-idea, .yf-map-idea-add) { position: relative; }
 .mv2-workspace .maplibregl-marker :is(.mv2-map-stop, .yf-map-pin--slot, .mv2-warn-diamond, .yf-map-pin-idea, .yf-map-idea-add)::before { content: ''; position: absolute; inset: auto; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
 .mv2-workspace .maplibregl-marker .mv2-warn-diamond::before { width: 62px; height: 62px; }
-/* A pick over its add button: the pick pad reaches up and the add pad reaches down, so the two pads never meet. */
+/* A pick over its add button: the pick pad reaches up and the add pad reaches down. The two pads never meet. */
 .mv2-workspace .maplibregl-marker .yf-map-idea:has(.yf-map-idea-add) .yf-map-pin-idea::before { top: calc(50% - 7px); }
 .mv2-workspace .maplibregl-marker .yf-map-idea-add::before { top: calc(50% + 13px); }
 

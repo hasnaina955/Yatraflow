@@ -39,7 +39,7 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
   return <section className="pi-card pi-ride-height" aria-labelledby="pi-ride-height-title">
     <div className="pi-height-heading"><h3 id="pi-ride-height-title">The road, by height</h3><span>{Math.round(result.stats.minM).toLocaleString()} to {Math.round(result.stats.maxM).toLocaleString()} m</span></div>
     <svg viewBox="0 0 320 104" role="img" aria-label="Heights at the free days' places. Gaps have no height data.">
-      {plot.runs.map((run, index) => <g key={index}><path className="pi-height-fill" d={run.area} /><path className="pi-height-line" d={run.line} /></g>)}
+      {plot.runs.map((run, index) => <g key={index}><path className="pi-height-fill" d={run.area} /><path className="pi-height-line" d={run.line} pathLength={1} /></g>)}
     </svg>
     <p>Public terrain heights at the free days&apos; places. The line between places is illustrative.</p>
     <details><summary>Elevation source</summary><p>{ELEVATION_ATTRIBUTION}</p><a href={ELEVATION_CREDIT_URL} target="_blank" rel="noreferrer">Source credits</a></details>

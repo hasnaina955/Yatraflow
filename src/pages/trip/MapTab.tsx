@@ -921,6 +921,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // #905-#907: the add preview, the stop editor and the keyboard reorder. Every
   // write still goes through `applyChange`; removal stays on `removeStopWithUndo`.
   // `edit.previewRoad` is the proposed road for TripMap to draw (handoff, not yet drawn).
+  const keepWriterRef = useRef<((hit: PlaceHit, dayIndex: number) => Promise<void>) | null>(null)
   const edit = useMapEdit({
     trip, editable, applyChange, legCorrections, routeKmOf,
     removeStop: removeStopFromMap,
@@ -928,6 +929,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: hit.haltPurpose, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(hit.category) })
       setDnaTick(t => t + 1)
     },
+    keepWithWriter: (hit, dayIndex) => keepWriterRef.current ? keepWriterRef.current(hit, dayIndex) : Promise.reject(new Error('writer not ready')),
   })
 
   /** #841: a route arc's "Add all" stages through the shared writer: one
@@ -1261,6 +1263,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     displayDayPlan: journeyDay?.dayPlan,
     slotManual,
   })
+  keepWriterRef.current = addPoiToDay // eslint-disable-line react-hooks/refs -- the ref only holds a writer the hook reads later
   const dayCounts = planCounts(dayPlan)
   // The open part's live-region line reads the same effective rows the cards show.
   const openAnnouncement = openSlotAnnouncement(dayPlan, openSlotKey)

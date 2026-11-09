@@ -430,6 +430,8 @@ export function routeHash(geometry: [number, number][] | null): string {
 }
 
 export interface NearbyOpts {
+  /** Reports search reach after a successful provider read. */
+  onCoverage?: (coverage: DiscoveryCoverage) => void
   /** include petrol pumps as pit stops (self-drive trips only, capped) */
   includeFuel?: boolean
   /** EV drive (#144B): replace fuel cadence with charge cadence — mutually
@@ -489,6 +491,49 @@ export interface NearbyOpts {
   dnaVector?: DnaVector
   /** Cancels an in-flight provider scan when a newer Map action supersedes it. */
   signal?: AbortSignal
+}
+
+export interface DiscoveryCoverage {
+  method: 'circles' | 'route-bias'
+  totalKm: number | null
+  /** A lower bound for circle searches. Null means reach is not measured. */
+  coveredKm: number | null
+  anchorCount: number
+  radiusM: number
+  complete: boolean
+}
+
+/** Measures a conservative lower bound. Each counted road piece fits inside one query circle. */
+export function circleCoverage(
+  road: readonly { lat: number; lng: number }[] | null,
+  anchors: readonly { lat: number; lng: number }[],
+  radiusM: number,
+): DiscoveryCoverage {
+  let totalKm = 0
+  let coveredKm = 0
+  for (let i = 1; road && i < road.length; i++) {
+    const a = road[i - 1]
+    const b = road[i]
+    const length = haversineKm(a.lat, a.lng, b.lat, b.lng)
+    totalKm += length
+    const pieces = Math.max(1, Math.ceil(length / 0.5))
+    const pieceKm = length / pieces
+    for (let j = 0; j < pieces; j++) {
+      const f = (j + 0.5) / pieces
+      const lat = a.lat + (b.lat - a.lat) * f
+      const lng = a.lng + (b.lng - a.lng) * f
+      if (anchors.some(p => haversineKm(lat, lng, p.lat, p.lng) + pieceKm / 2 <= radiusM / 1000)) {
+        coveredKm += pieceKm
+      }
+    }
+  }
+  const hasRoad = road != null && road.length >= 2
+  return {
+    method: 'circles', totalKm: hasRoad ? totalKm : null,
+    coveredKm: hasRoad ? Math.min(totalKm, coveredKm) : null,
+    anchorCount: anchors.length, radiusM,
+    complete: hasRoad && totalKm > 0 && totalKm - coveredKm < 0.001,
+  }
 }
 
 /**

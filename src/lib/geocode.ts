@@ -30,7 +30,7 @@ export { hasCoords } from './providers/hits'
 import { plannerDrives } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 
-import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type HaltPurpose, type NearbyOpts, type PlaceHit } from './providers/hits'
+import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, circleCoverage, type HaltPurpose, type NearbyOpts, type PlaceHit } from './providers/hits'
 import type { PlaceFamily } from './providers/families'
 import { haversineKm } from './geo'
 import {
@@ -213,11 +213,14 @@ async function googlePointScan(
   signal?: AbortSignal,
   families?: readonly PlaceFamily[],
   purposes?: HaltPurpose[],
+  onCoverage?: NearbyOpts['onCoverage'],
+  routeCoords?: NearbyOpts['routeCoords'],
 ): Promise<PlaceHit[]> {
   const out: PlaceHit[] = []
   const seen = new Set<string | number>()
   let failedAnchors = 0
   let lastError: unknown = null
+  const scanned: typeof anchors = []
   for (const a of anchors.slice(0, maxAnchors)) {
     try {
       if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
@@ -226,6 +229,7 @@ async function googlePointScan(
         ...(purposes && purposes.length > 0 ? { purposes } : {}),
         ...(families && families.length > 0 ? { families } : {}),
       })
+      scanned.push(a)
       for (const h of hits) {
         if (!h.id || seen.has(h.id)) continue
         seen.add(h.id)
@@ -241,6 +245,7 @@ async function googlePointScan(
   }
   // No hits and at least one anchor failed: the scan failed, it did not come back empty (#704).
   if (out.length === 0 && failedAnchors > 0) throw lastError
+  onCoverage?.(circleCoverage(routeCoords?.map(([lng, lat]) => ({ lat, lng })) ?? null, scanned, radiusM))
   return out
 }
 
@@ -279,13 +284,15 @@ export async function searchNearbyPoisMulti(
         // classifies their hits. Forward them; an empty list changes nothing.
         ...(opts.families && opts.families.length > 0 ? { families: opts.families } : {}),
       })
+      const reach = circleCoverage(route.map(([lng, lat]) => ({ lat, lng })), [], radiusM)
+      opts.onCoverage?.({ ...reach, method: 'route-bias', coveredKm: null, complete: false })
       if (hits.length > 0) return rankAndCap(hits, capped, radiusM, count, opts)
       // Round-trip routes (origin ≈ destination) legitimately return zero
       // Search-Along-Route results — the road never leaves the start area.
       // Google-only directive stays intact: supplement with point searches at
       // the first anchors rather than falling back to the free stack.
       if (isRoundTripRoute(route)) {
-        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal, opts.families, opts.purposes)
+        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal, opts.families, opts.purposes, opts.onCoverage, opts.routeCoords)
         return rankAndCap(pointHits, capped, radiusM, count, opts)
       }
       return rankAndCap(hits, capped, radiusM, count, opts)
@@ -302,13 +309,14 @@ export async function searchNearbyPoisMulti(
     // day chips) keep the one-anchor search.
     try {
       const hits = capped.length >= 2
-        ? await googlePointScan(capped, radiusM, count, 6, opts.signal, opts.families, opts.purposes)
+        ? await googlePointScan(capped, radiusM, count, 6, opts.signal, opts.families, opts.purposes, opts.onCoverage, opts.routeCoords)
         : await googleNearbyAtPoint({
             lat: capped[0].lat, lng: capped[0].lng, radiusM, count,
             includeFuel: opts.includeFuel, signal: opts.signal,
             ...(opts.purposes && opts.purposes.length > 0 ? { purposes: opts.purposes } : {}),
             ...(opts.families && opts.families.length > 0 ? { families: opts.families } : {}),
           })
+      if (capped.length === 1) opts.onCoverage?.(circleCoverage(null, capped, radiusM))
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch (err) {
       if (opts.rejectOnFailure || err instanceof QuotaExhaustedError || opts.signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) throw err

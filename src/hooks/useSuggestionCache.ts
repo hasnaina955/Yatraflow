@@ -9,7 +9,7 @@ import type { PlaceHit } from '../lib/providers/hits'
 import type { VehicleProfile } from '../data/types'
 
 export interface SuggestionCache {
-  map: { segments: SegmentHit[]; plan?: DrivingPlanDay[]; inputsHash: string; scopeKm: number; ts: number } | null
+  map: { segments: SegmentHit[]; plan?: DrivingPlanDay[]; inputsHash: string; scopeKm: number; ts: number; fetchedAt?: number | null; coverage?: import('../lib/providers/hits').DiscoveryCoverage } | null
   /** fraction fallback pool cached under the same map TTL */
   fraction: { hits: PlaceHit[]; inputsHash: string; scopeKm: number; ts: number } | null
   /** per-day manual halt planner: the user's {km, minutes, purpose} list + best real spots */
@@ -92,6 +92,7 @@ export function planInputsHash(input: {
   categoryBias?: Record<string, number> | undefined
   plannedStops?: { lat: number; lng: number; name?: string }[] | undefined
   providerMode?: string | undefined
+  discoveryContext?: string | undefined
 }): string {
   return [
     input.anchorsHash,
@@ -129,6 +130,7 @@ export function planInputsHash(input: {
       ? input.plannedStops.map(s => `${s.name ?? ''}@${s.lat.toFixed(6)},${s.lng.toFixed(6)}`).join('|')
       : '-',
     input.providerMode ?? '-',
+    input.discoveryContext ?? '-',
   ].join('|')
 }
 
@@ -222,11 +224,11 @@ export function useSuggestionCache(tripId: string, dayCount: number) {
     })
   }, [tripId, dayCount])
 
-  const setMapCache = useCallback((segments: SegmentHit[], inputsHash: string, scopeKm: number, plan?: readonly DrivingPlanDay[]) => {
+  const setMapCache = useCallback((segments: SegmentHit[], inputsHash: string, scopeKm: number, plan?: readonly DrivingPlanDay[], evidence?: { fetchedAt: number | null; coverage: import('../lib/providers/hits').DiscoveryCoverage | null }) => {
     setCache(prev => {
       const next: SuggestionCache = {
         ...prev,
-        map: { segments, plan: plan ? [...plan] : undefined, inputsHash, scopeKm, ts: Date.now() },
+        map: { segments, plan: plan ? [...plan] : undefined, inputsHash, scopeKm, ts: Date.now(), fetchedAt: evidence?.fetchedAt, coverage: evidence?.coverage ?? undefined },
       }
       save(tripId, next)
       return next

@@ -5,7 +5,7 @@
 // Google call fails, or the Phase-B quota guard trips (providers/quota.ts) —
 // with the free stack in charge the app behaves exactly as it always has.
 import { haversineKm } from '../geo'
-import { hasCoords, distToNearest, normWords, rankAndCap, spurKm, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
+import { hasCoords, distToNearest, normWords, rankAndCap, spurKm, circleCoverage, type NearbyOpts, type PlaceHit, type HaltPurpose } from './hits'
 import { familyFromOsmTags, type PlaceFamily } from './families'
 import { queriesForPurpose, queriesForFamily } from '../purposeQueries'
 import { cap } from '../labels'
@@ -329,20 +329,28 @@ const OVERPASS_NEARBY_SELECTORS = [
   'tourism~"^(hotel|guest_house|hostel|resort|motel)$"',
 ]
 
-async function fetchOverpass(query: string): Promise<OverpassElement[]> {
+function scanSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  return signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)
+}
+
+async function fetchOverpass(query: string, signal?: AbortSignal, rejectOnFailure = false): Promise<OverpassElement[]> {
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'data=' + encodeURIComponent(query),
-        signal: AbortSignal.timeout(20000),
+        signal: scanSignal(signal, 20000),
       })
       if (!res.ok) continue
       const data = (await res.json()) as { elements?: OverpassElement[] }
-      return data.elements ?? []
-    } catch { /* try next mirror */ }
+      if (!Array.isArray(data.elements)) throw new Error('Invalid Overpass response')
+      return data.elements
+    } catch {
+      signal?.throwIfAborted()
+    }
   }
+  if (rejectOnFailure) throw new Error('Overpass search failed')
   return []
 }
 
@@ -353,6 +361,8 @@ async function searchNearbyOverpass(
   includeFuel = false,
   selectors?: string[],
   familySelectors?: readonly string[],
+  signal?: AbortSignal,
+  rejectOnFailure = false,
 ): Promise<PlaceHit[]> {
   const radius = Math.min(Math.max(radiusM, 2000), 120000)
   const baseSelectors = selectors ?? (includeFuel ? [...OVERPASS_NEARBY_SELECTORS, 'amenity=fuel'] : OVERPASS_NEARBY_SELECTORS)
@@ -364,7 +374,7 @@ async function searchNearbyOverpass(
   const stmts = allSelectors.flatMap(sel =>
     anchors.map(a => `nwr(around:${radius},${a.lat},${a.lng})[${sel}];`)
   ).join('')
-  const elements = await fetchOverpass(`[out:json][timeout:20];(${stmts});out center tags ${Math.max(60, count * 6)};`)
+  const elements = await fetchOverpass(`[out:json][timeout:20];(${stmts});out center tags ${Math.max(60, count * 6)};`, signal, rejectOnFailure)
   const byName = new Map<string, PlaceHit>() // of same-named POIs keep only the nearest
   for (const el of elements) {
     const tags = el.tags ?? {}
@@ -403,9 +413,9 @@ async function searchNearbyOverpass(
 const WIKI_JUNK =
   /village|\btown\b|\bcity\b|municipality|settlement|hamlet|suburb|census|railway|station|district|tehsil|taluk|taluka|mandal|highway|\broad\b|bridge|canal|airport|constituency|community development block|\bblock\b|\bpanchayat\b/
 
-async function searchNearbyWikipedia(anchors: { lat: number; lng: number }[], radiusM: number, count: number): Promise<PlaceHit[]> {
+async function searchNearbyWikipedia(anchors: { lat: number; lng: number }[], radiusM: number, count: number, signal?: AbortSignal): Promise<PlaceHit[]> {
   const per = Math.max(3, Math.ceil((count * 2) / anchors.length))
-  const lists = await Promise.all(anchors.map(a => searchNearbyPoisWikipedia(a.lat, a.lng, radiusM, per)))
+  const lists = await Promise.all(anchors.map(a => searchNearbyPoisWikipedia(a.lat, a.lng, radiusM, per, signal)))
   return lists
     .flat()
     .filter(h => !WIKI_JUNK.test(h.description ?? ''))
@@ -430,16 +440,16 @@ function sameDistinctiveName(a: string, b: string): boolean {
   const wb = new Set(normWords(b))
   return normWords(a).some(w => w.length >= 4 && !GENERIC_NAME_TOKENS.has(w) && wb.has(w))
 }
-async function resolveMapplsHitNear(hit: PlaceHit, anchor: { lat: number; lng: number }, maxM: number): Promise<PlaceHit | null> {
+async function resolveMapplsHitNear(hit: PlaceHit, anchor: { lat: number; lng: number }, maxM: number, signal?: AbortSignal, rejectOnFailure = false): Promise<PlaceHit | null> {
   if (!hit.eLoc || !hit.name) return null
   try {
     const segs = (hit.description ?? '').split(',').map(s => s.trim()).filter(Boolean)
     const town = segs.length >= 3 ? segs[segs.length - 3] : '' // "…, Munnar, Kerala, 685565"
     const res = await fetch(
       `${PHOTON_URL}?q=${encodeURIComponent(town ? `${hit.name}, ${town}` : hit.name)}&lat=${anchor.lat}&lon=${anchor.lng}&limit=5`,
-      { signal: AbortSignal.timeout(5000) },
+      { signal: scanSignal(signal, 5000) },
     )
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`Photon search failed: ${res.status}`)
     const data = (await res.json()) as {
       features?: { geometry: { coordinates: [number, number] }; properties: { name?: string } }[]
     }
@@ -450,11 +460,14 @@ async function resolveMapplsHitNear(hit: PlaceHit, anchor: { lat: number; lng: n
       if (haversineKm(lat, lng, anchor.lat, anchor.lng) * 1000 > maxM) continue
       return { ...hit, latitude: lat, longitude: lng }
     }
-  } catch { /* unresolved → dropped */ }
+  } catch (error) {
+    signal?.throwIfAborted()
+    if (rejectOnFailure) throw error
+  }
   return null
 }
 
-async function searchNearbyMappls(anchor: { lat: number; lng: number }, radiusM: number, count: number, includeFuel = false): Promise<PlaceHit[]> {
+async function searchNearbyMappls(anchor: { lat: number; lng: number }, radiusM: number, count: number, includeFuel = false, signal?: AbortSignal, rejectOnFailure = false): Promise<PlaceHit[]> {
   if (!mapplsEnabled()) return []
   const cats = NEARBY_CATEGORIES.filter(c => includeFuel || c.cat !== 'transport-hub')
   const results = await Promise.all(
@@ -463,9 +476,9 @@ async function searchNearbyMappls(anchor: { lat: number; lng: number }, radiusM:
         const r = await fetch(
           `${MAPPLS_SEARCH}/nearby/json?keywords=${encodeURIComponent(c.kw)}` +
           `&refLocation=${anchor.lat},${anchor.lng}&distance=${Math.min(radiusM, 10000)}&access_token=${MAPPLS_KEY}`,
-          { signal: AbortSignal.timeout(6000) },
+          { signal: scanSignal(signal, 6000) },
         )
-        if (!r.ok) return [] as PlaceHit[]
+        if (!r.ok) throw new Error(`Mappls search failed: ${r.status}`)
         const d = await r.json()
         return ((d.suggestedLocations ?? []) as Record<string, string>[])
           .filter(l => l.eLoc && l.placeName)
@@ -481,7 +494,9 @@ async function searchNearbyMappls(anchor: { lat: number; lng: number }, radiusM:
             category: c.cat,
             source: 'mappls' as const,
           }))
-      } catch {
+      } catch (error) {
+        signal?.throwIfAborted()
+        if (rejectOnFailure) throw error
         return [] as PlaceHit[]
       }
     }),
@@ -496,12 +511,12 @@ async function searchNearbyMappls(anchor: { lat: number; lng: number }, radiusM:
   }
   const resolved = await Promise.all(
     candidates.slice(0, Math.min(12, count + 2)).map(h =>
-      resolveMapplsHitNear(h, anchor, Math.round(radiusM * 1.25) + 2000),
+      resolveMapplsHitNear(h, anchor, Math.round(radiusM * 1.25) + 2000, signal, rejectOnFailure),
     ),
   )
   return resolved.filter((h): h is PlaceHit => h !== null)
 }
-async function searchNearbyPoisWikipedia(lat: number, lng: number, radiusM = 10000, count = 10): Promise<PlaceHit[]> {
+async function searchNearbyPoisWikipedia(lat: number, lng: number, radiusM = 10000, count = 10, signal?: AbortSignal): Promise<PlaceHit[]> {
   const params = new URLSearchParams({
     action: 'query',
     generator: 'geosearch',
@@ -512,8 +527,10 @@ async function searchNearbyPoisWikipedia(lat: number, lng: number, radiusM = 100
     format: 'json',
     origin: '*',
   })
-  const res = await fetch(`https://en.wikipedia.org/w/api.php?${params}`)
+  const res = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, { signal: scanSignal(signal, 8000) })
+  if (!res.ok) throw new Error(`Wikipedia search failed: ${res.status}`)
   const data = await res.json()
+  if (data.error || !data.query) throw new Error('Invalid Wikipedia search response')
   const pages: Record<string, WikiPage> = data.query?.pages ?? {}
   return Object.values(pages)
     .filter(p => p.coordinates?.[0])
@@ -605,6 +622,7 @@ export async function searchNearbyPoisMultiFree(
   purposes?: HaltPurpose[],
   families?: readonly PlaceFamily[],
 ): Promise<PlaceHit[]> {
+  opts.signal?.throwIfAborted()
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 12)
   if (capped.length === 0) return []
   // When purposes are given, merge all their Overpass selectors into one scan
@@ -616,11 +634,18 @@ export async function searchNearbyPoisMultiFree(
   const familySelectors = families && families.length > 0
     ? [...new Set(families.flatMap(f => queriesForFamily(f).overpassSelectors))]
     : undefined
-  const [osm, wiki, mappls] = await Promise.all([
-    searchNearbyOverpass(capped, radiusM, count, opts.includeFuel, selectors, familySelectors).catch(() => [] as PlaceHit[]),
-    searchNearbyWikipedia(capped, radiusM, Math.min(count, 6)).catch(() => [] as PlaceHit[]),
-    searchNearbyMappls(capped[0], radiusM, count, opts.includeFuel).catch(() => [] as PlaceHit[]),
-  ])
+  const reads = [
+    searchNearbyOverpass(capped, radiusM, count, opts.includeFuel, selectors, familySelectors, opts.signal, opts.rejectOnFailure),
+    searchNearbyWikipedia(capped, radiusM, Math.min(count, 6), opts.signal),
+    searchNearbyMappls(capped[0], radiusM, count, opts.includeFuel, opts.signal, opts.rejectOnFailure),
+  ]
+  const [osm, wiki, mappls] = await Promise.all(reads.map(read => read.catch((error: unknown) => {
+    opts.signal?.throwIfAborted()
+    if (opts.rejectOnFailure) throw error
+    return [] as PlaceHit[]
+  })))
+  opts.signal?.throwIfAborted()
+  opts.onCoverage?.(circleCoverage(opts.routeCoords?.map(([lng, lat]) => ({ lat, lng })) ?? null, capped, Math.min(radiusM, 10000)))
   // merge in trust order (OSM verified → Wikipedia → Mappls), dedupe by name
   const seen = new Set<string>()
   const merged: PlaceHit[] = []

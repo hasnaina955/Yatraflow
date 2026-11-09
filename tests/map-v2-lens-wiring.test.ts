@@ -13,7 +13,7 @@ import type { Trip } from '../src/data/types'
 
 const noop = () => undefined
 
-const PHASES: Array<Exclude<LensPhase, 'ready'>> = ['unscanned', 'scanning', 'failed', 'quota', 'empty']
+const PHASES: Array<Exclude<LensPhase, 'ready' | 'empty'>> = ['unscanned', 'scanning', 'failed', 'quota']
 
 function tripOf(): Trip {
   const hotel = {
@@ -141,6 +141,7 @@ describe('phaseCount', () => {
     expect(phaseCount('ready', 3)).toBe(3)
     expect(phaseCount('ready', 0)).toBe(0)
     for (const phase of PHASES) expect(phaseCount(phase, 3)).toBeNull()
+    expect(phaseCount('empty', 3)).toBe(0)
   })
 })
 

@@ -3,7 +3,7 @@
 // second lens type system, no store read and no provider call.
 //
 // Rules kept here:
-//  - A count is null unless its lens is ready. A failed read never shows zero.
+//  - A count is null until its lens is ready or empty. A failed read never shows zero.
 //  - A missing value stays null. The copy for it says the value is unknown.
 //  - The Fix model asks the engine, not the scan. Its phase is ready on a real day.
 import { useMemo } from 'react'
@@ -108,9 +108,10 @@ export interface MapLensesInput {
   dayLabel: string
 }
 
-/** A count is the ready row count. Every other phase is unknown, so null. */
+/** A count is the ready row count. An empty search is a real zero. Every other phase is unknown, so null. */
 export function phaseCount(phase: LensPhase, rows: number): number | null {
-  return phase === 'ready' ? rows : null
+  if (phase === 'ready') return rows
+  return phase === 'empty' ? 0 : null
 }
 
 /** A stored clock string as minutes. Null when the string is not a real clock. */

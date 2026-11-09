@@ -1,8 +1,10 @@
 // The Map tab's edit surfaces (#905, #906, #907). They only lay out the cards in
 // ./editing/EditCards and the state of `useMapEdit`. No writer call is made here.
 import type { Trip } from '../../../data/types'
+import { useTimeFormat } from '../../../lib/timefmt'
 import { AddPreviewCard, FixedTimeConfirm, StopEditorCard } from './editing/EditCards'
 import { fixedGuardFor } from './editing/stopEdit'
+import { plannedArrivalLabel } from './pickPreview'
 import type { MapEdit } from './useMapEdit'
 
 /** The add preview, the unknown-position card, and the Undo countdown. */
@@ -45,6 +47,7 @@ export function MapEditAddPanel({ edit, onChooseDay }: { edit: MapEdit; onChoose
 
 /** The editor for the selected planned stop, with the fixed-time confirm. */
 export function MapEditStopPanel({ edit, trip, stopId, editable }: { edit: MapEdit; trip: Trip; stopId: string | null; editable: boolean }) {
+  const fmt = useTimeFormat()
   if (!editable || stopId == null) return null
   const day = trip.days.find(d => d.stops.some(s => s.id === stopId))
   const stop = day?.stops.find(s => s.id === stopId)
@@ -55,7 +58,7 @@ export function MapEditStopPanel({ edit, trip, stopId, editable }: { edit: MapEd
     <div className="map-edit-wrap">
       <StopEditorCard
         title={stop.title}
-        clockLabel={null}
+        clockLabel={plannedArrivalLabel(trip, day.index, stopId, fmt)}
         visitMinutes={visit}
         days={trip.days.filter(d => d.index !== day.index).map(d => ({ index: d.index, label: `Day ${d.index + 1}` }))}
         fixed={fixed}

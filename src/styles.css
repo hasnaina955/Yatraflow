@@ -1776,3 +1776,5 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 }
 .pi-page .pi-ride--locked .pi-ride-band { background: var(--pw-marigold-100); }
 .pi-page .pi-ride--locked .pi-ride-band .yf-art-picture { opacity: .55; filter: saturate(.55) sepia(.25); }
+/* Explore h1: the coloured phrase is the second line, as in the mockup. Balance alone moved "it," down. */
+.ex-page .ex-hero h1 > em { display: block; }

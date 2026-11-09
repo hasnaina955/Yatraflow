@@ -81,28 +81,88 @@ function overlaps(a: MarkBox, b: MarkBox, gap: number): boolean {
 
 const STEPS: [number, number][] = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]]
 
+export interface MarkBounds { left: number; top: number; right: number; bottom: number }
+
+function within(box: MarkBox, bounds: MarkBounds | undefined): boolean {
+  if (!bounds) return true
+  return box.x - box.w / 2 >= bounds.left && box.x + box.w / 2 <= bounds.right && box.y - box.h / 2 >= bounds.top && box.y + box.h / 2 <= bounds.bottom
+}
+
 /**
- * Place boxes in the order given. Boxes are centred on x and y, in pixels. A box that
- * collides moves in steps of its own size along eight directions, up to `maxSteps`.
- * With no free spot the box is hidden when `droppable` is set, and stays put otherwise.
+ * Place boxes in the order given. An earlier box never moves for a later one.
+ * Boxes are centred on x and y, in pixels. A box that collides tries the smallest slide that clears
+ * one blocker, then steps of its own size along eight directions, up to `maxSteps`. The nearest free
+ * spot inside `bounds` wins. With no free spot the box is hidden when `droppable` is set, and stays put otherwise.
  */
-export function resolveMarkCollisions(items: (MarkBox & { droppable?: boolean })[], opts: { gap?: number; maxSteps?: number } = {}): Map<string, MarkSpot> {
+export function resolveMarkCollisions(items: (MarkBox & { droppable?: boolean; maxTravel?: number; alternates?: [number, number][] })[], opts: { gap?: number; maxSteps?: number; bounds?: MarkBounds } = {}): Map<string, MarkSpot> {
   const gap = opts.gap ?? 2
   const maxSteps = opts.maxSteps ?? 3
   const placed: MarkBox[] = []
   const out = new Map<string, MarkSpot>()
   for (const item of items) {
-    let spot: MarkBox | null = placed.some(p => overlaps(item, p, gap)) ? null : item
-    for (let ring = 1; !spot && ring <= maxSteps; ring++) {
-      for (const [sx, sy] of STEPS) {
-        const candidate = { ...item, x: item.x + sx * ring * (item.w + gap), y: item.y + sy * ring * (item.h + gap) }
-        if (!placed.some(p => overlaps(candidate, p, gap))) { spot = candidate; break }
+    const blockers = placed.filter(p => overlaps(item, p, gap))
+    // A mark that starts outside the bounds must move in, even when nothing blocks it.
+    let spot: MarkBox | null = blockers.length || !within(item, opts.bounds) ? null : item
+    if (!spot) {
+      // Own alternates come first, in the order given. They keep a pill beside its own stop.
+      const own: MarkBox[] = (item.alternates ?? []).map(([dx, dy]) => ({ ...item, x: item.x + dx, y: item.y + dy }))
+      const candidates: MarkBox[] = []
+      // The smallest slide that clears one blocker keeps the mark near its real place.
+      for (const b of blockers) {
+        const reachX = (item.w + b.w) / 2 + gap
+        const reachY = (item.h + b.h) / 2 + gap
+        candidates.push({ ...item, x: b.x + reachX }, { ...item, x: b.x - reachX }, { ...item, y: b.y + reachY }, { ...item, y: b.y - reachY })
       }
+      for (let ring = 1; ring <= maxSteps; ring++) {
+        for (const [sx, sy] of STEPS) candidates.push({ ...item, x: item.x + sx * ring * (item.w + gap), y: item.y + sy * ring * (item.h + gap) })
+      }
+      const travel = (c: MarkBox) => Math.hypot(c.x - item.x, c.y - item.y)
+      // A slide may travel as far as the ring steps allow, and no further.
+      const reach = item.maxTravel ?? maxSteps * Math.hypot(item.w + gap, item.h + gap)
+      candidates.sort((a, b) => travel(a) - travel(b))
+      spot = [...own, ...candidates].find(c => travel(c) <= reach && within(c, opts.bounds) && !placed.some(p => overlaps(c, p, gap))) ?? null
     }
     if (spot) { placed.push(spot); out.set(item.id, { dx: spot.x - item.x, dy: spot.y - item.y, hidden: false }) }
     else if (item.droppable) out.set(item.id, { dx: 0, dy: 0, hidden: true })
     else { placed.push(item); out.set(item.id, { dx: 0, dy: 0, hidden: false }) }
   }
+  return out
+}
+
+// ---- One layout for every mark on the map ----
+
+export type MarkLayer = 'stop' | 'warn' | 'slot' | 'pick' | 'clock'
+// `w` and `h` are the hit box. A pill never takes a tap, so it only has to clear the drawn size, `drawW` by `drawH`.
+export interface LayoutMark extends MarkBox { layer: MarkLayer; follows?: string; drawW?: number; drawH?: number }
+
+// A stop badge always wins. A warning, an empty-part pin and a pick follow. A clock pill gives way first.
+const LAYER_RANK: Record<MarkLayer, number> = { stop: 0, warn: 1, slot: 2, pick: 3, clock: 4 }
+// A pill may slide this far from its stop. Past that it is hidden, so it never reads as another stop's time.
+const CLOCK_MAX_TRAVEL = 80
+
+/**
+ * Lay out stops, problems, empty parts, picks and clock pills in one pass. Higher layers never move
+ * for lower ones. A pill is placed last, from where its stop ended up, and is hidden when it has no room.
+ * A pill spot is relative to its stop's final place. Marks keep their real coordinates.
+ */
+export function layoutMarks(marks: LayoutMark[], opts: { gap?: number; maxSteps?: number; bounds?: MarkBounds } = {}): Map<string, MarkSpot> {
+  const solid = marks.filter(m => m.layer !== 'clock').map((m, index) => ({ m, index })).sort((a, b) => LAYER_RANK[a.m.layer] - LAYER_RANK[b.m.layer] || a.index - b.index).map(entry => entry.m)
+  const first = resolveMarkCollisions(solid, opts)
+  const out = new Map<string, MarkSpot>(first)
+  const fixed = solid.map(m => { const spot = first.get(m.id)!; return { id: m.id, x: m.x + spot.dx, y: m.y + spot.dy, w: m.drawW ?? m.w, h: m.drawH ?? m.h } })
+  const clocks = marks.filter(m => m.layer === 'clock').map(m => {
+    const anchor = m.follows ? first.get(m.follows) : undefined
+    const x = m.x + (anchor?.dx ?? 0)
+    const y = m.y + (anchor?.dy ?? 0)
+    // Beside the stop first, then above it. The pill stays next to its own badge.
+    const host = m.follows ? fixed.find(f => f.id === m.follows) : undefined
+    const alternates: [number, number][] = host
+      ? [[-((host.w + m.w) / 2 + 2) + (host.x - x), host.y - y], [((host.w + m.w) / 2 + 2) + (host.x - x), host.y - y], [host.x - x, host.y - y - ((host.h + m.h) / 2 + 2)]]
+      : []
+    return { id: m.id, x, y, w: m.w, h: m.h, droppable: true, maxTravel: CLOCK_MAX_TRAVEL, alternates }
+  })
+  const second = resolveMarkCollisions([...fixed, ...clocks], opts)
+  for (const clock of clocks) out.set(clock.id, second.get(clock.id)!)
   return out
 }
 

@@ -811,13 +811,25 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       const sim = simulateDay(rideDayRow, trip, originOf(trip, rideDayRow.index), rideDayRow.index)
       const stops = [...rideDayRow.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
       const journey = buildJourney(trip, rideDayRow)
-      // A neighbour day outside the trip is the public origin or end, so it is readable.
+      // The engine names a neighbour place and skips days with no stops, so this
+      // walks the same way. Outside the trip is the public origin or end.
       const lockedDay = (i: number) => cards.some(c => c.summary.index === i && c.state === 'locked')
+      const hasStops = (i: number) => trip.days.some(d => d.index === i && d.stops.some(s => s.status !== 'rejected'))
+      const lockedReach = (from: number, step: 1 | -1) => {
+        for (let i = from; i >= 0 && i < trip.days.length; i += step) {
+          if (lockedDay(i)) return true
+          if (hasStops(i)) return false
+        }
+        return false
+      }
+      const lockedNames = trip.days.filter(d => lockedDay(d.index))
+        .flatMap(d => d.stops.flatMap(s => [s.title, s.locationName ?? '']))
       const labels = rideNodeLabels(journey, {
         dayNumber: rideDayRow.index + 1,
         ownStopIds: new Set(stops.filter(s => !s.auto).map(s => s.id)),
-        prevLocked: lockedDay(rideDayRow.index - 1),
-        nextLocked: lockedDay(rideDayRow.index + 1),
+        prevLocked: lockedReach(rideDayRow.index - 1, -1),
+        nextLocked: lockedReach(rideDayRow.index + 1, 1),
+        lockedNames,
       })
       body = <RideTimeline journey={journey} labels={labels} creator={creator} timeFormat={timeFormat}>
         <DayStops stops={stops} sim={sim} assumptions={getAssumptions(trip)} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />

@@ -26,22 +26,33 @@ export function rideLeg(stop: { legDistanceKm?: number; legTravelMinutes?: numbe
   return { km: leg.distanceKm, minutes: leg.durationMinutes, approx: true }
 }
 
+/** A place name reduced to letters and digits, without a "(start)" or "(end)" suffix. */
+function placeKey(name: string): string {
+  return name.toLowerCase().replace(/\((start|end)\)/g, '').replace(/[^\p{L}\p{N}]+/gu, '')
+}
+
 /** The start and end lines of a ride day. A line that names a place from outside
  *  this day's own stops comes from the day before or after. When that day is
  *  locked for this viewer, the line names the day instead, so no paid place leaks. */
 export function rideNodeLabels(journey: Journey, p: {
   dayNumber: number
   ownStopIds: ReadonlySet<string>
+  /** The nearest day before or after with stops is locked. Empty days are skipped, as the engine skips them. */
   prevLocked: boolean
   nextLocked: boolean
+  /** Stop names on locked days. A line that names one is masked, whatever path the engine took. */
+  lockedNames?: readonly string[]
 }): { start: string; end: string } {
   const first = journey.points[0]
   const last = journey.points[journey.points.length - 1]
   const borrowed = (point: Journey['points'][number] | undefined) =>
     !point || point.synthesized || point.stop.auto === true || !p.ownStopIds.has(point.stop.id)
-  const start = p.prevLocked && borrowed(first) ? `Start of day ${p.dayNumber}` : `Leave ${journey.startTitle}`
+  const locked = (p.lockedNames ?? []).map(placeKey).filter(k => k.length >= 3)
+  const namesLocked = (title: string) => { const k = placeKey(title); return k.length > 0 && locked.some(n => k.includes(n) || n.includes(k)) }
+  const start = (p.prevLocked && borrowed(first)) || (borrowed(first) && namesLocked(journey.startTitle))
+    ? `Start of day ${p.dayNumber}` : `Leave ${journey.startTitle}`
   if (!last) return { start, end: `End of day ${p.dayNumber}` }
-  if (p.nextLocked && borrowed(last)) return { start, end: `End of day ${p.dayNumber}` }
+  if (borrowed(last) && (p.nextLocked || namesLocked(journey.endTitle))) return { start, end: `End of day ${p.dayNumber}` }
   const word = last.stop.category === 'hotel' || last.stop.slotKey === 'stay' ? 'Night in'
     : last.stop.auto === true || last.synthesized ? 'Head on to'
     : 'Finish at'

@@ -67,6 +67,14 @@ describe('ride presentation', () => {
       expect(html).not.toContain('Secret Camp')
     })
 
+    it('masks a place from a locked day further away, across an empty free day', () => {
+      // Day 2 is locked, day 3 is free with no stops, day 4 is on screen: the
+      // adjacent day is readable, but the engine named day 2's last stop.
+      const labels = rideNodeLabels(j, { dayNumber: 4, ownStopIds: own, prevLocked: false, nextLocked: false,
+        lockedNames: ['Chandratal Lake', 'Secret Camp (end)'] })
+      expect(labels).toEqual({ start: 'Start of day 4', end: 'End of day 4' })
+    })
+
     it('keeps the place when the neighbour is readable', () => {
       const labels = rideNodeLabels(j, { dayNumber: 9, ownStopIds: own, prevLocked: false, nextLocked: false })
       expect(labels).toEqual({ start: 'Leave Chandratal Lake', end: 'Head on to Secret Camp' })

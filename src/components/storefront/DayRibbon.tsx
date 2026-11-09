@@ -11,6 +11,8 @@ export interface RibbonDay {
   title: string
   state: 'free' | 'yours' | 'locked'
   placeCount: number
+  /** The town on line two. Absent when the title carries no usable place. */
+  place?: string
   /** Ride along only: "read" after this visitor opened the day, "now" for the day on screen. */
   status?: 'read' | 'now'
 }
@@ -24,6 +26,19 @@ const DOT_LABEL: Record<RibbonDay['state'], string> = {
   free: 'Free to read',
   yours: 'Yours',
   locked: 'In the paid plan',
+}
+
+/** The place word for one tile. A locked day never names a place or a title.
+ *  A real town field wins; otherwise the head of "Town — what happens" is used. */
+export function ribbonPlaceOf(
+  day: { title: string; state: 'free' | 'yours' | 'locked' },
+  field?: string,
+): string | undefined {
+  if (day.state === 'locked') return undefined
+  const given = field?.trim()
+  if (given) return given
+  const lead = /^([^—]{2,24}) — /.exec(day.title)
+  return lead ? lead[1].trim() : undefined
 }
 
 /** The route line: one equal band per day, in the day's own colour. */
@@ -109,7 +124,7 @@ export function DayRibbon(p: {
         ) : null}
         {p.head.tag}
       </div>
-      <div className="pi-ribbon-track" ref={track}>
+      <div className="pi-ribbon-track pi-ribbon-track--short" ref={track}>
         <span className="pi-ribbon-line" aria-hidden="true" style={{ '--pi-line': routeLine(p.days) } as CSSProperties} />
         <span className="pi-ribbon-end" aria-hidden="true" />
         <ol className="pi-ribbon-days">
@@ -128,9 +143,11 @@ export function DayRibbon(p: {
                     ? <span className="pi-rib-lock" role="img" aria-label={DOT_LABEL.locked}><Lock size={12} aria-hidden /></span>
                     : <span className="pi-rib-dot" role="img" aria-label={DOT_LABEL[d.state]} />}
                 </span>
-                <span className="pi-rib-title">{d.state === 'locked' ? `Day ${d.index + 1}` : d.title}</span>
+                <span className="pi-rib-title">
+                  {d.state === 'locked' ? p.lockedWord : d.place ?? d.title}
+                </span>
                 <span className="pi-rib-sub">
-                  {d.state === 'locked' ? p.lockedWord
+                  {d.state === 'locked' ? `${d.placeCount} ${d.placeCount === 1 ? 'place' : 'places'}`
                     : d.status ? STATUS_WORD[d.status]
                     : `${d.placeCount} ${d.placeCount === 1 ? 'place' : 'places'}`}
                 </span>

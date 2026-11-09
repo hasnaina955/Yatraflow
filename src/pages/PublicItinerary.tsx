@@ -435,11 +435,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // ---- "What is inside": the storefront view of the days. Presentation only.
   // The page's own `unlocked` flag and the publication's freeDayIndexes pick the
   // state of each card; nothing here asks a new entitlement question.
-  // A locked day keeps its own title and its road minutes, and it carries no
-  // places field: a locked card is built from `summariseDay`, which reads stop
-  // categories and visit minutes only. The locked run line is built from
-  // category counts alone. Never pass a stop title, a location name or a
-  // coordinate into a locked card or a locked line.
+  // Locked days use neutral titles and road minutes. They have no places field.
+  // summariseDay reads only stop categories and visit minutes for these cards.
+  // The locked run line uses category counts alone.
+  // Never pass a stop title, location name or coordinate into a locked card or line.
   const storefront = useMemo(() => {
     if (!pub || !trip) return null
     const free = new Set(pub.freeDayIndexes)
@@ -739,8 +738,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     return { index: i, title: c.summary.title, state: c.state, placeCount: c.summary.placeCount, status }
   })
   // Most plans have no photos. Every image slot then shows a generated scene
-  // for its own places, so no slot is an empty box. A locked day uses its
-  // title only, which the card shows anyway, so the scene discloses nothing.
+  // for its own places, so no slot is an empty box. Locked days use public
+  // plan places only. Their titles never select a scene.
   const planPlaces = [trip.startLocation, ...trip.destinations]
   const artRegion = regionFor(trip)
   const artFor = (seed: string, slotPlaces: string[], sizes: string, eager = false) => (
@@ -753,7 +752,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     />
   )
   const dayArt = (c: (typeof cards)[number]) =>
-    artFor(`day:${c.summary.index}`, titlePlaces(c.summary.title), '(max-width: 720px) 100vw, 240px')
+    artFor(`day:${c.summary.index}`, c.state === 'locked' ? [] : titlePlaces(c.summary.title), '(max-width: 720px) 100vw, 240px')
   // The ten-days grid. A readable day gets its photo (or its scene), its places
   // and an open button; a locked day gets its scene under a lock, and counts.
   const dayCards: DayCardProps[] = cards.map((c, i) => {
@@ -830,7 +829,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         return false
       }
       const lockedNames = trip.days.filter(d => lockedDay(d.index))
-        .flatMap(d => d.stops.flatMap(s => [s.title, s.locationName ?? '']))
+        .flatMap(d => [...titlePlaces(d.title ?? ''), ...d.stops.flatMap(s => [s.title, s.locationName ?? ''])])
       const labels = rideNodeLabels(journey, {
         dayNumber: rideDayRow.index + 1,
         ownStopIds: new Set(stops.filter(s => !s.auto).map(s => s.id)),

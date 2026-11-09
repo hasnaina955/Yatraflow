@@ -16,7 +16,7 @@ export function RideLockedPreview(p: RideArtProps & {
   const { summary } = p.card
   const run = p.index === p.lastIndex ? `day ${p.index + 1}` : `days ${p.index + 1} to ${p.lastIndex + 1}`
   const kinds = summary.kinds.flatMap(kind => Array.from({ length: kind.count }, () => kind.kind))
-  return <RideDayPanel {...p} state="locked" title={summary.title}
+  return <RideDayPanel {...p} state="locked" title={`Day ${p.index + 1}`}
     badge={<div className="pi-badge"><small>Day</small><b>{p.index + 1}</b></div>}
     meta={[`${summary.placeCount} ${summary.placeCount === 1 ? 'place' : 'places'}`, ...(p.facts ?? [])].filter(Boolean).join(' · ')} budget={null}
     footer={<div className="pi-ride-paid-foot"><Lock size={16} aria-hidden /><p>{describeKinds(summary.kinds)}{summary.kinds.length > 0 ? ', with clocks, opening hours and notes. ' : ''}{run[0].toUpperCase() + run.slice(1)} {p.index === p.lastIndex ? 'opens with the full plan.' : 'open together.'}</p>{p.action}</div>}>

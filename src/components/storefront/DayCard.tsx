@@ -68,7 +68,7 @@ export function DayCard(p: DayCardProps): JSX.Element {
         <span className="sf-day-num"><small>Day</small><b>{s.index + 1}</b></span>
         <span className="sf-day-tag">{p.state === 'locked' ? <Lock size={11} aria-hidden /> : null}{tag}</span>
       </div>
-      <Title className="sf-day-title">{s.title}</Title>
+      <Title className="sf-day-title">{p.state === 'locked' ? `Day ${s.index + 1}` : s.title}</Title>
       {(s.pace !== null || meta !== '') && (
         <div className="sf-day-meta">
           {s.pace !== null ? <span className={'sf-pace sf-pace--' + s.pace.key}>{s.pace.label}</span> : null}

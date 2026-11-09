@@ -3,10 +3,8 @@
 // a hostile trip and read the HTML it would send.
 //
 // The trip arrives from the anonymous `get_public_trip` RPC. The database
-// already stubs locked days, and this module is the second lock: it decides
-// which days are free from the PUBLICATION's own fields and prints a locked
-// day as its title and nothing else. Anything it does not understand is
-// locked. It never prints notes, times, costs, links or place ids.
+// already stubs locked days. This module checks the publication's free days and prints neutral headings for locked days.
+// Anything it does not understand is locked. It never prints notes, times, costs, links or place ids.
 
 import { escapeHtml } from './_escape.js'
 
@@ -65,7 +63,7 @@ export function planBody(publication, trip) {
     const open = index !== null && !stubbed && (free === 'all' || free.has(index))
     return {
       number: position + 1,
-      title: text(day?.title, 160),
+      title: open ? text(day?.title, 160) : '',
       open,
       stops: open
         ? stops.map(stop => ({

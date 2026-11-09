@@ -161,11 +161,12 @@ describe('a locked day never invents a pace', () => {
     expect(summary.hasFlight).toBe(false)
   })
 
-  it('keeps the day title and the road minutes visible while locked', () => {
+  it('hides the day title and keeps the road minutes visible while locked', () => {
     const day: ItineraryDay = { id: 'day', index: 2, title: 'Munnar hills', stops: [] }
     const summary = summariseDay(day, 200, flightSignalFor(true, true))
     const html = renderToStaticMarkup(createElement(DayCard, { state: 'locked', summary }))
-    expect(html).toContain('Munnar hills')
+    expect(summary.title).toBe('Day 3')
+    expect(html).not.toContain('Munnar hills')
     expect(html).toContain('3 h 20 m on the road')
   })
 
@@ -606,7 +607,7 @@ describe('page storefront dataflow (the actual page callback)', () => {
       // No places key, no names, no coordinates, no flight word.
       expect(Object.hasOwn(card, 'places')).toBe(false)
       const text = textOf(card)
-      expect(text).toBe('Day 1 Locked Travel day 32 m on the road')
+      expect(text).toBe('Day 1 Locked Day 1 32 m on the road')
       expect(text).not.toContain('Flight day')
       expect(text).not.toContain('Nothing planned')
     }

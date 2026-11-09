@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Journey } from '../src/lib/engine'
 import { RideTimeline, rideLeg, rideNodeLabels, savedRideLeg } from '../src/components/storefront/ride/RideTimeline'
-import { RideDayPanel } from '../src/components/storefront/RidePanels'
+import { RideDayPanel, RideOtherRow } from '../src/components/storefront/RidePanels'
+import { DayCard } from '../src/components/storefront/DayCard'
+import { DayRibbon } from '../src/components/storefront/DayRibbon'
+import { summariseDay } from '../src/lib/publicStorefront'
 import { RideLockedPreview } from '../src/components/storefront/ride/RideLockedPreview'
 import { rideHeightPoints } from '../src/components/storefront/ride/RideElevation'
 import { seedData } from '../src/data/seed'
@@ -27,6 +30,42 @@ const journey = {
 } satisfies Journey
 
 describe('ride presentation', () => {
+  it('hides locked creator titles across page parts, including attributes and scene choices', () => {
+    const title = 'Dhankar cliffs & into Pin Valley'
+    const summary = summariseDay({ id: 'paid', index: 1, title, stops: [] }, 90, 'withheld')
+    expect(summary.title).toBe('Day 2')
+    const rawSummary = { ...summary, title }
+    const art = { publicationId: 'pub', index: 1, planPlaces: ['Spiti'], slotPlaces: [title] }
+    const parts = [
+      createElement(DayCard, { state: 'locked', summary: rawSummary }),
+      createElement(DayRibbon, { label: 'Days', head: { kicker: 'Plan', figure: '2', sub: 'days' },
+        days: [{ ...rawSummary, state: 'locked' }], current: null, lockedWord: 'Locked', onPick: () => {} }),
+      createElement(RideLockedPreview, { ...art, card: { state: 'locked', summary: rawSummary }, lastIndex: 1, action: null }),
+      createElement(RideDayPanel, { ...art, state: 'locked', title, badge: 'Day 2', meta: '90 minutes', budget: null, children: null }),
+      createElement(RideOtherRow, { ...art, state: 'locked', title, line: '2 places', km: '30 km', drive: '90 minutes', onOpen: () => {} }),
+    ]
+    for (const part of parts) {
+      const html = renderToStaticMarkup(part)
+      expect(html).toContain('Day 2')
+      expect(html).not.toContain('Dhankar')
+      expect(html).not.toContain('Pin Valley')
+    }
+    const panel = (slotPlaces: string[]) => renderToStaticMarkup(createElement(RideDayPanel, {
+      ...art, slotPlaces, state: 'locked', title, badge: 'Day 2', meta: '', budget: null, children: null,
+    }))
+    expect(panel(['Munnar'])).toBe(panel(['Jaipur']))
+    for (const state of ['free', 'yours'] as const) {
+      const readable = summariseDay({ id: 'open', index: 0, title: 'Open creator day', stops: [] }, 0, false)
+      expect(readable.title).toBe('Open creator day')
+      const html = renderToStaticMarkup(createElement(DayCard, { state, summary: readable, places: [] }))
+        + renderToStaticMarkup(createElement(DayRibbon, { label: 'Days', head: { kicker: 'Plan', figure: '1', sub: 'day' },
+          days: [{ ...readable, state }], current: 0, lockedWord: 'Locked', onPick: () => {} }))
+        + renderToStaticMarkup(createElement(RideDayPanel, { ...art, state, title: readable.title,
+          badge: 'Day 1', meta: '', budget: null, children: null }))
+      expect(html.match(/Open creator day/g)?.length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
   it('withholds locked-day terrain points and breaks the line across them', () => {
     const points = rideHeightPoints({ ...seedData.trips[0], days: [
       { id: 'a', index: 0, stops: [{ ...stop, id: 'a' }] },

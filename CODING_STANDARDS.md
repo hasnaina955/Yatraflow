@@ -1,5 +1,8 @@
 # CODING_STANDARDS.md — YatraFlow
 
+Locked day titles can name paid places. Public summaries and renderers must show a day number.
+Never select artwork from a locked title. Free and purchased days keep their creator titles.
+
 Conventions and hard-won pitfalls. Read during **review**, and reach for a
 single rule while implementing when a change touches that area.
 

@@ -13,7 +13,7 @@ import type { RailChip } from '../../../lib/railReasons'
 import { alternativesFor } from './railRows'
 import type { AltPool } from './sightRows'
 import { ON_ROUTE_SPUR_KM } from '../../../lib/providers/hits'
-import { ON_ROUTE_DETOUR_MIN } from './railLabels'
+import { detourDisplay } from './driveSuggestionView'
 
 /** The km copy for an alternative. A null km is unknown evidence, so it reads
  *  "km unknown", never "on route". "On route" needs a finite km at or under
@@ -22,6 +22,13 @@ import { ON_ROUTE_DETOUR_MIN } from './railLabels'
 export function altKmLabel(dKm: number | null): string {
   if (dKm == null || !Number.isFinite(dKm)) return 'km unknown'
   return dKm <= ON_ROUTE_SPUR_KM ? 'on route' : `${dKm.toFixed(1)} km off`
+}
+
+/** The row's detour phrase, from the one shared display rule. */
+function detourMeta(detourMin: number | null | undefined): string {
+  const display = detourDisplay(detourMin)
+  if (display.kind === 'unknown') return 'position unknown'
+  return display.kind === 'on-route' ? 'on route' : `+${display.minutes} min detour`
 }
 
 /** A corridor halt the engine found no place for. The action raises the
@@ -162,7 +169,7 @@ export function LedgerRow({
     </div>
   )
   const meta = [
-    detourMin == null ? 'position unknown' : detourMin > ON_ROUTE_DETOUR_MIN ? `+${Math.round(detourMin)} min detour` : 'on route',
+    detourMeta(detourMin),
     hitDay != null ? `Day ${hitDay + 1}` : null,
   ].filter(Boolean).join(' \u00b7 ')
   const deck = presentation === 'deck'

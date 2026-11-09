@@ -10,6 +10,7 @@
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import { cap } from '../shared'
 import type { JourneyDay } from '../journey/journeyDays'
+import { detourDisplay } from '../map/driveSuggestionView'
 
 /** The covered suggestion rows: no stop id means it is not already a Timeline stop. */
 export function travelJourneyRows(day: JourneyDay): readonly JourneyRow[] {
@@ -42,11 +43,12 @@ export function journeyRowMeta(
     : row.arriveLabel
       ? `Arrive ${format.clock(row.arriveLabel)}${saved}`
       : 'Arrival unknown'
-  const detour = row.detourMin == null
+  const shown = detourDisplay(row.detourMin)
+  const detour = shown.kind === 'unknown'
     ? 'Detour unknown'
-    : row.detourMin === 0
+    : shown.kind === 'on-route'
       ? 'On the route'
-      : `Detour ${row.detourMin > 0 ? '+' : ''}${Math.round(row.detourMin)} min`
+      : `Detour +${shown.minutes} min`
   const budget = row.budgetSharePct == null ? null : `Budget ${Math.round(row.budgetSharePct)}%`
   const offRoute = row.detourKm == null ? null : `~${Math.round(row.detourKm)} km off route`
   const window = row.inWindow === false && row.windowMin

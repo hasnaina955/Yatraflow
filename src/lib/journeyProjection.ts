@@ -134,6 +134,12 @@ export interface JourneyProjectionInput {
   /** Opaque identity of the query/day context that produced these rows. */
   contextKey: string
   freshness?: Readonly<Record<string, JourneyFreshness>>
+  /**
+   * Evidence state of the whole corridor scan behind the drive rows. A row with
+   * no own `freshness` entry copies this. Absent means unknown, never live.
+   * Rows built from a committed stop do not copy it: a stop is not scan evidence.
+   */
+  corridorFreshness?: JourneyFreshness
   allowed?: Readonly<Record<string, Partial<JourneyActions>>>
   /**
    * Already-derived arrival minutes per stop id, from the caller's
@@ -203,19 +209,23 @@ function lookupKeys(
   return keys
 }
 
-/** Freshness by the explicit lookup precedence; an absent key is unknown. */
+/**
+ * Freshness by the explicit lookup precedence. An absent key takes the
+ * fallback, which is unknown unless the caller passes the scan's own state.
+ */
 function freshnessFor(
   map: Readonly<Record<string, JourneyFreshness>> | undefined,
   rowKey: string,
   placeKeys: readonly PlaceKey[],
   hit: PlaceHit,
   stopId: string | null,
+  fallback: JourneyFreshness = 'unknown',
 ): JourneyFreshness {
   for (const key of lookupKeys(rowKey, placeKeys, hit, stopId)) {
     const value = ownValue(map, key)
     if (value !== undefined) return value
   }
-  return 'unknown'
+  return fallback
 }
 
 /** Allowed overrides by the same precedence. They can only remove. */
@@ -390,7 +400,7 @@ function rowFromCandidate(
     inWindow: candidate.inWindow,
     reason: candidate.reason,
     source: hit.source ?? null,
-    freshness: freshnessFor(input.freshness, key, placeKeys, hit, null),
+    freshness: freshnessFor(input.freshness, key, placeKeys, hit, null, input.corridorFreshness),
     vote: slot.vote ?? null,
     actions: actionsFor(hit, input.editable, input.presence, slot, false, allowedFor(input.allowed, key, placeKeys, hit, null)),
   }
@@ -499,7 +509,7 @@ function rowFromDrive(
     inWindow: drive.inWindow,
     reason: drive.reason,
     source: hit.source ?? null,
-    freshness: freshnessFor(input.freshness, key, placeKeys, hit, null),
+    freshness: freshnessFor(input.freshness, key, placeKeys, hit, null, input.corridorFreshness),
     vote: null,
     actions: actionsFor(hit, input.editable, input.presence, null, false, allowedFor(input.allowed, key, placeKeys, hit, null)),
   }

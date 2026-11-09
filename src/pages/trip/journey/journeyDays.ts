@@ -35,7 +35,7 @@ import { buildDayPlanForDay, type ManualPicksForDay } from '../map/manualPicks'
 import { intendedVisitMinutes } from '../../../lib/hoursContext'
 import { planSlotPlacements, type SlotPlacementItem } from '../../../lib/slotPlacement'
 import { STOP_CATEGORIES } from '../../../data/types'
-import type { NetAddedInput } from '../../../lib/journeyProjection'
+import type { JourneyFreshness, NetAddedInput } from '../../../lib/journeyProjection'
 import { createNetAddedProducer, rememberBounded, type NetAddedProducer } from '../../../lib/netAddedMin'
 import {
   deriveDaySlotFacts,
@@ -62,6 +62,18 @@ export function snapshotStatusOf(snapshot: CorridorSnapshot | null, tripId: stri
   if (snapshot.status === 'failed') return { kind: 'failed' }
   if (snapshot.status === 'quota') return { kind: 'quota' }
   return { kind: 'ready', source: snapshot.source }
+}
+
+/**
+ * The evidence state of the rows a snapshot published. Only a finished fresh
+ * scan is live. Older rows are retained. A running scan, or a failure with no
+ * kept rows, is unknown. The snapshot holds no age, so none is invented.
+ */
+export function corridorFreshnessOf(snapshot: CorridorSnapshot | null): JourneyFreshness {
+  if (!snapshot) return 'unknown'
+  if (snapshot.source === 'retained') return 'retained'
+  if (snapshot.status !== 'ready') return 'unknown'
+  return snapshot.source === 'scan' ? 'live' : 'retained'
 }
 
 export interface JourneyDay {
@@ -428,6 +440,8 @@ function journeyDayRevision(input: {
   actions: string
   netAddedRoute: string | null
   netAdded: string
+  /** The scan's evidence state: a live to retained change must rebuild the day. */
+  freshness: JourneyFreshness
 }): string {
   return JSON.stringify(input)
 }
@@ -481,6 +495,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     dismissed: (hit: PlaceHit) => presence.dismissed.has(String(hit.id)),
     heldBack: snapshot.heldBackIds,
   }
+  const corridorFreshness = corridorFreshnessOf(snapshot)
   const allDriveRows = driveRowsFromSegments([...snapshot.pois], driveFacts)
   const grouped = sameDayRowsByDay(trip, allDriveRows)
 
@@ -517,6 +532,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       editable: input.editable,
       presence,
       contextKey,
+      corridorFreshness,
       ...(sim ? { daySchedule: sim } : {}),
       ...(netAddedRoad && netAddedMemo && dayId
         ? {
@@ -544,6 +560,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       actions: actionsRevision(projection),
       netAddedRoute: netAddedRoad?.routeKey ?? null,
       netAdded: netAddedRevision(projection),
+      freshness: corridorFreshness,
     })
     const previous = input.prev?.byDay.get(day.index)
     byDay.set(day.index, previous && previous.revision === revision

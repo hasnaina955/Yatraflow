@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { Fragment, useId, useState, type ReactNode } from 'react'
 import { ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Route, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
@@ -31,11 +31,21 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
 
 export { MapPhoneSheetHandle as MapSheetHandle } from './MapPhoneSheetHandle'
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRow, fixStopId, budgetBar, clock }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
   onDayChange: (index: number) => void; onSelect: (point: JourneyPoint) => void; onOpenDay?: (index: number) => void; onFold: () => void
+  /** Lens extras sit in the rail's normal flow, between the stops and the footer. */
+  railExtras?: ReactNode
+  /** The active lens window. An unknown window keeps its row out. */
+  windowRow?: { label: string; startMin: number; endMin: number } | null
+  /** The stop the Fix lens names. An unknown id keeps its tint out. */
+  fixStopId?: string | null
+  /** The detour budget bar. Null keeps the original two lines. */
+  budgetBar?: { text: string; step: number } | null
+  /** Formats one minute of the day for a window row. */
+  clock?: (min: number) => string
 }) {
   const timeFormat = useTimeFormat()
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -51,6 +61,25 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     const leg = previous ? corrections?.[legKey(previous, point)] : undefined
     return !leg || leg.estimated === true
   })
+  // A window that is not a stop row enters the list once, in time order. No
+  // count is printed here: the picks are not known to this rail.
+  const minutesOf = (text: string) => {
+    const [hours, minutes] = text.split(':').map(Number)
+    return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null
+  }
+  const windowInsertAt = windowRow == null
+    ? -1
+    : (() => {
+      const index = points.findIndex(point => {
+        const arrive = minutesOf(point.arrive)
+        return arrive != null && arrive > windowRow.startMin
+      })
+      return index < 0 ? points.length : index
+    })()
+  const windowRowMarkup = windowRow == null || clock == null ? null : <li className="mv2-window-row is-active-window">
+    <span className="mv2-window-ring" aria-hidden="true" />
+    <span className="mv2-stop-copy"><strong>{windowRow.label}</strong><small>{clock(windowRow.startMin)}–{clock(windowRow.endMin)}</small></span>
+  </li>
   return <aside className="mv2-itinerary" aria-label="Day itinerary">
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
@@ -62,11 +91,16 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       <p>{journey ? `${Math.round(journey.distanceKm)} km · ${minutesToHM(journey.driveMinutes)} travel · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
       <button type="button" className="mv2-fold-day mv2-icon-btn" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
     </header>
-    <div className="mv2-budget"><Route size={17} aria-hidden /><div><strong>{budgetMin} min detour budget</strong><span>Extra return driving. Visits use free time.</span></div></div>
+    <div className="mv2-budget"><Route size={17} aria-hidden /><div>{budgetBar == null
+      ? <><strong>{budgetMin} min detour budget</strong><span>Extra return driving. Visits use free time.</span></>
+      : <><strong>{budgetBar.text}</strong><div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div></>
+    }</div></div>
     <ol className="mv2-stops">
-      {journey?.points.map((point, index) => <li key={point.stop.id}>
+      {points.map((point, index) => <Fragment key={point.stop.id}>
+        {index === windowInsertAt && windowRowMarkup}
+        <li>
         {index > 0 && point.legIn && <div className="mv2-travel-leg"><span />{Math.round(point.legIn.distanceKm)} km · {minutesToHM(point.legIn.durationMinutes)}</div>}
-        <button type="button" className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
+        <button type="button" className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${fixStopId === point.stop.id ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
           <time>{formatHM(point.arrive, timeFormat)}</time>
           <span className={`mv2-stop-mark${point.kind === 'halt' || point.stop.category === 'hotel' ? ' is-stay' : ''}`}>
             {point.kind === 'start' || point.kind === 'destination' ? <Car size={13} /> : point.stop.category === 'hotel' ? <Home size={15} /> : index}
@@ -74,8 +108,11 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
           <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small></span>
           {locks.has(point.stop.id) && <LockKeyhole size={13} aria-label="Fixed time" />}
         </button>
-      </li>)}
+      </li>
+      </Fragment>)}
+      {windowInsertAt === points.length && windowRowMarkup}
     </ol>
+    {railExtras}
     <footer className="mv2-day-footer">
       {onOpenDay && <button type="button" className="mv2-timeline-link" onClick={() => onOpenDay(activeDay)}>Open day in Timeline<ArrowRight size={15} aria-hidden /></button>}
       <span className="mv2-section-label">Days on the map</span>

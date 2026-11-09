@@ -45,7 +45,7 @@ import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
 import type { RingId } from '../../components/map/lenses/StayDeck'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, type ScopeBandCounts } from './map/MapScopeBand'
-import { LensRailExtras, fixStopTitle, fixTargetStopId } from './map/LensRailExtras'
+import { LensRailExtras, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
 import { fixMarkLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
@@ -1447,7 +1447,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const fixStopId = lens === 'fix'
     ? fixTargetStopId(lenses.fix.target, trip.fixedCommitments, activeDayIndex)
     : null
-  const problemTitle = fixStopTitle(trip.days, fixStopId)
   const problemStop = fixStopId == null
     ? null
     : trip.days.flatMap(day => day.stops).find(stop => stop.id === fixStopId) ?? null
@@ -1479,6 +1478,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       freeStops: lenses.drive.view.rows.filter(row => scopeBandOf(row, scopeMinutes, budgetHeldIds) === 'inside').length,
     }
     : null
+  // The bar reads only known facts. Unknown facts keep the rail's two old lines.
+  const budgetBarText = driveBudgetBarText(driveBudget)
+  const budgetBar = budgetBarText == null ? null : {
+    text: budgetBarText,
+    step: driveBudgetStep(driveBudget?.usedMin ?? null, driveBudget?.budgetMin ?? null) ?? 0,
+  }
   function addLensHit(hit: PlaceHit, dayIndex: number) {
     if (!editable || isAlreadyAdded(hit, identity)) return
     edit.startAdd(hit, dayIndex)
@@ -1771,17 +1776,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRow={windowRow} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
-        <LensRailExtras
-          lens={lens}
-          clock={lensClock}
-          windowRow={windowRow}
-          ringId={stayRing}
-          onRing={setStayRing}
-          fixStopTitle={problemTitle}
-          driveBudget={driveBudget}
-        />
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label="Along the drive" aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
           <button type="button" aria-label="Around the stay" aria-controls="rail-see" aria-pressed={lens === 'stay' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('stay'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><BedDouble size={16} aria-hidden /><span>Stay</span>{lenses.counts.stay != null && <b>{lenses.counts.stay}</b>}</button>
@@ -2230,6 +2226,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               allowSelfMeasurement={false}
               onShowReturnChange={setShowReturn}
               {...(stayRings ? { stayRings } : {})}
+              frameStayRing={lens === 'stay' && lenses.stay.base != null}
               {...(gapRings ? { gapRings } : {})}
               {...(onGapRing ? { onGapRing } : {})}
               {...(Object.keys(pickBands).length > 0 ? { pickBands } : {})}

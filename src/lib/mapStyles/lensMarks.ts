@@ -95,6 +95,27 @@ export function ringBounds(ring: readonly [number, number][]): [[number, number]
   return [[minLng, minLat], [maxLng, maxLat]]
 }
 
+/** A [[west, south], [east, north]] extent, as MapLibre wants it. */
+export type LngLatBounds = [[number, number], [number, number]]
+
+/** Keep a camera fit inside a known route extent. An unknown extent stays as it is.
+ *  A fit outside the route falls back to the route, so no lens change zooms out. */
+export function clampBoundsWithin(
+  candidate: LngLatBounds | null,
+  route: LngLatBounds | null,
+): LngLatBounds | null {
+  if (candidate == null || route == null) return candidate
+  const [[west, south], [east, north]] = candidate
+  const [[routeWest, routeSouth], [routeEast, routeNorth]] = route
+  const clamped: LngLatBounds = [
+    [Math.max(west, routeWest), Math.max(south, routeSouth)],
+    [Math.min(east, routeEast), Math.min(north, routeNorth)],
+  ]
+  const [[cw, cs], [ce, cn]] = clamped
+  if (!Number.isFinite(cw) || !Number.isFinite(cs) || !Number.isFinite(ce) || !Number.isFinite(cn)) return route
+  return cw >= ce || cs >= cn ? route : clamped
+}
+
 /** The label of the fix mark. Unknown parts stay out. */
 export function fixMarkLabel(
   stopName: string | null,

@@ -42,11 +42,18 @@ export interface MapEditDeps {
   routeKmOf: (lat: number, lng: number) => number | null | undefined
   /** Runs after an acknowledged add, for the page's own bookkeeping (taste log). */
   onAddKept?: (hit: PlaceHit) => void
+  /** Adds the stop through the shared planner writer when set. */
+  keepWithWriter?: (hit: PlaceHit, dayIndex: number) => Promise<void>
   /** The destructive path. It stays `removeStopWithUndo` in the page. */
   removeStop: (stopId: string, meta: { title: string; dayIndex: number }) => void
 }
 
-export function useMapEdit({ trip, editable, applyChange, legCorrections, routeKmOf, onAddKept, removeStop }: MapEditDeps) {
+/** Route the Keep action to the shared writer when one is set. */
+export function keepRoute(deps: { keepWithWriter?: unknown }): 'writer' | 'direct' {
+  return deps.keepWithWriter ? 'writer' : 'direct'
+}
+
+export function useMapEdit({ trip, editable, applyChange, legCorrections, routeKmOf, onAddKept, removeStop, keepWithWriter }: MapEditDeps) {
   const [session, dispatch] = useReducer(editSessionReducer<ReadyAddPreview>, IDLE_SESSION as EditSession<ReadyAddPreview>)
   const [unknown, setUnknown] = useState<(Extract<AddPreview, { kind: 'unknown' }> & { hitId: string }) | null>(null)
   const [confirm, setConfirm] = useState<EditProposal | null>(null)
@@ -86,12 +93,27 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
     }
   }, [legCorrections, routeKmOf])
 
-  const keep = useCallback(() => {
+  const keep = useCallback(async () => {
     if (session.phase !== 'previewing' || !editable) return
     const { preview } = session
     const stop = stopRef.current
     const hit = hitRef.current
     if (!stop) return
+    // keep: writer path start
+    if (keepRoute({ keepWithWriter }) === 'writer' && keepWithWriter) {
+      if (!hit) return
+      dispatch({ type: 'keep' })
+      try {
+        await keepWithWriter(hit, preview.dayIndex)
+      } catch {
+        setAnnouncement('The add could not start. Try again.')
+      } finally {
+        dispatch({ type: 'reject' })
+        setUnknown(null)
+      }
+      return
+    }
+    // keep: writer path end
     dispatch({ type: 'keep' })
     const before = tripRef.current
     applyChange(
@@ -107,7 +129,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
       },
       operationMeta(outcome => dispatch({ type: 'settle', outcome })),
     )
-  }, [session, editable, applyChange, onAddKept])
+  }, [session, editable, applyChange, onAddKept, keepWithWriter])
 
   const reject = useCallback(() => {
     dispatch({ type: 'reject' })

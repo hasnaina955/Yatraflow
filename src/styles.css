@@ -882,3 +882,6 @@
 .mv2-place-photo-nav button:hover { background: var(--bg-soft); }
 .mv2-place-photo-nav button:focus-visible, .mv2-place-credit a:focus-visible { outline: none; box-shadow: var(--ring); }
 @media (prefers-reduced-motion: reduce) { .mv2-place-photo-nav button { transition: none; } }
+/* Map edit: the Swap with list. Its control keeps a 44px touch target. */
+.map-edit-swap { display: grid; gap: var(--space-1); font-size: 12px; color: var(--text-2); }
+.map-edit-swap select { min-height: 44px; }

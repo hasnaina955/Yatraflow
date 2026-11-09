@@ -41,9 +41,10 @@ export interface SwapOption {
 
 /** Other non-rejected stops of a day, in day order, numbered from one. */
 export function swapOptionsFor(day: ItineraryDay, stopId: string): SwapOption[] {
+  // Number each stop by its place in the day before the selected stop leaves the list.
   return activeStopsInOrder(day)
-    .filter(s => s.id !== stopId)
     .map((s, index) => ({ id: s.id, label: `${index + 1} · ${s.title}` }))
+    .filter(option => option.id !== stopId)
 }
 
 /** Whole seconds left in the Undo window, rounded up. Never below zero. */

@@ -80,7 +80,7 @@ describe('swapOptionsFor', () => {
     expect(options.some(o => o.id === 'self')).toBe(false)
     expect(options.some(o => o.id === 'gone')).toBe(false)
   })
-  it('keeps day order and labels each row as N and name', () => {
+  it('keeps day order and numbers each row by its place in the day', () => {
     const d = day(
       { id: 'z', order: 3 },
       { id: 'x', order: 1 },
@@ -88,7 +88,7 @@ describe('swapOptionsFor', () => {
     )
     expect(swapOptionsFor(d as never, 'self')).toEqual([
       { id: 'x', label: '1 · x' },
-      { id: 'z', label: '2 · z' },
+      { id: 'z', label: '3 · z' },
     ])
   })
   it('returns no options for a single-stop day', () => {

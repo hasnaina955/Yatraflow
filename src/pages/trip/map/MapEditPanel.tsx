@@ -71,13 +71,12 @@ export function MapEditStopPanel({ edit, trip, stopId, editable }: { edit: MapEd
         onSwap={() => { if (chosen) edit.swapNeighbour(stopId, chosen) }}
         onRemove={() => edit.removeSelected(stopId)}
       />
-      <label>
+      <label className="map-edit-swap">
         <span>Swap with</span>
         <select
           value={chosen}
           disabled={options.length === 0}
           onChange={e => setSwapTarget(e.target.value)}
-          style={{ minHeight: 44 }}
         >
           {options.length === 0
             ? <option value="">No other stop on this day</option>

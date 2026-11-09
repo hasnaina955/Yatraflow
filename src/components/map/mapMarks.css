@@ -17,11 +17,21 @@
 .mv2-warn-diamond.is-severe { background: #A6342A; }
 .mv2-pin-offset { display: inline-flex; flex-direction: column; align-items: center; transition: transform var(--motion-fast) var(--ease-out); }
 @media (pointer: coarse) {
-  .mv2-workspace .mv2-subtype-pin::before, .mv2-workspace .yf-map-pin--slot::before, .mv2-workspace .mv2-warn-diamond::before, .mv2-workspace .yf-map-idea-add::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+  .mv2-workspace .yf-map-pin--slot::before, .mv2-workspace .mv2-warn-diamond::before, .mv2-workspace .yf-map-idea-add::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
   .mv2-workspace .yf-map-ctrls button, .mv2-workspace .map-legend-toggle { min-width: 44px; min-height: 44px; }
   .mv2-omnibar input, .mv2-omnibar .btn { min-height: 44px; }
   .mv2-workspace .maplibregl-ctrl-bottom-right { z-index: 6; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mv2-pin-clock, .mv2-pin-offset { transition: none; }
+}
+@media (max-width: 760px) {
+  .mv2-workspace .maplibregl-ctrl-attrib-inner { font-size: 10px; line-height: 1.3; }
+}
+@media (pointer: coarse) {
+  /* A diamond is a square turned 45 degrees. The pad must be 44px * 1.42 so a 44px square fits inside. */
+  .mv2-workspace .mv2-warn-diamond::before { width: 62px; height: 62px; }
+}
+@media (pointer: coarse) {
+  .mv2-workspace .yf-map-pin--slot, .mv2-workspace .yf-map-idea-add, .mv2-workspace .mv2-warn-diamond { position: relative; }
 }

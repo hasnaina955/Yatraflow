@@ -82,7 +82,7 @@ function overlaps(a: MarkBox, b: MarkBox, gap: number): boolean {
 const STEPS: [number, number][] = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]]
 
 /**
- * Place boxes in priority order. Boxes are centred on x and y, in pixels. A box that
+ * Place boxes in the order given. Boxes are centred on x and y, in pixels. A box that
  * collides moves in steps of its own size along eight directions, up to `maxSteps`.
  * With no free spot the box is hidden when `droppable` is set, and stays put otherwise.
  */

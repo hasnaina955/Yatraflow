@@ -1,6 +1,6 @@
 # Map tab v2: boards and basemap styles (5 Nov 2026)
 
-The visual target for the Map tab v2 build. The spec, which covers the engine, the lenses, the ranking and the build plan, is the Claude doc "Map tab v2 · flagship map and suggestion engine". The boards are on the redesign canvas, to the right of Surface palette.
+The visual target for the Map tab v2 build. The spec is the Claude doc "Map tab v2 · flagship map and suggestion engine". It covers the engine, the lenses, the ranking and the build plan. The boards are on the redesign canvas, to the right of Surface palette.
 
 | File | What it is |
 |---|---|

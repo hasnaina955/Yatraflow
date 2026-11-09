@@ -469,7 +469,7 @@ function MapViewModeController({ mode, bearing, workspace = false }: { mode: Map
     }
     prevMode.current = mode
     prevBearing.current = heroBearing
-  }, [map, isLoaded, mode, bearing])
+  }, [map, isLoaded, mode, bearing, workspace])
   return null
 }
 
@@ -866,7 +866,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     spread()
     map.on('moveend', spread)
     return () => { map.off('moveend', spread) }
-  }, [workspaceChrome, mapLoaded, allPoints]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workspaceChrome, mapLoaded, allPoints])
 
   // A day's ride as the ENGINE plans it: origin → stops → synthesized
   // destination (an outbound continuation, or the final day's ride home).

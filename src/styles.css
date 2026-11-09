@@ -885,3 +885,48 @@
 /* Map edit: the Swap with list. Its control keeps a 44px touch target. */
 .map-edit-swap { display: grid; gap: var(--space-1); font-size: 12px; color: var(--text-2); }
 .map-edit-swap select { min-height: 44px; }
+
+/* ===== Map v2 lens decks (package 911-W2): DriveTabs and FixDeck ===== */
+.mv2-lens { display: flex; flex-direction: column; gap: 12px; color: var(--pw-ink); }
+.mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
+.mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
+.mv2-lens-tab { flex: 1; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; }
+.mv2-lens-tab.is-active { background: var(--pw-card); border-color: var(--pw-line); }
+.mv2-lens-tab:focus-visible, .mv2-lens-card-open:focus-visible, .mv2-lens-add:focus-visible, .mv2-lens-preview:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
+.mv2-lens-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv2-lens-tab-total { flex: none; color: var(--pw-marigold-ink); font: var(--pw-caption); }
+.mv2-lens-panel { display: flex; flex-direction: column; gap: 10px; }
+.mv2-lens-intro { margin: 0; color: var(--pw-ink-3); font: var(--pw-meta); }
+.mv2-lens-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mv2-lens-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--pw-card); border: 1px solid var(--pw-line); }
+.mv2-lens-card.is-just-past { border-style: dashed; border-color: var(--pw-marigold-ink); }
+.mv2-lens-card.is-over-budget { background: var(--pw-soft); opacity: .75; }
+.mv2-lens-card-open { display: flex; flex-direction: column; gap: 8px; width: 100%; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mv2-lens-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.mv2-lens-card-name { font: var(--pw-title); color: var(--pw-ink); }
+.mv2-lens-tag { flex: none; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--pw-marigold-ink); color: var(--pw-marigold-ink); font: var(--pw-caption); }
+.mv2-lens-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mv2-lens-cell { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 10px; background: var(--pw-sunken); }
+.mv2-lens-cell-label { color: var(--pw-marigold-ink); font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); }
+.mv2-lens-cell-value { color: var(--pw-ink); font: var(--pw-ui); }
+.mv2-lens-card-foot { display: flex; justify-content: flex-end; }
+.mv2-lens-add { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--pw-time-drive); background: var(--pw-time-drive); color: var(--pw-on-sea); font: var(--pw-ui); cursor: pointer; }
+.mv2-lens-add:disabled { border-color: var(--pw-line); background: var(--pw-soft); color: var(--pw-ink); opacity: .6; cursor: not-allowed; }
+.mv2-lens-more { margin: 0; color: var(--pw-ink-3); font: var(--pw-meta); }
+.mv2-lens-kicker { margin: 0; color: var(--pw-risk); font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); text-transform: uppercase; }
+.mv2-lens-fix-title { margin: 0; color: var(--pw-ink); font: var(--pw-title); }
+.mv2-lens-evidence { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--pw-risk); background: color-mix(in srgb, var(--pw-risk) 14%, var(--pw-card)); }
+.mv2-lens-evidence-lines { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; color: var(--pw-ink); font: var(--pw-meta); }
+.mv2-lens-found-by { margin: 0; color: var(--pw-ink); opacity: .8; font: var(--pw-caption); }
+.mv2-lens-none { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
+.mv2-lens-fixes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mv2-lens-fix { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--pw-card); border: 1px solid var(--pw-line); }
+.mv2-lens-fix-head { display: flex; align-items: flex-start; gap: 10px; }
+.mv2-lens-fix-num { flex: none; width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--pw-sunken); color: var(--pw-ink); font: var(--pw-caption); }
+.mv2-lens-fix-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mv2-lens-fix-name { color: var(--pw-ink); font: var(--pw-ui); }
+.mv2-lens-fix-change { color: var(--pw-ink-3); font: var(--pw-caption); }
+.mv2-lens-fix-result { margin: 0; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--pw-ok) 14%, var(--pw-card)); color: var(--pw-ok); font: var(--pw-meta); }
+.mv2-lens-fix-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mv2-lens-apply { min-height: 44px; }
+.mv2-lens-preview { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--pw-time-drive); background: transparent; color: var(--pw-time-drive); font: var(--pw-ui); cursor: pointer; }

@@ -16,7 +16,7 @@ import type { Entitlement } from '../lib/payments'
 import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { describePreviewSplit } from '../lib/previewSplit'
-import { simulateDay, scheduleRowsById, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip, hmToMinutes } from '../lib/engine'
+import { buildJourney, simulateDay, scheduleRowsById, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip, hmToMinutes } from '../lib/engine'
 import { cap, titleCase } from '../lib/labels'
 import { useTimeFormat, formatHM, formatHMRange } from '../lib/timefmt'
 import { scrollBehavior } from '../lib/motion'
@@ -47,6 +47,11 @@ import { DayBudgetBar, type DayBudget } from '../components/storefront/DayBudget
 import { KindTiles } from '../components/storefront/KindTiles'
 import { KindChip } from '../components/storefront/KindChip'
 import { RideDayPanel, RideOtherRow } from '../components/storefront/RidePanels'
+import { RideTimeline } from '../components/storefront/ride/RideTimeline'
+import { RideLockedPreview } from '../components/storefront/ride/RideLockedPreview'
+import { RideProgress } from '../components/storefront/ride/RideProgress'
+import { RideElevation } from '../components/storefront/ride/RideElevation'
+import { ChevronRight, Users } from 'lucide-react'
 
 /** How long the buyer's entitlement read may take before the page stops
  *  waiting and says so. Mirrors the hub's ledger timeout: far longer than the
@@ -716,6 +721,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const rideCard = cards[ridePos]
   const rideFacts = dayFacts[ridePos]
   const rideDayRow = orderedDays[ridePos]
+  const rideArt = (index: number, slotPlaces?: readonly string[]) => ({
+    publicationId: pub.id, index, planPlaces: trip.destinations, slotPlaces,
+  })
+  const paidPreviewPos = rideCard?.state === 'locked' ? -1 : cards.findIndex((card, pos) => pos > ridePos && card.state === 'locked')
+  const paidPreview = cards[paidPreviewPos]
+  let paidRunEnd = paidPreviewPos
+  while (cards[paidRunEnd + 1]?.state === 'locked') paidRunEnd += 1
+  const paidRunLabel = paidPreview ? (paidRunEnd === paidPreviewPos
+    ? `day ${paidPreview.summary.index + 1}`
+    : `days ${paidPreview.summary.index + 1} to ${cards[paidRunEnd].summary.index + 1}`) : ''
   let ridePanel: ReactNode = null
   if (rideCard && rideFacts && rideDayRow) {
     const sum = rideCard.summary
@@ -751,11 +766,14 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     } else {
       const sim = simulateDay(rideDayRow, trip, originOf(trip, rideDayRow.index), rideDayRow.index)
       const stops = [...rideDayRow.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
-      body = <DayStops stops={stops} sim={sim} assumptions={getAssumptions(trip)} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />
+      body = <RideTimeline journey={buildJourney(trip, rideDayRow)} creator={creator} timeFormat={timeFormat}>
+        <DayStops stops={stops} sim={sim} assumptions={getAssumptions(trip)} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />
+      </RideTimeline>
     }
     ridePanel = (
       <RideDayPanel
         key={sum.index}
+        {...rideArt(sum.index, rideFacts.names)}
         state={rideCard.state}
         photo={rideCard.state === 'locked' ? undefined : rideFacts.photo}
         badge={<div className="pi-badge"><small>Day</small><b>{sum.index + 1}</b></div>}
@@ -1100,9 +1118,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           ) : (
             <div role="tabpanel" id="pi-panel-ride" aria-labelledby="pi-tab-ride" className="pi-panel pi-ride-grid">
               <div className="pi-ride-main">
+                {rideCard && <RideProgress publicationId={pub.id} freeIndexes={pub.freeDayIndexes} current={rideCard.summary.index} dayCount={cards.length} heading />}
                 {ridePanel ?? (
                   <div className="pi-card"><p className="pi-muted">This plan has no days to ride along yet.</p></div>
                 )}
+                {paidPreview && <RideLockedPreview {...rideArt(paidPreview.summary.index)} card={paidPreview}
+                  lastIndex={cards[paidRunEnd].summary.index}
+                  action={showUnlockCta ? <button type="button" className="btn btn-saffron btn-sm" disabled={buying} onClick={unlockThis}>
+                    <InlineIcon icon={Lock} size={13} gap={4} />{buying ? 'Opening payments…' : `Unlock ${paidRunLabel}`}
+                  </button> : gateNotice && !tripReReadFailed ? <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} /> : null}
+                />}
                 {cards.length > 1 && (
                   <section className="pi-others" aria-labelledby="pi-others-title">
                     <div className="pi-others-head">
@@ -1111,12 +1136,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     </div>
                     <ol className="pi-others-list">
                       {cards.map((c, i) => {
-                        if (i === ridePos) return null
+                        if (i === ridePos || i === paidPreviewPos) return null
                         const f = dayFacts[i]
                         const km = f ? kmOf(f.km) : ''
                         return (
                           <RideOtherRow
                             key={c.summary.index}
+                            {...rideArt(c.summary.index, c.state === 'locked' ? undefined : f?.names)}
                             state={c.state}
                             index={c.summary.index}
                             title={c.summary.title}
@@ -1142,8 +1168,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     <div className="pi-split" role="img" aria-label={previewSplit ? `${previewSplit.freeCount} of ${previewSplit.dayCount} days are free` : undefined}>
                       {orderedDays.map(d => <span key={d.index} className={'pi-split-seg pi-split-' + (pub.freeDayIndexes.includes(d.index) ? 'open' : 'locked')} />)}
                     </div>
+                    <RideProgress publicationId={pub.id} freeIndexes={pub.freeDayIndexes} current={rideCard?.summary.index ?? 0} dayCount={cards.length} />
                     <button className="btn btn-saffron btn-lg" disabled={buying} onClick={unlockThis}>
-                      <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}
+                      <InlineIcon icon={Lock} size={15} gap={5} />{buying ? 'Opening payments…' : <>Unlock all {cards.length} days</>}
                     </button>
                   </>}
                   <ul className="pi-aside-includes">
@@ -1152,21 +1179,22 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                     <li><GitFork size={16} aria-hidden />A copy in your trips to change</li>
                   </ul>
                   {gateNotice && !tripReReadFailed && <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} />}
-                  <button className="btn fork-btn btn-lg" onClick={copyThis}>
+                  {!showUnlockCta && <button className="btn fork-btn btn-lg" onClick={copyThis}>
                     <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
-                  </button>
-                  {previewSplit && !unlocked && <p className="hint-text">Preview: {previewSplit.claim}.</p>}
+                  </button>}
                 </div>
+                <RideElevation key={pub.id} trip={trip} freeIndexes={pub.freeDayIndexes} />
                 {creator && (
                   <a className="pi-card pi-aside-creator" {...creatorLinkProps}>
                     <Avatar user={creator} size="lg" />
-                    <span><b>{creator.profile.name}</b><span className="pi-muted">{plans} {plans === 1 ? 'route' : 'routes'}</span></span>
+                    <span><b>{creator.profile.name} · {plans} {plans === 1 ? 'route' : 'routes'}</b>{creator.profile.creatorBio && <span className="pi-muted">{creator.profile.creatorBio}</span>}</span>
+                    <ChevronRight size={16} aria-hidden />
                   </a>
                 )}
-                <div className="pi-card pi-aside-card">
-                  <b>Going as a group?</b>
-                  <p className="hint-text">Send the link to your crew first.</p>
-                  {shareBlock}
+                <div className="pi-ride-group">
+                  <Users size={19} aria-hidden />
+                  <p><b>Going as a group?</b> Send the free days to your crew first.</p>
+                  <CopyButton text={withShareRef(currentPublicShareUrl(pub.id), 'copy')} label="Copy link" />
                 </div>
               </aside>
             </div>

@@ -35,7 +35,7 @@ export function MapEditAddPanel({ edit, onChooseDay }: { edit: MapEdit; onChoose
       />
       {session.phase === 'done' && edit.canUndo && (
         <p className="map-edit-countdown" data-left={edit.undoLeft}>
-          <span className="map-edit-countdown-bar" style={{ transform: `scaleX(${edit.undoLeft / 8})` }} aria-hidden />
+          <progress className="map-edit-countdown-bar" max={8} value={edit.undoLeft} aria-hidden="true" />
           <span>{`Undo for ${edit.undoLeft} s`}</span>
         </p>
       )}

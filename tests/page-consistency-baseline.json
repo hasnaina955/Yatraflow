@@ -93,6 +93,24 @@
       "inlineStyle": 2,
       "rawH1": 0
     },
+    "src/pages/trip/map/editing/EditCards.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
+    "src/pages/trip/map/MapEditPanel.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
+    "src/pages/trip/map/MinuteScopeControl.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
     "src/pages/trip/map/RailRowViews.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
@@ -114,7 +132,7 @@
     "src/pages/trip/MapTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 19,
+      "inlineStyle": 15,
       "rawH1": 0
     },
     "src/pages/trip/MapTabSkeleton.tsx": {

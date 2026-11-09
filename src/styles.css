@@ -890,30 +890,21 @@
 .mv2-lens { display: flex; flex-direction: column; gap: 12px; color: var(--pw-ink); }
 .mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
 .mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
-.mv2-lens-tab { flex: 1; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; }
+.mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; }
 .mv2-lens-tab.is-active { background: var(--pw-card); border-color: var(--pw-line); }
-.mv2-lens-tab:focus-visible, .mv2-lens-card-open:focus-visible, .mv2-lens-add:focus-visible, .mv2-lens-preview:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
+.mv2-lens-tab:focus-visible, .mv2-lens-place-open:focus-visible, .mv2-lens-place-add:focus-visible, .mv2-lens-round:focus-visible, .mv2-lens-deck-close:focus-visible, .mv2-lens-preview:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
 .mv2-lens-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mv2-lens-tab-total { flex: none; color: var(--pw-marigold-ink); font: var(--pw-caption); }
+.mv2-lens-tab-total { flex: none; color: var(--pw-ink-3); font: var(--pw-caption); }
 .mv2-lens-panel { display: flex; flex-direction: column; gap: 10px; }
 .mv2-lens-intro { margin: 0; color: var(--pw-ink-3); font: var(--pw-meta); }
 .mv2-lens-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.mv2-lens-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--pw-card); border: 1px solid var(--pw-line); }
-.mv2-lens-card.is-just-past { border-style: dashed; border-color: var(--pw-marigold-ink); }
-.mv2-lens-card.is-over-budget { background: var(--pw-soft); opacity: .75; }
-.mv2-lens-card-open { display: flex; flex-direction: column; gap: 8px; width: 100%; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.mv2-lens-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.mv2-lens-card-name { font: var(--pw-title); color: var(--pw-ink); }
+.mv2-lens-card { list-style: none; margin: 0; }
 .mv2-lens-tag { flex: none; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--pw-marigold-ink); color: var(--pw-marigold-ink); font: var(--pw-caption); }
 .mv2-lens-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .mv2-lens-cell { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 10px; background: var(--pw-sunken); }
-.mv2-lens-cell-label { color: var(--pw-marigold-ink); font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); }
+.mv2-lens-cell-label { color: var(--pw-marigold-ink); font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); text-transform: uppercase; }
 .mv2-lens-cell-value { color: var(--pw-ink); font: var(--pw-ui); }
-.mv2-lens-card-foot { display: flex; justify-content: flex-end; }
-.mv2-lens-add { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--pw-time-drive); background: var(--pw-time-drive); color: var(--pw-on-sea); font: var(--pw-ui); cursor: pointer; }
-.mv2-lens-add:disabled { border-color: var(--pw-line); background: var(--pw-soft); color: var(--pw-ink); opacity: .6; cursor: not-allowed; }
 .mv2-lens-more { margin: 0; color: var(--pw-ink-3); font: var(--pw-meta); }
-.mv2-lens-kicker { margin: 0; color: var(--pw-risk); font: var(--pw-kicker); letter-spacing: var(--pw-kicker-tracking); text-transform: uppercase; }
 .mv2-lens-fix-title { margin: 0; color: var(--pw-ink); font: var(--pw-title); }
 .mv2-lens-evidence { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--pw-risk); background: color-mix(in srgb, var(--pw-risk) 14%, var(--pw-card)); }
 .mv2-lens-evidence-lines { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; color: var(--pw-ink); font: var(--pw-meta); }
@@ -926,10 +917,10 @@
 .mv2-lens-fix-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .mv2-lens-fix-name { color: var(--pw-ink); font: var(--pw-ui); }
 .mv2-lens-fix-change { color: var(--pw-ink-3); font: var(--pw-caption); }
-.mv2-lens-fix-result { margin: 0; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--pw-ok) 14%, var(--pw-card)); color: var(--pw-ok); font: var(--pw-meta); }
+.mv2-lens-fix-result { margin: 0; padding: 8px 10px; border-radius: 12px; display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--pw-ok) 14%, var(--pw-card)); color: var(--pw-ok); font: var(--pw-meta); }
 .mv2-lens-fix-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .mv2-lens-apply { min-height: 44px; }
-.mv2-lens-preview { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--pw-time-drive); background: transparent; color: var(--pw-time-drive); font: var(--pw-ui); cursor: pointer; }
+.mv2-lens-preview { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--pw-time-drive); font: var(--pw-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 /* ==== Map v2 lens decks (package W2-decksA) ==== */
 .mv2-lens-deck {
   --mv2-lens-surface: var(--pw-card);
@@ -948,9 +939,6 @@
   --mv2-lens-accent: var(--pw-marigold-300);
   --mv2-lens-accent-ink: #22201e;
 }
-.mv2-lens-header { display: flex; flex-direction: column; gap: var(--space-1); }
-.mv2-lens-title { margin: 0; font: var(--pw-title); }
-.mv2-lens-day { font-size: 12px; color: var(--pw-ink-3); }
 .mv2-lens-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .mv2-lens-chip {
   min-height: 44px;
@@ -987,29 +975,9 @@
 .mv2-lens-body-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .mv2-lens-set { min-height: 44px; }
 .mv2-lens-section { display: flex; flex-direction: column; gap: var(--space-2); }
-.mv2-lens-card.is-pick {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--mv2-lens-edge);
-  border-radius: var(--radius, 12px);
-  background: var(--mv2-lens-surface);
-  cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-paper);
-}
-.mv2-lens-card.is-pick:hover { background: var(--pw-marigold-50); }
-.mv2-lens-card.is-pick:focus-visible { outline: none; box-shadow: var(--ring); }
-.mv2-lens-card.is-pick .mv2-lens-tile { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; }
-.mv2-lens-letter { font-weight: 700; font-variant-numeric: tabular-nums; }
-.mv2-lens-card.is-pick .mv2-lens-body { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: 0; }
-.mv2-lens-card.is-pick .mv2-lens-body h2 { margin: 0; font: var(--pw-ui); }
-.mv2-lens-travel, .mv2-lens-fit, .mv2-lens-detour { margin: 0; font-size: 12px; color: var(--pw-ink-3); }
-.mv2-lens-actions { display: flex; }
 .mv2-lens-also, .mv2-lens-more, .mv2-lens-gap-label { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .mv2-lens-chip, .mv2-lens-ring-btn, .mv2-lens-card { transition: none; }
+  .mv2-lens-chip, .mv2-lens-ring-btn, .mv2-lens-place { transition: none; }
 }
 
 /* ===== Map v2 lens wiring (911-W3) ===== */
@@ -1030,3 +998,50 @@
     padding-inline: var(--space-3);
   }
 }
+
+/* ============ Map v2 lens decks (package 911-W4-decks) ============ */
+.mv2-lens-deck-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-4); }
+.mv2-lens-deck-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mv2-lens-deck-kicker { color: var(--pw-marigold-ink); font: var(--pw-kicker); font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.mv2-lens-deck-title { margin: 0; color: var(--pw-ink); font: var(--pw-title); }
+.mv2-lens-deck-sub { margin: 0; color: var(--pw-ink-3); font: var(--pw-meta); }
+.mv2-lens-deck-close { flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-3); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-lens-deck-close:hover { background: var(--pw-soft); }
+
+/* One place card for every lens: Drive, Stay and Gap. */
+.mv2-lens-place { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--pw-line); border-radius: 16px; background: var(--pw-card); }
+.mv2-lens-place.is-selected { border-width: 2px; border-color: var(--pw-time-drive); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pw-time-drive) 16%, transparent); }
+.mv2-lens-place.is-just-past { border-style: dashed; border-color: var(--pw-marigold-ink); }
+.mv2-lens-place.is-over-budget { background: var(--pw-soft); opacity: .75; }
+.mv2-lens-place-letter { position: absolute; top: -8px; left: 12px; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-pill); background: var(--pw-ink); color: var(--pw-card); font: var(--pw-caption); }
+.mv2-lens-place-head { display: flex; align-items: flex-start; gap: var(--space-2); }
+.mv2-lens-place-open { display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-2); min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mv2-lens-place-tile { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--pw-sunken); color: var(--pw-ink-3); }
+.mv2-lens-place-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mv2-lens-place-name { color: var(--pw-ink); font: var(--pw-ui); font-weight: 700; }
+.mv2-lens-place-sub { color: var(--pw-ink-3); font-size: 12px; }
+.mv2-lens-place-rating { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--pw-ink-3); font: var(--pw-caption); font-weight: 700; }
+.mv2-lens-place-rating svg { color: var(--pw-marigold-500); }
+.mv2-lens-place-count { color: var(--pw-ink-3); }
+.mv2-lens-reasons { display: flex; flex-wrap: wrap; gap: 5px; }
+.mv2-lens-reason { padding: 3px 8px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--pw-time-drive) 12%, transparent); color: var(--pw-time-drive); font: var(--pw-caption); font-weight: 700; }
+.mv2-lens-place-actions { display: flex; align-items: center; gap: 8px; }
+.mv2-lens-place-add { flex: 1 1 auto; min-height: 44px; padding: 0 16px; border: 1px solid var(--pw-time-drive); border-radius: var(--radius-pill); background: var(--pw-time-drive); color: var(--pw-on-sea); font: var(--pw-ui); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-lens-place-add:disabled { border-color: var(--pw-line); background: var(--pw-soft); color: var(--pw-ink); opacity: .6; cursor: not-allowed; }
+.mv2-lens-round { flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); cursor: pointer; }
+.mv2-lens-round[aria-pressed='true'] { border-color: var(--pw-time-drive); color: var(--pw-time-drive); }
+
+/* Stay: the picks under the cards. */
+.mv2-lens-also-block { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; border-top: 1px solid var(--pw-line); }
+.mv2-lens-also-row { display: grid; grid-template-columns: 24px 24px minmax(0, 1fr); align-items: center; gap: 10px; padding: 7px 8px; border-radius: 12px; }
+.mv2-lens-also-letter { color: var(--pw-ink-3); font: var(--pw-caption); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.mv2-lens-also-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--pw-sunken); color: var(--pw-ink-3); }
+.mv2-lens-also-copy { display: flex; flex-direction: column; min-width: 0; }
+.mv2-lens-also-name { color: var(--pw-ink); font: var(--pw-ui); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mv2-lens-also-line { color: var(--pw-ink-3); font: var(--pw-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Fix: the first fix carries the lagoon outline. */
+.mv2-lens-fix.is-first { border-width: 1.5px; border-color: var(--pw-time-drive); }
+
+/* The old "Picks for your journey" row steps aside for a lens header. */
+.poi-col--see:has(.mv2-lens-deck-head) > .mv2-deck-header { display: none; }

@@ -16,7 +16,7 @@ type DriveProps = Parameters<typeof DriveTabs>[0]
 type FixProps = Parameters<typeof FixDeck>[0]
 
 const noop = () => undefined
-const row = {} as DriveRow
+const row = { row: { hit: { name: 'Periyar boat', category: 'boat' } } } as unknown as DriveRow
 const strip: DriveCardStrip = { arrive: '12:05', detour: '+6 min', budget: '4%' }
 const group = (tab: DriveTab, label: string, total: number, moreCount = 0): DriveTabGroup =>
   ({ tab, label, total, shown: [row], moreCount })
@@ -32,6 +32,7 @@ function driveProps(): DriveProps {
     nameOf: () => 'Nalla Ruchi Kitchen',
     onOpen: noop,
     onAdd: noop,
+    dayNumber: 3,
   }
 }
 
@@ -110,13 +111,14 @@ describe('DriveTabs', () => {
     const markup = renderDrive({ stripOf: () => ({ arrive: null, detour: '+6 min', budget: '4%' }) })
     expect(markup).toContain('—')
     expect(markup).toContain('aria-label="unknown"')
-    expect(markup).toContain('DETOUR')
-    expect(markup).toContain('BUDGET')
+    // The strip labels sit in sentence case in the source. CSS sets the capitals.
+    expect(markup).toContain('Detour')
+    expect(markup).toContain('Budget')
   })
 
   it('greys an over-budget card and disables its Add button', () => {
     const markup = renderDrive({ bandOf: () => 'over-budget' })
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Add<\/button>/)
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Add as Day 3 lunch<\/button>/)
     expect(markup).toContain('is-over-budget')
     expect(markup).toContain('Over today')
   })
@@ -172,8 +174,8 @@ describe('FixDeck', () => {
   })
 
   it('writes the header label in the singular and the plural', () => {
-    expect(renderFix()).toContain('1 PROBLEM ON DAY 3')
-    expect(renderFix({ problem: null })).toContain('0 PROBLEMS ON DAY 3')
+    expect(renderFix()).toContain('Fix · 1 problem on Day 3')
+    expect(renderFix({ problem: null })).toContain('Fix · 0 problems on Day 3')
   })
 
   it('shows the evidence lines and the found-by footer', () => {

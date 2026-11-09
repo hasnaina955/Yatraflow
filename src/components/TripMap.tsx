@@ -36,7 +36,7 @@ import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
-import { ghostLegPaint, pickLetter, resolveMarkCollisions, type GhostLeg, type GhostRoad, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { ghostLegPaint, layoutMarks, pickLetter, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -110,7 +110,12 @@ const STYLE_LOAD_WATCHDOG_MS = 4000
 const WORKSPACE_COVER_SELECTOR = '.mv2-itinerary, .poi-col--see, .mv2-ribbon, .mv2-omnibar, .mv2-lenses, .mv2-phone-day, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left'
 // Drawn size of the marks the camera must keep inside the open map area.
 const STOP_BOX = { w: 36, h: 36 }
-const CLOCK_BOX = { w: 96, h: 26, dy: 28 }
+const CLOCK_BOX = { w: 96, h: 26, dy: 33 }
+const WARN_BOX = { w: 38, h: 38 }
+const SLOT_BOX = { w: 38, h: 38 }
+const PICK_BOX = { w: 44, h: 36 }
+// A pick with its add button is a tall column, centred on the pick's coordinate.
+const PICK_ADD_BOX = { w: 44, h: 78 }
 
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that
@@ -871,26 +876,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // stop invisible and unclickable. Nudge each one apart for drawing only; the
   // markers keep their real coordinates. See lib/pinOffsets.ts.
   const pinOffsets = useMemo(() => coincidentPinOffsets(allPoints), [allPoints])
-  // Close stops and clock pills must not overlap on screen. Marks keep their real
-  // coordinates. The spread only moves how they are drawn, after each camera move.
-  const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
-  useEffect(() => {
-    const map = mapRef.current
-    if (!workspaceChrome || !map || !mapLoaded) return
-    const spread = () => {
-      try {
-        const boxes: (Parameters<typeof resolveMarkCollisions>[0][number])[] = []
-        const stops = allPoints.filter(p => !p.auto)
-        for (const p of stops) { const { x, y } = map.project([p.lng, p.lat]); boxes.push({ id: `stop:${p.id}`, x, y, w: 36, h: 36 }) }
-        for (const p of stops) { const { x, y } = map.project([p.lng, p.lat]); boxes.push({ id: `clock:${p.id}`, x, y: y + 28, w: 84, h: 20, droppable: true }) }
-        setMarkSpots(resolveMarkCollisions(boxes))
-      } catch { /* the map was removed while measuring */ }
-    }
-    spread()
-    map.on('moveend', spread)
-    return () => { map.off('moveend', spread) }
-  }, [workspaceChrome, mapLoaded, allPoints])
-
   // A day's ride as the ENGINE plans it: origin → stops → synthesized
   // destination (an outbound continuation, or the final day's ride home).
   // Day routes must follow this, not raw stored stops — an anchor-only day's
@@ -941,6 +926,69 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const plotted = daysToPlot.find(d => d.index === dayFilter)?.stops ?? []
     return extraJourneyMarkers(j.points, plotted, j.direction)
   }, [trip, dayFilter, daysToPlot, legCorrections])
+
+  // Close marks must not overlap on screen. Marks keep their real coordinates.
+  // The spread only moves how they are drawn, after each camera move.
+  // A stop wins over a problem, an empty part, a pick and a clock pill, in that order.
+  const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  const spreadMarks: (LayoutMark & { lat: number; lng: number; ox: number; oy: number })[] = []
+  if (workspaceChrome) {
+    for (const p of allPoints) {
+      const off = pinOffsets.get(p.id)
+      const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
+      spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, ...base })
+      if (!p.auto && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
+    }
+    for (const m of dayEndpointMarkers) spreadMarks.push({ id: `endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, layer: 'stop', x: 0, y: 0, w: 30, h: 30, lat: m.position.lat, lng: m.position.lng, ox: 0, oy: 0 })
+    for (const w of warningMarks) if (validMapCoordinate({ lat: w.lat, lng: w.lng })) spreadMarks.push({ id: `warn:${w.id}`, layer: 'warn', x: 0, y: 0, ...WARN_BOX, lat: w.lat, lng: w.lng, ox: 0, oy: 0 })
+    for (const pin of slotPins) {
+      const fix = coordFixes[pin.hit.id as string]
+      const lat = fix ? fix.lat : pin.hit.latitude
+      const lng = fix ? fix.lng : pin.hit.longitude
+      if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) spreadMarks.push({ id: `slot:${pin.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat, lng, ox: 0, oy: 0 })
+    }
+    for (const hit of visiblePois) {
+      if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
+      spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(onAddNearby ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: 0 })
+    }
+  }
+  const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
+  const spreadMarksRef = useRef(spreadMarks)
+  spreadMarksRef.current = spreadMarks
+  // Lay out the marks for the camera as it is now. The boxes are where stops and pills end up.
+  const layoutOnMap = useCallback((map: MapRef, bounds?: MarkBounds) => {
+    const marks: LayoutMark[] = spreadMarksRef.current.map(m => {
+      const { x, y } = map.project([m.lng, m.lat])
+      return { id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, x: x + m.ox, y: y + m.oy + (m.layer === 'clock' ? m.y : 0) }
+    })
+    const spots = layoutMarks(marks, { bounds })
+    // Only stops and pills steer the camera. A far pick must not pull the frame out.
+    const boxes: FrameBox[] = marks.filter(m => m.layer === 'stop' || m.layer === 'clock').flatMap(m => {
+      const spot = spots.get(m.id)
+      if (!spot || spot.hidden) return []
+      const anchor = m.follows ? spots.get(m.follows) : undefined
+      return [{ x: m.x + spot.dx + (anchor?.dx ?? 0), y: m.y + spot.dy + (anchor?.dy ?? 0), w: m.w, h: m.h }]
+    })
+    return { spots, boxes }
+  }, [])
+  useEffect(() => {
+    const map = mapRef.current
+    if (!workspaceChrome || !map || !mapLoaded) return
+    const spread = () => {
+      try {
+        const { size, insets } = measureFrame()
+        const { spots: next } = layoutOnMap(map, safeRect(size, insets))
+        setMarkSpots(prev => {
+          const same = prev.size === next.size && [...next].every(([id, spot]) => { const old = prev.get(id); return old && Math.round(old.dx) === Math.round(spot.dx) && Math.round(old.dy) === Math.round(spot.dy) && old.hidden === spot.hidden })
+          return same ? prev : next
+        })
+      } catch { /* the map was removed while measuring */ }
+    }
+    spread()
+    map.on('moveend', spread)
+    map.on('resize', spread)
+    return () => { map.off('moveend', spread); map.off('resize', spread) }
+  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap])
 
   // The map mounts lazily inside a Suspense boundary, so mapRef may be null on
   // the first render(s). Poll until the instance exists, then attach to its real
@@ -1056,20 +1104,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const settle = (attempt: number, extra: FrameInsets) => {
       if (frameReleased.current || targetCameraActive.current) return
       const { size, insets } = measureFrame()
-      const overflow = frameOverflow(frameBoxes(m), safeRect(size, insets))
+      const overflow = frameOverflow(layoutOnMap(m).boxes, safeRect(size, insets))
       if (!hasOverflow(overflow) || attempt >= 3) return
       const grown = addInsets(extra, overflow)
       m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: 0 })
       settle(attempt + 1, grown)
-    }
-    const frameBoxes = (map: MapRef): FrameBox[] => {
-      const boxes: FrameBox[] = []
-      for (const p of allPoints) {
-        const { x, y } = map.project([p.lng, p.lat])
-        boxes.push({ x, y, ...STOP_BOX })
-        if (!p.auto && clockMilestones && clockOn) boxes.push({ x, y: y + CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h })
-      }
-      return boxes
     }
     const run = () => {
       m.resize()
@@ -1184,6 +1223,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (!m || !bounds) return
     m.resize()
     m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
+  }
+
+  // A mark moved by the spread keeps its real coordinate. Only the drawing moves.
+  function offsetWrap(id: string, node: React.ReactNode): React.ReactNode {
+    if (!workspaceChrome) return node
+    const spot = markSpots.get(id)
+    return <span className="mv2-pin-offset" data-mark={id} style={spot && (spot.dx || spot.dy) ? { transform: `translate(${spot.dx}px, ${spot.dy}px)` } : undefined}>{node}</span>
   }
 
   function colorForDay(i: number): string {
@@ -1638,7 +1684,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </>}
             {warningMarks.filter(w => validMapCoordinate({ lat: w.lat, lng: w.lng })).map(w => (
               <MapMarker key={`warn-${w.id}`} longitude={w.lng} latitude={w.lat}>
-                <MarkerContent><WarningDiamond label={w.label} severe={w.severe} onOpen={w.onOpen} /></MarkerContent>
+                <MarkerContent>{offsetWrap(`warn:${w.id}`, <WarningDiamond label={w.label} severe={w.severe} onOpen={w.onOpen} />)}</MarkerContent>
                 <MarkerTooltip>{w.label}</MarkerTooltip>
               </MapMarker>
             ))}
@@ -1681,7 +1727,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
                   <MarkerContent>
-                    <button
+                    {offsetWrap(`slot:${pin.key}`, <button
                       type="button"
                       className="yf-map-pin yf-map-pin--slot"
                       aria-label={label}
@@ -1689,7 +1735,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     >
                       {SLOT_PIN_GLYPH[pin.key] ?? pin.label.slice(0, 1)}
                       {workspaceChrome && (() => { const letter = pickLetter(slotPins.filter(other => other.key === pin.key).indexOf(pin)); return letter ? <span className="mv2-pick-letter" aria-hidden="true">{letter}</span> : null })()}
-                    </button>
+                    </button>)}
                   </MarkerContent>
                   <MarkerTooltip>{label}</MarkerTooltip>
                 </MapMarker>
@@ -1698,6 +1744,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {(() => {
               let num = 0
               const showClockChips = !!(clockMilestones && clockOn)
+              // The pill hangs from the badge, so the badge stays on its coordinate.
+              const anchorWrap = (kids: React.ReactNode) => workspaceChrome ? <span className="mv2-pin-anchor">{kids}</span> : kids
               return allPoints.map((p, idx) => {
                 // Auto anchor stops (trip start / final destination) render as
                 // distinct start/end badges instead of numbered pins.
@@ -1731,6 +1779,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                     <MarkerContent>
+                      {anchorWrap(<>
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
                         className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
@@ -1748,6 +1797,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       {c && (workspaceChrome
                         ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {c.cumKm}</small></span>
                         : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
+                      </>)}
                     </MarkerContent>
                     <MarkerTooltip>{p.title}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip${c.estimated ? ' (estimate)' : ''}` : ''}</MarkerTooltip>
                   </MapMarker>
@@ -1761,7 +1811,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {dayEndpointMarkers.map(m => (
               <MapMarker key={`yf-endpoint-${m.kind}-${m.position.lat}-${m.position.lng}`} longitude={m.position.lng} latitude={m.position.lat}>
                 <MarkerContent>
-                  <span
+                  {offsetWrap(`endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, <span
                     className="yf-map-pin yf-map-flag"
                     title={m.label}
                   >
@@ -1770,7 +1820,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         ? <PlaneTakeoff size={13} aria-hidden />
                         : <CircleDot size={13} aria-hidden />)
                       : <Flag size={13} aria-hidden />}
-                  </span>
+                  </span>)}
                 </MarkerContent>
                 <MarkerTooltip>{m.label}</MarkerTooltip>
               </MapMarker>
@@ -1807,7 +1857,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
+                    {offsetWrap(`pick:${hit.id}`, <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
                       <span
                         className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}`}
                         style={isSearchHit ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
@@ -1828,7 +1878,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                           title={`Add ${hit.name} to the trip`}
                         >+</button>
                       )}
-                    </VisiblePulse>
+                    </VisiblePulse>)}
                   </MarkerContent>
                   <MarkerTooltip>
                     {isSearchHit && <><InlineIcon icon={Search} size={12} gap={3} vAlign="-1px" />Search result: </>}

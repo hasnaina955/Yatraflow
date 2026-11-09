@@ -35,3 +35,6 @@
 @media (pointer: coarse) {
   .mv2-workspace .yf-map-pin--slot, .mv2-workspace .yf-map-idea-add, .mv2-workspace .mv2-warn-diamond { position: relative; }
 }
+/* The clock pill hangs under its badge. The badge stays on its coordinate. */
+.mv2-pin-anchor { position: relative; display: inline-flex; }
+.mv2-pin-anchor > .mv2-pin-clock { position: absolute; left: 50%; top: calc(100% + 4px); translate: -50% 0; }

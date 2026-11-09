@@ -37,6 +37,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, pickLetter, resolveMarkCollisions, type GhostLeg, type GhostRoad, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -105,6 +106,11 @@ const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
 // not a resolved style — so a stalled style must never leave it permanently
 // dead. The stall is real: a hidden webview can hold a style mid-load forever.
 const STYLE_LOAD_WATCHDOG_MS = 4000
+// Overlays that cover the map in the workspace. The camera keeps marks clear of them.
+const WORKSPACE_COVER_SELECTOR = '.mv2-itinerary, .poi-col--see, .mv2-ribbon, .mv2-omnibar, .mv2-lenses, .mv2-phone-day, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left'
+// Drawn size of the marks the camera must keep inside the open map area.
+const STOP_BOX = { w: 36, h: 36 }
+const CLOCK_BOX = { w: 96, h: 26, dy: 28 }
 
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that
@@ -797,15 +803,32 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const basemapStatus = useWorkspaceBasemapStatus(theme)
   const mapRef = useRef<MapRef | null>(null)
   const { top = 70, bottom = 70, left = 70, right = 70 } = overlayInsets ?? {}
-  const cameraPadding = useCallback(() => {
+  // The workspace panels, the journey bar and the attribution sit over the map.
+  // The camera reads their live size, so a late layout change cannot hide a mark.
+  const measureFrame = useCallback((): { size: { width: number; height: number }; insets: FrameInsets } => {
     const container = mapRef.current?.getContainer()
-    return visibleMapPadding({ width: container?.clientWidth ?? 800, height: container?.clientHeight ?? 600 }, { top, bottom, left, right })
-  }, [top, bottom, left, right])
+    const size = { width: container?.clientWidth ?? 800, height: container?.clientHeight ?? 600 }
+    let insets: FrameInsets = { top, bottom, left, right }
+    if (workspaceChrome && container) {
+      const root = container.closest('.mv2-workspace') ?? document
+      const covers = Array.from(root.querySelectorAll(WORKSPACE_COVER_SELECTOR)).map(el => el.getBoundingClientRect())
+      insets = mergeInsets(insets, coverInsets(container.getBoundingClientRect(), covers))
+    }
+    return { size, insets }
+  }, [top, bottom, left, right, workspaceChrome])
+  const cameraPadding = useCallback(() => {
+    const { size, insets } = measureFrame()
+    return workspaceChrome ? clampInsets(size, addInsets(insets, MARK_FRAME_MARGIN)) : visibleMapPadding(size, insets)
+  }, [measureFrame, workspaceChrome])
   const [mapLoaded, setMapLoaded] = useState(false)
   // A target camera stays authoritative for its day until the user moves the
   // map or chooses another day. Late road geometry must not steal the camera.
   const targetCameraActive = useRef(false)
   const targetCameraDay = useRef<number | 'all' | null>(null)
+  // The route frame is automatic until the user moves the map. A new day frames again.
+  const frameReleased = useRef(false)
+  const frameKey = useRef('')
+  const [frameTick, setFrameTick] = useState(0)
 
   // follow the app's theme toggle
   useEffect(() => {
@@ -1004,7 +1027,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     const canvas = mapRef.current.getCanvas()
-    const releaseTargetCamera = () => { targetCameraActive.current = false }
+    const releaseTargetCamera = () => { targetCameraActive.current = false; frameReleased.current = true }
     canvas.addEventListener('pointerdown', releaseTargetCamera)
     canvas.addEventListener('wheel', releaseTargetCamera, { passive: true })
     return () => {
@@ -1025,15 +1048,59 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const bounds = boundsOf(fitPoints)
     if (!bounds) return
     const m = mapRef.current
+    // A new day or a new route frames again. A resize keeps a user's own camera.
+    if (frameKey.current !== `${dayFilter}|${fitPointsKey}`) { frameKey.current = `${dayFilter}|${fitPointsKey}`; frameReleased.current = false }
+    else if (frameReleased.current) return
+    const timers: number[] = []
+    // Frame, then check the marks as drawn. A mark in the covered strip adds padding and frames again.
+    const settle = (attempt: number, extra: FrameInsets) => {
+      if (frameReleased.current || targetCameraActive.current) return
+      const { size, insets } = measureFrame()
+      const overflow = frameOverflow(frameBoxes(m), safeRect(size, insets))
+      if (!hasOverflow(overflow) || attempt >= 3) return
+      const grown = addInsets(extra, overflow)
+      m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: 0 })
+      settle(attempt + 1, grown)
+    }
+    const frameBoxes = (map: MapRef): FrameBox[] => {
+      const boxes: FrameBox[] = []
+      for (const p of allPoints) {
+        const { x, y } = map.project([p.lng, p.lat])
+        boxes.push({ x, y, ...STOP_BOX })
+        if (!p.auto && clockMilestones && clockOn) boxes.push({ x, y: y + CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h })
+      }
+      return boxes
+    }
     const run = () => {
       m.resize()
-      m.fitBounds(
-        bounds,
-        { padding: cameraPadding(), maxZoom: 12, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration },
-      )
+      const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration
+      m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration })
+      if (!workspaceChrome) return
+      if (duration === 0) settle(0, { top: 0, bottom: 0, left: 0, right: 0 })
+      else m.once('moveend', () => settle(0, { top: 0, bottom: 0, left: 0, right: 0 }))
+      // The journey bar and the panels can mount after the first fit. Check again.
+      timers.push(window.setTimeout(() => settle(0, { top: 0, bottom: 0, left: 0, right: 0 }), 1500))
     }
-    requestAnimationFrame(run)
-  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+    const frame = requestAnimationFrame(run)
+    return () => { cancelAnimationFrame(frame); timers.forEach(window.clearTimeout) }
+  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter, frameTick]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new container size frames the route again, unless the user moved the map.
+  useEffect(() => {
+    const container = mapRef.current?.getContainer()
+    if (!workspaceChrome || !mapLoaded || !container) return
+    let last = { w: container.clientWidth, h: container.clientHeight }
+    let timer = 0
+    const observer = new ResizeObserver(() => {
+      const next = { w: container.clientWidth, h: container.clientHeight }
+      if (Math.abs(next.w - last.w) < 2 && Math.abs(next.h - last.h) < 2) return
+      last = next
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => setFrameTick(n => n + 1), 200)
+    })
+    observer.observe(container)
+    return () => { observer.disconnect(); window.clearTimeout(timer) }
+  }, [workspaceChrome, mapLoaded])
 
   useEffect(() => {
     if (!mapTarget || !mapLoaded || !mapRef.current) return

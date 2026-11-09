@@ -64,7 +64,7 @@ describe('writer branch', () => {
     expect(branch).toContain('await keepWithWriter(hit, preview.dayIndex)')
   })
   it('closes the preview after the writer', () => {
-    expect(branch).toContain("dispatch({ type: 'reject' })")
+    expect(branch).toContain("dispatch({ type: 'handoff' })")
     expect(branch).toContain('setUnknown(null)')
   })
   it('closes the preview even when the writer fails', () => {

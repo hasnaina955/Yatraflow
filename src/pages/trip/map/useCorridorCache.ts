@@ -64,6 +64,21 @@ export function dayDiscoveryContext(input: Omit<DayDiscoveryInput, 'dayIndex'> &
   }
 }
 
+/**
+ * The day's lodging as a search base: the last hotel stop with coordinates on
+ * that day, else on the day before. Null when the trip holds none. No base
+ * is invented from the start location.
+ */
+export function dayStayBase(trip: Pick<Trip, 'days'>, dayIndex: number): { lat: number; lng: number } | null {
+  const days = [...trip.days].sort((a, b) => b.index - a.index).filter(day => day.index <= dayIndex)
+  for (const day of days.slice(0, 2)) {
+    const hotel = [...day.stops].reverse().find(stop => stop.category === 'hotel' && stop.status !== 'rejected'
+      && hasCoords({ latitude: stop.lat, longitude: stop.lng, id: '', name: '', kind: 'poi' }))
+    if (hotel) return { lat: hotel.lat, lng: hotel.lng }
+  }
+  return null
+}
+
 export type CorridorCacheArgs = {
   discoveryDay?: DayDiscoveryInput
   trip: Trip
@@ -108,7 +123,7 @@ export function useCorridorCache({
   /** Which branch produced the current corridor rows: cache, scan, retained or none. */
   const [corridorSource, setCorridorSource] = useState<'cache' | 'scan' | 'none' | 'retained'>('none')
   /** The query the CURRENT rows came from. Never relabelled by a newer query. */
-  const [poisMeta, setPoisMeta] = useState<{ hash: string; scopeKm: number; fetchedAt: number | null; coverage: DiscoveryCoverage | null; rows: SegmentHit[] } | null>(null)
+  const [poisMeta, setPoisMeta] = useState<{ hash: string; scopeKm: number; fetchedAt: number | null; coverage: DiscoveryCoverage | null; rows: SegmentHit[]; dayIndex: number | null } | null>(null)
   const poisMetaRef = useRef<typeof poisMeta>(null)
   const lastRefreshRef = useRef(refreshTick)
 
@@ -248,7 +263,7 @@ export function useCorridorCache({
         setCorridorQuotaOut(false); setScanQuotaOut(false); setScanFailed(false)
         setCorridorSource('cache')
         setPois(cached.segments)
-        poisMetaRef.current = { hash: inputsHash, scopeKm, fetchedAt: cached.fetchedAt ?? null, coverage: cached.coverage ?? null, rows: cached.segments }
+        poisMetaRef.current = { hash: inputsHash, scopeKm, fetchedAt: cached.fetchedAt ?? null, coverage: cached.coverage ?? null, rows: cached.segments, dayIndex: discoveryDay?.dayIndex ?? null }
         setPoisMeta(poisMetaRef.current)
       })
       return () => { cancelled = true }
@@ -297,7 +312,7 @@ export function useCorridorCache({
           setScanFailed(false)
           setPois(plan)
           const fetchedAt = dayContext || coverage ? Date.now() : null
-          poisMetaRef.current = { hash: inputsHash, scopeKm, fetchedAt, coverage, rows: plan }
+          poisMetaRef.current = { hash: inputsHash, scopeKm, fetchedAt, coverage, rows: plan, dayIndex: discoveryDay?.dayIndex ?? null }
           setPoisMeta(poisMetaRef.current)
           // Never cache an empty plan: the first search can run before the
           // route resolves, and a persisted [] would stick until Refresh.
@@ -367,7 +382,9 @@ export function useCorridorCache({
     poisScopeKm: poisMeta?.scopeKm ?? null,
     fetchedAt: poisMeta?.hash === mapInputsHash ? poisMeta.fetchedAt : null,
     coverage: poisMeta?.hash === mapInputsHash ? poisMeta.coverage : null,
-    discoveryDayIndex: discoveryDay?.dayIndex ?? null,
+    // The day the CURRENT rows were scanned for. A day change keeps the old
+    // rows labelled with their own day until the new scan replaces them.
+    discoveryDayIndex: poisMeta ? poisMeta.dayIndex : discoveryDay?.dayIndex ?? null,
     discoveryRows: poisMeta?.hash === mapInputsHash ? poisMeta.rows : [],
     discoveryStatus: anchors.length === 0 ? 'needs-anchor' as const
       : loadingPois ? 'loading' as const

@@ -21,7 +21,7 @@ import type { DayPlan } from '../../../lib/dayPlan'
 import type { DayReadiness, DaySlot } from '../../../lib/daySlots'
 import { dayDetourBudgetMin } from '../../../lib/detourBudget'
 import type { DaySchedule, LegEstimate } from '../../../lib/engine'
-import type { PlaceHit } from '../../../lib/providers/hits'
+import type { DiscoveryCoverage, PlaceHit } from '../../../lib/providers/hits'
 import { isAlreadyAdded, type PlaceIdentity } from '../../../lib/placeIdentity'
 import type { DnaVector } from '../../../lib/tripDna'
 import {
@@ -76,6 +76,29 @@ export function corridorFreshnessOf(snapshot: CorridorSnapshot | null): JourneyF
   return snapshot.source === 'scan' ? 'live' : 'retained'
 }
 
+/** The age and reach of the scan behind one day's corridor rows. */
+export interface JourneyDayEvidence {
+  readonly dayIndex: number
+  /** When the scan finished (ms). Null = unknown. */
+  readonly fetchedAt: number | null
+  /** How far the scan reached. Null = not measured. */
+  readonly coverage: DiscoveryCoverage | null
+}
+
+/**
+ * Scan evidence for one day. A day scan gives evidence to its own day only.
+ * A trip-wide scan gives it to every day. No age is invented: a snapshot
+ * with no age or coverage gives null.
+ */
+export function dayEvidenceOf(snapshot: CorridorSnapshot, dayIndex: number): JourneyDayEvidence | null {
+  const scanDay = snapshot.discoveryDayIndex ?? null
+  if (scanDay != null && scanDay !== dayIndex) return null
+  const fetchedAt = snapshot.fetchedAt ?? null
+  const coverage = snapshot.coverage ?? null
+  if (fetchedAt == null && coverage == null) return null
+  return { dayIndex, fetchedAt, coverage }
+}
+
 export interface JourneyDay {
   readonly dayIndex: number
   /** Content identity. Same revision means the exact object may be reused. */
@@ -92,6 +115,8 @@ export interface JourneyDay {
   /** Query/day provenance only. A plan change must not move it. */
   readonly contextKey: string
   readonly projection: JourneyProjection
+  /** Age and reach of the scan behind this day's corridor rows. Null = none known. */
+  readonly evidence: JourneyDayEvidence | null
   /** The canonical schedule slice passed to L1. Never rebuilt here. */
   readonly daySchedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null
 }
@@ -442,6 +467,8 @@ function journeyDayRevision(input: {
   netAdded: string
   /** The scan's evidence state: a live to retained change must rebuild the day. */
   freshness: JourneyFreshness
+  /** Age and reach of the scan: a new scan time must rebuild the day. */
+  evidence: JourneyDayEvidence | null
 }): string {
   return JSON.stringify(input)
 }
@@ -464,6 +491,12 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
   }
 
   const snapshot = input.snapshot
+  // A day scan was made for one day: its km are not trip km, so the trip's
+  // attribution must not move its rows to another day.
+  const scanDay = snapshot.discoveryDayIndex ?? null
+  const dayAttribution = scanDay == null
+    ? snapshot.dayAttribution
+    : { dayForKm: () => scanDay, dayOfSegment: () => scanDay, daySpanKm: snapshot.dayAttribution.daySpanKm }
   const dnaVector = input.dnaVector ?? EMPTY_DNA
   const slotFacts = deriveDaySlotFacts({
     tripId: committed.id,
@@ -476,7 +509,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     existingNames: presence.names,
     identity: presence,
     altPool: snapshot.altPool,
-    dayAttribution: snapshot.dayAttribution,
+    dayAttribution,
     decisions: input.decisions,
     members: trip.members,
     startLocationCoords: trip.startLocationCoords,
@@ -489,7 +522,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
   const driveFacts = {
     detourMinFor: snapshot.detourMinFor,
     days: trip.days,
-    dayForKm: snapshot.dayAttribution.dayForKm,
+    dayForKm: dayAttribution.dayForKm,
     travelStyle: trip.travelStyle,
     added: (hit: PlaceHit) => isAlreadyAdded(hit, presence),
     dismissed: (hit: PlaceHit) => presence.dismissed.has(String(hit.id)),
@@ -525,6 +558,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     })
     const contextKey = `${committed.id}:${snapshot.inputsHash}:${snapshot.scopeKm}:${dayId ?? '-'}:${day.index}`
     const sim = cards.byDay.get(day.index)?.sim ?? null
+    const evidence = dayEvidenceOf(snapshot, day.index)
     const projection = projectJourney({
       dayPlan,
       driveRows: sameDayRows,
@@ -533,6 +567,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       presence,
       contextKey,
       corridorFreshness,
+      corridorEvidence: evidence ? { fetchedAt: evidence.fetchedAt, coverage: evidence.coverage } : null,
       ...(sim ? { daySchedule: sim } : {}),
       ...(netAddedRoad && netAddedMemo && dayId
         ? {
@@ -561,6 +596,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
       netAddedRoute: netAddedRoad?.routeKey ?? null,
       netAdded: netAddedRevision(projection),
       freshness: corridorFreshness,
+      evidence,
     })
     const previous = input.prev?.byDay.get(day.index)
     byDay.set(day.index, previous && previous.revision === revision
@@ -576,6 +612,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
         budgetMin,
         contextKey,
         projection,
+        evidence,
         daySchedule: sim,
       })
   }

@@ -1,7 +1,5 @@
-// P11 trip kit: links to the parts of the Look inside view. The cover shows
-// them and the fixed bar repeats them. Each copy watches the sections itself,
-// so the page needs no hook after its early returns. The link that matches the
-// section in the middle of the screen is marked as the current one.
+// One pinned row links to the parts of Look inside.
+// The section in the middle of the screen is marked as current.
 import { useEffect, useState } from 'react'
 import { scrollBehavior } from '../../lib/motion'
 
@@ -11,11 +9,9 @@ export interface SectionTab {
   label: string
 }
 
-export function SectionTabs({ tabs, label, hidden = false }: {
+export function SectionTabs({ tabs, label }: {
   tabs: readonly SectionTab[]
   label: string
-  /** True while the holder is off screen: the links leave the tab order. */
-  hidden?: boolean
 }): JSX.Element | null {
   const key = tabs.map(t => t.id).join('|')
   const [active, setActive] = useState<string | null>(tabs[0]?.id ?? null)
@@ -43,7 +39,7 @@ export function SectionTabs({ tabs, label, hidden = false }: {
           href={`#${t.id}`}
           className={'pi-section-tab' + (active === t.id ? ' is-active' : '')}
           aria-current={active === t.id ? 'location' : undefined}
-          tabIndex={hidden ? -1 : undefined}
+          onFocus={e => e.currentTarget.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest', inline: 'nearest' })}
           onClick={e => {
             const el = document.getElementById(t.id)
             if (!el) return

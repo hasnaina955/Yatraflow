@@ -190,7 +190,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // hero is held in state (a callback ref) because it only mounts after the
   // trip has loaded, and the observer below must wait for it.
   const [heroEl, setHeroEl] = useState<HTMLElement | null>(null)
-  const [heroGone, setHeroGone] = useState(false)
+  const [priceVisibility, setPriceVisibility] = useState<{
+    hero: HTMLElement
+    view: 'inside' | 'ride'
+    coverGone: boolean
+    cardVisible: boolean
+  } | null>(null)
   // The two views of one read model. `rideDay` is the day index on screen in
   // Ride along; null until the viewer picks one, which then means the first
   // day they may read. Neither value grants anything: the cards and the panel
@@ -201,19 +206,24 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const readDays = useRideProgress(slug)
   const panelEl = useRef<HTMLDivElement>(null)
   const [now] = useState(() => Date.now())
-  // The bar shows only after the cover has left the screen. When the view
-  // changes, the old cover unmounts and the new one mounts. The observer can
-  // still report the detached node as "not intersecting", which used to leave
-  // the bar on at scroll 0. A detached entry is ignored, and the bar reads
-  // `coverGone`, which is false while no cover is mounted.
+  // Keep one persistent price action. Each view observes its own in-page cards.
   useEffect(() => {
     if (!heroEl || typeof IntersectionObserver === 'undefined') return
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.target.isConnected) setHeroGone(!entry.isIntersecting)
+    const cards = [...(heroEl.parentElement?.querySelectorAll('.pi-buy, .pi-take, .pi-aside-card') ?? [])]
+    const visible = new Map<Element, boolean>([heroEl, ...cards].map(el => [el, true]))
+    const io = new IntersectionObserver(entries => {
+      if (!heroEl.isConnected) return
+      for (const entry of entries) visible.set(entry.target, entry.isIntersecting)
+      setPriceVisibility({
+        hero: heroEl,
+        view,
+        coverGone: !visible.get(heroEl),
+        cardVisible: cards.some(el => el.isConnected && visible.get(el)),
+      })
     })
-    io.observe(heroEl)
+    for (const el of visible.keys()) io.observe(el)
     return () => io.disconnect()
-  }, [heroEl])
+  }, [heroEl, view])
   // #349 — which of the two wins is settled in the STORE, not here: every
   // fetchPublicTrip REPLACES the cached row for that id, so `cachedTrip` is the
   // wire's row for this viewer as of the last read and cannot shadow a fresher
@@ -711,6 +721,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const plans = db.published.filter(x => x.creatorId === pub.creatorId && !x.unpublishedAt).length
   const updated = updatedAgo(pub.refreshedAt ?? pub.publishedAt, now)
 
+  function changeView(next: 'inside' | 'ride') {
+    setView(next)
+    requestAnimationFrame(() => {
+      panelEl.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+    })
+  }
+
   function openDay(index: number) {
     setRideDay(index)
     setView('ride')
@@ -856,7 +873,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       semantics="tablist"
       label="Plan views"
       value={view}
-      onChange={k => setView(k === 'ride' ? 'ride' : 'inside')}
+      onChange={k => changeView(k === 'ride' ? 'ride' : 'inside')}
       items={[
         { key: 'inside', label: 'Look inside', id: 'pi-tab-inside', controls: 'pi-panel-inside' },
         { key: 'ride', label: 'Ride along', id: 'pi-tab-ride', controls: 'pi-panel-ride' },
@@ -867,20 +884,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Look inside only; Ride along is one day at a time and has no such parts.
   const hasDays = !!storefront && storefront.cards.length > 0
   const sectionTabs: SectionTab[] = view === 'inside' ? [
-    { id: 'pi-sec-top', label: 'Overview' },
+    { id: 'pi-sec-overview', label: 'Overview' },
     ...(hasDays ? [
       { id: 'pi-sec-inside', label: 'What’s inside' },
       { id: 'pi-sec-days', label: `The ${cards.length} ${cards.length === 1 ? 'day' : 'days'}` },
     ] : []),
     { id: 'pi-sec-creator', label: 'The creator' },
   ] : []
-  const coverGone = heroGone && heroEl !== null && heroEl.isConnected
-  const heroTabs = (
-    <>
-      {kitTabs}
-      {sectionTabs.length > 0 && <SectionTabs tabs={sectionTabs} label="Parts of this plan" />}
-    </>
-  )
+  const showStickyPrice = heroEl !== null && heroEl.isConnected
+    && priceVisibility?.hero === heroEl && priceVisibility.view === view
+    && priceVisibility.coverGone && !priceVisibility.cardVisible
 
   const heroFacts = [
     previewSplit && price !== undefined && !unlocked ? `${pub.durationDays} days · ${previewSplit.freeCount} free to read` : `${pub.durationDays} days`,
@@ -900,6 +913,15 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   return (
     <div className="page-enter pi-page">
       <div className="container pi-wrap">
+        <div className="pi-navigation" role="region" aria-label="Itinerary navigation">
+          {kitTabs}
+          {view === 'inside'
+            ? <SectionTabs tabs={sectionTabs} label="Parts of this plan" />
+            : <div className="pi-navigation-ride">
+                {rideIndex !== null && <span className="pi-muted">Day {rideIndex + 1} of {cards.length}</span>}
+                <button type="button" className="pi-section-tab" onClick={() => changeView('inside')}>Back to overview</button>
+              </div>}
+        </div>
         <TripKitHero
           onCover={setHeroEl}
           photo={heroSrc
@@ -913,23 +935,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           route={`${trip.startLocation} → ${trip.destinations.join(' → ')}${isRoundTrip(trip) ? ` → ${trip.startLocation}` : ''}`}
           facts={heroFacts}
           byline={byline}
-          ride={view === 'ride' ? {
-            facts: [
-              { value: String(pub.durationDays), label: 'days' },
-              { value: kmOf(totalsN.totalDistanceKm), label: 'on the route' },
-              { value: String(placeTotal), label: 'places' },
-              ...(pub.bestSeason ? [{ value: pub.bestSeason, label: 'best season' }] : []),
-            ],
-            // The first three days this visitor may read: their photo, or their scene.
-            photos: dayFacts.flatMap((f, i) => f.readable
-              ? [{ index: cards[i].summary.index, src: f.photo, art: f.photo ? undefined : dayArt(cards[i]), title: cards[i].summary.title }]
-              : []).slice(0, 3),
-            notice: gateNotice ? (tripReReadFailed
-              ? purchaseLoadNotice
-              : <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} />) : undefined,
-          } : undefined}
           asideLabel={price === undefined || unlocked ? 'Take this plan' : 'Buy this plan'}
-          tabs={heroTabs}
+          tabs={null}
           aside={
             <BuyCard
               price={showUnlockCta ? formatInr(price) : gateNotice ? undefined : unlocked && price !== undefined ? 'Yours' : 'Free'}
@@ -972,13 +979,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
 
         {stickyMode && (
           <StickyPriceBar
-            visible={coverGone}
+            visible={showStickyPrice}
             title={pub.title}
             sub={`by ${creatorName} · ${pub.durationDays} days`}
             priceLabel={stickyMode === 'unlock' ? formatInr(price ?? 0) : unlocked && price !== undefined ? 'Yours' : 'Free'}
             priceNote={stickyMode === 'unlock' ? 'one payment' : undefined}
             thumb={heroSrc ? <img src={heroSrc} alt="" decoding="async" /> : artFor('cover', [], '48px')}
-            nav={sectionTabs.length > 0 ? <SectionTabs tabs={sectionTabs} label="Parts of this plan, in the bar" hidden={!coverGone} /> : undefined}
             ctaLabel={stickyMode === 'unlock' ? (buying ? 'Opening payments…' : 'Unlock full plan') : forkLabel}
             mode={stickyMode}
             disabled={stickyMode === 'unlock' && buying}
@@ -987,6 +993,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         )}
 
         <div className="pi-body" ref={panelEl}>
+          <div id="pi-sec-overview">
           {cards.length > 0 && (
             <DayRibbon
               label={view === 'ride' ? 'Choose a day' : 'Trip ribbon'}
@@ -1008,6 +1015,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               onPick={openDay}
             />
           )}
+          </div>
 
           {view === 'inside' ? (
             <div key="inside" role="tabpanel" id="pi-panel-inside" aria-labelledby="pi-tab-inside" className="pi-panel">

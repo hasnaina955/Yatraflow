@@ -1536,7 +1536,7 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
 .pi-page .sf-day--locked .sf-day-chips { margin-bottom: var(--space-5); }
 .pi-ride-photo--art { position: relative; background: var(--pw-lagoon-100); }
 
-/* Section links: on the cover beside the view toggle, and again in the bar. */
+/* Section links share the pinned navigation with the view switch. */
 .pi-sections {
   display: flex; gap: 2px; padding: var(--space-2); border-radius: var(--radius-pill);
   background: var(--pw-glass); border: 1px solid var(--pw-glass-edge); box-shadow: var(--elev-1);
@@ -1547,14 +1547,15 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
   transition: background-color var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper);
 }
 .pi-section-tab:hover { background: var(--pw-lagoon-100); color: var(--pw-ink); }
-.pi-section-tab.is-active { background: var(--pw-sea-700); color: var(--pw-on-cover); font-weight: 700; }
+.pi-section-tab.is-active { background: var(--pw-sea-700); color: var(--pw-on-sea); font-weight: 700; }
 .pi-section-tab:focus-visible { outline: 2px solid var(--pw-sea-700); outline-offset: 2px; }
-.pi-page :is(#pi-sec-top, #pi-sec-inside, #pi-sec-days, #pi-sec-creator) { scroll-margin-top: calc(var(--shell-nav-h, 64px) + var(--space-8)); }
+.pi-page :is(.pi-body, #pi-sec-overview, #pi-sec-inside, #pi-sec-days, #pi-sec-creator) { scroll-margin-top: calc(var(--pi-nav-clearance) + var(--space-7) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); }
 
 /* The fixed bar: a full-width pill at the bottom of the screen, shown only
    after the cover has left the screen. It replaces the old top-centre bar,
    which sat behind the app's own top bar. */
 .pi-page .sf-sticky {
+  display: grid; grid-template-columns: 42px minmax(0, 1fr) max-content max-content;
   top: auto; bottom: var(--space-6); gap: var(--space-7); width: min(100% - 32px, 1120px); height: 64px;
   padding: 0 var(--space-4) 0 var(--space-5); border-radius: var(--radius-pill);
   background: var(--pw-glass); border: 1px solid var(--pw-glass-edge); color: var(--pw-ink);
@@ -1565,22 +1566,15 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
 .pi-page .sf-sticky.is-visible { transform: translate(-50%, 0); transition: transform var(--motion-med) var(--ease-paper), visibility 0s; }
 .pi-page .sf-sticky-thumb { position: relative; flex: none; width: 42px; height: 42px; overflow: hidden; border-radius: var(--radius-pill); background: var(--pw-lagoon-100); }
 .pi-page .sf-sticky-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.pi-page .sf-sticky-name { flex: 0 1 auto; }
-.pi-page .sf-sticky-nav { flex: none; margin-inline: auto; }
-.pi-page .sf-sticky-nav .pi-sections { background: var(--pw-lagoon-100); border: 0; box-shadow: none; }
-.pi-page .sf-sticky-nav .pi-section-tab { min-height: 34px; padding-inline: var(--space-5); }
+.pi-page .sf-sticky-name { min-width: 0; }
 .pi-page .sf-sticky-price small { font: var(--pw-caption); color: var(--pw-ink-3); }
-@media (max-width: 1100px) {
-  .pi-page .sf-sticky-nav { display: none; }
-  .pi-page .sf-sticky-price { margin-inline-start: auto; }
-}
 @media (max-width: 720px) {
   .pi-page .sf-sticky {
+    grid-template-columns: minmax(0, 1fr) max-content max-content; gap: var(--space-4);
     bottom: 0; width: 100%; height: auto; padding: var(--space-5) var(--space-6) calc(var(--space-5) + var(--bottom-ui-offset));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0; transform: translate(-50%, 110%);
   }
   .pi-page .sf-sticky-thumb { display: none; }
-  .pi-hero-tabs .pi-sections { display: none; }
 }
 
 /* Before you go: the route and the notes, two even cards. */
@@ -1809,4 +1803,37 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
   .pi-ride-height .pi-height-line, .pi-ride-height .pi-height-fill { animation: none; }
   .pi-take :is(.pi-take-read, .pi-take-link),
   .pi-page .sf-sticky, .pi-page .sf-sticky.is-visible { transition: none; }
+}
+
+/* ==== PR914 nav: one navigation ==== */
+.pi-page:has(.pi-navigation) {
+  --pi-nav-top: calc(var(--nav-h) + var(--space-10) + 2px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  --pi-nav-clearance: 64px;
+}
+.pi-navigation {
+  position: sticky; top: var(--pi-nav-top); z-index: var(--z-strip);
+  display: flex; align-items: center; gap: var(--space-5); min-width: 0; min-height: 56px;
+  padding: var(--space-2); border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg);
+  background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--elev-1);
+}
+.pi-navigation > .tabbar { flex: none; margin: 0; }
+.pi-navigation [role="tab"] { min-height: 44px; }
+.pi-navigation .pi-sections {
+  min-width: 0; overflow-x: auto; margin-inline-start: auto; padding: 0;
+  border: 0; background: none; box-shadow: none;
+}
+.pi-navigation .pi-section-tab { flex: none; min-height: 44px; }
+.pi-navigation-ride { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-inline-start: auto; }
+.pi-navigation-ride > button { border: 0; background: none; cursor: pointer; }
+.pi-page .pi-ride-aside { top: calc(var(--pi-nav-top) + var(--pi-nav-clearance) + var(--space-7)); }
+.pi-page .sf-sticky > .sf-sticky-price { display: flex; white-space: nowrap; }
+@media (max-width: 720px) {
+  .pi-page:has(.pi-navigation) { --pi-nav-clearance: 72px; }
+  .pi-navigation { gap: var(--space-2); overflow-x: auto; scrollbar-width: thin; }
+  .pi-navigation > .tabbar { flex: none; }
+  .pi-navigation [role="tab"] { flex: none; padding-inline: var(--space-5); }
+  .pi-navigation .pi-sections { flex: none; overflow: visible; margin-inline-start: 0; }
+  .pi-navigation-ride { flex: none; margin-inline-start: auto; padding-inline-start: var(--space-5); }
+  .pi-navigation-ride > .pi-muted { white-space: nowrap; }
+  .pi-page .sf-sticky > .sf-sticky-price { flex-direction: column; align-items: flex-start; gap: 0; }
 }

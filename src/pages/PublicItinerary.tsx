@@ -64,7 +64,6 @@ import { RideLockedPreview } from '../components/storefront/ride/RideLockedPrevi
 import { RideProgress, RideReadMark } from '../components/storefront/ride/RideProgress'
 import { freeDaysRead, useRideProgress } from '../lib/rideProgress'
 import { RideElevation } from '../components/storefront/ride/RideElevation'
-import { RouteGlance } from '../components/storefront/RouteGlance'
 import { ChevronRight, Users } from 'lucide-react'
 
 /** How long the buyer's entitlement read may take before the page stops
@@ -699,7 +698,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // ---- Trip-kit view state: plain derivations over the memos above. Nothing
   // here asks an entitlement question; the cards already carry the answer.
   const cards = storefront?.cards ?? []
-  const routeLockedDays = new Set(cards.filter(card => card.state === 'locked').map(card => card.summary.index))
   const openCount = cards.filter(c => c.state !== 'locked').length
   const firstOpenPos = cards.findIndex(c => c.state !== 'locked')
   const ridePos = (() => {
@@ -1095,15 +1093,12 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 </section>
               )}
 
-              {/* ---- Before you go: the route, the creator's tips and the plan's
-                  assumptions, in one row of two even cards. An empty list is
-                  left out, not drawn as an empty heading. ---- */}
+              {/* ---- Before you go: the creator's tips and the plan's assumptions.
+                  The road by height lives in the Ride along side column. An empty
+                  list is left out, not drawn as an empty heading. ---- */}
               <section className="pi-before" aria-labelledby="pi-before-title">
                 <span className="pi-kicker" id="pi-before-title">Before you go</span>
                 <div className="pi-before-grid">
-                  <RouteGlance key={pub.id} trip={trip} freeIndexes={pub.freeDayIndexes}
-                    places={routeLockedDays.size === 0 ? pub.routeSummary.join(' · ') : null}
-                    onRide={() => changeView('ride')} />
                   {(pub.travelTips.length > 0 || pub.warningsAndAssumptions.length > 0) && (
                     <div className="pi-card pi-before-notes">
                       {pub.travelTips.length > 0 && <>

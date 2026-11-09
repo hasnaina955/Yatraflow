@@ -14,7 +14,7 @@ const KOLKATA = { lat: 22.5726, lng: 88.3639 }
 const DELHI = { lat: 28.6139, lng: 77.209 }
 
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
-const glance = readFileSync(new URL('../src/components/storefront/RouteGlance.tsx', import.meta.url), 'utf8')
+const heightChart = readFileSync(new URL('../src/components/trips/OverviewElevationProfile.tsx', import.meta.url), 'utf8')
 const overview = readFileSync(new URL('../src/pages/trip/OverviewTab.tsx', import.meta.url), 'utf8')
 const overviewTruth = readFileSync(new URL('../src/lib/overviewTruth.ts', import.meta.url), 'utf8')
 const pubItinerary = readFileSync(new URL('../src/pages/PublicItinerary.tsx', import.meta.url), 'utf8')
@@ -100,16 +100,18 @@ describe('#613 — a driving day with no stored stops still draws its journey', 
 })
 
 describe('#614 — route day badges are one-based', () => {
-  it('the route glance prints the index plus one on its badge', () => {
-    expect(glance).toContain('{badge.day + 1}</text>')
+  it('the height chart prints the index plus one on its day labels', () => {
+    expect(heightChart).toContain('`Day ${first.dayIndex! + 1}`')
+    expect(heightChart).toContain('`Day ${last.dayIndex! + 1}`')
   })
 
-  it('a place no day owns gets no glance badge', () => {
-    expect(glance).toContain('if (mark.dayIndex == null || seen.has(mark.dayIndex)) continue')
+  it('a place no day owns gets no day label', () => {
+    expect(heightChart).toContain('plot.marks.filter(mark => mark.dayIndex != null)')
   })
 
-  it('the published page uses the height glance, not the old route snapshot', () => {
-    expect(pubItinerary).toContain('<RouteGlance ')
+  it('the published page uses the Ride along height card, not the old route snapshot', () => {
+    expect(pubItinerary).toContain('<RideElevation ')
+    expect(pubItinerary).not.toContain('RouteGlance')
     expect(pubItinerary).not.toContain('RouteSnapshot')
   })
 

@@ -1011,3 +1011,22 @@
 @media (prefers-reduced-motion: reduce) {
   .mv2-lens-chip, .mv2-lens-ring-btn, .mv2-lens-card { transition: none; }
 }
+
+/* ===== Map v2 lens wiring (911-W3) ===== */
+/* Five lens entries do not fit beside the phone search field. The pill drops
+   below the field, keeps every target at 44px, and scrolls if the words return. */
+@media (max-width: 760px) {
+  .mv2-workspace .mv2-lens-pill {
+    top: 120px;
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    max-width: none;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+  .mv2-workspace .mv2-lens-pill > button {
+    flex: 0 0 auto;
+    padding-inline: var(--space-3);
+  }
+}

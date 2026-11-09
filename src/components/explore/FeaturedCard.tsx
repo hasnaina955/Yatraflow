@@ -1,10 +1,10 @@
 // ============ Explore — featured itinerary ============
 // The cover on the left, with its style and price labels. The text runs down the
 // right: kicker, title, tagline, the route trail, the four facts, the reason it
-// leads, then the creator and the actions. On a phone the cover stacks over the
+// leads, then the creator and the actions. The creator shows once, in the byline. On a phone the cover stacks over the
 // text. Its credibility line says why the plan leads, and only with real evidence.
 import type { ReactNode } from 'react'
-import { Eye, GitFork, Heart, Sparkles, Star } from 'lucide-react'
+import { GitFork, Heart, Star } from 'lucide-react'
 import type { PublishedItinerary, CachedUser } from '../../data/types'
 import { appLink } from '../../lib/appLink'
 import { cap } from '../../lib/labels'
@@ -30,7 +30,7 @@ export function FeaturedCard({ pub, creator, kicker, healthScore, saved, needsLo
   return (
     <article className="ex-feature ex-enter" data-id={pub.id}>
       <div className="ex-feature-cover">
-        <ExploreCover pub={pub} sizes={EX_FEATURE_SIZES} />
+        <ExploreCover pub={pub} sizes={EX_FEATURE_SIZES} eager />
         <span className="ex-style-tag">{cap(pub.travelStyle)}</span>
         <ExplorePriceTag pub={pub} />
       </div>
@@ -42,10 +42,9 @@ export function FeaturedCard({ pub, creator, kicker, healthScore, saved, needsLo
         <ExploreFacts pub={pub} />
         <p className="ex-credibility">
           Why featured: {pub.copies >= 1
-            ? <><GitFork size={12} aria-hidden className="ex-inline-icon" /> {pub.copies} fork{pub.copies === 1 ? '' : 's'} — the most-forked plan here</>
-            : <><Eye size={12} aria-hidden className="ex-inline-icon" /> {pub.views} views</>}
-          {healthScore !== undefined && <> · trip health {healthScore}/100</>} — by {creatorName}
-          {creator?.profile.isCreator && <> <Sparkles size={12} aria-hidden className="ex-inline-icon" /></>}.
+            ? `${pub.copies} fork${pub.copies === 1 ? '' : 's'}, the most of any plan here`
+            : `${pub.views} view${pub.views === 1 ? '' : 's'}`}
+          {healthScore !== undefined && <> · trip health {healthScore}/100</>}
         </p>
         <div className="ex-feature-foot">
           {creator ? (

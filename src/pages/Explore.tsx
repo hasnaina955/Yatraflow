@@ -98,12 +98,15 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   // other filters describe the ITINERARIES (which anyone can see); this one
   // describes the READER, and that is the line the URL must not cross.
   const [savedOnly, setSavedOnly] = useState(false)
+  // "Free plans" quick pick: a plan is free when it has no storefront price. Like
+  // Saved, it stays out of the URL: it is a view of the catalog, not an address.
+  const [freeOnly, setFreeOnly] = useState(false)
   // P4 pagination: show the first page; "Load more" widens the window. Reset
   // to the first page whenever the result set's shape changes (filter/sort
   // edits), but NOT when `published` updates live (realtime insert) — a new
   // row appearing shouldn't yank the user back to the top.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [q, style, maxBudget, duration, savedOnly, sortKey])
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [q, style, maxBudget, duration, savedOnly, freeOnly, sortKey])
 
   /** Write the current filters back into the hash query (F-22). replaceState —
       filter fiddling shouldn't spam history or retrigger App's scroll-reset. */
@@ -125,8 +128,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
       )
     }
     if (savedOnly) list = list.filter(p => saved.includes(p.id))
+    if (freeOnly) list = list.filter(isFreePlan)
     return sortList(list)
-  }, [published, users, q, style, maxBudget, duration, sortKey, savedOnly, saved])
+  }, [published, users, q, style, maxBudget, duration, sortKey, savedOnly, freeOnly, saved])
 
   function sortList(list: typeof published) {
     switch (sortKey) {
@@ -162,6 +166,9 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
     return counts
   }, [published])
   const liveCount = useMemo(() => livePubs(published).length, [published])
+  // The Free plans pick is drawn only when the catalog holds a free plan, so it
+  // never leads to a list that is empty by construction.
+  const hasFreePlan = useMemo(() => livePubs(published).some(isFreePlan), [published])
   const savedLiveCount = useMemo(() => livePubs(published).filter(p => saved.includes(p.id)).length, [published, saved])
   const places = useMemo(() => placeTiles(published, users), [published, users])
   const creators = useMemo(() => creatorList(published, users), [published, users])
@@ -195,7 +202,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
   }
 
   function clearFilters() {
-    setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false)
+    setQ(''); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); setFreeOnly(false)
     syncUrl({ q: '', style: 'all', max: '', dur: 'all' })
   }
 
@@ -217,19 +224,25 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
         setMaxBudget(next); syncUrl({ max: String(next) })
       },
     },
+    // Road trips, Hills and Coast need a trip-type tag that no publication
+    // carries, so they are not drawn. A pick that guessed from the title text
+    // would claim a filter the data cannot back.
+    ...(hasFreePlan || freeOnly ? [{
+      key: 'free', label: 'Free plans', pressed: freeOnly, onToggle: () => setFreeOnly(value => !value),
+    }] : []),
   ]
 
   /** A place tile searches that place and clears every other filter, so the
    *  list starts from the whole catalog. */
   function searchPlace(name: string) {
-    setQ(name); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false)
+    setQ(name); setStyle('all'); setMaxBudget(''); setDuration('all'); setSavedOnly(false); setFreeOnly(false)
     syncUrl({ q: name, style: 'all', max: '', dur: 'all' })
     document.getElementById('explore-results')?.scrollIntoView({ block: 'start' })
   }
 
   const stylesWithCounts = STYLES.filter(s => (styleCounts.get(s) ?? 0) > 0)
   const styleOptions: StyleOption[] = stylesWithCounts.map(s => ({ value: s, label: cap(s), count: styleCounts.get(s) ?? 0 }))
-  const filtersActive = Boolean(q.trim()) || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly
+  const filtersActive = Boolean(q.trim()) || style !== 'all' || maxBudget !== '' || duration !== 'all' || savedOnly || freeOnly
   const emptyKind = savedEmptyKind({
     pubsCount: pubs.length, filtersActive, savedOnly, savedCount: savedLiveCount, signedIn: Boolean(me),
   })
@@ -330,7 +343,8 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             />
           )}
 
-          {shelfPicks.length > 0 && <TrendingShelf pubs={shelfPicks} users={users} isSaved={isSaved} onToggleSave={toggleHeart} />}
+          {shelfPicks.length > 0 && <TrendingShelf pubs={shelfPicks} users={users} isSaved={isSaved} needsLogin={!me}
+            onFork={forkTrip} onToggleSave={toggleHeart} />}
 
           {pubsRead !== 'ready' ? (
             /* #364: a failed catalog read used to render "just getting started" —
@@ -434,12 +448,17 @@ function ExploreGrid({ entries, attachList, users, isSaved, needsLogin, onFork, 
   return (
     <div className="ex-grid" ref={attachList}>
       {entries.map(({ item: p, key, exiting }, index) => (
-        <ExploreCard key={key} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)}
+        <ExploreCard key={key} pub={p} creator={userOf(users, p.creatorId)} saved={isSaved(p.id)} eager={index < 3}
           enterIndex={exiting ? 0 : index % PAGE_SIZE} presence={presenceAttrs({ exiting })}
           onFork={() => onFork(p.id)} onToggleSave={() => onToggleSave(p.id)} needsLogin={needsLogin} />
       ))}
     </div>
   )
+}
+
+/** A plan with no storefront price. The same test the price label uses. */
+function isFreePlan(pub: PublishedItinerary): boolean {
+  return (pub.premiumPriceInr ?? 0) <= 0
 }
 
 function userOf(users: CachedUser[], id: string): CachedUser | undefined {

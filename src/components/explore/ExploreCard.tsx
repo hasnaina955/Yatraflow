@@ -24,7 +24,7 @@ import { ExplorePriceTag } from './ExplorePriceTag'
 import { ExploreSaveHeart } from './ExploreSaveHeart'
 
 export function ExploreCard({
-  pub, creator, saved, needsLogin, enterIndex, presence, sizes = EX_GRID_SIZES, forkLabel, footer,
+  pub, creator, saved, needsLogin, enterIndex, presence, sizes = EX_GRID_SIZES, eager, forkLabel, footer,
   onFork, onToggleSave,
 }: {
   pub: PublishedItinerary
@@ -39,6 +39,8 @@ export function ExploreCard({
   presence?: PresenceAttrs
   /** The cover slot's real width. The grid, the shelf and the creator page differ. */
   sizes?: string
+  /** Load the cover at once. Set for the cards near the top of the page. */
+  eager?: boolean
   /** The Fork button's own words. The grid is short; a creator page is explicit. */
   forkLabel?: string
   /** A last row inside the card, such as the creator's bio and channels. */
@@ -54,7 +56,7 @@ export function ExploreCard({
     <article className={`ex-card${enterIndex == null ? '' : ' ex-enter'}`} data-id={pub.id}
       style={enterDelay} {...presence}>
       <div className="ex-cover-wrap">
-        <ExploreCover pub={pub} sizes={sizes} />
+        <ExploreCover pub={pub} sizes={sizes} eager={eager} />
         <span className="ex-style-tag">{cap(pub.travelStyle)}</span>
         <ExplorePriceTag pub={pub} />
         <ExploreSaveHeart title={title} saved={saved} onToggle={onToggleSave} />

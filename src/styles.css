@@ -887,7 +887,7 @@
 .map-edit-swap select { min-height: 44px; }
 
 /* ===== Map v2 lens decks (package 911-W2): DriveTabs and FixDeck ===== */
-.mv2-lens { display: flex; flex-direction: column; gap: 12px; color: var(--pw-ink); }
+.mv2-lens { display: flex; flex-direction: column; gap: 12px; padding: 0 var(--space-4) var(--space-4); color: var(--pw-ink); }
 .mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
 .mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
 .mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; }
@@ -927,6 +927,7 @@
   --mv2-lens-edge: var(--pw-line);
   --mv2-lens-accent: var(--pw-marigold-500);
   --mv2-lens-accent-ink: var(--pw-on-marigold);
+  padding: 0 var(--space-4) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

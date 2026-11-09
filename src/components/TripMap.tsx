@@ -32,6 +32,11 @@ import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
 import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
+import { applyWorkspaceViewMode } from '../lib/mapStyles'
+import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
+import { DayRouteLayers } from './map/DayRouteLayers'
+import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
+import { ghostLegPaint, pickLetter, resolveMarkCollisions, type GhostLeg, type GhostRoad, type MarkSpot } from '../lib/mapStyles/placeMarks'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -428,14 +433,18 @@ function CooperativeGestures({ enabled }: { enabled: boolean }) {
  * effect: setStyle preserves the camera, and the pitch/bearing ride belongs
  * to mode transitions only.
  */
-function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?: number | null }) {
-  const { map, isLoaded } = useMap()
+const WORKSPACE_3D_PITCH = 40 // The boards show 3D at pitch 30 to 40.
+function MapViewModeController({ mode, bearing, workspace = false }: { mode: MapViewMode; bearing?: number | null; workspace?: boolean }) {
+  const { map, isLoaded, resolvedTheme } = useMap()
   useEffect(() => {
     if (!map || !isLoaded) return
     try {
-      applyViewModeOnMap(map, mode)
+      // The supplied styles carry their own DEM and hillshade, so the Map tab
+      // changes their paint instead of adding a second source.
+      if (workspace) applyWorkspaceViewMode(map, mode, resolvedTheme)
+      else applyViewModeOnMap(map, mode)
     } catch { /* style swapped mid-flight — the next isLoaded edge re-applies */ }
-  }, [map, isLoaded, mode])
+  }, [map, isLoaded, mode, workspace, resolvedTheme])
   const prevMode = useRef<MapViewMode>('2d')
   const prevBearing = useRef<number | null>(null)
   useEffect(() => {
@@ -447,7 +456,7 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     if (move === 'enter') {
       // Dynamic hero cam: look along THIS trip's road (initial route bearing);
       // the prototype's fixed bearing stays only as a geometry-less fallback.
-      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
+      map.easeTo({ pitch: workspace ? WORKSPACE_3D_PITCH : HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
     } else if (move === 're-aim') {
       // The road resolved AFTER 3D opened: the fallback bearing was eased, and
       // the edge trigger alone would leave the camera stuck on it forever.
@@ -460,8 +469,15 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     }
     prevMode.current = mode
     prevBearing.current = heroBearing
-  }, [map, isLoaded, mode, bearing])
+  }, [map, isLoaded, mode, bearing, workspace])
   return null
+}
+
+/** One road of an edit preview. A replaced road dims. An estimate is thin and dotted. */
+function GhostLegRoute({ id, leg, role }: { id: string; leg: GhostLeg; role: 'new' | 'replaced' }) {
+  const paint = ghostLegPaint(leg, role)
+  if (leg.coordinates.length < 2) return null
+  return <MapRoute id={id} coordinates={leg.coordinates} color={role === 'replaced' ? '#64748B' : '#7D5EFC'} width={paint.width} opacity={paint.opacity} dashArray={role === 'replaced' ? undefined : paint.dash} interactive={false} />
 }
 
 /** Drop consecutive duplicate points (shared endpoints between legs). */
@@ -483,7 +499,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, warningMarks = [] }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -493,6 +509,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** external day-focus driver (Board column select): a day index shows just that
       day's route, 'all' resets to the whole trip. Undefined = map owns its filter. */
   focusDay?: number | 'all'
+  /** The day the all-days view stresses. Other days draw behind it at 2px and 40%. */
+  selectedDay?: number | null
+  /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
+  ghostRoad?: GhostRoad | null
+  /** Real problems to mark with a diamond. The parent supplies each fact. */
+  warningMarks?: { id: string; lat: number; lng: number; label: string; severe?: boolean; onOpen?: () => void }[]
   /** the map's own day chips report the day they just filtered to, so a host
       whose plan rail carries the same choice can follow it. A host that cannot
       represent 'all' (the slots rail always plans one day) simply ignores it. */
@@ -826,6 +848,25 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // stop invisible and unclickable. Nudge each one apart for drawing only; the
   // markers keep their real coordinates. See lib/pinOffsets.ts.
   const pinOffsets = useMemo(() => coincidentPinOffsets(allPoints), [allPoints])
+  // Close stops and clock pills must not overlap on screen. Marks keep their real
+  // coordinates. The spread only moves how they are drawn, after each camera move.
+  const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  useEffect(() => {
+    const map = mapRef.current
+    if (!workspaceChrome || !map || !mapLoaded) return
+    const spread = () => {
+      try {
+        const boxes: (Parameters<typeof resolveMarkCollisions>[0][number])[] = []
+        const stops = allPoints.filter(p => !p.auto)
+        for (const p of stops) { const { x, y } = map.project([p.lng, p.lat]); boxes.push({ id: `stop:${p.id}`, x, y, w: 36, h: 36 }) }
+        for (const p of stops) { const { x, y } = map.project([p.lng, p.lat]); boxes.push({ id: `clock:${p.id}`, x, y: y + 28, w: 84, h: 20, droppable: true }) }
+        setMarkSpots(resolveMarkCollisions(boxes))
+      } catch { /* the map was removed while measuring */ }
+    }
+    spread()
+    map.on('moveend', spread)
+    return () => { map.off('moveend', spread) }
+  }, [workspaceChrome, mapLoaded, allPoints])
 
   // A day's ride as the ENGINE plans it: origin → stops → synthesized
   // destination (an outbound continuation, or the final day's ride home).
@@ -1403,7 +1444,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <MapControls position="top-right" className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
-            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
+            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} workspace={workspaceChrome} />}
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={wantsCooperativeGestures({ dedicated, expanded })} />
@@ -1430,18 +1471,26 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // paint and loses its chevrons, so "no road resolved" cannot read
               // as a road while the numbers beside it are haversine estimates.
               const rough = routeDrawGrade(geom.all) === 'rough'
+              // A selected day stands out only on a measured road. A chord
+              // fallback keeps the single rough line, so nothing is invented.
+              const focused = selectedDay != null && !rough ? dayRoadSlices(geom.all, dayRoutePoints, selectedDay) : []
               return (
                 <>
-                  <MapRoute
-                    id="yf-main-casing"
-                    coordinates={coords}
-                    color={dark ? '#0B2545' : '#FFFFFF'}
-                    width={9}
-                    opacity={dark ? 0.6 : 0.75}
-                    interactive={false}
-                  />
-                  <MapRoute coordinates={coords} color={rough ? warnInk : dark ? '#2A6FDB' : '#0B2545'} width={rough ? 3.5 : 4.5} opacity={rough ? 0.9 : 0.95} dashArray={rough ? ROUGH_DASH : undefined} />
-                  {!rough && <RouteArrows coordinates={coords} dark={dark} />}
+                  {focused.length > 0 ? <>
+                    <DayRouteLayers slices={focused} dark={dark} colorFor={colorForDay} />
+                    {focused.filter(slice => slice.selected).map(slice => <RouteArrows key={slice.dayIndex} coordinates={slice.coordinates} dark={dark} />)}
+                  </> : <>
+                    <MapRoute
+                      id="yf-main-casing"
+                      coordinates={coords}
+                      color={dark ? '#0B2545' : '#FFFFFF'}
+                      width={ROUTE_PAINT.selectedCasingWidth}
+                      opacity={dark ? 0.6 : 0.75}
+                      interactive={false}
+                    />
+                    <MapRoute coordinates={coords} color={rough ? warnInk : dark ? '#2A6FDB' : '#0B2545'} width={rough ? 3.5 : ROUTE_PAINT.selectedWidth} opacity={rough ? 0.9 : 0.95} dashArray={rough ? ROUGH_DASH : undefined} />
+                    {!rough && <RouteArrows coordinates={coords} dark={dark} />}
+                  </>}
                 </>
               )
             })() : (
@@ -1467,14 +1516,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       id={`yf-day-casing-${d.index}`}
                       coordinates={coords}
                       color={theme === 'dark' ? '#0B2545' : '#FFFFFF'}
-                      width={8}
+                      width={ROUTE_PAINT.selectedCasingWidth}
                       opacity={theme === 'dark' ? 0.6 : 0.75}
                       interactive={false}
                     />
                     <MapRoute
                       coordinates={coords}
                       color={rough ? warnInk : colorForDay(d.index)}
-                      width={rough ? 3.5 : 4}
+                      width={rough ? 3.5 : ROUTE_PAINT.selectedWidth}
                       opacity={rough ? 0.9 : 0.95}
                       dashArray={rough ? ROUGH_DASH : undefined}
                     />
@@ -1515,6 +1564,17 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 reads mapcn's `isLoaded` (loaded AND style loaded), and a theme
                 swap re-adds it on the incoming style. TripMap's own gate is a
                 camera latch and cannot say when a style write is safe. */}
+            {ghostRoad && <>
+              {ghostRoad.replaced && <GhostLegRoute id="yf-ghost-replaced" leg={ghostRoad.replaced} role="replaced" />}
+              {ghostRoad.legIn && <GhostLegRoute id="yf-ghost-in" leg={ghostRoad.legIn} role="new" />}
+              {ghostRoad.legOut && <GhostLegRoute id="yf-ghost-out" leg={ghostRoad.legOut} role="new" />}
+            </>}
+            {warningMarks.filter(w => validMapCoordinate({ lat: w.lat, lng: w.lng })).map(w => (
+              <MapMarker key={`warn-${w.id}`} longitude={w.lng} latitude={w.lat}>
+                <MarkerContent><WarningDiamond label={w.label} severe={w.severe} onOpen={w.onOpen} /></MarkerContent>
+                <MarkerTooltip>{w.label}</MarkerTooltip>
+              </MapMarker>
+            ))}
             <DetourSpurOverlay activeHitId={activeHitId} nearbyPois={nearbyPois} route={spurRoute} ink={warnInk} />
             {/* The travel clock as road labels: one text pair per planned anchor
                 (meal / overnight / destination) — time + date left of the road,
@@ -1561,6 +1621,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       onClick={() => onOpenSlot?.(pin.key)}
                     >
                       {SLOT_PIN_GLYPH[pin.key] ?? pin.label.slice(0, 1)}
+                      {workspaceChrome && (() => { const letter = pickLetter(slotPins.filter(other => other.key === pin.key).indexOf(pin)); return letter ? <span className="mv2-pick-letter" aria-hidden="true">{letter}</span> : null })()}
                     </button>
                   </MarkerContent>
                   <MarkerTooltip>{label}</MarkerTooltip>
@@ -1575,7 +1636,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 // distinct start/end badges instead of numbered pins.
                 const isLast = idx === allPoints.length - 1
                 const off = pinOffsets.get(p.id)
-                const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
+                const spot = workspaceChrome ? markSpots.get(`stop:${p.id}`) : undefined
+                const clockSpot = workspaceChrome ? markSpots.get(`clock:${p.id}`) : undefined
+                const dx = (off?.dx ?? 0) + (spot?.dx ?? 0)
+                const dy = (off?.dy ?? 0) + (spot?.dy ?? 0)
+                const offsetStyle = dx || dy ? { transform: `translate(${dx}px, ${dy}px)` } : undefined
                 if (p.auto) {
                   const label = isLast ? <Flag size={13} aria-hidden />
                     : trip.transportMode === 'flight'
@@ -1613,7 +1678,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>}
                       </button>
                       </span>
-                      {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>}
+                      {c && (workspaceChrome
+                        ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {c.cumKm}</small></span>
+                        : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
                     </MarkerContent>
                     <MarkerTooltip>{p.title}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip${c.estimated ? ' (estimate)' : ''}` : ''}</MarkerTooltip>
                   </MapMarker>
@@ -1684,7 +1751,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         onClick={() => onActivateHit?.(hit.id as string | number)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivateHit?.(hit.id as string | number) } }}
                       >
-                        {isSearchHit ? <Search size={14} aria-hidden /> : <CatIcon category={hit.category} size={14} />}
+                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
                       {onAddNearby && (
                         <button

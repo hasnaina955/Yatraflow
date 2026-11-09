@@ -1,0 +1,37 @@
+/* Map tab v2 marks: subtype tiles, pick letters, clock pills, warning diamonds
+   and the 44px touch areas. This file is imported by MapWorkspaceMarks.tsx. */
+.mv2-pin-clock { display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-3); border-radius: var(--radius-pill); background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out); }
+.mv2-pin-clock small { color: var(--text-2); font-weight: 600; font-size: 11px; }
+.mv2-pin-clock[data-collapsed='true'] { opacity: 0; }
+.mv2-subtype-mark { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--radius-xs); background: var(--card); border: 2px solid var(--mark-family, var(--color-primary)); color: var(--text); box-shadow: var(--shadow-sm); }
+.mv2-subtype-mark[data-family='water'] { --mark-family: #228CC8; }
+.mv2-subtype-mark[data-family='nature'] { --mark-family: #4A9539; }
+.mv2-subtype-mark[data-family='views'] { --mark-family: #0D8D82; }
+.mv2-subtype-mark[data-family='faith'] { --mark-family: #7D5EFC; }
+.mv2-subtype-mark[data-family='heritage'] { --mark-family: #C27109; }
+.mv2-subtype-mark[data-family='culture'] { --mark-family: #E15279; }
+.mv2-subtype-mark[data-family='needs'] { --mark-family: #CE5245; }
+.mv2-pick-letter { position: absolute; top: -8px; left: -8px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--text); color: var(--card); font-size: 10px; font-weight: 800; line-height: 1; pointer-events: none; }
+.mv2-warn-diamond { position: relative; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 2px solid var(--card); border-radius: var(--radius-xs); background: #CE5245; color: #FFFFFF; transform: rotate(45deg); box-shadow: var(--shadow-sm); }
+.mv2-warn-diamond > svg { transform: rotate(-45deg); }
+.mv2-warn-diamond.is-severe { background: #A6342A; }
+.mv2-pin-offset { display: inline-flex; flex-direction: column; align-items: center; transition: transform var(--motion-fast) var(--ease-out); }
+@media (pointer: coarse) {
+  .mv2-workspace .yf-map-pin--slot::before, .mv2-workspace .mv2-warn-diamond::before, .mv2-workspace .yf-map-idea-add::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+  .mv2-workspace .yf-map-ctrls button, .mv2-workspace .map-legend-toggle { min-width: 44px; min-height: 44px; }
+  .mv2-omnibar input, .mv2-omnibar .btn { min-height: 44px; }
+  .mv2-workspace .maplibregl-ctrl-bottom-right { z-index: 6; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv2-pin-clock, .mv2-pin-offset { transition: none; }
+}
+@media (max-width: 760px) {
+  .mv2-workspace .maplibregl-ctrl-attrib-inner { font-size: 10px; line-height: 1.3; }
+}
+@media (pointer: coarse) {
+  /* A diamond is a square turned 45 degrees. The pad must be 44px * 1.42 so a 44px square fits inside. */
+  .mv2-workspace .mv2-warn-diamond::before { width: 62px; height: 62px; }
+}
+@media (pointer: coarse) {
+  .mv2-workspace .yf-map-pin--slot, .mv2-workspace .yf-map-idea-add, .mv2-workspace .mv2-warn-diamond { position: relative; }
+}

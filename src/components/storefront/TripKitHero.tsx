@@ -57,7 +57,7 @@ export function TripKitHero({ onCover, photo, art, back, kicker, title, subtitle
           ))}
         </div>
       ) : null}
-      <div className="pi-hero-tabs">{tabs}</div>
+      {tabs ? <div className="pi-hero-tabs">{tabs}</div> : null}
       {ride.notice ? <div className="pi-ride-notice">{ride.notice}</div> : null}
     </header>
   )
@@ -67,7 +67,7 @@ export function TripKitHero({ onCover, photo, art, back, kicker, title, subtitle
       <div className="pi-hero-scrim" aria-hidden="true" />
       {copy}
       <aside className="pi-hero-aside" aria-label={asideLabel}>{aside}</aside>
-      <div className="pi-hero-tabs">{tabs}</div>
+      {tabs ? <div className="pi-hero-tabs">{tabs}</div> : null}
     </header>
   )
 }

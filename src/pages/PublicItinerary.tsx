@@ -1010,7 +1010,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           )}
 
           {view === 'inside' ? (
-            <div role="tabpanel" id="pi-panel-inside" aria-labelledby="pi-tab-inside" className="pi-panel">
+            <div key="inside" role="tabpanel" id="pi-panel-inside" aria-labelledby="pi-tab-inside" className="pi-panel">
               {/* ---- What is inside: counts for every day, names only where the
                   page already shows them. A locked day carries no place list. A
                   plan with no days has nothing to show, so the section is skipped. ---- */}
@@ -1203,7 +1203,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               </section>
             </div>
           ) : (
-            <div role="tabpanel" id="pi-panel-ride" aria-labelledby="pi-tab-ride" className="pi-panel pi-ride-grid">
+            <div key="ride" role="tabpanel" id="pi-panel-ride" aria-labelledby="pi-tab-ride" className="pi-panel pi-ride-grid">
               <div className="pi-ride-main">
                 {rideCard && <RideReadMark publicationId={pub.id} freeIndexes={pub.freeDayIndexes} index={rideCard.summary.index} />}
                 {ridePanel ?? (

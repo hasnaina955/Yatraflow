@@ -37,6 +37,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, layoutMarks, pickLetter, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { pickBandClass, ringLabelPoint, stayRingsGeoJson } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -512,7 +513,10 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, warningMarks = [] }: {
+/** The lagoon ink of a stay reach ring. A map paint cannot read a CSS token. */
+const STAY_RING_INK = '#0D8D82'
+
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, stayRings = [], gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [] }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -526,6 +530,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   selectedDay?: number | null
   /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
   ghostRoad?: GhostRoad | null
+  /** The stay lens's reach rings. Absent or empty draws nothing. */
+  stayRings?: Array<{ id: string; label: string; ring: [number, number][] }>
+  /** The parts of the day that are still open, as hollow rings on the road point.
+   *  Absent or empty draws nothing. */
+  gapRings?: Array<{ key: string; lat: number; lng: number; windowText: string | null }>
+  /** A tap on an open-part ring opens that part in the plan rail. Without it
+   *  the ring is a mark, not a button. */
+  onGapRing?: (key: string) => void
+  /** The band of each pick, keyed by the pick id the map already uses. */
+  pickBands?: Record<string, 'just-past' | 'over-budget'>
+  /** A rank letter for each pick, keyed by the pick id the map already uses. */
+  pickLetters?: Record<string, 'A' | 'B' | 'C'>
   /** Real problems to mark with a diamond. The parent supplies each fact. */
   warningMarks?: { id: string; lat: number; lng: number; label: string; severe?: boolean; onOpen?: () => void }[]
   /** the map's own day chips report the day they just filtered to, so a host
@@ -948,6 +964,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const lat = fix ? fix.lat : pin.hit.latitude
       const lng = fix ? fix.lng : pin.hit.longitude
       if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) spreadMarks.push({ id: `slot:${pin.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat, lng, ox: 0, oy: 0 })
+    }
+    // Lens: an open part of the day joins the layout as a slot mark, so its ring
+    // keeps the same 44px hit box the empty-part pins use.
+    for (const ring of gapRings) {
+      if (!Number.isFinite(ring.lat) || !Number.isFinite(ring.lng) || (ring.lat === 0 && ring.lng === 0)) continue
+      spreadMarks.push({ id: `gap:${ring.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat: ring.lat, lng: ring.lng, ox: 0, oy: 0 })
     }
     for (const hit of visiblePois) {
       if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
@@ -1680,6 +1702,36 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 reads mapcn's `isLoaded` (loaded AND style loaded), and a theme
                 swap re-adds it on the incoming style. TripMap's own gate is a
                 camera latch and cannot say when a style write is safe. */}
+            {/* Lens: the stay reach rings sit under the stop marks - a dashed
+                lagoon line, with the walk or drive label chipped at the ring's
+                top point. */}
+            {stayRings.length > 0 && stayRingsGeoJson(stayRings).features.map(ring => ring.geometry.coordinates.length > 1 && (
+              <MapRoute key={`yf-stay-ring-${ring.properties.id}`} id={`yf-stay-ring-${ring.properties.id}`} coordinates={ring.geometry.coordinates} color={STAY_RING_INK} width={1.5} opacity={0.85} dashArray={[2, 1.5]} interactive={false} />
+            ))}
+            {stayRings.map(ring => {
+              const top = ringLabelPoint(ring.ring)
+              if (!top) return null
+              return (
+                <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={top[0]} latitude={top[1]} anchor="bottom">
+                  <MarkerContent><span className="mv2-lens-ring-label">{ring.label}</span></MarkerContent>
+                </MapMarker>
+              )
+            })}
+            {/* Lens: an open part of the day is a hollow marigold ring on its road
+                point. It is a button only when the host can open the part. */}
+            {gapRings.map(ring => {
+              if (!Number.isFinite(ring.lat) || !Number.isFinite(ring.lng) || (ring.lat === 0 && ring.lng === 0)) return null
+              const note = ring.windowText
+              const name = note ? `Open part of the day, ${note}` : 'Open part of the day'
+              const mark = onGapRing
+                ? <button type="button" className="mv2-lens-gap-ring" aria-label={name} title={note ?? undefined} onClick={() => onGapRing(ring.key)} />
+                : <span className="mv2-lens-gap-ring" role="img" aria-label={name} title={note ?? undefined} />
+              return (
+                <MapMarker key={`yf-gap-ring-${ring.key}`} longitude={ring.lng} latitude={ring.lat} anchor="center">
+                  <MarkerContent>{offsetWrap(`gap:${ring.key}`, mark)}</MarkerContent>
+                </MapMarker>
+              )
+            })}
             {ghostRoad && <>
               {ghostRoad.replaced && <GhostLegRoute id="yf-ghost-replaced" leg={ghostRoad.replaced} role="replaced" />}
               {ghostRoad.legIn && <GhostLegRoute id="yf-ghost-in" leg={ghostRoad.legIn} role="new" />}
@@ -1857,21 +1909,25 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // solid teal, no attention pulse, "Search result" affordance. Its
               // tap selects it (glow + row highlight) instead of only locating.
               const isSearchHit = searchHitIds?.has(hit.id as string | number) ?? false
+              // Lens bands: a pick past today's scope or budget says so on its face.
+              const band = pickBands?.[String(hit.id)]
+              const bandClass = pickBandClass(band)
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
                     {offsetWrap(`pick:${hit.id}`, <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
                       <span
-                        className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}`}
+                        className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}${bandClass ? ` ${bandClass}` : ''}`}
                         style={isSearchHit ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
                         role="button"
                         tabIndex={0}
                         aria-pressed={isSearchHit ? active : undefined}
+                        aria-description={band === 'over-budget' ? "Over today's budget" : undefined}
                         aria-label={isSearchHit ? `Select ${hit.name}` : `Locate ${hit.name} in the suggestions panel`}
                         onClick={() => onActivateHit?.(hit.id as string | number)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivateHit?.(hit.id as string | number) } }}
                       >
-                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} /> : <CatIcon category={hit.category} size={14} />}
+                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
                       {onAddNearby && (
                         <button

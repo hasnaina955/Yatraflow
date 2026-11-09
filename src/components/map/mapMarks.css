@@ -59,3 +59,16 @@
 @media (max-width: 760px) {
   .mv2-workspace .map-legend { bottom: calc(var(--mv2-sheet-height, 0px) + 132px); }
 }
+
+/* ---- Lens marks (map v2 wave 2): stay ring chips, open-part rings and pick bands.
+   Every colour is an existing dark-aware token, so no dark block is needed. ---- */
+.mv2-lens-ring-label { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--pw-lagoon-600); background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); font-size: 11px; font-weight: 700; white-space: nowrap; pointer-events: none; }
+/* A 30px hollow marigold ring. The hit area reaches 44px, so a thumb can find it. */
+.mv2-lens-gap-ring { position: relative; display: block; box-sizing: border-box; width: 30px; height: 30px; padding: 0; border: 3px solid var(--pw-marigold-500); border-radius: 50%; background: transparent; }
+.mv2-lens-gap-ring::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
+button.mv2-lens-gap-ring { cursor: pointer; }
+button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-500); outline-offset: 3px; }
+/* A pick just past the day's scope: a dashed edge and a light fade. It stays readable. */
+.mv2-workspace .yf-map-pin-idea.is-just-past { border: 2px dashed var(--pw-marigold-500); opacity: .85; }
+/* A pick over today's budget: grey and faint, never hidden. */
+.mv2-workspace .yf-map-pin-idea.is-over-budget { filter: grayscale(1); opacity: .55; }

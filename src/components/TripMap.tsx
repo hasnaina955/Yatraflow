@@ -109,13 +109,15 @@ const STYLE_LOAD_WATCHDOG_MS = 4000
 // Overlays that cover the map in the workspace. The camera keeps marks clear of them.
 const WORKSPACE_COVER_SELECTOR = '.mv2-itinerary, .poi-col--see, .mv2-ribbon, .mv2-omnibar, .mv2-lenses, .mv2-phone-day, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left'
 // Drawn size of the marks the camera must keep inside the open map area.
-const STOP_BOX = { w: 36, h: 36 }
+// Every box is a hit box: an interactive mark owns at least 44 by 44 px (see mapMarks.css).
+const STOP_BOX = { w: 44, h: 44, drawW: 36, drawH: 36 }
 const CLOCK_BOX = { w: 96, h: 26, dy: 33 }
-const WARN_BOX = { w: 38, h: 38 }
-const SLOT_BOX = { w: 38, h: 38 }
-const PICK_BOX = { w: 44, h: 36 }
-// A pick with its add button is a tall column, centred on the pick's coordinate.
-const PICK_ADD_BOX = { w: 44, h: 78 }
+const WARN_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
+const SLOT_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
+const PICK_BOX = { w: 44, h: 44 }
+// A pick with its add button is a column. The pick pad reaches 14px above it and the add pad 26px below.
+const PICK_ADD_BOX = { w: 44, h: 91 }
+const PICK_ADD_SHIFT = 6
 
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that
@@ -936,7 +938,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     for (const p of allPoints) {
       const off = pinOffsets.get(p.id)
       const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
-      spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, ...base })
+      spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, drawW: p.auto ? 30 : STOP_BOX.drawW, drawH: p.auto ? 30 : STOP_BOX.drawH, ...base })
       if (!p.auto && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
     }
     for (const m of dayEndpointMarkers) spreadMarks.push({ id: `endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, layer: 'stop', x: 0, y: 0, w: 30, h: 30, lat: m.position.lat, lng: m.position.lng, ox: 0, oy: 0 })
@@ -949,7 +951,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     for (const hit of visiblePois) {
       if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
-      spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(onAddNearby ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: 0 })
+      spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(onAddNearby ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: onAddNearby ? PICK_ADD_SHIFT : 0 })
     }
   }
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
@@ -959,7 +961,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const layoutOnMap = useCallback((map: MapRef, bounds?: MarkBounds) => {
     const marks: LayoutMark[] = spreadMarksRef.current.map(m => {
       const { x, y } = map.project([m.lng, m.lat])
-      return { id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, x: x + m.ox, y: y + m.oy + (m.layer === 'clock' ? m.y : 0) }
+      return { id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, drawW: m.drawW, drawH: m.drawH, x: x + m.ox, y: y + m.oy + (m.layer === 'clock' ? m.y : 0) }
     })
     const spots = layoutMarks(marks, { bounds })
     // Only stops and pills steer the camera. A far pick must not pull the frame out.

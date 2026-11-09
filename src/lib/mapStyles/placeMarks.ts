@@ -132,7 +132,8 @@ export function resolveMarkCollisions(items: (MarkBox & { droppable?: boolean; m
 // ---- One layout for every mark on the map ----
 
 export type MarkLayer = 'stop' | 'warn' | 'slot' | 'pick' | 'clock'
-export interface LayoutMark extends MarkBox { layer: MarkLayer; follows?: string }
+// `w` and `h` are the hit box. A pill never takes a tap, so it only has to clear the drawn size, `drawW` by `drawH`.
+export interface LayoutMark extends MarkBox { layer: MarkLayer; follows?: string; drawW?: number; drawH?: number }
 
 // A stop badge always wins. A warning, an empty-part pin and a pick follow. A clock pill gives way first.
 const LAYER_RANK: Record<MarkLayer, number> = { stop: 0, warn: 1, slot: 2, pick: 3, clock: 4 }
@@ -148,7 +149,7 @@ export function layoutMarks(marks: LayoutMark[], opts: { gap?: number; maxSteps?
   const solid = marks.filter(m => m.layer !== 'clock').map((m, index) => ({ m, index })).sort((a, b) => LAYER_RANK[a.m.layer] - LAYER_RANK[b.m.layer] || a.index - b.index).map(entry => entry.m)
   const first = resolveMarkCollisions(solid, opts)
   const out = new Map<string, MarkSpot>(first)
-  const fixed = solid.map(m => { const spot = first.get(m.id)!; return { id: m.id, x: m.x + spot.dx, y: m.y + spot.dy, w: m.w, h: m.h } })
+  const fixed = solid.map(m => { const spot = first.get(m.id)!; return { id: m.id, x: m.x + spot.dx, y: m.y + spot.dy, w: m.drawW ?? m.w, h: m.drawH ?? m.h } })
   const clocks = marks.filter(m => m.layer === 'clock').map(m => {
     const anchor = m.follows ? first.get(m.follows) : undefined
     const x = m.x + (anchor?.dx ?? 0)

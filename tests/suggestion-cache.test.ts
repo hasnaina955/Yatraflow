@@ -54,6 +54,22 @@ it('misses on an empty cache', () => {
     expect(isMapCacheFresh(cached(), 20, withProfile)).toBe(false)
   })
 
+  // #842 F18: the hash used to omit the ranking inputs the scan reads, so a
+  // category-only edit re-ran the scan and then hit the same hash — the
+  // cached pool from the old categories came back.
+  it('misses when a ranking input changes (F18)', () => {
+    expect(isMapCacheFresh(cached(), 20, planInputsHash({ ...baseInputs(), categoryBias: { food: 5 } }))).toBe(false)
+    expect(isMapCacheFresh(cached(), 20, planInputsHash({ ...baseInputs(), purposes: ['meal'] }))).toBe(false)
+    expect(isMapCacheFresh(cached(), 20, planInputsHash({ ...baseInputs(), plannedStops: [{ lat: 10, lng: 77 }] }))).toBe(false)
+    expect(isMapCacheFresh(cached(), 20, planInputsHash({ ...baseInputs(), providerMode: 'google' }))).toBe(false)
+  })
+
+  it('hashes ranking inputs by value, not identity (F18)', () => {
+    const a = planInputsHash({ ...baseInputs(), categoryBias: { food: 5, sight: 2 } })
+    const b = planInputsHash({ ...baseInputs(), categoryBias: { sight: 2, food: 5 } })
+    expect(a).toBe(b)
+  })
+
   it('misses when the per-person budget changes', () => {
     expect(isMapCacheFresh(cached(), 20, planInputsHash({ ...baseInputs(), budgetPerPersonInr: 25000 }))).toBe(false)
   })

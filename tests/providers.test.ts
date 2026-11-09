@@ -1,8 +1,9 @@
 // ============ Google Places provider tests ============
 // Phase-A facade + Phase-B quota guard, verified without any real network:
 // the encoded-polyline encoder against Google's own test vector, the
-// localStorage quota guard, and the Google-first → free-stack fallbacks with
-// a stubbed global fetch.
+// localStorage quota guard, and the per-surface fallback rules — typeahead
+// and text search degrade to the free stack, the POI corridor does not —
+// with a stubbed global fetch.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { encodePolyline } from '../src/lib/providers/google'
 import {
@@ -47,7 +48,7 @@ describe('quota guard (Phase B)', () => {
     expect(quotaMonthKey(new Date('2026-01-01T00:30:00Z'))).toBe('2026-01')
   })
 
-  it('counts events and blocks at the soft cap (free stack takes over)', () => {
+  it('counts events and blocks at the soft cap', () => {
     const sku: QuotaSku = 'textSearchPro'
     const prev = SOFT_CAPS[sku]
     SOFT_CAPS[sku] = 2
@@ -69,7 +70,7 @@ describe('quota guard (Phase B)', () => {
   })
 })
 
-// ============ Facade: Google-first, free-stack-always (stubbed network) ============
+// ============ Facade: Google-first, per-surface fallback (stubbed network) ============
 const HOME = { lat: 10.01, lng: 77.01 }
 
 /** tiny URL-routed fetch stub — handlers matched in order */

@@ -3,7 +3,7 @@
 //
 // The sibling art-manifest.test.ts already guards file presence, naming and the
 // byte caps against the manifest. This file guards the parts the integration
-// added: the 62-id set, the place tables, the focalX metadata, and the promise
+// added: the 112-id set, the place tables, the focalX metadata, and the promise
 // that a full staged rebuild reproduces the selected bytes.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -19,27 +19,33 @@ const files = readdirSync(ART_DIR).filter(name => /\.(avif|webp)$/.test(name))
 const totalBytes = files.reduce((sum, name) => sum + statSync(path.join(ART_DIR, name)).size, 0)
 
 describe('integrated id set', () => {
-  it('declares 62 ids', () => {
-    expect(Object.keys(manifest.ids)).toHaveLength(62)
+  it('declares 112 ids', () => {
+    expect(Object.keys(manifest.ids)).toHaveLength(112)
   })
 
-  it('splits into 40 India scenes and 22 inherited scenes', () => {
+  it('splits into 50 new destinations, 40 India scenes and 22 inherited scenes', () => {
     const ids = Object.keys(manifest.ids)
-    const india = ids.filter(id => /-v[12]$/.test(id))
+    const destinations = ids.filter(id => id.startsWith('dest-'))
+    const india = ids.filter(id => !id.startsWith('dest-') && /-v[12]$/.test(id))
+    const inherited = ids.filter(id => !id.startsWith('dest-') && !/-v[12]$/.test(id))
+    expect(destinations).toHaveLength(50)
     expect(india).toHaveLength(40)
-    expect(ids.length - india.length).toBe(22)
+    expect(inherited).toHaveLength(22)
   })
 
-  it('holds 241 derivative files and the exact integrated byte total', () => {
-    expect(files).toHaveLength(241)
-    expect(totalBytes).toBe(4682873)
+  it('holds 441 derivative files inside the whole-folder budget', () => {
+    expect(files).toHaveLength(441)
+    // Pin the exact total. A budget-only check allows 1.6 MiB of drift, so a
+    // dropped file or a wrong master would still pass.
+    expect(totalBytes).toBe(9886308)
+    expect(totalBytes).toBeLessThan(manifest.budget.totalMiB * 1024 * 1024)
   })
 
   it('has no duplicate id key in the manifest text', () => {
     const raw = readFileSync(path.join(ART_DIR, 'manifest.json'), 'utf8')
     const idsBlock = raw.slice(raw.indexOf('"ids": {'))
     const keys = [...idsBlock.matchAll(/^ {4}"([^"]+)": \{$/gm)].map(match => match[1])
-    expect(keys).toHaveLength(62)
+    expect(keys).toHaveLength(112)
     expect(new Set(keys).size).toBe(keys.length)
   })
 
@@ -55,9 +61,10 @@ describe('integrated id set', () => {
 })
 
 describe('crop metadata', () => {
-  it('declares focalX on exactly Rishikesh', () => {
+  it('declares focalX on Rishikesh and only ids whose crop needs an offset', () => {
     const withFocalX = Object.entries(manifest.ids).filter(([, entry]) => entry.focalX !== undefined).map(([id]) => id)
-    expect(withFocalX).toEqual(['rishikesh-v1'])
+    expect(withFocalX).toContain('rishikesh-v1')
+    for (const id of withFocalX) expect(id === 'rishikesh-v1' || id.startsWith('dest-'), id).toBe(true)
   })
 
   it('pushes the Rishikesh square crop right far enough to keep both towers', () => {
@@ -120,9 +127,10 @@ describe('provenance', () => {
     expect(readFileSync(path.join(ART_DIR, 'manifest.json'), 'utf8')).not.toMatch(/approved/i)
   })
 
-  it('declares 36 jurisdictions and names every destination owner among them', () => {
+  it('declares 36 jurisdictions and 51 destinations, and names every destination owner among them', () => {
     const states = Object.values(manifest.places.state)
     expect(states).toHaveLength(36)
+    expect(Object.values(manifest.places.destination)).toHaveLength(51)
     const names = new Set(states.map(entry => entry.state))
     for (const entry of Object.values(manifest.places.destination)) {
       expect(names.has(entry.state), `${entry.place} -> ${entry.state}`).toBe(true)
@@ -153,40 +161,45 @@ describe('build reproducibility', () => {
 
   it('maps masters through a relative staged root', () => {
     expect(script).toMatch(/MASTER_FILES/)
-    expect(script).toMatch(/legacy\/|india\//)
+    expect(script).toMatch(/balanced\/|destinations\//)
   })
 
   it('keeps a per-file encoder override table', () => {
     expect(script).toContain('ENCODER_OVERRIDES')
   })
 
-  it('keeps the capped files on their non-baseline quality', () => {
-    // These files were encoded below the baseline to fit their caps. A full
-    // rebuild at the baseline would silently lose that, so the table is part of
-    // the contract. The three effort-9 entries are the D1 compression batch.
-    for (const name of [
-      'uttarakhand-v1-960.avif',
-      'maharashtra-v1-960.avif',
-      'haryana-v1-960.avif',
-      'sikkim-v1-960.avif',
-      'rishikesh-v1-960.avif',
-      'manali-v1-960.avif',
-    ]) {
-      expect(script, name).toContain(name)
-    }
-  })
-
-  it('keeps the override table honest: every entry names a real id', () => {
-    const declared = new Set(Object.keys(manifest.ids))
+  const overrideEntries = () => {
     const block = script.slice(script.indexOf('ENCODER_OVERRIDES = {'))
     const body = block.slice(0, block.indexOf('\n}'))
-    let checked = 0
-    for (const match of body.matchAll(/'([a-z0-9-]+-\d+\.(?:avif|webp))'/g)) {
-      checked += 1
-      const id = match[1].replace(/-\d+\.(?:avif|webp)$/, '')
-      expect(declared.has(id), `override for unknown id ${id}`).toBe(true)
+    return [...body.matchAll(/'([a-z0-9-]+-\d+\.(?:avif|webp))': \{ quality: (\d+), effort: (\d+) \}/g)]
+      .map(match => ({ name: match[1], quality: Number(match[2]), effort: Number(match[3]) }))
+  }
+
+  it('pins every file that needs a lower rung', () => {
+    // Every capped file must keep the exact parameters that produced its bytes,
+    // or a full rebuild at the baseline silently loses the encoding. The count
+    // catches a deleted row; the spot checks catch a changed rung on the files
+    // that sit closest to their cap.
+    const entries = overrideEntries()
+    expect(entries).toHaveLength(69)
+    expect(entries).toEqual(expect.arrayContaining([
+      { name: 'uttarakhand-v1-960.avif', quality: 46, effort: 6 },
+      { name: 'rishikesh-v1-960.avif', quality: 48, effort: 6 },
+      { name: 'dest-jaipur-v2-960.avif', quality: 38, effort: 6 },
+      { name: 'dest-shaheed-dweep-v2-960.avif', quality: 38, effort: 6 },
+      { name: 'dest-shaheed-dweep-v2-640.webp', quality: 50, effort: 6 },
+    ]))
+  })
+
+  it('keeps the override table honest: every entry names a produced file', () => {
+    const produced = new Set<string>()
+    for (const [id, entry] of Object.entries(manifest.ids)) {
+      for (const width of entry.widths) produced.add(`${id}-${width}.avif`)
+      produced.add(`${id}-${entry.webp}.webp`)
     }
-    expect(checked).toBeGreaterThan(0)
+    for (const entry of overrideEntries()) {
+      expect(produced.has(entry.name), `override for unproduced file ${entry.name}`).toBe(true)
+    }
   })
 
   it('takes the masters root as an argument, not from a constant path', () => {

@@ -164,8 +164,9 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
   const freshnessLabel = freshness === undefined ? null : freshness === 'live' ? 'Live result' : freshness === 'retained' ? 'Retained result' : freshness === 'stale' ? 'Stale result' : 'Freshness unknown'
   // One display rule for the detour. An on-route detour hides its budget share.
   const detour = detourDisplay(detourMin)
+  const [shownAt] = useState(() => Date.now())
   // Age and coverage are shown only when the row carries them.
-  const dataFacts = [ageText(fetchedAt, Date.now()), coverageText(coverage)].filter((fact): fact is string => fact != null)
+  const dataFacts = [ageText(fetchedAt, shownAt), coverageText(coverage)].filter((fact): fact is string => fact != null)
   const canAdd = actions?.add ?? true
   const canShortlist = actions?.shortlist ?? true
   const canNavigate = actions?.navigate ?? true

@@ -55,7 +55,8 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
   const [undoStartedAt, setUndoStartedAt] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const tripRef = useRef(trip)
-  tripRef.current = trip
+  // The ref follows the newest trip after each render. Handlers read it, never the render.
+  useEffect(() => { tripRef.current = trip }, [trip])
   const hitRef = useRef<PlaceHit | null>(null)
   const stopRef = useRef<ItineraryStop | null>(null)
 

@@ -259,6 +259,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // saved per trip. The engine still searches by distance, so `scopeKm` is the
   // one-way radius those minutes allow. #181: loadPref never throws in private mode.
   const [scopeMinutes, setScopeMinutes] = useState<ScopeMinutes>(() => readScopeMinutes(loadPref(scopeStorageKey(trip.id), '')))
+  // The control shows the chosen step at once. The re-plan waits for the debounce.
+  const [scopeChoice, setScopeChoice] = useState<ScopeMinutes>(scopeMinutes)
   const scopeTripRef = useRef(trip.id)
   useEffect(() => {
     if (scopeTripRef.current === trip.id) return
@@ -267,8 +269,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     setScopeMinutes(saved)
     setScopeChoice(saved)
   }, [trip.id])
-  // The control shows the chosen step at once. The re-plan waits for the debounce.
-  const [scopeChoice, setScopeChoice] = useState<ScopeMinutes>(scopeMinutes)
   const scopeKm = scopeKmForMinutes(scopeMinutes)
   const scopeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   function changeScope(next: ScopeMinutes) {
@@ -1451,7 +1451,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         <div className="row-between" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
           <MinuteScopeControl
             value={scopeChoice}
-            onChange={changeScope}
+            onChange={next => changeScope(next)}
             disabled={loadingPois || quotaOut}
             state={scopeState}
           />

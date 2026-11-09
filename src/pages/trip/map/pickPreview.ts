@@ -18,7 +18,7 @@ export function undoSecondsLeft(startedAt: number, now: number): number {
 
 /**
  * The stop a pick would become. It copies what the hit says and nothing more.
- * A fee the hit does not carry stays at the type's required zero, and the
+ * A fee the hit does not carry stays at the zero the type needs, and the
  * preview names admission price as unknown on its own.
  */
 export function pickStopFor(hit: PlaceHit, id: string): ItineraryStop {

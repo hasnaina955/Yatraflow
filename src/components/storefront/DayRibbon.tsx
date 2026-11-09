@@ -3,7 +3,8 @@
 // A locked day shows its own title and a count, never a place name.
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { Lock } from 'lucide-react'
-import { staggerStep } from '../../lib/motion'
+import { motionTiming, prefersReducedMotion, staggerStep } from '../../lib/motion'
+import { ribbonScrollTarget } from '../../lib/ribbonScroll'
 
 export interface RibbonDay {
   index: number
@@ -35,12 +36,42 @@ function routeLine(days: readonly RibbonDay[]): string {
   return `linear-gradient(90deg, ${stops.join(', ')})`
 }
 
-function revealDay(host: HTMLElement, day: Element): void {
+/** Ease-out for the glide. The curve is the app's `--ease-paper`. */
+const glide = (t: number): number => 1 - Math.pow(1 - t, 3)
+
+/** Scroll the strip to `target`. The duration is a motion token. Reduced motion jumps. */
+function glideTo(host: HTMLElement, target: number, frame: { current: number }): void {
+  cancelAnimationFrame(frame.current)
+  const from = host.scrollLeft
+  if (prefersReducedMotion() || typeof requestAnimationFrame === 'undefined') {
+    host.scrollLeft = target
+    return
+  }
+  const { duration } = motionTiming('--motion-slow')
+  const start = performance.now()
+  const step = (now: number) => {
+    const t = duration > 0 ? Math.min(1, (now - start) / duration) : 1
+    host.scrollLeft = from + (target - from) * glide(t)
+    if (t < 1) frame.current = requestAnimationFrame(step)
+  }
+  frame.current = requestAnimationFrame(step)
+}
+
+/** Centre the day, so a neighbour shows on each side where the strip allows. */
+function revealDay(host: HTMLElement, day: Element, frame: { current: number }): void {
   const inset = parseFloat(getComputedStyle(host).scrollPaddingInlineStart) || 0
-  const edge = host.getBoundingClientRect()
-  const button = day.getBoundingClientRect()
-  if (button.left < edge.left + inset) host.scrollLeft -= edge.left + inset - button.left
-  else if (button.right > edge.right - inset) host.scrollLeft += button.right - edge.right + inset
+  const box = (el: Element | null | undefined) => el ? el.getBoundingClientRect() : undefined
+  const item = day.closest('li')
+  const target = ribbonScrollTarget({
+    host: host.getBoundingClientRect(),
+    inset,
+    scrollLeft: host.scrollLeft,
+    max: host.scrollWidth - host.clientWidth,
+    day: day.getBoundingClientRect(),
+    prev: box(item?.previousElementSibling?.querySelector('.pi-rib')),
+    next: box(item?.nextElementSibling?.querySelector('.pi-rib')),
+  })
+  if (target !== null) glideTo(host, target, frame)
 }
 
 export function DayRibbon(p: {
@@ -55,14 +86,16 @@ export function DayRibbon(p: {
   onPick: (index: number) => void
 }): JSX.Element {
   const track = useRef<HTMLDivElement>(null)
+  const frame = useRef(0)
   const selectedDay = p.current
   useEffect(() => {
     if (selectedDay === null) return
     const host = track.current
     const current = host?.querySelector('[aria-current="true"]')
     if (!host || !current) return
-    revealDay(host, current)
+    revealDay(host, current, frame)
   }, [selectedDay])
+  useEffect(() => () => { cancelAnimationFrame(frame.current) }, [])
   return (
     <section className="pi-ribbon" aria-label={p.label}>
       <div className="pi-ribbon-head">
@@ -86,7 +119,7 @@ export function DayRibbon(p: {
                 type="button"
                 className={'pi-rib pi-rib--' + d.state + (d.status ? ' pi-rib--' + d.status : '')}
                 aria-current={p.current === d.index ? 'true' : undefined}
-                onFocus={event => { if (track.current) revealDay(track.current, event.currentTarget) }}
+                onFocus={event => { if (track.current) revealDay(track.current, event.currentTarget, frame) }}
                 onClick={() => { p.onPick(d.index) }}
               >
                 <span className="pi-rib-top">

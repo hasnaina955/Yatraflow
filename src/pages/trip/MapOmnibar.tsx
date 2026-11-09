@@ -33,6 +33,7 @@ export function MapOmnibar({
   selectedId,
   placement,
   scopeKm,
+  scopeMinutes,
   onSelect,
   onClear,
   onPlace,
@@ -50,6 +51,8 @@ export function MapOmnibar({
   placement: PlacementOption[]
   /** the trip's current detour scope, so an out-of-scope hit can say so */
   scopeKm: number
+  /** the minute scope the km radius came from; the words use it */
+  scopeMinutes: number
   onSelect: (id: string | number | null) => void
   onClear: () => void
   onPlace: (option: PlacementOption) => void
@@ -183,7 +186,7 @@ export function MapOmnibar({
                   {!inScope && <span className="chip chip-saffron">{r.off == null ? 'detour unknown' : 'beyond your detour scope'}</span>}
                   <span className="muted small">
                     {r.km == null ? ' · position unknown' : ` · ~${Math.round(r.km)} km in`}
-                    {r.off == null ? ' · detour unknown' : ` · ${r.off <= scopeKm ? `${Math.round(r.off)} km off-route` : `${Math.round(r.off)} km off-route, beyond your ${scopeKm} km scope`}`}
+                    {r.off == null ? ' · detour unknown' : ` · ${r.off <= scopeKm ? `${Math.round(r.off)} km off-route` : `${Math.round(r.off)} km off-route, beyond your ${scopeMinutes}-minute scope`}`}
                   </span>
                 </span>
                 <span className="small" style={{ flex: '0 0 auto' }}>{isSelected ? 'Selected' : 'Select'}</span>

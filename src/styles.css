@@ -816,3 +816,15 @@
   .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 64px; }
   .mv2-workspace .mv2-phone-day > button { min-width: 44px; min-height: 44px; }
 }
+
+/* Map V2 package C. The minute scope: four radio steps, each a 44px target.
+   --ring is a full shadow, so the focus rule uses it as the whole value. */
+.map-scope { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); min-width: 150px; }
+.map-scope-label { font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.map-scope-steps { display: inline-flex; gap: var(--space-2); padding: var(--space-1); border-radius: var(--radius-pill); background: var(--bg-soft); }
+.map-scope-step { min-width: 44px; min-height: 44px; padding: var(--space-2) var(--space-5); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-2); font-size: 13px; font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.map-scope-step[aria-checked='true'] { background: var(--color-primary); color: var(--color-primary-foreground); }
+.map-scope-step:focus-visible { outline: none; box-shadow: var(--ring); }
+.map-scope-step:disabled { cursor: default; opacity: 0.6; }
+.map-scope-counts { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .map-scope-step { transition: none; } }

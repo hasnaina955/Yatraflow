@@ -24,7 +24,7 @@ import { clockHM, deriveClockMilestones } from '../../lib/clockOverlay'
 import { sheetHiddenClass } from '../../lib/mapSheet'
 import { mapScopeNote } from '../../lib/railA11y'
 import { plannerDrives } from '../../lib/transportPolicy'
-import { fillLabel, pickDayCaveat, scopeValueText, voteStatusId } from '../../lib/railA11y'
+import { fillLabel, pickDayCaveat, voteStatusId } from '../../lib/railA11y'
 import { MapOmnibar } from './MapOmnibar'
 import { useOmnibarPlacement } from './map/useOmnibarPlacement'
 import { useMapSearch } from './map/useMapSearch'
@@ -34,11 +34,15 @@ import { useShortlist } from './map/useShortlist'
 import { useMapWriters } from './map/useMapWriters'
 import { dayStayBase, useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
+import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
+import {
+  readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
+} from './map/minuteScope'
 import { useRailContent } from './map/useRailContent'
 import { journeyCostLabels } from './map/railLabels'
 import { useSlotSearch } from './map/useSlotSearch'
 import {
-  SEE_VISIBLE, SCOPE_KM_STEPS, SCOPE_STORAGE_KEY,
+  SEE_VISIBLE,
   googleMapsUrl, newStopId, poiVisitMinutes,
 } from './map/pageHelpers'
 import { activeReadinessLabel, activeDayLabel } from './map/railRows'
@@ -249,28 +253,38 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set())
   const [addingAny, setAddingAny] = useState(false)
   const slotGuard = useRef(createSlotSearchGuard())
-  // detour-scope control — how far off the route suggestions may sit.
-  // #181: guarded through uiPrefs (private-mode throw crashes a useState
-  // initializer); namespace follows the app's yatraflow_* convention.
-  const [scopeIdx, setScopeIdx] = useState(() => {
-    const saved = Number(loadPref(SCOPE_STORAGE_KEY, ''))
-    const i = SCOPE_KM_STEPS.indexOf(saved)
-    return i >= 0 ? i : 1 // default 20 km
-  })
-  const scopeKm = SCOPE_KM_STEPS[scopeIdx]
+  // #898: the scope is minutes of EXTRA driving (15 / 30 / 45 / 60, default 30),
+  // saved per trip. The engine still searches by distance, so `scopeKm` is the
+  // one-way radius those minutes allow. #181: loadPref never throws in private mode.
+  const [scopeMinutes, setScopeMinutes] = useState<ScopeMinutes>(() => readScopeMinutes(loadPref(scopeStorageKey(trip.id), '')))
+  const scopeTripRef = useRef(trip.id)
+  useEffect(() => {
+    if (scopeTripRef.current === trip.id) return
+    scopeTripRef.current = trip.id
+    const saved = readScopeMinutes(loadPref(scopeStorageKey(trip.id), ''))
+    setScopeMinutes(saved)
+    setScopeChoice(saved)
+  }, [trip.id])
+  // The control shows the chosen step at once. The re-plan waits for the debounce.
+  const [scopeChoice, setScopeChoice] = useState<ScopeMinutes>(scopeMinutes)
+  const scopeKm = scopeKmForMinutes(scopeMinutes)
   const scopeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  function changeScope(i: number) {
+  function changeScope(next: ScopeMinutes) {
     if (scopeTimer.current) clearTimeout(scopeTimer.current)
+    setScopeChoice(next)
     scopeTimer.current = setTimeout(() => {
-      setScopeIdx(i)
-      savePref(SCOPE_STORAGE_KEY, String(SCOPE_KM_STEPS[i]))
+      setScopeMinutes(next)
+      savePref(scopeStorageKey(trip.id), String(next))
     }, DEBOUNCE_MS)
   }
   useEffect(() => () => { if (scopeTimer.current) clearTimeout(scopeTimer.current) }, [])
   // #420 slice 16: widening stays a page callback — the gap row calls it,
   // and the corridor re-plans through the same state it always did.
   const widenScope = () => {
-    setScopeIdx(i => Math.min(i + 1, SCOPE_KM_STEPS.length - 1))
+    const next = nextScopeMinutes(scopeMinutes)
+    setScopeMinutes(next)
+    setScopeChoice(next)
+    savePref(scopeStorageKey(trip.id), String(next))
     toast('Widened the search - the corridor will re-plan')
   }
   // #420 slice 9: the add draft moved with the opener into
@@ -676,7 +690,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     // One selected day scans on its own. Show-all keeps the trip-wide scan.
     discoveryDay: mapFilter === 'all' || dayFocus === 'all' ? undefined : {
       dayIndex: activeDayIndex, routeGeometry: null, stayBase: dayStayBase(trip, activeDayIndex),
-      purposes: [], categoryBias: nearbyOpts.categoryBias,
+      purposes: dayPurposesFor([...drivingPlan.outbound, ...(drivingPlan.return ?? [])].find(d => d.dayIndex === activeDayIndex)),
+      categoryBias: nearbyOpts.categoryBias, scopeMinutes,
     },
   })
 
@@ -1130,6 +1145,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // rendering an empty state that reads like "nothing around".
   const corridorQuotaBlocked = corridorQuotaOut || searchQuotaOut || anyQuotaExhausted('textSearchPro', 'nearbySearch', 'placeDetails')
   const quotaOut = googleEnabled() && corridorQuotaBlocked
+  // #898: the scope counts read the rows already held. Loading, failed, paused and
+  // retained stay apart, so a failed read never shows as "0 inside".
+  const scopeState: ScopeCountsState = useMemo(() => {
+    if (loadingPois) return { kind: 'loading' }
+    if (quotaOut) return { kind: 'unavailable', reason: 'Counts paused by the provider limit' }
+    if (poisFailed || scanFailed) return { kind: 'unavailable', reason: 'Counts unavailable: the search failed' }
+    const scoped = discoveryDayIndex == null ? driveRows : driveRows.filter(row => row.dayIndex === discoveryDayIndex)
+    return {
+      kind: 'ready',
+      counts: scopeCounts(scoped, scopeMinutes),
+      ...(corridorSource === 'retained' ? { note: 'from the last good search' } : {}),
+    }
+  }, [loadingPois, quotaOut, poisFailed, scanFailed, driveRows, discoveryDayIndex, scopeMinutes, corridorSource])
 
   /**
    * "Also nearby" candidates, pre-grouped once per render instead of per row.
@@ -1407,24 +1435,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </details>
         </div>
         <div className="row-between" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-              <datalist id="scope-km-ticks">{SCOPE_KM_STEPS.map((km, i) => <option key={km} value={i} label={`${km} km`} />)}</datalist>
-          <label className="small" style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 150 }}>
-            <span className="muted" style={{ whiteSpace: 'nowrap' }}>Detour scope</span>
-            <input
-              type="range"
-              min={0}
-              max={SCOPE_KM_STEPS.length - 1}
-              step={1}
-              value={scopeIdx}
-               disabled={loadingPois || quotaOut}
-              onChange={e => changeScope(Number(e.target.value))}
-              style={{ flex: 1 }}
-              aria-label="How far from the route to search suggestions"
-            aria-valuetext={scopeValueText(scopeKm)}
-            list="scope-km-ticks"
-            />
-            <b style={{ whiteSpace: 'nowrap', minWidth: 46, textAlign: 'right' }}>{scopeKm} km</b>
-          </label>
+          <MinuteScopeControl
+            value={scopeChoice}
+            onChange={changeScope}
+            disabled={loadingPois || quotaOut}
+            state={scopeState}
+          />
         </div>
         {/* Day Planner proposals (P1-B/P1-C) — the split the route demands,
             the defer/hop verdict for the real start time. They sit above the
@@ -1933,6 +1949,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               selectedId={omniPicked?.h.id ?? null}
               placement={omniPlacement}
               scopeKm={scopeKm}
+              scopeMinutes={scopeMinutes}
               onSelect={id => {
                 const row = omniResults.find(r => r.h.id === id) ?? null
                 setOmniPicked(row)

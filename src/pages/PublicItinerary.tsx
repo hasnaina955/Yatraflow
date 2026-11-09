@@ -876,22 +876,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     </a>
   )
 
-  // The link and the WhatsApp send: one block, drawn in whichever view is open.
-  const shareBlock = (
-    <div className="pi-share">
-      <div className="share-link-box"><code>{shareLink}</code><CopyButton text={shareLink} label="Copy page link" /></div>
-      <div className="share-link-box">
-        <button className="btn btn-outline btn-sm" disabled={sendingWhatsApp}
-          onClick={() => void sendOnWhatsApp()}>
-          {sendingWhatsApp
-            ? <><span className="spinner" aria-hidden /> Opening WhatsApp…</>
-            : <><MessageCircle size={14} aria-hidden /> Send on WhatsApp</>}
-        </button>
-        <span className="hint-text">Opens the app with the link ready to paste</span>
-      </div>
-    </div>
-  )
-
   return (
     <div className="page-enter pi-page">
       <div className="container pi-wrap">

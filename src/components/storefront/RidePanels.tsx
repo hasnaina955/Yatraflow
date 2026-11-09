@@ -52,17 +52,18 @@ export function RideDayPanel(p: RideArtProps & {
   footer?: ReactNode
 }): JSX.Element {
   const photo = p.state === 'locked' ? undefined : p.photo
+  const title = p.state === 'locked' ? `Day ${p.index + 1}` : p.title
   return (
-    <article className={'pi-ride pi-ride--' + p.state} aria-label={`${p.title}, ${TAG[p.state].toLowerCase()}`}>
+    <article className={'pi-ride pi-ride--' + p.state} aria-label={`${title}, ${TAG[p.state].toLowerCase()}`}>
       <div className="pi-ride-band pi-ride-band--photo">
-        <RideArt {...p} photo={photo} />
+        <RideArt {...p} slotPlaces={p.state === 'locked' ? undefined : p.slotPlaces} photo={photo} />
         <span className="pi-pill pi-ride-tag">{TAG[p.state]}</span>
       </div>
       <div className="pi-ride-head">
         {p.badge}
         <div className="pi-ride-titles">
           <div className="pi-ride-titleline">
-            <h2 className="pi-ride-title">{p.title}</h2>
+            <h2 className="pi-ride-title">{title}</h2>
             {p.pace ? <span className="pi-pill pi-pill--sand">{p.pace}</span> : null}
           </div>
           <p className="pi-ride-meta">{p.meta}</p>
@@ -95,13 +96,13 @@ export function RideOtherRow(p: RideArtProps & {
   return (
     <li className={'pi-other pi-other--' + p.state} style={{ '--i': staggerStep(p.stagger ?? 0) } as CSSProperties}>
       <span className={'pi-other-thumb' + (photo ? ' pi-other-thumb--photo' : '')} aria-hidden="true">
-        <RideArt {...p} photo={photo} thumbnail />
+        <RideArt {...p} slotPlaces={p.state === 'locked' ? undefined : p.slotPlaces} photo={photo} thumbnail />
         {p.state === 'locked' && <Lock className="pi-other-art-lock" size={15} />}
       </span>
       <span className="pi-other-num" aria-hidden="true"><small>Day</small><b>{p.index + 1}</b></span>
       <span className="pi-other-main">
         <span className="pi-other-titleline">
-          <span className="pi-other-title">{p.title}</span>
+          <span className="pi-other-title">{p.state === 'locked' ? `Day ${p.index + 1}` : p.title}</span>
           <span className={'pi-pill pi-pill--' + (p.state === 'locked' ? 'paid' : 'ok')}>{read ? 'Read ✓' : TAG[p.state]}</span>
         </span>
         <span className="pi-other-line">{p.line}</span>

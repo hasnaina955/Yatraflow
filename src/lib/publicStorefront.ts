@@ -1,7 +1,6 @@
-// The Look Inside page sells a plan in counts and plain words. A locked day
-// keeps its own title and its derived road minutes, and it carries no stop
-// title, no location name and no coordinate. Pace word and cover rules follow
-// the prototype: p7-look-inside (NOTES.md).
+// The Look Inside page sells a plan in counts and plain words.
+// Locked days keep neutral titles and road minutes. They carry no stop names, location names or coordinates.
+// Pace word and cover rules follow the prototype: p7-look-inside (NOTES.md).
 import type { ItineraryDay, PublishedItinerary } from '../data/types'
 
 export type StorefrontKind =
@@ -178,7 +177,7 @@ export function summariseDay(day: ItineraryDay, travelMinutes: number, flight: F
   const pace = paceOf({ placeCount, travelMinutes, hasFlight, visitMinutes })
   return {
     index: day.index,
-    title: day.title && day.title.trim() ? day.title : `Day ${day.index + 1}`,
+    title: flight !== 'withheld' && day.title?.trim() ? day.title : `Day ${day.index + 1}`,
     placeCount,
     kinds,
     // A withheld flight leaves no evidence either way, so a day with no counted

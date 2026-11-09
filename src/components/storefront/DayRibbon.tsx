@@ -1,6 +1,6 @@
 // P11 trip kit: the day ribbon. One button per day, drawn over a route line
 // that runs teal where a day is open and marigold where it is not.
-// A locked day shows its own title and a count, never a place name.
+// A locked day shows its number and a count, never a place name.
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { Lock } from 'lucide-react'
 import { motionTiming, prefersReducedMotion, staggerStep } from '../../lib/motion'
@@ -128,7 +128,7 @@ export function DayRibbon(p: {
                     ? <span className="pi-rib-lock" role="img" aria-label={DOT_LABEL.locked}><Lock size={12} aria-hidden /></span>
                     : <span className="pi-rib-dot" role="img" aria-label={DOT_LABEL[d.state]} />}
                 </span>
-                <span className="pi-rib-title">{d.title}</span>
+                <span className="pi-rib-title">{d.state === 'locked' ? `Day ${d.index + 1}` : d.title}</span>
                 <span className="pi-rib-sub">
                   {d.state === 'locked' ? p.lockedWord
                     : d.status ? STATUS_WORD[d.status]

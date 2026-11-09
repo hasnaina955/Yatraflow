@@ -108,7 +108,7 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
       })}
       {plot.runs.map((run, index) => <g key={index}><path className="pi-height-fill" d={run.area} /><path className="pi-height-line" d={run.line} pathLength={1} /></g>)}
     </svg>
-    {edgeBands.length > 0 && <p>{edgeBands.map(band => `${band.label} ${band.edge === 'start' ? 'before the first place' : 'after the last place'}`).join('. ')}.</p>}
+    {edgeBands.length > 0 && <p>{edgeBands.map(band => `${band.label}, ${band.edge === 'start' ? 'before the free days' : 'after the free days'}`).join('. ')}.</p>}
     <p>Public terrain heights at the free days&apos; places. The line between places is illustrative.</p>
     <details><summary>Elevation source</summary><p>{ELEVATION_ATTRIBUTION}</p><a href={ELEVATION_CREDIT_URL} target="_blank" rel="noreferrer">Source credits</a></details>
   </section>

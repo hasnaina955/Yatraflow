@@ -195,7 +195,8 @@ const composite = (front: Rgb, alpha: number, back: Rgb): Rgb => [
 
 type Theme = keyof typeof WORKSPACE_MAP_STYLES
 type MapLayer = (typeof WORKSPACE_MAP_STYLES)[Theme]['layers'][number]
-const SURFACE_LAYERS = ['background', 'built-up', 'parks', 'water', 'primary-road', 'minor-road', 'highway'] as const
+// The supplied Liberty-based styles name the same surfaces with these ids.
+const SURFACE_LAYERS = ['background', 'landuse_residential', 'park', 'water', 'road_trunk_primary', 'road_minor', 'road_motorway'] as const
 
 // Read the layer's own paint color. The switch narrows the union, so no cast
 // is necessary, and an unexpected layer type throws.

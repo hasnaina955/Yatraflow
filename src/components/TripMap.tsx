@@ -32,6 +32,7 @@ import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
 import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
+import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -428,14 +429,18 @@ function CooperativeGestures({ enabled }: { enabled: boolean }) {
  * effect: setStyle preserves the camera, and the pitch/bearing ride belongs
  * to mode transitions only.
  */
-function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?: number | null }) {
-  const { map, isLoaded } = useMap()
+const WORKSPACE_3D_PITCH = 40 // The boards show 3D at pitch 30 to 40.
+function MapViewModeController({ mode, bearing, workspace = false }: { mode: MapViewMode; bearing?: number | null; workspace?: boolean }) {
+  const { map, isLoaded, resolvedTheme } = useMap()
   useEffect(() => {
     if (!map || !isLoaded) return
     try {
-      applyViewModeOnMap(map, mode)
+      // The supplied styles carry their own DEM and hillshade, so the Map tab
+      // changes their paint instead of adding a second source.
+      if (workspace) applyWorkspaceViewMode(map, mode, resolvedTheme)
+      else applyViewModeOnMap(map, mode)
     } catch { /* style swapped mid-flight — the next isLoaded edge re-applies */ }
-  }, [map, isLoaded, mode])
+  }, [map, isLoaded, mode, workspace, resolvedTheme])
   const prevMode = useRef<MapViewMode>('2d')
   const prevBearing = useRef<number | null>(null)
   useEffect(() => {
@@ -447,7 +452,7 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     if (move === 'enter') {
       // Dynamic hero cam: look along THIS trip's road (initial route bearing);
       // the prototype's fixed bearing stays only as a geometry-less fallback.
-      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
+      map.easeTo({ pitch: workspace ? WORKSPACE_3D_PITCH : HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
     } else if (move === 're-aim') {
       // The road resolved AFTER 3D opened: the fallback bearing was eased, and
       // the edge trigger alone would leave the camera stuck on it forever.
@@ -1403,7 +1408,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <MapControls position="top-right" className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
-            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
+            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} workspace={workspaceChrome} />}
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={wantsCooperativeGestures({ dedicated, expanded })} />

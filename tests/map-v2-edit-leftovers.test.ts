@@ -1,4 +1,5 @@
 // Leftover map edit gaps: the planned arrival clock and the swap option list.
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
@@ -92,5 +93,13 @@ describe('swapOptionsFor', () => {
   })
   it('returns no options for a single-stop day', () => {
     expect(swapOptionsFor(day({ id: 'a', order: 1 }) as never, 'a')).toEqual([])
+  })
+})
+
+describe('minute scope copy', () => {
+  const search = readFileSync('src/pages/trip/map/useMapSearch.ts', 'utf8').replace(/\r\n/g, '\n')
+  it('names a wider minute scope, not the old slider', () => {
+    expect(search).toContain('Try a wider minute scope')
+    expect(search).not.toContain('widen the detour-scope slider')
   })
 })

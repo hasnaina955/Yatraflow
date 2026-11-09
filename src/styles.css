@@ -2110,3 +2110,20 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 :root:where([data-theme='dark']) .sf-day-chips .sf-kind--temple { --sf-c: #D6BCE2; --sf-c-bg: #2A2030; }
 :root:where([data-theme='dark']) .sf-day-chips .sf-kind--nature { --sf-c: #B5D8B9; --sf-c-bg: #1D2B20; }
 :root:where([data-theme='dark']) .sf-day-chips .sf-kind--sight { --sf-c: #7FD9CE; --sf-c-bg: #13302C; }
+
+/* ===== #914 true-shape inset in the route-card header ===== */
+/* The inset and the caption/link group share the header's right side. The
+   inset is top-aligned, so it sits beside "Illustrative elevation" and
+   "Open map" without moving either of them. */
+.ovw-head-side {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.ovw-head-side .ovw-head-meta { min-width: 0; }
+/* A header that carries the 88 px square aligns its title with the square's
+   top edge, so the row reads as one line. */
+.ovw2-route .ovw-head:has(.ovw-elev-inset) { align-items: flex-start; }

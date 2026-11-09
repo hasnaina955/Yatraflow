@@ -4,7 +4,7 @@
 // claims the ground between them.
 import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RouteHeightCurveRun, RouteHeightPoint, RouteHeightStats } from '../../lib/elevation'
-import { buildRouteHeightPlot } from '../../lib/elevationPlot'
+import { buildRouteHeightPlot, heightLabelY } from '../../lib/elevationPlot'
 import { overviewPinText } from '../../lib/overviewRouteMap'
 
 /** The SVG fills the CONTENT box of its frame, so measure that box only. */
@@ -36,14 +36,11 @@ export function OverviewElevationProfile({
   runs,
   stats,
   compact,
-  insetPath,
 }: {
   points: readonly RouteHeightPoint[]
   runs: readonly RouteHeightCurveRun[]
   stats: RouteHeightStats
   compact: boolean
-  /** The trip's true shape, drawn small in the corner. Null hides it. */
-  insetPath?: string | null
 }) {
   const { ref, width } = useDrawableWidth(compact ? 420 : 720)
   const height = Math.max(compact ? 150 : 170, Math.min(280, Math.round(width * 0.45)))
@@ -74,12 +71,6 @@ export function OverviewElevationProfile({
   )
   const peakBoxX = Math.max(6, width - peakBoxW - 10)
   const peakBoxY = 8
-  // The inset is absolutely placed at the plot's top-left corner, 10 px in on
-  // both axes, and is 124 x 128 px. A start label that would sit under it drops
-  // below its dot instead, so the corner never hides a label.
-  const INSET_CLEAR_Y = 10 + 128 + 4
-  // The first point of the true-shape path, where the inset's start dot sits.
-  const insetStart = insetPath?.match(/^M\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/)
 
   return (
     <div ref={ref} className="ovw-elev">
@@ -147,20 +138,27 @@ export function OverviewElevationProfile({
           {labelled.map(mark => {
             const anchor = mark.x > width * 0.72 ? 'end' : 'start'
             const dx = anchor === 'end' ? -7 : 7
-            const aboveY = Math.max(plot.pad.top + 8, mark.y - 24)
-            // Only the start label sits under the corner inset, and only on a
-            // wide plate (the CSS hides the inset below 720 px). Drop it to
-            // just below the inset's edge rather than let the corner cover it.
-            const nameY = !compact && anchor === 'start' && aboveY < INSET_CLEAR_Y
-              ? Math.max(mark.y + 28, INSET_CLEAR_Y + 4)
-              : aboveY
+            const name = overviewPinText(mark.title, compact ? 14 : 20)
+            const heightText = `${Math.round(mark.elevationM).toLocaleString('en-IN')} m`
+            // The label's own box decides its side: above the stroke or below
+            // it, on whichever side holds more room, so the line never crosses
+            // the words at either end of the curve.
+            const nameY = heightLabelY({
+              markX: mark.x,
+              markY: mark.y,
+              anchor,
+              labelWidth: Math.max(name.length, heightText.length) * 6.2,
+              runs: plot.runs,
+              padTop: plot.pad.top,
+              baseY: plot.baseY,
+            })
             return (
               <g key={`label-${mark.title}-${mark.distanceKm}`}>
                 <text className="ovw-elev-name" x={mark.x + dx} y={nameY} textAnchor={anchor}>
-                  {overviewPinText(mark.title, compact ? 14 : 20)}
+                  {name}
                 </text>
                 <text className="ovw-elev-height" x={mark.x + dx} y={nameY + 13} textAnchor={anchor}>
-                  {Math.round(mark.elevationM).toLocaleString('en-IN')} m
+                  {heightText}
                 </text>
               </g>
             )
@@ -201,27 +199,6 @@ export function OverviewElevationProfile({
           ))}
         </g>
       </svg>
-
-      {insetPath && (
-        <div className="ovw-elev-inset">
-          <svg className="ovw-elev-inset-svg" viewBox="0 0 112 96" width="112" height="96" aria-hidden="true" focusable="false">
-            <g className="ovw-elev-inset-grid">
-              <path d="M0 24 Q56 22 112 24" />
-              <path d="M0 48 Q56 46 112 48" />
-              <path d="M0 72 Q56 70 112 72" />
-              <path d="M28 0 Q26 48 28 96" />
-              <path d="M56 0 Q54 48 56 96" />
-              <path d="M84 0 Q82 48 84 96" />
-            </g>
-            <path className="ovw-elev-inset-case" d={insetPath} />
-            <path className="ovw-elev-inset-line" d={insetPath} />
-            {insetStart && <circle className="ovw-elev-inset-start" cx={+insetStart[1]} cy={+insetStart[2]} r={3.6} />}
-            <circle className="ovw-elev-inset-n" cx={104} cy={8} r={7} />
-            <text className="ovw-elev-inset-n-text" x={104} y={11.2} textAnchor="middle">N</text>
-          </svg>
-          <span>True shape · north up</span>
-        </div>
-      )}
     </div>
   )
 }

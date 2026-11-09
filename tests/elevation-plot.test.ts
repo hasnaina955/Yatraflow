@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RouteHeightPoint, RouteHeightStats } from '../src/lib/elevation'
-import { buildRouteHeightPlot, niceRouteHeightTop, smoothRouteHeightPath } from '../src/lib/elevationPlot'
+import { buildRouteHeightPlot, heightLabelY, niceRouteHeightTop, smoothRouteHeightPath } from '../src/lib/elevationPlot'
 
 const point = (distanceKm: number, elevationM: number | null, title = `p${distanceKm}`): RouteHeightPoint => ({
   key: `k${distanceKm}`,
@@ -102,6 +102,29 @@ describe('the plot edges', () => {
     // 30 km away and its curve control is far from x = 0.
     const control = Number(/^M [\d.]+ [\d.]+ C ([\d.]+)/.exec(plot.runs[0].line)?.[1])
     expect(control).toBeGreaterThan(1)
+  })
+})
+
+describe('end labels clear the stroke', () => {
+  const falling = [{ points: [{ x: 0, y: 100 }, { x: 100, y: 140 }, { x: 200, y: 60 }] }]
+
+  it('puts an end label on the side with more room, clear of the curve', () => {
+    // At the right end the curve leaves more room below.
+    const y = heightLabelY({ markX: 200, markY: 60, anchor: 'end', labelWidth: 40, runs: falling, padTop: 30, baseY: 170 })
+    // The label's first line clears the lowest of the curve's own height there.
+    expect(y - 12).toBeGreaterThanOrEqual(97.6 + 6 - 1e-9)
+  })
+
+  it('puts a start label above the curve when the curve leaves no room below', () => {
+    const y = heightLabelY({ markX: 0, markY: 0, anchor: 'start', labelWidth: 40, runs: falling, padTop: 30, baseY: 170 })
+    // The label's last line sits 6 px above the curve's highest point at 7..47.
+    expect(y + 16).toBeLessThanOrEqual(102.8 - 6 + 1e-9)
+  })
+
+  it('drops below when the curve runs along the top of the plot', () => {
+    const high = [{ points: [{ x: 0, y: 35 }, { x: 100, y: 35 }] }]
+    const y = heightLabelY({ markX: 0, markY: 35, anchor: 'start', labelWidth: 40, runs: high, padTop: 30, baseY: 170 })
+    expect(y - 12).toBeGreaterThanOrEqual(35 + 6 - 1e-9)
   })
 })
 

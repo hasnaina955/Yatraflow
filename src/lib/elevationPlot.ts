@@ -29,6 +29,9 @@ export interface RouteHeightPlotPeak {
 export interface RouteHeightPlotRun {
   line: string
   area: string
+  /** The plotted anchors the stroke runs through, in plot units. A label's
+   *  placement reads the stroke's own height at its x range from these. */
+  points: Array<{ x: number; y: number }>
 }
 
 /** The plot box the stroke is drawn into. The area and the line both start and
@@ -216,8 +219,8 @@ export function buildRouteHeightPlot(
       if (tail.x < edgeRight) plotted.push({ x: edgeRight, y: tail.y })
     }
     const line = smoothRouteHeightPath(plotted)
-    if (plotted.length === 1) return [{ line, area: '' }]
-    return [{ line, area: `${line} L ${plotted[plotted.length - 1].x.toFixed(2)} ${baseY} L ${plotted[0].x.toFixed(2)} ${baseY} Z` }]
+    if (plotted.length === 1) return [{ line, area: '', points: plotted }]
+    return [{ line, area: `${line} L ${plotted[plotted.length - 1].x.toFixed(2)} ${baseY} L ${plotted[0].x.toFixed(2)} ${baseY} Z`, points: plotted }]
   })
 
   const peakPoint = stats.peak
@@ -323,12 +326,89 @@ export interface HeightDayLabel {
   anchor: 'start' | 'middle' | 'end'
 }
 
+/** The name text sits this far above its baseline, and the height line this far
+ *  below it. Both come from the rendered 11 px label in the Overview card. */
+const LABEL_ABOVE = 12
+const LABEL_BELOW = 16
+
+/**
+ * The baseline for an end label. The label goes fully above the stroke, or
+ * fully below it, on the side with more room, so the line never crosses the
+ * words. The stroke's own height comes from the plotted anchors in the label's
+ * x range.
+ */
+export function heightLabelY(input: {
+  markX: number
+  markY: number
+  anchor: 'start' | 'end'
+  labelWidth: number
+  runs: ReadonlyArray<{ points: ReadonlyArray<{ x: number; y: number }> }>
+  padTop: number
+  baseY: number
+  gap?: number
+}): number {
+  const gap = input.gap ?? 6
+  const dx = input.anchor === 'end' ? -7 : 7
+  const left = input.anchor === 'end' ? input.markX + dx - input.labelWidth : input.markX + dx
+  const right = left + input.labelWidth
+  let minY = Infinity
+  let maxY = -Infinity
+  const include = (y: number) => {
+    minY = Math.min(minY, y)
+    maxY = Math.max(maxY, y)
+  }
+  // The stroke's height over the label's own x range. The anchors inside the
+  // range count, and so does the curve at its two edges, interpolated from the
+  // anchors that bracket them: a label often sits between two anchors.
+  for (const run of input.runs) {
+    const points = [...run.points].sort((a, b) => a.x - b.x)
+    if (points.length === 0) continue
+    if (points[points.length - 1].x < left || points[0].x > right) continue
+    for (const point of points) if (point.x >= left && point.x <= right) include(point.y)
+    include(routeHeightAt(points, left))
+    include(routeHeightAt(points, right))
+  }
+  if (!Number.isFinite(minY)) {
+    minY = input.markY
+    maxY = input.markY
+  }
+  const roomAbove = minY - input.padTop
+  const roomBelow = input.baseY - maxY
+  // Above, the block's LAST line must clear the stroke, so the whole label
+  // height below the baseline is spent first. Below, its first line must clear.
+  const above = minY - gap - LABEL_BELOW
+  const below = maxY + gap + LABEL_ABOVE
+  const fitsAbove = above >= input.padTop + LABEL_ABOVE
+  const fitsBelow = below <= input.baseY - LABEL_BELOW
+  const chosen = roomAbove >= roomBelow
+    ? (fitsAbove ? above : below)
+    : (fitsBelow ? below : above)
+  return Math.min(Math.max(chosen, input.padTop + LABEL_ABOVE), input.baseY - LABEL_BELOW)
+}
+
+/** The straight height between the two anchors that bracket `x`. The stroke is
+ *  bounded by its anchors, so this is a safe read of its height at the edge. */
+function routeHeightAt(points: ReadonlyArray<{ x: number; y: number }>, x: number): number {
+  const first = points[0]
+  const last = points[points.length - 1]
+  if (x <= first.x) return first.y
+  if (x >= last.x) return last.y
+  for (let index = 0; index < points.length - 1; index++) {
+    const from = points[index]
+    const to = points[index + 1]
+    if (x < from.x || x > to.x) continue
+    if (to.x === from.x) return Math.max(from.y, to.y)
+    return from.y + ((to.y - from.y) * (x - from.x)) / (to.x - from.x)
+  }
+  return last.y
+}
+
 /** Two labels closer than this, in plot units, read as one. */
 const DAY_LABEL_GAP = 28
 
 /**
  * The axis labels: Day 1 at the start, the two edges of each paid run, then
- * "end". A label that would sit within 28 plot units of one already placed is
+ * "End". A label that would sit within 28 plot units of one already placed is
  * dropped, in that order, so the axis never stacks two words at one point.
  */
 export function heightDayLabels(

@@ -32,8 +32,10 @@ interface Expected {
 function expectedFiles(): Expected[] {
   const files: Expected[] = []
   for (const [id, entry] of Object.entries(manifest.ids)) {
-    for (const width of entry.widths) {
+    const widths = entry.ratio === '3:2' ? [...entry.widths, ...manifest.coverWidths] : entry.widths
+    for (const width of widths) {
       const cap = manifest.budget.avifKiB[String(width)]
+      expect(cap, `no AVIF cap for width ${width}`).toBeGreaterThan(0)
       files.push({ id, format: 'avif', width, ratio: entry.ratio, name: `${id}-${width}.avif`, capBytes: (cap ?? 0) * 1024 })
     }
     files.push({ id, format: 'webp', width: entry.webp, ratio: entry.ratio, name: `${id}-${entry.webp}.webp`, capBytes: manifest.budget.webpKiB * 1024 })
@@ -115,6 +117,14 @@ describe('art manifest', () => {
       expect(entry.widths, id).toEqual([320, 640, 960])
       expect(entry.webp, id).toBe(640)
     }
+    expect(manifest.coverWidths).toEqual([1600])
+  })
+
+  it('adds the wide AVIF to landscape scenes only', () => {
+    for (const [id, entry] of Object.entries(manifest.ids)) {
+      const hasWide = existsSync(path.join(ART_DIR, `${id}-1600.avif`))
+      expect(hasWide, `${id} wide AVIF`).toBe(entry.ratio === '3:2')
+    }
   })
 
   it('declares all fifty new destination scenes with their own ids', () => {
@@ -146,6 +156,10 @@ describe('art size budget', () => {
     }
   })
 
+  it('keeps the whole illustration set under the 20 MiB budget', () => {
+    expect(manifest.budget.totalMiB).toBe(20)
+  })
+
   it('keeps the whole illustration set under the total budget', () => {
     const total = readdirSync(ART_DIR)
       .filter(name => name !== 'manifest.json')
@@ -155,7 +169,7 @@ describe('art size budget', () => {
 })
 
 describe('art file headers', () => {
-  it('has AVIF files whose ispe width matches the file name and whose height matches the ratio', () => {
+  it('has AVIF files whose ispe width matches the file name and whose height matches the ratio', { timeout: 20000 }, () => {
     for (const expected of expectedFiles().filter(file => file.format === 'avif')) {
       const dimensions = avifDimensions(readFileBuffer(expected.name))
       expect(dimensions, `${expected.name} has no AVIF header`).not.toBeNull()

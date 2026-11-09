@@ -711,6 +711,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // ---- Trip-kit view state: plain derivations over the memos above. Nothing
   // here asks an entitlement question; the cards already carry the answer.
   const cards = storefront?.cards ?? []
+  const routeLockedDays = new Set(cards.filter(card => card.state === 'locked').map(card => card.summary.index))
   const openCount = cards.filter(c => c.state !== 'locked').length
   const firstOpenPos = cards.findIndex(c => c.state !== 'locked')
   const ridePos = (() => {
@@ -1089,8 +1090,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                       endLabel={trip.destinations[trip.destinations.length - 1]}
                       roundTripNote={isRoundTrip(trip) ? `↩ returns to ${trip.startLocation}` : undefined}
                       points={routePointsN}
+                      lockedDays={routeLockedDays}
                     />
-                    <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
+                    {routeLockedDays.size === 0 && <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>}
                     <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
                   </aside>
                   {(pub.travelTips.length > 0 || pub.warningsAndAssumptions.length > 0) && (

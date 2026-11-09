@@ -1849,3 +1849,28 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
   .pi-navigation-ride > .pi-muted { white-space: nowrap; }
   .pi-page .sf-sticky > .sf-sticky-price { flex-direction: column; align-items: flex-start; gap: 0; }
 }
+
+/* ==== PR914 route card ==== */
+.pi-page .pi-before-route {
+  background: var(--pw-card); color: var(--pw-ink); overflow: hidden;
+}
+.pi-page .pi-before-route::before { display: none; }
+.pi-page .pi-before-route .route-glance-label { color: var(--pw-ink-2); }
+.pi-page .pi-before-route .route-glance-meta { color: var(--pw-ink-2); }
+.pi-page .pi-before-route .route-glance-list { color: var(--pw-ink); }
+.route-map-canvas { display: block; width: 100%; height: auto; }
+.route-map-leg { fill: none; stroke: var(--pw-lagoon-600); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.route-map-leg-locked { stroke: var(--pw-marigold-500); stroke-dasharray: 6 5; }
+.route-map-endpoint { fill: var(--pw-ink); stroke: var(--pw-card); stroke-width: 2; }
+.route-map-badge { fill: var(--pw-card); stroke: var(--pw-lagoon-600); stroke-width: 2; }
+.route-map-badge-locked { stroke: var(--pw-marigold-500); }
+.route-map-badge text { fill: var(--pw-ink); stroke: none; font: var(--pw-caption); font-variant-numeric: tabular-nums; }
+.route-map-label line { stroke: var(--pw-ink-3); stroke-width: 1; }
+.route-map-label rect { fill: var(--pw-card); }
+.route-map-label text { fill: var(--pw-ink); font: var(--pw-caption); }
+.route-map-legend { display: flex; flex-wrap: wrap; gap: var(--space-7); color: var(--pw-ink-2); font: var(--pw-caption); }
+.route-map-legend span { display: inline-flex; align-items: center; gap: var(--space-4); }
+.route-map-key { width: var(--space-8); border-top: 3px solid var(--pw-lagoon-600); }
+.route-map-key-locked { border-color: var(--pw-marigold-500); border-top-style: dashed; }
+.route-map-note { margin: var(--space-5) 0 0; color: var(--pw-ink-2); font: var(--pw-caption); }
+.route-map-empty { color: var(--pw-ink-2); font: var(--pw-body); }

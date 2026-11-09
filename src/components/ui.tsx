@@ -6,6 +6,7 @@ import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
 import { type AvatarTone } from '../lib/avatarTone'
+import { fitRoutePoints, routeBadges, routeEndpointLabel, ROUTE_BOX, type RouteSnapshotPoint } from '../lib/routeSnapshotLayout'
 
 export function Avatar({ user, size = 'sm', tone }: {
   user?: { id?: string; profile: { name: string; avatarUrl?: string } }
@@ -587,159 +588,62 @@ function RouteLayer({
   )
 }
 
-/** Dynamic route snapshot (CTI homepage mockup grammar) for real trip data.
- *  With `points` (stop coordinates in visit order, `day` = day index), the road
- *  is a simplified, north-up snapshot of the actual geography: bounds fitted
- *  aspect-true (like the map's fitBounds), points decimated and smoothed into a
- *  flowing road, day badges on each day's first stop. Without points it falls
- *  back to the mockup's illustrative curve. Pure math - no DOM measurement. */
-export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, points }: {
+/** A route map from saved coordinates. Day indexes are zero based. */
+export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, points, lockedDays = new Set<number>() }: {
   count: number
   startLabel?: string
   endLabel?: string
-  /** set when the trip returns to its start - a small note; the end label stays
-      the final destination, never a duplicate of the start */
   roundTripNote?: string
-  /** ordered stop coordinates (lat/lng) with the owning day's index. Null when
-      no day owns the point (the chain start, the return leg, the destination
-      tail): those points draw the line but earn no badge. Badges print the
-      index plus one — the same convention the Timeline and the matrix use. */
-  points?: Array<{ lat: number; lng: number; day: number | null }>
+  points?: RouteSnapshotPoint[]
+  lockedDays?: ReadonlySet<number>
 }) {
-  const gid = React.useId().replace(/[:]/g, '')
-  const W = 540, H = 168, PAD = 34
-  const MOCK_D = 'M21 104 C 83 40, 139 107, 197 55 S 320 5, 382 67 S 484 128, 531 36'
-
-  // ---- real-geometry path ----
-  let realPath: string | null = null
-  const dayAnchors: Array<{ day: number; x: number; y: number }> = []
-  if (points && points.length >= 2) {
-    const lats = points.map(p => p.lat), lngs = points.map(p => p.lng)
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
-    // metres-ish scaling so longitude stretch doesn't flatten the north-up shape
-    const kcos = Math.max(0.2, Math.cos(((minLat + maxLat) / 2 * Math.PI) / 180))
-    const wKm = Math.max((maxLng - minLng) * kcos * 111, 1e-4)
-    const hKm = Math.max((maxLat - minLat) * 111, 1e-4)
-    const s = Math.min((W - 2 * PAD) / wKm, (H - 2 * PAD) / hKm)
-    // project with the fit scale (raw, unoffset), then centre the *drawn*
-    // bounds in the canvas - a route flatter or narrower than the viewBox
-    // would otherwise sit small in the top-left instead of filling the card
-    const raw = points.map(p => ({
-      x: (p.lng - minLng) * kcos * 111 * s,
-      y: -(p.lat) * 111 * s, // north up: higher lat sits higher (negated)
-    }))
-    const rawXs = raw.map(r => r.x), rawYs = raw.map(r => r.y)
-    const dx = (W - (Math.max(...rawXs) - Math.min(...rawXs))) / 2 - Math.min(...rawXs)
-    const dy = (H - (Math.max(...rawYs) - Math.min(...rawYs))) / 2 - Math.min(...rawYs)
-    const px = (p: { lat: number; lng: number }, i: number): [number, number] => [
-      raw[i].x + dx,
-      raw[i].y + dy,
-    ]
-    // decimate points landing on nearly the same canvas spot
-    const kept: Array<{ x: number; y: number; day: number | null }> = []
-    for (let i = 0; i < points.length; i++) {
-      const [x, y] = px(points[i], i)
-      const last = kept[kept.length - 1]
-      if (!last || Math.hypot(x - last.x, y - last.y) > 3) kept.push({ x, y, day: points[i].day })
-    }
-    if (kept.length >= 2) {
-      realPath = catmullRomPath(kept)
-      // badge on each day's first stop (dedup: several days may share a base).
-      // A point no day owns draws the line but earns no badge (#614).
-      const seen = new Set<number>()
-      for (const k of kept) {
-        if (k.day == null) continue
-        if (!seen.has(k.day)) { seen.add(k.day); dayAnchors.push({ day: k.day, x: k.x, y: k.y }) }
-      }
-    }
+  const fitted = fitRoutePoints(points ?? [])
+  const first = fitted[0], last = fitted[fitted.length - 1]
+  if (!first || !last || fitted.length < 2) {
+    return <p className="route-map-empty">No saved route coordinates.</p>
   }
-  // ---- badge thinning for long trips ----
-  const thin = (nums: number[]) => {
-    if (nums.length <= 9) return nums
-    const out: number[] = []
-    for (let i = 0; i < 7; i++) out.push(nums[Math.round((i * (nums.length - 1)) / 6)])
-    if (out[out.length - 1] !== nums[nums.length - 1]) out[out.length - 1] = nums[nums.length - 1]
-    return out
-  }
-
-  // ---- fallback: mockup illustrative curve, badges at even arc positions ----
-  let badges: Array<{ day: number; x: number; y: number }>
-  if (realPath) {
-    badges = thin(dayAnchors.map(a => a.day)).map(day => dayAnchors.find(a => a.day === day)!)
-  } else {
-    const segs: Array<[number, number, number, number, number, number, number, number]> = [
-      [21, 104, 83, 40, 139, 107, 197, 55],
-      [197, 55, 255, 3, 320, 5, 382, 67],
-      [382, 67, 444, 129, 484, 128, 531, 36],
-    ]
-    const SAMPLES = 90
-    const pts: Array<[number, number]> = []
-    for (const [x0, y0, x1, y1, x2, y2, x3, y3] of segs) {
-      for (let i = 1; i <= SAMPLES; i++) {
-        const t = i / SAMPLES, u = 1 - t
-        pts.push([
-          u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
-          u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3,
-        ])
-      }
-    }
-    const cum: number[] = [0]
-    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]))
-    const pointAt = (f: number): [number, number] => {
-      const target = f * cum[cum.length - 1]
-      let i = cum.findIndex(c => c >= target)
-      if (i < 1) i = 1
-      return pts[i - 1]
-    }
-    // Zero-based like the real branch: the badge below adds one, so this
-    // branch must not shift twice (#614).
-    const dayNums = thin(Array.from({ length: Math.max(2, Math.min(count || 2, 30)) }, (_, i) => i))
-    badges = dayNums.map((day, i) => { const [x, y] = pointAt(i / (dayNums.length - 1)); return { day, x, y } })
-  }
-
-  const short = (s?: string) => (s && s.length > 16 ? s.slice(0, 15) + '…' : s)
+  const badges = routeBadges(fitted)
+  const owned = fitted.filter(p => p.day !== null)
+  const firstDay = owned[0]?.day, lastDay = owned[owned.length - 1]?.day
+  const startLocked = firstDay == null ? lockedDays.size > 0 : lockedDays.has(firstDay)
+  const endLocked = lastDay == null ? lockedDays.size > 0 : lockedDays.has(lastDay)
+  const labels = [
+    !startLocked && startLabel ? { point: first, label: startLabel, end: false } : null,
+    !endLocked && endLabel ? { point: last, label: endLabel, end: true } : null,
+  ].filter(label => label !== null)
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img"
-      aria-label={`Route across ${count} days${startLabel ? `, starting at ${startLabel}` : ''}${endLabel ? `, ending at ${endLabel}` : ''}`}>
-      <defs>
-        <linearGradient id={`rs-${gid}`} x1="0" x2="1">
-          <stop stopColor="#EFAD54" /><stop offset=".5" stopColor="#FFDF93" /><stop offset="1" stopColor="#E8684C" />
-        </linearGradient>
-      </defs>
-      <path d={realPath ?? MOCK_D} fill="none" stroke={`url(#rs-${gid})`} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d={realPath ?? MOCK_D} fill="none" stroke="#FFF8D7" strokeWidth="2" strokeDasharray="7 9" strokeLinecap="round" />
-      {badges.map(({ day, x, y }) => (
-        <g key={day}>
-          <circle cx={x} cy={y} r="13" fill="#FFFFFF" />
-          <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#155B60">{day + 1}</text>
-        </g>
-      ))}
-      {/* start label bottom-left, final destination top-right - never duplicated */}
-      {startLabel && (
-        <text x="6" y={H - 6} textAnchor="start" fontSize="12.5" fontWeight="800" fill="#EAF6F2">{short(startLabel)}</text>
-      )}
-      {endLabel && (
-        <text x={W - 6} y="18" textAnchor="end" fontSize="12.5" fontWeight="800" fill="#EAF6F2">{short(endLabel)}</text>
-      )}
-      {roundTripNote && (
-        <text x={W - 6} y={H - 6} textAnchor="end" fontSize="11" fontWeight="600" fill="#A9CFC7">{roundTripNote}</text>
-      )}
-    </svg>
+    <div className="route-map">
+      <svg className="route-map-canvas" viewBox={`0 0 ${ROUTE_BOX.width} ${ROUTE_BOX.height}`} role="img" aria-label={`Route across ${count} days`}>
+        {fitted.slice(1).map((point, i) => {
+          const from = fitted[i]
+          const day = point.day ?? from.day
+          return <path key={i} className={day != null && lockedDays.has(day) ? 'route-map-leg route-map-leg-locked' : 'route-map-leg'}
+            d={`M ${from.x} ${from.y} L ${point.x} ${point.y}`} />
+        })}
+        {[first, last].map((point, i) => <circle key={i} className="route-map-endpoint" cx={point.x} cy={point.y} r="5" />)}
+        {badges.map(badge => (
+          <g key={badge.days.join('-')} className={badge.days.some(day => lockedDays.has(day)) ? 'route-map-badge route-map-badge-locked' : 'route-map-badge'}
+            aria-label={`Days ${badge.label}`}>
+            <rect x={badge.x - badge.width / 2} y={badge.y - 14} width={badge.width} height="28" rx="14" />
+            <text x={badge.x} y={badge.y} dy=".35em" textAnchor="middle">{badge.label}</text>
+          </g>
+        ))}
+        {labels.map(({ point, label, end }, i) => {
+          const position = routeEndpointLabel(point, label, end)
+          return <g key={i} className="route-map-label">
+            <line x1={point.x} y1={point.y} x2={position.x + position.width / 2} y2={position.y + 10} />
+            <rect x={position.x} y={position.y} width={position.width} height="22" rx="4" />
+            <text x={position.x + position.width / 2} y={position.y + 15} textAnchor="middle">{position.text}</text>
+          </g>
+        })}
+      </svg>
+      <div className="route-map-legend">
+        <span><i className="route-map-key" />Free days</span>
+        {lockedDays.size > 0 && <span><i className="route-map-key route-map-key-locked" />Locked days</span>}
+      </div>
+      {roundTripNote && !startLocked && <p className="route-map-note">{roundTripNote}</p>}
+    </div>
   )
-}
-
-/** Catmull-Rom → cubic bezier smoothing for a flowing-road polyline. */
-function catmullRomPath(pts: Array<{ x: number; y: number }>): string {
-  const at = (i: number) => pts[Math.max(0, Math.min(i, pts.length - 1))]
-  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
-  for (let i = 1; i < pts.length; i++) {
-    const p0 = at(i - 2), p1 = at(i - 1), p2 = at(i), p3 = at(i + 1)
-    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6
-    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6
-    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-  }
-  return d
 }
 
 export function StatTile({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {

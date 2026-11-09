@@ -600,7 +600,7 @@
   background: var(--pw-card); box-shadow: var(--elev-1);
 }
 .pi-ribbon-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-6); }
-.pi-ribbon-figure { font: var(--pw-figure); letter-spacing: var(--pw-figure-tracking); color: var(--pw-ink); }
+.pi-ribbon-figure { font: var(--pw-figure); letter-spacing: var(--pw-figure-tracking); color: var(--pw-ink); white-space: nowrap; }
 .pi-ribbon-sub { font: var(--pw-meta); color: var(--pw-ink-3); }
 .pi-ribbon-track { display: grid; grid-template-columns: minmax(100%, max-content); overflow-x: auto; padding-bottom: var(--space-2); }
 .pi-ribbon-line { grid-area: 1 / 1; align-self: start; height: 6px; margin-top: 6px; border-radius: var(--radius-pill); background: var(--pi-line, var(--pw-route)); }
@@ -1876,7 +1876,7 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
    dark theme swaps the six values and nothing else. */
 .pi-height-card {
   --hc-sky-top: #FBE3D2;
-  --hc-sky-bottom: #F0F8F6;
+  --hc-sky-bottom: var(--pw-paper);
   --hc-band: #FFF4E0;
   --hc-free: #6CCAB3;
   --hc-paid: #F6CF8E;
@@ -1933,14 +1933,14 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 .pi-ribbon-track--short .pi-rib {
   display: flex; flex-direction: column; align-items: stretch; gap: 4px;
   min-width: 0; padding: 10px 12px; border: 1.5px solid transparent;
-  border-radius: var(--radius-sm); background: #EAF3F2; color: #142329;
+  border-radius: var(--radius-sm); background: var(--pw-sunken); color: #142329;
   text-align: start;
   transition: background-color var(--motion-fast) var(--ease-paper),
     border-color var(--motion-fast) var(--ease-paper),
     transform var(--motion-fast) var(--ease-paper),
     box-shadow var(--motion-fast) var(--ease-paper);
 }
-.pi-ribbon-track--short .pi-rib:hover { background: #EAF3F2; border-color: #CDD8D6; }
+.pi-ribbon-track--short .pi-rib:hover { background: var(--pw-sunken); border-color: #CDD8D6; }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .pi-ribbon-track--short .pi-rib:hover { transform: translateY(-2px); }
 }
@@ -1987,5 +1987,3 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 :root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-lock { color: var(--pw-marigold-ink); }
 :root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-title { color: var(--pw-ink); }
 :root:where([data-theme='dark']) .pi-ribbon-track--short .pi-rib-sub { color: var(--pw-ink-3); }
-/* P11 plan figure: "10 days · 1,045 km" stays on one line, as on the board. */
-.pi-ribbon-figure { white-space: nowrap; }

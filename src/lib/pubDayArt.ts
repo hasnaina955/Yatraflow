@@ -11,7 +11,7 @@
 //   4. the neutral scene.
 // A neutral answer from step 1 does not stop the search, because a day whose
 // stops are unknown places still belongs to the plan's state.
-import { placeArtFor, placeFallbacksFrom, type PlaceArtMatch } from './placeArt'
+import { placeArtFamilyFor, placeArtFor, placeFallbacksFrom, type PlaceArtMatch } from './placeArt'
 import { ART_MANIFEST, artIdFor } from './regionArt'
 import { regionFor } from './tripsPage'
 
@@ -36,15 +36,37 @@ export function pubArtId(input: {
   /** Place names of the whole plan: its destinations or its route stops. */
   planPlaces: readonly string[]
 }): string | null {
+  return pubArtFamily(input)[0] ?? null
+}
+
+/** A list rotated so `first` leads, keeping every id once. */
+function rotateFrom(list: readonly string[], first: string): string[] {
+  const at = list.indexOf(first)
+  return at <= 0 ? [...list] : [...list.slice(at), ...list.slice(0, at)]
+}
+
+/**
+ * Every scene the slot may use, the one `pubArtId` returns first.
+ *
+ * A day with two scenes can share its first pick with a neighbouring day. A
+ * mosaic then needs a second file from the same family, not a different place.
+ * This exposes that family without changing which scene leads. Empty only when
+ * the manifest declares no scene.
+ */
+export function pubArtFamily(input: {
+  seed: string
+  slotPlaces?: readonly string[]
+  planPlaces: readonly string[]
+}): string[] {
   const { seed, slotPlaces = [], planPlaces } = input
-  const fromSlot = slotPlaces.length > 0 ? specific(placeArtFor(slotPlaces, seed, FALLBACKS)) : null
-  if (fromSlot) return fromSlot
-  const fromPlan = specific(placeArtFor(planPlaces, seed, FALLBACKS))
-  if (fromPlan) return fromPlan
+  const slotMatch = slotPlaces.length > 0 ? placeArtFor(slotPlaces, seed, FALLBACKS) : null
+  if (specific(slotMatch)) return placeArtFamilyFor(slotMatch, FALLBACKS)
+  const planMatch = placeArtFor(planPlaces, seed, FALLBACKS)
+  if (specific(planMatch)) return placeArtFamilyFor(planMatch, FALLBACKS)
   const region = regionFor({ destinations: [...planPlaces] })
   if (region !== 'generic') {
     const regional = artIdFor(region, seed)
-    if (regional) return regional
+    if (regional) return rotateFrom(ART_MANIFEST.regions[region] ?? [], regional)
   }
-  return placeArtFor([], seed, FALLBACKS)?.id ?? artIdFor('generic', seed)
+  return placeArtFamilyFor(planMatch ?? placeArtFor([], seed, FALLBACKS), FALLBACKS)
 }

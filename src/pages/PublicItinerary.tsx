@@ -51,7 +51,8 @@ import { SectionTabs, type SectionTab } from '../components/storefront/SectionTa
 import { RegionArt } from '../components/RegionArt'
 import { TripArt } from '../components/trips/TripArt'
 import { regionFor } from '../lib/tripsPage'
-import { pubArtId } from '../lib/pubDayArt'
+import { pubArtFamily, pubArtId } from '../lib/pubDayArt'
+import { pickMosaicPhotos } from '../lib/rideMosaic'
 import { artIdFromCoverUrl } from '../lib/artCover'
 
 /** The words of a day title that may name places: "Jaipur → Jodhpur" gives both. */
@@ -742,9 +743,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // plan places only. Their titles never select a scene.
   const planPlaces = [trip.startLocation, ...trip.destinations]
   const artRegion = regionFor(trip)
-  const artFor = (seed: string, slotPlaces: string[], sizes: string, eager = false) => (
+  const artFor = (seed: string, slotPlaces: string[], sizes: string, eager = false, sceneId?: string) => (
     <RegionArt
-      id={pubArtId({ seed: `${pub.id}:${seed}`, slotPlaces, planPlaces })}
+      id={sceneId ?? pubArtId({ seed: `${pub.id}:${seed}`, slotPlaces, planPlaces })}
       ratio="16:10"
       sizes={sizes}
       eager={eager}
@@ -761,6 +762,19 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       ? { ...c, budget: f?.budget, art: dayArt(c), lockedWord: price !== undefined ? 'Paid plan' : 'Preview only', lockedNote: showUnlockCta ? 'Names, times and notes open when you buy' : 'Names, times and notes stay hidden on this page' }
       : { ...c, photo: f?.photo, art: f?.photo ? undefined : dayArt(c), budget: f?.budget, onOpen: () => openDay(c.summary.index) }
   })
+
+  // Ride along mosaic. The first readable days, each with a different picture:
+  // a shared first scene steps to the next day, then to another scene of its
+  // family. A tile crops a 16:10 scene to about 400 px high, so it asks for a
+  // cover-size file.
+  const mosaicPhotos = pickMosaicPhotos(dayFacts.flatMap((f, i) => f.readable
+    ? [{
+        index: cards[i].summary.index,
+        title: cards[i].summary.title,
+        photo: f.photo,
+        family: pubArtFamily({ seed: `${pub.id}:day:${cards[i].summary.index}`, slotPlaces: titlePlaces(cards[i].summary.title), planPlaces }),
+      }]
+    : []))
 
   const kmOf = (km: number) => `${km.toFixed(0)} km`
   const driveOf = (min: number) => (min < 5 ? 'no drive' : `${minutesToHM(min)} driving`)
@@ -931,11 +945,13 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               { value: String(placeTotal), label: 'places' },
               ...(pub.bestSeason ? [{ value: pub.bestSeason, label: 'best season' }] : []),
             ],
-            // The first three days this visitor may read: their photo, or their scene.
-            photos: dayFacts.flatMap((f, i) => f.readable
-              // A mosaic tile crops a 16:10 scene to about 400px high, so it asks for a cover-size file.
-              ? [{ index: cards[i].summary.index, src: f.photo, art: f.photo ? undefined : artFor(`day:${cards[i].summary.index}`, titlePlaces(cards[i].summary.title), '(max-width: 720px) 100vw, 640px'), title: cards[i].summary.title }]
-              : []).slice(0, 3),
+            // The first three readable days, with three different pictures.
+            photos: mosaicPhotos.map(p => ({
+              index: p.index,
+              src: p.photo,
+              art: p.photo ? undefined : artFor(`day:${p.index}`, titlePlaces(p.title), '(max-width: 720px) 100vw, 640px', false, p.sceneId),
+              title: p.title,
+            })),
             notice: gateNotice ? (tripReReadFailed
               ? purchaseLoadNotice
               : <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} />) : undefined,

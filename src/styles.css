@@ -1579,7 +1579,6 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
 /* Before you go: the route and the notes, two even cards. */
 .pi-before { display: flex; flex-direction: column; gap: var(--space-5); }
 .pi-before-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); align-items: stretch; }
-.pi-before-grid > .pi-before-route { margin: 0; }
 .pi-before-notes { display: flex; flex-direction: column; gap: var(--space-5); }
 .pi-before-notes .pi-h2 + .pi-notelist { margin-top: calc(var(--space-3) * -1); }
 .pi-notelist { display: grid; gap: var(--space-4); margin: 0 0 var(--space-4); padding: 0; list-style: none; color: var(--pw-ink-2); }
@@ -1849,27 +1848,46 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
   .pi-page .sf-sticky > .sf-sticky-price { flex-direction: column; align-items: flex-start; gap: 0; }
 }
 
-/* ==== PR914 route card ==== */
-.pi-page .pi-before-route {
-  background: var(--pw-card); color: var(--pw-ink); overflow: hidden;
+/* ==== PR914 route glance ==== */
+/* The mockup card: a deep teal panel, one marigold road with a cream centre
+   line, white day milestones and a footer row. The road is the height line. */
+.pi-glance {
+  --glance-bg: #143F4B; --glance-ink: #FFFFFF; --glance-soft: #BBE0D9; --glance-muted: #D5E7E4;
+  --glance-road: var(--pw-marigold-500); --glance-centre: #FFF9DF;
+  display: flex; flex-direction: column; gap: var(--space-5); margin: 0;
+  padding: var(--space-8); border-radius: var(--radius-xl, 23px);
+  background: var(--glance-bg); color: var(--glance-ink);
+  box-shadow: 0 6px 20px rgba(20, 56, 61, .12);
 }
-.pi-page .pi-before-route::before { display: none; }
-.pi-page .pi-before-route .route-glance-label { color: var(--pw-ink-2); }
-.pi-page .pi-before-route .route-glance-meta { color: var(--pw-ink-2); }
-.pi-page .pi-before-route .route-glance-list { color: var(--pw-ink); }
-.route-map-canvas { display: block; width: 100%; height: auto; }
-.route-map-leg { fill: none; stroke: var(--pw-lagoon-600); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-.route-map-leg-locked { stroke: var(--pw-marigold-500); stroke-dasharray: 6 5; }
-.route-map-endpoint { fill: var(--pw-ink); stroke: var(--pw-card); stroke-width: 2; }
-.route-map-badge { fill: var(--pw-card); stroke: var(--pw-lagoon-600); stroke-width: 2; }
-.route-map-badge-locked { stroke: var(--pw-marigold-500); }
-.route-map-badge text { fill: var(--pw-ink); stroke: none; font: var(--pw-caption); font-variant-numeric: tabular-nums; }
-.route-map-label line { stroke: var(--pw-ink-3); stroke-width: 1; }
-.route-map-label rect { fill: var(--pw-card); }
-.route-map-label text { fill: var(--pw-ink); font: var(--pw-caption); }
-.route-map-legend { display: flex; flex-wrap: wrap; gap: var(--space-7); color: var(--pw-ink-2); font: var(--pw-caption); }
-.route-map-legend span { display: inline-flex; align-items: center; gap: var(--space-4); }
-.route-map-key { width: var(--space-8); border-top: 3px solid var(--pw-lagoon-600); }
-.route-map-key-locked { border-color: var(--pw-marigold-500); border-top-style: dashed; }
-.route-map-note { margin: var(--space-5) 0 0; color: var(--pw-ink-2); font: var(--pw-caption); }
-.route-map-empty { color: var(--pw-ink-2); font: var(--pw-body); }
+:root:where([data-theme='dark']) .pi-glance {
+  --glance-bg: #0E2F37; --glance-soft: #9FC9C2; --glance-muted: #C3D9D5; --glance-centre: #FFF3CC;
+  box-shadow: inset 0 0 0 1px var(--pw-line);
+}
+.pi-glance-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-5); }
+.pi-glance-kicker { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--glance-soft); }
+.pi-glance-range { font: var(--pw-caption); color: var(--glance-muted); font-variant-numeric: tabular-nums; }
+.pi-glance-state { margin: 0; min-height: 120px; display: grid; place-items: center; color: var(--glance-muted); font: var(--pw-body); }
+.pi-glance-road { display: block; width: 100%; height: auto; overflow: visible; }
+.pi-glance-casing { fill: none; stroke: var(--glance-road); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.pi-glance-centre { fill: none; stroke: var(--glance-centre); stroke-width: 2.5; stroke-dasharray: 8 8; stroke-linecap: round; }
+.pi-glance-paid line { stroke: var(--glance-road); stroke-width: 2; stroke-dasharray: 2 6; stroke-linecap: round; opacity: .8; }
+.pi-glance-paid text { fill: var(--glance-soft); font-size: 11px; font-weight: 700; }
+.pi-glance-badge circle { fill: #FFFFFF; }
+.pi-glance-badge text { fill: #155B60; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pi-glance-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
+.pi-glance-places { font-size: 12px; color: var(--glance-muted); }
+.pi-glance-ride {
+  min-height: 44px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm, 8px);
+  background: transparent; color: var(--glance-ink); font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-paper);
+}
+.pi-glance-ride span { display: inline-block; transition: transform var(--motion-fast) var(--ease-paper); }
+.pi-glance-ride:hover { background: rgba(255, 255, 255, .08); }
+.pi-glance-ride:hover span { transform: translateX(3px); }
+.pi-glance-ride:focus-visible { outline: 2px solid var(--glance-ink); outline-offset: 2px; }
+.pi-glance-run { animation: pi-glance-in var(--motion-slower) var(--ease-paper) both; }
+@keyframes pi-glance-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .pi-glance-run { animation: none; }
+  .pi-glance-ride, .pi-glance-ride span { transition: none; }
+}

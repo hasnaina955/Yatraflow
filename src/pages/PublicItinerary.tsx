@@ -32,7 +32,7 @@ import { sharePublicationOnWhatsApp } from '../lib/whatsAppShare'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
 import { sizedCoverUrl } from '../lib/tripThumb'
-import { Avatar, Chip, EmptyState, toast, CopyButton, RouteSnapshot } from '../components/ui'
+import { Avatar, Chip, EmptyState, toast, CopyButton } from '../components/ui'
 import { SegmentedTabs } from '../components/page/SegmentedTabs'
 import {
   chooseCover, countKinds, flightSignalFor, foldWeeks, hasAirLeg, kindOfCategory, lockedRunLine, planLede, roadMinutesOf, summariseDayFromLegs, truncatePitch,
@@ -63,6 +63,7 @@ import { RideLockedPreview } from '../components/storefront/ride/RideLockedPrevi
 import { RideProgress, RideReadMark } from '../components/storefront/ride/RideProgress'
 import { freeDaysRead, useRideProgress } from '../lib/rideProgress'
 import { RideElevation } from '../components/storefront/ride/RideElevation'
+import { RouteGlance } from '../components/storefront/RouteGlance'
 import { ChevronRight, Users } from 'lucide-react'
 
 /** How long the buyer's entitlement read may take before the page stops
@@ -367,20 +368,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     () => (trip ? [...trip.days].sort((a, b) => a.index - b.index) : []),
     [trip],
   )
-  const routePoints = useMemo(() => {
-    if (!trip) return undefined
-    const pts: Array<{ lat: number; lng: number; day: number | null }> = []
-    // The start belongs to no day: it draws the line but earns no badge (#614).
-    if (trip.startLocationCoords) pts.push({ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng, day: null })
-    for (const day of orderedDays) {
-      for (const s of [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay)) {
-        if (s.status !== 'rejected' && Number.isFinite(s.lat) && Number.isFinite(s.lng)) {
-          pts.push({ lat: s.lat, lng: s.lng, day: day.index })
-        }
-      }
-    }
-    return pts.length >= 2 ? pts : undefined
-  }, [trip, orderedDays])
 
   // True when this viewer may read the locked days: the creator, or a buyer
   // with a paid entitlement. Gating here is presentation; the fork path and
@@ -592,7 +579,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Past the gate every memo is fully computed — narrowed aliases keep the
   // rest of the body honest without re-checking `trip` everywhere.
   const totalsN = totals!
-  const routePointsN = routePoints
 
   const creator = userById(pub.creatorId)
   // The stored cover is not necessarily sized: a row written before the sizing
@@ -695,8 +681,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     toast(nowSaved ? 'Saved to this browser.' : 'Removed from saved itineraries.')
   }
 
-  // (totals/routePoints/highlights are computed by the guarded hooks above the
-  //  gate — totalsN/routePointsN/highlightsN.)
+  // (totals/highlights are computed by the guarded hooks above the
+  //  gate — totalsN/highlightsN.)
 
   // ---- First-screen buy card + sticky bar state. Every condition below is the
   // SAME one the locked days and the take-this-trip card use (price, unlocked,
@@ -1084,19 +1070,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <section className="pi-before" aria-labelledby="pi-before-title">
                 <span className="pi-kicker" id="pi-before-title">Before you go</span>
                 <div className="pi-before-grid">
-                  <aside className="card route-snap route-glance pi-before-route">
-                    <span className="route-glance-label">The route at a glance</span>
-                    <RouteSnapshot
-                      count={trip.days.length}
-                      startLabel={trip.startLocation}
-                      endLabel={trip.destinations[trip.destinations.length - 1]}
-                      roundTripNote={isRoundTrip(trip) ? `↩ returns to ${trip.startLocation}` : undefined}
-                      points={routePointsN}
-                      lockedDays={routeLockedDays}
-                    />
-                    {routeLockedDays.size === 0 && <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>}
-                    <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
-                  </aside>
+                  <RouteGlance key={pub.id} trip={trip} freeIndexes={pub.freeDayIndexes}
+                    places={routeLockedDays.size === 0 ? pub.routeSummary.join(' · ') : null}
+                    onRide={() => changeView('ride')} />
                   {(pub.travelTips.length > 0 || pub.warningsAndAssumptions.length > 0) && (
                     <div className="pi-card pi-before-notes">
                       {pub.travelTips.length > 0 && <>

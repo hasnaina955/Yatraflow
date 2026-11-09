@@ -6,7 +6,6 @@ import { nativeCopyText } from '../lib/native'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
 import { type AvatarTone } from '../lib/avatarTone'
-import { fitRoutePoints, routeBadges, routeEndpointLabel, ROUTE_BOX, type RouteSnapshotPoint } from '../lib/routeSnapshotLayout'
 
 export function Avatar({ user, size = 'sm', tone }: {
   user?: { id?: string; profile: { name: string; avatarUrl?: string } }
@@ -585,70 +584,6 @@ function RouteLayer({
         </g>
       )}
     </g>
-  )
-}
-
-/** A route map from saved coordinates. Day indexes are zero based. */
-export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, points, lockedDays = new Set<number>() }: {
-  count: number
-  startLabel?: string
-  endLabel?: string
-  roundTripNote?: string
-  points?: RouteSnapshotPoint[]
-  lockedDays?: ReadonlySet<number>
-}) {
-  const fitted = fitRoutePoints(points ?? [])
-  const first = fitted[0], last = fitted[fitted.length - 1]
-  if (!first || !last || fitted.length < 2) {
-    return <p className="route-map-empty">No saved route coordinates.</p>
-  }
-  const badges = routeBadges(fitted)
-  const owned = fitted.filter(p => p.day !== null)
-  const firstDay = owned[0]?.day, lastDay = owned[owned.length - 1]?.day
-  const startLocked = firstDay == null ? lockedDays.size > 0 : lockedDays.has(firstDay)
-  const endLocked = lastDay == null ? lockedDays.size > 0 : lockedDays.has(lastDay)
-  const labels = [
-    !startLocked && startLabel ? { point: first, label: startLabel, end: false } : null,
-    !endLocked && endLabel ? { point: last, label: endLabel, end: true } : null,
-  ].filter(label => label !== null)
-  return (
-    <div className="route-map">
-      <svg className="route-map-canvas" viewBox={`0 0 ${ROUTE_BOX.width} ${ROUTE_BOX.height}`} role="img" aria-label={`Route across ${count} days`}>
-        {fitted.slice(1).map((point, i) => {
-          const from = fitted[i]
-          const day = point.day ?? from.day
-          return <path key={i} className={day != null && lockedDays.has(day) ? 'route-map-leg route-map-leg-locked' : 'route-map-leg'}
-            d={`M ${from.x} ${from.y} L ${point.x} ${point.y}`} />
-        })}
-        {[first, last].map((point, i) => <circle key={i} className="route-map-endpoint" cx={point.x} cy={point.y} r="5" />)}
-        {/* Leader lines paint first, so the badges cover them. */}
-        {labels.map(({ point, label, end }, i) => {
-          const position = routeEndpointLabel(point, label, end)
-          return <g key={`leader-${i}`} className="route-map-label">
-            <line x1={point.x} y1={point.y} x2={position.x + position.width / 2} y2={position.y + 10} />
-          </g>
-        })}
-        {badges.map(badge => (
-          <g key={badge.days.join('-')} className={badge.days.some(day => lockedDays.has(day)) ? 'route-map-badge route-map-badge-locked' : 'route-map-badge'}
-            aria-label={`Days ${badge.label}`}>
-            <rect x={badge.x - badge.width / 2} y={badge.y - 14} width={badge.width} height="28" rx="14" />
-            <text x={badge.x} y={badge.y} dy=".35em" textAnchor="middle">{badge.label}</text>
-          </g>
-        ))}
-        {labels.map(({ point, label, end }, i) => {
-          const position = routeEndpointLabel(point, label, end)
-          return <g key={i} className="route-map-label">
-            <rect x={position.x} y={position.y} width={position.width} height="22" rx="4" />
-            <text x={position.x + position.width / 2} y={position.y + 15} textAnchor="middle">{position.text}</text>
-          </g>
-        })}
-      </svg>
-      <div className="route-map-legend">
-        <span><i className="route-map-key" />Free days</span>
-        {lockedDays.size > 0 && <span><i className="route-map-key route-map-key-locked" />Locked days</span>}
-      </div>
-      {roundTripNote && !startLocked && <p className="route-map-note">{roundTripNote}</p>}
-    </div>
   )
 }
 

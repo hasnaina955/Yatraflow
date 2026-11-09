@@ -14,8 +14,7 @@ const KOLKATA = { lat: 22.5726, lng: 88.3639 }
 const DELHI = { lat: 28.6139, lng: 77.209 }
 
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
-const ui = readFileSync(new URL('../src/components/ui.tsx', import.meta.url), 'utf8')
-const routeLayout = readFileSync(new URL('../src/lib/routeSnapshotLayout.ts', import.meta.url), 'utf8')
+const glance = readFileSync(new URL('../src/components/storefront/RouteGlance.tsx', import.meta.url), 'utf8')
 const overview = readFileSync(new URL('../src/pages/trip/OverviewTab.tsx', import.meta.url), 'utf8')
 const overviewTruth = readFileSync(new URL('../src/lib/overviewTruth.ts', import.meta.url), 'utf8')
 const pubItinerary = readFileSync(new URL('../src/pages/PublicItinerary.tsx', import.meta.url), 'utf8')
@@ -100,26 +99,23 @@ describe('#613 — a driving day with no stored stops still draws its journey', 
   })
 })
 
-describe('#614 — the route snapshot prints one-based day badges', () => {
-  it('prints the index plus one on the shared badge', () => {
-    expect(routeLayout).toContain('`${first + 1}`')
-    expect(routeLayout).toContain('`${first + 1}–${days[i] + 1}`')
+describe('#614 — route day badges are one-based', () => {
+  it('the route glance prints the index plus one on its badge', () => {
+    expect(glance).toContain('{badge.day + 1}</text>')
   })
 
-  it('shows an empty state, not an invented road, when no coordinates exist', () => {
-    expect(ui).toContain('No saved route coordinates.')
-    expect(ui).not.toContain('MOCK_D')
+  it('a place no day owns gets no glance badge', () => {
+    expect(glance).toContain('if (mark.dayIndex == null || seen.has(mark.dayIndex)) continue')
   })
 
-  it('gives a point no day owns no badge', () => {
-    expect(routeLayout).toContain('day: number | null')
-    expect(routeLayout).toContain('if (p.day === null || seen.has(p.day)) continue')
+  it('the published page uses the height glance, not the old route snapshot', () => {
+    expect(pubItinerary).toContain('<RouteGlance ')
+    expect(pubItinerary).not.toContain('RouteSnapshot')
   })
 
-  it('both callers pass day indexes, never a coerced zero', () => {
+  it('the overview passes day indexes, never a coerced zero', () => {
     expect(overview).toContain('<OverviewRouteCard rows={routeRows}')
     expect(overviewTruth).toContain('dayIndex: chain.ptDay[i] ?? null')
     expect(overviewTruth).not.toContain('chain.ptDay[i] ?? 0')
-    expect(pubItinerary).toContain('lng: trip.startLocationCoords.lng, day: null')
   })
 })

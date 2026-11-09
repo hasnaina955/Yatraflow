@@ -65,7 +65,11 @@ export function paidHeightBands(
   return bands
 }
 
-export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: readonly number[] }) {
+/**
+ * Measures the heights at the free days' places. The result is loading,
+ * failed, empty or measured. These states stay separate.
+ */
+export function useRouteHeights(trip: Trip, freeIndexes: readonly number[]) {
   const points = useMemo(() => rideHeightPoints(trip, freeIndexes), [trip, freeIndexes])
   const paidIndexes = useMemo(() => trip.days.map(day => day.index).filter(index => !freeIndexes.includes(index)), [trip, freeIndexes])
   const [loaded, setLoaded] = useState<{ points: readonly RouteHeightInput[]; result: RouteHeightsResult } | null>(null)
@@ -82,6 +86,11 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
       .finally(() => window.clearTimeout(timer))
     return () => { controller.abort(); window.clearTimeout(timer) }
   }, [points])
+  return { result, paidIndexes }
+}
+
+export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: readonly number[] }) {
+  const { result, paidIndexes } = useRouteHeights(trip, freeIndexes)
   if (result.kind === 'empty') return null
   if (result.kind === 'loading') return <p className="pi-height-state" role="status">Loading route heights…</p>
   if (result.kind === 'failed') return <p className="pi-height-state">Route heights are not available.</p>

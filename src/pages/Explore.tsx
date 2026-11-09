@@ -249,10 +249,20 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
 
   // The trending shelf: the same catalog, the featured pick left out, and drawn
   // only while nothing is filtered and the catalog read is ready (lib/explorePage.ts).
-  const shelfPicks = useMemo(
+  const shelfCandidates = useMemo(
     () => trendingShelfPicks({ pubs: published, featured, filtersActive, ready: pubsRead === 'ready', limit: 3 }),
     [published, featured, filtersActive, pubsRead],
   )
+  // The shelf is a highlight above a catalog, so it shows only when at least three
+  // other plans remain for the grid below it. On a short catalog its picks stay in
+  // the grid, where the cards sit side by side in one set of columns. Without this,
+  // a one-card shelf and a one-card grid stacked in a single column.
+  const shelfPicks = useMemo(() => {
+    const taken = new Set(shelfCandidates.map(p => p.id))
+    if (featured) taken.add(featured.id)
+    const left = pubs.filter(p => !taken.has(p.id)).length
+    return left >= 3 ? shelfCandidates : []
+  }, [shelfCandidates, featured, pubs])
   // The grid leaves out the featured pick and, while the shelf shows, the shelf's
   // plans too, so no itinerary appears twice near the top of the page.
   const gridPubs = useMemo(() => {

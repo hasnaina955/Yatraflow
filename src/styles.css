@@ -1553,10 +1553,11 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
 .ex-page .ex-places .ex-place { gap: 8px; }
 .ex-page .ex-places .ex-place-name { overflow-wrap: break-word; }
 
-/* The card foot stays on one row at three columns. The creator name shortens
-   with an ellipsis before the Fork button wraps below it. */
+/* The card foot stays on one row at three columns: the creator on the left and
+   the compact Fork pill on the right. The name is never cut. A very long name
+   wraps inside its own space. */
 article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 .ex-card .ex-card-foot .ex-byline { flex: 1 1 auto; min-width: 0; }
-.ex-card .ex-card-foot .ex-byline > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-card .ex-card-foot .ex-byline > span { min-width: 0; overflow-wrap: anywhere; }
 .ex-card .ex-card-foot .ex-byline > .avatar, .ex-card .ex-card-foot .ex-byline > svg { flex: none; }
 .ex-card .ex-card-foot .ex-fork { flex: none; padding-inline: 12px; }

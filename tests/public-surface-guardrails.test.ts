@@ -82,8 +82,12 @@ describe('the catalog is honest about the login wall behind Fork', () => {
   it('labels the shared card button for what it does when nobody is signed in', () => {
     const card = read('../src/components/PubCard.tsx')
     expect(card).toMatch(/needsLogin \? 'Log in to fork' : 'Fork this trip'/)
-    // The Explore card carries the same login-wall label on its own Fork button.
-    expect(read('../src/components/explore/ExploreCard.tsx')).toMatch(/needsLogin \? 'Log in to fork' : 'Fork'/)
+    // The Explore card is a compact "Fork" pill for every visitor, as in the
+    // mockup. The login wall stays in its accessible name, and ForkSteps says it
+    // in words.
+    const exploreCard = read('../src/components/explore/ExploreCard.tsx')
+    expect(exploreCard).toMatch(/forkLabel \?\? 'Fork'/)
+    expect(exploreCard).toMatch(/needsLogin && !forkLabel \? ' \(log in first\)'/)
     // Every surface that renders the card has to opt in, or a signed-out click
     // goes back to being a silent redirect.
     expect(read('../src/pages/Explore.tsx')).toMatch(/needsLogin=\{!me\}/)

@@ -203,3 +203,53 @@ export function buildRouteHeightPlot(
 
   return { width, height, pad, baseY, topM, maxDistanceKm, runs: plotRuns, marks, peak, ticksX }
 }
+
+export interface PaidHeightBand {
+  x: number
+  width: number
+  /** "Days 5–8 · paid plan". Built from day numbers only, never from a place. */
+  label: string
+  /** Set for a paid run before the first or after the last free place. */
+  edge?: 'start' | 'end'
+}
+
+/** "Day 5" for one day, "Days 5–8" for a run. */
+export function paidDaysLabel(first: number, last: number): string {
+  return first === last ? `Day ${first + 1} · paid plan` : `Days ${first + 1}–${last + 1} · paid plan`
+}
+
+/**
+ * One band for each stretch of paid days that sits between two free places.
+ * The band spans the chart's own gap, so it carries no height and no name.
+ * A paid run before the first place or after the last one has no gap.
+ * It gets a thin band in the chart's margin, with `edge` set, and the
+ * page writes its label beside the chart.
+ */
+export function paidHeightBands(
+  points: readonly RouteHeightPoint[],
+  plot: Pick<RouteHeightPlot, 'width' | 'pad' | 'maxDistanceKm'>,
+  paidIndexes: readonly number[],
+): PaidHeightBand[] {
+  const plotW = Math.max(1, plot.width - plot.pad.left - plot.pad.right)
+  const xOf = (km: number) => plot.pad.left + (km / plot.maxDistanceKm) * plotW
+  const bands: PaidHeightBand[] = []
+  for (let i = 1; i < points.length; i++) {
+    const before = points[i - 1].dayIndex
+    const after = points[i].dayIndex
+    if (before == null || after == null || after - before < 2) continue
+    const between = paidIndexes.filter(day => day > before && day < after).sort((a, b) => a - b)
+    if (between.length === 0) continue
+    const x = xOf(points[i - 1].distanceKm)
+    bands.push({ x, width: Math.max(0, xOf(points[i].distanceKm) - x), label: paidDaysLabel(between[0], between[between.length - 1]) })
+  }
+  const firstDay = points[0]?.dayIndex
+  const lastDay = points[points.length - 1]?.dayIndex
+  if (firstDay != null && lastDay != null) {
+    const sorted = [...paidIndexes].sort((a, b) => a - b)
+    const before = sorted.filter(day => day < firstDay)
+    const after = sorted.filter(day => day > lastDay)
+    if (before.length > 0) bands.unshift({ x: 0, width: plot.pad.left, label: paidDaysLabel(before[0], before[before.length - 1]), edge: 'start' })
+    if (after.length > 0) bands.push({ x: plot.pad.left + plotW, width: plot.pad.right, label: paidDaysLabel(after[0], after[after.length - 1]), edge: 'end' })
+  }
+  return bands
+}

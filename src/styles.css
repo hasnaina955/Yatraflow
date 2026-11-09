@@ -1629,3 +1629,46 @@ article.ex-card[data-id]:hover { transform: translateY(-3px); box-shadow: var(--
 @media (prefers-reduced-motion: reduce) {
   .pi-section-tab, .pi-ribbon-progress > span { transition: none; }
 }
+/* ==== PR914 fix: Explore ==== */
+/* The hero visual follows the mockup: a 520 by 400 stage, three tilted
+   postcards of 40, 38 and 42 percent of its width, the dotted route and the
+   fork note. The entrance has no delay, so the postcards are in place when the
+   page is captured as well as when it is read. */
+@media (min-width: 960px) {
+  .ex-page .ex-hero-visual { aspect-ratio: 520 / 400; animation-delay: 0s; }
+  .ex-page .ex-pc-1 { left: 2%; top: 17.5%; width: 40.4%; z-index: 1; }
+  .ex-page .ex-pc-2 { left: 36.5%; top: 2.5%; width: 38.5%; z-index: 2; }
+  .ex-page .ex-pc-3 { left: 53.8%; top: 45%; width: 42.3%; z-index: 3; }
+  .ex-page .ex-forks-note { left: 6.5%; top: 77.5%; bottom: auto; }
+}
+@media (min-width: 1100px) {
+  .ex-page .ex-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 520px); }
+  .ex-page .ex-hero-visual { max-width: 520px; }
+}
+.ex-page .ex-postcards .ex-route-line path { stroke-width: 2.4; stroke-dasharray: 2 8; }
+.ex-page .ex-postcards .ex-route-line circle { stroke: var(--card); stroke-width: 3; }
+.ex-page .ex-postcards .ex-route-line .ex-route-end { fill: var(--pw-marigold-500); }
+
+/* Three card columns once the results column is 760px wide. A shelf or a grid
+   with one or two cards keeps the three-column track, so a card is never
+   stretched across the row. */
+@container ex-main (min-width: 760px) {
+  .ex-page .ex-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.ex-page .ex-trend-cards { margin-top: 0; }
+
+/* Places: two columns in the side column, as in the mockup. */
+@media (min-width: 1100px) {
+  .ex-page .ex-places { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 4px; }
+}
+.ex-page .ex-places .ex-place { gap: 8px; }
+.ex-page .ex-places .ex-place-name { overflow-wrap: break-word; }
+
+/* The card foot stays on one row at three columns: the creator on the left and
+   the compact Fork pill on the right. The name is never cut. A very long name
+   wraps inside its own space. */
+article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
+.ex-card .ex-card-foot .ex-byline { flex: 1 1 auto; min-width: 0; }
+.ex-card .ex-card-foot .ex-byline > span { min-width: 0; overflow-wrap: anywhere; }
+.ex-card .ex-card-foot .ex-byline > .avatar, .ex-card .ex-card-foot .ex-byline > svg { flex: none; }
+.ex-card .ex-card-foot .ex-fork { flex: none; padding-inline: 12px; }

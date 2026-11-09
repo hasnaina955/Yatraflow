@@ -24,7 +24,7 @@ import { ExplorePriceTag } from './ExplorePriceTag'
 import { ExploreSaveHeart } from './ExploreSaveHeart'
 
 export function ExploreCard({
-  pub, creator, saved, needsLogin, enterIndex, presence, sizes = EX_GRID_SIZES, forkLabel, footer,
+  pub, creator, saved, needsLogin, enterIndex, presence, sizes = EX_GRID_SIZES, eager, forkLabel, footer,
   onFork, onToggleSave,
 }: {
   pub: PublishedItinerary
@@ -39,6 +39,8 @@ export function ExploreCard({
   presence?: PresenceAttrs
   /** The cover slot's real width. The grid, the shelf and the creator page differ. */
   sizes?: string
+  /** Load the cover at once. Set for the cards near the top of the page. */
+  eager?: boolean
   /** The Fork button's own words. The grid is short; a creator page is explicit. */
   forkLabel?: string
   /** A last row inside the card, such as the creator's bio and channels. */
@@ -48,13 +50,15 @@ export function ExploreCard({
 }) {
   const creatorName = creator?.profile.name ?? 'Creator'
   const title = pub.title
-  const label = forkLabel ?? (needsLogin ? 'Log in to fork' : 'Fork')
+  // The pill says "Fork" for every visitor, as in the mockup. A signed-out click
+  // leads to the login page, and the accessible name below says so.
+  const label = forkLabel ?? 'Fork'
   const enterDelay: CSSProperties | undefined = enterIndex == null ? undefined : { animationDelay: staggerDelay(enterIndex) }
   return (
     <article className={`ex-card${enterIndex == null ? '' : ' ex-enter'}`} data-id={pub.id}
       style={enterDelay} {...presence}>
       <div className="ex-cover-wrap">
-        <ExploreCover pub={pub} sizes={sizes} />
+        <ExploreCover pub={pub} sizes={sizes} eager={eager} />
         <span className="ex-style-tag">{cap(pub.travelStyle)}</span>
         <ExplorePriceTag pub={pub} />
         <ExploreSaveHeart title={title} saved={saved} onToggle={onToggleSave} />
@@ -74,7 +78,7 @@ export function ExploreCard({
           {/* The visible label leads the accessible name, so voice control can
               still act on what the reader sees (WCAG 2.5.3). */}
           <button type="button" className="btn btn-secondary ex-fork"
-            aria-label={`${label} — ${title}`} onClick={onFork}>
+            aria-label={`${label} — ${title}${needsLogin && !forkLabel ? ' (log in first)' : ''}`} onClick={onFork}>
             <GitFork size={14} aria-hidden />{label}
           </button>
         </div>

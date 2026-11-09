@@ -75,10 +75,13 @@ export const PUB_GRID_SIZES = [
   'calc(100vw - 48px)',
 ].join(', ')
 
-export function ExploreCover({ pub, sizes = EX_GRID_SIZES }: {
+export function ExploreCover({ pub, sizes = EX_GRID_SIZES, eager = false }: {
   pub: Pick<PublishedItinerary, 'id' | 'coverImageUrl' | 'routeSummary'>
   /** The slot's real container width. The featured card is wider than a grid card. */
   sizes?: string
+  /** Load the image at once. Cards near the top of the page set it, so a cover in
+   *  the first screens never waits for a scroll to show. */
+  eager?: boolean
 }) {
   const coverUrl = pub.coverImageUrl ? sizedCoverUrl(pub.coverImageUrl) : ''
   // The publication's route stops go in as they are, so a stop the India place
@@ -96,6 +99,7 @@ export function ExploreCover({ pub, sizes = EX_GRID_SIZES }: {
       plan={plan}
       ratio="16:10"
       sizes={sizes}
+      eager={eager}
       className="ex-cover-img"
       emojiClassName="itin-cover-fallback"
     />

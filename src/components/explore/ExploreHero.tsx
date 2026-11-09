@@ -33,17 +33,18 @@ import { PageHero } from '../page/PageHero'
 export interface HeroStat { label: string; value: number }
 
 const POSTCARDS: { region: TripRegion; place: string; className: string }[] = [
-  { region: 'kashmir', place: 'Srinagar', className: 'ex-pc-1' },
-  { region: 'kerala', place: 'Alappuzha', className: 'ex-pc-2' },
-  { region: 'rajasthan', place: 'Udaipur', className: 'ex-pc-3' },
+  { region: 'kerala', place: 'Alleppey', className: 'ex-pc-1' },
+  { region: 'kashmir', place: 'Leh', className: 'ex-pc-2' },
+  { region: 'generic', place: 'Puducherry', className: 'ex-pc-3' },
 ]
 
 /**
- * `.ex-postcard` is 32% of `.ex-hero-visual`, which caps at 480px, less its own
- * 7px side padding (styles.css:8509, 8514-8515, 8520): 480 * .32 - 14 = 139.6.
- * The postcards are `display: none` below 960px (8566), so no smaller case exists.
+ * The widest `.ex-postcard` is 42.3% of `.ex-hero-visual`, which caps at 520px,
+ * less its own 8px side padding (the PR914 Explore block in styles.css):
+ * 520 * .423 - 16 = 204. The postcards are `display: none` below 960px, so no
+ * smaller case exists.
  */
-const POSTCARD_SIZES = '140px'
+const POSTCARD_SIZES = '204px'
 
 export interface QuickPick { key: string; label: string; pressed: boolean; onToggle: () => void }
 
@@ -85,9 +86,10 @@ export function ExploreHero({ stats, forks, query, onQueryChange, onSearch, quic
       visual={
         <>
           <div className="ex-postcards">
-            <svg className="ex-route-line" viewBox="0 0 480 272" preserveAspectRatio="none" focusable="false">
-              <path d="M46 150C80 110 130 76 190 82S330 30 372 70 340 170 300 172" />
-              <circle cx="46" cy="150" r="4" />
+            <svg className="ex-route-line" viewBox="0 0 520 400" preserveAspectRatio="none" focusable="false">
+              <path d="M60 300 C110 230 160 190 240 200 S380 120 440 170 S430 300 360 320" />
+              <circle cx="60" cy="300" r="7" />
+              <circle className="ex-route-end" cx="360" cy="320" r="8" />
             </svg>
             {POSTCARDS.map(card => {
               const place = placeArtFor([card.place], card.place, placeFallbacksFrom(ART_MANIFEST))

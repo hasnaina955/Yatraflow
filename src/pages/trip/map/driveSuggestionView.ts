@@ -10,6 +10,7 @@
 // carried on the row. The rail popup, the place card and the Timeline read
 // these instead of re-deriving them from raw `pois`.
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
+import type { PlacePhotoRef } from '../../../lib/providers/hits'
 import type { DaySlot, SlotCandidate } from '../../../lib/daySlots'
 import type { RailChip } from '../../../lib/railReasons'
 import { candidateArrivalMin, type ArrivalContext } from '../../../lib/candidateArrival'
@@ -50,6 +51,8 @@ export interface DriveSuggestionRow {
   /** existing reason chips from the shared presentation path */
   chips: RailChip[]
   state: DriveSuggestionState
+  /** The hit's own photo references. Empty when it has none; the card gates them by Google key. */
+  photos: PlacePhotoRef[]
 }
 
 /** The trip-aware facts the page already holds. Passed in, never fetched here. */
@@ -161,6 +164,7 @@ export function driveRowFromSegment(sh: SegmentHit, facts: DriveSuggestionFacts)
       ...(cost.budgetSharePct != null ? { budgetSharePct: cost.budgetSharePct } : {}),
     }),
     state: stateOf(hit, facts),
+    photos: hit.photos ?? [],
   }
 }
 
@@ -211,6 +215,7 @@ export function driveRowFromCandidate(
         })
       : [],
     state: stateOf(hit, facts),
+    photos: hit.photos ?? [],
   }
 }
 

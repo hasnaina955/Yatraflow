@@ -11,6 +11,9 @@ import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
 import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
+import type { DiscoveryCoverage } from '../../lib/providers/hits'
+import { PlacePhotos } from './PlacePhotos'
+import { ageText, coverageText } from './placeCardFacts'
 import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, type RibbonPosition } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
@@ -133,7 +136,7 @@ export function MapJourneyRibbon({ journey, corrections, onScrub }: {
   </section>
 }
 
-export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, source, freshness, actions, arriveMin, onAdd, onShortlist, onClose, onDirections }: {
+export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, source, freshness, actions, arriveMin, onAdd, onShortlist, onClose, onDirections }: {
   hit: PlaceHit; trip: Trip; dayIndex: number | null; detourMin: number | null; reason: string | null; added: boolean; editable: boolean; busy: boolean; shortlisted: boolean
   /** Projected visit length. Undefined = unprojected (existing fallback); null = unknown. */
   visitMin?: number | null
@@ -147,6 +150,10 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
   actions?: JourneyActions
   /** Projected arrival clock for the existing hours note. */
   arriveMin?: number | null
+  /** When this row's data was fetched. Null or absent shows no age. */
+  fetchedAt?: number | null
+  /** What the search covered. Null or absent shows nothing. */
+  coverage?: DiscoveryCoverage | null
   onAdd: () => void; onShortlist: () => void; onClose: () => void; onDirections: () => void
 }) {
   const format = useTimeFormat()
@@ -157,6 +164,8 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
   const freshnessLabel = freshness === undefined ? null : freshness === 'live' ? 'Live result' : freshness === 'retained' ? 'Retained result' : freshness === 'stale' ? 'Stale result' : 'Freshness unknown'
   // One display rule for the detour. An on-route detour hides its budget share.
   const detour = detourDisplay(detourMin)
+  // Age and coverage are shown only when the row carries them.
+  const dataFacts = [ageText(fetchedAt, Date.now()), coverageText(coverage)].filter((fact): fact is string => fact != null)
   const canAdd = actions?.add ?? true
   const canShortlist = actions?.shortlist ?? true
   const canNavigate = actions?.navigate ?? true
@@ -164,6 +173,7 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
   const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
   return <article id="rail-detail" className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
     <div className="mv2-place-art"><CatIcon category={hit.category} size={38} /><span>{titleCase(hit.category ?? 'place')}</span><button className="mv2-icon-btn" type="button" aria-label="Close place details" onClick={onClose}><X size={18} /></button></div>
+    <PlacePhotos hit={hit} />
     <div className="mv2-place-body">
       <span className="mv2-section-label">Along the drive · {dayIndex == null ? 'Choose a day' : `Day ${dayIndex + 1}`}</span>
       <h2>{hit.name}</h2>
@@ -174,7 +184,7 @@ export function MapPickCard({ hit, trip, dayIndex, detourMin, reason, added, edi
       <div className="mv2-preview-note"><Clock3 size={17} aria-hidden /><p>Check the impact before you keep it. Travel and visit time can move later stops.</p></div>
       {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : 'Add to a day'}</button><button className="mv2-icon-btn" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
       <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={15} aria-hidden />View place in Google Maps</button>
-      <p className="mv2-source"><MapPin size={13} aria-hidden />{sourceLabel} · {hit.measuredRoadFact ? 'Road evidence supplied' : 'Driving estimate'} · {hoursNote}{freshnessLabel ? ` · ${freshnessLabel}` : ''}</p>
+      <p className="mv2-source"><MapPin size={13} aria-hidden />{sourceLabel} · {hit.measuredRoadFact ? 'Road evidence supplied' : 'Driving estimate'} · {hoursNote}{freshnessLabel ? ` · ${freshnessLabel}` : ''}{dataFacts.map(fact => ` · ${fact}`).join('')}</p>
     </div>
   </article>
 }

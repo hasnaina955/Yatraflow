@@ -2094,6 +2094,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               freshness={selectedRow ? selectedRow.freshness : selectedProjected ? 'unknown' : undefined}
               actions={mapCardActions(selectedRow, selectedProjected)}
               arriveMin={selectedRow ? selectedRow.arriveMin : selectedProjected ? null : undefined}
+              fetchedAt={selectedRow ? scanFetchedAt : undefined} coverage={selectedRow ? scanCoverage : undefined}
               added={isAlreadyAdded(selectedHit, identity)} editable={editable} busy={addingAny || !!previewOpen} shortlisted={isShortlisted(selectedHit)}
               onAdd={() => { if (editable && detailDay != null && !isAlreadyAdded(selectedHit, identity)) edit.startAdd(selectedHit, detailDay); else openAddModal(selectedHit) }} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
             <MapEditAddPanel edit={edit} onChooseDay={() => openAddModal(selectedHit)} />

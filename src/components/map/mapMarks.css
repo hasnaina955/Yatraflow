@@ -53,3 +53,9 @@
 /* A spread or coincident-pin offset moves the drawn badge, not its empty marker wrapper. The wrapper must not take taps from a neighbour. */
 .mv2-workspace .maplibregl-marker, .mv2-workspace .maplibregl-marker > .cursor-pointer { pointer-events: none; }
 .mv2-workspace .maplibregl-marker :is(button, [role='button'], .yf-map-pin-idea) { pointer-events: auto; }
+/* The zoom buttons are 44px already. The legacy pad would overlap the next button, so it is off here. */
+.mv2-workspace .yf-maplibre .yf-map-ctrls button::after { content: none; }
+/* On a phone the two-line attribution sits over the key button. Lift the key above it. */
+@media (max-width: 760px) {
+  .mv2-workspace .map-legend { bottom: calc(var(--mv2-sheet-height, 0px) + 132px); }
+}

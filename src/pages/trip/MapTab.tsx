@@ -34,6 +34,8 @@ import { useShortlist } from './map/useShortlist'
 import { useMapWriters } from './map/useMapWriters'
 import { dayStayBase, useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
+import { useMapEdit } from './map/useMapEdit'
+import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPanel'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
@@ -916,6 +918,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     removeStopWithUndo({ trip, stopId, dayIndex: meta.dayIndex, applyChange })
   }
 
+  // #905-#907: the add preview, the stop editor and the keyboard reorder. Every
+  // write still goes through `applyChange`; removal stays on `removeStopWithUndo`.
+  // `edit.previewRoad` is the proposed road for TripMap to draw (handoff, not yet drawn).
+  const edit = useMapEdit({
+    trip, editable, applyChange, legCorrections, routeKmOf,
+    removeStop: removeStopFromMap,
+    onAddKept: hit => {
+      recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: hit.haltPurpose, category: hit.category, detourMin: asymmetricDetourMinutes(hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(hit.category) })
+      setDnaTick(t => t + 1)
+    },
+  })
+
   /** #841: a route arc's "Add all" stages through the shared writer: one
    *  operation gate, the shared planner, a stable day target per place and a
    *  guarded Undo. Staging changes nothing the traveller sees as added. Only the
@@ -1570,7 +1584,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} />
-        {itineraryOpen && <MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} />}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses" role="group" aria-label="Map planning panels">
           <button type="button" aria-controls="rail-see" aria-pressed={sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span><b>{seeForRail.length}</b></button>
@@ -2081,8 +2095,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               actions={mapCardActions(selectedRow, selectedProjected)}
               arriveMin={selectedRow ? selectedRow.arriveMin : selectedProjected ? null : undefined}
               added={isAlreadyAdded(selectedHit, identity)} editable={editable} busy={addingAny || !!previewOpen} shortlisted={isShortlisted(selectedHit)}
-              onAdd={() => openAddModal(selectedHit)} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
+              onAdd={() => { if (editable && detailDay != null && !isAlreadyAdded(selectedHit, identity)) edit.startAdd(selectedHit, detailDay); else openAddModal(selectedHit) }} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
+            <MapEditAddPanel edit={edit} onChooseDay={() => openAddModal(selectedHit)} />
           </div>}
+          {deckOpen && !selectedHit && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}
+          <MapEditLive edit={edit} />
           <MapJourneyRibbon journey={journey} corrections={legCorrections} onScrub={(position, minute) => {
             if (position.grade === 'estimated') { setScrubCursor(null); return }
             setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })

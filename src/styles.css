@@ -885,3 +885,88 @@
 /* Map edit: the Swap with list. Its control keeps a 44px touch target. */
 .map-edit-swap { display: grid; gap: var(--space-1); font-size: 12px; color: var(--text-2); }
 .map-edit-swap select { min-height: 44px; }
+
+/* ==== Map v2 lens decks (package W2-decksA) ==== */
+.mv2-lens-deck {
+  --mv2-lens-surface: var(--pw-card);
+  --mv2-lens-edge: var(--pw-line);
+  --mv2-lens-accent: var(--pw-marigold-500);
+  --mv2-lens-accent-ink: var(--pw-on-marigold);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--pw-ink);
+}
+:root:where([data-theme='dark']) .mv2-lens-deck {
+  --mv2-lens-surface: #241f1a;
+  --mv2-lens-edge: #3a352e;
+  --mv2-lens-accent: var(--pw-marigold-300);
+  --mv2-lens-accent-ink: #22201e;
+}
+.mv2-lens-header { display: flex; flex-direction: column; gap: var(--space-1); }
+.mv2-lens-title { margin: 0; font: var(--pw-title); }
+.mv2-lens-day { font-size: 12px; color: var(--pw-ink-3); }
+.mv2-lens-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.mv2-lens-chip {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--mv2-lens-edge);
+  border-radius: var(--radius-pill);
+  background: var(--mv2-lens-surface);
+  color: var(--pw-ink);
+  font: var(--pw-ui);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper);
+}
+.mv2-lens-chip:hover { background: var(--pw-marigold-50); }
+.mv2-lens-chip[aria-pressed="true"] { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.mv2-lens-ring {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--mv2-lens-edge);
+  border-radius: var(--radius-pill);
+}
+.mv2-lens-ring-btn {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--pw-ink);
+  font: var(--pw-ui);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper);
+}
+.mv2-lens-ring-btn[aria-checked="true"] { background: var(--mv2-lens-accent); color: var(--mv2-lens-accent-ink); }
+.mv2-lens-phase { margin: 0; font: var(--pw-body); color: var(--pw-ink-3); }
+.mv2-lens-body-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.mv2-lens-set { min-height: 44px; }
+.mv2-lens-cards { display: flex; flex-direction: column; gap: var(--space-2); }
+.mv2-lens-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.mv2-lens-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--mv2-lens-edge);
+  border-radius: var(--radius, 12px);
+  background: var(--mv2-lens-surface);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-paper);
+}
+.mv2-lens-card:hover { background: var(--pw-marigold-50); }
+.mv2-lens-card:focus-visible { outline: none; box-shadow: var(--ring); }
+.mv2-lens-card .mv2-lens-tile { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; }
+.mv2-lens-letter { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mv2-lens-card .mv2-lens-body { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: 0; }
+.mv2-lens-card .mv2-lens-body h2 { margin: 0; font: var(--pw-ui); }
+.mv2-lens-travel, .mv2-lens-fit, .mv2-lens-detour { margin: 0; font-size: 12px; color: var(--pw-ink-3); }
+.mv2-lens-actions { display: flex; }
+.mv2-lens-add { min-height: 44px; }
+.mv2-lens-also, .mv2-lens-more, .mv2-lens-gap-label { margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .mv2-lens-chip, .mv2-lens-ring-btn, .mv2-lens-card { transition: none; }
+}

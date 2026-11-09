@@ -1,10 +1,11 @@
 // The Map tab's edit surfaces (#905, #906, #907). They only lay out the cards in
 // ./editing/EditCards and the state of `useMapEdit`. No writer call is made here.
+import { useState } from 'react'
 import type { Trip } from '../../../data/types'
 import { useTimeFormat } from '../../../lib/timefmt'
 import { AddPreviewCard, FixedTimeConfirm, StopEditorCard } from './editing/EditCards'
 import { fixedGuardFor } from './editing/stopEdit'
-import { plannedArrivalLabel } from './pickPreview'
+import { plannedArrivalLabel, swapOptionsFor } from './pickPreview'
 import type { MapEdit } from './useMapEdit'
 
 /** The add preview, the unknown-position card, and the Undo countdown. */
@@ -48,12 +49,15 @@ export function MapEditAddPanel({ edit, onChooseDay }: { edit: MapEdit; onChoose
 /** The editor for the selected planned stop, with the fixed-time confirm. */
 export function MapEditStopPanel({ edit, trip, stopId, editable }: { edit: MapEdit; trip: Trip; stopId: string | null; editable: boolean }) {
   const fmt = useTimeFormat()
+  const [swapTarget, setSwapTarget] = useState('')
   if (!editable || stopId == null) return null
   const day = trip.days.find(d => d.stops.some(s => s.id === stopId))
   const stop = day?.stops.find(s => s.id === stopId)
   if (!day || !stop) return null
   const fixed = fixedGuardFor(trip, trip, [day.index]).fixedStopIds.includes(stopId)
   const visit = typeof stop.visitMinutes === 'number' && Number.isFinite(stop.visitMinutes) ? stop.visitMinutes : null
+  const options = swapOptionsFor(day, stopId)
+  const chosen = swapTarget && options.some(o => o.id === swapTarget) ? swapTarget : (options[0]?.id ?? '')
   return (
     <div className="map-edit-wrap">
       <StopEditorCard
@@ -64,9 +68,22 @@ export function MapEditStopPanel({ edit, trip, stopId, editable }: { edit: MapEd
         fixed={fixed}
         onStep={direction => edit.stepStay(stopId, direction)}
         onMoveToDay={toDay => edit.moveToDay(stopId, toDay)}
-        onSwap={() => edit.swapNeighbour(stopId)}
+        onSwap={() => { if (chosen) edit.swapNeighbour(stopId, chosen) }}
         onRemove={() => edit.removeSelected(stopId)}
       />
+      <label>
+        <span>Swap with</span>
+        <select
+          value={chosen}
+          disabled={options.length === 0}
+          onChange={e => setSwapTarget(e.target.value)}
+          style={{ minHeight: 44 }}
+        >
+          {options.length === 0
+            ? <option value="">No other stop on this day</option>
+            : options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+      </label>
       {edit.confirm && <FixedTimeConfirm guard={edit.confirm.fixed} onConfirm={edit.confirmFixed} onCancel={edit.cancelFixed} />}
       <p className="map-edit-hint">Reorder with Alt and the up or down arrow on a focused stop.</p>
     </div>

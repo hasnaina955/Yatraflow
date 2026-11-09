@@ -6,6 +6,7 @@ import type { DaySchedule } from '../src/lib/engine'
 import {
   plannedArrivalFromSchedule,
   plannedArrivalLabel,
+  swapOptionsFor,
   TIME_NOT_PLANNED_YET,
 } from '../src/pages/trip/map/pickPreview'
 
@@ -56,5 +57,40 @@ describe('plannedArrivalLabel', () => {
     const label = plannedArrivalLabel(trip, day.index, first!.id, '24h')
     expect(label).not.toBe(TIME_NOT_PLANNED_YET)
     expect(label).toMatch(/^\d{2}:\d{2}$/)
+  })
+})
+
+describe('swapOptionsFor', () => {
+  const day = (...rows: { id: string; order: number; status?: string }[]) => ({
+    id: 'd0', index: 0,
+    stops: rows.map(r => stop(r.id, { orderInDay: r.order, ...(r.status ? { status: r.status } : {}) }) as never),
+  })
+
+  it('excludes the stop itself and rejected stops', () => {
+    const d = day(
+      { id: 'a', order: 1 },
+      { id: 'self', order: 2 },
+      { id: 'c', order: 3 },
+      { id: 'gone', order: 4, status: 'rejected' },
+      { id: 'e', order: 5 },
+    )
+    const options = swapOptionsFor(d as never, 'self')
+    expect(options.map(o => o.id)).toEqual(['a', 'c', 'e'])
+    expect(options.some(o => o.id === 'self')).toBe(false)
+    expect(options.some(o => o.id === 'gone')).toBe(false)
+  })
+  it('keeps day order and labels each row as N and name', () => {
+    const d = day(
+      { id: 'z', order: 3 },
+      { id: 'x', order: 1 },
+      { id: 'self', order: 2 },
+    )
+    expect(swapOptionsFor(d as never, 'self')).toEqual([
+      { id: 'x', label: '1 · x' },
+      { id: 'z', label: '2 · z' },
+    ])
+  })
+  it('returns no options for a single-stop day', () => {
+    expect(swapOptionsFor(day({ id: 'a', order: 1 }) as never, 'a')).toEqual([])
   })
 })

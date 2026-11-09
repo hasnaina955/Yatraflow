@@ -15,6 +15,7 @@ const DELHI = { lat: 28.6139, lng: 77.209 }
 
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
 const ui = readFileSync(new URL('../src/components/ui.tsx', import.meta.url), 'utf8')
+const routeLayout = readFileSync(new URL('../src/lib/routeSnapshotLayout.ts', import.meta.url), 'utf8')
 const overview = readFileSync(new URL('../src/pages/trip/OverviewTab.tsx', import.meta.url), 'utf8')
 const overviewTruth = readFileSync(new URL('../src/lib/overviewTruth.ts', import.meta.url), 'utf8')
 const pubItinerary = readFileSync(new URL('../src/pages/PublicItinerary.tsx', import.meta.url), 'utf8')
@@ -101,17 +102,18 @@ describe('#613 — a driving day with no stored stops still draws its journey', 
 
 describe('#614 — the route snapshot prints one-based day badges', () => {
   it('prints the index plus one on the shared badge', () => {
-    expect(ui).toContain('{day + 1}</text>')
+    expect(routeLayout).toContain('`${first + 1}`')
+    expect(routeLayout).toContain('`${first + 1}–${days[i] + 1}`')
   })
 
-  it('keeps the illustrative branch zero-based so it cannot shift twice', () => {
-    expect(ui).toContain('(_, i) => i))')
-    expect(ui).not.toContain('(_, i) => i + 1)')
+  it('shows an empty state, not an invented road, when no coordinates exist', () => {
+    expect(ui).toContain('No saved route coordinates.')
+    expect(ui).not.toContain('MOCK_D')
   })
 
-  it('gives a point no day owns no badge on the real branch', () => {
-    expect(ui).toContain('day: number | null')
-    expect(ui).toContain('if (k.day == null) continue')
+  it('gives a point no day owns no badge', () => {
+    expect(routeLayout).toContain('day: number | null')
+    expect(routeLayout).toContain('if (p.day === null || seen.has(p.day)) continue')
   })
 
   it('both callers pass day indexes, never a coerced zero', () => {

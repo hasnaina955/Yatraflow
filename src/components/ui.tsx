@@ -621,6 +621,13 @@ export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, poin
             d={`M ${from.x} ${from.y} L ${point.x} ${point.y}`} />
         })}
         {[first, last].map((point, i) => <circle key={i} className="route-map-endpoint" cx={point.x} cy={point.y} r="5" />)}
+        {/* Leader lines paint first, so the badges cover them. */}
+        {labels.map(({ point, label, end }, i) => {
+          const position = routeEndpointLabel(point, label, end)
+          return <g key={`leader-${i}`} className="route-map-label">
+            <line x1={point.x} y1={point.y} x2={position.x + position.width / 2} y2={position.y + 10} />
+          </g>
+        })}
         {badges.map(badge => (
           <g key={badge.days.join('-')} className={badge.days.some(day => lockedDays.has(day)) ? 'route-map-badge route-map-badge-locked' : 'route-map-badge'}
             aria-label={`Days ${badge.label}`}>
@@ -631,7 +638,6 @@ export function RouteSnapshot({ count, startLabel, endLabel, roundTripNote, poin
         {labels.map(({ point, label, end }, i) => {
           const position = routeEndpointLabel(point, label, end)
           return <g key={i} className="route-map-label">
-            <line x1={point.x} y1={point.y} x2={position.x + position.width / 2} y2={position.y + 10} />
             <rect x={position.x} y={position.y} width={position.width} height="22" rx="4" />
             <text x={position.x + position.width / 2} y={position.y + 15} textAnchor="middle">{position.text}</text>
           </g>

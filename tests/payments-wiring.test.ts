@@ -148,7 +148,7 @@ describe('the public page wires the real unlock flow', () => {
     //    second conjunct: a stuck post-purchase trip re-read silences the CTA
     //    too — the buyer owns the plan, so no price tag may render.
     expect(code).toMatch(/const mayShowPriceCta = \(!meId \|\| entitlementRead === 'ready'\) && !tripReReadFailed/)
-    // 3. All five price buttons must use the same fail-closed gate.
+    // 3. All six price buttons must use the same fail-closed gate.
     expect(code).toMatch(/const showUnlockCta = price !== undefined && !unlocked && mayShowPriceCta/)
     const tree = ts.createSourceFile('page.tsx', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
     const priceButtons: ts.JsxOpeningElement[] = []
@@ -162,7 +162,7 @@ describe('the public page wires the real unlock flow', () => {
       ts.forEachChild(node, visit)
     }
     visit(tree)
-    expect(priceButtons).toHaveLength(5)
+    expect(priceButtons).toHaveLength(6)
     for (const button of priceButtons) {
       let gated = false
       for (let parent = button.parent; parent; parent = parent.parent) {

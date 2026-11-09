@@ -1869,3 +1869,52 @@ article.ex-card[data-id] .ex-card-foot { flex-wrap: nowrap; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   .ovw-elev-paid { animation: none; }
 }
+
+/* ==== PR914 · The road, by height (Ride along side card) ==== */
+/* One line runs the whole trip, paid days included. The paid runs are a tinted
+   band only: no gap, no box, no border. Every colour is a variable here, so the
+   dark theme swaps the six values and nothing else. */
+.pi-height-card {
+  --hc-sky-top: #FBE3D2;
+  --hc-sky-bottom: #F0F8F6;
+  --hc-band: #FFF4E0;
+  --hc-free: #6CCAB3;
+  --hc-paid: #F6CF8E;
+  --hc-line: #0B5F67;
+  --hc-label: #556972;
+  --hc-band-text: #8A4F0E;
+  --hc-muted: #556972;
+  --hc-label-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+:root:where([data-theme='dark']) .pi-height-card {
+  --hc-sky-top: #1B2A33;
+  --hc-sky-bottom: #14232B;
+  --hc-band: #3A2E1C;
+  --hc-free: #2F8F7E;
+  --hc-paid: #B98A43;
+  --hc-line: #7FD3C2;
+  --hc-label: #A9B8BE;
+  --hc-band-text: #2A1B08;
+  --hc-muted: #A9B8BE;
+}
+.pi-height-card .pi-height-heading h3 { font-size: 16px; }
+.pi-height-card .pi-height-heading > span { font: var(--pw-caption); color: var(--hc-muted); }
+.pi-height-card .pi-height-chart { display: block; width: 100%; height: auto; }
+.pi-height-sky-top { stop-color: var(--hc-sky-top); }
+.pi-height-sky-bottom { stop-color: var(--hc-sky-bottom); }
+.pi-height-paid-band { fill: var(--hc-band); }
+.pi-height-area.is-free { fill: var(--hc-free); opacity: .85; }
+.pi-height-area.is-paid { fill: var(--hc-paid); }
+.pi-height-line { stroke: var(--hc-line); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: pi-height-draw var(--motion-slower) var(--ease-paper) forwards; }
+.pi-height-baseline { stroke: var(--hc-line); stroke-width: 4; }
+.pi-height-day { fill: var(--hc-label); font-family: inherit; font-size: var(--hc-label-size); font-weight: 700; }
+.pi-height-band-label { fill: var(--hc-band-text); font-family: inherit; font-size: var(--hc-label-size); font-weight: 700; }
+.pi-height-card .pi-height-caption { color: var(--hc-muted); }
+@keyframes pi-height-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .pi-height-line { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+}

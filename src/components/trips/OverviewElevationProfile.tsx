@@ -4,7 +4,7 @@
 // claims the ground between them.
 import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RouteHeightCurveRun, RouteHeightPoint, RouteHeightStats } from '../../lib/elevation'
-import { buildRouteHeightPlot, paidHeightBands } from '../../lib/elevationPlot'
+import { buildRouteHeightPlot } from '../../lib/elevationPlot'
 import { overviewPinText } from '../../lib/overviewRouteMap'
 
 /** The SVG fills the CONTENT box of its frame, so measure that box only. */
@@ -37,9 +37,6 @@ export function OverviewElevationProfile({
   stats,
   compact,
   insetPath,
-  paidIndexes,
-  dayLabels,
-  hidePlaces,
 }: {
   points: readonly RouteHeightPoint[]
   runs: readonly RouteHeightCurveRun[]
@@ -47,12 +44,6 @@ export function OverviewElevationProfile({
   compact: boolean
   /** The trip's true shape, drawn small in the corner. Null hides it. */
   insetPath?: string | null
-  /** Days with no measured height. Each paid run between free places gets a band with day numbers only. */
-  paidIndexes?: readonly number[]
-  /** Label the two ends of the axis with day numbers, not distances. */
-  dayLabels?: boolean
-  /** Draw no place dots, names or peak box. The public page uses this so a paid day never leaks a name. */
-  hidePlaces?: boolean
 }) {
   const { ref, width } = useDrawableWidth(compact ? 420 : 720)
   const height = Math.max(compact ? 150 : 170, Math.min(280, Math.round(width * 0.45)))
@@ -60,20 +51,6 @@ export function OverviewElevationProfile({
     () => buildRouteHeightPlot(points, runs, stats, width, height),
     [points, runs, stats, width, height],
   )
-  const bands = useMemo(
-    () => (paidIndexes && paidIndexes.length > 0 ? paidHeightBands(points, plot, paidIndexes) : []),
-    [points, plot, paidIndexes],
-  )
-  const dayTicks = useMemo(() => {
-    if (!dayLabels) return null
-    const owned = plot.marks.filter(mark => mark.dayIndex != null).sort((a, b) => a.x - b.x)
-    if (owned.length === 0) return []
-    const first = owned[0]
-    const last = owned[owned.length - 1]
-    return first.dayIndex === last.dayIndex
-      ? [{ x: first.x, label: `Day ${first.dayIndex! + 1}`, anchor: 'start' as const }]
-      : [{ x: first.x, label: `Day ${first.dayIndex! + 1}`, anchor: 'start' as const }, { x: last.x, label: `Day ${last.dayIndex! + 1}`, anchor: 'end' as const }]
-  }, [dayLabels, plot])
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const skyId = `ovw-sky-${uid}`
   const landId = `ovw-land-${uid}`
@@ -85,7 +62,7 @@ export function OverviewElevationProfile({
     [plot],
   )
 
-  const peak = hidePlaces ? null : plot.peak
+  const peak = plot.peak
   const peakBoxH = 34
   const peakLabel = peak ? overviewPinText(peak.title, compact ? 18 : 24) : ''
   const peakBoxW = Math.min(
@@ -98,7 +75,7 @@ export function OverviewElevationProfile({
   const insetStart = insetPath?.match(/^M\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/)
 
   return (
-    <div ref={ref} className={hidePlaces ? 'ovw-elev ovw-elev--side' : 'ovw-elev'}>
+    <div ref={ref} className="ovw-elev">
       <svg
         className="ovw-elev-svg"
         viewBox={`0 0 ${width} ${height}`}
@@ -107,7 +84,6 @@ export function OverviewElevationProfile({
           'Illustrative route heights from public terrain estimates.',
           `Lowest place ${Math.round(stats.minM)} metres, highest place ${Math.round(stats.maxM)} metres.`,
           peak ? `The highest is ${peak.title}.` : '',
-          bands.length > 0 ? `${bands.map(band => band.label).join(', ')}: no height data.` : '',
         ].filter(Boolean).join(' ')}
       >
         <defs>
@@ -126,21 +102,6 @@ export function OverviewElevationProfile({
         <circle className="ovw-elev-sun" cx={width * 0.141} cy={height * 0.207} r={15} aria-hidden="true" />
         <rect className="ovw-elev-band" x="0" y={plot.baseY} width={width} height={height - plot.baseY} aria-hidden="true" />
 
-        {bands.map(band => {
-          if (band.edge) return <rect key={band.edge} className="ovw-elev-paid-band" x={band.x} y={0} width={band.width} height={plot.baseY} aria-hidden="true" />
-          const centre = band.x + band.width / 2
-          const mid = plot.baseY / 2
-          return (
-            <g key={band.x} className="ovw-elev-paid" aria-hidden="true">
-              <rect className="ovw-elev-paid-band" x={band.x} y={0} width={band.width} height={plot.baseY} />
-              <text className="ovw-elev-paid-label" x={centre} y={mid} textAnchor="middle">
-                <tspan x={centre} dy="-0.35em">{band.label.split(' · ')[0]}</tspan>
-                <tspan x={centre} dy="1.25em">paid days</tspan>
-              </text>
-            </g>
-          )
-        })}
-
         {/* Two far ranges are the same plotted curve scaled up from the baseline.
             They add depth behind the route and carry no height of their own. */}
         {plot.runs.map((run, index) => (
@@ -156,7 +117,7 @@ export function OverviewElevationProfile({
         ))}
 
         {/* One group, so the marks arrive as one beat in the CSS cascade. */}
-        {!hidePlaces && <g className="ovw-elev-marks">
+        <g className="ovw-elev-marks">
           {plot.marks.map(mark => (
             <circle
               key={`${mark.kind}-${mark.distanceKm}-${mark.title}`}
@@ -166,9 +127,9 @@ export function OverviewElevationProfile({
               r={mark.kind === 'destination' ? 7 : mark.kind === 'start' ? 6 : 4.5}
             />
           ))}
-        </g>}
+        </g>
 
-        {!hidePlaces && <g className="ovw-elev-labels">
+        <g className="ovw-elev-labels">
           {labelled.map(mark => {
             const anchor = mark.x > width * 0.72 ? 'end' : 'start'
             const dx = anchor === 'end' ? -7 : 7
@@ -184,7 +145,7 @@ export function OverviewElevationProfile({
               </g>
             )
           })}
-        </g>}
+        </g>
 
         {peak && (
           <g className="ovw-elev-peak">
@@ -207,10 +168,7 @@ export function OverviewElevationProfile({
         )}
 
         <g className="ovw-elev-axes">
-          {dayTicks && dayTicks.map(tick => (
-            <text key={tick.label} className="ovw-elev-axis is-x" x={tick.x} y={plot.baseY + 18} textAnchor={tick.anchor}>{tick.label}</text>
-          ))}
-          {!dayTicks && plot.ticksX.map((tick, index) => (
+          {plot.ticksX.map((tick, index) => (
             <text
               key={`x-${tick.label}`}
               className="ovw-elev-axis is-x"

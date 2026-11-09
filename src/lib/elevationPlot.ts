@@ -225,6 +225,143 @@ export function paidDaysLabel(first: number, last: number): string {
  * It gets a thin band in the chart's margin, with `edge` set, and the
  * page writes its label beside the chart.
  */
+/** One paid run of days, drawn on the plot's own distance-to-x scale. */
+export interface HeightDayRun {
+  startX: number
+  endX: number
+  /** 0-based index of the run's first paid day. */
+  firstDay: number
+  /** 0-based index of the first day after the run. Null when the run ends the trip. */
+  nextDay: number | null
+}
+
+/**
+ * One x range for each run of paid days. The x comes from the plot's own
+ * distance scale, so the band starts where the first paid day starts and ends
+ * where the day after it starts. Several runs give several bands, and there is
+ * never a gap between a band and the line.
+ */
+export function paidDayXRuns(
+  points: readonly RouteHeightPoint[],
+  plot: Pick<RouteHeightPlot, 'width' | 'pad' | 'maxDistanceKm'>,
+  paidIndexes: readonly number[],
+  dayIndexes: readonly number[],
+): HeightDayRun[] {
+  const plotW = Math.max(1, plot.width - plot.pad.left - plot.pad.right)
+  const left = plot.pad.left
+  const right = plot.pad.left + plotW
+  const xOf = (km: number) => left + (km / plot.maxDistanceKm) * plotW
+  const startX = new Map<number, number>()
+  const endX = new Map<number, number>()
+  for (const point of points) {
+    if (point.dayIndex == null || point.elevationM == null) continue
+    if (!startX.has(point.dayIndex)) startX.set(point.dayIndex, xOf(point.distanceKm))
+    endX.set(point.dayIndex, xOf(point.distanceKm))
+  }
+  const days = [...new Set(dayIndexes)].sort((a, b) => a - b)
+  const paid = [...new Set(paidIndexes)].filter(day => days.includes(day)).sort((a, b) => a - b)
+  const runs: HeightDayRun[] = []
+  for (let i = 0; i < paid.length; i++) {
+    const firstDay = paid[i]
+    let lastDay = firstDay
+    while (i + 1 < paid.length && paid[i + 1] === lastDay + 1) { lastDay = paid[i + 1]; i++ }
+    const nextDay = days.find(day => day > lastDay) ?? null
+    // A day with no place falls back to the last drawn x before it, so the
+    // band still touches the line on both sides.
+    const fallbackBefore = (day: number) => {
+      const known = days.filter(other => other < day && endX.has(other))
+      return known.length > 0 ? endX.get(known[known.length - 1]) as number : left
+    }
+    runs.push({
+      startX: startX.get(firstDay) ?? fallbackBefore(firstDay),
+      endX: nextDay == null ? right : startX.get(nextDay) ?? endX.get(lastDay) ?? right,
+      firstDay,
+      nextDay,
+    })
+  }
+  return runs
+}
+
+export interface HeightDayLabel {
+  x: number
+  text: string
+  anchor: 'start' | 'middle' | 'end'
+}
+
+/** Two labels closer than this, in plot units, read as one. */
+const DAY_LABEL_GAP = 28
+
+/**
+ * The axis labels: Day 1 at the start, the two edges of each paid run, then
+ * "end". A label that would sit within 28 plot units of one already placed is
+ * dropped, in that order, so the axis never stacks two words at one point.
+ */
+export function heightDayLabels(
+  runs: readonly HeightDayRun[],
+  bounds: { startX: number; endX: number },
+): HeightDayLabel[] {
+  const placed: HeightDayLabel[] = []
+  const add = (x: number, text: string, anchor: HeightDayLabel['anchor']) => {
+    if (placed.some(other => Math.abs(other.x - x) < DAY_LABEL_GAP)) return
+    placed.push({ x, text, anchor })
+  }
+  add(bounds.startX, 'Day 1', 'start')
+  for (const run of runs) {
+    add(run.startX, `Day ${run.firstDay + 1}`, 'middle')
+    if (run.nextDay != null) add(run.endX, `Day ${run.nextDay + 1}`, 'middle')
+  }
+  add(bounds.endX, 'end', 'end')
+  return placed
+}
+
+/** The band's own words. It says "highest" only when the peak is inside it. */
+export function paidBandLabel(paidIndexes: readonly number[], peakDayIndex: number | null): string {
+  const inPaid = peakDayIndex != null && paidIndexes.includes(peakDayIndex)
+  return inPaid ? 'highest · paid days' : 'paid days'
+}
+
+/** Every height the card prints is rounded to 50 m, so nothing reads false. */
+export function roundHeight50(metres: number): number {
+  return Math.round(metres / 50) * 50
+}
+
+/** "2,050 – 4,550 m": the sampled range, rounded and grouped for India. */
+export function heightRangeText(minM: number, maxM: number): string {
+  return `${roundHeight50(minM).toLocaleString('en-IN')} – ${roundHeight50(maxM).toLocaleString('en-IN')} m`
+}
+
+/** The median of the sampled heights, in metres. Null when nothing was sampled. */
+export function medianHeight(heights: readonly number[]): number | null {
+  if (heights.length === 0) return null
+  const sorted = [...heights].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+}
+
+/**
+ * The card's caption, from the sampled heights only. It never names a place and
+ * never says what a paid day holds.
+ */
+export function heightCaption(
+  heights: readonly number[],
+  peak: { elevationM: number; dayIndex: number | null } | null,
+  paidIndexes: readonly number[],
+): string | null {
+  const sentences: string[] = []
+  const median = medianHeight(heights)
+  if (median != null) {
+    const most = Math.floor(median / 500) * 500
+    if (most >= 500) sentences.push(`Most of the road sits above ${most.toLocaleString('en-IN')} m.`)
+  }
+  if (peak) {
+    const inPaid = peak.dayIndex != null && paidIndexes.includes(peak.dayIndex)
+    if (inPaid) sentences.push('The highest point is in the paid days.')
+    else if (peak.dayIndex != null) sentences.push(`The highest point, ${roundHeight50(peak.elevationM).toLocaleString('en-IN')} m, is on day ${peak.dayIndex + 1}.`)
+    else sentences.push(`The highest point, ${roundHeight50(peak.elevationM).toLocaleString('en-IN')} m.`)
+  }
+  return sentences.length > 0 ? sentences.join(' ') : null
+}
+
 export function paidHeightBands(
   points: readonly RouteHeightPoint[],
   plot: Pick<RouteHeightPlot, 'width' | 'pad' | 'maxDistanceKm'>,

@@ -100,15 +100,6 @@ describe('#613 — a driving day with no stored stops still draws its journey', 
 })
 
 describe('#614 — route day badges are one-based', () => {
-  it('the height chart prints the index plus one on its day labels', () => {
-    expect(heightChart).toContain('`Day ${first.dayIndex! + 1}`')
-    expect(heightChart).toContain('`Day ${last.dayIndex! + 1}`')
-  })
-
-  it('a place no day owns gets no day label', () => {
-    expect(heightChart).toContain('plot.marks.filter(mark => mark.dayIndex != null)')
-  })
-
   it('the published page uses the Ride along height card, not the old route snapshot', () => {
     expect(pubItinerary).toContain('<RideElevation ')
     expect(pubItinerary).not.toContain('RouteGlance')

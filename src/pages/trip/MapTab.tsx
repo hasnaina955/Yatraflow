@@ -36,6 +36,13 @@ import { dayStayBase, useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
 import { useMapEdit } from './map/useMapEdit'
 import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPanel'
+import { MapLensPanel } from './map/MapLensPanel'
+import { useMapLenses, type MapLensId } from './map/useMapLenses'
+import { driveCardStrip, driveDeckIntro, scopeBandOf, type DriveTab } from './map/driveLens'
+import { STAY_RINGS, ringPolygon, ringRadiusKm } from './map/stayLens'
+import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
+import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
+import type { RingId } from '../../components/map/lenses/StayDeck'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
@@ -90,6 +97,14 @@ import { fetchDailyWeather, forecastAvailable, isoAddDays, todayISO } from '../.
 import { useWeatherRefreshTick } from '../../hooks/useWeatherRefresh'
 // MapLibre is heavy (~1MB) — load it only when the Map tab is actually opened.
 const TripMap = React.lazy(() => import('../../components/TripMap').then(m => ({ default: m.TripMap })))
+
+/** The four lens names, in board order. The pill and the deck header read them. */
+const LENS_TITLE: Record<MapLensId, string> = {
+  drive: 'Along the drive',
+  stay: 'Around the stay',
+  gap: 'Gaps in this day',
+  fix: 'Fix this day',
+}
 
 // #420 slice 3: the page's module-level constants and pure helpers live in
 // ./map/pageHelpers now, where they have direct tests. `clockHM` is NOT among them
@@ -1324,6 +1339,118 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const [itineraryOpen, setItineraryOpen] = useState(true)
   const [deckOpen, setDeckOpen] = useState(true)
   const [snap, setSnap] = useState<SheetSnap>('peek')
+  // The one lens pill owns the map marks and the rail deck (W3-W).
+  const [lens, setLens] = useState<MapLensId>('drive')
+  const [driveTab, setDriveTab] = useState<DriveTab | null>(null)
+  const [stayWindow, setStayWindow] = useState<string | null>(null)
+  const [stayRing, setStayRing] = useState<RingId>('walk-15')
+
+  // W3-W: one lens model for the active day. A count stays null until its lens
+  // is ready, so a failed read never shows zero.
+  const lensClock = useCallback((min: number) => formatHM(clockHM(min), timeFormat), [timeFormat])
+  const lensDayLabel = `Day ${activeDayIndex + 1} · ${activeDayLabel(trip.days, activeDayIndex)}`
+  const lenses = useMapLenses({
+    trip,
+    dayIndex: activeDayIndex,
+    status: journeyDays.status,
+    rows: journeyDay?.projection.rows ?? [],
+    slots: activeDaySlots,
+    budgetMin: mapBudget,
+    schedule: journeyDay?.daySchedule ?? null,
+    clock: lensClock,
+    dayLabel: lensDayLabel,
+  })
+  const lensCount = lenses.counts[lens]
+  const activeStayWindowId = stayWindow != null && lenses.stay.windows.some(window => window.id === stayWindow)
+    ? stayWindow
+    : lenses.stay.windows[0]?.id ?? null
+  const stayRingDef = STAY_RINGS.find(ring => ring.id === stayRing) ?? STAY_RINGS[0]
+  const stayRings = lens === 'stay' && lenses.stay.base != null
+    ? [{
+      id: stayRingDef.id,
+      label: `${stayRingDef.minutes} min ${stayRingDef.mode}`,
+      ring: ringPolygon(lenses.stay.base, ringRadiusKm(stayRingDef.mode, stayRingDef.minutes)),
+    }]
+    : undefined
+  const gapRings = lens === 'gap'
+    ? lenses.gap.view.rows.flatMap(row => {
+      const hit = row.candidates[0]?.hit
+      if (!hit || !Number.isFinite(hit.latitude) || !Number.isFinite(hit.longitude)) return []
+      return [{
+        key: row.slotKey,
+        lat: hit.latitude,
+        lng: hit.longitude,
+        windowText: row.windowMin == null
+          ? null
+          : `${lensClock(row.windowMin[0])}–${lensClock(row.windowMin[1])}`,
+      }]
+    })
+    : undefined
+  const onGapRing = lens === 'gap'
+    ? () => { setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }
+    : undefined
+  const driveGroup = lenses.drive.tabs.tabs.find(group => group.tab === driveTab) ?? lenses.drive.tabs.tabs[0]
+  const drivePickLetters: Record<string, 'A' | 'B' | 'C'> = {}
+  if (lens === 'drive') {
+    driveGroup?.shown.slice(0, 3).forEach((row, index) => {
+      drivePickLetters[String(row.row.hit.id)] = (['A', 'B', 'C'] as const)[index]
+    })
+  }
+  const stayPickLetters: Record<string, 'A' | 'B' | 'C'> = {}
+  const activeStayPicks = activeStayWindowId == null ? undefined : lenses.stay.picks[activeStayWindowId]
+  if (lens === 'stay' && activeStayPicks?.kind === 'ready') {
+    for (const pick of activeStayPicks.picks) stayPickLetters[String(pick.row.row.hit.id)] = pick.letter
+  }
+  const gapPickLetters: Record<string, 'A' | 'B' | 'C'> = {}
+  if (lens === 'gap') {
+    for (const pick of lenses.gap.gaps[0]?.picks.picks ?? []) {
+      gapPickLetters[String(pick.candidate.hit.id)] = pick.letter
+    }
+  }
+  const pickLetters = lens === 'drive'
+    ? drivePickLetters
+    : lens === 'stay'
+      ? stayPickLetters
+      : lens === 'gap' ? gapPickLetters : undefined
+  const pickBands: Record<string, 'just-past' | 'over-budget'> = {}
+  if (lens === 'drive') {
+    for (const row of lenses.drive.view.rows) {
+      const band = scopeBandOf(row, scopeMinutes, budgetHeldIds)
+      if (band === 'just-past' || band === 'over-budget') pickBands[String(row.row.hit.id)] = band
+    }
+  }
+  function addLensHit(hit: PlaceHit, dayIndex: number) {
+    if (!editable || isAlreadyAdded(hit, identity)) return
+    edit.startAdd(hit, dayIndex)
+  }
+  function applyLensFix(set: FixChangeSet) {
+    // Check the real plan first. A fix that does not pass its check never writes.
+    const checked = verifyFixSet(trip, set)
+    if (!fixIsOffered(checked)) {
+      toast('This fix did not pass its check. Nothing changed.')
+      return
+    }
+    const next = applyFixChangeSet(trip, checked)
+    const day = next?.days.find(entry => entry.index === checked.dayIndex)
+    if (!day) {
+      toast('This fix could not apply to this trip. Nothing changed.')
+      return
+    }
+    applyChange(draft => {
+      const target = draft.days.find(entry => entry.index === checked.dayIndex)
+      if (!target) return
+      target.stops = day.stops.map(stop => ({ ...stop }))
+      target.startTime = day.startTime
+    }, 'edit', checked.dayIndex)
+    toast('Fix applied to this day.')
+  }
+  function previewLensFix(set: FixChangeSet) {
+    // Preview draws nothing new: it selects the day and shows the Fix lens.
+    chooseDay(set.dayIndex)
+    setLens('fix')
+    setSheetTab('see')
+    setDeckOpen(true)
+  }
   const [detailSelection, setDetailSelection] = useState<{ tripId: string; id: string | number; binding: MapRowBinding | null } | null>(null)
   const detailId = detailSelection?.tripId === trip.id ? detailSelection.id : null
   const detailBinding = detailSelection?.tripId === trip.id ? detailSelection.binding : null
@@ -1565,7 +1692,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             // #704: a failed search is not an empty one, so the route is not blamed.
             <p className="muted small">Stops along the route could not be loaded just now.</p>
           ) : (
-            <p className="muted small">Not enough driving distance yet for a fatigue plan - add a longer route (90+ km) in the Timeline and segmented stop suggestions will appear here.</p>
+            <p className="muted small">This route is too short for a fatigue plan. The drive lens has little to show, so try Around the stay.</p>
           )
         )}
         </div>
@@ -1586,8 +1713,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} />
         {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
-        <div className="mv2-lenses" role="group" aria-label="Map planning panels">
-          <button type="button" aria-controls="rail-see" aria-pressed={sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span><b>{seeForRail.length}</b></button>
+        <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
+          <button type="button" aria-label="Along the drive" aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
+          <button type="button" aria-label="Around the stay" aria-controls="rail-see" aria-pressed={lens === 'stay' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('stay'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><BedDouble size={16} aria-hidden /><span>Stay</span>{lenses.counts.stay != null && <b>{lenses.counts.stay}</b>}</button>
+          <button type="button" aria-label="Gaps in this day" aria-controls="rail-see" aria-pressed={lens === 'gap' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('gap'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Sparkles size={16} aria-hidden /><span>Gap</span>{lenses.counts.gap != null && <b>{lenses.counts.gap}</b>}</button>
+          <button type="button" aria-label="Fix this day" aria-controls="rail-see" aria-pressed={lens === 'fix' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Lightbulb size={16} aria-hidden /><span>Fix</span>{lenses.counts.fix != null && <b>{lenses.counts.fix}</b>}</button>
           <button type="button" aria-label="Day plan" aria-controls="rail-needs" aria-pressed={sheetTab === 'needs' && deckOpen && !selectedHit} onClick={() => { setSheetTab('needs'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><List size={16} aria-hidden /><span>Plan</span><b>{activeDaySlots.length}</b></button>
           {!deckOpen && <button type="button" aria-label="Show suggestions" onClick={() => setDeckOpen(true)}><PanelRightOpen size={18} /></button>}
         </div>
@@ -2030,19 +2160,54 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               returnRouteGeometry={returnRouteGeometry}
               allowSelfMeasurement={false}
               onShowReturnChange={setShowReturn}
+              {...(stayRings ? { stayRings } : {})}
+              {...(gapRings ? { gapRings } : {})}
+              {...(onGapRing ? { onGapRing } : {})}
+              {...(Object.keys(pickBands).length > 0 ? { pickBands } : {})}
+              {...(pickLetters && Object.keys(pickLetters).length > 0 ? { pickLetters } : {})}
             />
           </div>
           <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
-            <div className="mv2-peek">
+            {lens === 'drive' && <div className="mv2-peek">
               {seeForRail[0]?.hit ? <>
                 <span className="mv2-peek-mark"><CatIcon category={seeForRail[0].hit.category} size={22} /></span>
                 <button type="button" className="mv2-peek-place" onClick={() => { const hit = seeForRail[0]?.hit; if (hit) inspectHit(hit) }}><small>Along the drive</small><strong>{seeForRail[0].hit.name}</strong></button>
                 {editable && <button type="button" className="btn btn-primary" disabled={addingAny || !!previewOpen} onClick={() => { const hit = seeForRail[0]?.hit; if (hit) openAddModal(hit) }}>Add</button>}
               </> : <p>{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Open search settings to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
-            </div>
-            <MapDeckHeader title="Along the drive" count={seeForRail.length} onFold={foldDeck} />
-            <div className="poi-plan-list is-ledger">
+            </div>}
+            {lensCount != null
+              ? <MapDeckHeader title={LENS_TITLE[lens]} count={lensCount} onFold={foldDeck} />
+              : <header className="mv2-deck-header">
+                <div><span className="mv2-section-label">Picks for your journey</span><h2>{LENS_TITLE[lens]}</h2></div>
+                <button type="button" className="mv2-icon-btn" aria-label="Fold suggestions" onClick={foldDeck}><ChevronDown size={17} aria-hidden /></button>
+              </header>}
+            <MapLensPanel
+              lens={lens}
+              lenses={lenses}
+              dayLabel={lensDayLabel}
+              dayNumber={activeDayIndex + 1}
+              clock={lensClock}
+              activeDriveTab={driveTab}
+              onDriveTab={setDriveTab}
+              stripOf={row => driveCardStrip(row, lensClock)}
+              bandOf={row => scopeBandOf(row, scopeMinutes, budgetHeldIds)}
+              introOf={row => driveDeckIntro(row, lensClock)}
+              onOpenDrive={row => inspectHit(row.row.hit)}
+              onAddDrive={row => addLensHit(row.row.hit, activeDayIndex)}
+              activeStayWindow={activeStayWindowId}
+              onStayWindow={setStayWindow}
+              stayRing={stayRing}
+              onStayRing={setStayRing}
+              onOpenStayPick={pick => inspectHit(pick.row.row.hit)}
+              onAddStayPick={pick => addLensHit(pick.row.row.hit, activeDayIndex)}
+              onSetStay={() => { setSheetTab('needs'); setDetailId(null); setDeckOpen(true); setSnap('half') }}
+              onOpenGapPick={pick => inspectHit(pick.candidate.hit)}
+              onAddGapPick={pick => addLensHit(pick.candidate.hit, activeDayIndex)}
+              onApplyFix={applyLensFix}
+              onPreviewFix={previewLensFix}
+            />
+            {lens === 'drive' && <div className="poi-plan-list is-ledger">
               {!filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp mv2-deck-arc-group">
                   <span className="poi-grp-k">Route arcs</span>
@@ -2083,7 +2248,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {budgetHeldCount > 0 && (
                 <p className="hint-text">{budgetHeldCount} idea{budgetHeldCount === 1 ? '' : 's'} held back - beyond the day&apos;s detour budget. Add fewer stops, or raise the scope, and the engine will offer them again.</p>
               )}
-            </div>
+            </div>}
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />

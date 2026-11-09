@@ -123,14 +123,12 @@ describe('MapTab wires those sentences into the DOM', () => {
     expect(mapTabSrc).toMatch(/aria-label=\{fillLabel\(/)
   })
 
-  it('A8: the slider states its own value and its steps', () => {
-    const slider = /<input[\s\S]{0,600}?type="range"[\s\S]{0,900}?\/>/.exec(mapTabSrc)
-    expect(slider, 'the scope slider is missing or reshaped').not.toBeNull()
-    expect(slider![0]).toContain('aria-valuetext={scopeValueText(')
-    // The step list is a plain string reference to the datalist; the association
-    // is by id, so the datalist's position in the tree does not matter.
-    expect(slider![0]).toMatch(/list="scope-km-ticks"/)
-    expect(mapTabSrc).toMatch(/<datalist id="scope-km-ticks">\{SCOPE_KM_STEPS\.map/)
+  it('A8: the minute scope is a radio group that states each step in words', () => {
+    // #898 replaced the km slider. The control file owns the radio semantics.
+    expect(mapTabSrc).toMatch(/<MinuteScopeControl/)
+    const control = readFileSync('src/pages/trip/map/MinuteScopeControl.tsx', 'utf8')
+    expect(control).toContain('role="radiogroup"')
+    expect(control).toContain('aria-label={scopeValueMinutesText(minutes)}')
   })
 
   it('A6: the toggle points at the vote status element', () => {

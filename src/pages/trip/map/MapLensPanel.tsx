@@ -4,6 +4,7 @@
 import { DriveTabs } from '../../../components/map/lenses/DriveTabs'
 import { FixDeck } from '../../../components/map/lenses/FixDeck'
 import { GapDeck } from '../../../components/map/lenses/GapDeck'
+import { LensDeckHeader } from '../../../components/map/lenses/LensDeckHeader'
 import { StayDeck, type RingId } from '../../../components/map/lenses/StayDeck'
 import type { DriveCardStrip, DriveTab, ScopeBand } from './driveLens'
 import type { DriveLensRow, FixChangeSet } from '../../../lib/mapLensContracts'
@@ -37,11 +38,14 @@ export interface MapLensPanelProps {
   onAddGapPick: (pick: GapPick) => void
   onApplyFix: (set: FixChangeSet) => void
   onPreviewFix: (set: FixChangeSet) => void
+  /** The deck fold handler. Absent uses the Map tab fold button. */
+  onFold?: () => void
 }
 
 /** The stay deck when the base exists but no free window is known. */
-function StayWindowUnknown() {
+function StayWindowUnknown({ onClose }: { onClose?: () => void }) {
   return <section className="mv2-lens-deck" aria-label="Around the stay">
+    <LensDeckHeader kicker="Around the stay" title="Around the stay" onClose={onClose} />
     <p className="mv2-lens-phase">The free time around this stay is unknown for this day.</p>
   </section>
 }
@@ -62,12 +66,16 @@ export function MapLensPanel(props: MapLensPanelProps) {
       nameOf={row => row.row.hit.name}
       onOpen={props.onOpenDrive}
       onAdd={props.onAddDrive}
+      dayNumber={props.dayNumber}
+      reasonOf={row => row.row.reason}
+      onClose={props.onFold}
     />
   }
   if (lens === 'stay') {
     const stay = lenses.stay
     if (stay.needsBase || stay.base == null) {
       return <StayDeck
+        dayNumber={props.dayNumber}
         dayLabel={props.dayLabel}
         baseName={null}
         windows={[]}
@@ -80,15 +88,17 @@ export function MapLensPanel(props: MapLensPanelProps) {
         onAddPick={props.onAddStayPick}
         onSetStay={props.onSetStay}
         clock={props.clock}
+        onClose={props.onFold}
       />
     }
-    if (stay.windowUnknown) return <StayWindowUnknown />
+    if (stay.windowUnknown) return <StayWindowUnknown onClose={props.onFold} />
     const activeWindow = stay.windows.find(window => window.id === props.activeStayWindow)
       ?? stay.windows[0]
     const result = activeWindow == null
       ? { kind: 'phase' as const, phase: stay.phase === 'needs-base' ? 'empty' as const : stay.phase }
       : stay.picks[activeWindow.id] ?? { kind: 'phase' as const, phase: stay.phase === 'needs-base' ? 'empty' as const : stay.phase }
     return <StayDeck
+      dayNumber={props.dayNumber}
       dayLabel={props.dayLabel}
       baseName={stay.base.name}
       windows={stay.windows}
@@ -101,14 +111,18 @@ export function MapLensPanel(props: MapLensPanelProps) {
       onAddPick={props.onAddStayPick}
       onSetStay={props.onSetStay}
       clock={props.clock}
+      onClose={props.onFold}
     />
   }
   if (lens === 'gap') {
     return <GapDeck
+      dayNumber={props.dayNumber}
       phase={lenses.gap.phase}
       gaps={lenses.gap.gaps}
       onOpenPick={props.onOpenGapPick}
       onAddPick={props.onAddGapPick}
+      clock={props.clock}
+      onClose={props.onFold}
     />
   }
   return <FixDeck
@@ -118,5 +132,6 @@ export function MapLensPanel(props: MapLensPanelProps) {
     fixes={lenses.fix.fixes}
     onApply={props.onApplyFix}
     onPreview={props.onPreviewFix}
+    onClose={props.onFold}
   />
 }

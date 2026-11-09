@@ -5,6 +5,8 @@ import type { KeyboardEvent } from 'react'
 import type {
   DriveCardStrip, DriveTab, DriveTabGroup, DriveTabsResult, ScopeBand,
 } from '../../../pages/trip/map/driveLens'
+import { LensDeckHeader } from './LensDeckHeader'
+import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
 
 /** One row of a Drive tab group. */
 type DriveRow = DriveTabGroup['shown'][number]
@@ -46,14 +48,43 @@ export function tabKeyStep(key: string, index: number, count: number): number | 
   }
 }
 
-/** The three strip cells, in board order. */
-const STRIP_CELLS = [
-  { key: 'arrive', label: 'ARRIVE' },
-  { key: 'detour', label: 'DETOUR' },
-  { key: 'budget', label: 'BUDGET' },
-] as const
+/** The slot word of a tab label. "Lunch gap" gives "lunch". */
+export function driveSlotWord(label: string): string {
+  return label.replace(/\s*gap$/i, '').trim().toLowerCase()
+}
 
-export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd }: {
+/** The kicker of the deck header, for example "Along the drive · lunch gap". */
+export function driveDeckKicker(label: string | null): string {
+  return label == null || label.trim() === ''
+    ? 'Along the drive'
+    : `Along the drive · ${label.trim().toLowerCase()}`
+}
+
+/** The deck title, for example "3 places for lunch". */
+export function driveDeckTitle(group: Pick<DriveTabGroup, 'label' | 'total'>): string {
+  const word = driveSlotWord(group.label)
+  const noun = group.total === 1 ? 'place' : 'places'
+  return word === '' ? `${group.total} ${noun}` : `${group.total} ${noun} for ${word}`
+}
+
+/** The primary action label, for example "Add as Day 3 lunch". */
+export function driveAddLabel(dayNumber: number, label: string): string {
+  const word = driveSlotWord(label)
+  if (!Number.isFinite(dayNumber)) return word === '' ? 'Add' : `Add ${word}`
+  const day = `Day ${dayNumber}`
+  return word === '' ? `Add as ${day}` : `Add as ${day} ${word}`
+}
+
+/** The three strip cells, in board order. */
+export function driveCells(strip: DriveCardStrip): LensCostCell[] {
+  return [
+    { key: 'arrive', label: 'Arrive', value: strip.arrive },
+    { key: 'detour', label: 'Detour', value: strip.detour },
+    { key: 'budget', label: 'Budget', value: strip.budget },
+  ]
+}
+
+export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, onClose }: {
   result: DriveTabsResult
   activeTab: DriveTab | null
   onTab: (tab: DriveTab) => void
@@ -63,17 +94,25 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   nameOf: (row: DriveRow) => string
   onOpen: (row: DriveRow) => void
   onAdd: (row: DriveRow) => void
+  /** The day number for the Add label. One-based. */
+  dayNumber: number
+  /** The reason the model gives for a row. Null shows no chip. */
+  reasonOf?: (row: DriveRow) => string | null
+  /** The fold handler. Absent uses the Map tab fold button. */
+  onClose?: () => void
 }) {
   const uid = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   if (result.phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
+      <LensDeckHeader kicker="Along the drive" onClose={onClose} />
       <p className="mv2-lens-phase" data-phase={result.phase}>{PHASE_TEXT[result.phase]}</p>
     </section>
   }
   const groups = result.tabs
   if (groups.length === 0) {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
+      <LensDeckHeader kicker="Along the drive" onClose={onClose} />
       <p className="mv2-lens-phase" data-phase="empty">{PHASE_TEXT.empty}</p>
     </section>
   }
@@ -95,6 +134,12 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   }
 
   return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
+    <LensDeckHeader
+      kicker={driveDeckKicker(active.label)}
+      title={driveDeckTitle(active)}
+      sub={intro}
+      onClose={onClose}
+    />
     <div className="mv2-lens-tabs" role="tablist" aria-label="Along the drive tabs">
       {groups.map((group, index) => {
         const selected = group.tab === active.tab
@@ -118,45 +163,29 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
     </div>
     <div className="mv2-lens-panel" id={`${uid}-panel`} role="tabpanel"
       aria-labelledby={`${uid}-tab-${active.tab}`}>
-      {intro != null && <p className="mv2-lens-intro">{intro}</p>}
       <ul className="mv2-lens-cards">
         {active.shown.map((row, index) => {
           const band = bandOf(row)
-          const strip = stripOf(row)
           const tag = BAND_TAG[band] ?? null
           const over = band === 'over-budget'
+          const hit = row.row.hit
+          const reason = reasonOf?.(row) ?? null
           return <li key={index}>
-            <article className={`mv2-lens-card${tag ? ` is-${band}` : ''}`}>
-              <button type="button" className="mv2-lens-card-open" onClick={() => onOpen(row)}>
-                <span className="mv2-lens-card-head">
-                  <span className="mv2-lens-card-name">{nameOf(row)}</span>
-                  {tag && <span className="mv2-lens-tag">{tag}</span>}
-                </span>
-                <span className="mv2-lens-strip">
-                  {STRIP_CELLS.map(cell => {
-                    const value = strip[cell.key]
-                    return <span className="mv2-lens-cell" key={cell.key}>
-                      <span className="mv2-lens-cell-label">{cell.label}</span>
-                      <span className="mv2-lens-cell-value">
-                        {value == null
-                          ? <span aria-label="unknown">—</span>
-                          : value}
-                      </span>
-                    </span>
-                  })}
-                </span>
-              </button>
-              <div className="mv2-lens-card-foot">
-                <button
-                  type="button"
-                  className="mv2-lens-add"
-                  disabled={over}
-                  title={over ? "Over today's budget" : undefined}
-                  onClick={() => onAdd(row)}>
-                  Add
-                </button>
-              </div>
-            </article>
+            <LensPlaceCard
+              hit={hit}
+              category={hit.category}
+              name={nameOf(row)}
+              reasons={reason == null || reason.trim() === '' ? [] : [reason]}
+              cells={driveCells(stripOf(row))}
+              tag={tag}
+              band={band === 'inside' || band === 'outside' || band === 'unknown' ? null : band}
+              addLabel={driveAddLabel(dayNumber, active.label)}
+              addDisabled={over}
+              addTitle={over ? "Over today's budget" : undefined}
+              onOpen={() => onOpen(row)}
+              onAdd={() => onAdd(row)}
+              selected={index === 0}
+            />
           </li>
         })}
       </ul>

@@ -39,6 +39,7 @@ function windowFixture(): StayWindow {
 
 function stayProps(over: Partial<StayDeckProps> = {}): StayDeckProps {
   return {
+    dayNumber: 2,
     dayLabel: 'Day 2',
     baseName: 'Hotel Ashoka',
     windows: [windowFixture()],
@@ -86,10 +87,12 @@ function gapEntry(picks: GapPicks, title = 'Lunch', windowText: string | null = 
 
 function gapProps(over: Partial<GapDeckProps> = {}): GapDeckProps {
   return {
+    dayNumber: 1,
     phase: 'ready',
     gaps: [gapEntry(gapPicks([gapPick('A')]))],
     onOpenPick: noop,
     onAddPick: noop,
+    clock,
     ...over,
   }
 }
@@ -115,23 +118,25 @@ describe('StayDeck', () => {
   })
 
   it('draws no fit line when fitText is null', () => {
-    expect(stayHtml({ result: readyStay([stayPick('A', null)]) })).not.toContain('mv2-lens-fit')
+    expect(stayHtml({ result: readyStay([stayPick('A', null)]) })).not.toContain('mv2-lens-reason')
     const withText = stayHtml({ result: readyStay([stayPick('A', 'Fits 17:00–18:00')]) })
-    expect(withText).toContain('mv2-lens-fit')
+    expect(withText).toContain('mv2-lens-reason')
     expect(withText).toContain('Fits 17:00–18:00')
   })
 
   it('draws letters A, B and C in order, at most 3 cards', () => {
     const picks = [stayPick('A'), stayPick('B'), stayPick('C'), stayPick('A')]
     const html = stayHtml({ result: readyStay(picks) })
-    const letters = [...html.matchAll(/mv2-lens-letter">([A-C])<\/span>/g)].map(m => m[1])
+    const letters = [...html.matchAll(/mv2-lens-place-letter"[^>]*>([A-C])<\/span>/g)].map(m => m[1])
     expect(letters).toEqual(['A', 'B', 'C'])
     expect((html.match(/<article/g) ?? []).length).toBe(3)
   })
 
   it('shows alsoCount only when greater than 0', () => {
     expect(stayHtml({ result: readyStay([stayPick('A')], 0) })).not.toContain('Also in this window')
-    expect(stayHtml({ result: readyStay([stayPick('A')], 2) })).toContain('Also in this window: 2 more')
+    const also = stayHtml({ result: readyStay([stayPick('A')], 2) })
+    expect(also).toContain('Also in this window')
+    expect(also).toContain('2 more')
   })
 
   it('has a radiogroup with two radios', () => {
@@ -167,13 +172,13 @@ describe('GapDeck', () => {
   it('draws letters A, B and C in order, at most 3 cards', () => {
     const picks = gapPicks([gapPick('A'), gapPick('B'), gapPick('C'), gapPick('A')])
     const html = gapHtml({ gaps: [gapEntry(picks)] })
-    const letters = [...html.matchAll(/mv2-lens-letter">([A-C])<\/span>/g)].map(m => m[1])
+    const letters = [...html.matchAll(/mv2-lens-place-letter"[^>]*>([A-C])<\/span>/g)].map(m => m[1])
     expect(letters).toEqual(['A', 'B', 'C'])
     expect((html.match(/<article/g) ?? []).length).toBe(3)
   })
 
   it('draws no fit line when fitText is null', () => {
-    expect(gapHtml({ gaps: [gapEntry(gapPicks([gapPick('A', null)]))] })).not.toContain('mv2-lens-fit')
+    expect(gapHtml({ gaps: [gapEntry(gapPicks([gapPick('A', null)]))] })).not.toContain('mv2-lens-reason')
     const withText = gapHtml({ gaps: [gapEntry(gapPicks([gapPick('A', 'Fits 12:00–13:00')]))] })
     expect(withText).toContain('Fits 12:00–13:00')
   })

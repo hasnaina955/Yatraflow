@@ -126,7 +126,7 @@ export function useMapSearch({
         })
       const onScope = ranked.filter(en => en.off != null && en.off <= scopeKm)
       if (hits.length === 0) toast('No places found for that search.')
-      else if (onScope.length === 0) toast(`Nothing for “${q}” within your ${scopeKm} km detour scope - widen the detour-scope slider to see them.`)
+      else if (onScope.length === 0) toast(`Nothing for “${q}” inside your scope. Try a wider minute scope.`)
       return ranked
     } catch (err) {
       if (mySeq !== searchSeq.current || controller.signal.aborted) return null

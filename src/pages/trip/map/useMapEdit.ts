@@ -169,12 +169,14 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
     run(moveToDayRequest(tripRef.current, stopId, toDay, s => routeKmOf(s.lat, s.lng)))
   }, [run, routeKmOf])
 
-  /** Swap with the next stop on the day, or the one before for the last stop. */
-  const swapNeighbour = useCallback((stopId: string) => {
+  /** Swap with the chosen stop of the day. The neighbour is the fallback. */
+  const swapNeighbour = useCallback((stopId: string, targetId?: string) => {
     const day = tripRef.current.days.find(d => d.stops.some(s => s.id === stopId))
     const active = day ? activeStopsInOrder(day) : []
     const at = active.findIndex(s => s.id === stopId)
-    const other = active[at + 1] ?? active[at - 1]
+    const other = targetId != null
+      ? active.find(s => s.id === targetId)
+      : active[at + 1] ?? active[at - 1]
     if (!other) { setAnnouncement('There is no other stop on this day to swap with.'); return }
     run(swapWithStopRequest(tripRef.current, stopId, other.id))
   }, [run])

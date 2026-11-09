@@ -2,14 +2,50 @@
 // The edit session itself is the reducer in ./editing/editSession. These helpers
 // build the stop a pick would become, find its road position, write it, and time
 // the 8-second Undo window. None of them calls a writer.
-import type { ItineraryStop, Trip } from '../../../data/types'
+import type { ItineraryDay, ItineraryStop, Trip } from '../../../data/types'
+import { scheduleRowsById, simulateDay, originOf, type DaySchedule } from '../../../lib/engine'
 import type { PlaceHit } from '../../../lib/geocode'
 import { intendedVisitMinutes } from '../../../lib/hoursContext'
+import { activeStopsInOrder } from '../../../lib/stopOrder'
+import { formatHM, type TimeFormat } from '../../../lib/timefmt'
 import type { EditOutcome } from './editing/outcomes'
 import { stopCategoryOf } from './mapWriterActions'
 
 /** How long the Undo button stays, as on the board. */
 export const UNDO_WINDOW_MS = 8000
+
+/** Text shown when a stop has no planned arrival in the day schedule. */
+export const TIME_NOT_PLANNED_YET = 'Time not planned yet'
+
+const CLOCK = /^\d{1,2}:\d{2}$/
+
+/** Format one stop's planned arrival from a simulated day. */
+export function plannedArrivalFromSchedule(sim: DaySchedule, stopId: string, fmt: TimeFormat): string {
+  const arrive = scheduleRowsById(sim).get(stopId)?.arrive
+  if (!arrive || !CLOCK.test(arrive)) return TIME_NOT_PLANNED_YET
+  return formatHM(arrive, fmt)
+}
+
+/** Look up one stop's planned arrival in the day schedule. */
+export function plannedArrivalLabel(trip: Trip, dayIndex: number, stopId: string, fmt: TimeFormat): string {
+  const day = trip.days.find(d => d.index === dayIndex)
+  if (!day) return TIME_NOT_PLANNED_YET
+  return plannedArrivalFromSchedule(simulateDay(day, trip, originOf(trip, dayIndex), dayIndex), stopId, fmt)
+}
+
+/** One entry in the swap list. The label reads "N · name". */
+export interface SwapOption {
+  id: string
+  label: string
+}
+
+/** Other non-rejected stops of a day, in day order, numbered from one. */
+export function swapOptionsFor(day: ItineraryDay, stopId: string): SwapOption[] {
+  // Number each stop by its place in the day before the selected stop leaves the list.
+  return activeStopsInOrder(day)
+    .map((s, index) => ({ id: s.id, label: `${index + 1} · ${s.title}` }))
+    .filter(option => option.id !== stopId)
+}
 
 /** Whole seconds left in the Undo window, rounded up. Never below zero. */
 export function undoSecondsLeft(startedAt: number, now: number): number {

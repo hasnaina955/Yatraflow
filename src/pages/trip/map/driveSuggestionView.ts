@@ -17,7 +17,10 @@ import { clockHM } from '../../../lib/clockOverlay'
 import { budgetSharePct } from '../../../lib/detourBudget'
 import { NEED_PURPOSES } from './pageHelpers'
 import { chipsFor, dayBudgetFor, dayBudgetForDay, type ChipFacts } from './railRows'
-import { ON_ROUTE_DETOUR_MIN } from './railLabels'
+import { ON_ROUTE_DETOUR_MIN, detourDisplay, detourDisplayText, type DetourDisplay } from './detourRule'
+
+// Re-exported so existing callers keep their import path.
+export { detourDisplay, detourDisplayText, type DetourDisplay }
 
 export type DriveSuggestionLane = 'need' | 'sight'
 export type DriveSuggestionState = 'live' | 'added' | 'dismissed' | 'held-back'
@@ -63,31 +66,6 @@ export interface DriveSuggestionFacts extends ChipFacts {
    * never be invented.
    */
   measuredContext?: ArrivalContext
-}
-
-/** How a detour reads on every surface: unknown, on route, or whole extra minutes. */
-export type DetourDisplay =
-  | { kind: 'unknown' }
-  | { kind: 'on-route' }
-  | { kind: 'extra'; minutes: number }
-
-/**
- * The ONE display rule for a detour. Null, undefined and non-finite values are
- * unknown. A value at or below `ON_ROUTE_DETOUR_MIN` is on route, so a model
- * zero and a 0.2 minute detour read the same. Above it, minutes are rounded.
- * The row, the place card and the Timeline all call this, so they cannot differ.
- */
-export function detourDisplay(detourMin: number | null | undefined): DetourDisplay {
-  if (detourMin == null || !Number.isFinite(detourMin)) return { kind: 'unknown' }
-  if (detourMin <= ON_ROUTE_DETOUR_MIN) return { kind: 'on-route' }
-  return { kind: 'extra', minutes: Math.round(detourMin) }
-}
-
-/** The short card text for `detourDisplay`: "Unknown", "On route" or "+N min". */
-export function detourDisplayText(detourMin: number | null | undefined): string {
-  const display = detourDisplay(detourMin)
-  if (display.kind === 'unknown') return 'Unknown'
-  return display.kind === 'on-route' ? 'On route' : `+${display.minutes} min`
 }
 
 /** A halt purpose is a need when the trip must serve it; everything else is a sight. */

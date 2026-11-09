@@ -17,7 +17,10 @@
  */
 import { clockHM } from '../../../lib/clockOverlay'
 import type { DaySlot } from '../../../lib/daySlots'
-import { detourDisplay } from './driveSuggestionView'
+import { ON_ROUTE_DETOUR_MIN, detourDisplay } from './detourRule'
+
+// Re-exported so existing callers keep their import path.
+export { ON_ROUTE_DETOUR_MIN }
 
 export type DetourLabelBits = {
   /** "HH:MM" when the arrival is known — the caller decides that, not this module */
@@ -27,10 +30,6 @@ export type DetourLabelBits = {
   /** whole-percent share of that day's detour budget, when it is worth saying */
   budgetSharePct?: number | null
 }
-
-/** A detour of half a minute or less reads "on route". The rail rows and the
- *  shared detour sentence both use this cutoff. */
-export const ON_ROUTE_DETOUR_MIN = 0.5
 
 /** The three bits, in the order every surface prints them. A zero share is not a
  *  sentence worth printing, and neither is an arrival nobody measured. The detour

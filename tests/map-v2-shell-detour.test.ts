@@ -52,7 +52,7 @@ describe('the place card text', () => {
 
   it('calls the shared rule in the rail labels', () => {
     const labels = read('src', 'pages', 'trip', 'map', 'railLabels.ts')
-    expect(labels).toContain("import { detourDisplay } from './driveSuggestionView'")
+    expect(labels).toContain("detourDisplay } from './detourRule'")
     expect(labels).toContain('detourDisplay(detourMin)')
   })
 })

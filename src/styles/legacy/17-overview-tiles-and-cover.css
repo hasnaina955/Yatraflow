@@ -99,7 +99,8 @@
   fill: none;
   stroke: var(--pw-ink);
   stroke-width: 3px;
-  stroke-linecap: round;
+  /* The line is clipped to the plot, so its ends sit flush on the edge. */
+  stroke-linecap: butt;
   stroke-linejoin: round;
   stroke-dasharray: 1;
 }
@@ -175,11 +176,14 @@
 
 /* The true-shape inset. Its path is the real route projected into a small box,
    so the shape is real and the inset carries no height. Linen: a 124 px card
-   with 6 px padding, a 112 x 96 drawing and a north-up caption. */
+   with 6 px padding, a 112 x 96 drawing and a north-up caption.
+   It sits in the plot's top-left corner, 10 px in on both axes, as the card's
+   own "corner inset" comment says. That corner holds only the sun disc: the
+   Shimla, Manali and pass labels stay clear of it at 390 and 1440 px. */
 .ovw-elev-inset {
   position: absolute;
   top: 10px;
-  left: 39%;
+  left: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;

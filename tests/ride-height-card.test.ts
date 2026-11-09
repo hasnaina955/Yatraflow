@@ -89,7 +89,7 @@ describe('heightDayLabels', () => {
       { x: 4, text: 'Day 1', anchor: 'start' },
       { x: 127.2, text: 'Day 5', anchor: 'middle' },
       { x: 250.4, text: 'Day 9', anchor: 'middle' },
-      { x: 312, text: 'end', anchor: 'end' },
+      { x: 312, text: 'End', anchor: 'end' },
     ])
   })
 
@@ -106,7 +106,7 @@ describe('heightDayLabels', () => {
       [{ startX: 200, endX: 312, firstDay: 6, nextDay: null }],
       { startX: 4, endX: 312 },
     )
-    expect(labels.map(label => label.text)).toEqual(['Day 1', 'Day 7', 'end'])
+    expect(labels.map(label => label.text)).toEqual(['Day 1', 'Day 7', 'End'])
   })
 })
 

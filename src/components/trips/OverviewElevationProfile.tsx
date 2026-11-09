@@ -47,13 +47,16 @@ export function OverviewElevationProfile({
 }) {
   const { ref, width } = useDrawableWidth(compact ? 420 : 720)
   const height = Math.max(compact ? 150 : 170, Math.min(280, Math.round(width * 0.45)))
+  // The plot is the card's whole drawing box, so the curve's x scale runs from
+  // its left edge to its right edge: no bleed-in gap at either end.
   const plot = useMemo(
-    () => buildRouteHeightPlot(points, runs, stats, width, height),
+    () => buildRouteHeightPlot(points, runs, stats, width, height, { left: 0, right: width }),
     [points, runs, stats, width, height],
   )
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const skyId = `ovw-sky-${uid}`
   const landId = `ovw-land-${uid}`
+  const plotId = `ovw-plot-${uid}`
 
   // Only the two ends of the trip carry a label on the curve, each with its
   // real place name and real height. The stop list names every other place.
@@ -71,6 +74,10 @@ export function OverviewElevationProfile({
   )
   const peakBoxX = Math.max(6, width - peakBoxW - 10)
   const peakBoxY = 8
+  // The inset is absolutely placed at the plot's top-left corner, 10 px in on
+  // both axes, and is 124 x 128 px. A start label that would sit under it drops
+  // below its dot instead, so the corner never hides a label.
+  const INSET_CLEAR_Y = 10 + 128 + 4
   // The first point of the true-shape path, where the inset's start dot sits.
   const insetStart = insetPath?.match(/^M\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/)
 
@@ -95,6 +102,11 @@ export function OverviewElevationProfile({
             <stop offset="0" className="ovw-elev-land-top" />
             <stop offset="1" className="ovw-elev-land-bottom" />
           </linearGradient>
+          {/* One clip for the line and every fill: the plot rect at the card's
+              own corner radius. The curve stops on the plot edge. */}
+          <clipPath id={plotId}>
+            <rect x="0" y="0" width={width} height={height} rx="18" />
+          </clipPath>
         </defs>
 
         <rect x="0" y="0" width={width} height={height} fill={`url(#${skyId})`} />
@@ -104,17 +116,19 @@ export function OverviewElevationProfile({
 
         {/* Two far ranges are the same plotted curve scaled up from the baseline.
             They add depth behind the route and carry no height of their own. */}
-        {plot.runs.map((run, index) => (
-          <g key={`run-${index}`}>
-            <path className="ovw-elev-hill-far" d={run.area} transform={`translate(0 ${plot.baseY}) scale(1 1.12) translate(0 ${-plot.baseY})`} aria-hidden="true" />
-            <path className="ovw-elev-hill-near" d={run.area} transform={`translate(0 ${plot.baseY}) scale(1 1.04) translate(0 ${-plot.baseY})`} aria-hidden="true" />
-            <path className="ovw-elev-area" d={run.area} fill={`url(#${landId})`} />
-            {/* `pathLength={1}` lets the CSS dash draw run the whole curve once,
-                instead of leaving it dotted at its real length. */}
-            <path className="ovw-elev-line" d={run.line} pathLength={1} />
-            <path className="ovw-elev-line-centre" d={run.line} aria-hidden="true" />
-          </g>
-        ))}
+        <g clipPath={`url(#${plotId})`}>
+          {plot.runs.map((run, index) => (
+            <g key={`run-${index}`}>
+              <path className="ovw-elev-hill-far" d={run.area} transform={`translate(0 ${plot.baseY}) scale(1 1.12) translate(0 ${-plot.baseY})`} aria-hidden="true" />
+              <path className="ovw-elev-hill-near" d={run.area} transform={`translate(0 ${plot.baseY}) scale(1 1.04) translate(0 ${-plot.baseY})`} aria-hidden="true" />
+              <path className="ovw-elev-area" d={run.area} fill={`url(#${landId})`} />
+              {/* `pathLength={1}` lets the CSS dash draw run the whole curve once,
+                  instead of leaving it dotted at its real length. */}
+              <path className="ovw-elev-line" d={run.line} pathLength={1} />
+              <path className="ovw-elev-line-centre" d={run.line} aria-hidden="true" />
+            </g>
+          ))}
+        </g>
 
         {/* One group, so the marks arrive as one beat in the CSS cascade. */}
         <g className="ovw-elev-marks">
@@ -133,7 +147,13 @@ export function OverviewElevationProfile({
           {labelled.map(mark => {
             const anchor = mark.x > width * 0.72 ? 'end' : 'start'
             const dx = anchor === 'end' ? -7 : 7
-            const nameY = Math.max(plot.pad.top + 8, mark.y - 24)
+            const aboveY = Math.max(plot.pad.top + 8, mark.y - 24)
+            // Only the start label sits under the corner inset, and only on a
+            // wide plate (the CSS hides the inset below 720 px). Drop it to
+            // just below the inset's edge rather than let the corner cover it.
+            const nameY = !compact && anchor === 'start' && aboveY < INSET_CLEAR_Y
+              ? Math.max(mark.y + 28, INSET_CLEAR_Y + 4)
+              : aboveY
             return (
               <g key={`label-${mark.title}-${mark.distanceKm}`}>
                 <text className="ovw-elev-name" x={mark.x + dx} y={nameY} textAnchor={anchor}>

@@ -82,6 +82,29 @@ describe('plot geometry', () => {
   })
 })
 
+describe('the plot edges', () => {
+  it('starts and ends the line and the area exactly on the plot edges', () => {
+    const points = [point(0, 60), point(10, 80), point(20, 40)]
+    const plot = buildRouteHeightPlot(points, [], statsOf(points), 400, 200, { left: 0, right: 400 })
+    expect(plot.edges).toEqual({ left: 0, right: 400 })
+    const line = plot.runs[0].line
+    expect(line.startsWith('M 0.00 ')).toBe(true)
+    expect(line).toMatch(/C [^C]* 400\.00 /)
+    // The area closes on the same two edges, at the baseline.
+    const area = plot.runs[0].area
+    expect(area).toContain(`L 400.00 ${plot.baseY} L 0.00 ${plot.baseY} Z`)
+  })
+
+  it('collapses a sub-pixel cluster so the stroke opens without a hook', () => {
+    const close = [point(0, 100), point(0.02, 300), point(0.04, 120), point(30, 200)]
+    const plot = buildRouteHeightPlot(close, [], statsOf(close), 400, 200)
+    // The three places at the start share one pixel, so the first kept point is
+    // 30 km away and its curve control is far from x = 0.
+    const control = Number(/^M [\d.]+ [\d.]+ C ([\d.]+)/.exec(plot.runs[0].line)?.[1])
+    expect(control).toBeGreaterThan(1)
+  })
+})
+
 describe('the height curve is a bounded illustrative stroke', () => {
   const numbers = (path: string) => (path.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)
   const ysOf = (path: string) => numbers(path).filter((_, index) => index % 2 === 1)

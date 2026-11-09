@@ -31,10 +31,19 @@ export interface RouteHeightPlotRun {
   area: string
 }
 
+/** The plot box the stroke is drawn into. The area and the line both start and
+ *  end on these two x values, and the plot's clip path is the same rect. */
+export interface RouteHeightPlotEdges {
+  left: number
+  right: number
+}
+
 export interface RouteHeightPlot {
   width: number
   height: number
   pad: { left: number; right: number; top: number; bottom: number }
+  /** The plot's own left and right edge, where the stroke starts and ends. */
+  edges: RouteHeightPlotEdges
   baseY: number
   topM: number
   maxDistanceKm: number
@@ -54,6 +63,11 @@ export function niceRouteHeightTop(maxM: number): number {
 
 /** Nearby anchors share a displayed mark. */
 const STROKE_SPACING_PX = 40
+
+/** Two anchors closer than this, in plot units, draw as one. A sub-pixel span
+ *  turns a place's own height into a near-vertical stroke, which reads as a
+ *  hook at the plot's edge. */
+const MIN_ANCHOR_GAP = 1
 
 /**
  * One calm cubic through the stroke's own anchors.
@@ -128,6 +142,8 @@ export function buildRouteHeightPlot(
   stats: RouteHeightStats,
   width: number,
   height: number,
+  /** The plot's own x edges. Default: the padded box the card has always used. */
+  edges?: RouteHeightPlotEdges,
 ): RouteHeightPlot {
   const pad = {
     left: width < 380 ? 18 : 22,
@@ -135,12 +151,15 @@ export function buildRouteHeightPlot(
     top: 30,
     bottom: 30,
   }
-  const plotW = Math.max(1, width - pad.left - pad.right)
+  const edgeLeft = Math.max(0, Math.min(width - 1, edges?.left ?? pad.left))
+  const edgeRight = Math.max(edgeLeft + 1, Math.min(width, edges?.right ?? width - pad.right))
+  const plotW = edgeRight - edgeLeft
+  const plot = { left: edgeLeft, right: edgeRight } satisfies RouteHeightPlotEdges
   const plotH = Math.max(1, height - pad.top - pad.bottom)
   const baseY = height - pad.bottom
   const maxDistanceKm = Math.max(1, points[points.length - 1]?.distanceKm ?? 1)
   const topM = niceRouteHeightTop(stats.maxM)
-  const xOf = (distanceKm: number) => pad.left + (distanceKm / maxDistanceKm) * plotW
+  const xOf = (distanceKm: number) => edgeLeft + (distanceKm / maxDistanceKm) * plotW
   const yOf = (elevationM: number) => baseY - (Math.max(0, Math.min(topM, elevationM)) / topM) * plotH
 
   // Keep every run endpoint and turn in the path. Mark fewer nearby places.
@@ -177,9 +196,25 @@ export function buildRouteHeightPlot(
       distanceKm: point.distanceKm,
       elevationM: point.elevationM as number,
     }))
-  const plotRuns: RouteHeightPlotRun[] = anchors.flatMap(groupPoints => {
-    const plotted = groupPoints.map(point => ({ x: xOf(point.distanceKm), y: yOf(point.elevationM ?? 0) }))
+  const plotRuns: RouteHeightPlotRun[] = anchors.flatMap((groupPoints, runIndex) => {
+    const raw = groupPoints.map(point => ({ x: xOf(point.distanceKm), y: yOf(point.elevationM ?? 0) }))
+    // Collapse the sub-pixel cluster: two places that share one pixel would
+    // otherwise draw a vertical hook. A true zero span stays, because it is the
+    // documented step between two heights at one distance.
+    const plotted: Array<{ x: number; y: number }> = []
+    for (const next of raw) {
+      const last = plotted[plotted.length - 1]
+      if (last && next.x > last.x && next.x - last.x < MIN_ANCHOR_GAP) continue
+      plotted.push(next)
+    }
     if (plotted.length === 0) return []
+    // The first run starts on the plot's left edge and the last run ends on its
+    // right edge, so the area and the line reach both edges exactly.
+    if (runIndex === 0 && plotted[0].x > edgeLeft) plotted.unshift({ x: edgeLeft, y: plotted[0].y })
+    if (runIndex === anchors.length - 1) {
+      const tail = plotted[plotted.length - 1]
+      if (tail.x < edgeRight) plotted.push({ x: edgeRight, y: tail.y })
+    }
     const line = smoothRouteHeightPath(plotted)
     if (plotted.length === 1) return [{ line, area: '' }]
     return [{ line, area: `${line} L ${plotted[plotted.length - 1].x.toFixed(2)} ${baseY} L ${plotted[0].x.toFixed(2)} ${baseY} Z` }]
@@ -201,7 +236,7 @@ export function buildRouteHeightPlot(
     label: `${Math.round(distanceKm).toLocaleString('en-IN')} km`,
   }))
 
-  return { width, height, pad, baseY, topM, maxDistanceKm, runs: plotRuns, marks, peak, ticksX }
+  return { width, height, pad, edges: plot, baseY, topM, maxDistanceKm, runs: plotRuns, marks, peak, ticksX }
 }
 
 export interface PaidHeightBand {
@@ -243,13 +278,13 @@ export interface HeightDayRun {
  */
 export function paidDayXRuns(
   points: readonly RouteHeightPoint[],
-  plot: Pick<RouteHeightPlot, 'width' | 'pad' | 'maxDistanceKm'>,
+  plot: Pick<RouteHeightPlot, 'width' | 'pad' | 'maxDistanceKm'> & { edges?: RouteHeightPlotEdges },
   paidIndexes: readonly number[],
   dayIndexes: readonly number[],
 ): HeightDayRun[] {
-  const plotW = Math.max(1, plot.width - plot.pad.left - plot.pad.right)
-  const left = plot.pad.left
-  const right = plot.pad.left + plotW
+  const left = plot.edges?.left ?? plot.pad.left
+  const right = plot.edges?.right ?? plot.pad.left + Math.max(1, plot.width - plot.pad.left - plot.pad.right)
+  const plotW = Math.max(1, right - left)
   const xOf = (km: number) => left + (km / plot.maxDistanceKm) * plotW
   const startX = new Map<number, number>()
   const endX = new Map<number, number>()
@@ -310,7 +345,7 @@ export function heightDayLabels(
     add(run.startX, `Day ${run.firstDay + 1}`, 'middle')
     if (run.nextDay != null) add(run.endX, `Day ${run.nextDay + 1}`, 'middle')
   }
-  add(bounds.endX, 'end', 'end')
+  add(bounds.endX, 'End', 'end')
   return placed
 }
 

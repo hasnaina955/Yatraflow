@@ -61,6 +61,9 @@ const PLOT_W = CHART_RIGHT - CHART_LEFT
 const PLOT_H = CHART_BASELINE - CHART_LEFT
 const DAY_LABEL_Y = 97
 const BAND_LABEL_Y = 76
+/** The sky rect's radius. The clip path repeats it, so the stroke and the
+ *  fills stop on the plot's own rounded edge. */
+const PLOT_RADIUS = 10
 
 /**
  * One curve through the whole trip. The plot splits its groups where the data
@@ -86,6 +89,7 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
   const skyId = `pi-height-sky-${uid}`
   const freeId = `pi-height-free-${uid}`
   const paidId = `pi-height-paid-${uid}`
+  const plotId = `pi-height-plot-${uid}`
 
   const measured = result.kind === 'measured' ? result : null
   const plot = useMemo(
@@ -95,8 +99,10 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
   const chart = useMemo(() => {
     if (!plot || !measured) return null
     const runs = paidDayXRuns(measured.points, plot, paidIndexes, dayIndexes)
-    const left = plot.pad.left
-    const right = plot.pad.left + PLOT_W
+    // The plot box is the sky rect. The stroke and the fills start and end on
+    // its own left and right edges, and one clip path holds them to its radius.
+    const left = plot.edges.left
+    const right = plot.edges.right
     const line = oneHeightPath(plot.runs)
     const bounds = { startX: left, endX: right }
     const free: Array<{ x: number; width: number }> = []
@@ -157,14 +163,19 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
         <clipPath id={paidId}>
           {chart.runs.map(run => <rect key={`paid-${run.startX}`} x={run.startX} y="0" width={Math.max(0, run.endX - run.startX)} height={plot.height} />)}
         </clipPath>
+        <clipPath id={plotId}>
+          <rect x={chart.left} y={plot.baseY - CHART_BASELINE} width={chart.right - chart.left} height={CHART_BASELINE} rx={PLOT_RADIUS} />
+        </clipPath>
       </defs>
-      <rect className="pi-height-sky" x={chart.left} y={plot.baseY - CHART_BASELINE} width={PLOT_W} height={CHART_BASELINE} rx="10" fill={`url(#${skyId})`} />
+      <rect className="pi-height-sky" x={chart.left} y={plot.baseY - CHART_BASELINE} width={chart.right - chart.left} height={CHART_BASELINE} rx={PLOT_RADIUS} fill={`url(#${skyId})`} />
       {chart.runs.map(run => (
         <rect key={`band-${run.startX}`} className="pi-height-paid-band" x={run.startX} y={plot.baseY - CHART_BASELINE} width={Math.max(0, run.endX - run.startX)} height={CHART_BASELINE} />
       ))}
-      <path className="pi-height-area is-free" d={chart.area} clipPath={`url(#${freeId})`} />
-      <path className="pi-height-area is-paid" d={chart.area} clipPath={`url(#${paidId})`} />
-      <path className="pi-height-line" d={chart.line} pathLength={1} fill="none" />
+      <g clipPath={`url(#${plotId})`}>
+        <path className="pi-height-area is-free" d={chart.area} clipPath={`url(#${freeId})`} />
+        <path className="pi-height-area is-paid" d={chart.area} clipPath={`url(#${paidId})`} />
+        <path className="pi-height-line" d={chart.line} pathLength={1} fill="none" />
+      </g>
       <path className="pi-height-baseline" d={`M${chart.left} ${plot.baseY} H${chart.right}`} />
       {chart.labels.map(label => (
         <text key={`${label.text}-${label.x}`} className="pi-height-day" x={label.x} y={plot.baseY + (DAY_LABEL_Y - CHART_BASELINE)} textAnchor={label.anchor}>{label.text}</text>

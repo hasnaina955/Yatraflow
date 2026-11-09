@@ -33,6 +33,8 @@ import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/m
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
 import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
 import { applyWorkspaceViewMode } from '../lib/mapStyles'
+import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
+import { DayRouteLayers } from './map/DayRouteLayers'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -488,7 +490,7 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -498,6 +500,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** external day-focus driver (Board column select): a day index shows just that
       day's route, 'all' resets to the whole trip. Undefined = map owns its filter. */
   focusDay?: number | 'all'
+  /** The day the all-days view stresses. Other days draw behind it at 2px and 40%. */
+  selectedDay?: number | null
   /** the map's own day chips report the day they just filtered to, so a host
       whose plan rail carries the same choice can follow it. A host that cannot
       represent 'all' (the slots rail always plans one day) simply ignores it. */
@@ -1435,18 +1439,26 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // paint and loses its chevrons, so "no road resolved" cannot read
               // as a road while the numbers beside it are haversine estimates.
               const rough = routeDrawGrade(geom.all) === 'rough'
+              // A selected day stands out only on a measured road. A chord
+              // fallback keeps the single rough line, so nothing is invented.
+              const focused = selectedDay != null && !rough ? dayRoadSlices(geom.all, dayRoutePoints, selectedDay) : []
               return (
                 <>
-                  <MapRoute
-                    id="yf-main-casing"
-                    coordinates={coords}
-                    color={dark ? '#0B2545' : '#FFFFFF'}
-                    width={9}
-                    opacity={dark ? 0.6 : 0.75}
-                    interactive={false}
-                  />
-                  <MapRoute coordinates={coords} color={rough ? warnInk : dark ? '#2A6FDB' : '#0B2545'} width={rough ? 3.5 : 4.5} opacity={rough ? 0.9 : 0.95} dashArray={rough ? ROUGH_DASH : undefined} />
-                  {!rough && <RouteArrows coordinates={coords} dark={dark} />}
+                  {focused.length > 0 ? <>
+                    <DayRouteLayers slices={focused} dark={dark} colorFor={colorForDay} />
+                    {focused.filter(slice => slice.selected).map(slice => <RouteArrows key={slice.dayIndex} coordinates={slice.coordinates} dark={dark} />)}
+                  </> : <>
+                    <MapRoute
+                      id="yf-main-casing"
+                      coordinates={coords}
+                      color={dark ? '#0B2545' : '#FFFFFF'}
+                      width={ROUTE_PAINT.selectedCasingWidth}
+                      opacity={dark ? 0.6 : 0.75}
+                      interactive={false}
+                    />
+                    <MapRoute coordinates={coords} color={rough ? warnInk : dark ? '#2A6FDB' : '#0B2545'} width={rough ? 3.5 : ROUTE_PAINT.selectedWidth} opacity={rough ? 0.9 : 0.95} dashArray={rough ? ROUGH_DASH : undefined} />
+                    {!rough && <RouteArrows coordinates={coords} dark={dark} />}
+                  </>}
                 </>
               )
             })() : (
@@ -1472,14 +1484,14 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       id={`yf-day-casing-${d.index}`}
                       coordinates={coords}
                       color={theme === 'dark' ? '#0B2545' : '#FFFFFF'}
-                      width={8}
+                      width={ROUTE_PAINT.selectedCasingWidth}
                       opacity={theme === 'dark' ? 0.6 : 0.75}
                       interactive={false}
                     />
                     <MapRoute
                       coordinates={coords}
                       color={rough ? warnInk : colorForDay(d.index)}
-                      width={rough ? 3.5 : 4}
+                      width={rough ? 3.5 : ROUTE_PAINT.selectedWidth}
                       opacity={rough ? 0.9 : 0.95}
                       dashArray={rough ? ROUGH_DASH : undefined}
                     />

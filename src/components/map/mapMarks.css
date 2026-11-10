@@ -74,7 +74,8 @@
 /* ---- Lens marks (map v2 wave 2): stay ring chips, open-part rings and pick bands.
    Every colour is an existing dark-aware token, so no dark block is needed. ---- */
 /* Board: a 12 px weight-700 pill on a soft card ground, no outline. */
-.mv2-lens-ring-label { display: inline-flex; align-items: center; padding: var(--space-2) var(--space-4a); border-radius: var(--radius-pill); border: 0; background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--shadow-sm); font-size: var(--text-sm, 12px); font-weight: 700; white-space: nowrap; pointer-events: none; }
+/* 911-W9b-marks: the ring caption. Board: a 22px mint pill, teal ink, 13px icon. */
+.mv2-lens-ring-label { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: var(--radius-pill); border: 1px solid #0D8D8240; background: var(--pw-lagoon-100); color: var(--pw-sea-700); box-shadow: none; font-size: 11.5px; font-weight: 700; white-space: nowrap; pointer-events: none; }
 /* A 30px hollow marigold ring. The hit area reaches 44px, so a thumb can find it. */
 .mv2-lens-gap-ring { position: relative; display: block; box-sizing: border-box; width: 30px; height: 30px; padding: 0; border: 3px solid var(--pw-marigold-500); border-radius: 50%; background: transparent; }
 .mv2-lens-gap-ring::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }

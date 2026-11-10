@@ -1369,3 +1369,10 @@
   .mv2-workspace .mv2-phone-day-back:focus-visible, .mv2-workspace .mv2-phone-day-step:focus-visible, .mv2-workspace .mv2-phone-day-all:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
   .mv2-workspace .poi-col > .mv2-ribbon { transition: background var(--motion-med) var(--ease-resize), box-shadow var(--motion-med) var(--ease-resize); }
 }
+
+/* 911-W9b-marks: the Stay board's base mark, used in the Stay lens only.
+   Board: 36px paper disc, 18px house, 3px marigold ring, 4px white gap,
+   4px soft marigold halo (58px outer), and a soft drop shadow. */
+.mv2-workspace .mv2-map-stop.is-stay-hero { width: 36px; height: 36px; border: 0; background: #FEFDFB; color: #8A4F0E; box-shadow: 0 0 0 3px #F2A33A, 0 0 0 7px #FFFFFF, 0 0 0 11px #F2A33A55, 0 8px 18px -6px rgba(64, 54, 44, .5); }
+.mv2-workspace .mv2-map-stop.is-stay-hero::after { content: none; }
+:root:where([data-theme='dark']) .mv2-workspace .mv2-map-stop.is-stay-hero { background: var(--pw-card); color: var(--ink-amber); box-shadow: 0 0 0 3px #F2A33A, 0 0 0 7px var(--pw-card), 0 0 0 11px #F2A33A55, 0 8px 18px -6px rgba(0, 0, 0, .5); }

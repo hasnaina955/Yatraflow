@@ -123,8 +123,9 @@ describe('the base tag', () => {
     expect(marksCss).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag--base \{[^}]*right: calc\(100% \+ 8px\)/)
   })
 
-  it('adds the second ring at 1.4 times the radius', () => {
-    expect(stylesCss).toMatch(/\.mv2-map-stop\.is-stay::after \{[^}]*width: 50px/)
+  it('gives the Stay base the board rings', () => {
+    expect(stylesCss).toMatch(/\.mv2-workspace \.mv2-map-stop\.is-stay-hero \{[^}]*0 0 0 11px #F2A33A55/)
+    expect(stylesCss).toMatch(/\.mv2-workspace \.mv2-map-stop\.is-stay-hero::after \{ content: none; \}/)
   })
 })
 

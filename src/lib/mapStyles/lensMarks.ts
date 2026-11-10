@@ -116,6 +116,31 @@ export function clampBoundsWithin(
   return cw >= ce || cs >= cn ? route : clamped
 }
 
+/** The stop name tag's height and its drop under the mark. Values from the Drive board. */
+export const STOP_TAG_BOX = { w: 132, h: 26, dy: 34 }
+
+/** The tag width a stop name needs. A long name stops at 184 px. */
+export function stopTagBox(title: string): { w: number; h: number } {
+  const chars = [...title.trim()].length
+  return { w: Math.min(184, Math.max(56, Math.round(chars * 6.4 + 18))), h: STOP_TAG_BOX.h }
+}
+
+/** A stop shows its tag on the active day. The stay base shows it on every day. */
+export function showsStopTag(
+  stop: { category?: string | null; dayIndex: number; auto?: boolean },
+  activeDay: number | null,
+): boolean {
+  if (stop.auto) return false
+  if (stop.category === 'hotel') return true
+  return activeDay != null && stop.dayIndex === activeDay
+}
+
+/** The Drive corridor wash: a wide band of the day colour, under the route line. */
+export const CORRIDOR_PAINT = { width: 14, opacity: 0.4 } as const
+
+/** The stay-ring camera fit. The ring label and the base tag need their own room. */
+export const STAY_RING_FRAME_PADDING = 96
+
 /** The label of the fix mark. Unknown parts stay out. */
 export function fixMarkLabel(
   stopName: string | null,

@@ -23,7 +23,7 @@ describe('W4-B map and rail', () => {
   it('omits unknown count parts', () => {
     expect(scopeBandCountsText(null)).toBeNull()
     expect(scopeBandCountsText({ inside: 9, justPast: null, worthDetour: 1 }))
-      .toBe('9 inside · 1 worth the detour')
+      .toBe('9 inside 1 worth the detour')
   })
 
   it('renders no counts line when counts are unknown', () => {
@@ -38,7 +38,10 @@ describe('W4-B map and rail', () => {
       minutes: 30, onMinutes: noop,
       counts: { inside: 9, justPast: 2, worthDetour: 1 },
     }))
-    expect(html).toContain('9 inside · 2 just past it · 1 worth the detour')
+    expect(html).toContain('<b>9</b>')
+    expect(html).toContain('<b>2</b>')
+    expect(html).toContain('<b>1</b>')
+    expect(html).not.toContain('·')
   })
 
   it('marks the active ring with aria-pressed', () => {

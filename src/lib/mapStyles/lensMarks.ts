@@ -41,6 +41,16 @@ export function ringLabelPoint(ring: readonly [number, number][]): [number, numb
   return top
 }
 
+/** The point with the lowest latitude. The board hangs its caption here. */
+export function ringCaptionPoint(ring: readonly [number, number][]): [number, number] | null {
+  let bottom: [number, number] | null = null
+  for (const point of ring) {
+    if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) continue
+    if (!bottom || point[1] < bottom[1]) bottom = point
+  }
+  return bottom
+}
+
 /** A walk ring gets a walking icon. A drive ring gets a car. */
 export function ringCaptionMode(id: string | null | undefined): 'walk' | 'drive' {
   return /drive/i.test(String(id ?? '')) ? 'drive' : 'walk'
@@ -211,6 +221,30 @@ export function corridorEdgeGeoJson(coordinates: readonly [number, number][]) {
 
 /** The stay-ring camera fit. The ring label and the base tag need their own room. */
 export const STAY_RING_FRAME_PADDING = 96
+
+/** The board's active ring covers about 0.4 of the canvas's shorter side. */
+export const STAY_RING_CANVAS_FRACTION = 0.4
+
+/** Expand a ring's bounds around its centre so the ring fills `fraction` of the
+ *  framed canvas. The fit then uses the overlay insets, not a pixel padding. */
+export function stayFrameBounds(
+  ring: readonly [number, number][],
+  fraction: number = STAY_RING_CANVAS_FRACTION,
+): LngLatBounds | null {
+  const bounds = ringBounds(ring)
+  if (!bounds) return null
+  const f = Number.isFinite(fraction) && fraction > 0 && fraction < 1 ? fraction : STAY_RING_CANVAS_FRACTION
+  const [[west, south], [east, north]] = bounds
+  const cx = (west + east) / 2
+  const cy = (south + north) / 2
+  const halfW = (east - west) / 2
+  const halfH = (north - south) / 2
+  const grow = 1 / f
+  return [
+    [cx - halfW * grow, cy - halfH * grow],
+    [cx + halfW * grow, cy + halfH * grow],
+  ]
+}
 
 /** The label of the fix mark. Unknown parts stay out. */
 export function fixMarkLabel(

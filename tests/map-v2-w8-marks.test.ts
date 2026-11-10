@@ -65,9 +65,10 @@ describe('the stay ring fit', () => {
     expect(STAY_RING_FRAME_PADDING).toBeGreaterThanOrEqual(80)
   })
 
-  it('is the padding the stay-ring fit reads', () => {
-    expect(map).toMatch(/padding: STAY_RING_FRAME_PADDING/)
-    expect(map).not.toMatch(/padding: 60, maxZoom: 15/)
+  it('frames a scale-free ring with the overlay insets', () => {
+    expect(map).toMatch(/stayFrameBounds\(first\.ring, STAY_RING_CANVAS_FRACTION\)/)
+    expect(map).toMatch(/padding: cameraPadding\(\), maxZoom: 15/)
+    expect(map).not.toMatch(/padding: STAY_RING_FRAME_PADDING/)
   })
 })
 

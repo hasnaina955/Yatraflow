@@ -38,7 +38,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { CORRIDOR_PAINT, STAY_RING_FRAME_PADDING, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringBounds, ringCaptionMode, ringLabelPoint, showsHotelTag, showsStopTag, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -1224,20 +1224,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return () => { observer.disconnect(); window.clearTimeout(timer) }
   }, [workspaceChrome, mapLoaded])
 
-  // W4-B: frame the active stay reach ring when the Stay lens opens one.
-  // The flag comes from the page: only the Stay lens with a stay base frames it.
-  // Clamping keeps the fit inside the day's route extent, so a lens change can
-  // never zoom the camera out past that extent.
+  // W9c: frame the active stay reach ring when the Stay lens opens one. The
+  // flag comes from the page: only the Stay lens with a stay base frames it.
+  // The ring fills a measured fraction of the visible canvas, so the fit is
+  // scale-free. Clamping keeps the frame inside the day's route extent.
   const stayRingKey = stayRings.map(ring => `${ring.id}:${ring.ring.length}`).join('|')
   useEffect(() => {
     if (!frameStayRing || !mapLoaded || !mapRef.current) return
     const first = stayRings[0]
     if (!first) return
-    const ring = ringBounds(first.ring)
-    if (!ring) return
-    const bounds = clampBoundsWithin(ring, boundsOf(fitPoints)) ?? ring
+    const framed = stayFrameBounds(first.ring, STAY_RING_CANVAS_FRACTION)
+    if (!framed) return
+    const bounds = clampBoundsWithin(framed, boundsOf(fitPoints)) ?? framed
     const m = mapRef.current
-    m.fitBounds(bounds, { padding: STAY_RING_FRAME_PADDING, maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
+    m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stayRingKey, mapLoaded, frameStayRing])
 
@@ -1909,11 +1909,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               <MapRoute key={`yf-stay-ring-${ring.properties.id}`} id={`yf-stay-ring-${ring.properties.id}`} coordinates={ring.geometry.coordinates} color={STAY_RING_INK} width={2} opacity={0.95} dashArray={[2, 1.5]} interactive={false} />
             ))}
             {stayRings.map(ring => {
-              const top = ringLabelPoint(ring.ring)
-              if (!top) return null
+              const foot = ringCaptionPoint(ring.ring)
+              if (!foot) return null
               const Icon = ringCaptionMode(ring.id) === 'drive' ? Car : PersonStanding
               return (
-                <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={top[0]} latitude={top[1]} anchor="bottom">
+                <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={foot[0]} latitude={foot[1]} anchor="top">
                   <MarkerContent><span className="mv2-lens-ring-label"><Icon size={13} aria-hidden />{ring.label}</span></MarkerContent>
                 </MapMarker>
               )

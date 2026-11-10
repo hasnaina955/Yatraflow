@@ -23,14 +23,20 @@ export function bandCounts(bands: readonly ScopeBand[]): ScopeBandCounts {
   return { inside, justPast, worthDetour }
 }
 
-/** One line of known counts. A null count leaves its part out. */
-export function scopeBandCountsText(counts: ScopeBandCounts | null): string | null {
+/** One known count as a numeral and its label. A null count leaves its part out. */
+export function scopeBandCountParts(counts: ScopeBandCounts | null): { value: number; label: string }[] | null {
   if (counts == null) return null
-  const parts: string[] = []
-  if (counts.inside != null) parts.push(`${counts.inside} inside`)
-  if (counts.justPast != null) parts.push(`${counts.justPast} just past it`)
-  if (counts.worthDetour != null) parts.push(`${counts.worthDetour} worth the detour`)
-  return parts.length > 0 ? parts.join(' · ') : null
+  const parts: { value: number; label: string }[] = []
+  if (counts.inside != null) parts.push({ value: counts.inside, label: 'inside' })
+  if (counts.justPast != null) parts.push({ value: counts.justPast, label: 'just past it' })
+  if (counts.worthDetour != null) parts.push({ value: counts.worthDetour, label: 'worth the detour' })
+  return parts.length > 0 ? parts : null
+}
+
+/** One line of known counts. No separators; the numerals are bold in the markup. */
+export function scopeBandCountsText(counts: ScopeBandCounts | null): string | null {
+  const parts = scopeBandCountParts(counts)
+  return parts == null ? null : parts.map(part => `${part.value} ${part.label}`).join(' ')
 }
 
 /** A phone lens button hides its word, so its label names the lens and count.
@@ -56,18 +62,25 @@ export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = fa
   snap?: string
   phone?: boolean
 }) {
-  const line = scopeBandCountsText(counts)
+  const parts = scopeBandCountParts(counts)
   const placement = scopeBandPlacement(snap, phone)
   return (
     <section className="mv2-lens-scope-band" data-placement={placement} hidden={placement === 'hidden'} aria-label="Drive scope">
-      <p className="mv2-lens-scope-head">Look within <b>{minutes}</b> min there and back · or drag the band</p>
+      <p className="mv2-lens-scope-head">
+        <span className="mv2-lens-scope-title">Look within <b>{minutes} min</b> there and back</span>
+        <span className="mv2-lens-scope-drag">or drag the band</span>
+      </p>
       <div className="mv2-lens-scope-chips" role="group" aria-label="Extra driving in minutes">
         {MINUTE_SCOPE_STEPS.map(step => (
           <button key={step} type="button" className="mv2-lens-scope-chip"
             aria-pressed={step === minutes} onClick={() => onMinutes(step)}>{step}</button>
         ))}
       </div>
-      {line != null && <p className="mv2-lens-scope-counts" role="status">{line}</p>}
+      {parts != null && <p className="mv2-lens-scope-counts" role="status">
+        {parts.map(part => <span className="mv2-lens-scope-count" key={part.label}>
+          <b>{part.value}</b> {part.label}
+        </span>)}
+      </p>}
     </section>
   )
 }

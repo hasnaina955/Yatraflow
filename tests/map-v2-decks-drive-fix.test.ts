@@ -118,7 +118,7 @@ describe('DriveTabs', () => {
 
   it('greys an over-budget card and disables its Add button', () => {
     const markup = renderDrive({ bandOf: () => 'over-budget' })
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Add as Day 3 lunch<\/button>/)
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>.*Add as Day 3 lunch<\/button>/)
     expect(markup).toContain('is-over-budget')
     expect(markup).toContain('Over today')
   })

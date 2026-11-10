@@ -124,43 +124,204 @@ export function FixedTimeConfirm({ guard, onConfirm, onCancel }: {
   )
 }
 
-export function StopEditorCard({ title, clockLabel, visitMinutes, days, fixed, busy = false, onStep, onMoveToDay, onSwap, onRemove }: {
+function MinusIcon(): React.ReactElement {
+  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+}
+
+function PlusIcon(): React.ReactElement {
+  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+}
+
+function ChevronDownIcon(): React.ReactElement {
+  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+}
+
+function SwapIcon(): React.ReactElement {
+  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" /></svg>
+}
+
+function LockIcon(): React.ReactElement {
+  return <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>
+}
+
+function GripIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+      <circle cx="9" cy="6" r="1" /><circle cx="15" cy="6" r="1" />
+      <circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" />
+      <circle cx="9" cy="18" r="1" /><circle cx="15" cy="18" r="1" />
+    </svg>
+  )
+}
+
+/** A small listbox pill. The keyboard keeps focus on the list: arrows, Enter and Esc. */
+function ChoiceMenu({ label, icon, choices, onChoose, disabled = false, busy = false }: {
+  label: string
+  icon: React.ReactNode
+  choices: readonly { id: string; label: string }[]
+  onChoose: (id: string) => void
+  disabled?: boolean
+  busy?: boolean
+}): React.ReactElement {
+  const [open, setOpen] = React.useState(false)
+  const [active, setActive] = React.useState(0)
+  const trigger = React.useRef<HTMLButtonElement>(null)
+  const list = React.useRef<HTMLUListElement>(null)
+  const id = React.useId()
+  React.useEffect(() => {
+    if (open) list.current?.focus()
+  }, [open])
+  React.useEffect(() => {
+    if (!open) return
+    function onDown(event: MouseEvent) {
+      const target = event.target as Node
+      if (!list.current?.contains(target) && !trigger.current?.contains(target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+  function close() {
+    setOpen(false)
+    trigger.current?.focus()
+  }
+  function choose(choice: { id: string }) {
+    onChoose(choice.id)
+    close()
+  }
+  function onListKey(event: React.KeyboardEvent<HTMLUListElement>) {
+    const last = choices.length - 1
+    if (event.key === 'ArrowDown') { event.preventDefault(); setActive(a => (a >= last ? 0 : a + 1)) }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); setActive(a => (a <= 0 ? last : a - 1)) }
+    else if (event.key === 'Home') { event.preventDefault(); setActive(0) }
+    else if (event.key === 'End') { event.preventDefault(); setActive(last) }
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); const choice = choices[active]; if (choice) choose(choice) }
+    else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close() }
+    else if (event.key === 'Tab') { setOpen(false) }
+  }
+  return (
+    <div className="map-edit-menu">
+      <button
+        ref={trigger}
+        type="button"
+        className="map-edit-pill"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? `${id}-list` : undefined}
+        aria-label={label}
+        disabled={busy || disabled}
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={event => {
+          if (!open && (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setOpen(true) }
+        }}
+      >
+        {icon}<span className="map-edit-pill-label">{label}</span>
+      </button>
+      {open && (
+        <ul
+          ref={list}
+          id={`${id}-list`}
+          className="map-edit-menu-list"
+          role="listbox"
+          aria-label={label}
+          tabIndex={-1}
+          aria-activedescendant={`${id}-opt-${active}`}
+          onKeyDown={onListKey}
+        >
+          {choices.map((choice, i) => (
+            <li
+              key={choice.id}
+              id={`${id}-opt-${i}`}
+              role="option"
+              aria-selected={i === active}
+              className="map-edit-menu-item"
+              onMouseEnter={() => setActive(i)}
+              onClick={() => choose(choice)}
+            >
+              {choice.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** The stop editor. It shows only the facts it knows, and it calls the page's handlers. */
+export function StopEditorCard({ title, clockLabel, placeLabel = null, order = null, dayIndex = null, visitMinutes, days, swapOptions = [], fixed, busy = false, onStep, onMoveToDay, onSwap, onRemove, onReorderKey }: {
   title: string
   /** The stop's own clock line, such as "12:05–12:50". Null when it is not known. */
   clockLabel: string | null
+  /** The stop's place name, such as "Kattappana". Null when it is not known. */
+  placeLabel?: string | null
+  /** The stop's place in its day, counted from 1. Null hides the day dot. */
+  order?: number | null
+  /** The day index. It picks the day colour of the dot. */
+  dayIndex?: number | null
   visitMinutes: number | null
   days: readonly { index: number; label: string }[]
+  swapOptions?: readonly { id: string; label: string }[]
   fixed: boolean
   busy?: boolean
   onStep: (direction: 1 | -1) => void
   onMoveToDay: (dayIndex: number) => void
-  onSwap: () => void
+  onSwap: (targetId: string) => void
   onRemove: () => void
+  /** The existing Alt+arrow reorder, bound to the grip. */
+  onReorderKey?: React.KeyboardEventHandler<HTMLButtonElement>
 }): React.ReactElement {
   const known = visitMinutes !== null
+  const subline = [clockLabel, placeLabel].filter(part => typeof part === 'string' && part !== '').join(' · ')
   return (
-    <section className="map-edit-card map-edit-editor" aria-label={`Edit ${title}`}>
-      <h3 className="map-edit-title">{title}</h3>
-      <p className="map-edit-clock">{clockLabel ?? 'Clock not known'}</p>
-      <div className="map-edit-stepper" role="group" aria-label={`Stay length, ${VISIT_STEP_MIN} minute steps`}>
-        <button type="button" aria-label={`Shorten by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(-1)}>−</button>
-        <output aria-live="polite">{known ? `${visitMinutes} min` : 'Not known'}</output>
-        <button type="button" aria-label={`Lengthen by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(1)}>+</button>
+    <section className="map-edit-card map-edit-editor" aria-label={order === null ? `Edit ${title}` : `Edit ${title}, stop ${order}`}>
+      <div className="map-edit-editor-head">
+        {order !== null && (
+          <span className="map-edit-day-dot" data-day={((dayIndex ?? 0) % 7 + 7) % 7} aria-hidden="true">{order}</span>
+        )}
+        <span className="map-edit-head-copy">
+          <h3 className="map-edit-title">{title}</h3>
+          {subline !== '' && <span className="map-edit-clock">{subline}</span>}
+        </span>
+        <button
+          type="button"
+          className="map-edit-grip"
+          aria-label="Reorder this stop with Alt and the up or down arrow"
+          aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+          onKeyDown={onReorderKey}
+        >
+          <GripIcon />
+        </button>
+      </div>
+      <div className="map-edit-stay-row">
+        <span className="map-edit-stay-label">{`Stay length · ${VISIT_STEP_MIN} min steps`}</span>
+        <div className="map-edit-stepper" role="group" aria-label={`Stay length, ${VISIT_STEP_MIN} minute steps`}>
+          <button type="button" aria-label={`Shorten by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(-1)}><MinusIcon /></button>
+          <output aria-live="polite">{known ? `${visitMinutes} min` : 'Not known'}</output>
+          <button type="button" aria-label={`Lengthen by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(1)}><PlusIcon /></button>
+        </div>
       </div>
       <div className="map-edit-actions">
-        <label className="map-edit-move">
-          <span>Move to day</span>
-          <select disabled={busy || days.length === 0} value="" onChange={e => { if (e.target.value !== '') onMoveToDay(Number(e.target.value)) }}>
-            <option value="">Choose a day</option>
-            {days.map(d => <option key={d.index} value={d.index}>{d.label}</option>)}
-          </select>
-        </label>
-        <button type="button" className="map-edit-swap" disabled={busy} onClick={onSwap}>Swap</button>
+        <ChoiceMenu
+          label="Move to day"
+          icon={<ChevronDownIcon />}
+          choices={days.map(d => ({ id: String(d.index), label: d.label }))}
+          onChoose={value => onMoveToDay(Number(value))}
+          busy={busy}
+          disabled={days.length === 0}
+        />
+        <ChoiceMenu
+          label="Swap with another stop"
+          icon={<SwapIcon />}
+          choices={swapOptions}
+          onChoose={onSwap}
+          busy={busy}
+          disabled={swapOptions.length === 0}
+        />
         <button type="button" className="map-edit-remove" disabled={busy} onClick={onRemove}>Remove</button>
       </div>
       {fixed && (
-        <p className="map-edit-fixed">This stop has a fixed time. Reorder cannot move it, and a change to its time asks first.</p>
+        <p className="map-edit-fixed"><LockIcon />{`${title} is a fixed time: it cannot be dragged, and editing its time asks first.`}</p>
       )}
+      <p className="map-edit-hint">Reorder with Alt and the up or down arrow on a focused stop.</p>
     </section>
   )
 }

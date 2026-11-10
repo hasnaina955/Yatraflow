@@ -135,8 +135,62 @@ export function showsStopTag(
   return activeDay != null && stop.dayIndex === activeDay
 }
 
-/** The Drive corridor wash: a wide band of the day colour, under the route line. */
-export const CORRIDOR_PAINT = { width: 14, opacity: 0.4 } as const
+/** The base tag shows the place name. A "Check in · " lead is UI copy, not a name. */
+export function baseTagText(title: string | null | undefined): string {
+  return String(title ?? '')
+    .trim()
+    .replace(/^check[\s-]*in\s*[·•:–—-]\s*/i, '')
+    .trim()
+}
+
+/** Hotel tags: the active day always shows its tag. Other days need zoom 9. */
+export function showsHotelTag(
+  stop: { category?: string | null; dayIndex: number; auto?: boolean },
+  activeDay: number | null,
+  zoom: number,
+): boolean {
+  if (stop.auto) return false
+  if (stop.category !== 'hotel') return false
+  if (activeDay != null && stop.dayIndex === activeDay) return true
+  return Number.isFinite(zoom) && zoom >= 9
+}
+
+/** The corridor is a Drive-lens wash. MapTab sends null for Stay, Fix and Gap. */
+export function corridorDayForLens(
+  lens: string | null | undefined,
+  activeDay: number | null | undefined,
+): number | null {
+  return lens === 'drive' && activeDay != null ? activeDay : null
+}
+
+/** A corridor draws only for the one day the host names. */
+export function drawsCorridor(corridorDay: number | null | undefined, dayIndex: number): boolean {
+  return corridorDay != null && corridorDay === dayIndex
+}
+
+/** The corridor band, its dashed edge and their opacities. Values from the Drive board. */
+export const CORRIDOR_PAINT: {
+  width: number
+  opacity: number
+  edgeWidth: number
+  edgeOpacity: number
+  edgeDash: [number, number]
+} = { width: 46, opacity: 0.15, edgeWidth: 1, edgeOpacity: 0.5, edgeDash: [3, 4] }
+
+/** One LineString feature. Two offset layers draw the corridor's dashed edges. */
+export function corridorEdgeGeoJson(coordinates: readonly [number, number][]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: [{
+      type: 'Feature' as const,
+      properties: {},
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: coordinates.map(point => [point[0], point[1]]),
+      },
+    }],
+  }
+}
 
 /** The stay-ring camera fit. The ring label and the base tag need their own room. */
 export const STAY_RING_FRAME_PADDING = 96

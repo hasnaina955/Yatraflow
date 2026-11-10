@@ -38,7 +38,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { CORRIDOR_PAINT, STAY_RING_FRAME_PADDING, STOP_TAG_BOX, clampBoundsWithin, pickBandClass, ringBounds, ringLabelPoint, showsStopTag, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { CORRIDOR_PAINT, STAY_RING_FRAME_PADDING, STOP_TAG_BOX, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringBounds, ringLabelPoint, showsHotelTag, showsStopTag, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -542,7 +542,7 @@ export interface PreviewRoadView {
   legOutMeasured: boolean | null
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [] }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [], corridorDay = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -554,6 +554,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   focusDay?: number | 'all'
   /** The day the all-days view stresses. Other days draw behind it at 2px and 40%. */
   selectedDay?: number | null
+  /** The one day that draws the Drive corridor wash. Null draws no corridor. */
+  corridorDay?: number | null
   /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
   ghostRoad?: GhostRoad | null
   /** The add preview's proposed road. It draws dashed in the day colour, under
@@ -653,6 +655,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   journeyCursor?: { coordinate: { lat: number; lng: number }; label: string } | null
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
+  // The settled map zoom. Other days' base tags appear only at zoom 9 or more.
+  const [mapZoom, setMapZoom] = useState(5)
   const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
   const toolbarId = useId()
   // A host drives the day filter through the prop (Board columns, the slots
@@ -990,13 +994,17 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const off = pinOffsets.get(p.id)
       const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
       spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, drawW: p.auto ? 30 : STOP_BOX.drawW, drawH: p.auto ? 30 : STOP_BOX.drawH, ...base })
+      const isBase = p.category === 'hotel'
+      const showTag = isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay)
       // A tag is a pill: it never takes a tap and it yields to every badge. The
       // clock pill already gives way first, so the tag keeps its place.
-      if (showsStopTag(p, activeTagDay)) {
-        const tag = stopTagBox(p.title)
+      if (showTag) {
+        const tag = stopTagBox(isBase ? baseTagText(p.title) : p.title)
         spreadMarks.push({ id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: STOP_TAG_BOX.dy, w: tag.w, h: tag.h, ...base })
       }
-      if (!p.auto && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
+      // The Stay board hides the clock pill while the base tag shows. Hiding it
+      // here keeps the two pills from ever colliding on one mark.
+      if (!p.auto && !(showTag && isBase) && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
     }
     for (const m of dayEndpointMarkers) spreadMarks.push({ id: `endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, layer: 'stop', x: 0, y: 0, w: 30, h: 30, lat: m.position.lat, lng: m.position.lng, ox: 0, oy: 0 })
     for (const w of warningMarks) if (validMapCoordinate({ lat: w.lat, lng: w.lng })) spreadMarks.push({ id: `warn:${w.id}`, layer: 'warn', x: 0, y: 0, ...WARN_BOX, lat: w.lat, lng: w.lng, ox: 0, oy: 0 })
@@ -1014,7 +1022,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     for (const hit of visiblePois) {
       if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
-      spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(onAddNearby ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: onAddNearby ? PICK_ADD_SHIFT : 0 })
+      const hasAdd = !!onAddNearby && !workspaceChrome
+      spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
     }
   }
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
@@ -1042,6 +1051,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (!workspaceChrome || !map || !mapLoaded) return
     const spread = () => {
       try {
+        setMapZoom(map.getZoom())
         const { size, insets } = measureFrame()
         const { spots: next } = layoutOnMap(map, safeRect(size, insets))
         setMarkSpots(prev => {
@@ -1764,6 +1774,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <>
                   {focused.length > 0 ? <>
+                    {corridorDay != null && focused.filter(slice => slice.selected && slice.dayIndex === corridorDay).map(slice => (
+                      <MapRoute key={`yf-all-corridor-${slice.dayIndex}`} id={`yf-all-corridor-${slice.dayIndex}`} coordinates={slice.coordinates} color={colorForDay(slice.dayIndex)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />
+                    ))}
                     <DayRouteLayers slices={focused} dark={dark} colorFor={colorForDay} />
                     {focused.filter(slice => slice.selected).map(slice => <RouteArrows key={slice.dayIndex} coordinates={slice.coordinates} dark={dark} />)}
                   </> : <>
@@ -1810,7 +1823,29 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       opacity={theme === 'dark' ? 0.6 : 0.75}
                       interactive={false}
                     />
-                    {!rough && <MapRoute id={`yf-day-corridor-${d.index}`} coordinates={coords} color={colorForDay(d.index)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />}
+                    {!rough && drawsCorridor(corridorDay, d.index) && (() => {
+                      // The Drive board: a 46 px day-colour wash at 0.15, with a
+                      // 1 px dashed edge at 0.5 on each side of the band.
+                      const edges = corridorEdgeGeoJson(coords)
+                      return <>
+                        <MapRoute id={`yf-day-corridor-${d.index}`} coordinates={coords} color={colorForDay(d.index)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />
+                        {([-1, 1] as const).map(side => (
+                          <MapGeoJSON
+                            key={`yf-day-edge-${d.index}-${side}`}
+                            id={`yf-day-edge-${d.index}-${side}`}
+                            data={edges}
+                            fillPaint={false}
+                            linePaint={{
+                              'line-color': colorForDay(d.index),
+                              'line-width': CORRIDOR_PAINT.edgeWidth,
+                              'line-opacity': CORRIDOR_PAINT.edgeOpacity,
+                              'line-dasharray': CORRIDOR_PAINT.edgeDash,
+                              'line-offset': side * (CORRIDOR_PAINT.width / 2),
+                            }}
+                          />
+                        ))}
+                      </>
+                    })()}
                     <MapRoute
                       coordinates={coords}
                       color={rough ? warnInk : colorForDay(d.index)}
@@ -1969,7 +2004,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const spot = workspaceChrome ? markSpots.get(`stop:${p.id}`) : undefined
                 const clockSpot = workspaceChrome ? markSpots.get(`clock:${p.id}`) : undefined
                 const tagSpot = workspaceChrome ? markSpots.get(`tag:${p.id}`) : undefined
-                const showTag = workspaceChrome && showsStopTag(p, activeTagDay)
+                const isBase = p.category === 'hotel'
+                const showTag = workspaceChrome && (isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay))
                 const dx = (off?.dx ?? 0) + (spot?.dx ?? 0)
                 const dy = (off?.dy ?? 0) + (spot?.dy ?? 0)
                 const offsetStyle = dx || dy ? { transform: `translate(${dx}px, ${dy}px)` } : undefined
@@ -2011,8 +2047,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>}
                       </button>
                       </span>
-                      {showTag && <span className={`mv2-stop-tag${p.category === 'hotel' ? ' mv2-stop-tag--base' : ''}`} data-collapsed={tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{p.title}</span>}
-                      {c && (workspaceChrome
+                      {showTag && <span className={`mv2-stop-tag${isBase ? ' mv2-stop-tag--base' : ''}`} data-collapsed={tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{isBase ? baseTagText(p.title) : p.title}</span>}
+                      {c && !(showTag && isBase) && (workspaceChrome
                         ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {c.cumKm}</small></span>
                         : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
                       </>)}
@@ -2093,8 +2129,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       >
                         {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
-                      {onAddNearby && (
+                      {onAddNearby && !workspaceChrome && (
                         <button
+                          type="button"
                           className="yf-map-idea-add"
                           onClick={e => { e.stopPropagation(); onAddNearby(hit) }}
                           aria-label={`Add ${hit.name} to the trip`}

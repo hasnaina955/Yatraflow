@@ -1,6 +1,9 @@
 // W4-B: left-rail extras that change with the active lens.
 // Only known facts render. A missing value keeps its part out.
+import { collectWarnings, groupWarnings } from '../../../lib/engine'
+import type { Trip } from '../../../data/types'
 import { STAY_RINGS } from './stayLens'
+import { warningRefs } from './fixLens'
 import type { RingId } from '../../../components/map/lenses/StayDeck'
 import type { MapLensId } from './useMapLenses'
 
@@ -59,6 +62,48 @@ export function driveBudgetStep(usedMin: number | null, budgetMin: number | null
   if (usedMin == null || budgetMin == null) return null
   if (!Number.isFinite(usedMin) || !Number.isFinite(budgetMin) || budgetMin <= 0) return null
   return Math.min(4, Math.max(0, Math.round((usedMin / budgetMin) * 4)))
+}
+
+export interface BudgetBlockView {
+  /** The fixed label. Every lens shows this same label. */
+  label: string
+  /** The used-of-total line, or the budget alone when the used part is unknown. */
+  value: string
+  /** True only when the used part is known. An unknown part draws no bar. */
+  showBar: boolean
+}
+
+/** One budget block for every lens. Stay and Fix pass no bar, so only the
+ *  known budget shows. The used line is printed only when all parts are known. */
+export function budgetBlockView(budgetBar: { text: string; step: number } | null, budgetMin: number): BudgetBlockView {
+  return {
+    label: 'Detour budget',
+    value: budgetBar == null ? `${budgetMin} min` : budgetBar.text,
+    showBar: budgetBar != null,
+  }
+}
+
+/** The problem row sub line. Every part must be known. An unknown fact
+ *  keeps the whole line out. Never a guessed place, time or reason. */
+export function fixReasonLine(place: string | null, timeText: string | null, reason: string | null): string | null {
+  if (place == null || timeText == null || reason == null) return null
+  if (place.trim() === '' || timeText.trim() === '' || reason.trim() === '') return null
+  return `${place} ${timeText} · ${reason}`
+}
+
+/** The reason the Fix lens names for one day. It reads the same engine
+ *  warnings and targets as the deck, so the rail cannot disagree with it. */
+export function fixProblemReason(trip: Trip, dayIndex: number): string | null {
+  const { byDay } = groupWarnings(collectWarnings(trip))
+  const warnings = byDay.get(dayIndex) ?? []
+  const targets = warningRefs(trip, dayIndex)
+  const pairs = warnings.flatMap((warning, index) => {
+    const target = targets[index]
+    return target ? [{ warning, severe: target.severe }] : []
+  })
+  const chosen = pairs.find(pair => pair.severe) ?? pairs[0]
+  const detail = chosen?.warning.detail ?? null
+  return detail != null && detail.trim() !== '' ? detail : null
 }
 
 export interface LensRailExtrasProps {

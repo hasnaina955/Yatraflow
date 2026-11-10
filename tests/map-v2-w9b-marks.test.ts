@@ -56,9 +56,9 @@ describe('ringCaptionMode', () => {
 })
 
 describe('the ring caption render', () => {
-  it('sits on the ring top with a walking or car icon', () => {
-    expect(map).toMatch(/ringLabelPoint\(ring\.ring\)/)
-    expect(map).toMatch(/anchor="bottom"/)
+  it('sits on the ring foot with a walking or car icon', () => {
+    expect(map).toMatch(/ringCaptionPoint\(ring\.ring\)/)
+    expect(map).toMatch(/anchor="top"/)
     expect(map).toMatch(/ringCaptionMode\(ring\.id\) === 'drive' \? Car : PersonStanding/)
   })
 

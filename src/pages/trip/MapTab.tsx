@@ -37,7 +37,7 @@ import { useRailView } from './map/useRailView'
 import { useMapEdit } from './map/useMapEdit'
 import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPanel'
 import { MapLensPanel } from './map/MapLensPanel'
-import { useMapLenses, type MapLensId } from './map/useMapLenses'
+import { driveLettersByRoad, useMapLenses, type MapLensId } from './map/useMapLenses'
 import { driveCardStrip, driveDeckIntro, scopeBandOf, type DriveTab } from './map/driveLens'
 import { STAY_RINGS, ringPolygon, ringRadiusKm } from './map/stayLens'
 import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
@@ -1390,12 +1390,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const driveGroup = lenses.drive.tabs.tabs.find(group => group.tab === driveTab) ?? lenses.drive.tabs.tabs[0]
   const shownDriveIds = new Set(lens === 'drive' ? (driveGroup?.shown ?? []).map(row => String(row.row.hit.id)) : [])
   const hiddenRows = hiddenDrivePicks(seeForRail, shownDriveIds)
-  const drivePickLetters: Record<string, 'A' | 'B' | 'C'> = {}
-  if (lens === 'drive') {
-    driveGroup?.shown.slice(0, 3).forEach((row, index) => {
-      drivePickLetters[String(row.row.hit.id)] = (['A', 'B', 'C'] as const)[index]
-    })
-  }
+  const drivePickLetters: Record<string, 'A' | 'B' | 'C'> = lens === 'drive'
+    ? driveLettersByRoad(driveGroup?.shown ?? [])
+    : {}
   const stayPickLetters: Record<string, 'A' | 'B' | 'C'> = {}
   const activeStayPicks = activeStayWindowId == null ? undefined : lenses.stay.picks[activeStayWindowId]
   if (lens === 'stay' && activeStayPicks?.kind === 'ready') {

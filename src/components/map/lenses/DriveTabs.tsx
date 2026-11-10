@@ -7,6 +7,7 @@ import type {
 } from '../../../pages/trip/map/driveLens'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
+import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
 
 /** One row of a Drive tab group. */
 type DriveRow = DriveTabGroup['shown'][number]
@@ -136,6 +137,8 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   }
   const current = activeTab ?? groups[0].tab
   const active = groups.find(group => group.tab === current) ?? groups[0]
+  // The badge letter is the map letter. Both read the same road order.
+  const letters = driveLettersByRoad(active.shown)
 
   function moveTo(index: number) {
     const group = groups[index]
@@ -193,6 +196,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
               hit={hit}
               category={hit.category}
               name={nameOf(row)}
+              letter={letters[String(hit.id)] ?? null}
               reasons={reason == null || reason.trim() === '' ? [] : [reason]}
               cells={driveCells(stripOf(row))}
               tag={tag}

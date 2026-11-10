@@ -114,6 +114,36 @@ export function phaseCount(phase: LensPhase, rows: number): number | null {
   return phase === 'empty' ? 0 : null
 }
 
+/** The pick letters, A first. */
+const PICK_LETTERS = ['A', 'B', 'C'] as const
+
+/** One row's along-route km. Null means no road position is known. */
+function roadKmOf(row: DriveLensRow): number | null {
+  // Both fields are km from the journey origin. The exact leg wins.
+  const km = row.row.hit.alongRouteKm ?? row.row.hit.cumKm
+  return km != null && Number.isFinite(km) ? Math.max(0, km) : null
+}
+
+/**
+ * The letters for the shown Drive cards, in road order.
+ * A row with no known road position gets no letter. The set stops at C.
+ */
+export function driveLettersByRoad(
+  rows: readonly DriveLensRow[],
+): Record<string, 'A' | 'B' | 'C'> {
+  const placed: Array<{ id: string; km: number }> = []
+  for (const row of rows) {
+    const km = roadKmOf(row)
+    if (km != null) placed.push({ id: String(row.row.hit.id), km })
+  }
+  placed.sort((a, b) => a.km - b.km)
+  const letters: Record<string, 'A' | 'B' | 'C'> = {}
+  placed.slice(0, PICK_LETTERS.length).forEach((entry, index) => {
+    letters[entry.id] = PICK_LETTERS[index]
+  })
+  return letters
+}
+
 /** A stored clock string as minutes. Null when the string is not a real clock. */
 function clockMinOrNull(hm: string | undefined | null): number | null {
   const valid = validHM(hm ?? undefined)

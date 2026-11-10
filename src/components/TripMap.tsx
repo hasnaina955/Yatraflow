@@ -36,8 +36,8 @@ import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
-import { ghostLegPaint, layoutMarks, pickLetter, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { pickBandClass, ringLabelPoint, stayRingsGeoJson, ringBounds, stayRingsFillGeoJson, clampBoundsWithin } from '../lib/mapStyles/lensMarks'
+import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { CORRIDOR_PAINT, STAY_RING_FRAME_PADDING, STOP_TAG_BOX, clampBoundsWithin, pickBandClass, ringBounds, ringLabelPoint, showsStopTag, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -981,12 +981,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // The spread only moves how they are drawn, after each camera move.
   // A stop wins over a problem, an empty part, a pick and a clock pill, in that order.
   const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  // A stop name tag follows the active day. The stay base keeps its tag on every day,
+  // so the house mark always says where tonight's base is.
+  const activeTagDay = dayFilter === 'all' ? selectedDay ?? null : dayFilter
   const spreadMarks: (LayoutMark & { lat: number; lng: number; ox: number; oy: number })[] = []
   if (workspaceChrome) {
     for (const p of allPoints) {
       const off = pinOffsets.get(p.id)
       const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
       spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, drawW: p.auto ? 30 : STOP_BOX.drawW, drawH: p.auto ? 30 : STOP_BOX.drawH, ...base })
+      // A tag is a pill: it never takes a tap and it yields to every badge. The
+      // clock pill already gives way first, so the tag keeps its place.
+      if (showsStopTag(p, activeTagDay)) {
+        const tag = stopTagBox(p.title)
+        spreadMarks.push({ id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: STOP_TAG_BOX.dy, w: tag.w, h: tag.h, ...base })
+      }
       if (!p.auto && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
     }
     for (const m of dayEndpointMarkers) spreadMarks.push({ id: `endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, layer: 'stop', x: 0, y: 0, w: 30, h: 30, lat: m.position.lat, lng: m.position.lng, ox: 0, oy: 0 })
@@ -1213,7 +1222,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (!ring) return
     const bounds = clampBoundsWithin(ring, boundsOf(fitPoints)) ?? ring
     const m = mapRef.current
-    m.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
+    m.fitBounds(bounds, { padding: STAY_RING_FRAME_PADDING, maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stayRingKey, mapLoaded, frameStayRing])
 
@@ -1704,6 +1713,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const rough = routeDrawGrade(geom[String(d.index)]) === 'rough'
                 return (
                   <Fragment key={`day-${d.index}`}>
+                    {/* The Drive corridor wash: a wide band of the day colour. It
+                        sits over the white casing and under the route line, so the
+                        day reads as a corridor, as the Drive board shows. */}
                     <MapRoute
                       id={`yf-day-casing-${d.index}`}
                       coordinates={coords}
@@ -1712,6 +1724,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       opacity={theme === 'dark' ? 0.6 : 0.75}
                       interactive={false}
                     />
+                    {!rough && <MapRoute id={`yf-day-corridor-${d.index}`} coordinates={coords} color={colorForDay(d.index)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />}
                     <MapRoute
                       coordinates={coords}
                       color={rough ? warnInk : colorForDay(d.index)}
@@ -1869,6 +1882,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const off = pinOffsets.get(p.id)
                 const spot = workspaceChrome ? markSpots.get(`stop:${p.id}`) : undefined
                 const clockSpot = workspaceChrome ? markSpots.get(`clock:${p.id}`) : undefined
+                const tagSpot = workspaceChrome ? markSpots.get(`tag:${p.id}`) : undefined
+                const showTag = workspaceChrome && showsStopTag(p, activeTagDay)
                 const dx = (off?.dx ?? 0) + (spot?.dx ?? 0)
                 const dy = (off?.dy ?? 0) + (spot?.dy ?? 0)
                 const offsetStyle = dx || dy ? { transform: `translate(${dx}px, ${dy}px)` } : undefined
@@ -1910,6 +1925,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>}
                       </button>
                       </span>
+                      {showTag && <span className={`mv2-stop-tag${p.category === 'hotel' ? ' mv2-stop-tag--base' : ''}`} data-collapsed={tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{p.title}</span>}
                       {c && (workspaceChrome
                         ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {c.cumKm}</small></span>
                         : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
@@ -1979,7 +1995,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     {offsetWrap(`pick:${hit.id}`, <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
                       <span
                         className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}${bandClass ? ` ${bandClass}` : ''}`}
-                        style={isSearchHit ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
+                        style={isSearchHit || workspaceChrome ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
+                        data-family={workspaceChrome && !isSearchHit ? placeSubtype({ category: hit.category, name: hit.name }).family : undefined}
                         role="button"
                         tabIndex={0}
                         aria-pressed={isSearchHit ? active : undefined}

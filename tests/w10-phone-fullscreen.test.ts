@@ -75,10 +75,27 @@ describe('W10 phone full screen', () => {
     expect(css).toMatch(/\.yf-workspace\[data-map-fullscreen='true'\] \.mv2-workspace \{ height: 100dvh;/)
   })
 
-  it('keeps the settings in the sheet on a phone and in the top flow on desktop', () => {
+  it('keeps the settings in the top flow on desktop and after the deck on a phone', () => {
     const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')
     expect(mapTab).toContain('{!phoneSheet && settingsTools}')
-    expect(mapTab).toContain('{phoneSheet && <div className="mv2-sheet-settings">{settingsTools}</div>}')
+    const see = mapTab.indexOf('id="rail-see"')
+    const deck = mapTab.indexOf('<MapLensPanel', see)
+    const settings = mapTab.indexOf('{phoneSheet && <div className="mv2-sheet-settings">', see)
+    expect(settings).toBeGreaterThan(deck)
+    const css = read('src', 'styles.css')
+    expect(css).toMatch(/\.mv2-sheet-settings \.mv2-tools > summary \{[^}]*border: 0;[^}]*background: transparent;/)
+  })
+
+  it('frames the stay ring above the phone sheet at every snap', () => {
+    const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')
+    expect(mapTab).toContain('kind: \'bounds\'')
+    expect(mapTab).toContain('sheet.addEventListener(\'transitionend\', measure)')
+    expect(mapTab).toContain('bottom: phoneSheet ? phoneSheetHeight : 90')
+    expect(mapTab).toContain("frameStayRing={lens === 'stay' && lenses.stay.base != null && !phoneSheet}")
+    expect(mapTab).toContain('mapTarget={localTarget ?? mapTarget ?? phoneStayTarget}')
+    expect(mapTab).toContain('inSheet={phoneSheet}')
+    expect(read('src', 'components', 'map', 'MapWorkspaceChrome.tsx'))
+      .toContain("const rootClass = inSheet ? 'mv2-ribbon-sheet' : 'mv2-ribbon'")
   })
 
   it('makes the phone ribbon an inset card and the peek a titled row', () => {
@@ -94,5 +111,6 @@ describe('W10 phone full screen', () => {
   it('hides the fixture host header on a phone and keeps it on desktop', () => {
     const fixture = read('dev', 'map-workspace-fixture.css')
     expect(fixture).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.map-fixture-header[^{}]*\{[^}]*display\s*:\s*none/)
+    expect(read('dev', 'map-workspace-fixture.tsx')).toContain('onBackToTrip=')
   })
 })

@@ -224,7 +224,7 @@ describe('MapTab source guard', () => {
   it('puts four lens buttons in board order with one rail target', () => {
     expect(pill.length).toBeGreaterThan(0)
     const order = ['Along the drive', 'Around the stay', 'Gaps in this day', 'Fix this day']
-      .map(label => pill.indexOf(`aria-label="${label}"`))
+      .map(label => pill.indexOf(`phoneLensAriaLabel('${label}'`))
     expect(order.every(index => index >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
     expect(pill.match(/aria-controls="rail-see"/g)).toHaveLength(4)

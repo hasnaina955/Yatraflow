@@ -930,7 +930,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 
   // #905-#907: the add preview, the stop editor and the keyboard reorder. Every
   // write still goes through `applyChange`; removal stays on `removeStopWithUndo`.
-  // `edit.previewRoad` is the proposed road for TripMap to draw (handoff, not yet drawn).
+  // `edit.previewRoad` is the proposed road TripMap draws as a dashed ghost line.
   const keepWriterRef = useRef<((hit: PlaceHit, dayIndex: number) => Promise<void>) | null>(null)
   const edit = useMapEdit({
     trip, editable, applyChange, legCorrections, routeKmOf,
@@ -941,6 +941,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     },
     keepWithWriter: (hit, dayIndex) => keepWriterRef.current ? keepWriterRef.current(hit, dayIndex) : Promise.reject(new Error('writer not ready')),
   })
+  /** The facts of the open add preview. Null when no preview is open. */
+  const openPreview = edit.session.phase === 'previewing' || edit.session.phase === 'saving' ? edit.session.preview : null
 
   /** #841: a route arc's "Add all" stages through the shared writer: one
    *  operation gate, the shared planner, a stable day target per place and a
@@ -1767,7 +1769,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRow={windowRow} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRow={windowRow} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} previewChip={openPreview ? { afterTitle: openPreview.insertion.afterTitle, label: openPreview.road.legIn?.toTitle ?? openPreview.road.legOut?.fromTitle ?? null } : null} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
@@ -2223,6 +2225,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {...(Object.keys(pickBands).length > 0 ? { pickBands } : {})}
               {...(pickLetters && Object.keys(pickLetters).length > 0 ? { pickLetters } : {})}
               {...(fixWarningMarks.length > 0 ? { warningMarks: fixWarningMarks } : {})}
+              {...(edit.previewRoad ? { previewRoad: edit.previewRoad } : {})}
             />
             {lens === 'drive' && <MapScopeBand minutes={scopeChoice} onMinutes={changeScope} counts={driveCounts} snap={snap} phone={phoneSheet} />}
           </div>
@@ -2315,7 +2318,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </div>}
           {deckOpen && !selectedHit && editable && selectedStop != null && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}
           <MapEditLive edit={edit} />
-          <MapJourneyRibbon journey={journey} corrections={legCorrections} onScrub={(position, minute) => {
+          <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} onScrub={(position, minute) => {
             if (position.grade === 'estimated') { setScrubCursor(null); return }
             setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
             setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)

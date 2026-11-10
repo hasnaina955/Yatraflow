@@ -496,6 +496,18 @@ function GhostLegRoute({ id, leg, role }: { id: string; leg: GhostLeg; role: 'ne
   return <MapRoute id={id} coordinates={leg.coordinates} color={role === 'replaced' ? '#64748B' : '#7D5EFC'} width={paint.width} opacity={paint.opacity} dashArray={role === 'replaced' ? undefined : paint.dash} interactive={false} />
 }
 
+/**
+ * The add preview's road: one dashed line in the day colour. A proven
+ * unmeasured leg draws dotted, so an estimate cannot read as a road.
+ */
+function PreviewRoadRoute({ road, colorFor }: { road: PreviewRoadView; colorFor: (dayIndex: number) => string }) {
+  const coordinates = road.path.filter(validMapCoordinate).map(point => [point.lng, point.lat] as [number, number])
+  if (coordinates.length < 2) return null
+  const measured = (road.legInMeasured ?? true) && (road.legOutMeasured ?? true)
+  const paint = ghostLegPaint({ measured }, 'new')
+  return <MapRoute id="yf-preview-road" coordinates={coordinates} color={colorFor(road.dayIndex)} width={paint.width} opacity={paint.opacity} dashArray={paint.dash} interactive={false} />
+}
+
 /** Drop consecutive duplicate points (shared endpoints between legs). */
 function dedupeConsecutive(coords: [number, number][]): [number, number][] {
   const out: [number, number][] = []
@@ -518,7 +530,19 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
 /** The lagoon ink of a stay reach ring. A map paint cannot read a CSS token. */
 const STAY_RING_INK = '#0D8D82'
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [] }: {
+/**
+ * The edit preview's proposed road, as the map layer reads it. `path` runs
+ * through the new stop. A null leg flag means the day has no such leg, so only
+ * a proven unmeasured leg draws as an estimate.
+ */
+export interface PreviewRoadView {
+  dayIndex: number
+  path: Array<{ lat: number; lng: number }>
+  legInMeasured: boolean | null
+  legOutMeasured: boolean | null
+}
+
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [] }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -532,6 +556,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   selectedDay?: number | null
   /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
   ghostRoad?: GhostRoad | null
+  /** The add preview's proposed road. It draws dashed in the day colour, under
+   *  the real route, so the plan the traveller owns stays the top line. */
+  previewRoad?: PreviewRoadView | null
   /** The stay lens's reach rings. Absent or empty draws nothing. */
   stayRings?: Array<{ id: string; label: string; ring: [number, number][] }>
   /** True only when the Stay lens is active and the day has a stay base. The
@@ -1622,6 +1649,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {journeyCursor && validMapCoordinate(journeyCursor.coordinate) && <MapMarker longitude={journeyCursor.coordinate.lng} latitude={journeyCursor.coordinate.lat}>
               <MarkerContent><span className="mv2-map-clock" aria-hidden="true"><Clock size={13} />{journeyCursor.label}</span></MarkerContent>
             </MapMarker>}
+            {/* The add preview's road is the lower line: the plan the traveller
+                owns must stay above a road that is only proposed. */}
+            {previewRoad && <PreviewRoadRoute road={previewRoad} colorFor={colorForDay} />}
             {/* In All-days view a single connected main line from the trip start
                 through every stop to the end; in single-day view, coloured lines.
                 Both get a contrasting casing underneath (road-map halo) and

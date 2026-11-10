@@ -23,6 +23,11 @@ import { useJourneyDays } from '../src/pages/trip/journey/useJourneyDays'
 import type { CorridorSnapshot } from '../src/pages/trip/map/corridorSnapshot'
 import type { ApplyChange } from '../src/lib/mutationLifecycle'
 import type { PlaceHit } from '../src/lib/providers/hits'
+import { installFixtureTransport } from './map-workspace-fixture.transport'
+
+// The page says the provider transport is controlled. This call keeps that
+// promise on every dev server, so no lens deck waits on a live place scan.
+installFixtureTransport()
 
 const params = new URLSearchParams(location.search)
 const mode = params.get('state') ?? 'ready'

@@ -1344,6 +1344,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? dayShape(activeDayIndex, { ...daySlotDeps, dayStops: activeDayStops }, activeDaySlots)
     : []
   const phoneSheet = useMedia('(max-width: 760px)')
+
+  // W9-phone: MapLibre starts its compact attribution open, so a 390 px map
+  // reads as a full credit line. Collapse it to the (i) button once here.
+  useEffect(() => {
+    if (!phoneSheet) return
+    const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
+    if (!node) return
+    node.classList.remove('maplibregl-compact-show')
+    node.removeAttribute('open')
+  }, [phoneSheet])
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)
   const [deckOpen, setDeckOpen] = useState(true)
@@ -1621,6 +1631,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   }
   /** P5.3: the selected day's empty parts as hollow amber pins - their top
    *  candidate's real position, with P5.2's cost line in the tooltip. */
+  // W9-phone: on a phone the journey ribbon and the Drive scope band are
+  // in-flow children of the open sheet. They cannot overlap the map or the
+  // top row at any snap. A folded deck keeps the ribbon docked on the map.
+  const ribbonSheet: 'see' | 'needs' | 'detail' | null = !phoneSheet || !deckOpen
+    ? null
+    : selectedHit ? 'detail' : sheetTab === 'needs' ? 'needs' : 'see'
+  const phoneRibbon = (
+    <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} onScrub={(position, minute) => {
+      if (position.grade === 'estimated') { setScrubCursor(null); return }
+      setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
+      setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
+    }} />
+  )
+  const scopeBand = lens === 'drive'
+    ? <MapScopeBand minutes={scopeChoice} onMinutes={changeScope} counts={driveCounts} snap={snap} phone={phoneSheet} />
+    : null
+
   return (
     <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap}>
       <details className="mv2-tools">
@@ -1796,6 +1823,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         </div>
         <div tabIndex={-1} className={'poi-col poi-col--needs' + sheetHiddenClass('needs', sheetTab, sheetApplies)} id="rail-needs" hidden={!deckOpen || sheetTab !== 'needs' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-needs')} />
+            {ribbonSheet === 'needs' && phoneRibbon}
+
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div className="poi-col-head-txt">
@@ -2243,10 +2272,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {...(fixWarningMarks.length > 0 ? { warningMarks: fixWarningMarks } : {})}
               {...(edit.previewRoad ? { previewRoad: edit.previewRoad } : {})}
             />
-            {lens === 'drive' && <MapScopeBand minutes={scopeChoice} onMinutes={changeScope} counts={driveCounts} snap={snap} phone={phoneSheet} />}
+            {!phoneSheet && scopeBand}
           </div>
           <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
+            {ribbonSheet === 'see' && phoneRibbon}
+            {ribbonSheet === 'see' && scopeBand}
+
             {lens === 'drive' && <div className="mv2-peek">
               {seeForRail[0]?.hit ? <>
                 <span className="mv2-peek-mark"><CatIcon category={seeForRail[0].hit.category} size={22} /></span>
@@ -2322,6 +2354,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />
+            {ribbonSheet === 'detail' && phoneRibbon}
+
             <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null} reason={selectedRow?.reason ?? null}
               visitMin={selectedRow ? selectedRow.visitMin : selectedProjected ? null : undefined}
               budgetSharePct={selectedRow ? selectedRow.budgetSharePct : selectedProjected ? null : undefined}
@@ -2336,11 +2370,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </div>}
           {deckOpen && !selectedHit && editable && selectedStop != null && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}
           <MapEditLive edit={edit} />
-          <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} onScrub={(position, minute) => {
-            if (position.grade === 'estimated') { setScrubCursor(null); return }
-            setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
-            setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
-          }} />
+          {ribbonSheet === null && phoneRibbon}
       </div>
       {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
           reachable while the rails scroll. #420 slice 1 moved the markup into

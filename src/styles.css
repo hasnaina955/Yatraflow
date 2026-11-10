@@ -828,8 +828,6 @@
   .mv2-workspace[data-snap='full'] { --mv2-sheet-height: calc(100% - 184px); }
   /* At full height the sheet would push the ribbon under the omnibar. The ribbon
      docks into the sheet's top row instead, and the handle leaves room for it. */
-  .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-ribbon { bottom: calc(var(--mv2-sheet-height) - 48px - 56px); box-shadow: none; border: 1px solid var(--line); }
-  .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 64px; }
   .mv2-workspace .mv2-phone-day > button { min-width: 44px; min-height: 44px; }
 }
 
@@ -1183,10 +1181,12 @@
 }
 .mv2-lens-fix-reason { display: block; margin-top: var(--space-1); color: var(--text-2); }
 
-/* 911-W7-B-phone. One top row, the scope band in the sheet, and a docked
-   ribbon at every snap. This block overrides the phone rules only. */
+/* 911-W9-phone. The ribbon and the Drive scope band are in-flow children of
+   the sheet, so the snaps need no magic offset. The band sticks under the
+   grip; the ribbon scrolls away with the cards. */
 @media (max-width: 760px) {
-  .mv2-workspace { --mv2-pill-w: 200px; --mv2-lens-ribbon-h: 56px; --mv2-lens-band-h: 128px; }
+  .mv2-workspace { --mv2-pill-w: 200px; --mv2-sheet-grip-h: 44px; }
+  .mv2-workspace[data-snap='half'] { --mv2-sheet-height: min(68%, 520px, calc(100% - 208px)); }
   .mv2-workspace .mv2-omnibar {
     top: 60px; left: var(--space-4); right: auto;
     width: calc(100% - 2 * var(--space-4) - var(--mv2-pill-w) - var(--space-3));
@@ -1200,26 +1200,23 @@
     flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 var(--space-1, 4px); gap: 0;
   }
   .mv2-workspace .mv2-lenses > button b { min-width: 16px; height: 16px; }
-  .mv2-workspace:not(.is-deck-folded) .mv2-ribbon {
-    bottom: calc(var(--mv2-sheet-height) - 48px - var(--mv2-lens-ribbon-h));
-    height: var(--mv2-lens-ribbon-h); min-height: var(--mv2-lens-ribbon-h);
-    box-shadow: none; border: 1px solid var(--line); z-index: 6;
+  .mv2-workspace .poi-col { overflow-y: auto; overscroll-behavior: contain; }
+  .mv2-workspace .poi-col > .mv2-ribbon {
+    position: static; inset: auto; flex: 0 0 auto; z-index: auto;
+    height: 56px; min-height: 56px; margin: 0; padding-block: var(--space-3);
+    border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+    box-shadow: none; background: var(--card);
   }
-  .mv2-workspace:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 64px; }
+  .mv2-workspace .poi-col > .mv2-lens-scope-band {
+    position: sticky; top: var(--mv2-sheet-grip-h); z-index: 3;
+    inset-inline: auto; bottom: auto; width: auto; height: auto;
+    margin: 0; padding: var(--space-3) var(--space-4);
+    border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+    box-shadow: none; background: var(--card);
+  }
+  .mv2-workspace .poi-col > .mv2-lens-scope-band[hidden] { display: none; }
   .mv2-workspace[data-snap='peek'] .mv2-peek { min-height: 40px; padding-bottom: var(--space-2); }
-  .mv2-workspace[data-snap='peek'] .mv2-lens-scope-band { display: none; }
-  .mv2-workspace[data-snap='half'] .mv2-lens-scope-band,
-  .mv2-workspace[data-snap='full'] .mv2-lens-scope-band {
-    display: block;
-    left: var(--space-4); right: var(--space-4); width: auto;
-    bottom: calc(var(--mv2-sheet-height) - 48px - var(--mv2-lens-ribbon-h) - var(--mv2-lens-band-h));
-    height: var(--mv2-lens-band-h); box-sizing: border-box; overflow: hidden;
-    padding: var(--space-3) var(--space-4);
-    box-shadow: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
-    z-index: 6;
-  }
-  .mv2-workspace[data-snap='half']:not(.is-deck-folded) .mv2-sheet-handle,
-  .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 192px; }
+  .mv2-workspace .maplibregl-ctrl-bottom-right { bottom: calc(var(--mv2-sheet-height) + 8px); }
 }
 
 /* 911-W8-edit: the stop edit card, to the add-edit board.

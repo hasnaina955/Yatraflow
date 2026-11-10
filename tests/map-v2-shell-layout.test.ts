@@ -23,9 +23,10 @@ describe('package B block', () => {
     expect(block).toContain("[data-snap='full'] { --mv2-sheet-height: calc(100% - 184px); }")
   })
 
-  it('docks the ribbon into the full sheet and leaves room under the handle', () => {
-    expect(block).toMatch(/\[data-snap='full'\]:not\(\.is-deck-folded\) \.mv2-ribbon \{ bottom: calc\(var\(--mv2-sheet-height\) - 48px - 56px\)/)
-    expect(block).toMatch(/\[data-snap='full'\]:not\(\.is-deck-folded\) \.mv2-sheet-handle \{ margin-bottom: 64px; \}/)
+  it('keeps the full sheet ribbon in flow and drops the handle offset', () => {
+    expect(css).not.toContain('var(--mv2-lens-ribbon-h)')
+    expect(css).not.toContain('margin-bottom: 192px')
+    expect(css).toMatch(/\.poi-col > \.mv2-ribbon \{[^}]*position: static/)
   })
 
   it('holds every control it touches to 44px', () => {

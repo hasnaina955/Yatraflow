@@ -62,3 +62,67 @@ export function stayRingsGeoJson(rings: readonly StayRing[]): StayRingCollection
     })),
   }
 }
+
+/** One closed Polygon feature per ring. A fill layer draws the lagoon tint. */
+export function stayRingsFillGeoJson(rings: readonly StayRing[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: rings.map(ring => ({
+      type: 'Feature' as const,
+      properties: { id: ring.id },
+      geometry: {
+        type: 'Polygon' as const,
+        coordinates: [closeRing(ring.ring)],
+      },
+    })),
+  }
+}
+
+/** Bounds of one ring as [[minLng, minLat], [maxLng, maxLat]]. Null when empty. */
+export function ringBounds(ring: readonly [number, number][]): [[number, number], [number, number]] | null {
+  let minLng = Infinity
+  let minLat = Infinity
+  let maxLng = -Infinity
+  let maxLat = -Infinity
+  for (const point of ring) {
+    if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) continue
+    if (point[0] < minLng) minLng = point[0]
+    if (point[1] < minLat) minLat = point[1]
+    if (point[0] > maxLng) maxLng = point[0]
+    if (point[1] > maxLat) maxLat = point[1]
+  }
+  if (!Number.isFinite(minLng)) return null
+  return [[minLng, minLat], [maxLng, maxLat]]
+}
+
+/** A [[west, south], [east, north]] extent, as MapLibre wants it. */
+export type LngLatBounds = [[number, number], [number, number]]
+
+/** Keep a camera fit inside a known route extent. An unknown extent stays as it is.
+ *  A fit outside the route falls back to the route, so no lens change zooms out. */
+export function clampBoundsWithin(
+  candidate: LngLatBounds | null,
+  route: LngLatBounds | null,
+): LngLatBounds | null {
+  if (candidate == null || route == null) return candidate
+  const [[west, south], [east, north]] = candidate
+  const [[routeWest, routeSouth], [routeEast, routeNorth]] = route
+  const clamped: LngLatBounds = [
+    [Math.max(west, routeWest), Math.max(south, routeSouth)],
+    [Math.min(east, routeEast), Math.min(north, routeNorth)],
+  ]
+  const [[cw, cs], [ce, cn]] = clamped
+  if (!Number.isFinite(cw) || !Number.isFinite(cs) || !Number.isFinite(ce) || !Number.isFinite(cn)) return route
+  return cw >= ce || cs >= cn ? route : clamped
+}
+
+/** The label of the fix mark. Unknown parts stay out. */
+export function fixMarkLabel(
+  stopName: string | null,
+  arriveTime: string | null,
+  jettyTime: string | null,
+): string | null {
+  if (stopName == null) return null
+  const head = arriveTime == null ? stopName : `${stopName} ${arriveTime}`
+  return jettyTime == null ? head : `${head} · jetty ${jettyTime}`
+}

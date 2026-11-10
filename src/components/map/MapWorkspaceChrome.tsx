@@ -11,6 +11,7 @@ import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
 import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
+import { budgetBlockView, fixProblemReason, fixReasonLine } from '../../pages/trip/map/LensRailExtras'
 import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
 import { ageText, coverageText } from './placeCardFacts'
@@ -55,6 +56,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const dateLabel = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
   const locks = new Set(trip.fixedCommitments?.filter(lock => lock.dayIndex === activeDay).flatMap(lock => lock.stopId ? [lock.stopId] : []))
   const points = journey?.points ?? []
+  // One budget block for every lens. The bar needs the used part, so Stay and
+  // Fix keep it out and show the day budget alone.
+  const budget = budgetBlockView(budgetBar ?? null, budgetMin)
+  // The Fix problem row's sub line. One fix stop, one set of engine facts.
+  const fixPoint = fixStopId == null ? null : points.find(point => point.stop.id === fixStopId) ?? null
+  const fixSubLine = fixPoint == null
+    ? null
+    : fixReasonLine(fixPoint.title, formatHM(fixPoint.arrive, timeFormat), fixProblemReason(trip, activeDay))
   const estimated = points.some((point, index) => {
     if (!point.legIn) return false
     const previous = points[index - 1]
@@ -77,6 +86,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       return index < 0 ? points.length : index
     })()
   const windowRowMarkup = windowRow == null || clock == null ? null : <li className="mv2-window-row is-active-window">
+    <time className="mv2-lens-window-time">{clock(windowRow.startMin)}</time>
     <span className="mv2-window-ring" aria-hidden="true" />
     <span className="mv2-stop-copy"><strong>{windowRow.label}</strong><small>{clock(windowRow.startMin)}–{clock(windowRow.endMin)}</small></span>
   </li>
@@ -91,10 +101,9 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       <p>{journey ? `${Math.round(journey.distanceKm)} km · ${minutesToHM(journey.driveMinutes)} travel · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
       <button type="button" className="mv2-fold-day mv2-icon-btn" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
     </header>
-    <div className="mv2-budget"><Route size={17} aria-hidden /><div>{budgetBar == null
-      ? <><strong>{budgetMin} min detour budget</strong><span>Extra return driving. Visits use free time.</span></>
-      : <><strong>{budgetBar.text}</strong><div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div></>
-    }</div></div>
+    <div className="mv2-budget mv2-lens-budget"><Route size={17} aria-hidden /><div className="mv2-lens-budget-copy"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budget.value}</strong></div>{budget.showBar && budgetBar != null
+      ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
+      : null}</div>
     <ol className="mv2-stops">
       {points.map((point, index) => <Fragment key={point.stop.id}>
         {index === windowInsertAt && windowRowMarkup}
@@ -105,7 +114,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
           <span className={`mv2-stop-mark${point.kind === 'halt' || point.stop.category === 'hotel' ? ' is-stay' : ''}`}>
             {point.kind === 'start' || point.kind === 'destination' ? <Car size={13} /> : point.stop.category === 'hotel' ? <Home size={15} /> : index}
           </span>
-          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small></span>
+          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixSubLine != null && <small className="mv2-lens-fix-reason">{fixSubLine}</small>}</span>
           {locks.has(point.stop.id) && <LockKeyhole size={13} aria-label="Fixed time" />}
         </button>
       </li>

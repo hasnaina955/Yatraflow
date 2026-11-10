@@ -1148,3 +1148,18 @@
 }
 :root:where([data-theme='dark']) .mv2-stop.is-fix-problem { background: rgba(224, 92, 74, .18); }
 :root:where([data-theme='dark']) .mv2-window-row.is-active-window { background: rgba(224, 160, 46, .18); }
+
+/* 911-W7-rail: one detour budget block, a timed window row and the fix reason. */
+.mv2-budget.mv2-lens-budget {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  align-items: start; column-gap: var(--space-5); row-gap: var(--space-2);
+}
+.mv2-lens-budget > svg { grid-row: 1; }
+.mv2-lens-budget-copy { min-width: 0; }
+.mv2-lens-budget-label { margin-top: 0; }
+.mv2-lens-budget .mv2-budget-progress { grid-column: 1 / -1; width: 100%; margin-top: 0; }
+.mv2-lens-window-time {
+  flex: 0 0 auto; min-width: 48px; padding-top: var(--space-2);
+  font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--text-2);
+}
+.mv2-lens-fix-reason { display: block; margin-top: var(--space-1); color: var(--text-2); }

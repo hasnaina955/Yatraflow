@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
 import { AddPreviewCard, FixedTimeConfirm, StopEditorCard } from '../src/pages/trip/map/editing/EditCards'
+import { DAY_COLORS, dayColor } from '../src/lib/mapStyles/dayColors'
 import { previewAdd } from '../src/pages/trip/map/editing/addPreview'
 import { outcomeFromKeep } from '../src/pages/trip/map/editing/outcomes'
 
@@ -72,10 +73,16 @@ describe('StopEditorCard and FixedTimeConfirm', () => {
   it('renders the numbered day dot, the known sub line and the labelled grip', () => {
     const html = editor()
     expect(html).toContain('Edit Lunch, stop 2')
-    expect(html).toContain('class="map-edit-day-dot" data-day="2"')
+    expect(html).toContain('class="map-edit-day-dot"')
+    expect(html).toContain('--day:#7D5EFC')
     expect(html).toContain('12:05–12:50 · Kattappana')
     expect(html).toContain('aria-label="Reorder this stop with Alt and the up or down arrow"')
     expect(html).not.toContain('draggable')
+  })
+  it('reads the day colour from the one map palette', () => {
+    expect(dayColor(0)).toBe(DAY_COLORS[0])
+    expect(dayColor(0)).toBe('#0D8D82')
+    expect(dayColor(7)).toBe(DAY_COLORS[0])
   })
   it('shows only the known parts of the sub line', () => {
     expect(editor({ placeLabel: null })).toContain('12:05–12:50')

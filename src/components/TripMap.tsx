@@ -9,6 +9,7 @@ import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois } from '../lib/providers/hits'
 import { buildRoadChain, measureDayRide, roadChainSig, routeDrawGrade } from '../lib/tripRoad'
+import { dayColor } from '../lib/mapStyles/dayColors'
 import { buildJourney, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
 import { buildStopClock } from '../lib/stopClock'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
@@ -79,7 +80,6 @@ function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
   return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
 }
 
-const DAY_COLORS = ['#0D8D82', '#C27109', '#7D5EFC', '#E15279', '#228CC8', '#4A9539', '#CE5245'] // brick clears amber by 28° in hue; no two orange days
 
 // #370: a line that is NOT a measured road is drawn dashed and in the --warn
 // ink the detour spur already uses (read at paint time, with this file's hex
@@ -1309,7 +1309,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   }
 
   function colorForDay(i: number): string {
-    return DAY_COLORS[i % DAY_COLORS.length]
+    return dayColor(i)
   }
 
   // Category-coloured idea pins: each suggestion type gets its own hue so the

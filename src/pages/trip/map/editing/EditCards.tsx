@@ -3,6 +3,8 @@
 // session (see editSession.ts) and passes the facts and the handlers in.
 // Class names start with `map-edit-` so package B can style them in one block.
 import React from 'react'
+import { ArrowLeftRight, ChevronDown, GripVertical, LockKeyhole, Minus, Plus } from 'lucide-react'
+import { dayColor } from '../../../../lib/mapStyles/dayColors'
 import { VISIT_STEP_MIN, type FixedGuard } from './stopEdit'
 import type { AddPreview, PreviewLeg, PreviewUnknownReason, UnknownFact } from './addPreview'
 import { outcomeMessage, type EditOutcome } from './outcomes'
@@ -124,39 +126,11 @@ export function FixedTimeConfirm({ guard, onConfirm, onCancel }: {
   )
 }
 
-function MinusIcon(): React.ReactElement {
-  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
-}
-
-function PlusIcon(): React.ReactElement {
-  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-}
-
-function ChevronDownIcon(): React.ReactElement {
-  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-}
-
-function SwapIcon(): React.ReactElement {
-  return <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" /></svg>
-}
-
-function LockIcon(): React.ReactElement {
-  return <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>
-}
-
-function GripIcon(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
-      <circle cx="9" cy="6" r="1" /><circle cx="15" cy="6" r="1" />
-      <circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" />
-      <circle cx="9" cy="18" r="1" /><circle cx="15" cy="18" r="1" />
-    </svg>
-  )
-}
-
 /** A small listbox pill. The keyboard keeps focus on the list: arrows, Enter and Esc. */
-function ChoiceMenu({ label, icon, choices, onChoose, disabled = false, busy = false }: {
+function ChoiceMenu({ label, text = label, icon, choices, onChoose, disabled = false, busy = false }: {
   label: string
+  /** The visible pill text. It defaults to the accessible name. */
+  text?: string
   icon: React.ReactNode
   choices: readonly { id: string; label: string }[]
   onChoose: (id: string) => void
@@ -214,7 +188,7 @@ function ChoiceMenu({ label, icon, choices, onChoose, disabled = false, busy = f
           if (!open && (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setOpen(true) }
         }}
       >
-        {icon}<span className="map-edit-pill-label">{label}</span>
+        {icon}<span className="map-edit-pill-label">{text}</span>
       </button>
       {open && (
         <ul
@@ -270,12 +244,12 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
   onReorderKey?: React.KeyboardEventHandler<HTMLButtonElement>
 }): React.ReactElement {
   const known = visitMinutes !== null
-  const subline = [clockLabel, placeLabel].filter(part => typeof part === 'string' && part !== '').join(' · ')
+  const subline = [clockLabel, placeLabel && placeLabel !== title ? placeLabel : null].filter(part => typeof part === 'string' && part !== '').join(' · ')
   return (
     <section className="map-edit-card map-edit-editor" aria-label={order === null ? `Edit ${title}` : `Edit ${title}, stop ${order}`}>
       <div className="map-edit-editor-head">
         {order !== null && (
-          <span className="map-edit-day-dot" data-day={((dayIndex ?? 0) % 7 + 7) % 7} aria-hidden="true">{order}</span>
+          <span className="map-edit-day-dot" style={{ '--day': dayColor(dayIndex ?? 0) } as React.CSSProperties} aria-hidden="true">{order}</span>
         )}
         <span className="map-edit-head-copy">
           <h3 className="map-edit-title">{title}</h3>
@@ -288,21 +262,21 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
           aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
           onKeyDown={onReorderKey}
         >
-          <GripIcon />
+          <GripVertical size={15} aria-hidden />
         </button>
       </div>
       <div className="map-edit-stay-row">
         <span className="map-edit-stay-label">{`Stay length · ${VISIT_STEP_MIN} min steps`}</span>
         <div className="map-edit-stepper" role="group" aria-label={`Stay length, ${VISIT_STEP_MIN} minute steps`}>
-          <button type="button" aria-label={`Shorten by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(-1)}><MinusIcon /></button>
+          <button type="button" aria-label={`Shorten by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(-1)}><Minus size={15} aria-hidden /></button>
           <output aria-live="polite">{known ? `${visitMinutes} min` : 'Not known'}</output>
-          <button type="button" aria-label={`Lengthen by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(1)}><PlusIcon /></button>
+          <button type="button" aria-label={`Lengthen by ${VISIT_STEP_MIN} minutes`} disabled={busy || !known} onClick={() => onStep(1)}><Plus size={15} aria-hidden /></button>
         </div>
       </div>
       <div className="map-edit-actions">
         <ChoiceMenu
           label="Move to day"
-          icon={<ChevronDownIcon />}
+          icon={<ChevronDown size={15} aria-hidden />}
           choices={days.map(d => ({ id: String(d.index), label: d.label }))}
           onChoose={value => onMoveToDay(Number(value))}
           busy={busy}
@@ -310,7 +284,8 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
         />
         <ChoiceMenu
           label="Swap with another stop"
-          icon={<SwapIcon />}
+          text="Swap"
+          icon={<ArrowLeftRight size={15} aria-hidden />}
           choices={swapOptions}
           onChoose={onSwap}
           busy={busy}
@@ -319,7 +294,7 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
         <button type="button" className="map-edit-remove" disabled={busy} onClick={onRemove}>Remove</button>
       </div>
       {fixed && (
-        <p className="map-edit-fixed"><LockIcon />{`${title} is a fixed time: it cannot be dragged, and editing its time asks first.`}</p>
+        <p className="map-edit-fixed"><LockKeyhole size={14} aria-hidden />{`${title} is a fixed time: it cannot be dragged, and editing its time asks first.`}</p>
       )}
       <p className="map-edit-hint">Reorder with Alt and the up or down arrow on a focused stop.</p>
     </section>

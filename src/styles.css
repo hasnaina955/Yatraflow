@@ -1202,16 +1202,9 @@
 
 /* 911-W8-edit: the stop edit card, to the add-edit board.
    The pills stay 36 px tall, and a ::before pad gives each one a 44 px target.
-   The seven day colours mirror DAY_COLORS in TripMap.tsx. */
+   The day dot reads --day from the shared palette, mixed darker for AA text. */
 .map-edit-editor-head { display: flex; align-items: center; gap: 10px; }
-.map-edit-day-dot { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-pill); background: #0A6F66; color: #FFFFFF; font: 700 13px/1 var(--font-display); }
-.map-edit-day-dot[data-day='0'] { background: #0A6F66; }
-.map-edit-day-dot[data-day='1'] { background: #96570A; }
-.map-edit-day-dot[data-day='2'] { background: #6548D9; }
-.map-edit-day-dot[data-day='3'] { background: #C23F61; }
-.map-edit-day-dot[data-day='4'] { background: #1B75A6; }
-.map-edit-day-dot[data-day='5'] { background: #3C7A2E; }
-.map-edit-day-dot[data-day='6'] { background: #AE4437; }
+.map-edit-day-dot { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--day, #0D8D82) 85%, black); color: #FFFFFF; font: 700 13px/1 var(--font-display); }
 .map-edit-head-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .map-edit-clock { font-size: 12px; color: var(--pw-ink-3); }
 .map-edit-grip { position: relative; flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-3); cursor: grab; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }

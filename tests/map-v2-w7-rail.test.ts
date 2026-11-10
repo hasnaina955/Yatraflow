@@ -78,7 +78,7 @@ describe('W7 left rail', () => {
   it('renders the same label and the bar when the used part is known', () => {
     const html = rail({ budgetBar: { text: '12 of 45 min · 2 free stops', step: 2 } })
     expect(html.match(/mv2-lens-budget-label/g)).toHaveLength(1)
-    expect(html).toContain('12 of 45 min · 2 free stops')
+    expect(html).toContain('<b class="mv2-lens-budget-number">12</b> of 45 min · 2 free stops')
     expect(html).toContain('role="progressbar"')
   })
 

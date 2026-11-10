@@ -1,0 +1,156 @@
+// W8 Package rail: the rail top and the Stay rail follow the boards.
+// The node env has no DOM, so a component check reads the markup string.
+import { readFileSync } from 'node:fs'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+import { MapItinerary } from '../src/components/map/MapWorkspaceChrome'
+import { DAY_TONE, LensRailExtras, budgetValueParts, dayColor, dayTone } from '../src/pages/trip/map/LensRailExtras'
+import type { Trip } from '../src/data/types'
+import type { Journey } from '../src/lib/engine'
+
+const noop = () => undefined
+const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+
+const trip = {
+  id: 'w8-rail-trip',
+  name: 'W8 rail trip',
+  startDate: '2027-11-16',
+  fixedCommitments: [],
+  days: [
+    { id: 'w8-a', index: 0, title: 'Day one', startTime: '10:00', stops: [] },
+    { id: 'w8-b', index: 1, title: 'Day two', startTime: '10:00', stops: [] },
+    { id: 'w8-c', index: 2, title: 'Day three', startTime: '10:00', stops: [] },
+  ],
+} as unknown as Trip
+
+const journey = {
+  dayIndex: 2,
+  startTime: '10:00',
+  startTitle: 'Munnar',
+  endTitle: 'Thekkady',
+  distanceKm: 83,
+  driveMinutes: 145,
+  points: [{
+    stop: { id: 'falls', title: 'Attukad falls', category: 'nature' },
+    title: 'Attukad falls',
+    arrive: '10:16',
+    dwellMinutes: 45,
+    kind: 'stop',
+  }],
+} as unknown as Journey
+
+function rail(props: Record<string, unknown> = {}) {
+  return renderToStaticMarkup(createElement(MapItinerary, {
+    trip,
+    journey,
+    activeDay: 2,
+    budgetMin: 45,
+    selectedStop: null,
+    allDays: false,
+    onShowAll: noop,
+    onDayChange: noop,
+    onSelect: noop,
+    onFold: noop,
+    ...props,
+  }))
+}
+
+describe('W8 rail top and stay rail', () => {
+  it('proves the runner runs', () => { expect(1).toBe(1) })
+
+  it('keeps the day palette equal to the map line palette', () => {
+    const source = read('../src/components/TripMap.tsx')
+    const line = source.split('\n').find(row => row.startsWith('const DAY_COLORS = ['))
+    expect(line).toBeTruthy()
+    const mapColors = (line as string).slice(line!.indexOf('[') + 1, line!.indexOf(']'))
+      .split(',').map(part => part.trim().replace(/'/g, '')).filter(Boolean)
+    expect([...DAY_TONE]).toEqual(mapColors)
+  })
+
+  it('wraps the day tone in both directions', () => {
+    expect(dayTone(0)).toBe(0)
+    expect(dayTone(2)).toBe(2)
+    expect(dayTone(7)).toBe(0)
+    expect(dayTone(9)).toBe(2)
+    expect(dayTone(-1)).toBe(6)
+    expect(dayColor(2)).toBe('#7D5EFC')
+    expect(dayColor(9)).toBe('#7D5EFC')
+  })
+
+  it('splits the budget number from the rest of the line', () => {
+    expect(budgetValueParts('12 of 45 min · 2 free stops')).toEqual({ lead: '12', rest: ' of 45 min · 2 free stops' })
+    expect(budgetValueParts('11 of 35 min · 2 free stops')).toEqual({ lead: '11', rest: ' of 35 min · 2 free stops' })
+    expect(budgetValueParts('35 min')).toEqual({ lead: null, rest: '35 min' })
+    expect(budgetValueParts('')).toEqual({ lead: null, rest: '' })
+  })
+
+  it('draws the day dot in the active day colour before the label', () => {
+    const html = rail()
+    expect(html).toContain('<i class="mv2-day-dot" data-day="2" aria-hidden="true"></i>')
+    expect(html).toContain('class="mv2-day-mark"')
+    expect(html.indexOf('mv2-day-dot')).toBeLessThan(html.indexOf('Day 3'))
+  })
+
+  it('gives the fold control its own slot after the header line', () => {
+    const html = rail()
+    const tools = html.indexOf('class="mv2-day-tools"')
+    const fold = html.indexOf('aria-label="Fold day itinerary"')
+    const budget = html.indexOf('class="mv2-budget mv2-lens-budget"')
+    expect(tools).toBeGreaterThan(html.indexOf('</p>'))
+    expect(fold).toBeGreaterThan(tools)
+    expect(budget).toBeGreaterThan(fold)
+    expect(html).not.toContain('bottom:')
+  })
+
+  it('names the day line a drive, as the board does', () => {
+    const html = rail()
+    expect(html).toContain('83 km · 2h 25m drive · planned')
+    expect(html).not.toContain(' travel · ')
+  })
+
+  it('keeps the budget label, the bold number and the bar in one card', () => {
+    const html = rail({ budgetBar: { text: '12 of 45 min · 2 free stops', step: 1 } })
+    expect(html).toContain('class="mv2-lens-budget-label">Detour budget</span>')
+    expect(html).toContain('<b class="mv2-lens-budget-number">12</b> of 45 min · 2 free stops')
+    expect(html).toContain('role="progressbar"')
+    expect(html.indexOf('mv2-lens-budget-label')).toBeLessThan(html.indexOf('mv2-lens-budget-value'))
+    expect(html.indexOf('mv2-lens-budget-value')).toBeLessThan(html.indexOf('mv2-budget-progress'))
+  })
+
+  it('draws no bar and no number on a lens with the budget alone', () => {
+    const html = rail()
+    expect(html).toContain('>45 min</strong>')
+    expect(html).not.toContain('role="progressbar"')
+    expect(html).not.toContain('mv2-lens-budget-number')
+  })
+
+  it('renders the stay rail card with its title, both rings and the note', () => {
+    const html = renderToStaticMarkup(createElement(LensRailExtras, { lens: 'stay', ringId: 'walk', onRing: noop }))
+    expect(html).toContain('How far from the base')
+    expect(html).toContain('aria-label="Reach from the base"')
+    expect(html.match(/mv2-lens-rail-ring-btn/g)).toHaveLength(2)
+    expect(html).toContain('The crew&#x27;s mode sets the default.')
+  })
+
+  it('renders no rail card outside the stay lens', () => {
+    expect(renderToStaticMarkup(createElement(LensRailExtras, { lens: 'drive', ringId: 'walk', onRing: noop }))).toBe('')
+  })
+
+  it('guards the CSS: the boards card, track and window row values', () => {
+    const css = read('../src/styles.css')
+    expect(css).toContain('.mv2-budget.mv2-lens-budget {\n  display: grid; grid-template-columns: minmax(0, 1fr) auto;')
+    expect(css).toContain('padding: 10px var(--space-5); border-radius: 14px;')
+    expect(css).toContain('--mv2-rail-sunken: #F4F1EA;')
+    expect(css).toContain('.mv2-budget-progress {\n  height: 6px;')
+    expect(css).toContain('.mv2-budget .mv2-lens-budget-value { font-size: 12px;')
+    expect(css).toContain('.mv2-budget .mv2-budget-progress-fill { margin-top: 0; }')
+    expect(css).toContain('.mv2-lens-budget-number { font-weight: 700;')
+    expect(css).toContain('.mv2-window-row.is-active-window {\n  background: var(--pw-marigold-50);\n  box-shadow: inset 0 0 0 1.5px var(--pw-marigold-500);')
+    expect(css).toContain('.mv2-day-dot {\n  flex: 0 0 auto; width: 9px; height: 9px;')
+    expect(css).toContain('.mv2-day-arrows > span { display: flex; align-items: center; gap: var(--space-3);')
+    expect(css).not.toContain('bottom: -30px')
+    expect(css).toContain('.mv2-itinerary .mv2-lens-rail-card {\n  position: static;')
+    expect(css).toContain('background: var(--mv2-rail-sunken);\n  box-shadow: none;')
+  })
+})

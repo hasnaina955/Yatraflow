@@ -45,6 +45,27 @@ export function fixStopTitle(
   return null
 }
 
+/** The day line palette. TripMap draws the map line with the same hues, so the
+ *  header dot and the line agree. A test reads that array and fails on drift. */
+export const DAY_TONE = ['#0D8D82', '#C27109', '#7D5EFC', '#E15279', '#228CC8', '#4A9539', '#CE5245'] as const
+
+/** The colour of one day. The map uses the same modulo rule. */
+export function dayColor(index: number): string {
+  return DAY_TONE[((index % DAY_TONE.length) + DAY_TONE.length) % DAY_TONE.length]
+}
+
+/** The tone slot of one day, for the header dot's data attribute. */
+export function dayTone(index: number): number {
+  return ((index % DAY_TONE.length) + DAY_TONE.length) % DAY_TONE.length
+}
+
+/** Split a budget line into its bold number and the rest. A line with no
+ *  leading number keeps one plain part. The whole text never changes. */
+export function budgetValueParts(value: string): { lead: string | null; rest: string } {
+  const match = /^(\d+)(\s+of\s+[\s\S]*)$/.exec(value)
+  return match == null ? { lead: null, rest: value } : { lead: match[1], rest: match[2] }
+}
+
 export interface DriveBudget {
   usedMin: number | null
   budgetMin: number | null

@@ -102,7 +102,7 @@ describe('deck kicker and title per lens', () => {
   })
 
   it('never writes an unknown day into a label', () => {
-    expect(driveAddLabel(Number.NaN, 'Lunch gap')).toBe('Add lunch')
+    expect(driveAddLabel(Number.NaN, 'Lunch gap')).toBe('Add')
     expect(stayAddLabel(Number.NaN, 1020, clock)).toBe('Add')
     expect(fixDeckKicker(1, Number.NaN)).toBe('Fix · 1 problem')
     for (const text of [

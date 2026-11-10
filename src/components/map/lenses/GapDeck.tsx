@@ -3,6 +3,7 @@
 import type { GapPick, GapPicks } from '../../../pages/trip/map/gapLens'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import type { LensPhase } from '../../../lib/mapLensContracts'
+import { addSlotLabel } from './DriveTabs'
 import { STAY_PHASE_TEXT } from './StayDeck'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
@@ -35,10 +36,7 @@ export function gapDeckTitle(count: number): string {
 
 /** The primary action label of one pick. */
 export function gapAddLabel(dayNumber: number, title: string | null): string {
-  const word = title == null ? '' : title.trim().toLowerCase()
-  if (!Number.isFinite(dayNumber)) return word === '' ? 'Add' : `Add ${word}`
-  const day = `Add as Day ${dayNumber}`
-  return word === '' ? day : `${day} ${word}`
+  return addSlotLabel(dayNumber, title == null ? '' : title.trim().toLowerCase())
 }
 
 /** The three strip cells of one candidate, in board order. */

@@ -1148,3 +1148,42 @@
 }
 :root:where([data-theme='dark']) .mv2-stop.is-fix-problem { background: rgba(224, 92, 74, .18); }
 :root:where([data-theme='dark']) .mv2-window-row.is-active-window { background: rgba(224, 160, 46, .18); }
+
+/* 911-W7-B-phone. One top row, the scope band in the sheet, and a docked
+   ribbon at every snap. This block overrides the phone rules only. */
+@media (max-width: 760px) {
+  .mv2-workspace { --mv2-pill-w: 200px; --mv2-lens-ribbon-h: 56px; --mv2-lens-band-h: 128px; }
+  .mv2-workspace .mv2-omnibar {
+    top: 60px; left: var(--space-4); right: auto;
+    width: calc(100% - 2 * var(--space-4) - var(--mv2-pill-w) - var(--space-3));
+  }
+  .mv2-workspace .mv2-lenses {
+    top: 60px; left: auto; right: var(--space-4);
+    width: var(--mv2-pill-w); box-sizing: border-box; gap: 0; padding: 0;
+  }
+  .mv2-workspace .mv2-lenses > button > span { display: none; }
+  .mv2-workspace .mv2-lenses > button {
+    flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 var(--space-1, 4px); gap: 0;
+  }
+  .mv2-workspace .mv2-lenses > button b { min-width: 16px; height: 16px; }
+  .mv2-workspace:not(.is-deck-folded) .mv2-ribbon {
+    bottom: calc(var(--mv2-sheet-height) - 48px - var(--mv2-lens-ribbon-h));
+    height: var(--mv2-lens-ribbon-h); min-height: var(--mv2-lens-ribbon-h);
+    box-shadow: none; border: 1px solid var(--line); z-index: 6;
+  }
+  .mv2-workspace:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 64px; }
+  .mv2-workspace[data-snap='peek'] .mv2-peek { min-height: 40px; padding-bottom: var(--space-2); }
+  .mv2-workspace[data-snap='peek'] .mv2-lens-scope-band { display: none; }
+  .mv2-workspace[data-snap='half'] .mv2-lens-scope-band,
+  .mv2-workspace[data-snap='full'] .mv2-lens-scope-band {
+    display: block;
+    left: var(--space-4); right: var(--space-4); width: auto;
+    bottom: calc(var(--mv2-sheet-height) - 48px - var(--mv2-lens-ribbon-h) - var(--mv2-lens-band-h));
+    height: var(--mv2-lens-band-h); box-sizing: border-box; overflow: hidden;
+    padding: var(--space-3) var(--space-4);
+    box-shadow: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+    z-index: 6;
+  }
+  .mv2-workspace[data-snap='half']:not(.is-deck-folded) .mv2-sheet-handle,
+  .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 192px; }
+}

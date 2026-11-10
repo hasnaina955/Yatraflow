@@ -33,14 +33,33 @@ export function scopeBandCountsText(counts: ScopeBandCounts | null): string | nu
   return parts.length > 0 ? parts.join(' · ') : null
 }
 
-export function MapScopeBand({ minutes, onMinutes, counts }: {
+/** A phone lens button hides its word, so its label names the lens and count.
+ *  An unknown count says it is unknown. */
+export function phoneLensAriaLabel(name: string, count: number | null): string {
+  return count == null ? `${name}, count unknown` : `${name}, ${count}`
+}
+
+/** Where the phone scope band sits. Peek hides it. Half and full put it in the
+ *  sheet above the Drive cards, so it cannot cover the top row. A desktop band
+ *  stays on the map. */
+export function scopeBandPlacement(snap: string, phone: boolean): 'hidden' | 'in-sheet' | 'map' {
+  if (!phone) return 'map'
+  if (snap === 'peek') return 'hidden'
+  if (snap === 'half' || snap === 'full') return 'in-sheet'
+  return 'map'
+}
+
+export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = false }: {
   minutes: ScopeMinutes
   onMinutes: (next: ScopeMinutes) => void
   counts: ScopeBandCounts | null
+  snap?: string
+  phone?: boolean
 }) {
   const line = scopeBandCountsText(counts)
+  const placement = scopeBandPlacement(snap, phone)
   return (
-    <section className="mv2-lens-scope-band" aria-label="Drive scope">
+    <section className="mv2-lens-scope-band" data-placement={placement} hidden={placement === 'hidden'} aria-label="Drive scope">
       <p className="mv2-lens-scope-head">Look within <b>{minutes}</b> min there and back · or drag the band</p>
       <div className="mv2-lens-scope-chips" role="group" aria-label="Extra driving in minutes">
         {MINUTE_SCOPE_STEPS.map(step => (

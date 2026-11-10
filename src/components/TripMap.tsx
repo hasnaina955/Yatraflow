@@ -48,7 +48,7 @@ import {
 import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, CircleDot, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
+  Box, CircleDot, Clock, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PlaneTakeoff, Plus,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
@@ -1498,6 +1498,90 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><MapIcon size={18} aria-hidden /></button>}
       {showToolbar && (
       <div className="map-toolbar" id={toolbarId}>
+        {workspaceChrome ? (
+        <div className="mv2-map-tools" role="group" aria-label="Map tools">
+          {/* W8-tools card 1: zoom. The board keeps + and - apart with a hairline. */}
+          <div className="mv2-map-tools-card mv2-map-tools-card--zoom" role="group" aria-label="Zoom">
+            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom in" title="Zoom in"
+              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + 1, { duration: motionTiming('--motion-med').duration }) }}>
+              <Plus size={17} aria-hidden />
+            </button>
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom out" title="Zoom out"
+              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - 1, { duration: motionTiming('--motion-med').duration }) }}>
+              <Minus size={17} aria-hidden />
+            </button>
+          </div>
+          {/* W8-tools card 2: view modes as text. Only the active mode wears the wash. */}
+          {enableMapViewModes && (
+          <div className="mv2-map-tools-card mv2-map-tools-card--mode" role="group" aria-label="Map view mode">
+            {MAP_VIEW_MODES.map(m => (
+              <button
+                key={m}
+                type="button"
+                className={`mv2-map-tools-btn${viewMode === m ? ' on' : ''}`}
+                aria-pressed={viewMode === m}
+                aria-label={MAP_VIEW_MODE_META[m].aria}
+                title={MAP_VIEW_MODE_META[m].aria}
+                onClick={() => { haptic('select'); setViewMode(m) }}
+              >
+                {m === 'terrain' ? 'TER' : MAP_VIEW_MODE_META[m].label}
+              </button>
+            ))}
+          </div>
+          )}
+          {/* W8-tools card 3: locate, clock, layers, directions and expand. */}
+          <div className="mv2-map-tools-card mv2-map-tools-card--tools" role="group" aria-label="Map layers and day actions">
+            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={17} aria-hidden /></button>
+            {clockMilestones && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
+                  aria-label="Show or hide the road milestones" title="Show or hide the road milestones - each planned stop's time and distance on the road"><Clock size={17} aria-hidden /></button></>
+            )}
+            {returnLeg && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <button type="button" className={`mv2-map-tools-btn${showReturn ? ' on' : ''}`} aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
+                  aria-label="Show or hide the return leg" title={showReturn
+                    ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                    : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}><RotateCcw size={17} aria-hidden /></button></>
+            )}
+            {ideaCats.length > 0 && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <div className="map-filters">
+                  <button type="button" className="mv2-map-tools-btn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}
+                    aria-label="Filter nearby ideas by type"
+                    title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
+                    <Layers size={17} aria-hidden />
+                  </button>
+                  {filtersOpen && (
+                    <div className="map-filters-pop popover" role="group" aria-label="Nearby idea categories">
+                      {ideaCats.map(([cat, count]) => (
+                        <button key={cat} className="map-filters-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
+                          <CatIcon category={cat} size={13} aria-hidden />
+                          {titleCase(cat)}
+                          <span className="n">{count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div></>
+            )}
+            {dayDirectionsUrl && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <button type="button" className="mv2-map-tools-btn" onClick={() => openExternal(dayDirectionsUrl)}
+                  aria-label="Directions for this day in Google Maps" title="Open this day's ride with turn-by-turn directions in Google Maps"><Navigation size={17} aria-hidden /></button></>
+            )}
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" className={`mv2-map-tools-btn map-expand-chip${expanded ? ' on' : ''}`} aria-pressed={expanded}
+              onClick={() => (expanded ? collapseExpanded() : setExpanded(true))}
+              title={expanded ? 'Shrink the map back into the page (Esc)' : 'Expand the map to fill the screen'}
+              aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}>
+              {expanded ? <X size={17} aria-hidden /> : <Maximize2 size={17} aria-hidden />}
+            </button>
+          </div>
+        </div>
+        ) : (
+        <>
         <div className="map-day-filter" role="group" aria-label="Which day the map draws">
           <span className="map-scope-lbl">Show on map</span>
           <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
@@ -1618,6 +1702,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {expanded ? '⤡ Collapse' : '⤢ Expand'}
           </button>
         </div>
+        </>
+        )}
         </div>
       )}
 

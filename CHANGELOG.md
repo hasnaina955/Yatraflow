@@ -18,6 +18,20 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **The Map tab now shows four lenses.** The lenses are Along the drive, Around the stay, Gaps and Fix. A four-entry switch shows honest counts. An empty lens counts 0. An unscanned or failed lens shows no count. (#889)
+
+- **Every lens now has one deck header and one place card.** The header and card serve Along the drive, Around the stay, Gaps and Fix. The lens decks carry side padding. (#889)
+
+- **The map now shows lens marks for the stay and gap lenses.** A stay reach ring and camera mark the stay reach. Gap rings mark the gap lens. Pick letters label the suggested places. Scope bands show the minute scope. (#889)
+
+- **The left rail now follows the active lens.** The rail holds a reach control and a window row. The rail holds the problem stop and the detour bar. (#889)
+
+- **The Fix deck now lists verified fixes only.** Each fix offers Apply and Preview on map. The deck shows no unverified fix. (#889)
+
+- **Keep now goes through the shared writer.** The Keep preview closes with a writer handoff. One Undo reverses the kept change. (#889)
+
+- **The test fixture now answers its own place scan.** The fixture supplies the place scan to the lens decks. A test reads that scan without a provider. (#889)
+
 - **Map V2 tickets 06, 08, 09 and 23 now count as complete under the local code bar.** Browser, native, live SQL and provider acceptance stay separate. Ticket 23 still needs its privacy approval and a real-device geolocation check. Ticket 08's net added minutes have no view yet.
 
 - **A detour under half a minute now reads "on route", not "+0 min detour".** The rail row and the shared detour sentence use one cutoff. The net-added memos keep at most 512 entries and evict the oldest first.

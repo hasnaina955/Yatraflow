@@ -11,7 +11,7 @@ import { MapScopeBand, phoneLensAriaLabel, scopeBandPlacement } from '../src/pag
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const css = readFileSync(join(root, 'src', 'styles.css'), 'utf8').replace(/\r\n/g, '\n')
-const block = css.slice(css.indexOf('/* 911-W7-B-phone.'))
+const block = css.slice(css.indexOf('/* 911-W9-phone.'))
 
 describe('phone lens aria labels', () => {
   it('names the lens and carries the count', () => {
@@ -53,7 +53,7 @@ describe('phone scope band placement', () => {
 describe('W7 phone CSS block', () => {
   it('is one appended block at the end', () => {
     expect(block.length).toBeGreaterThan(200)
-    expect(css.indexOf('/* 911-W7-B-phone.')).toBe(css.lastIndexOf('/* 911-W7-B-phone.'))
+    expect(css.indexOf('/* 911-W9-phone.')).toBe(css.lastIndexOf('/* 911-W9-phone.'))
   })
   it('puts the omnibar and the pill on one row and drops the words', () => {
     expect(block).toMatch(/\.mv2-workspace \.mv2-omnibar \{[^}]*top: 60px/)
@@ -61,13 +61,12 @@ describe('W7 phone CSS block', () => {
     expect(block).toContain('.mv2-workspace .mv2-lenses > button > span { display: none; }')
   })
   it('hides the band at peek and docks it at half and full', () => {
-    expect(block).toContain("[data-snap='peek'] .mv2-lens-scope-band { display: none; }")
-    expect(block).toMatch(/\[data-snap='half'\] \.mv2-lens-scope-band/)
-    expect(block).toMatch(/\[data-snap='full'\] \.mv2-lens-scope-band/)
+    expect(block).toContain('.mv2-workspace .poi-col > .mv2-lens-scope-band[hidden] { display: none; }')
+    expect(block).toMatch(/\.poi-col > \.mv2-lens-scope-band \{[^}]*position: sticky/)
   })
   it('docks the ribbon into the sheet at every snap', () => {
-    expect(block).toMatch(/\.mv2-ribbon \{[^}]*bottom: calc\(var\(--mv2-sheet-height\) - 48px/)
-    expect(block).toContain('margin-bottom: 192px;')
+    expect(block).toMatch(/\.poi-col > \.mv2-ribbon \{[^}]*position: static/)
+    expect(block).not.toContain('margin-bottom: 192px;')
   })
   it('uses no raw duration', () => {
     expect(block).not.toMatch(/\d(ms|s)\b/)

@@ -107,8 +107,8 @@ describe('W8-card stylesheet', () => {
   })
 
   it('keeps the phone scope rules inside their media block', () => {
-    expect(css).toContain("[data-snap='peek'] .mv2-lens-scope-band { display: none; }")
-    expect(css).toMatch(/\[data-snap='half'\] \.mv2-lens-scope-band/)
+    expect(css).toContain('.mv2-workspace .poi-col > .mv2-lens-scope-band[hidden] { display: none; }')
+    expect(css).toMatch(/\.poi-col > \.mv2-lens-scope-band \{[^}]*position: sticky/)
   })
 
   it('gives the chips and round buttons a 44px hit area', () => {

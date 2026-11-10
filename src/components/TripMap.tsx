@@ -38,7 +38,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { CORRIDOR_PAINT, STAY_RING_FRAME_PADDING, STOP_TAG_BOX, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringBounds, ringLabelPoint, showsHotelTag, showsStopTag, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { CORRIDOR_PAINT, STAY_RING_FRAME_PADDING, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringBounds, ringCaptionMode, ringLabelPoint, showsHotelTag, showsStopTag, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -48,7 +48,7 @@ import {
 import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, CircleDot, Clock, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PlaneTakeoff, Plus,
+  Box, Car, CircleDot, Clock, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
@@ -1000,7 +1000,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       // clock pill already gives way first, so the tag keeps its place.
       if (showTag) {
         const tag = stopTagBox(isBase ? baseTagText(p.title) : p.title)
-        spreadMarks.push({ id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: STOP_TAG_BOX.dy, w: tag.w, h: tag.h, ...base })
+        // The base tag sits beside its mark. Its box starts there, so a spread
+        // slide stays next to the stop instead of pushing the tag far left.
+        const box = isBase
+          ? baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h)
+          : { x: 0, y: STOP_TAG_BOX.dy }
+        spreadMarks.push({ id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base })
       }
       // The Stay board hides the clock pill while the base tag shows. Hiding it
       // here keeps the two pills from ever colliding on one mark.
@@ -1034,7 +1039,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const layoutOnMap = useCallback((map: MapRef, bounds?: MarkBounds) => {
     const marks: LayoutMark[] = spreadMarksRef.current.map(m => {
       const { x, y } = map.project([m.lng, m.lat])
-      return { id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, drawW: m.drawW, drawH: m.drawH, x: x + m.ox, y: y + m.oy + (m.layer === 'clock' ? m.y : 0) }
+      return { id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, drawW: m.drawW, drawH: m.drawH, x: x + m.ox + (m.layer === 'clock' ? m.x : 0), y: y + m.oy + (m.layer === 'clock' ? m.y : 0) }
     })
     const spots = layoutMarks(marks, { bounds })
     // Only stops and pills steer the camera. A far pick must not pull the frame out.
@@ -1906,9 +1911,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {stayRings.map(ring => {
               const top = ringLabelPoint(ring.ring)
               if (!top) return null
+              const Icon = ringCaptionMode(ring.id) === 'drive' ? Car : PersonStanding
               return (
                 <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={top[0]} latitude={top[1]} anchor="bottom">
-                  <MarkerContent><span className="mv2-lens-ring-label">{ring.label}</span></MarkerContent>
+                  <MarkerContent><span className="mv2-lens-ring-label"><Icon size={13} aria-hidden />{ring.label}</span></MarkerContent>
                 </MapMarker>
               )
             })}
@@ -2035,7 +2041,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       {anchorWrap(<>
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
-                        className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
+                        className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${isBase && frameStayRing ? ' is-stay-hero' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
                         style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#02080D' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
                         aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}

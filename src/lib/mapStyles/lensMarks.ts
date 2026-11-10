@@ -41,6 +41,11 @@ export function ringLabelPoint(ring: readonly [number, number][]): [number, numb
   return top
 }
 
+/** A walk ring gets a walking icon. A drive ring gets a car. */
+export function ringCaptionMode(id: string | null | undefined): 'walk' | 'drive' {
+  return /drive/i.test(String(id ?? '')) ? 'drive' : 'walk'
+}
+
 /** Copy a ring and repeat its first point at the end, so the line closes. */
 export function closeRing(ring: readonly [number, number][]): [number, number][] {
   const points = ring.filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1])).map(point => [point[0], point[1]] as [number, number])
@@ -123,6 +128,18 @@ export const STOP_TAG_BOX = { w: 132, h: 26, dy: 34 }
 export function stopTagBox(title: string): { w: number; h: number } {
   const chars = [...title.trim()].length
   return { w: Math.min(184, Math.max(56, Math.round(chars * 6.4 + 18))), h: STOP_TAG_BOX.h }
+}
+
+/** The base tag clears its mark by 7 px. The board shows 6 to 8 px. */
+export const BASE_TAG_GAP = 7
+
+/** The base tag box sits left of the stop box, centred on the stop's y. */
+export function baseTagBox(
+  stop: { x: number; y: number; w: number; h: number },
+  tagW: number,
+  tagH: number,
+): { x: number; y: number; w: number; h: number } {
+  return { x: stop.x - stop.w / 2 - BASE_TAG_GAP - tagW / 2, y: stop.y, w: tagW, h: tagH }
 }
 
 /** A stop shows its tag on the active day. The stay base shows it on every day. */

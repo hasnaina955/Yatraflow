@@ -67,12 +67,30 @@ export function driveDeckTitle(group: Pick<DriveTabGroup, 'label' | 'total'>): s
   return word === '' ? `${group.total} ${noun}` : `${group.total} ${noun} for ${word}`
 }
 
+/** Meal slot words. Other tabs name only the day. */
+export const MEAL_SLOT_WORDS: ReadonlySet<string> = new Set(['breakfast', 'lunch', 'dinner'])
+
+/** The Add label. A meal names its slot. Other tabs name only the day. */
+export function addSlotLabel(dayNumber: number, word: string): string {
+  if (!Number.isFinite(dayNumber)) return 'Add'
+  const day = `Day ${dayNumber}`
+  return MEAL_SLOT_WORDS.has(word) ? `Add as ${day} ${word}` : `Add to ${day}`
+}
+
+/** Picks whose hit id is not in the shown set. */
+export function hiddenDrivePicks<T extends { hit?: { id?: unknown } | null }>(
+  all: readonly T[],
+  shownIds: ReadonlySet<string>,
+): T[] {
+  return all.filter(item => {
+    const hit = item.hit
+    return hit == null || hit.id == null || !shownIds.has(String(hit.id))
+  })
+}
+
 /** The primary action label, for example "Add as Day 3 lunch". */
 export function driveAddLabel(dayNumber: number, label: string): string {
-  const word = driveSlotWord(label)
-  if (!Number.isFinite(dayNumber)) return word === '' ? 'Add' : `Add ${word}`
-  const day = `Day ${dayNumber}`
-  return word === '' ? `Add as ${day}` : `Add as ${day} ${word}`
+  return addSlotLabel(dayNumber, driveSlotWord(label))
 }
 
 /** The three strip cells, in board order. */
@@ -189,7 +207,6 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
           </li>
         })}
       </ul>
-      {active.moreCount > 0 && <p className="mv2-lens-more">{active.moreCount} more like this</p>}
     </div>
   </section>
 }

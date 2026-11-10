@@ -135,10 +135,10 @@ describe('DriveTabs', () => {
     expect(renderDrive({ bandOf: () => 'unknown' })).not.toContain('mv2-lens-tag')
   })
 
-  it('shows the intro line and the more count', () => {
+  it('shows the intro line and no duplicate count', () => {
     const markup = renderDrive({ intro: 'You pass at 12:05, inside the window' })
     expect(markup).toContain('You pass at 12:05, inside the window')
-    expect(markup).toContain('2 more like this')
+    expect(markup).not.toContain('more like this')
   })
 
   it('gives every phase its own text', () => {

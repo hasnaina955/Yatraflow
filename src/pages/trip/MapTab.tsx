@@ -43,6 +43,7 @@ import { STAY_RINGS, ringPolygon, ringRadiusKm } from './map/stayLens'
 import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
 import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
 import type { RingId } from '../../components/map/lenses/StayDeck'
+import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, type ScopeBandCounts } from './map/MapScopeBand'
 import { LensRailExtras, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
@@ -1387,6 +1388,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? () => { setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }
     : undefined
   const driveGroup = lenses.drive.tabs.tabs.find(group => group.tab === driveTab) ?? lenses.drive.tabs.tabs[0]
+  const shownDriveIds = new Set(lens === 'drive' ? (driveGroup?.shown ?? []).map(row => String(row.row.hit.id)) : [])
+  const hiddenRows = hiddenDrivePicks(seeForRail, shownDriveIds)
   const drivePickLetters: Record<string, 'A' | 'B' | 'C'> = {}
   if (lens === 'drive') {
     driveGroup?.shown.slice(0, 3).forEach((row, index) => {
@@ -2288,10 +2291,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               )}
               {seeForRail.length === 0
                 ? <p className="muted small" role="status">{loadingPois ? 'Finding stops along the drive…' : poisFailed ? 'Route suggestions could not be loaded. Open search settings to retry.' : quotaOut ? 'New Google searches are paused by the provider limit.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>
-                : (
+                : hiddenRows.length > 0 && (
                     <details className="poi-more mv2-deck-more mv2-lens-more">
-                      <summary>More like this · {seeForRail.length}</summary>
-                      <div className="poi-more-list">{seeForRail.map(ledgerRow)}</div>
+                      <summary>More like this · {hiddenRows.length}</summary>
+                      <div className="poi-more-list">{hiddenRows.map(ledgerRow)}</div>
                     </details>
                   )}
               {budgetHeldCount > 0 && (

@@ -90,7 +90,8 @@ describe('W8-card scope band', () => {
 
   it('puts the minutes in the teal bold element', () => {
     expect(band()).toContain('<b>30 min</b>')
-    expect(band()).toContain('or drag the band')
+    // No drag handle exists, so the band never offers one.
+    expect(band()).not.toContain('drag the band')
   })
 })
 

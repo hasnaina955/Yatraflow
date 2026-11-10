@@ -68,7 +68,6 @@ export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = fa
     <section className="mv2-lens-scope-band" data-placement={placement} hidden={placement === 'hidden'} aria-label="Drive scope">
       <p className="mv2-lens-scope-head">
         <span className="mv2-lens-scope-title">Look within <b>{minutes} min</b> there and back</span>
-        <span className="mv2-lens-scope-drag">or drag the band</span>
       </p>
       <div className="mv2-lens-scope-chips" role="group" aria-label="Extra driving in minutes">
         {MINUTE_SCOPE_STEPS.map(step => (

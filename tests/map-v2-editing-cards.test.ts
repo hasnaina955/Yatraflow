@@ -2,12 +2,14 @@
 // Server render only: the project's tests run in node with no DOM. These checks
 // pin the honest states: unknown stays unknown, a failed save is an alert, and
 // only a kept outcome offers Undo.
+import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
 import { AddPreviewCard, FixedTimeConfirm, StopEditorCard } from '../src/pages/trip/map/editing/EditCards'
+import { DAY_COLORS, dayColor } from '../src/lib/mapStyles/dayColors'
 import { previewAdd } from '../src/pages/trip/map/editing/addPreview'
 import { outcomeFromKeep } from '../src/pages/trip/map/editing/outcomes'
 
@@ -63,11 +65,34 @@ describe('AddPreviewCard', () => {
 
 describe('StopEditorCard and FixedTimeConfirm', () => {
   const editor = (over: Partial<Parameters<typeof StopEditorCard>[0]> = {}) => renderToStaticMarkup(createElement(StopEditorCard, {
-    title: 'Lunch', clockLabel: '12:05–12:50', visitMinutes: 45, days: [{ index: 1, label: 'Day 2' }], fixed: false,
+    title: 'Lunch', clockLabel: '12:05–12:50', placeLabel: 'Kattappana', order: 2, dayIndex: 2,
+    visitMinutes: 45, days: [{ index: 1, label: 'Day 2' }],
+    swapOptions: [{ id: 's2', label: '1 · Attukad waterfalls' }], fixed: false,
     onStep: noop, onMoveToDay: noop, onSwap: noop, onRemove: noop, ...over,
   }))
+  it('renders the numbered day dot, the known sub line and the labelled grip', () => {
+    const html = editor()
+    expect(html).toContain('Edit Lunch, stop 2')
+    expect(html).toContain('class="map-edit-day-dot"')
+    expect(html).toContain('--day:#7D5EFC')
+    expect(html).toContain('12:05–12:50 · Kattappana')
+    expect(html).toContain('aria-label="Reorder this stop with Alt and the up or down arrow"')
+    expect(html).not.toContain('draggable')
+  })
+  it('reads the day colour from the one map palette', () => {
+    expect(dayColor(0)).toBe(DAY_COLORS[0])
+    expect(dayColor(0)).toBe('#0D8D82')
+    expect(dayColor(7)).toBe(DAY_COLORS[0])
+  })
+  it('shows only the known parts of the sub line', () => {
+    expect(editor({ placeLabel: null })).toContain('12:05–12:50')
+    const bare = editor({ clockLabel: null, placeLabel: null })
+    expect(bare).not.toContain('map-edit-clock')
+    expect(bare).not.toContain('Clock not known')
+  })
   it('renders the 15-minute stepper, move, swap and remove', () => {
     const html = editor()
+    expect(html).toContain('Stay length · 15 min steps')
     expect(html).toContain('Shorten by 15 minutes')
     expect(html).toContain('45 min')
     expect(html).toContain('Move to day')
@@ -77,11 +102,34 @@ describe('StopEditorCard and FixedTimeConfirm', () => {
   it('keeps an unknown stay length unknown and disables the stepper', () => {
     const html = editor({ visitMinutes: null, clockLabel: null })
     expect(html).toContain('Not known')
-    expect(html).toContain('Clock not known')
     expect(html.match(/disabled=""/g)?.length).toBe(2)
   })
+  it('disables Swap when there is no other stop, and never renders a dead choice', () => {
+    const html = editor({ swapOptions: [] })
+    expect(html.match(/disabled=""/g)?.length).toBe(1)
+    expect(html).toContain('aria-label="Swap with another stop"')
+  })
+  it('opens the day and swap choices in a listbox, not a native select', () => {
+    const html = editor()
+    expect(html).toContain('aria-haspopup="listbox"')
+    expect(html).toContain('aria-expanded="false"')
+    const cards = readFileSync('src/pages/trip/map/editing/EditCards.tsx', 'utf8')
+    expect(cards).not.toContain('<select')
+    expect(cards).toContain('role="listbox"')
+    expect(cards).toContain('role="option"')
+    expect(cards).toContain('ArrowDown')
+    expect(cards).toContain('ArrowUp')
+    expect(cards).toContain("key === 'Enter'")
+    expect(cards).toContain("key === 'Escape'")
+  })
+  it('keeps the reorder hint inside the card', () => {
+    const html = editor()
+    expect(html).toContain('Reorder with Alt and the up or down arrow on a focused stop.')
+    expect(html.indexOf('Reorder with Alt')).toBeLessThan(html.lastIndexOf('</section>'))
+  })
   it('explains a fixed-time stop and asks before it moves', () => {
-    expect(editor({ fixed: true })).toContain('fixed time')
+    const fixed = editor({ fixed: true })
+    expect(fixed).toContain('Lunch is a fixed time: it cannot be dragged, and editing its time asks first.')
     const none = renderToStaticMarkup(createElement(FixedTimeConfirm, { guard: { fixedStopIds: [], touched: [], needsConfirm: false }, onConfirm: noop, onCancel: noop }))
     expect(none).toBe('')
     const html = renderToStaticMarkup(createElement(FixedTimeConfirm, {

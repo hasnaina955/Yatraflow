@@ -837,8 +837,8 @@
 .map-edit-card, .map-edit-confirm { display: grid; gap: var(--space-3); padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text); }
 .map-edit-confirm { border-color: var(--warning, var(--line)); }
 .map-edit-kicker { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-2); }
-.map-edit-title { margin: 0; font-family: var(--font-display); font-size: var(--text-sm); }
-.map-edit-clock, .map-edit-hint, .map-edit-fixed, .map-edit-unknown { margin: 0; font-size: 12px; color: var(--text-2); }
+.map-edit-title { margin: 0; font-family: var(--font-body); font-size: 14.5px; font-weight: 700; line-height: 1.25; color: var(--pw-ink); }
+.map-edit-hint, .map-edit-unknown { margin: 0; font-size: 12px; color: var(--text-2); }
 .map-edit-list { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-6); font-size: 13px; }
 .map-edit-list s { color: var(--text-2); }
 .map-edit-replaced, .map-edit-cleared { color: var(--text-2); }
@@ -854,8 +854,7 @@
 .map-edit-actions button:focus-visible, .map-edit-stepper button:focus-visible, .map-edit-move select:focus-visible { outline: none; box-shadow: var(--ring); }
 .map-edit-stepper { display: inline-flex; align-items: center; gap: var(--space-3); }
 .map-edit-stepper output { min-width: 64px; text-align: center; font-weight: 700; }
-.map-edit-move { display: grid; gap: var(--space-1); font-size: 12px; color: var(--text-2); }
-.map-edit-move select { min-height: 44px; padding: 0 var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); color: var(--text); }
+.map-edit-move { display: inline-flex; }
 .map-edit-countdown { position: relative; display: flex; align-items: center; gap: var(--space-3); margin: 0; font-size: 12px; color: var(--text-2); }
 .map-edit-countdown-bar { flex: 1; height: 4px; appearance: none; border: 0; border-radius: var(--radius-pill); background: var(--bg-soft); accent-color: var(--yf-teal-600); }
 .map-edit-countdown-bar::-webkit-progress-bar { border-radius: var(--radius-pill); background: var(--bg-soft); }
@@ -867,9 +866,9 @@
   .map-edit-actions button, .map-edit-stepper button, .map-edit-countdown-bar::-webkit-progress-value { transition: none; }
 }
 .map-edit-preview { border-left: 3px solid var(--yf-teal-600); }
-.map-edit-editor { gap: var(--space-4); }
-.map-edit-actions .map-edit-reject, .map-edit-actions .map-edit-swap { background: transparent; }
-.map-edit-actions .map-edit-remove { background: transparent; color: var(--danger, var(--text)); }
+.map-edit-editor { gap: 12px; padding: 16px; border: 1px solid var(--pw-line-soft); border-radius: 22px; background: var(--pw-card); color: var(--pw-ink); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(64,54,44,.05), 0 18px 36px -20px rgba(64,54,44,.24); }
+.map-edit-actions .map-edit-reject { background: transparent; }
+.map-edit-actions .map-edit-remove { background: transparent; color: var(--pw-sea-700); }
 
 /* Map V2 package C. Place photos (#904): attributed, lazy, keyboard-navigable.
    The category tile stays when there is no photo. */
@@ -884,8 +883,6 @@
 .mv2-place-photo-nav button:focus-visible, .mv2-place-credit a:focus-visible { outline: none; box-shadow: var(--ring); }
 @media (prefers-reduced-motion: reduce) { .mv2-place-photo-nav button { transition: none; } }
 /* Map edit: the Swap with list. Its control keeps a 44px touch target. */
-.map-edit-swap { display: grid; gap: var(--space-1); font-size: 12px; color: var(--text-2); }
-.map-edit-swap select { min-height: 44px; }
 
 /* ===== Map v2 lens decks (package 911-W2): DriveTabs and FixDeck ===== */
 .mv2-lens { display: flex; flex-direction: column; gap: 12px; padding: 0 var(--space-4) var(--space-4); color: var(--pw-ink); }
@@ -1202,4 +1199,50 @@
   }
   .mv2-workspace[data-snap='half']:not(.is-deck-folded) .mv2-sheet-handle,
   .mv2-workspace[data-snap='full']:not(.is-deck-folded) .mv2-sheet-handle { margin-bottom: 192px; }
+}
+
+/* 911-W8-edit: the stop edit card, to the add-edit board.
+   The pills stay 36 px tall, and a ::before pad gives each one a 44 px target.
+   The day dot reads --day from the shared palette, mixed darker for AA text. */
+.map-edit-editor-head { display: flex; align-items: center; gap: 10px; }
+.map-edit-day-dot { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--day, #0D8D82) 85%, black); color: #FFFFFF; font: 700 13px/1 var(--font-display); }
+.map-edit-head-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.map-edit-clock { font-size: 12px; color: var(--pw-ink-3); }
+.map-edit-grip { position: relative; flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-3); cursor: grab; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.map-edit-grip::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.map-edit-grip:hover { background: var(--pw-soft); color: var(--pw-ink); }
+.map-edit-grip:focus-visible { outline: none; box-shadow: var(--ring); }
+.map-edit-stay-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.map-edit-stay-label { font-size: 12.5px; color: var(--pw-ink-2); }
+.map-edit-editor .map-edit-stepper { flex: none; gap: 0; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); }
+.map-edit-editor .map-edit-stepper button { position: relative; display: inline-grid; place-items: center; width: 40px; min-width: 40px; height: 36px; min-height: 36px; padding: 0; border: 0; background: transparent; color: var(--pw-ink-2); }
+.map-edit-editor .map-edit-stepper button::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.map-edit-editor .map-edit-stepper button:first-of-type { border-radius: var(--radius-pill) 0 0 var(--radius-pill); }
+.map-edit-editor .map-edit-stepper button:last-of-type { border-radius: 0 var(--radius-pill) var(--radius-pill) 0; }
+.map-edit-editor .map-edit-stepper button:hover:not(:disabled) { background: var(--pw-soft); color: var(--pw-ink); }
+.map-edit-editor .map-edit-stepper output { min-width: 64px; font-size: 14px; font-weight: 700; color: var(--pw-ink); }
+.map-edit-menu { position: relative; display: inline-flex; }
+.map-edit-pill { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 36px; min-height: 36px; padding: 0 14px; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); font: 700 13.5px/1 var(--font-body); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.map-edit-pill::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, 100%); height: 44px; transform: translate(-50%, -50%); }
+.map-edit-pill:hover:not(:disabled) { border-color: var(--pw-ink-3); }
+.map-edit-pill[aria-expanded='true'] { border-color: var(--pw-sea-700); color: var(--pw-sea-700); }
+.map-edit-pill:focus-visible { outline: none; box-shadow: var(--ring); }
+.map-edit-pill:disabled { opacity: .55; cursor: default; }
+.map-edit-pill-label { white-space: nowrap; }
+.map-edit-menu-list { position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-frost); min-width: 190px; max-height: 240px; overflow-y: auto; margin: 0; padding: 5px; list-style: none; border: 1px solid var(--pw-line); border-radius: var(--radius-sm); background: var(--pw-card); box-shadow: var(--shadow-card); }
+.map-edit-menu-list:focus-visible { outline: none; box-shadow: var(--shadow-card), var(--ring); }
+.map-edit-menu-item { padding: 8px 10px; border-radius: var(--radius-xs); color: var(--pw-ink); font-size: 13px; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.map-edit-menu-item[aria-selected='true'] { background: var(--pw-soft); color: var(--pw-sea-700); font-weight: 600; }
+.map-edit-menu-item:hover { background: var(--pw-soft); }
+.map-edit-editor .map-edit-actions { align-items: center; gap: 8px; }
+.map-edit-editor .map-edit-actions .map-edit-remove { position: relative; height: 36px; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--pw-sea-700); font-size: 13.5px; font-weight: 700; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.map-edit-editor .map-edit-actions .map-edit-remove::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, 100%); height: 44px; transform: translate(-50%, -50%); }
+.map-edit-editor .map-edit-actions .map-edit-remove:hover:not(:disabled) { background: color-mix(in srgb, var(--pw-sea-700) 8%, transparent); }
+.map-edit-editor .map-edit-actions .map-edit-remove:focus-visible { outline: none; box-shadow: var(--ring); }
+.map-edit-fixed { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--pw-soft); color: var(--pw-ink-2); font-size: 12px; }
+.map-edit-fixed svg { flex: none; }
+.map-edit-editor .map-edit-hint { margin: 0; font-size: 12px; color: var(--pw-ink-3); }
+:root:where([data-theme='dark']) .map-edit-editor { box-shadow: var(--shadow); }
+@media (prefers-reduced-motion: reduce) {
+  .map-edit-grip, .map-edit-pill, .map-edit-editor .map-edit-actions .map-edit-remove, .map-edit-editor .map-edit-stepper button, .map-edit-menu-item { transition: none; }
 }

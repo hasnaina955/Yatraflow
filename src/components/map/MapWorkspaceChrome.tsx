@@ -15,7 +15,7 @@ import { budgetBlockView, fixProblemReason, fixReasonLine } from '../../pages/tr
 import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
 import { ageText, coverageText } from './placeCardFacts'
-import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, type RibbonPosition } from '../../lib/mapJourneyRibbon'
+import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, type RibbonPosition, type RibbonStop } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
 
@@ -32,7 +32,7 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
 
 export { MapPhoneSheetHandle as MapSheetHandle } from './MapPhoneSheetHandle'
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRow, fixStopId, budgetBar, clock }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRow, fixStopId, budgetBar, clock, previewChip }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
@@ -47,6 +47,9 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   budgetBar?: { text: string; step: number } | null
   /** Formats one minute of the day for a window row. */
   clock?: (min: number) => string
+  /** The open add preview: the row title it lands after, and the place name.
+   *  A null label keeps the chip out, because an unnamed chip would invent a place. */
+  previewChip?: { afterTitle: string | null; label: string | null } | null
 }) {
   const timeFormat = useTimeFormat()
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -108,13 +111,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       {points.map((point, index) => <Fragment key={point.stop.id}>
         {index === windowInsertAt && windowRowMarkup}
         <li>
+        {index === 0 && previewChipFor(null, previewChip)}
         {index > 0 && point.legIn && <div className="mv2-travel-leg"><span />{Math.round(point.legIn.distanceKm)} km · {minutesToHM(point.legIn.durationMinutes)}</div>}
         <button type="button" className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${fixStopId === point.stop.id ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
           <time>{formatHM(point.arrive, timeFormat)}</time>
           <span className={`mv2-stop-mark${point.kind === 'halt' || point.stop.category === 'hotel' ? ' is-stay' : ''}`}>
             {point.kind === 'start' || point.kind === 'destination' ? <Car size={13} /> : point.stop.category === 'hotel' ? <Home size={15} /> : index}
           </span>
-          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixSubLine != null && <small className="mv2-lens-fix-reason">{fixSubLine}</small>}</span>
+          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixSubLine != null && <small className="mv2-lens-fix-reason">{fixSubLine}</small>}{previewChipFor(point.title, previewChip)}</span>
           {locks.has(point.stop.id) && <LockKeyhole size={13} aria-label="Fixed time" />}
         </button>
       </li>
@@ -130,16 +134,65 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   </aside>
 }
 
-export function MapJourneyRibbon({ journey, corrections, onScrub }: {
-  journey: Journey | null; corrections?: Record<string, LegEstimate>; onScrub: (position: RibbonPosition, minute: number) => void
+/** The rail chip of an open add preview. It marks the row the pick lands after. */
+function previewChipFor(title: string | null, previewChip: { afterTitle: string | null; label: string | null } | null | undefined) {
+  if (previewChip == null || previewChip.label == null || previewChip.afterTitle !== title) return null
+  return <span className="mv2-lens-tag">{previewChip.label} · Preview</span>
+}
+
+/** The add preview facts the ribbon shows. It reads nothing it cannot prove. */
+export interface RibbonPreview {
+  newStop: { arrive: string; depart: string }
+  clocks: Array<{ stopId: string; to: string }>
+}
+
+/** A HH:MM clock as minutes, or null when the text is not a clock. */
+function ribbonClockMinutes(text: string): number | null {
+  const [hours, minutes] = text.split(':').map(Number)
+  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null
+}
+
+/** Move the stops the preview re-times. A moved stop keeps its dwell time. */
+function retimedStops(stops: RibbonStop[], preview: RibbonPreview): RibbonStop[] {
+  const byStop = new Map<string, string>(preview.clocks.map(clock => [clock.stopId, clock.to] as [string, string]))
+  let previous = stops[0]?.arrive ?? 0
+  return stops.map(stop => {
+    const text = byStop.get(stop.point.stop.id)
+    const arrival = text == null ? null : ribbonClockMinutes(text)
+    if (arrival == null) {
+      previous = stop.depart
+      return stop
+    }
+    let arrive = arrival
+    while (arrive < previous) arrive += 1440
+    const moved = { point: stop.point, arrive, depart: arrive + Math.max(0, stop.depart - stop.arrive) }
+    previous = moved.depart
+    return moved
+  })
+}
+
+/** The preview label, plus the new stop's clocks when both are known. */
+function previewTitle(preview: RibbonPreview, format: ReturnType<typeof useTimeFormat>): string {
+  const arrive = ribbonClockMinutes(preview.newStop.arrive)
+  const depart = ribbonClockMinutes(preview.newStop.depart)
+  if (arrive == null || depart == null) return 'Re-timed preview'
+  return `Re-timed preview · new stop ${formatHM(preview.newStop.arrive, format)}–${formatHM(preview.newStop.depart, format)}`
+}
+
+export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub }: {
+  journey: Journey | null; corrections?: Record<string, LegEstimate>
+  onScrub: (position: RibbonPosition, minute: number) => void
+  /** The open add preview. Its own schedule re-times the stops shown here. */
+  preview?: RibbonPreview | null
 }) {
   const format = useTimeFormat()
-  const stops = journey ? ribbonStops(journey) : []
+  const planned = journey ? ribbonStops(journey) : []
+  const stops = preview ? retimedStops(planned, preview) : planned
   const range = ribbonRange(stops)
   const { start, end } = range
   // Day index and the engine start clock join the stop times, so a new trip or
   // a new day cannot keep a stored cursor from the previous journey.
-  const signature = ribbonSignature(stops, journey?.dayIndex ?? 0, journey?.startTime ?? '')
+  const signature = ribbonSignature(stops, journey?.dayIndex ?? 0, journey?.startTime ?? '') + (preview ? `|preview:${preview.newStop.arrive}:${preview.newStop.depart}` : '')
   const [cursor, setCursor] = useState({ signature, minute: start })
   const minute = ribbonResetMinute(range, signature, cursor)
   const current = ribbonScrub(stops, minute, corrections, range)
@@ -156,7 +209,7 @@ export function MapJourneyRibbon({ journey, corrections, onScrub }: {
   }
   if (!stops.length) return <section className="mv2-ribbon" aria-label="Journey clock"><span className="mv2-ribbon-title">Journey clock</span><span>No scheduled stops yet.</span></section>
   return <section className="mv2-ribbon" aria-label="Journey clock">
-    <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small>{current.cameraReveal ? 'Planned times' : 'Road position unavailable'}</small></div>
+    <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small>{preview ? previewTitle(preview, format) : current.cameraReveal ? 'Planned times' : 'Road position unavailable'}</small></div>
     <div className="mv2-clock-track">
       <div className="mv2-clock-drawing" aria-hidden="true">
         <span className="mv2-clock-line" />
@@ -178,7 +231,7 @@ export function MapJourneyRibbon({ journey, corrections, onScrub }: {
         }} />
       <div className="mv2-clock-ticks" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <span key={index}>{formatHM(clockHM(start + (end - start) * index / 4), format)}</span>)}</div>
     </div>
-    <output className="mv2-clock-reading">{formatHM(clockHM(minute), format)}<small>{minute >= 1440 ? 'Next day' : position?.grade === 'estimated' ? 'Estimated travel' : 'Plan clock'}</small></output>
+    <output className="mv2-clock-reading">{formatHM(clockHM(minute), format)}<small>{preview ? 'Preview clock' : minute >= 1440 ? 'Next day' : position?.grade === 'estimated' ? 'Estimated travel' : 'Plan clock'}</small></output>
   </section>
 }
 

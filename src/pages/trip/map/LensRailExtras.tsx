@@ -66,6 +66,18 @@ export function budgetValueParts(value: string): { lead: string | null; rest: st
   return match == null ? { lead: null, rest: value } : { lead: match[1], rest: match[2] }
 }
 
+/** The length of a stay window, as the board writes it. A zero or unknown
+ *  span shows nothing. */
+export function windowDurationText(startMin: number, endMin: number): string | null {
+  if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) return null
+  const minutes = endMin - startMin
+  if (minutes <= 0) return null
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  if (hours === 0) return `${rest} min`
+  return rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, '0')}`
+}
+
 export interface DriveBudget {
   usedMin: number | null
   budgetMin: number | null

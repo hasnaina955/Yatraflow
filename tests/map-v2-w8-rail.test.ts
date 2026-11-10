@@ -5,11 +5,12 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { MapItinerary } from '../src/components/map/MapWorkspaceChrome'
-import { DAY_TONE, LensRailExtras, budgetValueParts, dayColor, dayTone } from '../src/pages/trip/map/LensRailExtras'
+import { DAY_TONE, LensRailExtras, budgetValueParts, dayColor, dayTone, windowDurationText } from '../src/pages/trip/map/LensRailExtras'
 import type { Trip } from '../src/data/types'
 import type { Journey } from '../src/lib/engine'
 
 const noop = () => undefined
+const clock = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 const trip = {
@@ -92,15 +93,24 @@ describe('W8 rail top and stay rail', () => {
     expect(html.indexOf('mv2-day-dot')).toBeLessThan(html.indexOf('Day 3'))
   })
 
-  it('gives the fold control its own slot after the header line', () => {
+  it('puts the fold control on the edge tab, outside the header rows', () => {
     const html = rail()
-    const tools = html.indexOf('class="mv2-day-tools"')
-    const fold = html.indexOf('aria-label="Fold day itinerary"')
+    const fold = html.indexOf('class="mv2-fold-day"')
     const budget = html.indexOf('class="mv2-budget mv2-lens-budget"')
-    expect(tools).toBeGreaterThan(html.indexOf('</p>'))
-    expect(fold).toBeGreaterThan(tools)
+    expect(fold).toBeGreaterThan(html.indexOf('</p>'))
     expect(budget).toBeGreaterThan(fold)
-    expect(html).not.toContain('bottom:')
+    expect(html).toContain('aria-label="Fold day itinerary"')
+    expect(html).not.toContain('mv2-day-tools')
+    expect(html).not.toContain('mv2-fold-day mv2-icon-btn')
+  })
+
+  it('nests the eyebrow and the title in one header line', () => {
+    const html = rail()
+    const head = html.indexOf('class="mv2-day-head"')
+    expect(head).toBeGreaterThan(html.indexOf('mv2-day-arrows'))
+    expect(html.indexOf('class="mv2-day-mark"')).toBeGreaterThan(head)
+    expect(html.indexOf('<h2>')).toBeGreaterThan(head)
+    expect(html.indexOf('<h2>')).toBeLessThan(html.indexOf('aria-label="Next day"'))
   })
 
   it('names the day line a drive, as the board does', () => {
@@ -123,6 +133,27 @@ describe('W8 rail top and stay rail', () => {
     expect(html).toContain('>45 min</strong>')
     expect(html).not.toContain('role="progressbar"')
     expect(html).not.toContain('mv2-lens-budget-number')
+  })
+
+  it('writes the window length from the two known clocks', () => {
+    expect(windowDurationText(1020, 1200)).toBe('3 h')
+    expect(windowDurationText(1020, 1125)).toBe('1 h 45')
+    expect(windowDurationText(834, 1260)).toBe('7 h 06')
+    expect(windowDurationText(600, 630)).toBe('30 min')
+    expect(windowDurationText(600, 600)).toBeNull()
+    expect(windowDurationText(700, 600)).toBeNull()
+    expect(windowDurationText(Number.NaN, 900)).toBeNull()
+    const html = rail({ windowRow: { label: 'Free evening', startMin: 1020, endMin: 1200 }, clock })
+    expect(html).toContain('17:00–20:00 · 3 h')
+    expect(html).not.toContain('picks nearby')
+  })
+
+  it('keeps the window time in a fixed, unbroken column', () => {
+    const html = rail({ windowRow: { label: 'Free evening', startMin: 1020, endMin: 1200 }, clock })
+    expect(html).toContain('class="mv2-lens-window-time">17:00</time>')
+    const css = read('../src/styles.css')
+    expect(css).toContain('white-space: nowrap; padding-top: var(--space-1);')
+    expect(css).toContain('font-variant-numeric: tabular-nums; color: var(--pw-ink-2);')
   })
 
   it('renders the stay rail card with its title, both rings and the note', () => {
@@ -148,7 +179,16 @@ describe('W8 rail top and stay rail', () => {
     expect(css).toContain('.mv2-lens-budget-number { font-weight: 700;')
     expect(css).toContain('.mv2-window-row.is-active-window {\n  background: var(--pw-marigold-50);\n  box-shadow: inset 0 0 0 1.5px var(--pw-marigold-500);')
     expect(css).toContain('.mv2-day-dot {\n  flex: 0 0 auto; width: 9px; height: 9px;')
-    expect(css).toContain('.mv2-day-arrows > span { display: flex; align-items: center; gap: var(--space-3);')
+    expect(css).toContain('.mv2-day-mark { display: flex; align-items: center; gap: var(--space-3);')
+    expect(css).toContain('.mv2-day-arrows { --mv2-day-arrow: 36px; display: flex;')
+    expect(css).toContain('.mv2-day-arrows .mv2-icon-btn { position: relative; width: var(--mv2-day-arrow); height: var(--mv2-day-arrow); }')
+    expect(css).toContain('.mv2-day-arrows .mv2-icon-btn::before { content: ""; position: absolute; inset: -4px;')
+    expect(css).toContain('.mv2-fold-day {\n  position: absolute; top: 20px; right: -14px; z-index: 2;')
+    expect(css).toContain('.mv2-itinerary .mv2-fold-day::before { content: ""; position: absolute; inset: -8px;')
+    expect(css).toContain('.mv2-day-header { position: relative; padding: var(--space-7) var(--space-7) var(--space-5); }')
+    expect(css).toContain('margin: 0; font: var(--pw-title); font-size: 17px; line-height: 21px;')
+    expect(css).toContain('.mv2-lens-window-time {\n  flex: 0 0 64px; width: 64px; white-space: nowrap;')
+    expect(css).toContain('.mv2-window-row .mv2-stop-copy strong { display: block; color: var(--pw-marigold-ink);')
     expect(css).not.toContain('bottom: -30px')
     expect(css).toContain('.mv2-itinerary .mv2-lens-rail-card {\n  position: static;')
     expect(css).toContain('background: var(--mv2-rail-sunken);\n  box-shadow: none;')

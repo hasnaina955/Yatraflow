@@ -29,7 +29,7 @@ describe('package B block', () => {
   })
 
   it('holds every control it touches to 44px', () => {
-    expect(block).toContain('.mv2-itinerary .mv2-fold-day { width: 44px; height: 44px;')
+    expect(block).toContain('.mv2-itinerary .mv2-fold-day::before { content: ""; position: absolute; inset: -8px;')
     expect(block).toContain('.mv2-workspace .mv2-directions { min-height: 44px; }')
     expect(block).toContain('.mv2-workspace .mv2-phone-day > button { min-width: 44px; min-height: 44px; }')
   })

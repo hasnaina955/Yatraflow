@@ -11,7 +11,7 @@ import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
 import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
-import { budgetBlockView, budgetValueParts, dayTone, fixProblemReason, fixReasonLine } from '../../pages/trip/map/LensRailExtras'
+import { budgetBlockView, budgetValueParts, dayTone, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
 import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
 import { ageText, coverageText } from './placeCardFacts'
@@ -112,11 +112,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   }
   const windowsAt = (index: number) => windowsInOrder
     .filter(row => insertAtFor(row.startMin) === index)
-    .map(row => <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
-      <time className="mv2-lens-window-time">{clock?.(row.startMin)}</time>
-      <span className="mv2-window-ring" aria-hidden="true" />
-      <span className="mv2-stop-copy"><strong>{row.label}</strong><small>{clock?.(row.startMin)}–{clock?.(row.endMin)}</small></span>
-    </li>)
+    .map(row => {
+      const duration = windowDurationText(row.startMin, row.endMin)
+      return <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
+        <time className="mv2-lens-window-time">{clock?.(row.startMin)}</time>
+        <span className="mv2-window-ring" aria-hidden="true" />
+        <span className="mv2-stop-copy"><strong>{row.label}</strong><small>{clock?.(row.startMin)}–{clock?.(row.endMin)}{duration != null && ` · ${duration}`}</small></span>
+      </li>
+    })
   const previewChipAt = (stopId: string | null) => {
     if (previewChip == null || previewChip.label == null) return null
     const beforeFirst = previewChip.index === 0
@@ -130,14 +133,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
-        <span className="mv2-day-mark"><i className="mv2-day-dot" data-day={dayTone(activeDay)} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
+        <div className="mv2-day-head">
+          <span className="mv2-day-mark"><i className="mv2-day-dot" data-day={dayTone(activeDay)} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
+          <h2>{journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{journey.endTitle}</> : day?.title || 'Your day on the map'}</h2>
+        </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
-      <h2>{journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{journey.endTitle}</> : day?.title || 'Your day on the map'}</h2>
       <p>{journey ? `${Math.round(journey.distanceKm)} km · ${minutesToHM(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
-      <div className="mv2-day-tools">
-        <button type="button" className="mv2-fold-day mv2-icon-btn" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
-      </div>
+      <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
     </header>
     <div className="mv2-budget mv2-lens-budget"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>

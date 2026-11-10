@@ -175,7 +175,7 @@ function SlotGlyph({ kind, label }: { kind: DaySlotKind; label: string }) {
   const G = label === 'Breakfast' ? Coffee : KIND_GLYPH[kind]
   return G ? <InlineIcon icon={G} size={12} /> : null
 }
-export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, onCorridorState, journeyDays, presence, crewSeeds, dnaVector, dnaTick, setDnaTick, setAddedIds, dismissedIds, setDismissedIds, setStagedSnapshot, stagedIdsRef, slotManual, setSlotManual, road, roadBinding, currentRoad, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections }: {
+export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsHash, onCorridorState, journeyDays, presence, crewSeeds, dnaVector, dnaTick, setDnaTick, setAddedIds, dismissedIds, setDismissedIds, setStagedSnapshot, stagedIdsRef, slotManual, setSlotManual, road, roadBinding, currentRoad, onOpenTimeline, onOpenBoard, onOpenDay, onOpenGroupInput, previewOpen, dayFocus, onDayFocusChange, mapTarget, onMapTargetConsumed, legCorrections, onBackToTrip }: {
   trip: Trip
   editable: boolean
   /** #841: the workspace's shared write type. The first four arguments keep
@@ -221,6 +221,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   /** Phase 3: tapping a halt label asks the workspace to open that day's plan
    *  in the Timeline. Undefined = halt labels stay decorative labels. */
   onOpenDay?: (dayIndex: number) => void
+  /** W10: the phone map's back control returns to the trip's default tab. */
+  onBackToTrip?: () => void
   /** The part's live vote opens the crew's Group input to resolve it (P4). */
   onOpenGroupInput?: () => void
   /** true while the workspace holds a staged change — a direct cache write
@@ -1647,10 +1649,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const scopeBand = lens === 'drive'
     ? <MapScopeBand minutes={scopeChoice} onMinutes={changeScope} counts={driveCounts} snap={snap} phone={phoneSheet} />
     : null
+  // W10: the peek names the active lens with its real count, and shows the
+  // first pick from that lens. An unknown count stays null, never a guess.
+  const peekHit = seeForRail[0]?.hit ?? null
+  const peekDrive = peekHit ? driveRowForHit(driveRows, peekHit) : undefined
+  const peekTotal = lens === 'drive' ? lenses.counts.drive ?? (loadingPois ? null : seeForRail.length) : lenses.counts[lens]
+  const peekEyebrow = lens === 'drive' ? 'Along the drive' : lens === 'stay' ? 'Around the stay' : lens === 'gap' ? 'Gaps in this day' : 'Fix this day'
+  const peekTitle = peekTotal == null
+    ? 'Picks for this day'
+    : `${peekTotal} ${peekTotal === 1 ? 'pick' : 'picks'} ${lens === 'drive' ? 'along the drive' : lens === 'stay' ? 'around the stay' : lens === 'gap' ? 'in this day' : 'to fix this day'}`
+  const peekSub = peekDrive?.detourMin == null
+    ? null
+    : `+${Math.round(peekDrive.detourMin)} min detour${peekDrive.budgetSharePct != null && peekDrive.budgetSharePct > 0 ? ` · ${Math.round(peekDrive.budgetSharePct)}% of budget` : ''}`
 
-  return (
-    <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap}>
-      <details className="mv2-tools">
+  // W10: on a phone the search settings leave the map's top flow and become
+  // one row in the planning sheet. Desktop keeps them where they were.
+  const settingsTools = (
+    <details className="mv2-tools" id="mv2-map-settings">
         <summary><SlidersHorizontal size={15} aria-hidden />Search settings and route advice<ChevronDown size={14} aria-hidden /></summary>
         <div className="mv2-tools-body">
         <EngineTips />
@@ -1796,7 +1811,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           )
         )}
         </div>
-      </details>
+    </details>
+  )
+  return (
+    <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap}>
+      {!phoneSheet && settingsTools}
       {(clockVerdict.verdict !== 'ok' || (splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status" role="status">
         {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `This drive needs ${travelDayNeed} travel days. The current plan has ${trip.days.length}.`}
         {' '}<button type="button" className="mv2-route-advice" onClick={() => { const tools = listRef.current?.parentElement?.querySelector('details.mv2-tools'); if (tools instanceof HTMLDetailsElement) { tools.open = true; tools.querySelector('summary')?.focus() } }}>Review route advice</button>
@@ -1810,7 +1829,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         </div>
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
-        <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} />
+        <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} />
         {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={stayWindowRows} windowRow={windowRow} daysCaption={daysCaption} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
@@ -2278,13 +2297,21 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
             {ribbonSheet === 'see' && phoneRibbon}
             {ribbonSheet === 'see' && scopeBand}
+            {phoneSheet && <div className="mv2-sheet-settings">{settingsTools}</div>}
 
             {lens === 'drive' && <div className="mv2-peek">
-              {seeForRail[0]?.hit ? <>
-                <span className="mv2-peek-mark"><CatIcon category={seeForRail[0].hit.category} size={22} /></span>
-                <button type="button" className="mv2-peek-place" onClick={() => { const hit = seeForRail[0]?.hit; if (hit) inspectHit(hit) }}><small>Along the drive</small><strong>{seeForRail[0].hit.name}</strong></button>
-                {editable && <button type="button" className="btn btn-primary" disabled={addingAny || !!previewOpen} onClick={() => { const hit = seeForRail[0]?.hit; if (hit) openAddModal(hit) }}>Add</button>}
-              </> : <p>{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Open search settings to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
+              {peekHit ? <>
+                <div className="mv2-peek-head">
+                  <span className="mv2-peek-eyebrow">{peekEyebrow}</span>
+                  {peekTotal != null && <span className="mv2-peek-count">1 of {peekTotal}</span>}
+                  <strong className="mv2-peek-title">{peekTitle}</strong>
+                </div>
+                <div className="mv2-peek-row">
+                  <span className="mv2-peek-mark" data-letter={drivePickLetters[String(peekHit.id)] ?? undefined}><CatIcon category={peekHit.category} size={20} /></span>
+                  <button type="button" className="mv2-peek-place" onClick={() => inspectHit(peekHit)}><strong>{peekHit.name}</strong>{peekSub != null && <small>{peekSub}</small>}</button>
+                  {editable && <button type="button" className="btn btn-primary mv2-peek-add" disabled={addingAny || !!previewOpen} onClick={() => openAddModal(peekHit)}><Plus size={15} aria-hidden />Add</button>}
+                </div>
+              </> : <p className="mv2-peek-empty">{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Open search settings to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
             </div>}
             <MapLensPanel
               lens={lens}

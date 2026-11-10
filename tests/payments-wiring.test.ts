@@ -213,9 +213,10 @@ describe('the public page wires the real unlock flow', () => {
     // #352 added the money flag; the call still re-stubs `src` against the
     // publication's own free-day list, which is what this pins.
     expect(fork).toContain('restubLockedDays(src, pub.freeDayIndexes,')
-    // The stub shape mirrors the migration's wire stub.
-    expect(fork).toContain("description: LOCKED_STOP_DESCRIPTION")
-    expect(fork).toContain('entryFeeInrPerPerson: 0')
+    // #774 — the re-stub copies a locked day as an empty day. The earlier stub
+    // kept each stop's title and coordinates, so a fork carried them out.
+    expect(fork).toContain('free.has(d.index) && !isWireLocked(d) ? d : emptyLockedDay(d)')
+    expect(fork).not.toContain('entryFeeInrPerPerson: 0')
   })
 
   it('the security migration ships the four audit fixes', () => {

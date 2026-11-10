@@ -362,6 +362,15 @@ export const NO_PROBE_SURFACE = {
     // parity-pinned and its behavior executed on PGlite.
     reason: 'submit_collab_command rewrite only — function bodies have no probe surface and the previous definition keeps working without it; pinned by tests/collab-command-parity.test.ts and tests/stage-c/843-exposure-persistence.test.ts',
   },
+  '20261110_paywall_locked_day_boundary.sql': {
+    // Redefines `get_public_trip` and `get_invite_trip` (#774, #917). Both
+    // exist before and after, so presence answers nothing, and a missing file
+    // is silent: the older function keeps sending locked stop titles and
+    // coordinates. The behaviour is executed, not scanned:
+    // tests/public-trip-paywall-db.test.ts runs this file on PGlite and then
+    // runs supabase/tests/public_trip_paywall.test.sql as each kind of viewer.
+    reason: 'redefines `get_public_trip` and `get_invite_trip` — the functions exist before and after, so presence answers nothing; absence is silent (locked place data stays in the response); executed on PGlite by tests/public-trip-paywall-db.test.ts through supabase/tests/public_trip_paywall.test.sql',
+  },
 }
 
 /** The plan: one entry per migration file, with its probes and the reason none

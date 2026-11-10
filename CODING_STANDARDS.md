@@ -1343,6 +1343,8 @@ process.
 
 - **A real-workspace receipt test must not mock the decision module as its transport (learned 2026-11-06, #841).** A workspace test that stubs the decision layer proves only the stub. Keep the production bridge and pass a controlled persistence under it. The uncertain write must reach the real `onUncertain` bridge. The kept callback must receive the acknowledged receipt, never `undefined`; a test that accepts `undefined` cannot see a fake success. Run this bridge in the focused suite. Label a mocked transport as client-only evidence, and never as server proof.
 
+- **A paywall must build the withheld shape, and never clear fields from the stored row (learned 2026-11-10, #774).** `get_public_trip` cleared the description, the notes and the times of each locked stop. It kept every field it did not name, so the title and the coordinates stayed in the response. A list of fields to remove fails open for each new field. Build the locked value from counts, and copy no stored field into it. Apply the same rule to every function that returns the same row: `get_invite_trip` served the full row by trip id. A blur in the browser is not a lock. Prove the boundary by execution. `tests/public-trip-paywall-db.test.ts` runs the migration on PGlite and calls the function as each kind of viewer. A source scan cannot show what a function returns. On the client, read the locked shape in one module (`src/lib/lockedDay.ts`), and keep an unknown count apart from zero.
+
 ## 3. Scripted edits
 
 - **Day-start names must match the resolved origin.** Stored route points can precede a flight. Match location names against the journey coordinates.

@@ -1,6 +1,6 @@
 // The Look Inside page sells a plan in counts and plain words. A locked day
-// keeps its own title and its derived road minutes, and it carries no stop
-// title, no location name and no coordinate. Pace word and cover rules follow
+// shows its number and its counts. It carries no creator title, no stop
+// title, no location name and no coordinate (#774, see lib/lockedDay). Pace word and cover rules follow
 // the prototype: p7-look-inside (NOTES.md).
 import type { ItineraryDay, PublishedItinerary } from '../data/types'
 

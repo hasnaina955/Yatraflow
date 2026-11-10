@@ -5,7 +5,7 @@
 // The trip arrives from the anonymous `get_public_trip` RPC. The database
 // already stubs locked days, and this module is the second lock: it decides
 // which days are free from the PUBLICATION's own fields and prints a locked
-// day as its title and nothing else. Anything it does not understand is
+// day as its number and nothing else. Anything it does not understand is
 // locked. It never prints notes, times, costs, links or place ids.
 
 import { escapeHtml } from './_escape.js'
@@ -62,10 +62,14 @@ export function planBody(publication, trip) {
     const stops = Array.isArray(day?.stops) ? day.stops : []
     const index = Number.isInteger(day?.index) ? day.index : null
     const stubbed = stops.some(stop => text(stop?.description).startsWith(LOCKED_MARKER))
-    const open = index !== null && !stubbed && (free === 'all' || free.has(index))
+    // The database marks each day it withheld. Such a day is never open (#774).
+    const withheld = day?.locked === true
+    const open = index !== null && !stubbed && !withheld && (free === 'all' || free.has(index))
     return {
       number: position + 1,
-      title: text(day?.title, 160),
+      // A closed day prints its number only. Its title is the creator's own
+      // text, and an older database still sends it.
+      title: open ? text(day?.title, 160) : '',
       open,
       stops: open
         ? stops.map(stop => ({

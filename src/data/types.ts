@@ -273,6 +273,14 @@ export interface ItineraryDay {
    */
   coverImageUrl?: string
   stops: ItineraryStop[]
+  /**
+   * True only on a day the server withheld from this viewer (`get_public_trip`).
+   * Such a day arrives with no title, no time, no image and no stop. No client
+   * writes this field. Read it through `lib/lockedDay`.
+   */
+  locked?: boolean
+  /** The counts of a withheld day. Wire data, so read it through `lib/lockedDay`. */
+  lockedPreview?: { stopCount?: number; categories?: Record<string, number> }
 }
 
 export interface Trip {

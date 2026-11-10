@@ -138,3 +138,36 @@ export function ribbonScrub(
   const position = ribbonPosition(stops, clamped, corrections)
   return { minute: clamped, position, cameraReveal: position != null && position.grade !== 'estimated' }
 }
+
+// ---- Preview re-timing (W7-E) ----------------------------------------------
+
+/** The add preview facts the ribbon shows. It reads nothing it cannot prove. */
+export interface RibbonPreview {
+  newStop: { arrive: string; depart: string }
+  clocks: Array<{ stopId: string; to: string }>
+}
+
+/** A HH:MM clock as minutes, or null when the text is not a clock. */
+export function ribbonClockMinutes(text: string): number | null {
+  const [hours, minutes] = text.split(':').map(Number)
+  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null
+}
+
+/** Move the stops the preview re-times. A moved stop keeps its dwell time. */
+export function retimedStops(stops: RibbonStop[], preview: RibbonPreview): RibbonStop[] {
+  const byStop = new Map<string, string>(preview.clocks.map(clock => [clock.stopId, clock.to] as [string, string]))
+  let previous = stops[0]?.arrive ?? 0
+  return stops.map(stop => {
+    const text = byStop.get(stop.point.stop.id)
+    const arrival = text == null ? null : ribbonClockMinutes(text)
+    if (arrival == null) {
+      previous = stop.depart
+      return stop
+    }
+    let arrive = arrival
+    while (arrive < previous) arrive += 1440
+    const moved = { point: stop.point, arrive, depart: arrive + Math.max(0, stop.depart - stop.arrive) }
+    previous = moved.depart
+    return moved
+  })
+}

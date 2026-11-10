@@ -943,6 +943,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   })
   /** The facts of the open add preview. Null when no preview is open. */
   const openPreview = edit.session.phase === 'previewing' || edit.session.phase === 'saving' ? edit.session.preview : null
+  // The chip finds its row by the day's stop id, never by a stop title.
+  const previewChip = openPreview
+    ? {
+      index: openPreview.insertion.index,
+      stopIds: (trip.days.find(day => day.index === openPreview.dayIndex)?.stops ?? []).map(stop => stop.id),
+      label: openPreview.road.legIn?.toTitle ?? openPreview.road.legOut?.fromTitle ?? null,
+    }
+    : null
 
   /** #841: a route arc's "Add all" stages through the shared writer: one
    *  operation gate, the shared planner, a stable day target per place and a
@@ -1422,11 +1430,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const driveCounts: ScopeBandCounts | null = lens === 'drive' && lenses.drive.phase === 'ready'
     ? bandCounts(lenses.drive.view.rows.map(row => scopeBandOf(row, scopeMinutes, budgetHeldIds)))
     : null
-  const stayWindowRow = lens === 'stay' && activeStayWindowId != null
-    ? (() => {
-      const entry = lenses.stay.windows.find(window => window.id === activeStayWindowId)
-      return entry ? { label: entry.label, startMin: entry.startMin, endMin: entry.endMin } : null
-    })()
+  // W7-E: the Stay lens shows every window of the day. Each window gets one
+  // row. Only the active window carries the outline. The Gap lens keeps its
+  // own single window row.
+  const stayWindowRows = lens === 'stay'
+    ? lenses.stay.windows.map(window => ({
+      label: window.label, startMin: window.startMin, endMin: window.endMin,
+      active: window.id === activeStayWindowId,
+    }))
     : null
   const gapWindowRow = lens === 'gap'
     ? (() => {
@@ -1436,7 +1447,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       return { label: gap.title, startMin: row.windowMin[0], endMin: row.windowMin[1] }
     })()
     : null
-  const windowRow = stayWindowRow ?? gapWindowRow
+  const windowRow = gapWindowRow
   const fixStopId = lens === 'fix'
     ? fixTargetStopId(lenses.fix.target, trip.fixedCommitments, activeDayIndex)
     : null
@@ -1556,6 +1567,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const selectedProjected = selectedMatches.length > 0
   const selectedRow = selectedHit ? mapRowForHit(mapRows, selectedHit, detailDay, detailBinding) : undefined
   const mapShowsAll = mapFilter === 'all' || dayFocus === 'all'
+  // Only the all-days view draws other days thin.
+  const thinDays = mapShowsAll ? { selectedDay: activeDayIndex } : {}
+  // A thin line has no click handler. The short copy states only what is true.
+  const daysCaption = mapShowsAll ? 'Other days draw thin.' : null
   function showAllMapDays() { setMapFilter('all'); onDayFocusChange?.('all') }
   function chooseDay(index: number) {
     setLocalDay(index)
@@ -1769,7 +1784,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRow={windowRow} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} previewChip={openPreview ? { afterTitle: openPreview.insertion.afterTitle, label: openPreview.road.legIn?.toTitle ?? openPreview.road.legOut?.fromTitle ?? null } : null} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={stayWindowRows} windowRow={windowRow} daysCaption={daysCaption} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
@@ -2171,6 +2186,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
               focusDay={mapShowsAll ? 'all' : activeDayIndex}
+              {...thinDays}
               legCorrections={legCorrections}
               tripReadinessRows={tripReadinessRows}
               onDayFilterChange={day => {

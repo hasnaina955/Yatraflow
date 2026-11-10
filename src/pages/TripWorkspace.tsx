@@ -16,7 +16,7 @@ import { computeImpact, type ImpactResult } from '../lib/impact'
 import { routeParts } from '../lib/pageTitle'
 import { currentQuery, currentRoute, replaceRoute } from '../lib/router'
 import { scrollBehavior } from '../lib/motion'
-import { Avatar, toast, undoToast } from '../components/ui'
+import { Avatar, toast, undoToast, useMedia } from '../components/ui'
 import { assignAvatarTones } from '../lib/avatarTone'
 import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
@@ -487,6 +487,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     return () => { cancelled = true }
   }, [trip, readState, tripId, me, identityGeneration])
   const [tab, setTabState] = useState<TabKey>(() => sanitizeTab(initialTab))
+  // W10: the Map tab owns the whole phone screen. This attribute is the one
+  // switch the stylesheet reads, and it is true only for map + phone.
+  const phoneMapFullscreen = useMedia('(max-width: 760px)') && tab === 'map'
   // Normalize a legacy slug in the URL once on mount so existing
   // /trip/<id>/suggestions|decisions links keep working but self-heal to `group`.
   useEffect(() => {
@@ -940,7 +943,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     : [])
 
   return (
-    <div className="container page-enter yf-workspace" data-wide={headerFolded ? 'true' : 'false'} data-map-active={tab === 'map' ? 'true' : undefined}>
+    <div className="container page-enter yf-workspace" data-wide={headerFolded ? 'true' : 'false'} data-map-active={tab === 'map' ? 'true' : undefined} data-map-fullscreen={phoneMapFullscreen ? 'true' : undefined}>
       <div className="yf-page" data-compact={headerFolded ? 'true' : 'false'}>
         <TripArtSprite />
         <header className="yf-trip-head">
@@ -1048,6 +1051,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'map' && (
         <React.Suspense fallback={<MapTabSkeleton />}>
           <MapTab trip={effective} editable={editable} applyChange={applyChange}
+            onBackToTrip={() => setTab('overview')}
             suggestionCache={suggestionCache} onInputsHash={publishMapInputs}
             onCorridorState={publishCorridor}
             journeyDays={journeyDays} presence={journeyDays.presence} crewSeeds={crewSeeds} roadBinding={roadBinding} currentRoad={currentRoadBinding}

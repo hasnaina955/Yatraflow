@@ -117,7 +117,7 @@ function Fixture() {
   const applyChange = useCallback<ApplyChange>(() => {
     setMessage('A local preview was requested. No trip or backend was changed.')
   }, [])
-  return <div className="container yf-workspace" data-map-active="true">
+  return <div className="container yf-workspace" data-map-active="true" data-map-fullscreen="true">
     <header className="map-fixture-header"><div><strong>Kerala loop</strong><span>2 days · synthetic trip · {mode} mode</span></div><nav aria-label="Fixture trip sections"><span>Overview</span><span>Timeline</span><strong aria-current="page">Map</strong><span>Budget</span></nav></header>
     <p className="map-fixture-status" role="status">{message}</p>
     <Suspense fallback={<p>Loading map workspace…</p>}><MapTab trip={trip} editable={params.get('role') !== 'viewer'} road={road} legCorrections={corrections} suggestionCache={cache} dayFocus={day} onDayFocusChange={setDay}

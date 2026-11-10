@@ -1,5 +1,5 @@
 import { Fragment, useId, useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { fmtDur, legKey } from '../../lib/engine'
@@ -21,14 +21,22 @@ import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKey
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
 export type { RibbonPreview }
 
-export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void }) {
+export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange, onBack }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void; onBack?: (() => void) | undefined }) {
   const days = [...trip.days].sort((a, b) => a.index - b.index)
   const at = days.findIndex(day => day.index === activeDay)
+  const day = days[at]
+  const title = journey ? `${journey.startTitle ?? ''} → ${journey.endTitle ?? ''}` : day?.title || 'Your day on the map'
   return <div className="mv2-phone-day" aria-label="Map day">
-    <button type="button" className="mv2-icon-btn" disabled={at <= 0} aria-label="Previous map day" onClick={() => { const day = days[at - 1]; if (day) onDayChange(day.index) }}><ChevronLeft size={17} /></button>
-    <strong>Day {activeDay + 1}<span>{journey?.startTitle}{journey && ' → '}{journey?.endTitle}</span></strong>
-    <button type="button" className="mv2-icon-btn" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>
-    <button type="button" className="mv2-icon-btn" disabled={at < 0 || at >= days.length - 1} aria-label="Next map day" onClick={() => { const day = days[at + 1]; if (day) onDayChange(day.index) }}><ChevronRight size={17} /></button>
+    {/* W10: the board's left chevron is the way back to the trip. It is the
+        leftmost control and keeps its own 44 px hit area. */}
+    {onBack && <button type="button" className="mv2-phone-day-back" aria-label="Back to trip" onClick={onBack}><ArrowLeft size={18} /></button>}
+    <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at <= 0} aria-label="Previous map day" onClick={() => { const previous = days[at - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={16} /></button>
+    <div className="mv2-phone-day-copy">
+      <span className="mv2-phone-day-label"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1} · Map</span>
+      <strong>{title}</strong>
+    </div>
+    <button type="button" className="mv2-phone-day-all" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>
+    <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at < 0 || at >= days.length - 1} aria-label="Next map day" onClick={() => { const next = days[at + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={16} /></button>
   </div>
 }
 

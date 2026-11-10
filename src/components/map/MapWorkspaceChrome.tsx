@@ -1,5 +1,5 @@
-import { Fragment, useId, useState, type ReactNode } from 'react'
-import { ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Route, Star, X } from 'lucide-react'
+import { Fragment, useId, useState, type CSSProperties, type ReactNode } from 'react'
+import { ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { legKey, minutesToHM } from '../../lib/engine'
@@ -11,9 +11,10 @@ import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
 import { titleCase } from '../../lib/labels'
 import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
-import { budgetBlockView, fixProblemReason, fixReasonLine } from '../../pages/trip/map/LensRailExtras'
+import { budgetBlockView, budgetValueParts, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
 import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
+import { dayColor } from '../../lib/mapStyles/dayColors'
 import { ageText, coverageText } from './placeCardFacts'
 import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
@@ -76,7 +77,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const position = days.findIndex(day => day.index === activeDay)
   const day = days[position]
   const date = day && visitDateForDay(trip.startDate, day.index)
-  const dateLabel = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
+  const dateLabel = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '') : ''
   const locks = new Set(trip.fixedCommitments?.filter(lock => lock.dayIndex === activeDay).flatMap(lock => lock.stopId ? [lock.stopId] : []))
   const points = journey?.points ?? []
   // One budget block for every lens. The bar needs the used part, so Stay and
@@ -112,11 +113,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   }
   const windowsAt = (index: number) => windowsInOrder
     .filter(row => insertAtFor(row.startMin) === index)
-    .map(row => <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
-      <time className="mv2-lens-window-time">{clock?.(row.startMin)}</time>
-      <span className="mv2-window-ring" aria-hidden="true" />
-      <span className="mv2-stop-copy"><strong>{row.label}</strong><small>{clock?.(row.startMin)}–{clock?.(row.endMin)}</small></span>
-    </li>)
+    .map(row => {
+      const duration = windowDurationText(row.startMin, row.endMin)
+      return <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
+        <time className="mv2-lens-window-time">{clock?.(row.startMin)}</time>
+        <span className="mv2-window-ring" aria-hidden="true" />
+        <span className="mv2-stop-copy"><strong>{row.label}</strong><small>{clock?.(row.startMin)}–{clock?.(row.endMin)}{duration != null && ` · ${duration}`}</small></span>
+      </li>
+    })
   const previewChipAt = (stopId: string | null) => {
     if (previewChip == null || previewChip.label == null) return null
     const beforeFirst = previewChip.index === 0
@@ -124,18 +128,22 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     if (beforeFirst ? stopId !== null : target == null || stopId !== target) return null
     return <span className="mv2-lens-tag">{previewChip.label} · Preview</span>
   }
+  // The number of a used-of line takes the board's bold step.
+  const budgetParts = budgetValueParts(budget.value)
   return <aside className="mv2-itinerary" aria-label="Day itinerary">
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
-        <span>Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
+        <div className="mv2-day-head">
+          <span className="mv2-day-mark"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
+          <h2>{journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{journey.endTitle}</> : day?.title || 'Your day on the map'}</h2>
+        </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
-      <h2>{journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{journey.endTitle}</> : day?.title || 'Your day on the map'}</h2>
-      <p>{journey ? `${Math.round(journey.distanceKm)} km · ${minutesToHM(journey.driveMinutes)} travel · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
-      <button type="button" className="mv2-fold-day mv2-icon-btn" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
+      <p>{journey ? `${Math.round(journey.distanceKm)} km · ${minutesToHM(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
+      <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
     </header>
-    <div className="mv2-budget mv2-lens-budget"><Route size={17} aria-hidden /><div className="mv2-lens-budget-copy"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budget.value}</strong></div>{budget.showBar && budgetBar != null
+    <div className="mv2-budget mv2-lens-budget"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>
     <ol className="mv2-stops">

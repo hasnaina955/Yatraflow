@@ -126,7 +126,8 @@ function Fixture() {
       dismissedIds={dismissedIds} setDismissedIds={setDismissedIds} setStagedSnapshot={setStagedSnapshot}
       stagedIdsRef={stagedIdsRef} slotManual={slotManual} setSlotManual={setSlotManual}
       applyChange={applyChange}
-      onOpenDay={index => setMessage(`Timeline day ${index + 1} requested. No navigation outside the fixture.`)} /></Suspense>
+      onOpenDay={index => setMessage(`Timeline day ${index + 1} requested. No navigation outside the fixture.`)}
+      onBackToTrip={() => setMessage('Back to trip requested. No navigation outside the fixture.')} /></Suspense>
   </div>
 }
 const root = document.getElementById('root')

@@ -1392,8 +1392,31 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       ring: ringPolygon(lenses.stay.base, ringRadiusKm(stayRingDef.mode, stayRingDef.minutes)),
     }]
     : undefined
-  const gapRings = lens === 'gap'
-    ? lenses.gap.view.rows.flatMap(row => {
+  // W10b: the phone sheet hides the bottom of the map. Its live height is the
+  // bottom inset, measured again when a snap transition ends.
+  const [phoneSheetHeight, setPhoneSheetHeight] = useState(0)
+  useEffect(() => {
+    if (!phoneSheet) return
+    const sheet = [...document.querySelectorAll('.map-ideas-grid .poi-col, .map-ideas-grid .mv2-detail')]
+      .find(el => !el.hasAttribute('hidden') && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none')
+    if (!sheet) return
+    const measure = () => setPhoneSheetHeight(Math.round(sheet.getBoundingClientRect().height))
+    measure()
+    sheet.addEventListener('transitionend', measure)
+    return () => sheet.removeEventListener('transitionend', measure)
+  }, [phoneSheet, snap, sheetTab, deckOpen])
+  // The sheet leaves the Stay ring behind it. On a phone the ring is framed as
+  // a bounds target, so the same insets that clear the sheet also fit the ring.
+  const stayBaseLat = lenses.stay.base?.lat
+  const stayBaseLng = lenses.stay.base?.lng
+  const phoneStayTarget = useMemo<MapTarget | null>(() => {
+    // The snap re-issues the frame so the new sheet height joins the padding.
+    void snap
+    if (!phoneSheet || lens !== 'stay' || stayBaseLat == null || stayBaseLng == null) return null
+    const ring = ringPolygon({ lat: stayBaseLat, lng: stayBaseLng }, ringRadiusKm(stayRingDef.mode, stayRingDef.minutes))
+    return { kind: 'bounds', points: ring.map(([lng, lat]) => ({ lat, lng })) }
+  }, [phoneSheet, lens, stayBaseLat, stayBaseLng, stayRingDef.mode, stayRingDef.minutes, snap])
+  const gapRings = lens === 'gap'    ? lenses.gap.view.rows.flatMap(row => {
       const hit = row.candidates[0]?.hit
       if (!hit || !Number.isFinite(hit.latitude) || !Number.isFinite(hit.longitude)) return []
       return [{
@@ -1640,7 +1663,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? null
     : selectedHit ? 'detail' : sheetTab === 'needs' ? 'needs' : 'see'
   const phoneRibbon = (
-    <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} onScrub={(position, minute) => {
+    <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet} onScrub={(position, minute) => {
       if (position.grade === 'estimated') { setScrubCursor(null); return }
       setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
       setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
@@ -2271,19 +2294,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onOpenHaltDay={onOpenDay}
               clockMilestones={clockMilestones}
               onDeleteStop={editable ? removeStopFromMap : undefined}
-              mapTarget={localTarget ?? mapTarget}
-              onMapTargetConsumed={() => { if (localTarget) setLocalTarget(null); else onMapTargetConsumed?.() }}
+              mapTarget={localTarget ?? mapTarget ?? phoneStayTarget}
+              onMapTargetConsumed={() => { if (localTarget) setLocalTarget(null); else if (mapTarget) onMapTargetConsumed?.() }}
               workspaceChrome
               instantTarget={!!localTarget && targetRequest?.instant === true}
               journeyCursor={scrubCursor?.contextKey === scrubContext ? { coordinate: scrubCursor.coordinate, label: formatHM(clockHM(scrubCursor.minute), timeFormat) } : null}
-              overlayInsets={{ left: itineraryOpen && !phoneSheet ? (compactMap ? 298 : 404) : 24, right: deckOpen && !phoneSheet ? (compactMap ? 306 : 396) : 70, top: 90, bottom: phoneSheet ? (snap === 'peek' ? 224 : snap === 'half' ? 460 : 560) : 90 }}
+              overlayInsets={{ left: itineraryOpen && !phoneSheet ? (compactMap ? 298 : 404) : 24, right: deckOpen && !phoneSheet ? (compactMap ? 306 : 396) : 70, top: 90, bottom: phoneSheet ? phoneSheetHeight : 90 }}
               enableMapViewModes
               mainRouteGeometry={routeGeometry}
               returnRouteGeometry={returnRouteGeometry}
               allowSelfMeasurement={false}
               onShowReturnChange={setShowReturn}
               {...(stayRings ? { stayRings } : {})}
-              frameStayRing={lens === 'stay' && lenses.stay.base != null}
+              frameStayRing={lens === 'stay' && lenses.stay.base != null && !phoneSheet}
               {...(gapRings ? { gapRings } : {})}
               {...(onGapRing ? { onGapRing } : {})}
               {...(Object.keys(pickBands).length > 0 ? { pickBands } : {})}
@@ -2298,7 +2321,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
             {ribbonSheet === 'see' && phoneRibbon}
             {ribbonSheet === 'see' && scopeBand}
-            {phoneSheet && <div className="mv2-sheet-settings">{settingsTools}</div>}
 
             {lens === 'drive' && <div className="mv2-peek">
               {peekHit ? <>
@@ -2379,6 +2401,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 <p className="hint-text">{budgetHeldCount} idea{budgetHeldCount === 1 ? '' : 's'} held back - beyond the day&apos;s detour budget. Add fewer stops, or raise the scope, and the engine will offer them again.</p>
               )}
             </div>}
+            {phoneSheet && <div className="mv2-sheet-settings">{settingsTools}</div>}
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />

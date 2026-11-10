@@ -190,11 +190,14 @@ function previewTitle(preview: RibbonPreview, format: ReturnType<typeof useTimeF
   return `Re-timed preview · new stop ${formatHM(preview.newStop.arrive, format)}–${formatHM(preview.newStop.depart, format)}`
 }
 
-export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub }: {
+export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub, inSheet = false }: {
   journey: Journey | null; corrections?: Record<string, LegEstimate>
   onScrub: (position: RibbonPosition, minute: number) => void
   /** The open add preview. Its own schedule re-times the stops shown here. */
   preview?: RibbonPreview | null
+  /** W10b: the phone sheet ribbon has its own class, so the map camera does
+   *  not read it as a second overlay above the sheet. */
+  inSheet?: boolean
 }) {
   const format = useTimeFormat()
   const planned = journey ? ribbonStops(journey) : []
@@ -218,8 +221,9 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
     // or stop grades, so an unmeasured leg never produces a fake camera move.
     if (outcome.position) onScrub(outcome.position, outcome.minute)
   }
-  if (!stops.length) return <section className="mv2-ribbon" aria-label="Journey clock"><span className="mv2-ribbon-title">Journey clock</span><span>No scheduled stops yet.</span></section>
-  return <section className="mv2-ribbon" aria-label="Journey clock">
+  const rootClass = inSheet ? 'mv2-ribbon-sheet' : 'mv2-ribbon'
+  if (!stops.length) return <section className={rootClass} aria-label="Journey clock"><span className="mv2-ribbon-title">Journey clock</span><span>No scheduled stops yet.</span></section>
+  return <section className={rootClass} aria-label="Journey clock">
     <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small>{preview ? previewTitle(preview, format) : current.cameraReveal ? 'Planned times' : 'Road position unavailable'}</small></div>
     <div className="mv2-clock-track">
       <div className="mv2-clock-drawing" aria-hidden="true">

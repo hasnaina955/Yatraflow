@@ -15,9 +15,10 @@ import { budgetBlockView, fixProblemReason, fixReasonLine } from '../../pages/tr
 import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
 import { ageText, coverageText } from './placeCardFacts'
-import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, type RibbonPosition, type RibbonStop } from '../../lib/mapJourneyRibbon'
+import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
+export type { RibbonPreview }
 
 export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void }) {
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -32,24 +33,43 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
 
 export { MapPhoneSheetHandle as MapSheetHandle } from './MapPhoneSheetHandle'
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRow, fixStopId, budgetBar, clock, previewChip }: {
+export interface ItineraryWindowRow {
+  label: string
+  startMin: number
+  endMin: number
+  /** Only the active window carries the marigold outline. */
+  active?: boolean
+}
+
+export interface ItineraryPreviewChip {
+  /** Index in the day's stop array. */
+  index: number
+  /** Ids of the day's stops, in array order. */
+  stopIds: string[]
+  label: string | null
+}
+
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, budgetBar, clock, previewChip }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
   onDayChange: (index: number) => void; onSelect: (point: JourneyPoint) => void; onOpenDay?: (index: number) => void; onFold: () => void
   /** Lens extras sit in the rail's normal flow, between the stops and the footer. */
   railExtras?: ReactNode
-  /** The active lens window. An unknown window keeps its row out. */
+  /** The day's stay windows. One row per window, in time order. */
+  windowRows?: ItineraryWindowRow[] | null
+  /** One active window for a caller that holds just one. */
   windowRow?: { label: string; startMin: number; endMin: number } | null
+  /** Copy under the day list. Show it only while all days draw. */
+  daysCaption?: string | null
   /** The stop the Fix lens names. An unknown id keeps its tint out. */
   fixStopId?: string | null
   /** The detour budget bar. Null keeps the original two lines. */
   budgetBar?: { text: string; step: number } | null
   /** Formats one minute of the day for a window row. */
   clock?: (min: number) => string
-  /** The open add preview: the row title it lands after, and the place name.
-   *  A null label keeps the chip out, because an unnamed chip would invent a place. */
-  previewChip?: { afterTitle: string | null; label: string | null } | null
+  /** The open add preview. Its index finds one row by stop id. */
+  previewChip?: ItineraryPreviewChip | null
 }) {
   const timeFormat = useTimeFormat()
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -73,26 +93,37 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     const leg = previous ? corrections?.[legKey(previous, point)] : undefined
     return !leg || leg.estimated === true
   })
-  // A window that is not a stop row enters the list once, in time order. No
-  // count is printed here: the picks are not known to this rail.
+  // A window is not a stop row. Each window enters the list once, at its own
+  // place in time order. No count is printed here: the picks are not known.
   const minutesOf = (text: string) => {
     const [hours, minutes] = text.split(':').map(Number)
     return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null
   }
-  const windowInsertAt = windowRow == null
-    ? -1
-    : (() => {
-      const index = points.findIndex(point => {
-        const arrive = minutesOf(point.arrive)
-        return arrive != null && arrive > windowRow.startMin
-      })
-      return index < 0 ? points.length : index
-    })()
-  const windowRowMarkup = windowRow == null || clock == null ? null : <li className="mv2-window-row is-active-window">
-    <time className="mv2-lens-window-time">{clock(windowRow.startMin)}</time>
-    <span className="mv2-window-ring" aria-hidden="true" />
-    <span className="mv2-stop-copy"><strong>{windowRow.label}</strong><small>{clock(windowRow.startMin)}–{clock(windowRow.endMin)}</small></span>
-  </li>
+  const resolvedWindows: ItineraryWindowRow[] = windowRows != null
+    ? windowRows
+    : windowRow != null ? [{ ...windowRow, active: true }] : []
+  const windowsInOrder = clock == null ? [] : [...resolvedWindows].sort((a, b) => a.startMin - b.startMin)
+  const insertAtFor = (startMin: number) => {
+    const index = points.findIndex(point => {
+      const arrive = minutesOf(point.arrive)
+      return arrive != null && arrive > startMin
+    })
+    return index < 0 ? points.length : index
+  }
+  const windowsAt = (index: number) => windowsInOrder
+    .filter(row => insertAtFor(row.startMin) === index)
+    .map(row => <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
+      <time className="mv2-lens-window-time">{clock?.(row.startMin)}</time>
+      <span className="mv2-window-ring" aria-hidden="true" />
+      <span className="mv2-stop-copy"><strong>{row.label}</strong><small>{clock?.(row.startMin)}–{clock?.(row.endMin)}</small></span>
+    </li>)
+  const previewChipAt = (stopId: string | null) => {
+    if (previewChip == null || previewChip.label == null) return null
+    const beforeFirst = previewChip.index === 0
+    const target = beforeFirst ? null : previewChip.stopIds[previewChip.index - 1] ?? null
+    if (beforeFirst ? stopId !== null : target == null || stopId !== target) return null
+    return <span className="mv2-lens-tag">{previewChip.label} · Preview</span>
+  }
   return <aside className="mv2-itinerary" aria-label="Day itinerary">
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
@@ -109,66 +140,30 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       : null}</div>
     <ol className="mv2-stops">
       {points.map((point, index) => <Fragment key={point.stop.id}>
-        {index === windowInsertAt && windowRowMarkup}
+        {windowsAt(index)}
         <li>
-        {index === 0 && previewChipFor(null, previewChip)}
+        {index === 0 && previewChipAt(null)}
         {index > 0 && point.legIn && <div className="mv2-travel-leg"><span />{Math.round(point.legIn.distanceKm)} km · {minutesToHM(point.legIn.durationMinutes)}</div>}
         <button type="button" className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${fixStopId === point.stop.id ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
           <time>{formatHM(point.arrive, timeFormat)}</time>
           <span className={`mv2-stop-mark${point.kind === 'halt' || point.stop.category === 'hotel' ? ' is-stay' : ''}`}>
             {point.kind === 'start' || point.kind === 'destination' ? <Car size={13} /> : point.stop.category === 'hotel' ? <Home size={15} /> : index}
           </span>
-          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixSubLine != null && <small className="mv2-lens-fix-reason">{fixSubLine}</small>}{previewChipFor(point.title, previewChip)}</span>
+          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixSubLine != null && <small className="mv2-lens-fix-reason">{fixSubLine}</small>}{previewChipAt(point.stop.id)}</span>
           {locks.has(point.stop.id) && <LockKeyhole size={13} aria-label="Fixed time" />}
         </button>
       </li>
       </Fragment>)}
-      {windowInsertAt === points.length && windowRowMarkup}
+      {windowsAt(points.length)}
     </ol>
     {railExtras}
     <footer className="mv2-day-footer">
       {onOpenDay && <button type="button" className="mv2-timeline-link" onClick={() => onOpenDay(activeDay)}>Open day in Timeline<ArrowRight size={15} aria-hidden /></button>}
       <span className="mv2-section-label">Days on the map</span>
       <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}><span aria-hidden="true" />{item.index + 1}</button>)}</div>
+      {daysCaption && <p className="hint-text" role="status">{daysCaption}</p>}
     </footer>
   </aside>
-}
-
-/** The rail chip of an open add preview. It marks the row the pick lands after. */
-function previewChipFor(title: string | null, previewChip: { afterTitle: string | null; label: string | null } | null | undefined) {
-  if (previewChip == null || previewChip.label == null || previewChip.afterTitle !== title) return null
-  return <span className="mv2-lens-tag">{previewChip.label} · Preview</span>
-}
-
-/** The add preview facts the ribbon shows. It reads nothing it cannot prove. */
-export interface RibbonPreview {
-  newStop: { arrive: string; depart: string }
-  clocks: Array<{ stopId: string; to: string }>
-}
-
-/** A HH:MM clock as minutes, or null when the text is not a clock. */
-function ribbonClockMinutes(text: string): number | null {
-  const [hours, minutes] = text.split(':').map(Number)
-  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null
-}
-
-/** Move the stops the preview re-times. A moved stop keeps its dwell time. */
-function retimedStops(stops: RibbonStop[], preview: RibbonPreview): RibbonStop[] {
-  const byStop = new Map<string, string>(preview.clocks.map(clock => [clock.stopId, clock.to] as [string, string]))
-  let previous = stops[0]?.arrive ?? 0
-  return stops.map(stop => {
-    const text = byStop.get(stop.point.stop.id)
-    const arrival = text == null ? null : ribbonClockMinutes(text)
-    if (arrival == null) {
-      previous = stop.depart
-      return stop
-    }
-    let arrive = arrival
-    while (arrive < previous) arrive += 1440
-    const moved = { point: stop.point, arrive, depart: arrive + Math.max(0, stop.depart - stop.arrive) }
-    previous = moved.depart
-    return moved
-  })
 }
 
 /** The preview label, plus the new stop's clocks when both are known. */

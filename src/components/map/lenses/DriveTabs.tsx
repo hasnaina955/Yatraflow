@@ -8,6 +8,7 @@ import type {
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
 import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
+import type { PlaceHit } from '../../../lib/geocode'
 
 /** One row of a Drive tab group. */
 type DriveRow = DriveTabGroup['shown'][number]
@@ -103,7 +104,7 @@ export function driveCells(strip: DriveCardStrip): LensCostCell[] {
   ]
 }
 
-export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, onClose }: {
+export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, onShortlist, shortlistedOf, onClose }: {
   result: DriveTabsResult
   activeTab: DriveTab | null
   onTab: (tab: DriveTab) => void
@@ -117,6 +118,10 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   dayNumber: number
   /** The reason the model gives for a row. Null shows no chip. */
   reasonOf?: (row: DriveRow) => string | null
+  /** The Keep action. Absent hides the heart. */
+  onShortlist?: (hit: PlaceHit) => void
+  /** True draws the kept heart. */
+  shortlistedOf?: (hit: PlaceHit) => boolean
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
 }) {
@@ -206,6 +211,10 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
               addTitle={over ? "Over today's budget" : undefined}
               onOpen={() => onOpen(row)}
               onAdd={() => onAdd(row)}
+              {...(onShortlist == null ? {} : {
+                onShortlist: () => onShortlist(hit),
+                shortlisted: shortlistedOf?.(hit) ?? false,
+              })}
               selected={index === 0}
             />
           </li>

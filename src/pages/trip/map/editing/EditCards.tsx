@@ -126,19 +126,71 @@ export function FixedTimeConfirm({ guard, onConfirm, onCancel }: {
   )
 }
 
+/** One clock label as a 24h minute count plus the format it came in. */
+function parseClock(label: string): { minutes: number; twelveHour: boolean } | null {
+  const twelve = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(label.trim())
+  if (twelve) {
+    const hour = Number(twelve[1])
+    const minute = Number(twelve[2])
+    const pm = twelve[3].toUpperCase() === 'PM'
+    if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 1 || hour > 12 || minute > 59) return null
+    const h24 = (hour % 12) + (pm ? 12 : 0)
+    return { minutes: h24 * 60 + minute, twelveHour: true }
+  }
+  const plain = /^(\d{1,2}):(\d{2})$/.exec(label.trim())
+  if (!plain) return null
+  const hour = Number(plain[1])
+  const minute = Number(plain[2])
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute > 59) return null
+  return { minutes: hour * 60 + minute, twelveHour: false }
+}
+
+/** One minute count back as a clock label in the same format. */
+function renderClock(minutes: number, twelveHour: boolean): string {
+  const total = ((Math.round(minutes) % 1440) + 1440) % 1440
+  const hour = Math.floor(total / 60)
+  const minute = total % 60
+  if (!twelveHour) return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  const suffix = hour < 12 ? 'AM' : 'PM'
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12
+  return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`
+}
+
+/** The card's clock span: the arrival and the arrival plus the dwell.
+ *  A label that already holds a dash is a real span and stays as it is.
+ *  An unknown or unreadable clock shows the known part alone. */
+export function editClockSpan(clockLabel: string | null, dwellMin: number | null): string | null {
+  if (clockLabel == null || clockLabel.trim() === '') return null
+  if (clockLabel.includes('–') || clockLabel.includes('-')) return clockLabel
+  if (dwellMin == null || !Number.isFinite(dwellMin) || dwellMin < 0) return clockLabel
+  const start = parseClock(clockLabel)
+  if (start == null) return clockLabel
+  return `${clockLabel.trim()}–${renderClock(start.minutes + Math.round(dwellMin), start.twelveHour)}`
+}
+
+/** aria-selected is true only on the current value. The highlighted row is
+ *  named by aria-activedescendant, never by aria-selected. */
+export function isChoiceSelected(value: string | null | undefined, id: string): boolean {
+  return value != null && value === id
+}
+
 /** A small listbox pill. The keyboard keeps focus on the list: arrows, Enter and Esc. */
-function ChoiceMenu({ label, text = label, icon, choices, onChoose, disabled = false, busy = false }: {
+export function ChoiceMenu({ label, text = label, icon, choices, value = null, onChoose, disabled = false, busy = false, defaultOpen = false }: {
   label: string
   /** The visible pill text. It defaults to the accessible name. */
   text?: string
   icon: React.ReactNode
   choices: readonly { id: string; label: string }[]
+  /** The current value. Only this option is aria-selected. */
+  value?: string | null
   onChoose: (id: string) => void
   disabled?: boolean
   busy?: boolean
+  /** Opens the list on the first render. Tests use it; the page never sets it. */
+  defaultOpen?: boolean
 }): React.ReactElement {
-  const [open, setOpen] = React.useState(false)
-  const [active, setActive] = React.useState(0)
+  const [open, setOpen] = React.useState(defaultOpen)
+  const [active, setActive] = React.useState(() => Math.max(0, choices.findIndex(choice => choice.id === value)))
   const trigger = React.useRef<HTMLButtonElement>(null)
   const list = React.useRef<HTMLUListElement>(null)
   const id = React.useId()
@@ -161,6 +213,13 @@ function ChoiceMenu({ label, text = label, icon, choices, onChoose, disabled = f
   function choose(choice: { id: string }) {
     onChoose(choice.id)
     close()
+  }
+  /** Focus leaving the menu closes it. Focus has already moved, so the pill
+   *  must not take it back. */
+  function onListBlur(event: React.FocusEvent<HTMLUListElement>) {
+    const next = event.relatedTarget as Node | null
+    if (next != null && event.currentTarget.contains(next)) return
+    setOpen(false)
   }
   function onListKey(event: React.KeyboardEvent<HTMLUListElement>) {
     const last = choices.length - 1
@@ -200,13 +259,14 @@ function ChoiceMenu({ label, text = label, icon, choices, onChoose, disabled = f
           tabIndex={-1}
           aria-activedescendant={`${id}-opt-${active}`}
           onKeyDown={onListKey}
+          onBlur={onListBlur}
         >
           {choices.map((choice, i) => (
             <li
               key={choice.id}
               id={`${id}-opt-${i}`}
               role="option"
-              aria-selected={i === active}
+              aria-selected={isChoiceSelected(value, choice.id)}
               className="map-edit-menu-item"
               onMouseEnter={() => setActive(i)}
               onClick={() => choose(choice)}
@@ -244,7 +304,8 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
   onReorderKey?: React.KeyboardEventHandler<HTMLButtonElement>
 }): React.ReactElement {
   const known = visitMinutes !== null
-  const subline = [clockLabel, placeLabel && placeLabel !== title ? placeLabel : null].filter(part => typeof part === 'string' && part !== '').join(' · ')
+  const clockSpan = editClockSpan(clockLabel, visitMinutes)
+  const subline = [clockSpan, placeLabel && placeLabel !== title ? placeLabel : null].filter(part => typeof part === 'string' && part !== '').join(' · ')
   return (
     <section className="map-edit-card map-edit-editor" aria-label={order === null ? `Edit ${title}` : `Edit ${title}, stop ${order}`}>
       <div className="map-edit-editor-head">
@@ -278,6 +339,7 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
           label="Move to day"
           icon={<ChevronDown size={15} aria-hidden />}
           choices={days.map(d => ({ id: String(d.index), label: d.label }))}
+          value={dayIndex == null ? null : String(dayIndex)}
           onChoose={value => onMoveToDay(Number(value))}
           busy={busy}
           disabled={days.length === 0}
@@ -296,7 +358,6 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
       {fixed && (
         <p className="map-edit-fixed"><LockKeyhole size={14} aria-hidden />{`${title} is a fixed time: it cannot be dragged, and editing its time asks first.`}</p>
       )}
-      <p className="map-edit-hint">Reorder with Alt and the up or down arrow on a focused stop.</p>
     </section>
   )
 }

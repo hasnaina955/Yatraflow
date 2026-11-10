@@ -73,6 +73,18 @@ export interface LensPlaceCardProps {
   onSwap?: () => void
 }
 
+/** The card's circle actions. A button draws only when its action is a
+ *  function, so no button renders without a handler. */
+export function placeCardActions(props: {
+  onShortlist?: (() => void) | undefined
+  onSwap?: (() => void) | undefined
+}): { shortlist: (() => void) | null; swap: (() => void) | null } {
+  return {
+    shortlist: typeof props.onShortlist === 'function' ? props.onShortlist : null,
+    swap: typeof props.onSwap === 'function' ? props.onSwap : null,
+  }
+}
+
 export function LensPlaceCard(props: LensPlaceCardProps) {
   const {
     letter, category, name, hit, reasons = [], cells, tag, band, addLabel,
@@ -86,6 +98,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
   // The tile takes the category family colour, as the map marks do.
   const family = placeSubtype({ category: category ?? undefined, name }).family
   const openClass = 'mv2-lens-place-open'
+  const actions = placeCardActions({ onShortlist, onSwap })
 
   const headInner = <>
     <span className="mv2-lens-place-tile" data-family={family}>
@@ -131,17 +144,17 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
         disabled={addDisabled}
         title={addTitle}
         onClick={onAdd}><Plus size={15} aria-hidden />{addLabel}</button>
-      {onShortlist != null && <button
+      {actions.shortlist != null && <button
         type="button"
         className="mv2-lens-round"
         aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
         aria-pressed={shortlisted}
-        onClick={onShortlist}><Heart size={15} aria-hidden /></button>}
-      {onSwap != null && <button
+        onClick={actions.shortlist}><Heart size={15} aria-hidden /></button>}
+      {actions.swap != null && <button
         type="button"
         className="mv2-lens-round"
         aria-label="Swap this stop"
-        onClick={onSwap}><ArrowLeftRight size={15} aria-hidden /></button>}
+        onClick={actions.swap}><ArrowLeftRight size={15} aria-hidden /></button>}
     </div>
   </article>
 }

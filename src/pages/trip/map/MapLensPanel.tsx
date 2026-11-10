@@ -8,6 +8,7 @@ import { LensDeckHeader } from '../../../components/map/lenses/LensDeckHeader'
 import { StayDeck, type RingId } from '../../../components/map/lenses/StayDeck'
 import type { DriveCardStrip, DriveTab, ScopeBand } from './driveLens'
 import type { DriveLensRow, FixChangeSet } from '../../../lib/mapLensContracts'
+import type { PlaceHit } from '../../../lib/geocode'
 import type { GapPick } from './gapLens'
 import type { StayPick } from './stayLens'
 import type { MapLensId, MapLenses } from './useMapLenses'
@@ -38,6 +39,10 @@ export interface MapLensPanelProps {
   onAddGapPick: (pick: GapPick) => void
   onApplyFix: (set: FixChangeSet) => void
   onPreviewFix: (set: FixChangeSet) => void
+  /** The Keep action of the deck cards. Absent hides the heart. */
+  onShortlist?: (hit: PlaceHit) => void
+  /** True draws the kept heart on a card. */
+  shortlistedOf?: (hit: PlaceHit) => boolean
   /** The deck fold handler. Absent uses the Map tab fold button. */
   onFold?: () => void
 }
@@ -68,6 +73,8 @@ export function MapLensPanel(props: MapLensPanelProps) {
       onAdd={props.onAddDrive}
       dayNumber={props.dayNumber}
       reasonOf={row => row.row.reason}
+      {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
+      {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       onClose={props.onFold}
     />
   }
@@ -86,6 +93,8 @@ export function MapLensPanel(props: MapLensPanelProps) {
         onRing={props.onStayRing}
         onOpenPick={props.onOpenStayPick}
         onAddPick={props.onAddStayPick}
+        {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
+        {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
         onSetStay={props.onSetStay}
         clock={props.clock}
         onClose={props.onFold}
@@ -109,6 +118,8 @@ export function MapLensPanel(props: MapLensPanelProps) {
       onRing={props.onStayRing}
       onOpenPick={props.onOpenStayPick}
       onAddPick={props.onAddStayPick}
+      {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
+      {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       onSetStay={props.onSetStay}
       clock={props.clock}
       onClose={props.onFold}
@@ -121,6 +132,8 @@ export function MapLensPanel(props: MapLensPanelProps) {
       gaps={lenses.gap.gaps}
       onOpenPick={props.onOpenGapPick}
       onAddPick={props.onAddGapPick}
+      {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
+      {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       clock={props.clock}
       onClose={props.onFold}
     />

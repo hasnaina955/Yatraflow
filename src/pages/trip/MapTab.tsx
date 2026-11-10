@@ -2279,6 +2279,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onAddGapPick={pick => addLensHit(pick.candidate.hit, activeDayIndex)}
               onApplyFix={applyLensFix}
               onPreviewFix={previewLensFix}
+              onShortlist={hit => toggleShortlist(hit)}
+              shortlistedOf={hit => isShortlisted(hit)}
             />
             {lens === 'drive' && <div className="poi-plan-list is-ledger">
               {!filterActive && arcs.slice(0, 2).length > 0 && (

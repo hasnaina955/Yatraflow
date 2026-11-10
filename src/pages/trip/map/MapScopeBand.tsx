@@ -55,6 +55,13 @@ export function scopeBandPlacement(snap: string, phone: boolean): 'hidden' | 'in
   return 'map'
 }
 
+/** The counts line as one spoken sentence. The parts join with ", " so a
+ *  screen reader pauses between them. The visual line keeps no separator. */
+export function scopeBandCountsSpoken(counts: ScopeBandCounts | null): string | null {
+  const parts = scopeBandCountParts(counts)
+  return parts == null ? null : parts.map(part => `${part.value} ${part.label}`).join(', ')
+}
+
 export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = false }: {
   minutes: ScopeMinutes
   onMinutes: (next: ScopeMinutes) => void
@@ -63,6 +70,7 @@ export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = fa
   phone?: boolean
 }) {
   const parts = scopeBandCountParts(counts)
+  const spoken = scopeBandCountsSpoken(counts)
   const placement = scopeBandPlacement(snap, phone)
   return (
     <section className="mv2-lens-scope-band" data-placement={placement} hidden={placement === 'hidden'} aria-label="Drive scope">
@@ -75,7 +83,7 @@ export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = fa
             aria-pressed={step === minutes} onClick={() => onMinutes(step)}>{step}</button>
         ))}
       </div>
-      {parts != null && <p className="mv2-lens-scope-counts" role="status">
+      {parts != null && <p className="mv2-lens-scope-counts" role="status" aria-label={spoken ?? undefined}>
         {parts.map(part => <span className="mv2-lens-scope-count" key={part.label}>
           <b>{part.value}</b> {part.label}
         </span>)}

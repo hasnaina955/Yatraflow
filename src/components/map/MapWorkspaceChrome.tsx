@@ -2,7 +2,7 @@ import { Fragment, useId, useState, type CSSProperties, type ReactNode } from 'r
 import { ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
-import { legKey, minutesToHM } from '../../lib/engine'
+import { fmtDur, legKey } from '../../lib/engine'
 import { CatIcon } from '../icons'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import { clockHM } from '../../lib/clockOverlay'
@@ -140,7 +140,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
-      <p>{journey ? `${Math.round(journey.distanceKm)} km · ${minutesToHM(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
+      <p>{journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.'}</p>
       <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
     </header>
     <div className="mv2-budget mv2-lens-budget"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
@@ -151,7 +151,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         {windowsAt(index)}
         <li>
         {index === 0 && previewChipAt(null)}
-        {index > 0 && point.legIn && <div className="mv2-travel-leg"><span />{Math.round(point.legIn.distanceKm)} km · {minutesToHM(point.legIn.durationMinutes)}</div>}
+        {index > 0 && point.legIn && <div className="mv2-travel-leg"><span />{Math.round(point.legIn.distanceKm)} km · {fmtDur(point.legIn.durationMinutes)}</div>}
         <button type="button" className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${fixStopId === point.stop.id ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
           <time>{formatHM(point.arrive, timeFormat)}</time>
           <span className={`mv2-stop-mark${point.kind === 'halt' || point.stop.category === 'hotel' ? ' is-stay' : ''}`}>

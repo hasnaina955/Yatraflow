@@ -38,12 +38,19 @@
 -- private was thus readable in full. The private branch is gone: a trip
 -- behind a priced publication now serves only its crew, its creator and its
 -- buyers. A trip with no priced publication keeps its preview by trip id.
+-- "Priced" means a non-null price. A price of 0 is priced too: the public
+-- page locks it, so this path must not open it. The older clause read
+-- `coalesce(premium_price_inr, 0) > 0`, which treated 0 as free and let the
+-- whole plan out through an enumerable trip id.
 --
 -- NOT CHANGED, and why:
 --   * Trip-level route fields (start, destinations and their coordinates).
 --     They name the same towns as the public `route_summary`.
 --   * `get_trip_by_invite_code`. The code is a join capability. Its holder
---     can become a member and then reads the row through RLS.
+--     can become a member and then reads the row through RLS. Its own priced
+--     clause still reads `coalesce(premium_price_inr, 0) > 0`, so a price of
+--     0 opens it. That code is not enumerable, unlike the trip id. Close it
+--     in its own migration.
 --   * The read policies of `suggestions`, `decisions` and `activity`. Their
 --     public branch reads `trips` under the caller's own RLS. A stranger sees
 --     no `trips` row, so that branch is false for a stranger already.
@@ -310,9 +317,11 @@ begin
         or public.is_member(t.id)
         or public.is_admin()
         -- No priced publication: the trip id is the preview capability.
+        -- A price of 0 still counts as priced (#774). NULL alone means free,
+        -- as `get_public_trip` and api/_publicBody.js already read it.
         or not exists (
           select 1 from public.published_itineraries p
-          where p.trip_id = t.id and coalesce(p.premium_price_inr, 0) > 0
+          where p.trip_id = t.id and p.premium_price_inr is not null
         )
         -- Priced: only the creator or an entitled buyer may preview.
         or (

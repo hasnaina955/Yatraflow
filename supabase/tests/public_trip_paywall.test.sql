@@ -90,7 +90,12 @@ insert into public.trips (id, owner_id, name, visibility, invite_code, expenses,
     ]'::jsonb),
   ('77410000-0000-4000-8000-000000000006', '77400000-0000-4000-8000-000000000001',
    'Private plan with no publication', 'private', 'SECRET774-CODE', '[]'::jsonb, '[]'::jsonb,
-   '[{"id":"d0","index":0,"title":"Shared by link","stops":[]}]'::jsonb);
+   '[{"id":"d0","index":0,"title":"Shared by link","stops":[]}]'::jsonb),
+  ('77410000-0000-4000-8000-000000000007', '77400000-0000-4000-8000-000000000001',
+   'Zero-priced public plan', 'public', null, '[]'::jsonb, '[]'::jsonb,
+   '[{"id":"z0","index":0,"title":"SECRET774 zero day","stops":[
+      {"id":"z1","title":"SECRET774 zero stop","locationName":"SECRET774 zero place",
+       "lat":34.774774,"lng":77.774774,"category":"food","status":"confirmed","orderInDay":0,"visitMinutes":30}]}]'::jsonb);
 
 insert into public.trip_members (trip_id, user_id, role) values
   ('77410000-0000-4000-8000-000000000001', '77400000-0000-4000-8000-000000000001', 'owner'),
@@ -102,7 +107,9 @@ insert into public.published_itineraries (id, trip_id, creator_id, premium_price
   ('pub_774_free',    '77410000-0000-4000-8000-000000000003', '77400000-0000-4000-8000-000000000001', null, '[0]'::jsonb),
   ('pub_774_corrupt', '77410000-0000-4000-8000-000000000004', '77400000-0000-4000-8000-000000000001', 499,  '[0]'::jsonb),
   -- A scalar where the free-day list belongs. It must free nothing.
-  ('pub_774_odd',     '77410000-0000-4000-8000-000000000005', '77400000-0000-4000-8000-000000000001', 499,  '"0"'::jsonb);
+  ('pub_774_odd',     '77410000-0000-4000-8000-000000000005', '77400000-0000-4000-8000-000000000001', 499,  '"0"'::jsonb),
+  -- A price of 0 is priced, not free (#774). NULL alone means free.
+  ('pub_774_zero',    '77410000-0000-4000-8000-000000000007', '77400000-0000-4000-8000-000000000001', 0,    '[]'::jsonb);
 
 insert into public.entitlements (pub_id, user_id) values
   ('pub_774_priced',  '77400000-0000-4000-8000-000000000002'),
@@ -310,12 +317,24 @@ end $$;
 
 -- ================================================================ 7. trip-id preview
 do $$
+declare
+  v_row jsonb;
 begin
   if exists (select 1 from public.get_invite_trip('77410000-0000-4000-8000-000000000001')) then
     raise exception 'anon reads a priced public plan through get_invite_trip';
   end if;
   if exists (select 1 from public.get_invite_trip('77410000-0000-4000-8000-000000000002')) then
     raise exception 'anon reads a priced PRIVATE plan through get_invite_trip';
+  end if;
+  -- A price of 0 is priced. The page locks it, so this path must not open it.
+  if exists (select 1 from public.get_invite_trip('77410000-0000-4000-8000-000000000007')) then
+    raise exception 'anon reads a zero-priced plan through get_invite_trip';
+  end if;
+  -- The same plan reads as locked through the public page, with no place data.
+  select to_jsonb(t) into v_row from public.get_public_trip('pub_774_zero') t;
+  if (v_row -> 'days' -> 0 ->> 'locked') is distinct from 'true'
+     or (v_row -> 'days')::text like '%SECRET774%' then
+    raise exception 'a zero-priced plan must show only locked days: %', v_row -> 'days';
   end if;
   -- A private trip with no priced publication keeps its preview by trip id.
   if not exists (select 1 from public.get_invite_trip('77410000-0000-4000-8000-000000000006')) then

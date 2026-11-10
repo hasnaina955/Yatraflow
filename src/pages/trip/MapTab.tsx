@@ -2271,6 +2271,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {...(pickLetters && Object.keys(pickLetters).length > 0 ? { pickLetters } : {})}
               {...(fixWarningMarks.length > 0 ? { warningMarks: fixWarningMarks } : {})}
               {...(edit.previewRoad ? { previewRoad: edit.previewRoad } : {})}
+              corridorDay={lens === 'drive' ? activeDayIndex : null}
             />
             {!phoneSheet && scopeBand}
           </div>

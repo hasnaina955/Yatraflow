@@ -28,7 +28,9 @@ describe('named mutation failure', () => {
   })
 })
 
-describe('SHA-bound verifier process', () => {
+// Each case spawns node and git, so the 5 s default is too tight when the
+// full suite runs in parallel. The assertions do not change.
+describe('SHA-bound verifier process', { timeout: 30_000 }, () => {
   // A stub stands in for the npm entry point so the layout is identical on
   // every platform. It refuses anything but the literal `run verify` the
   // verifier must pass, then runs the fixture script with node directly.

@@ -27,7 +27,7 @@
 do $$
 begin
   if exists (select 1 from public.published_itineraries where id not like 'pub_774_%') then
-    raise exception 'isolated test database required: this file writes fixture rows';
+    raise exception 'this test needs an isolated database: it writes fixture rows';
   end if;
 end $$;
 

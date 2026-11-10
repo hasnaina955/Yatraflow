@@ -4,8 +4,8 @@
 --
 -- THE DEFECT. `get_public_trip` kept every stop row of a locked day. It cleared
 -- the description, the notes, the times and the costs. It left the stop title,
--- the location name, the coordinates, the category, the priority and the
--- status in the response, and it left the day title too. The page blurred the
+-- the location name, the coordinates, the category, the way the stop is
+-- ordered and the status in the response, and it left the day title too. The page blurred the
 -- titles in the browser. Any visitor could read them with one anon RPC call.
 --
 -- THE RULE NOW. A locked day is built by this function. It is not the stored

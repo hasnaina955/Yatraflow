@@ -2,6 +2,7 @@
 // It reads no store, no map and no provider. The caller supplies every value.
 import { STAY_RINGS, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
 import type { LensPhase } from '../../../lib/mapLensContracts'
+import type { PlaceHit } from '../../../lib/geocode'
 import { CatIcon } from '../../icons'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
@@ -67,6 +68,10 @@ export interface StayDeckProps {
   onRing(id: RingId): void
   onOpenPick(pick: StayPick): void
   onAddPick(pick: StayPick): void
+  /** The Keep action. Absent hides the heart. */
+  onShortlist?: (hit: PlaceHit) => void
+  /** True draws the kept heart. */
+  shortlistedOf?: (hit: PlaceHit) => boolean
   onSetStay(): void
   clock(min: number): string
   /** The fold handler. Absent uses the Map tab fold button. */
@@ -90,7 +95,7 @@ function AlsoRow({ pick }: { pick: StayPick }) {
 export function StayDeck(props: StayDeckProps) {
   const {
     dayNumber, dayLabel, baseName, windows, activeWindowId, onWindow, result, ringId,
-    onRing, onOpenPick, onAddPick, onSetStay, clock, onClose,
+    onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose,
   } = props
   const count = result.kind === 'ready' ? result.picks.length : 0
   const first = result.kind === 'ready' ? result.picks[0] : undefined
@@ -144,6 +149,10 @@ export function StayDeck(props: StayDeckProps) {
               addLabel={addLabel}
               onOpen={() => onOpenPick(pick)}
               onAdd={() => onAddPick(pick)}
+              {...(onShortlist == null ? {} : {
+                onShortlist: () => onShortlist(hit),
+                shortlisted: shortlistedOf?.(hit) ?? false,
+              })}
               selected={index === 0}
             />
           </li>

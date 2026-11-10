@@ -121,8 +121,11 @@
 .mv2-day-mark { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); font-weight: 800; line-height: 15px; text-transform: uppercase; letter-spacing: .92px; white-space: nowrap; color: var(--pw-ink-3); }
 .mv2-day-header h2 { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: 0; font: var(--pw-title); font-size: 17px; line-height: 21px; text-align: center; }
 .mv2-day-header p { margin: var(--space-3) 0 0; color: var(--pw-ink-3); font-size: var(--text-xs); line-height: 15px; text-align: center; }
+/* The fold tab sits below the day arrows, 12px from them, and inside the rail
+   edge, 12px from the omnibar. The 44px hit area stays: the 28px circle grows
+   through ::before (inset -8px). */
 .mv2-fold-day {
-  position: absolute; top: 20px; right: -14px; z-index: 2;
+  position: absolute; top: 64px; right: 0; z-index: 2;
   display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
   border: 1px solid var(--line); border-radius: var(--radius-pill);
   background: var(--card); color: var(--text-2); box-shadow: var(--shadow-sm); cursor: pointer;
@@ -1037,7 +1040,7 @@
 .mv2-lens-reasons { display: flex; flex-wrap: wrap; gap: 5px; }
 .mv2-lens-reason { padding: 3px 8px; border-radius: var(--radius-pill); background: var(--pw-sunken); color: var(--pw-ink-2); font: var(--pw-kicker); font-weight: 700; }
 .mv2-lens-place-actions { display: flex; align-items: center; gap: var(--space-4); }
-.mv2-lens-place-add { flex: 0 1 auto; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 var(--space-6); border: 0; border-radius: var(--radius-pill); background: var(--pw-time-drive); color: var(--pw-on-sea); font: var(--pw-ui); font-weight: 700; box-shadow: var(--glow-sea); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper); }
+.mv2-lens-place-add { flex: 1 1 auto; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 var(--space-6); border: 0; border-radius: var(--radius-pill); background: var(--pw-time-drive); color: var(--pw-on-sea); font: var(--pw-ui); font-weight: 700; box-shadow: var(--glow-sea); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper); }
 .mv2-lens-place-add:disabled { border-color: var(--pw-line); background: var(--pw-soft); color: var(--pw-ink); opacity: .6; cursor: not-allowed; }
 .mv2-lens-round { position: relative; flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper); }
 .mv2-lens-round[aria-pressed='true'] { border-color: var(--pw-time-drive); color: var(--pw-time-drive); }
@@ -1259,7 +1262,6 @@
 .map-edit-editor .map-edit-actions .map-edit-remove:focus-visible { outline: none; box-shadow: var(--ring); }
 .map-edit-fixed { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--pw-soft); color: var(--pw-ink-2); font-size: 12px; }
 .map-edit-fixed svg { flex: none; }
-.map-edit-editor .map-edit-hint { margin: 0; font-size: 12px; color: var(--pw-ink-3); }
 :root:where([data-theme='dark']) .map-edit-editor { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
   .map-edit-grip, .map-edit-pill, .map-edit-editor .map-edit-actions .map-edit-remove, .map-edit-editor .map-edit-stepper button, .map-edit-menu-item { transition: none; }

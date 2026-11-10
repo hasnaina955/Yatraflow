@@ -122,10 +122,11 @@ describe('StopEditorCard and FixedTimeConfirm', () => {
     expect(cards).toContain("key === 'Enter'")
     expect(cards).toContain("key === 'Escape'")
   })
-  it('keeps the reorder hint inside the card', () => {
+  it('keeps the reorder instruction on the grip', () => {
     const html = editor()
-    expect(html).toContain('Reorder with Alt and the up or down arrow on a focused stop.')
-    expect(html.indexOf('Reorder with Alt')).toBeLessThan(html.lastIndexOf('</section>'))
+    expect(html).not.toContain('map-edit-hint')
+    expect(html).toContain('aria-label="Reorder this stop with Alt and the up or down arrow"')
+    expect(html).toContain('aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"')
   })
   it('explains a fixed-time stop and asks before it moves', () => {
     const fixed = editor({ fixed: true })

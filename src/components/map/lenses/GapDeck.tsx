@@ -3,6 +3,7 @@
 import type { GapPick, GapPicks } from '../../../pages/trip/map/gapLens'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import type { LensPhase } from '../../../lib/mapLensContracts'
+import type { PlaceHit } from '../../../lib/geocode'
 import { addSlotLabel } from './DriveTabs'
 import { STAY_PHASE_TEXT } from './StayDeck'
 import { LensDeckHeader } from './LensDeckHeader'
@@ -58,13 +59,17 @@ export interface GapDeckProps {
   gaps: Array<{ title: string; windowText: string | null; picks: GapPicks }>
   onOpenPick(pick: GapPick): void
   onAddPick(pick: GapPick): void
+  /** The Keep action. Absent hides the heart. */
+  onShortlist?: (hit: PlaceHit) => void
+  /** True draws the kept heart. */
+  shortlistedOf?: (hit: PlaceHit) => boolean
   clock(min: number): string
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
 }
 
 export function GapDeck(props: GapDeckProps) {
-  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onClose } = props
+  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose } = props
   const first = gaps[0]
   const kicker = first == null ? 'Gap' : gapDeckKicker(first.title, first.windowText)
   if (phase !== 'ready' && phase !== 'empty') {
@@ -104,6 +109,10 @@ export function GapDeck(props: GapDeckProps) {
                 addLabel={gapAddLabel(dayNumber, gap.title)}
                 onOpen={() => onOpenPick(pick)}
                 onAdd={() => onAddPick(pick)}
+                {...(onShortlist == null ? {} : {
+                  onShortlist: () => onShortlist(hit),
+                  shortlisted: shortlistedOf?.(hit) ?? false,
+                })}
                 selected={at === 0}
               />
             </li>

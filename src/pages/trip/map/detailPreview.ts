@@ -84,12 +84,17 @@ function textParts(text: string, clock: (hm: string) => string): PreviewPart[] {
 
 /** The calm phone note: a stop that stays, and a meal slot already held. */
 function fitLine(preview: ReadyAddPreview, clock: (hm: string) => string): PreviewLine | null {
-  const day = preview.proposedTrip.days.find(entry => entry.index === preview.dayIndex)
+  const days = preview.proposedTrip.days
+  if (!Array.isArray(days)) return null
+  const day = days.find(entry => entry.index === preview.dayIndex)
   if (!day) return null
   const movedIds = new Set(preview.clocks
     .filter(entry => entry.deltaMin != null && entry.deltaMin !== 0)
     .map(entry => entry.stopId))
-  const stay = preview.clocks.find(entry => entry.deltaMin === 0 && !movedIds.has(entry.stopId)
+  // A stop before the insertion keeps its clock too; the preview lists it
+  // separately because it is never a change.
+  const allClocks = [...preview.keptClocks, ...preview.clocks]
+  const stay = allClocks.find(entry => entry.deltaMin === 0 && !movedIds.has(entry.stopId)
     && day.stops.some(stop => stop.id === entry.stopId && (stop.category === 'hotel' || /^check[ -]?in\b/i.test(stop.title))))
   const meal = day.stops.find(stop => stop.id !== preview.stopId && !movedIds.has(stop.id)
     && (/^(lunch|dinner)\b/i.test(stop.title) || stop.slotKey === 'lunch' || stop.slotKey === 'dinner'))
@@ -143,7 +148,7 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     lines.push({
       key: `risk-${warning.code}-${warning.title}`,
       tone: 'risk',
-      parts: [{ text: named == null ? warning.title : `${named}:`, bold: true }, ...textParts(` ${detail}`, clock)],
+      parts: [{ text: named == null ? warning.title : `${named}:` }, ...textParts(` ${detail}`, clock)],
     })
   }
   for (const warning of preview.warnings.cleared) {
@@ -167,13 +172,13 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     lines.push({ key: 'still', tone: 'ok', parts: [{ text: calm }] })
   }
 
-  const fit = moved.length === 0 && preview.warnings.added.length === 0 && end.deltaMin === 0
-    ? fitLine(preview, clock)
-    : null
+  // A calm fact wins the phone line even when later stops move. A risk still
+  // comes first: the reader must see the problem before the reassurance.
+  const fit = preview.warnings.added.length === 0 ? fitLine(preview, clock) : null
   const summary = fit
     ?? lines.find(line => line.tone === 'risk')
-    ?? lines.find(line => line.key.startsWith('moved-'))
     ?? lines.find(line => line.key === 'still')
+    ?? lines.find(line => line.key.startsWith('moved-'))
     ?? lines[0]
   return { kind: 'ready', order: preview.insertion.order, lines, summary }
 }

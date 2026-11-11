@@ -21,6 +21,7 @@ function ready(over: Partial<ReadyAddPreview> = {}): ReadyAddPreview {
     insertion: { index: 2, order: 3, total: 5, afterTitle: 'Lunch · Nalla Ruchi Kitchen', beforeTitle: 'Check in · Spice Village' },
     road: { legIn: null, legOut: null, replaced: null },
     newStop: { arrive: '13:20', depart: '14:05' },
+    keptClocks: [],
     clocks: [
       { stopId: 'hotel', title: 'Check in · Spice Village', from: '13:40', to: '14:41', deltaMin: 61 },
       { stopId: 'dinner', title: 'Dinner', from: '20:00', to: '20:00', deltaMin: 0 },
@@ -73,6 +74,51 @@ describe('the place detail preview', () => {
     }), clock)
     expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village stays at 13:40; lunch time was already held for you')
     expect(view.lines.some(line => line.key === 'fit')).toBe(false)
+  })
+
+  it('keeps the calm phone note when later stops move and no risk is added', () => {
+    const trip = {
+      days: [{
+        index: 0,
+        stops: [
+          { id: 'hotel', title: 'Check in · Spice Village', category: 'hotel', slotKey: 'stay' },
+          { id: 'lunch', title: 'Lunch · Nalla Ruchi Kitchen', category: 'food', slotKey: 'lunch' },
+          { id: 'farm', title: 'Spice farm walk', category: 'nature' },
+        ],
+      }],
+    } as unknown as Trip
+    const view = detailPreviewView(ready({
+      proposedTrip: trip,
+      clocks: [
+        { stopId: 'hotel', title: 'Check in · Spice Village', from: '13:40', to: '13:40', deltaMin: 0 },
+        { stopId: 'dinner', title: 'Dinner', from: '20:00', to: '20:20', deltaMin: 20 },
+      ],
+      dayEnd: { from: '20:00', to: '20:20', deltaMin: 20 },
+    }), clock)
+    expect(view.summary?.key).toBe('fit')
+    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village stays at 13:40; lunch time was already held for you')
+    expect(view.lines.some(line => line.key === 'moved-dinner')).toBe(true)
+  })
+
+  it('reads a stay before the insertion as still on its clock', () => {
+    const trip = {
+      days: [{
+        index: 0,
+        stops: [
+          { id: 'hotel', title: 'Check in · Spice Village', category: 'hotel', slotKey: 'stay' },
+          { id: 'lunch', title: 'Lunch · Nalla Ruchi Kitchen', category: 'food', slotKey: 'lunch' },
+          { id: 'farm', title: 'Spice farm walk', category: 'nature' },
+        ],
+      }],
+    } as unknown as Trip
+    const view = detailPreviewView(ready({
+      proposedTrip: trip,
+      keptClocks: [{ stopId: 'hotel', title: 'Check in · Spice Village', from: '13:40', to: '13:40', deltaMin: 0 }],
+      clocks: [{ stopId: 'dinner', title: 'Dinner', from: '20:00', to: '20:20', deltaMin: 20 }],
+      dayEnd: { from: '20:00', to: '20:20', deltaMin: 20 },
+    }), clock)
+    expect(view.summary?.key).toBe('fit')
+    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village stays at 13:40; lunch time was already held for you')
   })
 
   it('names an unknown preview reason instead of inventing a line', () => {
@@ -142,5 +188,11 @@ describe('the card action copy', () => {
   it('offers the fix only when the caller has a verified offer', () => {
     expect(render()).not.toContain('Add and fix')
     expect(render({ fixOffer: { label: 'Add and fix Periyar boat' }, onAddAndFix: () => {} })).toContain('Add and fix Periyar boat')
+  })
+
+  it('shows the used-of budget on the phone when the share is unknown', () => {
+    const html = render({ budgetText: '28 of 45' })
+    expect(html).toContain('28 of 45')
+    expect(html).toContain('data-cell="budget"')
   })
 })

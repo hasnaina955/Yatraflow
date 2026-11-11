@@ -126,10 +126,11 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
     </span>
   </>
 
+  // Selection happens on the click, never on press or focus: the action row
+  // changes the card's height, and a press-time reflow would swallow the click.
   return <article
     className={`mv2-lens-place${selected ? ' is-selected' : ''}${band != null ? ` is-${band}` : ''}`}
-    onClick={onSelect}
-    onFocus={onSelect}>
+    onClick={onSelect}>
     <div className="mv2-lens-place-head">
       {onOpen
         ? <button type="button" className={openClass} onClick={onOpen}>{headInner}</button>

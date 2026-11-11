@@ -95,6 +95,12 @@ export function driveAddLabel(dayNumber: number, label: string): string {
   return addSlotLabel(dayNumber, driveSlotWord(label))
 }
 
+/** How a deck draws its categories. One category is a plain heading row, so a
+ *  lone chip never looks like a broken track. Two or more draw the tab track. */
+export function driveTabMode(count: number): 'heading' | 'tabs' {
+  return count <= 1 ? 'heading' : 'tabs'
+}
+
 /** The three strip cells, in board order. */
 export function driveCells(strip: DriveCardStrip): LensCostCell[] {
   return [
@@ -166,29 +172,36 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
       sub={intro}
       onClose={onClose}
     />
-    <div className="mv2-lens-tabs" role="tablist" aria-label="Along the drive tabs">
-      {groups.map((group, index) => {
-        const selected = group.tab === active.tab
-        return <button
-          key={group.tab}
-          ref={element => { tabRefs.current[index] = element }}
-          id={`${uid}-tab-${group.tab}`}
-          type="button"
-          role="tab"
-          className={`mv2-lens-tab${selected ? ' is-active' : ''}`}
-          aria-selected={selected}
-          aria-controls={`${uid}-panel`}
-          aria-label={`${group.label} ${group.total}`}
-          tabIndex={selected ? 0 : -1}
-          onClick={() => onTab(group.tab)}
-          onKeyDown={event => onKeyDown(event, index)}>
-          <span className="mv2-lens-tab-name">{group.label}</span>{' '}
-          <span className="mv2-lens-tab-total">{group.total}</span>
-        </button>
-      })}
-    </div>
+    {driveTabMode(groups.length) === 'heading'
+      ? <p className="mv2-lens-single-tab" aria-label={`${active.label} ${active.total}`}>
+        <span className="mv2-lens-single-tab-name">{active.label}</span>{' '}
+        <span className="mv2-lens-tab-total">{active.total}</span>
+      </p>
+      : <div className="mv2-lens-tabs" role="tablist" aria-label="Along the drive tabs">
+        {groups.map((group, index) => {
+          const selected = group.tab === active.tab
+          return <button
+            key={group.tab}
+            ref={element => { tabRefs.current[index] = element }}
+            id={`${uid}-tab-${group.tab}`}
+            type="button"
+            role="tab"
+            className={`mv2-lens-tab${selected ? ' is-active' : ''}`}
+            aria-selected={selected}
+            aria-controls={`${uid}-panel`}
+            aria-label={`${group.label} ${group.total}`}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onTab(group.tab)}
+            onKeyDown={event => onKeyDown(event, index)}>
+            <span className="mv2-lens-tab-name">{group.label}</span>{' '}
+            <span className="mv2-lens-tab-total">{group.total}</span>
+          </button>
+        })}
+      </div>}
     <div className="mv2-lens-panel" id={`${uid}-panel`} role="tabpanel"
-      aria-labelledby={`${uid}-tab-${active.tab}`}>
+      {...(driveTabMode(groups.length) === 'heading'
+        ? { 'aria-label': active.label }
+        : { 'aria-labelledby': `${uid}-tab-${active.tab}` })}>
       <ul className="mv2-lens-cards">
         {active.shown.map((row, index) => {
           const band = bandOf(row)

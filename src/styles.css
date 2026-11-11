@@ -187,7 +187,7 @@
 .mv2-reason-chips > span { padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); background: var(--bg-soft); color: var(--text-2); font-size: var(--text-xs); }
 .mv2-cost-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; margin: var(--space-7) 0; padding: var(--space-5); gap: var(--space-3); border-radius: var(--radius-sm); background: var(--bg-soft); color: var(--text); }
 .mv2-cost-strip dt { font-size: 11px; text-transform: uppercase; color: var(--text-2); }
-.mv2-cost-strip dd { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: var(--text-xs); font-weight: 700; }
+.mv2-cost-strip dd { min-width: 0; margin: var(--space-2) 0 0; overflow: hidden; font-family: var(--font-display); font-size: 13.5px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
 .mv2-preview-note { display: flex; gap: var(--space-4); padding: var(--space-5); border: 1px dashed var(--color-primary); border-radius: var(--radius-sm); font-size: var(--text-xs); }
 .mv2-preview-note svg { flex: 0 0 auto; margin-top: var(--space-1); color: var(--ink-teal); }
 .mv2-preview-note p { margin: 0; }
@@ -207,7 +207,7 @@
 .mv2-clock-line { position: absolute; inset: 24px 0 auto; height: 2px; background: var(--line); }
 .mv2-clock-stop { position: absolute; top: 20px; height: 10px; min-width: 10px; border-radius: var(--radius-pill); background: var(--color-primary); color: var(--color-primary-foreground); }
 .mv2-clock-stop > i { position: absolute; width: 10px; height: 10px; border: 2px solid var(--color-primary); border-radius: var(--radius-pill); background: var(--card); }
-.mv2-clock-label { position: absolute; top: 0; max-width: 70px; padding-right: var(--space-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--text-2); }
+.mv2-clock-label { position: absolute; top: 0; padding-right: var(--space-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--text-2); }
 .mv2-clock-stop.is-stay { background: var(--ink-amber); }
 .mv2-clock-stop.is-stay > i { border-color: var(--ink-amber); }
 .mv2-clock-stop .mv2-clock-end { right: 0; }
@@ -280,7 +280,6 @@
   .mv2-clock-reading { display: none; }
   .mv2-clock-track { height: 44px; }
   .mv2-clock-track input { height: 44px; }
-  .mv2-clock-label { max-width: 40px; }
   .mv2-clock-ticks { font-size: 11px; }
   .mv2-place-art { height: 44px; flex-direction: row; justify-content: flex-start; padding-inline: var(--space-7); }
   .mv2-place-art > svg { width: 22px; height: 22px; }
@@ -907,7 +906,7 @@
 .mv2-lens { display: flex; flex-direction: column; gap: 12px; padding: 0 var(--space-4) var(--space-4); color: var(--pw-ink); }
 .mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
 .mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
-.mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; }
+.mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
 .mv2-lens-tab.is-active { background: var(--pw-card); border-color: var(--pw-line); }
 .mv2-lens-tab:focus-visible, .mv2-lens-place-open:focus-visible, .mv2-lens-place-add:focus-visible, .mv2-lens-round:focus-visible, .mv2-lens-deck-close:focus-visible, .mv2-lens-preview:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
 .mv2-lens-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -972,28 +971,32 @@
 .mv2-lens-chip:hover { background: var(--pw-marigold-50); }
 .mv2-lens-chip[aria-pressed="true"] { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
 .mv2-lens-ring {
-  display: inline-flex;
-  gap: var(--space-1);
-  padding: var(--space-1);
+  display: flex;
+  gap: 2px;
+  padding: 3px;
   border: 1px solid var(--mv2-lens-edge);
   border-radius: var(--radius-pill);
+  background: var(--bg-soft);
 }
 .mv2-lens-ring-btn {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--pw-ink);
+  color: var(--text-2);
   font: var(--pw-ui);
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-paper);
+  transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper);
 }
-.mv2-lens-ring-btn[aria-checked="true"] { background: var(--mv2-lens-accent); color: var(--mv2-lens-accent-ink); }
+.mv2-lens-ring-btn[aria-checked="true"] { background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
 .mv2-lens-body-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .mv2-lens-set { min-height: 44px; }
 .mv2-lens-section { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -1031,7 +1034,7 @@
 .mv2-lens-deck-close:hover { background: var(--pw-soft); }
 
 /* One place card for every lens: Drive, Stay and Gap. */
-.mv2-lens-place { position: relative; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--pw-line); border-radius: 16px; background: var(--pw-card); transition: border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+.mv2-lens-place { position: relative; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--pw-line); border-radius: 16px; background: var(--pw-card); transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
 .mv2-lens-place.is-selected { border-width: 1.5px; border-color: var(--pw-time-drive); box-shadow: none; }
 .mv2-lens-place.is-just-past { border-style: dashed; border-color: var(--pw-marigold-ink); }
 .mv2-lens-place.is-over-budget { background: var(--pw-soft); opacity: .75; }
@@ -1407,6 +1410,7 @@
 
 @media (min-width: 761px) {
   .mv2-workspace .mv2-lens-ring { display: none; }
+  .mv2-workspace .mv2-map-phone-locate { display: none; }
 }
 
 @media (max-width: 760px) {
@@ -1426,5 +1430,72 @@
     display: grid; position: absolute; top: 176px; right: var(--space-4); z-index: 5;
     width: 44px; height: 44px; min-width: 44px; min-height: 44px;
     box-shadow: var(--shadow-soft);
+  }
+}
+
+/* 911-W13-look: hover states, the edit panel that hugs its card, the lone deck
+   tab as a heading row, and the no-photo art strip. */
+.mv2-workspace .mv2-lens-pill > button {
+  transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper);
+}
+.mv2-workspace .mv2-lens-pill > button:hover:not([aria-pressed='true']) {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+.mv2-lens-tab:hover:not(.is-active) { background: var(--bg-soft); color: var(--text); }
+.mv2-lens-tab:active:not(.is-active) { transform: scale(.98); }
+.mv2-lens-place:hover:not(.is-selected) {
+  border-color: color-mix(in srgb, var(--pw-line) 45%, var(--pw-ink-3));
+  box-shadow: var(--shadow-sm);
+}
+.mv2-lens-ring-btn:hover:not([aria-checked="true"]) { background: var(--card); color: var(--text); }
+.mv2-lens-ring-btn:active { transform: scale(.98); }
+:root:where([data-theme='dark']) .mv2-lens-ring-btn[aria-checked="true"] { background: var(--bg-soft); }
+
+/* A lone Drive category is a heading row, not a one-item tab track. */
+.mv2-lens-single-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  color: var(--pw-ink);
+  font: var(--pw-ui);
+  font-weight: 700;
+}
+.mv2-lens-single-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The detail panel hugs the edit card. A tall card still scrolls. */
+@media (min-width: 1181px) {
+  .mv2-workspace .mv2-detail:has(> .map-edit-wrap) {
+    bottom: auto;
+    max-height: calc(100% - 86px - var(--mv2-inset));
+  }
+}
+@media (min-width: 761px) and (max-width: 1180px) {
+  .mv2-workspace .mv2-detail:has(> .map-edit-wrap) {
+    bottom: auto;
+    max-height: calc(100% - 148px - 100px);
+  }
+}
+
+/* No photo: the grey band becomes the compact category strip, in family colour. */
+.mv2-pick-card:not(:has(> .mv2-place-photo)) .mv2-place-art {
+  background: var(--mark-tint, var(--bg-soft));
+  color: var(--mark-ink, var(--ink-teal));
+}
+@media (min-width: 761px) {
+  .mv2-pick-card:not(:has(> .mv2-place-photo)) .mv2-place-art {
+    height: 52px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-4);
+    border-bottom: 1px solid var(--mark-edge, var(--line));
+    padding-inline: var(--space-7);
+  }
+  .mv2-pick-card:not(:has(> .mv2-place-photo)) .mv2-place-art > svg { width: 22px; height: 22px; }
+  .mv2-pick-card:not(:has(> .mv2-place-photo)) .mv2-place-art > button {
+    top: 50%;
+    transform: translateY(-50%);
   }
 }

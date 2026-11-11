@@ -24,23 +24,25 @@ describe('rail marker kinds', () => {
 
 describe('the Paid chip', () => {
   it('shows only for an expense that someone paid and that names the stop', () => {
-    expect(railStopPaid(undefined, 'a')).toBe(false)
-    expect(railStopPaid([], 'a')).toBe(false)
-    expect(railStopPaid([{ stopId: 'a', paidBy: null }], 'a')).toBe(false)
-    expect(railStopPaid([{ stopId: 'b', paidBy: 'u1' }], 'a')).toBe(false)
-    expect(railStopPaid([{ stopId: 'a', paidBy: 'u1' }], 'a')).toBe(true)
+    const base = { id: 'a', notes: undefined, status: 'confirmed' as const }
+    expect(railStopPaid(undefined, base)).toBe(false)
+    expect(railStopPaid([], base)).toBe(false)
+    expect(railStopPaid([{ id: 'e', label: 'Tea', category: 'food', amountInr: 20, stopId: 'b' }], base)).toBe(false)
+    expect(railStopPaid([{ id: 'e', label: 'Boat', category: 'activities', amountInr: 900, stopId: 'a' }], base)).toBe(true)
+    expect(railStopPaid([], { ...base, notes: 'Tickets booked · PNR-1' })).toBe(true)
+    expect(railStopPaid([], { ...base, status: 'needs-booking' })).toBe(true)
   })
 })
 
 describe('stay header facts', () => {
   it('keeps out a part with no fact', () => {
     expect(stayRailSub({ arriveText: null, commitmentTitle: null, commitmentText: null, freeStartMin: null, freeEndMin: null })).toBeNull()
-    expect(stayRailSub({ arriveText: '17:30', commitmentTitle: null, commitmentText: null, freeStartMin: 1080, freeEndMin: 1260 })).toBe('Arrive 17:30 · 3 h free')
-    expect(stayRailSub({ arriveText: null, commitmentTitle: 'Boat', commitmentText: '15:30', freeStartMin: null, freeEndMin: null })).toBe('Boat at 15:30')
+    expect(stayRailSub({ arriveText: '17:30', commitmentTitle: null, commitmentText: null, freeStartMin: 1080, freeEndMin: 1260 })).toBe('Arrive 17:30 · 3 h free after it')
+    expect(stayRailSub({ arriveText: null, commitmentTitle: 'Boat', commitmentText: '15:30', freeStartMin: null, freeEndMin: null })).toBe('boat at 15:30')
   })
   it('drops the check-in lead and never invents a name', () => {
-    expect(stayRailTitle('Check in · Hill Resort', false)).toBe('Hill Resort · tonight')
-    expect(stayRailTitle('Hill Resort', true)).toBe('Hill Resort · evening')
+    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · tonight')
+    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · evening')
     expect(stayRailTitle(null, true)).toBeNull()
     expect(stayRailTitle('  ', true)).toBeNull()
   })

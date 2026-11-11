@@ -136,19 +136,11 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const fixRowRef = useRef<HTMLButtonElement | null>(null)
   const stopsRef = useRef<HTMLOListElement | null>(null)
   useEffect(() => {
-    // Move only the list, and only when the row is not whole in view. The
-    // header and the first row stay where they are. The list then snaps to a
-    // row edge, so no row shows half.
-    const list = stopsRef.current
+    // The header stays whole. Only the list scrolls, and only as far as the
+    // flagged row needs to become whole in view.
     const row = fixRowRef.current?.closest('li')
-    if (fixStopId == null || list == null || row == null) return
-    const top = row.offsetTop
-    const bottom = top + row.offsetHeight
-    if (top >= list.scrollTop && bottom <= list.scrollTop + list.clientHeight) return
-    list.scrollTop = bottom > list.scrollTop + list.clientHeight ? Math.max(0, bottom - list.clientHeight) : top
-    const rows = [...list.children] as HTMLElement[]
-    const edge = rows.find(item => item.offsetTop >= list.scrollTop)
-    if (edge != null && edge.offsetTop <= top) list.scrollTop = edge.offsetTop
+    if (fixStopId == null || row == null) return
+    row.scrollIntoView({ block: 'nearest' })
   }, [fixStopId])
   const estimated = points.some((point, index) => {
     if (!point.legIn) return false
@@ -223,12 +215,16 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         const locked = locks.has(point.stop.id)
         const isFix = fixStopId === point.stop.id
         const marker = railMarkerKind({ kind: point.kind, category: point.stop.category, locked, isFix })
-        const paid = locked && railStopPaid(trip.expenses, point.stop.id)
+        const paid = railStopPaid(trip.expenses, {
+          id: point.stop.id,
+          status: point.stop.status,
+          notes: trip.fixedCommitments.find(lock => lock.stopId === point.stop.id)?.notes,
+        })
         const isBase = stayView != null && point.stop.id === stayView.baseStopId
         const subLine = isBase
           ? 'Base for tonight'
           : locked
-            ? `Fixed time${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`
+            ? 'Fixed time · tickets booked'
             : point.kind === 'start'
               ? 'Departure'
               : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`
@@ -240,7 +236,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
             <button type="button" ref={isFix ? fixRowRef : undefined} className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${isFix ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
               <time>{formatHM(point.arrive, timeFormat)}</time>
               <span className={`mv2-stop-mark is-${marker}`}>
-                {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : index}
+                {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : index + 1}
               </span>
               <span className="mv2-stop-copy"><strong title={point.title}>{point.kind === 'start' ? `Leave ${point.title}` : point.title}</strong>{isFix && fixRowLine != null ? <small className="mv2-lens-fix-reason">{fixRowLine}</small> : <small>{subLine}</small>}{previewChipAt(point.stop.id)}</span>
               {paid && <span className="mv2-stop-chip">Paid</span>}
@@ -313,7 +309,7 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
   const windowEnd = windows.reduce((latest, window) => Math.max(latest, window.endMin), stopsRange.end)
   const range = { start: stopsRange.start, end: windowEnd }
   const axis = ribbonAxis(range, windows)
-  const { start, end } = range
+  const { start } = range
   // Day index and the engine start clock join the stop times, so a new trip or
   // a new day cannot keep a stored cursor from the previous journey.
   const signature = ribbonSignature(stops, journey?.dayIndex ?? 0, journey?.startTime ?? '') + (preview ? `|preview:${preview.newStop.arrive}:${preview.newStop.depart}` : '')

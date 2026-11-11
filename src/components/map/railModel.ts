@@ -20,9 +20,14 @@ export function railMarkerKind(input: { kind: JourneyPointKind; category: string
   return 'number'
 }
 
-/** A stop shows the Paid chip only when an expense that someone paid is tied to it. */
-export function railStopPaid(expenses: readonly Pick<Expense, 'stopId' | 'paidBy'>[] | undefined, stopId: string): boolean {
-  return (expenses ?? []).some(expense => expense.stopId === stopId && expense.paidBy != null)
+/** A stop shows the Paid chip only when a paid or booked fact is tied to it. */
+export function railStopPaid(
+  expenses: readonly Expense[] | undefined,
+  stop: { id: string; status: string; notes?: string },
+): boolean {
+  const paid = (expenses ?? []).some(expense => expense.stopId === stop.id)
+  const booked = stop.notes != null && /\b(?:ticket|booking|booked|pnr)\b/i.test(stop.notes)
+  return paid || booked || stop.status === 'needs-booking'
 }
 
 /** The sub line of a stay header. A part with no fact keeps itself out. */
@@ -36,21 +41,20 @@ export function stayRailSub(parts: {
   const pieces: string[] = []
   if (parts.arriveText != null && parts.arriveText.trim() !== '') pieces.push(`Arrive ${parts.arriveText}`)
   if (parts.commitmentText != null && parts.commitmentText.trim() !== '') {
-    const title = parts.commitmentTitle?.trim()
+    const title = parts.commitmentTitle?.trim().toLowerCase()
     pieces.push(title ? `${title} at ${parts.commitmentText}` : `fixed at ${parts.commitmentText}`)
   }
   if (parts.freeStartMin != null && parts.freeEndMin != null) {
     const duration = windowDurationText(parts.freeStartMin, parts.freeEndMin)
-    if (duration != null) pieces.push(`${duration} free`)
+    if (duration != null) pieces.push(`${duration} free after it`)
   }
   return pieces.length > 0 ? pieces.join(' · ') : null
 }
 
-/** The stay header title. The base name loses its "Check in · " lead. */
-export function stayRailTitle(baseTitle: string | null, hasEvening: boolean): string | null {
-  if (baseTitle == null || baseTitle.trim() === '') return null
-  const name = baseTitle.replace(/^check[- ]?in\s*[·:-]\s*/i, '').trim()
-  return `${name || baseTitle.trim()} · ${hasEvening ? 'evening' : 'tonight'}`
+/** The stay header title. The board names the base town, not the hotel. */
+export function stayRailTitle(town: string | null, hasEvening: boolean): string | null {
+  if (town == null || town.trim() === '') return null
+  return `${town.trim()} · ${hasEvening ? 'evening' : 'tonight'}`
 }
 
 /** "7 picks" or "1 pick". Zero and unknown show nothing. */

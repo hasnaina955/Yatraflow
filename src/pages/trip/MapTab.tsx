@@ -8,7 +8,7 @@ import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import type { WriterRoadBinding } from './map/writerRoadBinding'
-import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
+import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, legBetween, getAssumptions, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
 import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
@@ -46,7 +46,7 @@ import type { RingId } from '../../components/map/lenses/StayDeck'
 import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
-import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
+import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
 import { fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
@@ -1491,6 +1491,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const stayBaseAt = stayBaseId == null || !journeyDay?.daySchedule ? -1 : journeyDay.daySchedule.activeStops.findIndex(entry => entry.id === stayBaseId)
   const stayBaseArriveMin = stayBaseAt >= 0 && journeyDay?.daySchedule ? hmToMinutes(journeyDay.daySchedule.arrivalTimes[stayBaseAt]) : null
   const stayEvening = lenses.stay.windows.find(window => window.id === 'evening') ?? null
+  const stayBaseStop = stayBaseId == null ? null : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayBaseId) ?? null
+  const stayTown = trip.destinations[activeDayIndex] ?? stayBaseStop?.locationName?.split(/[,·]/)[0]?.trim() ?? null
+  const stayCommitment = stayBaseArriveMin == null ? null : trip.fixedCommitments
+    .filter(entry => entry.dayIndex === activeDayIndex && entry.time != null && hmToMinutes(entry.time) > stayBaseArriveMin)
+    .sort((a, b) => hmToMinutes(a.time) - hmToMinutes(b.time))[0] ?? null
+  // The board's free window starts after the evening commitment. An unknown
+  // commitment keeps the real lens window, so the rail invents no time.
+  const commitmentStop = stayCommitment?.stopId == null
+    ? null
+    : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayCommitment.stopId) ?? null
+  const stayTravelMin = stayBaseStop == null || commitmentStop == null
+    ? null
+    : Math.round(legBetween(stayBaseStop, commitmentStop, getAssumptions(trip)).durationMinutes)
+  const freeEveningStartMin = stayCommitment == null || stayTravelMin == null ? null : hmToMinutes(stayCommitment.time) + stayTravelMin
+  const freeEvening = stayEvening != null && freeEveningStartMin != null && freeEveningStartMin < stayEvening.endMin
+    ? { ...stayEvening, startMin: Math.max(freeEveningStartMin, stayEvening.startMin) }
+    : stayEvening
   const stayRailWindows: ItineraryWindowRow[] = lens === 'stay'
     ? [
       ...lenses.stay.windows.map(window => {
@@ -1498,29 +1515,31 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         const total = found?.kind === 'ready' ? found.picks.length + found.alsoCount : null
         const text = picksText(total)
         return {
-          label: window.label, startMin: window.startMin, endMin: window.endMin,
+          label: window.label, startMin: window.id === 'evening' ? freeEvening?.startMin ?? window.startMin : window.startMin, endMin: window.endMin,
           active: window.id === activeStayWindowId,
           detail: text == null ? null : window.id === 'evening' ? `${text} nearby` : text,
           nextDayLabel: window.id === 'morning' ? `Day ${activeDayIndex + 2}` : null,
           boxOnly: true,
         }
       }),
-      ...gapRailWindows.filter(row => stayBaseArriveMin != null && row.startMin >= stayBaseArriveMin).map(row => ({ ...row, active: false })),
+      ...gapRailWindows.filter(row => stayBaseArriveMin != null && row.startMin >= stayBaseArriveMin).filter(row => row.label !== 'Free evening').map(row => ({ ...row, active: false })),
     ]
     : []
   const railWindows = lens === 'stay' ? stayRailWindows : gapRailWindows
-  const stayCommitment = stayBaseArriveMin == null ? null : trip.fixedCommitments
-    .filter(entry => entry.dayIndex === activeDayIndex && entry.time != null && hmToMinutes(entry.time) > stayBaseArriveMin)
-    .sort((a, b) => hmToMinutes(a.time) - hmToMinutes(b.time))[0] ?? null
+  const stayFree = freeEvening != null
+    ? windowDurationText(freeEvening.startMin, freeEvening.endMin) != null
+      ? { startMin: freeEvening.startMin, endMin: freeEvening.endMin }
+      : null
+    : null
   const stayView: ItineraryStayView | null = stayBaseId == null ? null : {
     baseStopId: stayBaseId,
-    title: stayRailTitle(lenses.stay.base?.name ?? null, stayEvening != null),
+    title: stayRailTitle(stayTown, stayEvening != null),
     sub: stayRailSub({
       arriveText: stayBaseArriveMin == null ? null : lensClock(stayBaseArriveMin),
       commitmentTitle: stayCommitment?.title ?? null,
       commitmentText: stayCommitment == null ? null : lensClock(hmToMinutes(stayCommitment.time)),
-      freeStartMin: stayEvening?.startMin ?? null,
-      freeEndMin: stayEvening?.endMin ?? null,
+      freeStartMin: stayFree?.startMin ?? null,
+      freeEndMin: stayFree?.endMin ?? null,
     }),
   }
   const fixStopId = lens === 'fix'
@@ -1543,8 +1562,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const problemClock = problemTime == null ? null : lensClock(hmToMinutes(problemTime))
   const commitmentClock = fixCommitment?.time == null ? null : lensClock(hmToMinutes(fixCommitment.time))
   const fixMarkText = fixMarkFactsLabel(problemStop?.title ?? null, commitmentClock, problemClock)
-  // The rail row names the same two facts in one short line.
-  const fixRowLine = fixRailLine(problemClock, fixCommitment?.title ?? null, commitmentClock)
+  // The rail row names the engine's own problem, not a made-up pair of times.
+  const fixRowLine = fixRailLine(lenses.fix.problem?.title ?? null)
   const fixStopWarning = lens === 'fix' && problemStop != null && fixMarkText != null
     && Number.isFinite(problemStop.lat) && Number.isFinite(problemStop.lng)
     && problemStop.lat !== 0 && problemStop.lng !== 0

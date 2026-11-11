@@ -149,7 +149,7 @@ describe('W8 rail top and stay rail', () => {
     expect(html).toContain('class="mv2-lens-window-time">17:00</time>')
     const css = read('../src/styles.css')
     expect(css).toContain('.mv2-lens-window-time {\n  white-space: nowrap; text-align: right;')
-    expect(css).toContain('font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--pw-ink-2);')
+    expect(css).toContain('font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);')
   })
 
   it('renders the stay rail card with its title, both rings and the note', () => {

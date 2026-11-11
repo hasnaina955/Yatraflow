@@ -18,6 +18,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
+- **The map rail and journey strip now match the W14 boards.** Numbered stops are 1-based day-colour marks with white numerals; fixed, stay, departure, gap and risk rows carry their own glyphs. The rail uses 15 px dark times, compact rows, day-colour legs and per-day dots. Drive and Stay draw real open windows, and the day caption returns. Fix scrolls its flagged row whole and uses the risk wash and diamond. The strip has an hour axis, on-track glyphs, a day-colour track and a playhead. (#889)
 - **The Map tab now shows four lenses.** The lenses are Along the drive, Around the stay, Gaps and Fix. A four-entry switch shows a count for each. An empty lens counts 0. A lens that has not scanned, or failed, shows no count. (#889)
 - **Every lens now uses one deck header and one place card.** The header names the lens, the count and the slot, and an X closes the deck. The card shows the letter, the kind, the reasons and a cost strip. An unknown cost reads "—". "More like this" counts only the picks the deck does not show. (#889)
 - **The map now draws the lens marks.** Around the stay draws a reach ring and frames the camera on it. Gaps draws a ring at each open part. Picks carry their letters. Along the drive shows the minute scope band and its counts. (#889)

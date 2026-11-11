@@ -54,7 +54,18 @@ describe('W10 phone full screen', () => {
     expect(html).toContain('Thekkady')
     expect(html).toContain('Previous map day')
     expect(html).toContain('Next map day')
-    expect(html).toContain('Show all map days')
+    // W14: "All days" is a mode, not a day step. It moved behind the pill's
+    // overflow, so the row keeps the board's four controls.
+    expect(html).toContain('Map day options')
+    expect(html).toContain('aria-haspopup="menu"')
+    expect(html).not.toContain('mv2-phone-day-all')
+  })
+
+  it('keeps the all-days choice in the pill overflow', () => {
+    const chrome = read('src', 'components', 'map', 'MapWorkspaceChrome.tsx')
+    expect(chrome).toContain('All days')
+    expect(chrome).toContain('role="menuitemradio"')
+    expect(chrome).toContain('onShowAll()')
   })
 
   it('draws the back control only when the trip can take it back', () => {

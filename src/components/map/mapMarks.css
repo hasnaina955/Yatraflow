@@ -24,7 +24,7 @@
 /* The board's letter badge: 18 px, ink ground, a 2 px card ring. */
 .mv2-pick-letter { position: absolute; top: -6px; left: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-pill); background: var(--pw-ink); color: var(--pw-paper); box-shadow: 0 0 0 2px var(--pw-card); font-size: var(--text-xs); font-weight: 800; line-height: 1; pointer-events: none; }
 .mv2-warn-diamond { position: relative; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 2px solid var(--card); border-radius: var(--radius-xs); background: #CE5245; color: #FFFFFF; transform: rotate(45deg); box-shadow: var(--shadow-sm); }
-.mv2-warn-diamond > svg { transform: rotate(-45deg); }
+.mv2-warn-diamond > b { transform: rotate(-45deg); font-size: 13px; font-weight: 800; line-height: 1; }
 .mv2-warn-diamond.is-severe { background: #A6342A; }
 .mv2-pin-offset { display: inline-flex; flex-direction: column; align-items: center; transition: transform var(--motion-fast) var(--ease-out); }
 @media (pointer: coarse) {
@@ -96,9 +96,10 @@ button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-50
 /* The selected tile wears the teal ring itself. A beak under it would break the ring. */
 .mv2-workspace .yf-map-pin-idea--active::after { display: none; }
 /* A stop name tag. Board: 12 px at weight 700 on a soft card ground, pill radius. */
-.mv2-stop-tag { display: inline-flex; align-items: center; max-width: 184px; padding: var(--space-2) var(--space-4a); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); box-shadow: var(--shadow-sm); font-size: var(--text-sm, 12px); font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); }
+.mv2-stop-tag { display: inline-flex; align-items: center; max-width: 184px; padding: 3px 9px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--pw-card) 86%, transparent); border: 1px solid var(--mv2-tag-edge, rgba(255, 255, 255, 0.85)); backdrop-filter: blur(var(--yf-blur-chip)); color: var(--pw-ink); box-shadow: 0 4px 10px -6px rgba(64, 54, 44, 0.4); font-size: var(--text-sm, 12px); font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); }
 .mv2-stop-tag[data-collapsed='true'] { opacity: 0; }
-.mv2-pin-anchor > .mv2-stop-tag { position: absolute; left: 50%; top: calc(100% + 6px); translate: -50% 0; }
+/* 911-W14-map: the Drive board puts a stop tag beside its pin, on the same line. */
+.mv2-pin-anchor > .mv2-stop-tag { position: absolute; left: auto; right: calc(100% + 4px); top: 50%; translate: 0 -50%; }
 /* The stay base tag sits beside the house mark, as the Stay board shows. */
 .mv2-pin-anchor > .mv2-stop-tag--base, .mv2-pin-anchor > .mv2-stop-tag--fix { left: auto; right: calc(100% + 8px); top: 50%; translate: 0 -50%; }
 .mv2-workspace .maplibregl-marker:has(.mv2-stop-tag) { z-index: 2; }

@@ -8,7 +8,7 @@ import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import type { WriterRoadBinding } from './map/writerRoadBinding'
-import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
+import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, legBetween, getAssumptions, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange, validHM } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
 import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
@@ -39,15 +39,15 @@ import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPan
 import { MapLensPanel } from './map/MapLensPanel'
 import { driveLettersByRoad, useMapLenses, type MapLensId } from './map/useMapLenses'
 import { driveCardStrip, driveDeckIntro, scopeBandOf, type DriveTab } from './map/driveLens'
-import { STAY_RINGS, ringPolygon, ringRadiusKm } from './map/stayLens'
+import { STAY_RINGS, ringPolygon, ringRadiusKm, resolveStayBase } from './map/stayLens'
 import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
 import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
 import type { RingId } from '../../components/map/lenses/StayDeck'
 import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
-import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
-import { fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
+import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
+import { baseTagText, fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
 } from './map/minuteScope'
@@ -64,7 +64,9 @@ import { passClockMin, pickArrivalMin, type PassAnchor } from './map/passClock'
 import { addFixOffer, detailAddPreview, detailPreviewView } from './map/detailPreview'
 import { kindWordOf } from '../../components/map/placeCardFacts'
 import { MapPickCard } from '../../components/map/MapPickCard'
-import { MapItinerary, MapJourneyRibbon, MapPhoneDay, MapSheetHandle, type SheetSnap, type SheetSnapSource } from '../../components/map/MapWorkspaceChrome'
+import { MapItinerary, MapJourneyRibbon, MapPhoneDay, MapSheetHandle, type ItineraryStayView, type ItineraryWindowRow, type SheetSnap, type SheetSnapSource } from '../../components/map/MapWorkspaceChrome'
+import { aroundKmText, daysCaptionText, picksText, stayRailSub, stayRailTitle, windowAtMin } from '../../components/map/railModel'
+import { ROUTE_PAINT } from '../../lib/mapStyles/routeTreatment'
 import { driveRowForHit, mapAllJourneyRowsForDays, mapCardActions, mapRailRowForHit, mapRowForHit, mapRowsForHit, type MapRowBinding } from './map/mapJourneyRows'
 import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
 import { LedgerRow } from './map/RailRowViews'
@@ -1353,15 +1355,30 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     : []
   const phoneSheet = useMedia('(max-width: 760px)')
 
-  // W9-phone: MapLibre starts its compact attribution open, so a 390 px map
-  // reads as a full credit line. Collapse it to the (i) button once here.
+  // W14: MapLibre starts its compact attribution open and can open it again on
+  // a style load. The board shows the (i) button alone, on desktop and on a
+  // phone, so the full credit line never runs across the marks. A bounded set of
+  // late passes closes it after the lazy map mounts; a tap by the reader wins,
+  // and no observer runs, so a re-open cannot loop.
   useEffect(() => {
-    if (!phoneSheet) return
-    const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
-    if (!node) return
-    node.classList.remove('maplibregl-compact-show')
-    node.removeAttribute('open')
-  }, [phoneSheet])
+    let openedByReader = false
+    const onPointerDown = (event: Event) => {
+      if ((event.target as Element | null)?.closest('.maplibregl-ctrl-attrib-button')) openedByReader = true
+    }
+    const collapse = () => {
+      if (openedByReader) return
+      const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
+      if (!node) return
+      node.classList.remove('maplibregl-compact-show')
+      node.removeAttribute('open')
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    const timers = [0, 250, 750, 1500, 3000, 5000, 8000].map(ms => window.setTimeout(collapse, ms))
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [])
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)
   const [deckOpen, setDeckOpen] = useState(true)
@@ -1391,12 +1408,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? stayWindow
     : lenses.stay.windows[0]?.id ?? null
   const stayRingDef = STAY_RINGS.find(ring => ring.id === stayRing) ?? STAY_RINGS[0]
-  const stayRings = lens === 'stay' && lenses.stay.base != null
-    ? [{
-      id: stayRingDef.id,
-      label: `${stayRingDef.minutes} min ${stayRingDef.mode}`,
-      ring: ringPolygon(lenses.stay.base, ringRadiusKm(stayRingDef.mode, stayRingDef.minutes)),
-    }]
+  // Both reach rings draw, each with its caption. The chosen ring comes first: the
+  // camera frames it and only it wears the wash.
+  const stayBaseForRings = lenses.stay.base
+  const stayRings = lens === 'stay' && stayBaseForRings != null
+    ? [stayRingDef, ...STAY_RINGS.filter(ring => ring.id !== stayRingDef.id)].map(ring => ({
+      id: ring.id,
+      label: `${ring.minutes} min ${ring.mode}`,
+      ring: ringPolygon(stayBaseForRings, ringRadiusKm(ring.mode, ring.minutes)),
+      active: ring.id === stayRingDef.id,
+    }))
     : undefined
   // W10b: the phone sheet hides the bottom of the map. Its live height is the
   // bottom inset, measured again when a snap transition ends.
@@ -1471,26 +1492,85 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const driveCounts: ScopeBandCounts | null = lens === 'drive' && lenses.drive.phase === 'ready'
     ? bandCounts(lenses.drive.view.rows.map(row => scopeBandOf(row, scopeMinutes, budgetHeldIds)))
     : null
-  // W7-E: the Stay lens shows every window of the day. Each window gets one
-  // row. Only the active window carries the outline. The Gap lens keeps its
-  // own single window row.
-  const stayWindowRows = lens === 'stay'
-    ? lenses.stay.windows.map(window => ({
-      label: window.label, startMin: window.startMin, endMin: window.endMin,
-      active: window.id === activeStayWindowId,
-    }))
+  // W14: the day's open windows in road order. Every lens reads the same gap
+  // rows, so a window the Gap lens names is the window the rail and the strip
+  // draw. A part with no proven window has no row.
+  const firstMealGap = lenses.gap.view.rows.findIndex(row => activeDaySlots.find(entry => entry.key === row.slotKey)?.kind === 'meal')
+  // A window that closes before the day starts is not on the road.
+  const dayStartMin = hmToMinutes(trip.days.find(entry => entry.index === activeDayIndex)?.startTime ?? '')
+  const gapRailWindows: ItineraryWindowRow[] = lenses.gap.view.rows.flatMap((row, index) => {
+    if (row.windowMin == null || (dayStartMin > 0 && row.windowMin[1] <= dayStartMin)) return []
+    const slot = activeDaySlots.find(entry => entry.key === row.slotKey)
+    const part = lenses.gap.gaps[index]
+    const detail = [aroundKmText(slot?.segment?.targetKm), picksText(part?.picks.picks.length)].filter((piece): piece is string => piece != null).join(' · ')
+    return [{
+      label: part?.title ?? slot?.label ?? row.slotKey,
+      startMin: row.windowMin[0],
+      endMin: row.windowMin[1],
+      atMin: windowAtMin(row.windowMin[0], row.windowMin[1], slot?.segment?.etaMinutes),
+      detail: detail === '' ? null : detail,
+      active: lens === 'gap' ? index === 0 : lens === 'drive' && driveGroup?.tab === 'meal' && index === firstMealGap,
+    }]
+  })
+  const stayBaseId = lens === 'stay' && activeDayIndex != null ? (() => { const base = resolveStayBase(trip, activeDayIndex); return base.kind === 'stop' ? base.stopId : null })() : null
+  const stayBaseAt = stayBaseId == null || !journeyDay?.daySchedule ? -1 : journeyDay.daySchedule.activeStops.findIndex(entry => entry.id === stayBaseId)
+  const stayBaseArriveMin = stayBaseAt >= 0 && journeyDay?.daySchedule ? hmToMinutes(journeyDay.daySchedule.arrivalTimes[stayBaseAt]) : null
+  const stayEvening = lenses.stay.windows.find(window => window.id === 'evening') ?? null
+  const stayBaseStop = stayBaseId == null ? null : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayBaseId) ?? null
+  const stayTown = trip.destinations[activeDayIndex] ?? stayBaseStop?.locationName?.split(/[,·]/)[0]?.trim() ?? null
+  const stayCommitment = stayBaseArriveMin == null ? null : trip.fixedCommitments
+    .filter(entry => entry.dayIndex === activeDayIndex && entry.time != null && hmToMinutes(entry.time) > stayBaseArriveMin)
+    .sort((a, b) => hmToMinutes(a.time) - hmToMinutes(b.time))[0] ?? null
+  // The board's free window starts after the evening commitment. An unknown
+  // commitment keeps the real lens window, so the rail invents no time.
+  const commitmentStop = stayCommitment?.stopId == null
+    ? null
+    : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayCommitment.stopId) ?? null
+  const stayTravelMin = stayBaseStop == null || commitmentStop == null
+    ? null
+    : Math.round(legBetween(stayBaseStop, commitmentStop, getAssumptions(trip)).durationMinutes)
+  const freeEveningStartMin = stayCommitment == null || stayTravelMin == null ? null : hmToMinutes(stayCommitment.time) + stayTravelMin
+  const freeEvening = stayEvening != null && freeEveningStartMin != null && freeEveningStartMin < stayEvening.endMin
+    ? { ...stayEvening, startMin: Math.max(freeEveningStartMin, stayEvening.startMin) }
+    : stayEvening
+  const stayRailWindows: ItineraryWindowRow[] = lens === 'stay'
+    ? [
+      ...lenses.stay.windows.map(window => {
+        const found = lenses.stay.picks[window.id]
+        const total = found?.kind === 'ready' ? found.picks.length + found.alsoCount : null
+        const text = picksText(total)
+        return {
+          label: window.label, startMin: window.id === 'evening' ? freeEvening?.startMin ?? window.startMin : window.startMin, endMin: window.endMin,
+          active: window.id === activeStayWindowId,
+          detail: text == null ? null : window.id === 'evening' ? `${text} nearby` : text,
+          nextDayLabel: window.id === 'morning' ? `Day ${activeDayIndex + 2}` : null,
+          boxOnly: true,
+        }
+      }),
+      ...gapRailWindows.filter(row => stayBaseArriveMin != null && row.startMin >= stayBaseArriveMin).filter(row => row.label !== 'Free evening').map(row => ({ ...row, active: false })),
+    ]
+    : []
+  const railWindows = lens === 'stay' ? stayRailWindows : gapRailWindows
+  const stayFree = freeEvening != null
+    ? windowDurationText(freeEvening.startMin, freeEvening.endMin) != null
+      ? { startMin: freeEvening.startMin, endMin: freeEvening.endMin }
+      : null
     : null
-  const gapWindowRow = lens === 'gap'
-    ? (() => {
-      const row = lenses.gap.view.rows[0]
-      const gap = lenses.gap.gaps[0]
-      if (!row || !gap || row.windowMin == null) return null
-      return { label: gap.title, startMin: row.windowMin[0], endMin: row.windowMin[1] }
-    })()
-    : null
-  const windowRow = gapWindowRow
+  const stayView: ItineraryStayView | null = stayBaseId == null ? null : {
+    baseStopId: stayBaseId,
+    title: stayRailTitle(stayTown, stayEvening != null),
+    sub: stayRailSub({
+      arriveText: stayBaseArriveMin == null ? null : lensClock(stayBaseArriveMin),
+      commitmentTitle: stayCommitment?.title ?? null,
+      commitmentText: stayCommitment == null ? null : lensClock(hmToMinutes(stayCommitment.time)),
+      freeStartMin: stayFree?.startMin ?? null,
+      freeEndMin: stayFree?.endMin ?? null,
+    }),
+  }
   const fixStopId = lens === 'fix'
     ? fixTargetStopId(lenses.fix.target, trip.fixedCommitments, activeDayIndex)
+      ?? trip.fixedCommitments.find(entry => entry.dayIndex === activeDayIndex && entry.stopId != null)?.stopId
+      ?? null
     : null
   const problemStop = fixStopId == null
     ? null
@@ -1509,8 +1589,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const problemClock = problemTime == null ? null : lensClock(hmToMinutes(problemTime))
   const commitmentClock = fixCommitment?.time == null ? null : lensClock(hmToMinutes(fixCommitment.time))
   const fixMarkText = fixMarkFactsLabel(problemStop?.title ?? null, commitmentClock, problemClock)
-  // The rail row names the same two facts in one short line.
-  const fixRowLine = fixRailLine(problemClock, fixCommitment?.title ?? null, commitmentClock)
+  // The rail row names the engine's own problem, not a made-up pair of times.
+  const fixRowLine = fixRailLine(lenses.fix.problem?.title ?? null)
+  const fixProblem = lenses.fix.problem
   const fixStopWarning = lens === 'fix' && problemStop != null && fixMarkText != null
     && Number.isFinite(problemStop.lat) && Number.isFinite(problemStop.lng)
     && problemStop.lat !== 0 && problemStop.lng !== 0
@@ -1521,7 +1602,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       severe: true,
     }
     : null
-  const driveBudget = lens === 'drive' && lenses.drive.phase === 'ready'
+  const driveBudget = (lens === 'drive' || lens === 'fix') && lenses.drive.phase === 'ready'
     ? {
       usedMin: Math.round(lenses.drive.view.rows.reduce((sum, row) => {
         const detour = row.detourMin
@@ -1657,7 +1738,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // Only the all-days view draws other days thin.
   const thinDays = mapShowsAll ? { selectedDay: activeDayIndex } : {}
   // A thin line has no click handler. The short copy states only what is true.
-  const daysCaption = mapShowsAll ? 'Other days draw thin.' : null
+  const daysCaption = daysCaptionText(mapShowsAll, ROUTE_PAINT.contextOpacity)
   function showAllMapDays() { setMapFilter('all'); onDayFocusChange?.('all') }
   function chooseDay(index: number) {
     setLocalDay(index)
@@ -1714,8 +1795,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const ribbonSheet: 'see' | 'needs' | 'detail' | null = !phoneSheet || !deckOpen || snap === 'peek'
     ? null
     : selectedHit ? 'detail' : sheetTab === 'needs' ? 'needs' : 'see'
+  const ribbonLockedIds = trip.fixedCommitments.filter(entry => entry.dayIndex === activeDayIndex && entry.stopId != null).map(entry => String(entry.stopId))
+  const ribbonNote = lens === 'fix' && commitmentClock != null
+    ? `Fixed ${commitmentClock}`
+    : lens === 'stay' && stayEvening != null ? `Free ${lensClock(stayEvening.startMin)}–${lensClock(stayEvening.endMin)}` : null
   const phoneRibbon = (
-    <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet && snap !== 'peek'} onScrub={(position, minute) => {
+    <MapJourneyRibbon journey={journey} corrections={legCorrections} windows={railWindows.filter(row => row.nextDayLabel == null)} lockedStopIds={ribbonLockedIds} fixStopId={fixStopId} note={ribbonNote} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet && snap !== 'peek'} onScrub={(position, minute) => {
       if (position.grade === 'estimated') { setScrubCursor(null); return }
       setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
       setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
@@ -1908,7 +1993,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={stayWindowRows} windowRow={windowRow} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hideBudget={lens === 'stay'} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
@@ -2277,6 +2362,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 explicit choice — this surface writes nothing on its own. */}
             <MapOmnibar
               editable={editable}
+              {...(lens === 'stay' && lenses.stay.base?.name ? { placeholder: `Search near ${baseTagText(lenses.stay.base.name)}` } : {})}
               query={omniQ}
               onQueryChange={q => {
                 setOmniQ(q)

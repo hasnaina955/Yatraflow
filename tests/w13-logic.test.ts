@@ -67,10 +67,10 @@ describe('fix facts', () => {
     expect(fixMarkFactsLabel('Boat', '15:30', null)).toBeNull()
   })
 
-  it('builds the rail line from the same two facts', () => {
-    expect(fixRailLine('2:53 PM', 'Periyar boat', '3:00 PM')).toBe('reach 2:53 PM · Periyar boat 3:00 PM')
-    expect(fixRailLine(null, 'Periyar boat', '3:00 PM')).toBeNull()
-    expect(fixRailLine('2:53 PM', 'Periyar boat', null)).toBeNull()
+  it('shows the engine problem title and keeps an unknown problem out', () => {
+    expect(fixRailLine('Jetty 15:05 · boarding closed')).toBe('Jetty 15:05 · boarding closed')
+    expect(fixRailLine(null)).toBeNull()
+    expect(fixRailLine('   ')).toBeNull()
   })
 })
 

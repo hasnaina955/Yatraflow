@@ -117,18 +117,23 @@ describe('the fold tab clears the arrow and the omnibar', () => {
   const workspace = rule(css, '.mv2-workspace')
   const omnibar = rule(css, '.mv2-workspace .mv2-omnibar')
 
-  it('sits at least 8px below the next-day arrow', () => {
-    const arrow = Number(/--mv2-day-arrow: (\d+)px/.exec(arrows)?.[1] ?? NaN)
-    const padTop = /padding: var\(--space-7\)/.test(header) ? pxToken('space-7') : NaN
-    const top = Number(/top: (\d+)px/.exec(fold)?.[1] ?? NaN)
-    expect(top - (padTop + arrow)).toBeGreaterThanOrEqual(8)
+  it('sits inside the rail, level with the sub line, below the day arrows', () => {
+    // The tab hangs from the header bottom, so it cannot reach the arrow row
+    // (the header pads space-7 above a 32px arrow) and never leaves the rail.
+    expect(fold).toMatch(/bottom: var\(--space-\d+\)/)
+    expect(fold).not.toMatch(/\btop:/)
+    const right = /right: var\(--space-(\d+)\)/.exec(fold)
+    expect(right).not.toBeNull()
+    expect(Number(right?.[1])).toBeGreaterThanOrEqual(5)
+    expect(/--mv2-day-arrow: (\d+)px/.exec(arrows)?.[1]).toBeDefined()
   })
-  it('sits at least 8px left of the omnibar', () => {
+  it('stays inside the rail, so it never meets the omnibar', () => {
     const inset = /--mv2-inset: var\(--space-5\)/.test(workspace) ? pxToken('space-5') : NaN
     const offset = /left: calc\(var\(--mv2-day-width\) \+ var\(--space-10\)\)/.test(omnibar) ? pxToken('space-10') : NaN
-    const right = Number(/right: (-?[\d.]+)(?:px)?;/.exec(fold)?.[1] ?? NaN)
-    const gap = offset - inset + Math.min(0, right)
-    expect(gap).toBeGreaterThanOrEqual(8)
+    // A non-negative right offset keeps the tab inside the rail edge.
+    const right = /right: (-\d)/.test(fold) ? -1 : 0
+    expect(right).toBe(0)
+    expect(offset - inset).toBeGreaterThanOrEqual(8)
   })
   it('keeps a 44px hit area through ::before', () => {
     const hit = rule(css, '.mv2-itinerary .mv2-fold-day::before')

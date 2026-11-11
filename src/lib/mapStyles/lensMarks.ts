@@ -148,9 +148,13 @@ export function baseTagBox(
   stop: { x: number; y: number; w: number; h: number },
   tagW: number,
   tagH: number,
+  gap: number = BASE_TAG_GAP,
 ): { x: number; y: number; w: number; h: number } {
-  return { x: stop.x - stop.w / 2 - BASE_TAG_GAP - tagW / 2, y: stop.y, w: tagW, h: tagH }
+  return { x: stop.x - stop.w / 2 - gap - tagW / 2, y: stop.y, w: tagW, h: tagH }
 }
+
+/** A numbered stop's tag sits beside its pin on the same line, as the Drive board shows. The stop box is 36 px and the pin 32 px. So 2 px here is 4 px from the pin. */
+export const NUMBER_TAG_GAP = 2
 
 /** A stop shows its tag on the active day. The stay base shows it on every day. */
 export function showsStopTag(
@@ -203,6 +207,46 @@ export const CORRIDOR_PAINT: {
   edgeOpacity: number
   edgeDash: [number, number]
 } = { width: 46, opacity: 0.15, edgeWidth: 1, edgeOpacity: 0.5, edgeDash: [3, 4] }
+
+/** Drop points closer than `minDegrees` to the last kept point. A dense road
+ *  trace under a 46 px wash makes the line joins spike, so the wash draws the
+ *  thinned line. The first and last points always stay. */
+export function thinCorridorLine(
+  coordinates: readonly [number, number][],
+  minDegrees = 0.004,
+): [number, number][] {
+  if (coordinates.length < 3) return coordinates.map(p => [p[0], p[1]] as [number, number])
+  const out: [number, number][] = [[coordinates[0][0], coordinates[0][1]]]
+  for (let i = 1; i < coordinates.length - 1; i++) {
+    const last = out[out.length - 1]
+    if (Math.hypot(coordinates[i][0] - last[0], coordinates[i][1] - last[1]) >= minDegrees) {
+      out.push([coordinates[i][0], coordinates[i][1]])
+    }
+  }
+  const end = coordinates[coordinates.length - 1]
+  out.push([end[0], end[1]])
+  return out
+}
+
+/** Chaikin corner cutting. The offset edge lines of the corridor spike at sharp
+ *  bends, so they draw a rounded copy of the thinned line. Ends stay fixed. */
+export function smoothCorridorLine(
+  coordinates: readonly [number, number][],
+  rounds = 2,
+): [number, number][] {
+  let line: [number, number][] = coordinates.map(p => [p[0], p[1]] as [number, number])
+  for (let r = 0; r < rounds && line.length > 2; r++) {
+    const next: [number, number][] = [line[0]]
+    for (let i = 0; i < line.length - 1; i++) {
+      const [ax, ay] = line[i]
+      const [bx, by] = line[i + 1]
+      next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25], [ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75])
+    }
+    next.push(line[line.length - 1])
+    line = next
+  }
+  return line
+}
 
 /** One LineString feature. Two offset layers draw the corridor's dashed edges. */
 export function corridorEdgeGeoJson(coordinates: readonly [number, number][]) {

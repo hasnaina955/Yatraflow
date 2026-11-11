@@ -171,3 +171,72 @@ export function retimedStops(stops: RibbonStop[], preview: RibbonPreview): Ribbo
     return moved
   })
 }
+
+// ---- Hour axis (W14) -------------------------------------------------------
+
+/** The hour axis behind the journey strip. Minutes are absolute, as the stops are. */
+export interface RibbonAxis {
+  start: number
+  end: number
+  /** One tick for each odd hour inside the axis. */
+  ticks: number[]
+}
+
+/** The least span the axis shows, so a short day still reads as a day. */
+const RIBBON_AXIS_MIN_SPAN = 240
+/** The room kept after the last known moment. */
+const RIBBON_AXIS_TAIL = 30
+
+/**
+ * The axis starts on the hour before the first moment and ends half an hour
+ * after the last one. Open windows count as moments, so a dinner window after
+ * the last stop still has a place on the strip.
+ */
+export function ribbonAxis(range: RibbonRange, windows: ReadonlyArray<{ startMin: number; endMin: number }> = []): RibbonAxis {
+  const starts = [range.start, ...windows.map(window => window.startMin)].filter(Number.isFinite)
+  const ends = [range.end, ...windows.map(window => window.endMin)].filter(Number.isFinite)
+  const start = Math.floor(Math.min(...starts) / 60) * 60
+  const end = Math.max(Math.max(...ends) + RIBBON_AXIS_TAIL, start + RIBBON_AXIS_MIN_SPAN)
+  const ticks: number[] = []
+  for (let hour = Math.floor(start / 60) + 1; hour * 60 < end; hour += 1) {
+    if (hour % 2 === 1) ticks.push(hour * 60)
+  }
+  return { start, end, ticks }
+}
+
+/** A tick caption: "09" on a 24 h clock, "9 AM" on a 12 h clock. */
+export function ribbonTickText(minute: number, format: '12h' | '24h'): string {
+  const hour = Math.floor(minute / 60) % 24
+  if (format === '24h') return String(hour).padStart(2, '0')
+  const twelve = hour % 12 === 0 ? 12 : hour % 12
+  return `${twelve} ${hour < 12 ? 'AM' : 'PM'}`
+}
+
+/** Where a minute sits on the axis, as a share from 0 to 100. */
+export function ribbonPercent(axis: Pick<RibbonAxis, 'start' | 'end'>, minute: number): number {
+  const span = axis.end - axis.start
+  if (!(span > 0) || !Number.isFinite(minute)) return 0
+  return Math.max(0, Math.min(100, ((minute - axis.start) / span) * 100))
+}
+
+/** One label's room. The input is in strip pixels and in left-to-right order. */
+export interface RibbonLabelBox { key: string; center: number; width: number }
+
+/**
+ * Keep every label inside the track and drop a label that would sit on the one
+ * before it. A shift moves a label back inside an edge. A dropped label is
+ * hidden, never moved over a neighbour.
+ */
+export function ribbonLabelLayout(boxes: readonly RibbonLabelBox[], trackWidth: number, gap = 6): { hidden: string[]; shift: Record<string, number> } {
+  const hidden: string[] = []
+  const shift: Record<string, number> = {}
+  let reach = -Infinity
+  for (const box of [...boxes].sort((a, b) => a.center - b.center)) {
+    const wanted = box.center - box.width / 2
+    const left = Math.max(0, Math.min(wanted, trackWidth - box.width))
+    if (left < reach + gap) { hidden.push(box.key); continue }
+    reach = left + box.width
+    if (left !== wanted) shift[box.key] = Math.round(left - wanted)
+  }
+  return { hidden, shift }
+}

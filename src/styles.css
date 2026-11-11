@@ -1509,7 +1509,7 @@
    paper tokens. Every hit area stays 44 px through ::before. */
 .mv2-itinerary[data-clock='12h'] { --mv2-rail-time-w: 72px; }
 .mv2-itinerary[data-clock='12h'] .mv2-stop time, .mv2-itinerary[data-clock='12h'] .mv2-lens-window-time { white-space: nowrap; }
-.mv2-itinerary .mv2-lens-window-time { font-size: 12px; font-weight: 700; color: var(--pw-ink-2); }
+.mv2-itinerary .mv2-lens-window-time { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
 .mv2-stop.is-fix-problem .mv2-lens-fix-reason { color: var(--pw-ink-2); }
 .mv2-travel-leg::before { content: ''; }
 .mv2-stop-mark.is-car { background: var(--pw-sunken); color: var(--pw-ink-2); }

@@ -54,7 +54,9 @@ export function fixProblemSubLine(problem: {
   if (evidence == null) return null
   const arrival = /~(\d{2}:\d{2})/.exec(evidence)?.[1] ?? null
   const commitment = /(?:after|before) the (\d{2}:\d{2}) commitment/.exec(evidence)?.[1] ?? null
-  const closed = /after the|under ~45 min before|conflicts with/i.test(`${problem.title} ${evidence}`)
+  // Only an arrival after the commitment means boarding closed. A thin buffer
+  // ("under ~45 min before") is still before the commitment.
+  const closed = /after the \d{2}:\d{2} commitment/i.test(evidence)
   const jetty = /jetty|boat|boarding/i.test(`${problem.title} ${evidence}`)
   if (arrival != null && commitment != null && jetty) {
     return `Jetty ${arrival} · ${closed ? 'boarding closed' : `before ${commitment}`}`

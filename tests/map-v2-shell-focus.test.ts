@@ -15,6 +15,7 @@ const read = (...parts: string[]) => readFileSync(join(root, ...parts), 'utf8').
 const css = read('src', 'styles.css')
 const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')
 const chrome = read('src', 'components', 'map', 'MapWorkspaceChrome.tsx')
+const placeCard = read('src', 'components', 'map', 'MapPickCard.tsx')
 const handle = read('src', 'components', 'map', 'MapPhoneSheetHandle.tsx')
 
 describe('focus ring values', () => {
@@ -51,7 +52,7 @@ describe('the selected-detail handle', () => {
     const detail = handleCalls.find(call => call.includes("'rail-detail'"))
     expect(detail).toBeDefined()
     expect(detail).toContain('settleSheetSnap(source,')
-    expect(chrome).toMatch(/<article id="rail-detail" className="mv2-pick-card" tabIndex=\{-1\}/)
+    expect(placeCard).toMatch(/<article id="rail-detail" className="mv2-pick-card" tabIndex=\{-1\}/)
   })
 
   it('moves focus only for a keyboard snap', () => {

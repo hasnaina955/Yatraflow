@@ -1,23 +1,14 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, House, LocateFixed, Lock, MapPin, MoreHorizontal, PanelLeftClose, Plus, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, House, LocateFixed, Lock, MoreHorizontal, PanelLeftClose } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { fmtDur, legKey } from '../../lib/engine'
-import { CatIcon } from '../icons'
-import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
+import { useTimeFormat, formatHM } from '../../lib/timefmt'
 import { clockHM } from '../../lib/clockOverlay'
-import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
-import type { PlaceHit } from '../../lib/geocode'
-import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
+import { visitDateForDay } from '../../lib/hoursContext'
 import { titleCase } from '../../lib/labels'
-import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
 import { budgetBlockView, budgetValueParts, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
-import type { DiscoveryCoverage } from '../../lib/providers/hits'
-import { PlacePhotos } from './PlacePhotos'
-import { knownCostCells } from './lenses/LensPlaceCard'
 import { dayColor } from '../../lib/mapStyles/dayColors'
-import { ageText, coverageText } from './placeCardFacts'
-import { placeSubtype } from '../../lib/mapStyles/placeMarks'
 import { fixProblemSubLine, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
 import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText, ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
@@ -439,67 +430,6 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
     </div>
     <output className="sr-only">{formatHM(clockHM(minute), format)} {preview ? 'Preview clock' : minute >= 1440 ? 'Next day' : position?.grade === 'estimated' ? 'Estimated travel' : 'Plan clock'}</output>
   </section>
-}
-
-export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, source, freshness, actions, arriveMin, onAdd, onShortlist, onClose, onDirections }: {
-  hit: PlaceHit; trip: Trip; dayIndex: number | null; detourMin: number | null; reason: string | null; added: boolean; editable: boolean; busy: boolean; shortlisted: boolean
-  /** Projected visit length. Undefined = unprojected (existing fallback); null = unknown. */
-  visitMin?: number | null
-  /** Projected share of the day's detour budget; null or absent adds nothing. */
-  budgetSharePct?: number | null
-  /** Projected source. Undefined = unprojected; null = unknown source. */
-  source?: PlaceHit['source'] | null
-  /** Projected evidence freshness. Undefined = unprojected. */
-  freshness?: JourneyFreshness
-  /** Projected permissions. They can only restrict the existing controls. */
-  actions?: JourneyActions
-  /** Projected arrival clock for the existing hours note. */
-  arriveMin?: number | null
-  /** When this row's data was fetched. Null or absent shows no age. */
-  fetchedAt?: number | null
-  /** What the search covered. Null or absent shows nothing. */
-  coverage?: DiscoveryCoverage | null
-  onAdd: () => void; onShortlist: () => void; onClose: () => void; onDirections: () => void
-}) {
-  const format = useTimeFormat()
-  const visit = visitMin !== undefined ? visitMin : intendedVisitMinutes(hit)
-  const hours = hit.hours && visit != null ? hoursCardText(hoursDisplayFor(hit, { date: dayIndex == null ? null : visitDateForDay(trip.startDate, dayIndex), arrivalMin: arriveMin !== undefined ? arriveMin : null, visitMin: visit }), (open, close) => formatHMRange(open, close, format)) : null
-  const sourceValue = source !== undefined ? source : hit.source
-  const sourceLabel = sourceValue === 'google' ? 'Google Places' : sourceValue === 'osm' ? 'OpenStreetMap' : sourceValue === 'wikipedia' ? 'Wikipedia' : sourceValue === 'mappls' ? 'Mappls' : sourceValue === 'open-meteo' ? 'Open-Meteo' : 'Source not supplied'
-  const freshnessLabel = freshness === undefined ? null : freshness === 'live' ? 'Live result' : freshness === 'retained' ? 'Retained result' : freshness === 'stale' ? 'Stale result' : 'Freshness unknown'
-  // One display rule for the detour. An on-route detour hides its budget share.
-  const detour = detourDisplay(detourMin)
-  const [shownAt] = useState(() => Date.now())
-  // Age and coverage are shown only when the row carries them.
-  const dataFacts = [ageText(fetchedAt, shownAt), coverageText(coverage)].filter((fact): fact is string => fact != null)
-  const canAdd = actions?.add ?? true
-  const canShortlist = actions?.shortlist ?? true
-  const canNavigate = actions?.navigate ?? true
-  const hasReportedHours = (hit.hours != null && hit.hours.basis !== 'none') || !!hit.openTime || !!hit.closeTime
-  const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
-  // The art band takes the category family, as the place card tile does.
-  const artFamily = placeSubtype({ category: hit.category ?? undefined, name: hit.name }).family
-  const costCells = knownCostCells([
-    { key: 'drive', label: 'Extra driving', value: detourMin == null ? null : `${detourDisplayText(detourMin)}${detour.kind === 'extra' && budgetSharePct != null ? ` · ${Math.round(budgetSharePct)}% of budget` : ''}` },
-    { key: 'visit', label: 'Visit', value: visit == null ? null : `${visit} min` },
-    { key: 'placement', label: 'Placement', value: dayIndex == null ? null : `Day ${dayIndex + 1}` },
-  ])
-  return <article id="rail-detail" className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
-    <div className="mv2-place-art" data-family={artFamily}><CatIcon category={hit.category} size={38} /><span>{titleCase(hit.category ?? 'place')}</span><button className="mv2-icon-btn" type="button" aria-label="Close place details" onClick={onClose}><X size={18} /></button></div>
-    <PlacePhotos hit={hit} />
-    <div className="mv2-place-body">
-      <span className="mv2-section-label">Along the drive · {dayIndex == null ? 'Choose a day' : `Day ${dayIndex + 1}`}</span>
-      <h2>{hit.name}</h2>
-      {hit.rating != null && <p className="mv2-rating"><Star size={14} aria-hidden /><strong>{hit.rating.toFixed(1)}</strong>{hit.ratingCount != null && <span>· {hit.ratingCount.toLocaleString('en-IN')} reviews</span>}</p>}
-      {hit.description && <p className="mv2-place-description">{hit.description}</p>}
-      {(hours || reason) && <div className="mv2-reason-chips">{hours && <span>{hours}</span>}{reason && <span>{reason}</span>}</div>}
-      {costCells.length > 0 && <dl className="mv2-cost-strip">{costCells.map(cell => <div key={cell.key}><dt>{cell.label}</dt><dd>{cell.value}</dd></div>)}</dl>}
-      <div className="mv2-preview-note"><Clock3 size={17} aria-hidden /><p>Check the impact before you keep it. Travel and visit time can move later stops.</p></div>
-      {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : dayIndex == null ? 'Add to a day' : `Add to Day ${dayIndex + 1}`}</button><button className="mv2-icon-btn" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
-      <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={15} aria-hidden />View place in Google Maps</button>
-      <p className="mv2-source"><MapPin size={13} aria-hidden />{sourceLabel} · {hit.measuredRoadFact ? 'Road evidence supplied' : 'Driving estimate'} · {hoursNote}{freshnessLabel ? ` · ${freshnessLabel}` : ''}{dataFacts.map(fact => ` · ${fact}`).join('')}</p>
-    </div>
-  </article>
 }
 
 export function MapDeckHeader({ title, count, children, onFold }: { title: string; count: number; children?: ReactNode; onFold: () => void }) {

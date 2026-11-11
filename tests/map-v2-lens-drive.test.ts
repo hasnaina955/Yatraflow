@@ -172,10 +172,11 @@ describe('driveCardStrip', () => {
 
 describe('driveDeckIntro', () => {
   it('writes an inside and outside window line', () => {
-    const inside = lensRow(row('a', { arriveMin: 725, windowMin: [690, 870], inWindow: true }))
-    expect(driveDeckIntro(inside, clock)).toBe('You pass at 12:05, inside the 11:30–14:30 window')
-    const outside = lensRow(row('a', { arriveMin: 725, windowMin: [690, 870], inWindow: false }))
-    expect(driveDeckIntro(outside, clock)).toBe('You pass at 12:05, outside the 11:30–14:30 window')
+    const hit = { id: 'a', name: 'a', latitude: 1, longitude: 2, kind: 'poi' as const, cumKm: 57 }
+    const inside = lensRow(row('a', { hit, arriveMin: 725, windowMin: [690, 870], inWindow: true }))
+    expect(driveDeckIntro(inside, clock)).toBe('You pass km 57 at 12:05, inside the 11:30–14:30 window')
+    const outside = lensRow(row('a', { hit, arriveMin: 725, windowMin: [690, 870], inWindow: false }))
+    expect(driveDeckIntro(outside, clock)).toBe('You pass km 57 at 12:05, outside the 11:30–14:30 window')
   })
 
   it('returns null text when a field is unknown', () => {

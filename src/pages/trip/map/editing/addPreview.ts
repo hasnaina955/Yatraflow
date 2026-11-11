@@ -32,6 +32,8 @@ export interface PreviewClock {
 export interface PreviewWarning {
   code: string
   title: string
+  /** The engine's own explanation, with its real times and place. */
+  detail: string
   severe: boolean
   dayIndex: number | null
 }
@@ -65,6 +67,9 @@ export interface ReadyAddPreview {
     replaced: PreviewLeg | null
   }
   newStop: { arrive: string; depart: string }
+  /** Stops before the insertion. Their clocks do not move, so they never
+   *  appear as a change; the calm note may still name one that stays. */
+  keptClocks: PreviewClock[]
   clocks: PreviewClock[]
   dayEnd: { from: string; to: string; deltaMin: number | null }
   warnings: { added: PreviewWarning[]; cleared: PreviewWarning[] }
@@ -124,7 +129,7 @@ function clockDelta(from: string, to: string): number | null {
 }
 
 function warningRef(w: ImpactResult['newWarnings'][number]): PreviewWarning {
-  return { code: w.code, title: w.title, severe: w.severity === 'high', dayIndex: w.dayIndex ?? null }
+  return { code: w.code, title: w.title, detail: w.detail, severe: w.severity === 'high', dayIndex: w.dayIndex ?? null }
 }
 
 function pointBefore(sim: DaySchedule, index: number, origin: Point): Point {
@@ -167,6 +172,13 @@ export function previewAdd(input: AddPreviewInput): AddPreview {
   }
 
   const baseRows = new Map(baseSim.activeStops.map((s, i) => [s.id, baseSim.arrivalTimes[i]]))
+  const keptClocks: PreviewClock[] = []
+  nextSim.activeStops.forEach((s, i) => {
+    if (i >= at) return
+    const was = baseRows.get(s.id)
+    if (was === undefined) return
+    keptClocks.push({ stopId: s.id, title: s.title, from: was, to: nextSim.arrivalTimes[i], deltaMin: clockDelta(was, nextSim.arrivalTimes[i]) })
+  })
   const clocks: PreviewClock[] = []
   nextSim.activeStops.forEach((s, i) => {
     if (i <= at) return
@@ -193,6 +205,7 @@ export function previewAdd(input: AddPreviewInput): AddPreview {
     },
     road,
     newStop: { arrive: nextSim.arrivalTimes[at], depart: nextSim.departures[at] },
+    keptClocks,
     clocks,
     dayEnd: { from: baseSim.endsAt, to: nextSim.endsAt, deltaMin: clockDelta(baseSim.endsAt, nextSim.endsAt) },
     warnings: { added: impact.newWarnings.map(warningRef), cleared: impact.clearedWarnings.map(warningRef) },

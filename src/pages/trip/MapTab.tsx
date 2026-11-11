@@ -9,7 +9,7 @@ import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycl
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import type { WriterRoadBinding } from './map/writerRoadBinding'
 import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, legBetween, getAssumptions, type LegEstimate } from '../../lib/engine'
-import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
+import { useTimeFormat, formatHM, formatHMRange, validHM } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
 import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { DEBOUNCE_MS } from '../../lib/geocode'
@@ -58,7 +58,13 @@ import {
   googleMapsUrl, newStopId, poiVisitMinutes,
 } from './map/pageHelpers'
 import { activeReadinessLabel, activeDayLabel } from './map/railRows'
-import { MapItinerary, MapJourneyRibbon, MapPickCard, MapPhoneDay, MapSheetHandle, type ItineraryStayView, type ItineraryWindowRow, type SheetSnap, type SheetSnapSource } from '../../components/map/MapWorkspaceChrome'
+import { LensDeckSource } from '../../components/map/lenses/LensDeckSource'
+import { deckHits, FIX_SOURCE_LINE } from './map/deckSource'
+import { passClockMin, pickArrivalMin, type PassAnchor } from './map/passClock'
+import { addFixOffer, detailAddPreview, detailPreviewView } from './map/detailPreview'
+import { kindWordOf } from '../../components/map/placeCardFacts'
+import { MapPickCard } from '../../components/map/MapPickCard'
+import { MapItinerary, MapJourneyRibbon, MapPhoneDay, MapSheetHandle, type ItineraryStayView, type ItineraryWindowRow, type SheetSnap, type SheetSnapSource } from '../../components/map/MapWorkspaceChrome'
 import { aroundKmText, daysCaptionText, picksText, stayRailSub, stayRailTitle, windowAtMin } from '../../components/map/railModel'
 import { ROUTE_PAINT } from '../../lib/mapStyles/routeTreatment'
 import { driveRowForHit, mapAllJourneyRowsForDays, mapCardActions, mapRailRowForHit, mapRowForHit, mapRowsForHit, type MapRowBinding } from './map/mapJourneyRows'
@@ -1616,14 +1622,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     if (!editable || isAlreadyAdded(hit, identity)) return
     edit.startAdd(hit, dayIndex)
   }
-  function applyLensFix(set: FixChangeSet) {
+  function applyFixAgainst(baseTrip: Trip, set: FixChangeSet) {
     // Check the real plan first. A fix that does not pass its check never writes.
-    const checked = verifyFixSet(trip, set)
+    const checked = verifyFixSet(baseTrip, set)
     if (!fixIsOffered(checked)) {
       toast('This fix did not pass its check. Nothing changed.')
       return
     }
-    const next = applyFixChangeSet(trip, checked)
+    const next = applyFixChangeSet(baseTrip, checked)
     const day = next?.days.find(entry => entry.index === checked.dayIndex)
     if (!day) {
       toast('This fix could not apply to this trip. Nothing changed.')
@@ -1636,6 +1642,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       target.startTime = day.startTime
     }, 'edit', checked.dayIndex)
     toast('Fix applied to this day.')
+  }
+  function applyLensFix(set: FixChangeSet) {
+    applyFixAgainst(trip, set)
   }
   function previewLensFix(set: FixChangeSet) {
     // Preview draws nothing new: it selects the day and shows the Fix lens.
@@ -1658,6 +1667,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     const day = trip.days.find(item => item.index === activeDayIndex)
     return day ? buildJourney(trip, day, legCorrections) : null
   }, [trip, activeDayIndex, legCorrections])
+  // The active day's stops as clock anchors on the road, for a pick's arrival.
+  const passAnchors: PassAnchor[] = (journey?.points ?? []).map(point => ({
+    km: routeKmOf(point.lat, point.lng),
+    arriveMin: validHM(point.arrive) ? hmToMinutes(point.arrive) : null,
+    departMin: validHM(point.depart) ? hmToMinutes(point.depart) : null,
+  }))
   const scrubContext = `${trip.id}:${activeDayIndex}:${journey?.points.map(point => `${point.stop.id}:${point.lat}:${point.lng}:${point.arrive}:${point.depart}`).join('|') ?? ''}`
   const localTarget = targetRequest?.contextKey === scrubContext ? targetRequest.target : null
   useEffect(() => {
@@ -1692,6 +1707,33 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const selectedMatches = selectedHit ? mapRowsForHit(mapRows, selectedHit, detailDay) : []
   const selectedProjected = selectedMatches.length > 0
   const selectedRow = selectedHit ? mapRowForHit(mapRows, selectedHit, detailDay, detailBinding) : undefined
+  // The detail's "If you add it" panel: the add preview the Keep step reads, and
+  // the first engine fix for a risk the add would bring. Only for an unadded pick.
+  const detailPreviewData = (() => {
+    if (!selectedHit || !editable || detailDay == null || isAlreadyAdded(selectedHit, identity)) return null
+    const kmOf = (lat: number, lng: number): number | null => routePolyline
+      ? projectOntoPolyline({ latitude: lat, longitude: lng }, routePolyline)?.km ?? null
+      : null
+    const raw = detailAddPreview({ trip, dayIndex: detailDay, hit: selectedHit, routeKmOf: kmOf, legCorrections })
+    if (raw == null) return null
+    return {
+      view: detailPreviewView(raw, hm => formatHM(hm, timeFormat)),
+      offer: addFixOffer(raw, trip),
+      proposed: raw.kind === 'ready' ? raw.proposedTrip : null,
+      visitMin: raw.kind === 'ready'
+        ? raw.proposedTrip.days.find(day => day.index === raw.dayIndex)?.stops.find(stop => stop.id === raw.stopId)?.visitMinutes ?? null
+        : null,
+    }
+  })()
+  const detailDetourMin = selectedHit ? (selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null) : null
+  // The detail's budget cell reads the day after the add: its current spend
+  // plus this pick. Unknown parts keep the whole used-of line out.
+  const detailBudgetUsed = detailDetourMin != null && Number.isFinite(detailDetourMin) && driveBudget != null
+    ? Math.max(0, Math.round(driveBudget.usedMin + Math.max(0, detailDetourMin)))
+    : null
+  const detailArriveMin = selectedHit
+    ? selectedRow?.arriveMin ?? pickArrivalMin(passClockMin(passAnchors, selectedHit.alongRouteKm ?? selectedHit.cumKm ?? routeKmOf(selectedHit.latitude, selectedHit.longitude)), detailDetourMin)
+    : null
   const mapShowsAll = mapFilter === 'all' || dayFocus === 'all'
   // Only the all-days view draws other days thin.
   const thinDays = mapShowsAll ? { selectedDay: activeDayIndex } : {}
@@ -2446,12 +2488,20 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               dayLabel={lensDayLabel}
               dayNumber={activeDayIndex + 1}
               clock={lensClock}
+              scopeMinutes={scopeMinutes}
               activeDriveTab={driveTab}
               onDriveTab={setDriveTab}
               driveLetters={drivePickLetters}
-              stripOf={row => driveCardStrip(row, lensClock)}
+              stripOf={row => {
+                const strip = driveCardStrip(row, lensClock)
+                if (strip.arrive != null) return strip
+                // The slot engine had no arrival. Read the day's road clock at the pick.
+                const km = row.row.hit.alongRouteKm ?? row.row.hit.cumKm ?? routeKmOf(row.row.hit.latitude, row.row.hit.longitude)
+                const arrive = pickArrivalMin(passClockMin(passAnchors, km), row.detourMin)
+                return arrive == null ? strip : { ...strip, arrive: lensClock(arrive) }
+              }}
               bandOf={row => scopeBandOf(row, scopeMinutes, budgetHeldIds)}
-              introOf={row => driveDeckIntro(row, lensClock)}
+              introOf={row => driveDeckIntro(row, lensClock, routeKmOf(row.row.hit.latitude, row.row.hit.longitude))}
               onOpenDrive={row => inspectHit(row.row.hit)}
               onAddDrive={row => addLensHit(row.row.hit, activeDayIndex)}
               activeStayWindow={activeStayWindowId}
@@ -2502,22 +2552,46 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 <p className="hint-text">{budgetHeldCount} idea{budgetHeldCount === 1 ? '' : 's'} held back - beyond the day&apos;s detour budget. Add fewer stops, or raise the scope, and the engine will offer them again.</p>
               )}
             </div>}
+            <LensDeckSource
+              sources={deckHits(lens, lenses, { driveTab, stayWindow: activeStayWindowId }).map(hit => hit.source)}
+              fetchedAt={scanFetchedAt}
+              coverage={scanCoverage}
+              fixed={lens === 'fix' ? (lenses.fix.phase === 'ready' && lenses.fix.problem != null ? FIX_SOURCE_LINE : '') : null} />
             {phoneSheet && <div className="mv2-sheet-settings">{settingsTools}</div>}
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />
             {ribbonSheet === 'detail' && phoneRibbon}
 
-            <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null} reason={selectedRow?.reason ?? null}
-              visitMin={selectedRow ? selectedRow.visitMin : selectedProjected ? null : undefined}
+            <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={detailDetourMin} reason={selectedRow?.reason ?? null}
+              arriveText={detailArriveMin == null ? null : lensClock(detailArriveMin)}
+              {...(lens === 'stay' ? { kicker: `Around the stay · ${kindWordOf(selectedHit.category)}` } : {})}
+              preview={detailPreviewData?.view ?? null}
+              fixOffer={detailPreviewData?.offer ? { label: `Add and fix ${detailPreviewData.offer.stopTitle ?? 'the day'}` } : null}
+              onAddAndFix={() => {
+                if (!editable || detailDay == null) return
+                const proposed = detailPreviewData?.proposed ?? null
+                const offer = detailPreviewData?.offer ?? null
+                edit.addNow(selectedHit, detailDay, () => {
+                  // The fix was checked on the proposed plan. That plan is the
+                  // one the add just wrote, so the same set is safe to apply.
+                  if (proposed != null && offer != null) applyFixAgainst(proposed, offer.set)
+                  chooseDay(detailDay)
+                  setLens('fix')
+                  setSheetTab('see')
+                  setDeckOpen(true)
+                })
+              }}
+              visitMin={selectedRow?.visitMin ?? detailPreviewData?.visitMin ?? (selectedProjected ? null : undefined)}
               budgetSharePct={selectedRow ? selectedRow.budgetSharePct : selectedProjected ? null : undefined}
+              budgetText={detailBudgetUsed == null ? null : `${detailBudgetUsed} of ${mapBudget}`}
               source={selectedRow ? selectedRow.source : selectedProjected ? null : undefined}
               freshness={selectedRow ? selectedRow.freshness : selectedProjected ? 'unknown' : undefined}
               actions={mapCardActions(selectedRow, selectedProjected)}
               arriveMin={selectedRow ? selectedRow.arriveMin : selectedProjected ? null : undefined}
               fetchedAt={selectedRow ? scanFetchedAt : undefined} coverage={selectedRow ? scanCoverage : undefined}
               added={isAlreadyAdded(selectedHit, identity)} editable={editable} busy={addingAny || !!previewOpen} shortlisted={isShortlisted(selectedHit)}
-              onAdd={() => { if (editable && detailDay != null && !isAlreadyAdded(selectedHit, identity)) edit.startAdd(selectedHit, detailDay); else openAddModal(selectedHit) }} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
+              onAdd={() => { if (editable && detailDay != null && !isAlreadyAdded(selectedHit, identity)) edit.addNow(selectedHit, detailDay); else openAddModal(selectedHit) }} onShortlist={() => toggleShortlist(selectedHit)} onClose={closeDetails} onDirections={() => openExternal(googleMapsUrl(selectedHit))} />
             <MapEditAddPanel edit={edit} onChooseDay={() => openAddModal(selectedHit)} />
           </div>}
           {deckOpen && !selectedHit && editable && selectedStop != null && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}

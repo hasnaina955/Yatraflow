@@ -5,6 +5,7 @@ import { ArrowLeftRight, Heart, Plus, Star } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { cap } from '../../../lib/labels'
 import { placeSubtype } from '../../../lib/mapStyles/placeMarks'
+import { compactCount } from '../placeCardFacts'
 
 /** One cost strip cell. A null value is unknown, and it is never zero. */
 export interface LensCostCell {
@@ -40,10 +41,7 @@ export function ratingText(hit: {
 }): { rating: string; count: string | null } | null {
   const rating = hit.rating
   if (typeof rating !== 'number' || !Number.isFinite(rating)) return null
-  const raw = hit.ratingCount
-  const count = typeof raw === 'number' && Number.isFinite(raw) && raw >= 0
-    ? String(Math.round(raw))
-    : null
+  const count = compactCount(hit.ratingCount)
   return { rating: rating.toFixed(1), count }
 }
 
@@ -70,13 +68,23 @@ export interface LensPlaceCardProps {
   onAdd: () => void
   /** Opens the place. Absent means the name is not a control. */
   onOpen?: () => void
-  /** True draws the lagoon outline of the selected card. */
+  /** True draws the lagoon outline and the action row. Other cards stay compact. */
   selected?: boolean
+  /** Called when a click or focus lands on the card. The deck then selects it. */
+  onSelect?: () => void
   /** Heart. Rendered only when a real handler exists. */
   onShortlist?: () => void
   shortlisted?: boolean
   /** Swap. Rendered only when a real handler exists. */
   onSwap?: () => void
+}
+
+/** The index of the selected card. A chosen id wins while it is on the list.
+ *  Otherwise the first card is selected, as the boards draw it. */
+export function selectedCardIndex(ids: readonly string[], chosen: string | null): number {
+  if (ids.length === 0) return -1
+  const at = chosen == null ? -1 : ids.indexOf(chosen)
+  return at >= 0 ? at : 0
 }
 
 /** The card's circle actions. A button draws only when its action is a
@@ -95,7 +103,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
   const {
     letter, category, name, hit, reasons = [], cells, tag, band, addLabel,
     addDisabled = false, addTitle, onAdd, onOpen, selected = false,
-    onShortlist, shortlisted = false, onSwap,
+    onShortlist, shortlisted = false, onSwap, onSelect,
   } = props
   const rating = hit ? ratingText(hit) : null
   // A rating shows only when the hit has both a rating and its count.
@@ -109,6 +117,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
 
   const headInner = <>
     <span className="mv2-lens-place-tile" data-family={family}>
+      {letter != null && <span className="mv2-lens-place-letter" aria-hidden="true">{letter}</span>}
       <CatIcon category={category ?? undefined} size={20} />
     </span>
     <span className="mv2-lens-place-copy">
@@ -117,9 +126,11 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
     </span>
   </>
 
+  // Selection happens on the click, never on press or focus: the action row
+  // changes the card's height, and a press-time reflow would swallow the click.
   return <article
-    className={`mv2-lens-place${selected ? ' is-selected' : ''}${band != null ? ` is-${band}` : ''}`}>
-    {letter != null && <span className="mv2-lens-place-letter" aria-hidden="true">{letter}</span>}
+    className={`mv2-lens-place${selected ? ' is-selected' : ''}${band != null ? ` is-${band}` : ''}`}
+    onClick={onSelect}>
     <div className="mv2-lens-place-head">
       {onOpen
         ? <button type="button" className={openClass} onClick={onOpen}>{headInner}</button>
@@ -140,7 +151,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
         <span className="mv2-lens-cell-value">{cell.value}</span>
       </span>)}
     </div>}
-    <div className="mv2-lens-place-actions">
+    {selected && <div className="mv2-lens-place-actions">
       <button
         type="button"
         className="mv2-lens-place-add"
@@ -158,6 +169,6 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
         className="mv2-lens-round"
         aria-label="Swap this stop"
         onClick={actions.swap}><ArrowLeftRight size={15} aria-hidden /></button>}
-    </div>
+    </div>}
   </article>
 }

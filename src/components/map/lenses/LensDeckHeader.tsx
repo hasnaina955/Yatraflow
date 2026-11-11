@@ -25,12 +25,14 @@ export interface LensDeckHeaderProps {
   sub?: string | null
   /** The fold handler. Absent means the header uses the Map tab fold button. */
   onClose?: () => void
+  /** `risk` draws the kicker in the risk colour, as the Fix board does. */
+  tone?: 'risk'
 }
 
-export function LensDeckHeader({ kicker, title, sub, onClose }: LensDeckHeaderProps) {
+export function LensDeckHeader({ kicker, title, sub, onClose, tone }: LensDeckHeaderProps) {
   return <header className="mv2-lens-deck-head">
     <div className="mv2-lens-deck-copy">
-      <span className="mv2-lens-deck-kicker">{kicker}</span>
+      <span className={`mv2-lens-deck-kicker${tone === 'risk' ? ' is-risk' : ''}`}>{kicker}</span>
       {title != null && title !== '' && <h2 className="mv2-lens-deck-title">{title}</h2>}
       {sub != null && sub !== '' && <p className="mv2-lens-deck-sub">{sub}</p>}
     </div>

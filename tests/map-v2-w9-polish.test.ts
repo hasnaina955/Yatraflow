@@ -235,9 +235,9 @@ describe('place card heart and swap', () => {
   it('renders the heart only with a handler, and no swap without one', () => {
     expect(card()).not.toContain('Add to shortlist')
     expect(card()).not.toContain('Swap this stop')
-    expect(card({ onShortlist: noop })).toContain('aria-label="Add to shortlist"')
-    expect(card({ onShortlist: noop, shortlisted: true })).toContain('aria-pressed="true"')
-    expect(card({ onSwap: noop })).toContain('aria-label="Swap this stop"')
+    expect(card({ selected: true, onShortlist: noop })).toContain('aria-label="Add to shortlist"')
+    expect(card({ selected: true, onShortlist: noop, shortlisted: true })).toContain('aria-pressed="true"')
+    expect(card({ selected: true, onSwap: noop })).toContain('aria-label="Swap this stop"')
   })
   it('lets the Add pill fill the row', () => {
     const add = rule(css, '.mv2-lens-place-add')

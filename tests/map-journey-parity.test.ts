@@ -327,7 +327,9 @@ describe('MapTab wiring pin', () => {
   })
 
   it('passes projected card facts and never recomputes a visit in the Map', () => {
-    expect(code).toMatch(/visitMin=\{selectedRow \? selectedRow\.visitMin : selectedProjected \? null : undefined\}/)
+    // The row's projected visit wins. When there is no row, the add preview's
+    // projected visit is the next source; both are engine facts, not page math.
+    expect(code).toMatch(/visitMin=\{selectedRow\?\.visitMin \?\? detailPreviewData\?\.visitMin \?\? \(selectedProjected \? null : undefined\)\}/)
     expect(code).toMatch(/budgetSharePct=\{selectedRow \? selectedRow\.budgetSharePct : selectedProjected \? null : undefined\}/)
     expect(code).toMatch(/freshness=\{selectedRow \? selectedRow\.freshness : selectedProjected \? 'unknown' : undefined\}/)
     expect(code).toMatch(/actions=\{mapCardActions\(selectedRow, selectedProjected\)\}/)

@@ -28,6 +28,8 @@ export interface MapLensPanelProps {
   stripOf: (row: DriveRow) => DriveCardStrip
   bandOf: (row: DriveRow) => ScopeBand
   introOf: (row: DriveRow) => string | null
+  /** The live scope, in minutes there and back. A non-window deck names it. */
+  scopeMinutes?: number | null
   onOpenDrive: (row: DriveRow) => void
   onAddDrive: (row: DriveRow) => void
   activeStayWindow: string | null
@@ -65,11 +67,15 @@ export function MapLensPanel(props: MapLensPanelProps) {
     const groups = lenses.drive.tabs.tabs
     const active = groups.find(group => group.tab === props.activeDriveTab) ?? groups[0]
     const intro = active?.shown[0] ? props.introOf(active.shown[0]) : null
+    // A deck with no window has no pass line. It still states the real scope.
+    const scopeLine = active != null && props.scopeMinutes != null
+      ? `Within ${props.scopeMinutes} min there and back · ${active.total} place${active.total === 1 ? '' : 's'}`
+      : null
     return <DriveTabs
       result={lenses.drive.tabs}
       activeTab={props.activeDriveTab}
       onTab={props.onDriveTab}
-      intro={intro}
+      intro={intro ?? scopeLine}
       stripOf={props.stripOf}
       bandOf={props.bandOf}
       nameOf={row => row.row.hit.name}

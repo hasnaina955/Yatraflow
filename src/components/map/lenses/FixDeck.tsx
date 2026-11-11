@@ -1,5 +1,6 @@
 // Fix lens deck. It draws one problem and the fixes another module built.
 // It shows only the fixes it is given. It never builds or ranks a fix.
+import { Fragment } from 'react'
 import { Check, Route } from 'lucide-react'
 import type { FixSummary } from '../../../pages/trip/map/fixLens'
 import type { FixChangeSet, LensPhase } from '../../../lib/mapLensContracts'
@@ -25,6 +26,21 @@ export function fixDeckKicker(count: number, dayNumber: number): string {
   return `Fix · ${count} ${noun}${seat}`
 }
 
+/** A clock such as 15:30 or 3:30 PM, to set in bold inside a problem line. */
+const CLOCK_IN_TEXT = /(\b\d{1,2}:\d{2}(?:\s?[AP]M)?\b)/gi
+
+/** Splits a line into plain and clock parts. Every odd part is a clock. */
+export function clockParts(text: string): string[] {
+  return text.split(CLOCK_IN_TEXT)
+}
+
+/** One evidence line with its clocks in bold. */
+function EvidenceLine({ text }: { text: string }) {
+  return <>{clockParts(text).map((part, index) => index % 2 === 1
+    ? <b key={index}>{part}</b>
+    : <Fragment key={index}>{part}</Fragment>)}</>
+}
+
 export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, onClose }: {
   phase: LensPhase
   dayNumber: number
@@ -37,7 +53,7 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
 }) {
   if (phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-fix-deck" aria-label="Fix this day">
-      <LensDeckHeader kicker={fixDeckKicker(0, dayNumber)} onClose={onClose} />
+      <LensDeckHeader kicker={fixDeckKicker(0, dayNumber)} tone="risk" onClose={onClose} />
       <LensPhaseNote phase={phase}>{PHASE_TEXT[phase]}</LensPhaseNote>
     </section>
   }
@@ -47,12 +63,16 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
     <LensDeckHeader
       kicker={fixDeckKicker(count, dayNumber)}
       title={problem?.title ?? null}
+      tone="risk"
       onClose={onClose}
     />
     {problem && <div className="mv2-lens-evidence">
-      <ul className="mv2-lens-evidence-lines">
-        {problem.evidence.map((line, index) => <li key={index}>{line}</li>)}
-      </ul>
+      {/* One reason is a plain line. Two or more are a list, so each stays a unit. */}
+      {problem.evidence.length === 1
+        ? <p className="mv2-lens-evidence-line"><EvidenceLine text={problem.evidence[0]} /></p>
+        : <ul className="mv2-lens-evidence-lines">
+          {problem.evidence.map((line, index) => <li key={index}><EvidenceLine text={line} /></li>)}
+        </ul>}
       <p className="mv2-lens-found-by">
         {`Found by the ${problem.foundBy} · every fix below was run through the impact preview`}
       </p>
@@ -76,7 +96,7 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
               <span>{fix.summary.result}</span>
             </p>
             <div className="mv2-lens-fix-actions">
-              <button type="button" className="btn btn-primary mv2-lens-apply"
+              <button type="button" className={`btn mv2-lens-apply ${index === 0 ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => onApply(fix.set)}>Apply</button>
               <button type="button" className="mv2-lens-preview"
                 onClick={() => onPreview(fix.set)}>

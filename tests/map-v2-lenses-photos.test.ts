@@ -70,7 +70,7 @@ describe('ageText and coverageText', () => {
 })
 
 describe('wiring', () => {
-  const chrome = readFileSync('src/components/map/MapWorkspaceChrome.tsx', 'utf8')
+  const card = readFileSync('src/components/map/MapPickCard.tsx', 'utf8')
   const view = readFileSync('src/pages/trip/map/driveSuggestionView.ts', 'utf8')
   const photos = readFileSync('src/components/map/PlacePhotos.tsx', 'utf8')
   it('adds photos to the drive row', () => {
@@ -81,6 +81,6 @@ describe('wiring', () => {
     expect(photos).toContain('cardPhotoRefs(')
     expect(photos).toContain('placePhotoUrl(')
     expect(photos).toContain('loading="lazy"')
-    expect(chrome).toContain('<PlacePhotos')
+    expect(card).toContain('<PlacePhotos')
   })
 })

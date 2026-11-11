@@ -93,9 +93,9 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
     }
   }, [legCorrections, routeKmOf])
 
-  const keep = useCallback(async () => {
-    if (session.phase !== 'previewing' || !editable) return
-    const { preview } = session
+  /** Saves one preview. The add button of the place detail and the Keep button share it. */
+  const keepPreview = useCallback(async (preview: ReadyAddPreview, after?: () => void) => {
+    if (!editable) return
     const stop = stopRef.current
     const hit = hitRef.current
     if (!stop) return
@@ -105,6 +105,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
       dispatch({ type: 'keep' })
       try {
         await keepWithWriter(hit, preview.dayIndex)
+        after?.()
       } catch {
         setAnnouncement('The add could not start. Try again.')
       } finally {
@@ -125,11 +126,42 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
           setUndoStartedAt(Date.now())
           setAnnouncement(`Added ${preview.insertion.order > 0 ? `as stop ${preview.insertion.order}` : ''}. Undo is available for ${UNDO_WINDOW_MS / 1000} seconds.`)
           if (hit) onAddKept?.(hit)
+          after?.()
         }
       },
       operationMeta(outcome => dispatch({ type: 'settle', outcome })),
     )
-  }, [session, editable, applyChange, onAddKept, keepWithWriter])
+  }, [editable, applyChange, onAddKept, keepWithWriter])
+
+  const keep = useCallback(async () => {
+    if (session.phase !== 'previewing') return
+    await keepPreview(session.preview)
+  }, [session, keepPreview])
+
+  /**
+   * The place detail already showed the preview, so one press saves the add.
+   * A pick with no proven road position falls back to the unknown card, as
+   * `startAdd` does. `after` runs only when the add was taken.
+   */
+  const addNow = useCallback((hit: PlaceHit, dayIndex: number, after?: () => void) => {
+    if (!editable) return
+    const current = tripRef.current
+    const day = current.days.find(d => d.index === dayIndex)
+    const stop = pickStopFor(hit, newStopId())
+    const insertAt = day ? roadInsertIndex(day.stops, routeKmOf(hit.latitude, hit.longitude) ?? hit.cumKm, s => routeKmOf(s.lat, s.lng)) : null
+    const preview = previewAdd({ trip: current, dayIndex, stop, insertAt, legCorrections })
+    setClosed(false)
+    setUndoStartedAt(null)
+    hitRef.current = hit
+    stopRef.current = stop
+    if (preview.kind !== 'ready') {
+      setUnknown({ ...preview, hitId: String(hit.id) })
+      return
+    }
+    setUnknown(null)
+    dispatch({ type: 'preview', preview })
+    void keepPreview(preview, after)
+  }, [editable, legCorrections, routeKmOf, keepPreview])
 
   const reject = useCallback(() => {
     dispatch({ type: 'reject' })
@@ -232,7 +264,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
   return {
     session, unknown, visible, previewRoad, announcement, confirm, canUndo,
     undoLeft: undoStartedAt != null ? undoSecondsLeft(undoStartedAt, now) : 0,
-    startAdd, keep, reject, undo,
+    startAdd, addNow, keep, reject, undo,
     stepStay, moveToDay, swapNeighbour, removeSelected, confirmFixed, cancelFixed, onReorderKey,
   }
 }

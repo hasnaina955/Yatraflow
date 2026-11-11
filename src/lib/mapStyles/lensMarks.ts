@@ -153,7 +153,7 @@ export function baseTagBox(
   return { x: stop.x - stop.w / 2 - gap - tagW / 2, y: stop.y, w: tagW, h: tagH }
 }
 
-/** A numbered stop's tag sits beside its pin on the same line, as the Drive board shows. The stop box is 36 px wide and the pin 32 px, so 2 px here is 4 px from the pin. */
+/** A numbered stop's tag sits beside its pin on the same line, as the Drive board shows. The stop box is 36 px and the pin 32 px. So 2 px here is 4 px from the pin. */
 export const NUMBER_TAG_GAP = 2
 
 /** A stop shows its tag on the active day. The stay base shows it on every day. */

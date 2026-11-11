@@ -62,7 +62,7 @@ const board = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Kerala loop', startLocation: 'Kochi', startLocationCoords: { lat: 9.9312, lng: 76.2673 }, destinations: ['Kochi'], destinationCoords: [{ lat: 9.9658, lng: 76.2421 }],
   startDate: '2026-11-14', endDate: '2026-11-19', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
   createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }],
-  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:00', stopId: 'fixture-boat', notes: 'Paid booking. Boarding closes at 15:00. Sample data.' }],
+  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', stopId: 'fixture-boat', notes: 'Paid booking. Boarding closes at 15:00. Sample data.' }],
   days: [
     { id: 'fixture-day-1', index: 0, startTime: '09:00', title: 'Kochi to Munnar', stops: [
       stop('fixture-d1-falls', 'Cheeyappara waterfalls', 'nature', 10.0107, 76.9187, 1, 40),
@@ -79,8 +79,8 @@ const board = (): Trip => ({
         stop('fixture-lunch', 'Lunch · Nalla Ruchi Kitchen', 'food', at('kattappana').lat, at('kattappana').lng, 2, 45),
         stop('fixture-farm', 'Spice farm walk', 'sightseeing', at('anakkara').lat, at('anakkara').lng, 3, 20),
       ] : []),
-      stop('fixture-hotel', 'Check in · Spice Village', 'hotel', at('spiceVillage').lat, at('spiceVillage').lng, fixScenario ? 4 : 2, fixScenario ? 81 : 30, 'Thekkady'),
-      stop('fixture-boat', 'Periyar boat', 'nature', at('jetty').lat, at('jetty').lng, fixScenario ? 5 : 3, 90, 'Thekkady'),
+      stop('fixture-hotel', 'Check in · Spice Village', 'hotel', at('spiceVillage').lat, at('spiceVillage').lng, fixScenario ? 4 : 2, fixScenario ? 81 : 91),
+      stop('fixture-boat', 'Periyar boat', 'nature', at('jetty').lat, at('jetty').lng, fixScenario ? 5 : 3, 90),
     ] },
     { id: 'fixture-day-4', index: 3, startTime: '09:00', title: 'Around Thekkady', stops: [
       stop('fixture-d4-walk', 'Forest walk', 'nature', 9.5705, 77.1802, 1, 90),

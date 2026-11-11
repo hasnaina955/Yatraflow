@@ -10,7 +10,7 @@ import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois } from '../lib/providers/hits'
 import { buildRoadChain, measureDayRide, roadChainSig, routeDrawGrade } from '../lib/tripRoad'
 import { dayColor } from '../lib/mapStyles/dayColors'
-import { buildJourney, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
+import { buildJourney, coLocates, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
 import { buildStopClock } from '../lib/stopClock'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
@@ -18,7 +18,7 @@ import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
-import { clusterCandidates, clusterFeatureCollection, clusterSummary, splitByCluster } from '../lib/mapCluster'
+import { clusterCandidates, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -103,6 +103,9 @@ const ROUGH_DASH: [number, number] = [2, 2]
 // 4.69 / 6.51 / 7.44:1 there, pinned by tests/map-cluster.test.ts.
 const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#123F49']
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
+/** The workspace chrome hands the cluster layer no point, so no canvas badge can
+ *  stand under a stop pin. One object, so the layer's data effect does not churn. */
+const NO_CLUSTER_DATA = { type: 'FeatureCollection' as const, features: [] }
 
 // How long the map's ready gate waits for the style's 'load' event before
 // opening anyway (see the mapLoaded effect). The fit behind that gate is a
@@ -838,23 +841,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Stable identity matters: a new callback re-subscribes the layer's reporting
   // effect and re-reports on every render.
   const onClustersChange = useCallback((ids: Set<string>) => { setClusteredIds(ids) }, [])
-  const clusterPins = useMemo(
-    () => clusterCandidates(
-      visiblePois.filter(h => !slotPinIds.has(String(h.id))),
-      { activeId: activeHitId, searchIds: searchHitIds },
-    ),
-    [visiblePois, slotPinIds, activeHitId, searchHitIds],
-  )
-  const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
-  const { individual: individualClusterPins } = useMemo(
-    () => splitByCluster(clusterPins, clusteredIds),
-    [clusterPins, clusteredIds],
-  )
-  const individualPinIds = useMemo(
-    () => new Set(individualClusterPins.map(c => c.id)),
-    [individualClusterPins],
-  )
-  const clusterNote = clusterSummary(clusterPins.length - individualClusterPins.length)
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -1012,10 +998,48 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return extraJourneyMarkers(j.points, plotted, j.direction)
   }, [trip, dayFilter, daysToPlot, legCorrections])
 
+  // A stop mark or a start/end flag owns its place on the map. A suggestion at
+  // that same place gets no map mark: it would either cluster into a canvas
+  // badge under the pin (the stray dark circle at the route start) or stack a
+  // second pin on the first. Its rail card stays. The engine's under-1-km rule
+  // decides "same place".
+  const markClearPoints = useMemo(
+    () => [
+      ...allPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+      ...dayEndpointMarkers.map(m => m.position),
+    ],
+    [allPoints, dayEndpointMarkers],
+  )
+  const markPois = useMemo(
+    () => clearOfMarks(visiblePois, markClearPoints, coLocates),
+    [visiblePois, markClearPoints],
+  )
+  const clusterPins = useMemo(
+    () => clusterCandidates(
+      markPois.filter(h => !slotPinIds.has(String(h.id))),
+      { activeId: activeHitId, searchIds: searchHitIds },
+    ),
+    [markPois, slotPinIds, activeHitId, searchHitIds],
+  )
+  const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
+  const { individual: individualClusterPins } = useMemo(
+    () => splitByCluster(clusterPins, clusteredIds),
+    [clusterPins, clusteredIds],
+  )
+  const individualPinIds = useMemo(
+    () => new Set(individualClusterPins.map(c => c.id)),
+    [individualClusterPins],
+  )
+  const clusterNote = clusterSummary(clusterPins.length - individualClusterPins.length)
+
   // Close marks must not overlap on screen. Marks keep their real coordinates.
   // The spread only moves how they are drawn, after each camera move.
   // A stop wins over a problem, an empty part, a pick and a clock pill, in that order.
   const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  // W14: a reach ring wider than the view has its caption point off the map. The
+  // camera pass parks the caption at the nearest edge of the clear map area. It is
+  // computed here, never read from a ref during render.
+  const [ringCaptionSpots, setRingCaptionSpots] = useState<Record<string, { lat: number; lng: number; edge: boolean }>>({})
   // A stop name tag follows the active day. The stay base keeps its tag on every day,
   // so the house mark always says where tonight's base is.
   const activeTagDay = dayFilter === 'all' ? selectedDay ?? null : dayFilter
@@ -1072,7 +1096,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       if (!Number.isFinite(ring.lat) || !Number.isFinite(ring.lng) || (ring.lat === 0 && ring.lng === 0)) continue
       spreadMarks.push({ id: `gap:${ring.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat: ring.lat, lng: ring.lng, ox: 0, oy: 0 })
     }
-    for (const hit of visiblePois) {
+    for (const hit of markPois) {
       if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
       const hasAdd = !!onAddNearby && !workspaceChrome
       spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
@@ -1111,18 +1135,36 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         setMapZoom(map.getZoom())
         setViewTick(tick => tick + 1)
         const { size, insets } = measureFrame()
-        const { spots: next } = layoutOnMap(map, safeRect(size, insets))
+        const safe = safeRect(size, insets)
+        const { spots: next } = layoutOnMap(map, safe)
         setMarkSpots(prev => {
           const same = prev.size === next.size && [...next].every(([id, spot]) => { const old = prev.get(id); return old && Math.round(old.dx) === Math.round(spot.dx) && Math.round(old.dy) === Math.round(spot.dy) && old.hidden === spot.hidden })
           return same ? prev : next
         })
+        // A ring caption stands on the ring's foot point. When that point is off
+        // the clear map area, keep the caption at the nearest edge instead.
+        const captions: Record<string, { lat: number; lng: number; edge: boolean }> = {}
+        for (const ring of stayRings) {
+          const foot = ringCaptionPoint(ring.ring)
+          if (!foot) continue
+          const projected = map.project(foot)
+          const x = Math.min(Math.max(projected.x, safe.left + 80), safe.right - 80)
+          const y = Math.min(Math.max(projected.y, safe.top + 16), safe.bottom - 40)
+          if (x !== projected.x || y !== projected.y) {
+            const moved = map.unproject([x, y])
+            captions[ring.id] = { lat: moved.lat, lng: moved.lng, edge: true }
+          } else {
+            captions[ring.id] = { lat: foot[1], lng: foot[0], edge: false }
+          }
+        }
+        setRingCaptionSpots(prev => (JSON.stringify(prev) === JSON.stringify(captions) ? prev : captions))
       } catch { /* the map was removed while measuring */ }
     }
     spread()
     map.on('moveend', spread)
     map.on('resize', spread)
     return () => { map.off('moveend', spread); map.off('resize', spread) }
-  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap])
+  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRings])
 
   useEffect(() => {
     const map = mapRef.current
@@ -2002,28 +2044,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               const foot = ringCaptionPoint(ring.ring)
               if (!foot) return null
               const Icon = ringCaptionMode(ring.id) === 'drive' ? Car : PersonStanding
-              // A ring wider than the view has its bottom point off the map. Its caption
-              // then stands at the nearest edge of the clear map area, and says so.
-              let at: [number, number] = foot
-              let edge = false
-              const map = mapRef.current
-              if (workspaceChrome && map && mapLoaded) {
-                try {
-                  const { size, insets } = measureFrame()
-                  const safe = safeRect(size, insets)
-                  const projected = map.project(foot)
-                  const x = Math.min(Math.max(projected.x, safe.left + 80), safe.right - 80)
-                  const y = Math.min(Math.max(projected.y, safe.top + 16), safe.bottom - 40)
-                  if (x !== projected.x || y !== projected.y) {
-                    const moved = map.unproject([x, y])
-                    at = [moved.lng, moved.lat]
-                    edge = true
-                  }
-                } catch { /* the map was removed while measuring */ }
-              }
+              // A ring wider than the view has its caption off the map edge. The
+              // camera pass parks it at the nearest edge of the clear area.
+              const spot = ringCaptionSpots[ring.id]
+              const at: [number, number] = spot ? [spot.lng, spot.lat] : foot
               return (
                 <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={at[0]} latitude={at[1]} anchor="top">
-                  <MarkerContent><span className={`mv2-lens-ring-label${edge ? ' is-edge' : ''}`} data-ring={ring.id}><Icon size={13} aria-hidden />{ring.label}{edge && <small> · past the map edge</small>}</span></MarkerContent>
+                  <MarkerContent><span className={`mv2-lens-ring-label${spot?.edge ? ' is-edge' : ''}`} data-ring={ring.id}><Icon size={13} aria-hidden />{ring.label}</span></MarkerContent>
                 </MapMarker>
               )
             })}
@@ -2069,9 +2096,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* #417: the suggestion family the map groups. `unclusteredVisible`
                 false because every pin the map did NOT group keeps its own DOM
                 marker below — tooltip, role, keyboard activation and all — so a
-                GL circle for it would be a second, dead copy. */}
+                GL circle for it would be a second, dead copy.
+                W14: the workspace chrome draws no canvas badge. A badge sits
+                under every DOM mark, so one that landed on a stop or a start
+                flag showed as a stray dark crescent behind the pin and hid its
+                own count. The board draws its picks individually with letters,
+                so the workspace hands the clusterer nothing; the classic map
+                keeps the grouping. */}
             <MapClusterLayer
-              data={clusterData}
+              data={workspaceChrome ? NO_CLUSTER_DATA : clusterData}
               clusterColors={IDEA_CLUSTER_COLORS}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}
@@ -2210,7 +2243,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* nearby idea markers — category-coloured, dashed, with quick-add.
                 Pin click/hover = select: the panel row highlights and scrolls
                 into view; adding moved to the explicit + chip beside the pin. */}
-            {visiblePois.map(hit => {
+            {markPois.map(hit => {
               // S4: an empty-part pin already stands here for this exact hit —
               // it carries more (the part it would fill, plus the cost line) and
               // its tap opens the plan, so it is the one that stays.

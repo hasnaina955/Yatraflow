@@ -87,11 +87,18 @@ describe('the marks CSS', () => {
     expect(rule).toContain('0 0 0 6px var(--pw-lagoon-600)')
   })
 
-  it('declares the stop tag once, as a pill', () => {
+  it('declares the stop tag once, as a pill on the card ground', () => {
     const rules = marksCss.match(/^\.mv2-stop-tag \{[^}]*\}/gm) ?? []
     expect(rules).toHaveLength(1)
     expect(rules[0]).toContain('border-radius: var(--radius-pill)')
-    expect(rules[0]).toContain('background: var(--pw-card)')
+    // The board's tag is the card at 86% over a blur, edged in white, so the tag
+    // still reads on the road wash under it.
+    expect(rules[0]).toContain('background: color-mix(in srgb, var(--pw-card) 86%, transparent)')
+    expect(rules[0]).toContain('backdrop-filter: blur(var(--yf-blur-chip))')
+  })
+
+  it('sits a stop tag beside its pin, as the board does', () => {
+    expect(marksCss).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag \{[^}]*right: calc\(100% \+ 4px\)/)
   })
 
   it('shows a family tint for every family', () => {

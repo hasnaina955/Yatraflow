@@ -1347,24 +1347,29 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     : []
   const phoneSheet = useMedia('(max-width: 760px)')
 
-  // W14: MapLibre starts its compact attribution open. The board shows the (i)
-  // button alone, on desktop and on a phone. The map mounts late, so the effect
-  // waits for the control, collapses it once, and leaves later taps to the user.
+  // W14: MapLibre starts its compact attribution open and can open it again on
+  // a style load. The board shows the (i) button alone, on desktop and on a
+  // phone, so the full credit line never runs across the marks. A bounded set of
+  // late passes closes it after the lazy map mounts; a tap by the reader wins,
+  // and no observer runs, so a re-open cannot loop.
   useEffect(() => {
-    let frame = 0
-    let tries = 0
-    const collapse = () => {
-      const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
-      if (node) {
-        node.classList.remove('maplibregl-compact-show')
-        node.removeAttribute('open')
-        return
-      }
-      tries += 1
-      if (tries < 120) frame = requestAnimationFrame(collapse)
+    let openedByReader = false
+    const onPointerDown = (event: Event) => {
+      if ((event.target as Element | null)?.closest('.maplibregl-ctrl-attrib-button')) openedByReader = true
     }
-    collapse()
-    return () => cancelAnimationFrame(frame)
+    const collapse = () => {
+      if (openedByReader) return
+      const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
+      if (!node) return
+      node.classList.remove('maplibregl-compact-show')
+      node.removeAttribute('open')
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    const timers = [0, 250, 750, 1500, 3000, 5000, 8000].map(ms => window.setTimeout(collapse, ms))
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
   }, [])
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)

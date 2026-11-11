@@ -297,4 +297,3 @@ describe('approved map day palette', () => {
     }
   })
 })
-})

@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-11-11
+
+**This minor release closes the paid-plan leak and adds fifty destination scenes.** A locked day of a paid plan now stays on the server. The database migration `20261110_paywall_locked_day_boundary.sql` closes the leak. Apply it after this release is live. The release also brings the guided create flow, day-slot voting, and the Settings and Profile polish.
+
 ### Added
 
 - **Fifty named destinations now have their own illustration.** Each scene has a `dest-<id>-v2` id. The fifty are Agra, Alappuzha, Amritsar, Ayodhya, Cherrapunji, Coorg, Darjeeling, Delhi and Dharamshala. They continue with Ekta Nagar, Gangtok, Goa, Gulmarg, Hampi, Haridwar, Jaipur, Jaisalmer and Jodhpur. They continue with Kaziranga, Kochi, Kodaikanal, Kovalam, Leh, Madurai, Manali, Mumbai and Munnar. They continue with Mussoorie, Mysuru, Nubra Valley, Ooty, Pahalgam, Pangong Tso, Puri, Pushkar and Rameswaram. They continue with Ranthambore, Rishikesh, Shaheed Dweep, Shillong, Shimla, Sonamarg, Sri Vijaya Puram and Srinagar. They end with Swaraj Dweep, Tawang, Thekkady, Udaipur, Varanasi and White Rann of Kutch. Every id has AVIF at 320, 640 and 960 pixels and a 640 WebP fallback. The seven square empty-state vignettes are unchanged. (#913)

@@ -93,6 +93,15 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 _Release highlights, newest first — the full record lives in [CHANGELOG.md](CHANGELOG.md)._
 
+## The v0.84.0 release
+
+v0.84.0 is deployed to production. It closes the paid-plan leak and adds fifty destination scenes.
+
+- **A locked day stays on the server.** A locked day is now a day number and counts. It has no title, place or position. The leak closes when the migration `20261110_paywall_locked_day_boundary.sql` is applied.
+- **Fifty named destinations have their own art.** An exact destination name now picks its own scene before the state scene.
+- **The create flow follows the Plan-a-trip reference.** The Review step adds a Rough bill card with real stay, transport and food costs.
+- **Settings and Profile follow the Linen artboards.** Profile has a section rail and a preview of how you appear.
+
 ## The v0.83.0 release
 
 v0.83.0 is deployed to production. It makes the Android app able to learn about its own updates.

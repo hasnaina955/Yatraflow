@@ -12,6 +12,7 @@ import { MapScopeBand, phoneLensAriaLabel, scopeBandPlacement } from '../src/pag
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const css = readFileSync(join(root, 'src', 'styles.css'), 'utf8').replace(/\r\n/g, '\n')
 const block = css.slice(css.indexOf('/* 911-W9-phone.'))
+const tab = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
 
 describe('phone lens aria labels', () => {
   it('names the lens and carries the count', () => {
@@ -64,8 +65,10 @@ describe('W7 phone CSS block', () => {
     expect(block).toContain('.mv2-workspace .poi-col > .mv2-lens-scope-band[hidden] { display: none; }')
     expect(block).toMatch(/\.poi-col > \.mv2-lens-scope-band \{[^}]*position: sticky/)
   })
-  it('docks the ribbon into the sheet at every snap', () => {
-    expect(block).toMatch(/\.poi-col > \.mv2-ribbon \{[^}]*position: static/)
+  it('docks the ribbon in half and full and floats it above peek', () => {
+    expect(block).toContain('.mv2-workspace .poi-col > .mv2-ribbon-sheet,')
+    expect(block).toMatch(/\.mv2-workspace \.mv2-detail > \.mv2-ribbon-sheet \{[^}]*position: static/)
+    expect(tab).toContain("!phoneSheet || !deckOpen || snap === 'peek'")
     expect(block).not.toContain('margin-bottom: 192px;')
   })
   it('uses no raw duration', () => {

@@ -29,15 +29,20 @@ describe('911-W9-phone sheet structure', () => {
 
   it('keeps the ribbon in the sheet flow and the band sticky under the grip', () => {
     const block = phoneBlock()
-    expect(block).toMatch(/\.poi-col > \.mv2-ribbon \{[^}]*position: static/)
+    expect(block).toContain('.mv2-workspace .poi-col > .mv2-ribbon-sheet,')
+    expect(block).toMatch(/\.mv2-workspace \.mv2-detail > \.mv2-ribbon-sheet \{[^}]*position: static/)
     expect(block).toMatch(/\.poi-col > \.mv2-lens-scope-band \{[^}]*position: sticky; top: var\(--mv2-sheet-grip-h\)/)
     expect(block).toMatch(/--mv2-sheet-grip-h: 44px/)
   })
 
   it('fits the grip, the ribbon and one peek row in the peek sheet', () => {
-    // 44 px grip + 56 px ribbon + 48 px peek row = 148 px.
-    expect(44 + 56 + 48).toBeLessThanOrEqual(148)
+    // 22 px visible grip + 48 px peek row + 30 px bottom pad = 148 px.
+    expect(22 + 48 + 30).toBeLessThanOrEqual(148)
     expect(phoneBlock()).toMatch(/\[data-snap='peek'\] \.mv2-peek/)
+    const gaps = css.slice(css.indexOf('/* 911-W12-r3:'))
+    expect(gaps).toMatch(/\[data-snap='peek'\] \{ --mv2-sheet-height: 148px; \}/)
+    expect(gaps).toMatch(/\[data-snap='peek'\] \.mv2-sheet-settings \{ display: none; \}/)
+    expect(gaps).toMatch(/\[data-snap='peek'\] \.mv2-sheet-handle \{ height: 22px; min-height: 22px; \}/)
   })
 
   it('renders the ribbon and the band above the deck list in the see sheet', () => {

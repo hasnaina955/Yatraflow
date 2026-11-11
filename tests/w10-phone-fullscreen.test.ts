@@ -93,14 +93,15 @@ describe('W10 phone full screen', () => {
     expect(mapTab).toContain('bottom: phoneSheet ? phoneSheetHeight : 90')
     expect(mapTab).toContain("frameStayRing={lens === 'stay' && lenses.stay.base != null && !phoneSheet}")
     expect(mapTab).toContain('mapTarget={localTarget ?? mapTarget ?? phoneStayTarget}')
-    expect(mapTab).toContain('inSheet={phoneSheet}')
+    expect(mapTab).toContain("inSheet={phoneSheet && snap !== 'peek'}")
     expect(read('src', 'components', 'map', 'MapWorkspaceChrome.tsx'))
       .toContain("const rootClass = inSheet ? 'mv2-ribbon-sheet' : 'mv2-ribbon'")
   })
 
   it('makes the phone ribbon an inset card and the peek a titled row', () => {
     const css = read('src', 'styles.css')
-    expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon \{[^}]*border-radius: var\(--radius-sm\)/)
+    expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon[^{]*\{[^}]*border-radius: var\(--radius-sm\)/)
+    expect(css).toContain('.mv2-workspace .mv2-detail > .mv2-ribbon-sheet')
     expect(css).toContain('.mv2-peek-eyebrow')
     expect(css).toContain('.mv2-peek-count')
     const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')

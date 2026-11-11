@@ -3,6 +3,7 @@
 import { STAY_RINGS, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
 import type { LensPhase } from '../../../lib/mapLensContracts'
 import type { PlaceHit } from '../../../lib/geocode'
+import { Car, Footprints } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
@@ -23,15 +24,41 @@ const MAX_CARDS = 3
 
 export type RingId = (typeof STAY_RINGS)[number]['id']
 
-/** The deck kicker, for example "Around the stay · A". */
-export function stayDeckKicker(letter: string | null): string {
-  return letter == null || letter === '' ? 'Around the stay' : `Around the stay · ${letter}`
+export interface StayRingOption {
+  id: RingId
+  mode: 'walk' | 'drive'
+  label: string
+  ariaLabel: string
 }
 
-/** The deck title, for example "3 picks near Hotel Ashoka". */
-export function stayDeckTitle(count: number, baseName: string | null): string {
-  if (baseName == null || baseName.trim() === '') return 'Around the stay'
-  return `${count} pick${count === 1 ? '' : 's'} near ${baseName.trim()}`
+/** The two reach choices. The visible words are short; the name is spoken. */
+export function stayRingOptions(): StayRingOption[] {
+  return STAY_RINGS.map(ring => ({
+    id: ring.id,
+    mode: ring.mode,
+    label: `≤${ring.minutes} min`,
+    ariaLabel: `Within ${ring.minutes} minutes ${ring.mode}`,
+  }))
+}
+
+/** The deck kicker. The free window appears only when both ends are known. */
+export function stayDeckKicker(
+  window: { startMin: number; endMin: number } | null | undefined,
+  clock: (min: number) => string,
+): string {
+  if (window == null || !Number.isFinite(window.startMin) || !Number.isFinite(window.endMin)) {
+    return 'Around the stay'
+  }
+  if (window.endMin <= window.startMin) return 'Around the stay'
+  return `Around the stay · free ${clock(window.startMin)}–${clock(window.endMin)}`
+}
+
+/** The deck title. A known count names the picks; every other state names the base. */
+export function stayDeckTitle(count: number | null, baseName: string | null): string {
+  const base = (baseName?.trim() ?? '').replace(/^(check[- ]?in)\s*[·:]\s*/i, '')
+  if (base === '') return 'Around the stay'
+  if (count == null || !Number.isFinite(count) || count <= 0) return `Around ${base}`
+  return `${count} pick${count === 1 ? '' : 's'} near ${base}`
 }
 
 /** The primary action label. The time shows only when the window is known. */
@@ -98,14 +125,13 @@ export function StayDeck(props: StayDeckProps) {
     onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose,
   } = props
   const count = result.kind === 'ready' ? result.picks.length : 0
-  const first = result.kind === 'ready' ? result.picks[0] : undefined
   const activeWindow = windows.find(window => window.id === activeWindowId) ?? null
   const addLabel = stayAddLabel(dayNumber, activeWindow?.startMin ?? null, clock)
   const rest = result.kind === 'ready' ? result.picks.slice(MAX_CARDS) : []
   return <section className="mv2-lens-deck" aria-label="Around the stay">
     <LensDeckHeader
-      kicker={stayDeckKicker(first?.letter ?? null)}
-      title={result.kind === 'ready' ? stayDeckTitle(count, baseName) : null}
+      kicker={stayDeckKicker(activeWindow, clock)}
+      title={stayDeckTitle(result.kind === 'ready' ? count : null, baseName)}
       sub={dayLabel}
       onClose={onClose}
     />
@@ -117,11 +143,11 @@ export function StayDeck(props: StayDeckProps) {
       })}
     </div>}
     <div className="mv2-lens-ring" role="radiogroup" aria-label="Reach from the stay">
-      {STAY_RINGS.map(ring => {
-        const label = `${ring.minutes} min ${ring.mode}`
+      {stayRingOptions().map(ring => {
+        const Icon = ring.mode === 'walk' ? Footprints : Car
         return <button type="button" key={ring.id} role="radio"
-          aria-checked={ring.id === ringId} className="mv2-lens-ring-btn"
-          onClick={() => onRing(ring.id)}>{label}</button>
+          aria-checked={ring.id === ringId} aria-label={ring.ariaLabel} className="mv2-lens-ring-btn"
+          onClick={() => onRing(ring.id)}><Icon size={14} aria-hidden />{ring.label}</button>
       })}
     </div>
     {result.kind === 'needs-base' && <div className="mv2-lens-body-state">

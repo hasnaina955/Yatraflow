@@ -2,22 +2,21 @@
 // Only known facts render. A missing value keeps its part out.
 import { collectWarnings, groupWarnings } from '../../../lib/engine'
 import type { Trip } from '../../../data/types'
-import { STAY_RINGS } from './stayLens'
 import { warningRefs } from './fixLens'
-import type { RingId } from '../../../components/map/lenses/StayDeck'
+import { stayRingOptions, type RingId } from '../../../components/map/lenses/StayDeck'
+import { Car, Footprints } from 'lucide-react'
 import type { MapLensId } from './useMapLenses'
 
 export interface RailRingChoice {
   id: RingId
   label: string
+  ariaLabel: string
+  mode: 'walk' | 'drive'
 }
 
 /** The reach choices. They use the deck's real ring ids. */
 export function railRingChoices(): RailRingChoice[] {
-  return STAY_RINGS.map(ring => ({
-    id: ring.id,
-    label: `≤${ring.minutes} min ${ring.mode}`,
-  }))
+  return stayRingOptions().map(ring => ({ ...ring }))
 }
 
 /** The stop a fix names. A target with no stop id falls back to the day's
@@ -140,7 +139,10 @@ export function LensRailExtras({ lens, ringId, onRing }: LensRailExtrasProps) {
     <div className="mv2-lens-rail-rings" role="group" aria-label="Reach from the base">
       {railRingChoices().map(choice => (
         <button key={choice.id} type="button" className="mv2-lens-rail-ring-btn"
-          aria-pressed={choice.id === ringId} onClick={() => onRing(choice.id)}>{choice.label}</button>
+          aria-label={choice.ariaLabel} aria-pressed={choice.id === ringId} onClick={() => onRing(choice.id)}>
+          {choice.mode === 'walk' ? <Footprints size={14} aria-hidden /> : <Car size={14} aria-hidden />}
+          {choice.label}
+        </button>
       ))}
     </div>
     <p className="mv2-lens-rail-note">The crew's mode sets the default.</p>

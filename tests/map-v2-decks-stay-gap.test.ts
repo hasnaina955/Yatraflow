@@ -143,8 +143,10 @@ describe('StayDeck', () => {
     const html = stayHtml()
     expect(html).toContain('role="radiogroup"')
     expect((html.match(/role="radio"/g) ?? []).length).toBe(2)
-    expect(html).toContain('15 min walk')
-    expect(html).toContain('30 min drive')
+    expect(html).toContain('aria-label="Within 15 minutes walk"')
+    expect(html).toContain('aria-label="Within 30 minutes drive"')
+    expect(html).toContain('≤15 min')
+    expect(html).toContain('≤30 min')
   })
 
   it('formats the window chip from the label and the clock', () => {

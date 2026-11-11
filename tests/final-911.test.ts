@@ -52,7 +52,7 @@ describe('the Fix tag spot', () => {
 
   it('anchors the tag to the stop edge in CSS and uses a token for the badge ground', () => {
     const css = read('src/styles.css')
-    expect(css).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag--fix \{[^}]*right: calc\(100% \+ 8px\)/)
+    expect(read('src/components/map/mapMarks.css')).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag--fix \{[^}]*right: calc\(100% \+ 8px\)/)
     expect(css).toMatch(/\.mv2-stop-warn \{[^}]*background: var\(--pw-risk\)/)
     expect(css).not.toMatch(/\.mv2-stop-warn \{[^}]*#[0-9A-Fa-f]{3,6}/)
   })
@@ -64,7 +64,7 @@ describe('the viewer role', () => {
   it('shows no route-arc Add all, no shortlist heart and no tray action to a viewer', () => {
     expect(tab).toContain('{editable && arcs.slice(0, 2).map(arc => (')
     expect(tab).toContain('editable && !filterActive && arcs.slice(0, 2).length > 0')
-    expect(tab).toContain('count={editable ? trayShortlist.length : 0}')
+    expect(tab).toContain('{editable && <ShortlistTray')
     expect(tab).toMatch(/\{\.\.\.\(editable \? \{ onShortlist:/)
   })
 })

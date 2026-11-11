@@ -269,7 +269,7 @@
   .mv2-workspace .yf-map-ctrls button { min-width: 44px; min-height: 44px; }
   .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail { top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: var(--mv2-sheet-height); padding-bottom: var(--safe-bottom); border-radius: var(--radius-lg) var(--radius-lg) 0 0; transition: height var(--motion-med) var(--ease-resize); }
   .mv2-sheet-handle { display: flex; align-items: center; justify-content: center; position: sticky; top: 0; z-index: 2; width: 100%; height: 44px; flex: 0 0 auto; padding: 0; border: 0; background: var(--card); color: var(--text-2); touch-action: none; cursor: ns-resize; }
-  .mv2-sheet-handle > span { height: 4px; width: 36px; border-radius: var(--radius-pill); background: var(--line); }
+  .mv2-sheet-handle > span { height: 4px; width: 36px; border-radius: var(--radius-pill); background: var(--line); transition: background var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
   .mv2-workspace .mv2-deck-header { padding: 0 var(--space-7) var(--space-4); }
   .mv2-deck-header h2 { font-size: 17px; }
   .mv2-workspace .poi-plan-list { padding-top: var(--space-2); }
@@ -823,7 +823,7 @@
    --ring is a full shadow, so a focus rule uses it as the whole value.
    Motion keeps the tokens, and the workspace reduced-motion rule makes snaps instant. */
 .mv2-itinerary .mv2-fold-day::before { content: ""; position: absolute; inset: -8px; border-radius: var(--radius-pill); }
-.mv2-workspace .mv2-sheet-handle:focus-visible { outline: none; box-shadow: inset var(--ring); }
+.mv2-workspace .mv2-sheet-handle:focus-visible { outline: none; }
 .mv2-workspace .mv2-peek-place:focus-visible, .mv2-workspace .mv2-directions:focus-visible { outline: none; box-shadow: var(--ring); }
 .mv2-workspace .mv2-directions { min-height: 44px; }
 @media (max-width: 760px) {
@@ -1450,7 +1450,7 @@
 }
 .mv2-lens-ring-btn:hover:not([aria-checked="true"]) { background: var(--card); color: var(--text); }
 .mv2-lens-ring-btn:active { transform: scale(.98); }
-:root:where([data-theme='dark']) .mv2-lens-ring-btn[aria-checked="true"] { background: var(--bg-soft); }
+:root:where([data-theme='dark']) .mv2-lens-ring-btn[aria-checked="true"] { background: var(--pw-line); }
 
 /* A lone Drive category is a heading row, not a one-item tab track. */
 .mv2-lens-single-tab {
@@ -1523,3 +1523,5 @@
 @keyframes mv2-phase-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .mv2-lens-phase-note[data-phase='scanning'] > svg { animation: none; } }
 .mv2-clock-label[data-tight='true'] { visibility: hidden; }
+.mv2-workspace .mv2-sheet-handle:focus-visible > span { background: var(--ink-teal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink-teal) 28%, transparent); }
+@media (prefers-reduced-motion: reduce) { .mv2-sheet-handle > span { transition: none; } }

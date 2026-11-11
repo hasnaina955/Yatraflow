@@ -2440,13 +2440,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
           reachable while the rails scroll. #420 slice 1 moved the markup into
           map/ShortlistTray.tsx; the actions below stay here until slice 2. */}
-      <ShortlistTray
-        count={editable ? trayShortlist.length : 0}
+      {editable && <ShortlistTray
+        count={trayShortlist.length}
         busy={addingAny}
         onAddAll={() => void addShortlisted()}
         onVote={() => void raiseShortlistVote()}
         onClear={clearShortlist}
-      />
+      />}
       {/* pick-a-day modal for adding a suggested POI — explicit confirm */}
       <Modal open={!!poiDraft} onClose={() => setPoiDraft(null)} title={`Add “${poiDraft?.hit.name ?? ''}”`}>
         {poiDraft && (

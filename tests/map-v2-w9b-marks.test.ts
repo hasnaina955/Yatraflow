@@ -43,7 +43,7 @@ describe('the tag spread entry', () => {
   })
 
   it('keeps the 8px CSS gap and vertical centring', () => {
-    expect(marksCss).toMatch(/\.mv2-stop-tag--base \{[^}]*right: calc\(100% \+ 8px\)[^}]*translate: 0 -50%/)
+    expect(marksCss).toMatch(/\.mv2-stop-tag--base(?:, [^{]*)? \{[^}]*right: calc\(100% \+ 8px\)[^}]*translate: 0 -50%/)
   })
 })
 

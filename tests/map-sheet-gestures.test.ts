@@ -254,9 +254,10 @@ describe('the CSS keeps the approved sheet geometry', () => {
     expect(handleRule).toMatch(/touch-action: none;/)
   })
 
-  it('keeps the 272px peek, the in-flow ribbon and the two taller snaps', () => {
-    // W9 grew the phone peek to 272px so the peek card fits above the grip.
-    expect(css).toContain('--mv2-sheet-height: 272px;')
+  it('keeps the 148px peek, the in-flow ribbon and the two taller snaps', () => {
+    // W12 brought the phone peek back to the Phone 390 board's 148px: the
+    // ribbon floats above the sheet and the settings row hides at peek.
+    expect(css).toContain(".mv2-workspace[data-snap='peek'] { --mv2-sheet-height: 148px; }")
     expect(css).toContain(".mv2-workspace[data-snap='half']")
     expect(css).toContain(".mv2-workspace[data-snap='full']")
     // W9: the ribbon is an in-flow child of the sheet now, so it carries no

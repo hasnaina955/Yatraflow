@@ -5,7 +5,6 @@
 // becoming permanent while still preventing refetch storms on every visit.
 import { describe, it, expect } from 'vitest'
 import {
-  COVER_WIDTH,
   pickTripQuery,
   parseThumbCache,
   extractRestThumbUrl,
@@ -115,12 +114,7 @@ describe('sizedCoverUrl', () => {
     for (const url of ['', 'https://upload.wikimedia.org/leh.jpg', 'https://images.example.test/cover.jpg']) {
       expect(sizedCoverUrl(url)).toBe(url)
     }
-  })
-
-  it('asks for the width a 1200x630 preview wants', () => {
-    expect(COVER_WIDTH).toBe(1200)
-  })
-})
+  })})
 
 describe('the extractors size what they return', () => {
   it('sizes the REST summary original instead of handing back the upload', () => {

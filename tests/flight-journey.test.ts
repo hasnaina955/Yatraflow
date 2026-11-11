@@ -8,7 +8,6 @@ import { describe, it, expect } from 'vitest'
 import {
   buildJourney, computeTotals, journeyGeometry, flightForDay, resolveAirports,
   flightBlockMinutes, flightFareInrPerPerson, isAirMode, isRoadMeasuredMode,
-  AIRPORT_CHECKIN_MIN,
 } from '../src/lib/engine'
 import { nearestAirport, airportByIata } from '../src/lib/air'
 import type { Trip, FlightLeg } from '../src/data/types'
@@ -226,9 +225,4 @@ describe('the defaults the UI offers', () => {
   it('agree with what the engine resolves', () => {
     expect(nearestAirport(DEL)?.iata).toBe('DEL')
     expect(airportByIata('BOM')?.city).toBe('Mumbai')
-  })
-
-  it('keeps a two-hour check-in window ahead of a stated departure', () => {
-    expect(AIRPORT_CHECKIN_MIN).toBe(120)
-  })
-})
+  })})

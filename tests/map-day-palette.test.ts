@@ -10,7 +10,14 @@ const FILE = 'TripMap.tsx'
 const source = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
 const ast = ts.createSourceFile(FILE, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 
-const textOf = (node: ts.Node): string => node.getText(ast).replace(/\s+/g, ' ')
+// The seven approved colours moved to src/lib/mapStyles/dayColors.ts (W10), so
+// the palette is read there. Every paint check below still reads TripMap.tsx.
+const PALETTE_FILE = 'dayColors.ts'
+const paletteSource = readFileSync(new URL('../src/lib/mapStyles/dayColors.ts', import.meta.url), 'utf8')
+const paletteAst = ts.createSourceFile(PALETTE_FILE, paletteSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+
+// No source file argument: the node reads its own file, so both trees work.
+const textOf = (node: ts.Node): string => node.getText().replace(/\s+/g, ' ')
 
 function walk(node: ts.Node, visit: (node: ts.Node) => void): void {
   visit(node)
@@ -64,19 +71,23 @@ function numberLiteral(node: ts.Expression, label: string): number {
 
 function dayColors(): string[] {
   let elements: readonly ts.Expression[] | undefined
-  walk(ast, (node) => {
+  walk(paletteAst, (node) => {
     if (
-      elements === undefined &&
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === 'DAY_COLORS' &&
-      node.initializer !== undefined &&
-      ts.isArrayLiteralExpression(node.initializer)
+      elements !== undefined ||
+      !ts.isVariableDeclaration(node) ||
+      !ts.isIdentifier(node.name) ||
+      node.name.text !== 'DAY_COLORS' ||
+      node.initializer === undefined
     ) {
-      elements = node.initializer.elements
+      return
     }
+    // The exported palette is declared `as const`, so unwrap the assertion
+    // before reading the elements. A reshaped value still throws below.
+    const initializer = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer
+    if (!ts.isArrayLiteralExpression(initializer)) return
+    elements = initializer.elements
   })
-  if (elements === undefined) throw new Error(`${FILE}: no DAY_COLORS array`)
+  if (elements === undefined) throw new Error(`${PALETTE_FILE}: no DAY_COLORS array`)
   return [...elements].map((element) => hexLiteral(element, 'DAY_COLORS entry'))
 }
 
@@ -92,11 +103,17 @@ const casings = elementsNamed('MapRoute').filter((element) => {
 })
 if (casings.length !== 1) throw new Error(`${FILE}: expected one yf-day-casing route, saw ${casings.length}`)
 
+// W10 added the all-days corridor routes, which are also painted with
+// colorForDay. The selected day's measured line is the one that swaps to --warn
+// on a rough leg, so that opacity is what tells the measured line apart from
+// the two corridor layers the test must not accept in its place.
 const drawnLines = elementsNamed('MapRoute').filter((element) => {
   const color = attributeOf(element, 'color')
+  const opacity = attributeOf(element, 'opacity')
   return color !== undefined && /colorForDay\(/.test(textOf(color))
+    && opacity !== undefined && textOf(opacity).includes('rough')
 })
-if (drawnLines.length !== 1) throw new Error(`${FILE}: expected one colorForDay route, saw ${drawnLines.length}`)
+if (drawnLines.length !== 1) throw new Error(`${FILE}: expected one selected-day colorForDay route, saw ${drawnLines.length}`)
 
 function fragmentOf(element: JsxTag): ts.JsxElement | undefined {
   for (let node = element.parent; node !== undefined; node = node.parent) {

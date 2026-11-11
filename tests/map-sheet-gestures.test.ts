@@ -254,11 +254,14 @@ describe('the CSS keeps the approved sheet geometry', () => {
     expect(handleRule).toMatch(/touch-action: none;/)
   })
 
-  it('keeps the 148px peek, the 56px ribbon and the two taller snaps', () => {
-    expect(css).toContain('--mv2-sheet-height: 148px;')
+  it('keeps the 272px peek, the in-flow ribbon and the two taller snaps', () => {
+    // W9 grew the phone peek to 272px so the peek card fits above the grip.
+    expect(css).toContain('--mv2-sheet-height: 272px;')
     expect(css).toContain(".mv2-workspace[data-snap='half']")
     expect(css).toContain(".mv2-workspace[data-snap='full']")
-    expect(css).toContain('min-height: 56px; height: 56px;')
+    // W9: the ribbon is an in-flow child of the sheet now, so it carries no
+    // bottom offset of its own and keeps its 56px floor.
+    expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon \{[^}]*position: static;[^}]*min-height: 56px;/)
   })
 
   it('rides the named motion token, not a raw millisecond value', () => {

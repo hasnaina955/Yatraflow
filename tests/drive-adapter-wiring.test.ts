@@ -40,7 +40,13 @@ describe('the map renderer consumes the presentation adapter', () => {
 
   it('the rail keeps the engine order: seeForRail is a filter over the same list', () => {
     expect(mapTab).toMatch(/const seeForRail = chipFilter[\s\S]{0,200}\? seeAndDoLive\.filter/)
-    expect(mapTab).toMatch(/seeForRail\.slice\(0, SEE_VISIBLE\)\.map\(ledgerRow\)/)
+    // W7-E: the deck splits the one engine-order list into the rows it shows and
+    // the "More like this" tail. Both still render through ledgerRow, and the
+    // page never re-sorts the list into a second order.
+    expect(mapTab).toMatch(/const hiddenRows = hiddenDrivePicks\(seeForRail, shownDriveIds\)/)
+    expect(mapTab).toMatch(/hiddenRows\.map\(ledgerRow\)/)
+    expect(mapTab).not.toMatch(/seeForRail\.sort\(/)
+    expect(mapTab).not.toMatch(/\[\.\.\.seeForRail\]/)
   })
 
   it('retained and failure state stay with the page, not the adapter', () => {

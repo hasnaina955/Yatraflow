@@ -4,7 +4,7 @@
 // Class names start with `map-edit-` so package B can style them in one block.
 import React from 'react'
 import { ArrowLeftRight, ChevronDown, GripVertical, LockKeyhole, Minus, Plus } from 'lucide-react'
-import { dayColor } from '../../../../lib/mapStyles/dayColors'
+import { MapEditDayDot } from '../../../../components/map/MapEditDayDot'
 import { VISIT_STEP_MIN, type FixedGuard } from './stopEdit'
 import type { AddPreview, PreviewLeg, PreviewUnknownReason, UnknownFact } from './addPreview'
 import { outcomeMessage, type EditOutcome } from './outcomes'
@@ -310,7 +310,7 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
     <section className="map-edit-card map-edit-editor" aria-label={order === null ? `Edit ${title}` : `Edit ${title}, stop ${order}`}>
       <div className="map-edit-editor-head">
         {order !== null && (
-          <span className="map-edit-day-dot" style={{ '--day': dayColor(dayIndex ?? 0) } as React.CSSProperties} aria-hidden="true">{order}</span>
+          <MapEditDayDot dayIndex={dayIndex ?? null} order={order} />
         )}
         <span className="map-edit-head-copy">
           <h3 className="map-edit-title">{title}</h3>

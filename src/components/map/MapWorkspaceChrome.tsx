@@ -16,6 +16,7 @@ import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
 import { dayColor } from '../../lib/mapStyles/dayColors'
 import { ageText, coverageText } from './placeCardFacts'
+import { placeSubtype } from '../../lib/mapStyles/placeMarks'
 import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
@@ -293,8 +294,10 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
   const canNavigate = actions?.navigate ?? true
   const hasReportedHours = (hit.hours != null && hit.hours.basis !== 'none') || !!hit.openTime || !!hit.closeTime
   const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
+  // The art band takes the category family, as the place card tile does.
+  const artFamily = placeSubtype({ category: hit.category ?? undefined, name: hit.name }).family
   return <article id="rail-detail" className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
-    <div className="mv2-place-art"><CatIcon category={hit.category} size={38} /><span>{titleCase(hit.category ?? 'place')}</span><button className="mv2-icon-btn" type="button" aria-label="Close place details" onClick={onClose}><X size={18} /></button></div>
+    <div className="mv2-place-art" data-family={artFamily}><CatIcon category={hit.category} size={38} /><span>{titleCase(hit.category ?? 'place')}</span><button className="mv2-icon-btn" type="button" aria-label="Close place details" onClick={onClose}><X size={18} /></button></div>
     <PlacePhotos hit={hit} />
     <div className="mv2-place-body">
       <span className="mv2-section-label">Along the drive · {dayIndex == null ? 'Choose a day' : `Day ${dayIndex + 1}`}</span>

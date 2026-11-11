@@ -23,7 +23,8 @@
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "lint:ste": "node scripts/lint-ste.mjs",
     "verify": "tsc -b --clean && tsc -b && npm run lint:ratchet && npm run lint:ste && npm run check:css && npm test && vite build",
-    "verify:typecheck": "tsc -b --clean && tsc -b"
+    "verify:typecheck": "tsc -b --clean && tsc -b",
+    "typecheck:tests": "tsc -p tsconfig.tests.json"
   },
   "allowScripts": {
     "esbuild": true

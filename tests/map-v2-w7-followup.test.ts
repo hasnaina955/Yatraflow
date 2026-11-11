@@ -1,5 +1,6 @@
 // W7-E: stay window rows, the thin-days caption, the preview chip and the
 // re-timed ribbon. The node env has no DOM, so component checks read markup.
+import { daysCaptionText } from '../src/components/map/railModel'
 import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -131,8 +132,10 @@ describe('W7-E thin days caption', () => {
 
   it('ships the short caption because a thin line has no click handler', () => {
     const mapTab = read('../src/pages/trip/MapTab.tsx')
-    expect(mapTab).toContain("'Other days draw thin.'")
-    expect(mapTab).not.toContain('Tap one to move the map there')
+    // The copy lives in railModel and names the day pills, not the thin line.
+    expect(mapTab).toContain('daysCaptionText(mapShowsAll, ROUTE_PAINT.contextOpacity)')
+    expect(daysCaptionText(true, 0.4)).toBe('Other days draw thin at 40%. Tap one to move the map there.')
+    expect(daysCaptionText(true, 0.4)).not.toContain('line')
     const tripMap = read('../src/components/TripMap.tsx')
     const layers = read('../src/components/map/DayRouteLayers.tsx')
     expect(layers).toContain('interactive={false}')

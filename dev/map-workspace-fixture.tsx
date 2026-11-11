@@ -97,6 +97,10 @@ const board = (): Trip => ({
 })
 const trip: Trip = boardTrip ? board() : small()
 if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
+// Sample: the hotel is the stay base, not the stay slot's filled pick. The
+// stay lens can then show the sample picks around it. Fixture data only.
+const boardHotel = trip.days[2]?.stops.find(stop => stop.id === 'fixture-hotel')
+if (boardHotel) boardHotel.slotKey = 'dinner'
 
 // The Day 3 legs follow the recorded road. Their kilometres and minutes are the
 // board's sample numbers. Any other leg stays a synthetic straight line.

@@ -256,7 +256,7 @@
   .mv2-workspace .map-shell--workspace[data-tools-open='true'] .yf-map-ctrls { top: 184px; z-index: 6; }
   .mv2-workspace .yf-map-ctrls { top: 190px; right: 64px; }
   .mv2-workspace .mv2-itinerary { display: none; }
-  .mv2-phone-day { position: absolute; display: flex; align-items: center; gap: var(--space-1); top: calc(env(safe-area-inset-top) + var(--space-2)); left: var(--space-4); right: var(--space-4); height: 56px; z-index: 5; padding: 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--text); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: blur(var(--yf-blur-panel)); backdrop-filter: blur(var(--yf-blur-panel)); }
+  .mv2-phone-day { position: absolute; display: flex; align-items: center; gap: var(--space-1); top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--space-2)); left: var(--space-4); right: var(--space-4); height: 56px; z-index: 5; padding: 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--text); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: blur(var(--yf-blur-panel)); backdrop-filter: blur(var(--yf-blur-panel)); }
   .mv2-phone-day-back, .mv2-phone-day-step { position: relative; display: inline-grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-2); transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
   .mv2-phone-day-back::before, .mv2-phone-day-step::before, .mv2-phone-day-all::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
   .mv2-phone-day-back:hover, .mv2-phone-day-step:hover { background: var(--bg-soft); color: var(--text); }
@@ -1194,11 +1194,11 @@
   .mv2-workspace { --mv2-pill-w: 200px; --mv2-sheet-grip-h: 44px; }
   .mv2-workspace[data-snap='half'] { --mv2-sheet-height: min(68%, 520px, calc(100% - 208px)); }
   .mv2-workspace .mv2-omnibar {
-    top: 60px; top: calc(60px + env(safe-area-inset-top)); left: var(--space-4); right: auto;
+    top: 60px; top: calc(60px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); left: var(--space-4); right: auto;
     width: calc(100% - 2 * var(--space-4) - var(--mv2-pill-w) - var(--space-3));
   }
   .mv2-workspace .mv2-lenses {
-    top: 60px; top: calc(60px + env(safe-area-inset-top)); left: auto; right: var(--space-4);
+    top: 60px; top: calc(60px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); left: auto; right: var(--space-4);
     width: var(--mv2-pill-w); box-sizing: border-box; gap: 0; padding: 0;
   }
   .mv2-workspace .mv2-lenses > button > span { display: none; }
@@ -1352,7 +1352,7 @@
   body:has(.yf-workspace[data-map-fullscreen='true']) { overflow: hidden; }
   .yf-workspace[data-map-fullscreen='true'] .yf-page { display: none; }
   .yf-workspace[data-map-fullscreen='true'] .mv2-workspace { height: 100dvh; display: flex; flex-direction: column; }
-  .yf-workspace[data-map-fullscreen='true'] .map-ideas-grid { --mv2-canvas-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); flex: 1 1 auto; min-height: 0; margin-top: 0; border-radius: 0; }
+  .yf-workspace[data-map-fullscreen='true'] .map-ideas-grid { --mv2-canvas-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); flex: 1 1 auto; min-height: 0; margin-top: 0; border-radius: 0; }
   .mv2-sheet-settings { flex: 0 0 auto; margin: 0; padding: 0 var(--space-7); }
   .mv2-sheet-settings .mv2-tools { margin: 0; }
   .mv2-sheet-settings .mv2-tools > summary { width: 100%; justify-content: flex-start; min-height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text-2); font-size: 12.5px; }

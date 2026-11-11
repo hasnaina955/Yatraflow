@@ -178,7 +178,9 @@ describe('the workspace markup consumes the rules', () => {
   })
 
   it('publishes the fold state on the workspace container and page wrapper', () => {
-    expect(ws).toMatch(/<div className="container page-enter yf-workspace" data-wide=\{headerFolded \? 'true' : 'false'\} data-map-active=\{tab === 'map' \? 'true' : undefined\}>/)
+    // W10 added the phone full-screen flag beside the two existing ones: the one
+    // container still publishes the fold state and which tab holds the map.
+    expect(ws).toMatch(/<div className="container page-enter yf-workspace" data-wide=\{headerFolded \? 'true' : 'false'\} data-map-active=\{tab === 'map' \? 'true' : undefined\} data-map-fullscreen=\{phoneMapFullscreen \? 'true' : undefined\}>/)
     expect(ws).toMatch(/<div className="yf-page" data-compact=\{headerFolded \? 'true' : 'false'\}>/)
   })
 
@@ -192,8 +194,10 @@ describe('the workspace markup consumes the rules', () => {
   it('passes the map target and consume callback to the map consumer', () => {
     expect(ws).toMatch(/<MapTab\b[\s\S]*?mapTarget=\{mapTarget\} onMapTargetConsumed=\{consumeMapTarget\}/)
     const mapTab = codeOf('../src/pages/trip/MapTab.tsx')
-    expect(mapTab).toMatch(/<TripMap\b[\s\S]*?mapTarget=\{localTarget \?\? mapTarget\}/)
-    expect(mapTab).toContain('if (localTarget) setLocalTarget(null); else onMapTargetConsumed?.()')
+    // W10: a phone Stay ring can ask for its own target, which outranks the
+    // page's. The local request is still cleared first, before the page's is consumed.
+    expect(mapTab).toMatch(/<TripMap\b[\s\S]*?mapTarget=\{localTarget \?\? mapTarget \?\? phoneStayTarget\}/)
+    expect(mapTab).toContain('if (localTarget) setLocalTarget(null); else if (mapTarget) onMapTargetConsumed?.()')
     const map = codeOf('../src/components/TripMap.tsx')
     expect(map).toMatch(/targetCameraActive\.current = true\s*targetCameraDay\.current = dayFilter\s*onMapTargetConsumed\?\.\(\)/)
     expect(map).toMatch(/!validMapCoordinate\(sourceStop\) \|\| sourceStop\.lat === 0/)

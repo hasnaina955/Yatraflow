@@ -76,13 +76,16 @@ describe('the sheet tab model (A415)', () => {
 
 describe('MapTab renders the sheet (A415)', () => {
   it('renders one planning-panel switcher across viewport widths', () => {
-    expect(tab).toMatch(/className="mv2-lenses" role="group" aria-label="Map planning panels"/)
+    // W10: the one switcher is the lens pill, and it carries the panel group name.
+    expect(tab).toMatch(/className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels"/)
     expect(hook).toMatch(/setSheetApplies\(sheetAppliesAt\(/)
   })
 
   it('is a pressed-state switcher, not inert tabs', () => {
-    expect(tab).toMatch(/aria-pressed=\{sheetTab === 'see'/)
-    expect(tab).toMatch(/aria-pressed=\{sheetTab === 'needs'/)
+    // Each option still reports its own pressed state: the See rail is pressed
+    // when its lens, that rail and the open deck all hold; Plan when its tab does.
+    expect(tab).toMatch(/aria-pressed=\{lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit\}/)
+    expect(tab).toMatch(/aria-pressed=\{sheetTab === 'needs' && deckOpen && !selectedHit\}/)
     expect(tab).toContain('aria-controls="rail-see"')
     expect(tab).toContain('aria-controls="rail-needs"')
   })
@@ -133,7 +136,7 @@ describe('the wiring is declared exactly once (A415)', () => {
   })
 
   it('declares the planning-panel switcher exactly once', () => {
-    expect(tab.match(/className="mv2-lenses"/g)).toHaveLength(1)
+    expect(tab.match(/className="mv2-lenses(?: |")/g)).toHaveLength(1)
   })
 })
 
@@ -148,7 +151,11 @@ describe('the phone top row (Phone 390 board, one row on top)', () => {
   it('keeps each lens a 44-pixel target and its name readable to assistive tech', () => {
     expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button \{[^}]*min-width: 44px;/)
     expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button > span \{ position: absolute;[^}]*clip-path: inset\(50%\);/)
-    expect(phone).not.toMatch(/mv2-lenses[^{]*\{[^}]*display: none/)
+    // W10 hides only the visible label text on the narrow pill. The pill itself
+    // is never hidden, and every lens button keeps its own name for assistive tech.
+    expect(phone).not.toMatch(/\.mv2-lenses\s*\{[^}]*display:\s*none/)
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button > span \{ display: none; \}/)
+    expect(tab.match(/<button type="button" aria-label=\{phoneLensAriaLabel\(/g)).toHaveLength(5)
   })
 
   it('lets Find yield only while the query is empty and the field is usable', () => {

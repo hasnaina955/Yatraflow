@@ -51,7 +51,10 @@ describe('boundsOf', () => {
 describe('TripMap fits through the one helper', () => {
   it('both fit paths call boundsOf(fitPoints); the old inline min/max walk is gone', () => {
     expect(tripMapSrc).toContain("from '../lib/mapFit'")
-    expect(tripMapSrc.match(/boundsOf\(fitPoints\)/g)?.length, 'auto-fit effect + Recentre button').toBe(2)
+    // Three real fit paths now: the auto-fit effect, the W9c Stay ring frame
+    // (clamped inside the trip extent) and the Recentre button. Each goes
+    // through the one helper, so no inline min/max walk can come back.
+    expect(tripMapSrc.match(/boundsOf\(fitPoints\)/g)?.length, 'auto-fit effect + Stay ring frame + Recentre button').toBe(3)
     expect(tripMapSrc).not.toContain('maxLng - minLng < 1e-4')
     expect(tripMapSrc).not.toContain('let minLng = Infinity')
   })

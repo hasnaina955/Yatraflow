@@ -24,6 +24,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Agent instruction docs now match the repo.** The corrected rules cover CSS placement, rule ranges, the verify chain, and enforcement notes. They also cover haptics, retired lanes, the migration path, issue closing, baseline keys, and key locations. This change removes stale facts and a fixed defect entry.
+
 - **The 55 live landscape scenes now use the approved balanced artwork, without moving a single selection.** Each id keeps its name and its role. Existing trips show the same scene with richer colour, broader forms and a calmer sunrise and sunset mix. The Bihar and Odisha masters are lossless PNGs decoded from the live app files. This repairs their earlier revision mismatch. The art build table now names one relative master per id under a single staging root. `--list-masters` resolves all 112 ids. (#913)
 
 - **Destination art now resolves in a fixed order, and the new named scenes lead their own families.** An exact destination name wins over the state or UT scene. A state or UT wins over a cross-state road scene. The neutral generic scene answers anything unknown. Whole-token aliases cover Alleppey, Bombay, Mysore, Cochin, Port Blair, Havelock Island and the other approved alternate names. An exact destination always selects its new scene, and its older regional or destination variants follow as fallbacks. No substring match can turn Goalpara into Goa. Per-image focal values cover the default card and the 21:9, 3:1 and 3.5:1 headers. (#913)

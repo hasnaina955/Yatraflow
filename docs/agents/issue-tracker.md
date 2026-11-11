@@ -4,7 +4,7 @@
 
 - Remote: `https://github.com/hasnaina955/Yatraflow.git`
 - Create: `gh issue create --title "..." --body "..." --label "priority: P2"`
-- List: `gh issue list --state open`
+- List: `gh issue list --state open --limit 500`
 - View: `gh issue view <n> --json title,body,labels,comments`
 
 **PRs are not a request surface.** External PRs do not enter the triage
@@ -24,5 +24,6 @@ prsAsRequests: false
   second priority label.
 - A diagnosis posted on an issue is an invitation — claim the work in the
   same breath (`AGENTS.md` §2.4).
-- Merges into `test` do not auto-close issues; close them by hand
-  (`AGENTS.md` §12).
+- A PR merged into `test` closes the issues its body names with a closing
+  keyword. A PR merged into `main` closes them through GitHub's own keywords.
+  Close an issue by hand only when the workflow does not close it (`AGENTS.md` §12).

@@ -70,13 +70,13 @@ start the worker.
 ## Start an orchestrator with one word
 
 Type `/orch` in a new Claude thread. The skill reads `.orchestration/TAKEOVER.md`
-and follows it. For Codex, send: "Read `C:\Users\hasna\Yatraflow-T3\.orchestration\TAKEOVER.md`
+and follows it. For a Haiku worker, send: "Read `C:\Users\hasna\Yatraflow-T3\.orchestration\TAKEOVER.md`
 and follow it."
 
 ## Failover: when the orchestrator is unavailable
 
 A usage limit can stop the orchestrator while workers still run. A second
-orchestrator, such as Codex, then covers the role. The state lives in two files,
+orchestrator, such as a Haiku worker, then covers the role. The state lives in two files,
 not in a chat thread. Both files sit in `C:\Users\hasna\Yatraflow-T3\.orchestration\`.
 Git ignores that folder through `.git/info/exclude`. Every worker, in any worktree,
 uses that absolute path.
@@ -87,7 +87,7 @@ The active orchestrator owns this file. Use the batch handoff format above.
 Add one first line:
 
 ```
-ORCHESTRATOR: <Claude | Codex>   SINCE: <YYYY-MM-DD HH:MM>
+ORCHESTRATOR: <Claude | a Haiku worker>   SINCE: <YYYY-MM-DD HH:MM>
 ```
 
 Update the file after each decision. Do not wait until the end of the batch.

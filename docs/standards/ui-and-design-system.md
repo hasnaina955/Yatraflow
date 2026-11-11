@@ -25,10 +25,7 @@ Other legacy sections keep their order. Shared tokens and motion remain in legac
   checks this. Keep touch targets ≥40px; inputs 16px on mobile (iOS Safari
   zooms smaller ones).
 
-- **Overlay z-index ladder** — `src/styles.css` is an import list. Do not add
-  rules to it. Put new CSS in the file under `src/styles/` that owns the selector
-  family (see `docs/css-ownership.json`). `npm run check:css` checks this. Use
-  the `--z-*` token rungs (`:root`, M4):
+- **Overlay z-index ladder** — use the `--z-*` token rungs in `src/styles/tokens.css` (`:root`, M4):
   impact sheet 210 > toast 200 > modal 100 > ai-drawer 90 > notif 80 > expanded map
   shell 70 / ai-fab 70 (tie — DOM order decides) > nav glass 60 > mobile dock 55.
   Any full-page overlay (e.g. the map's `⤢ Expand` mode, `.map-shell--expanded`) must sit BELOW the dialogs it can spawn, so modals/impact sheets opened from it still layer on top — no

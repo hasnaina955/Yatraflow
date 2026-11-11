@@ -1,6 +1,6 @@
 # YatraFlow consistency work: standing rulings
 
-Owner: Claude (design lead). Updated 2026-10-11. A Haiku worker: **read this file before you ask the user a question.** If a ruling covers your question, follow it. If none does, ask the user and quote the question in full.
+Owner: Claude (design lead). Updated 2026-10-11. Workers: **read this file before you ask the user a question.** If a ruling covers your question, follow it. If none does, ask the user and quote the question in full.
 
 This file grows. Claude adds a ruling each time an agent asks something new. Re-read it at the start of each task.
 
@@ -22,7 +22,7 @@ This file grows. Claude adds a ruling each time an agent asks something new. Re-
 
 **R8. One local branch per file. No push until the batch is ready.** Keep each file on its own local branch. Do not push. Do not open a PR. The user decides when a batch is finished (updated 2026-10-11, replaces the earlier "one PR per file" rule).
 
-**R11. Batch at the end, one PR per lane.** When all your files are done and proven, create one batch branch from `origin/test` named `chore/consistency-<lane>-batch` (a Haiku worker). Merge each file branch into it. Expect trailing conflicts in `src/styles.css`. Keep every section. Run `npm run verify` on the batch branch. Tell the user. The user says when to push. Open one PR into `test`. Do not merge it.
+**R11. Batch at the end, one PR per lane.** When all your files are done and proven, create one batch branch from `origin/test` named `chore/consistency-<lane>-batch` (`cline` or `codex`). Merge each file branch into it. Expect trailing conflicts in `src/styles.css`. Keep every section. Run `npm run verify` on the batch branch. Tell the user. The user says when to push. Open one PR into `test`. Do not merge it.
 
 **R12. Do not re-proof a finished file.** A file is done when it has: its before and after screenshots (light and dark, 1280 and 390), a clean `npm run verify` run, and a changelog entry. Send Claude those three things. Claude reviews. Then move to the next file.
 
@@ -30,9 +30,9 @@ This file grows. Claude adds a ruling each time an agent asks something new. Re-
 
 ## Working copies
 
-**R9. (Retired: these clones no longer exist.) A Haiku worker works only in `C:\Users\hasna\yatraflow-cline`.** Leave `feat/launch-film` and the `launch-film/` files alone. Cut branches from `origin/test`.
+**R9. (Retired: this clone no longer exists.) Cline works only in `C:\Users\hasna\yatraflow-cline`.** Leave `feat/launch-film` and the `launch-film/` files alone. Cut branches from `origin/test`.
 
-**R10. (Retired: these clones no longer exist.) A Haiku worker works only in `C:\Users\hasna\yatraflow-codex`, using a git worktree.** Do not stash, reset, discard or commit the discovery work in the main tree. Run `git worktree add -b chore/consistency-<file> .codex-worktrees/<file> origin/test`. Add `.codex-worktrees/` to `.git/info/exclude`.
+**R10. (Retired: this clone no longer exists.) Codex works only in `C:\Users\hasna\yatraflow-codex`, using a git worktree.** Do not stash, reset, discard or commit the discovery work in the main tree. Run `git worktree add -b chore/consistency-<file> .codex-worktrees/<file> origin/test`. Add `.codex-worktrees/` to `.git/info/exclude`.
 
 ## Design rulings (user-approved 2026-10-11, on Opus advice)
 

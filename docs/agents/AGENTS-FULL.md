@@ -2,7 +2,7 @@
 
 # AGENTS.md — YatraFlow
 
-Operating manual for AI coding agents (a Haiku worker and friends) working in this repo.
+Operating manual for AI coding agents working in this repo.
 This file is the **short** one on purpose — workflow rules and where everything
 else lives. Conventions, pitfalls and the verification detail sit behind pointers,
 so a run pays for the branch it actually takes. **Keep this file growing**, and
@@ -397,7 +397,7 @@ a breach, so treat those rows as the ones most easily skipped.
 | §2.7 hand over exact, proven localhost URLs | judgment — the probe commands in the rule |
 | §2.8 build locally, confirm target branch, then push | judgment — the user confirms |
 | §2.9 edit CHANGELOG with editor primitives only | review of the diff stat; `lint:ste` reads every changed line |
-| §2.10 motion tokens on every new interactive surface | `npm run check:ui` (partial: `transition: all`, z-index ≥ 999, blocked pinch-zoom) (manual: not in `verify` or CI) |
+| §2.10 motion tokens on every new interactive surface | `npm run check:ui` (partial: `transition: all`, z-index ≥ 999, blocked pinch-zoom; manual: not in `verify` or CI) |
 | §2.11 work stays local until the batch is done | judgment — the user says when to push |
 | §2.12 close the issues a `test` merge leaves open | `.github/workflows/issue-autoclose.yml`, pinned by `tests/pr-auto-close.test.ts`; fall back to `gh issue view` after every merge |
 | §2.13 new prose in Simplified Technical English | `npm run lint:ste` (runs inside `verify` too) |
@@ -408,11 +408,32 @@ a breach, so treat those rows as the ones most easily skipped.
 | §2.18 search for prior art before you build | judgment — the PR description lists the projects, licences and choice |
 | §2.19 claim before you start | judgment — the assignee, the claim comment and `git ls-remote --heads origin` are the manual check |
 | §3 gate, CI, migrations | `npm run verify` locally; `ci.yml` on push and PR (`tests/ci-workflow.test.ts` pins the triggers); `npm run check:migrations` + a live PostgREST probe for schema |
-| §4 conventions | `CODING_STANDARDS.md`; `supabase/tests/rls_contract.test.sql` (manual: not in `verify` or CI); `tests/design-system.test.ts` |
+| §4 code conventions and pitfalls | the pin tests named in each rule — `verify` runs them all |
+
+
+### What enforces each rule
+
+The rules above are prose, and prose does not fail a build. This table names the
+check behind each one that has a check. **A rule with no row here is a judgment
+call, and that is where repeats come from:** rule 10 (motion) sat here for months
+with nothing enforcing its *presence*, so the duration gate happily passed a
+surface that shipped with no animation at all — the operator had to point that
+out three times before anyone fixed the mechanism instead of the instance. When
+an operator corrects you on a rule with no row, add the check in the same change.
+
+| Rule | Enforced by |
+| --- | --- |
+| §2.10 motion ships with every surface | `tests/design-system.test.ts` → *a surface that appears carries motion*: page roots are **discovered** from `src/App.tsx`, so a new page fails until its root carries `page-enter`, and the shared `.page-enter > *` rule must give its children a token-duration entrance with a `--stagger-step` delay plus the reduced-motion opt-out; a binding the walk cannot read fails the test rather than leaving a gap; the same file pins duration/type/spacing/contrast |
+| §2.13 new prose is STE100 | `npm run lint:ste` (changed lines only) |
+| §2.14 never add lint errors | `npm run lint:ratchet` against `eslint-baseline.json`, per rule and per file |
+| §2.12 a merge into `test` does not close issues | `.github/workflows/issue-autoclose.yml` + `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts` |
 | §6 the roadmap's version and date track the release | `tests/roadmap-status.test.ts` (against `package.json` and the newest CHANGELOG heading) |
 | §6 docs must not promise a surface the code does not have | `tests/doc-drift.test.ts` (its LIVE list) |
-| Glass panel blur | `tests/design-system.test.ts` |
-| Page block motion | CI job `motion` (`npm run check:motion`) |
+| A panel painted with the glass token must carry its blur (§4 / `CODING_STANDARDS` 6an) | `tests/design-system.test.ts` → *one rule owns the popover glass*: only `.popover` may paint `var(--popover-bg)`, and it must declare `backdrop-filter` …; and *every glass paint carries its blur*: any rule painting a translucent glass token must declare `backdrop-filter`, or sit in that test's reason-carrying exception list, and a stale entry fails too |
+| A page block must move in the real app, not only in CSS text (§2.10) | CI job `motion` → `npm run check:motion` (`scripts/browser-motion-check.mjs`): serves the build, samples each page root's blocks once per animation frame from before navigation, and fails a block that appears between two frames. `npm run verify` stays browser-free |
+| §4 conventions (RLS, SQL, providers, scripted edits) | `CODING_STANDARDS.md` + `supabase/tests/rls_contract.test.sql` (manual: not in `verify` or CI); the CSS gates land in `tests/design-system.test.ts` |
+
+Both local runs and CI run the same command: `npm run verify`.
 
 ## 3. Verification, CI and the migration check
 
@@ -563,8 +584,8 @@ See [`docs/README.md`](docs/README.md) for the full doc index.
 - **A SQL function that ships in an unapplied migration is unexercised code — its first live call will find the type errors.** `get_public_trip` went live with a bare string literal passed to polymorphic `to_jsonb` (`42804: could not determine polymorphic type because input has type unknown` — a `::text` cast fixes it) and an early return that answered an empty set where the trip should come back, so every public itinerary page failed for anonymous visitors while tsc, vitest and the catalog contract suite stayed green — none of them execute SQL. Cast literals fed to polymorphic functions, exercise every new RPC through its real client path before calling a migration done (an anon curl is the cheapest test), and keep a paywall probe in the integration harness: a priced publication must come back with locked days stubbed, an unpriced one whole. (First live call of that RPC, Sep 18 2026.)
 - **`revoke … from public` does not revoke from `anon` on Supabase — name the roles.** `get_creator_sales` was intended for signed-in callers but stayed callable by anonymous requests (which got an empty list), because Supabase's default privileges grant EXECUTE to `anon`/`authenticated` directly; only `revoke all … from public, anon` removes it (proved by the control: `revoke_refunded_entitlement`, revoked from `public, anon, authenticated`, answers 42501). When a definer function is meant for one role, revoke the others by name.
 - **A popup inside a host that paints its own stacking context cannot be raised from the popup side — and the trap is invisible in a screenshot.** The Explore filter bar is `.glass-soft` (`backdrop-filter` creates a stacking context), so the `Select` menu opened inside it was bounded by the BAR's rung: the featured card and the grid cards below are positioned, so they painted over the menu's last two rows and clicks landed on the card. Reading the popup's own `z-index` said 5 — fine — while `document.elementFromPoint()` at each option's centre resolved to `.featured-body`; the hit test is the only honest oracle (the Create-Trip calendar's lesson, now with its mechanism). A screenshot cannot reveal it: the covered rows are simply painted over, so the menu merely looks shorter. Fix on the HOST (`.filterbar-host { position: relative; z-index: var(--z-frost) }`, worn by the Explore and My trips filter bars) — raising the popup's rung changes nothing, it is scoped inside its ancestor's context.
-- **The design-system baseline is keyed by offender text, so inserting CSS does not shift the keys.** Twelve added lines failed `contrastLight` and `rawDurations` with "new violation(s)" and "no longer reproduce" at the same time — the same rules, remapped. Re-baseline deliberately (`UPDATE_DESIGN_SYSTEM_BASELINE=1 npx vitest run tests/design-system.test.ts`), then prove the diff is line numbers only (strip `styles.css:\d+` from both sides and compare the entry sets) before committing it: re-baselining to clear a ratchet failure is how a real new violation gets laundered.
-- **`src/styles.css` is an import list. Do not add rules to it. Put new CSS in the file under `src/styles/` that owns the selector family (see `docs/css-ownership.json`). `npm run check:css` checks this.** The entry above is the reason: each finding is keyed by line number, so a rule added at the bottom moves nothing, while one added mid-file remaps every entry beneath it and reports unchanged violations as if they were new. Prefer appending under a new section comment (the file already groups by feature, so this matches its shape), and when a mid-file insertion is genuinely needed, run the re-baseline procedure above instead of reading the failure as noise. Verified the good direction: the funnel's eight new rules went in at the bottom and `tests/design-system.test.ts` passed 52/52 with no re-baseline.
+- **The design-system baseline is keyed by selector and offender text, not by line number.** An inserted CSS line does not move the keys. Re-baseline only on purpose (`UPDATE_DESIGN_SYSTEM_BASELINE=1 npx vitest run tests/design-system.test.ts`). Prove each changed entry.
+- **`src/styles.css` is an import list. Do not add rules to it.** Put new CSS in the file under `src/styles/` that owns the selector family (see `docs/css-ownership.json`). `npm run check:css` checks this.
 - **Before drawing a funnel from counters, check that the counters count the same KIND of thing — and that no stage is forbidden from exceeding the one before it (learned 2026-09-21).** `published_itineraries.views` and `.copies` looked like two stages of one funnel and were not: a view is deduped to one per browser session and skips the creator's own visits (`registerPubView`), while a fork was a raw event count with neither exclusion — so any rate derived from the pair was a ratio of unlike things, and one of the two stages also counted the creator converting themself. Two further facts decide whether a funnel is drawable at all: a counter has **no time dimension**, so no window can be computed from it or recovered later (the events have to be recorded); and the stages can legitimately **invert** — forks outnumbered visits here, because Explore's card carries its own Fork CTA while a visit is counted once per session on the plan's own page. So **clamping a conversion at 100% to keep the funnel monotone hides a real product fact**: compute the rate straight and name the case in the UI. And **record only the stages that do not already exist as dated rows** — `entitlements` already dates every sale, so an "unlock" event would have been a second source of truth for the same money (the log added holds views and forks only, written by the same function that moves the counter so the two cannot drift).
 - **`register_preview(…, replace: true)` stops the dev server that is currently registered — start the replacement first.** Swapping this thread's preview mid-session killed the 5173 Vite server (http 000, no listener). Start the new server on a free port, then call replace with the NEW pid. Companion: a preview page left holding a hidden, full-size `iframe` that never finishes loading reports "the page main thread is busy" for every later evaluate while the pane renders blank — re-register to recover; waiting does not.
 - **A "nothing is broken" UI sweep is only worth its silence if the probe fires on known-bad input — and each rule must measure the right box.** Three traps cost a full re-run each during the whole-app crop/padding sweep (Sep 2026): (1) `Range.getClientRects()` returns LINE boxes, so a centred hint line flags a corner it never touches — measure the first and last WORD (set the range to those text offsets) instead; (2) `scrollWidth` is inflated by pseudo-elements and transformed decorations (`.trip-head-card::after` is a blob at `right:-60px`, `.btn`'s sheen, the trip ticket's SVG ellipse), so a hit must name its overflowing descendant before it is called a crop; (3) the corner test needs a corner-SQUARE precondition — a box that merely starts far from the corner is outside the disc but nowhere near the cut region — and must skip children that bleed to both side edges (a card-wide hit area, a cover), whose corners are the box's by design. With those fixed, 41 route×width measurements across the public and signed-in surfaces returned zero real crops and zero unpadded rows; the probe (in the scratch dir, never committed) was first proved to fire on three synthetic fixtures — one unpadded footer, one corner-cut control, one correctly padded control.

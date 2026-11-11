@@ -4,7 +4,7 @@ Conventions and hard-won pitfalls. Read during **review**, and reach for a
 single rule while implementing when a change touches that area.
 
 This file was extracted from `AGENTS.md` §4 (conventions & pitfalls) and
-`AGENTS.md` §2 the 6-series rules (6a onward) (the pitfall entries that had accreted there
+the 6-series rules of `AGENTS.md` §2 (the pitfall entries that had accreted there
 over time). The rule **numbers are unchanged** — a reference to `§2.6b`
 anywhere in this repo means the entry labelled `6b` below.
 

@@ -18,7 +18,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
-- **The scripts folder now has an index, and 27 unused CSS-3 tools are gone.** `scripts/README.md` lists every tracked script with its purpose, how it runs, and its status. The two CI workflows drop branch triggers that have no remote branch. `docs/README.md` links to the index. `control-runs-r13.mjs` and `verify-bound-r13.mjs` stay because `tests/release-tooling.test.ts` names both.
+- **The scripts folder now has an index, and 27 unused CSS-3 tools are gone.** `scripts/README.md` lists every tracked script with its purpose, how it runs, and its status. The APK workflow drops the trigger for `feat/capacitor-android`, a branch that no longer exists. `docs/README.md` links to the index. `control-runs-r13.mjs` and `verify-bound-r13.mjs` stay because `tests/release-tooling.test.ts` names both.
 
 - **Fifty named destinations now have their own illustration.** Each scene has a `dest-<id>-v2` id. The fifty are Agra, Alappuzha, Amritsar, Ayodhya, Cherrapunji, Coorg, Darjeeling, Delhi and Dharamshala. They continue with Ekta Nagar, Gangtok, Goa, Gulmarg, Hampi, Haridwar, Jaipur, Jaisalmer and Jodhpur. They continue with Kaziranga, Kochi, Kodaikanal, Kovalam, Leh, Madurai, Manali, Mumbai and Munnar. They continue with Mussoorie, Mysuru, Nubra Valley, Ooty, Pahalgam, Pangong Tso, Puri, Pushkar and Rameswaram. They continue with Ranthambore, Rishikesh, Shaheed Dweep, Shillong, Shimla, Sonamarg, Sri Vijaya Puram and Srinagar. They end with Swaraj Dweep, Tawang, Thekkady, Udaipur, Varanasi and White Rann of Kutch. Every id has AVIF at 320, 640 and 960 pixels and a 640 WebP fallback. The seven square empty-state vignettes are unchanged. (#913)
 

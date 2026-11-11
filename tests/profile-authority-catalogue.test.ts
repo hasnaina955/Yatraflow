@@ -654,7 +654,9 @@ describe('the disabled sign-out belongs to the account that asked', () => {
   })
 })
 
-describe('a stale private row does not hide the failure', () => {
+// The first case imports the whole App module cold. That can pass the 5 s
+// default when the full suite runs in parallel. The assertions do not change.
+describe('a stale private row does not hide the failure', { timeout: 30_000 }, () => {
   it('the lookup reads failed while a private row is still in the cache', async () => {
     const { profileLookupState, needsProfileLookup, profileLookupBlocksRoute } = await import('../src/App')
     const stale = { 'self profile': 'failed' as const }

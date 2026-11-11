@@ -12,7 +12,6 @@
 //      for almost every place) and fall back to the pageimages API, then walk
 //      an ordered list of candidate queries (last destination → other stops →
 //      start location) so a single miss doesn't blank the card.
-import type { Trip } from '../data/types'
 
 // Bumped to v2 when auto covers started being requested at COVER_WIDTH: the v1
 // cache holds multi-megabyte original URLs and has no TTL for hits, so without
@@ -279,9 +278,4 @@ export async function fetchFirstAvailableThumb(queries: string[]): Promise<strin
     if (url) return url
   }
   return null
-}
-
-/** Convenience: image for a trip's headline destination (used by cards). */
-export function pickThumbQuery(trip: Trip): string {
-  return pickTripQuery(trip)
 }

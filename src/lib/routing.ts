@@ -25,7 +25,6 @@
 import { legBetween } from './engine'
 import type { EngineAssumptions, LegEstimate } from './engine'
 import { googleRoute, routesEnabled, type RouteResult, type CorridorResult, type RoadLegResult } from './providers/routes'
-import { haversineKm } from './geo'
 import type { RoadProfilePoint } from './ridePlan'
 
 const OSRM = 'https://router.project-osrm.org/route/v1/driving'
@@ -494,38 +493,4 @@ export async function routePath(
     cacheSet(legCacheKey(points[legIndex], points[legIndex + 1], assumptions.mode), leg)
   })
   return legs
-}
-
-/**
- * Sample a road geometry ([lng, lat][]) into anchor points at ~spacingKm
- * intervals. Used to bias search queries along the actual road rather than
- * straight-line corridor anchors.
- */
-export function routeGeometryToAnchors(
-  geometry: [number, number][],
-  spacingKm = 25,
-  maxAnchors = 12,
-): { lat: number; lng: number }[] {
-  if (geometry.length === 0) return []
-  const out: { lat: number; lng: number }[] = [{ lat: geometry[0][1], lng: geometry[0][0] }]
-  let last = out[0]
-  let cum = 0
-  for (let i = 1; i < geometry.length; i++) {
-    const pt = geometry[i]
-    const d = haversineKm(last.lat, last.lng, pt[1], pt[0])
-    cum += d
-    if (cum >= spacingKm) {
-      out.push({ lat: pt[1], lng: pt[0] })
-      last = out[out.length - 1]
-      cum = 0
-      if (out.length >= maxAnchors) break
-    }
-  }
-  // always include the final point if not already present
-  const fin = geometry[geometry.length - 1]
-  const lastPt = out[out.length - 1]
-  if (lastPt.lat !== fin[1] || lastPt.lng !== fin[0]) {
-    out.push({ lat: fin[1], lng: fin[0] })
-  }
-  return out
 }

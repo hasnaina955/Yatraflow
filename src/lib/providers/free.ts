@@ -490,13 +490,13 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
 ]
 
-export interface OpeningHours {
+interface OpeningHours {
   openTime: string   // "HH:MM"
   closeTime: string  // "HH:MM"
 }
 
 /** Parse the common cases of OSM opening_hours into a single open/close span. */
-export function parseOpeningHours(oh: string): OpeningHours | null {
+function parseOpeningHours(oh: string): OpeningHours | null {
   if (!oh) return null
   if (/^24\/7$/.test(oh.trim())) return { openTime: '00:00', closeTime: '23:59' }
   // take the first time range of the first weekday rule: "Mo-Sa 10:00-16:00", "10:00-12:00,15:00-17:00; Fr off"

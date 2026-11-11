@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Removed
+
+- **Unused code and tests that checked nothing are removed. The app behaves as before.** The rail ruler module had no caller, so it and its test file are gone. Sixteen unused declarations are removed from ten source files. The `geocode` facade drops six re-exports that no file imported through it. Thirteen test cases are removed. They covered the rail ruler, five constant pins and one redundant inline-style pin. The art evidence test now skips with a named reason when its file is absent. Before, it returned early and reported a pass.
+
 ## [0.84.0] - 2026-11-11
 
 **This minor release closes the paid-plan leak and adds fifty destination scenes.** A locked day of a paid plan now stays on the server. The database migration `20261110_paywall_locked_day_boundary.sql` closes the leak. Apply it after this release is live. The release also brings the guided create flow, day-slot voting, and the Settings and Profile polish.

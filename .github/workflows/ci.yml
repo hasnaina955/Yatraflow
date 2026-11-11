@@ -31,7 +31,7 @@ on:
   pull_request:
     branches: [main, test]
   push:
-    branches: [main, test, 'redesign/**']
+    branches: [main, test]
 
 permissions:
   contents: read

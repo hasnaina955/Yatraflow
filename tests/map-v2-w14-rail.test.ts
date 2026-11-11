@@ -2,7 +2,7 @@
 // board values and the honest-data rules stay in place. Node env, no DOM.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { aroundKmText, daysCaptionText, picksText, railMarkerKind, railStopPaid, stayRailSub, stayRailTitle, windowAtMin } from '../src/components/map/railModel'
+import { aroundKmText, daysCaptionText, fixProblemSubLine, picksText, railMarkerKind, railStopNumber, railStopPaid, stayRailSub, stayRailTitle, windowAtMin } from '../src/components/map/railModel'
 import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText } from '../src/lib/mapJourneyRibbon'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
@@ -34,11 +34,42 @@ describe('the Paid chip', () => {
   })
 })
 
+describe('rail stop numbers', () => {
+  it('numbers the first visited stop 1 and skips the departure anchor', () => {
+    const points = [
+      { kind: 'start' as const },
+      { kind: 'visit' as const },
+      { kind: 'visit' as const },
+      { kind: 'destination' as const, synthesized: true },
+      { kind: 'visit' as const },
+    ]
+    expect(railStopNumber(points, 0)).toBe(0)
+    expect(railStopNumber(points, 1)).toBe(1)
+    expect(railStopNumber(points, 2)).toBe(2)
+    expect(railStopNumber(points, 3)).toBe(2)
+    expect(railStopNumber(points, 4)).toBe(3)
+  })
+  it('reads the same number source as the map marker', () => {
+    const chrome = read('../src/components/map/MapWorkspaceChrome.tsx')
+    expect(chrome).toContain('railStopNumber(points, index)')
+  })
+})
+
+describe('the Fix problem subtitle', () => {
+  it('builds the board line from the engine evidence and keeps unknown facts out', () => {
+    expect(fixProblemSubLine({ title: 'Conflicts with Periyar boat', evidence: ['You reach Periyar boat ~15:05, after the 15:00 commitment.'] })).toBe('Jetty 15:05 · boarding closed')
+    expect(fixProblemSubLine({ title: 'Thin buffer before Periyar boat', evidence: ['You reach Periyar boat ~14:53, under ~45 min before the 15:00 commitment.'] })).toBe('Jetty 14:53 · boarding closed')
+    expect(fixProblemSubLine({ title: 'Short rest', evidence: ['Day 1 ends ~23:40 and Day 2 starts 06:00.'] })).toBe('Day 1 ends ~23:40 and Day 2 starts 06:00.')
+    expect(fixProblemSubLine(null)).toBeNull()
+    expect(fixProblemSubLine({ title: 'Unknown', evidence: [] })).toBeNull()
+  })
+})
+
 describe('stay header facts', () => {
   it('keeps out a part with no fact', () => {
     expect(stayRailSub({ arriveText: null, commitmentTitle: null, commitmentText: null, freeStartMin: null, freeEndMin: null })).toBeNull()
     expect(stayRailSub({ arriveText: '17:30', commitmentTitle: null, commitmentText: null, freeStartMin: 1080, freeEndMin: 1260 })).toBe('Arrive 17:30 · 3 h free after it')
-    expect(stayRailSub({ arriveText: null, commitmentTitle: 'Boat', commitmentText: '15:30', freeStartMin: null, freeEndMin: null })).toBe('boat at 15:30')
+    expect(stayRailSub({ arriveText: null, commitmentTitle: 'Periyar boat', commitmentText: '15:30', freeStartMin: null, freeEndMin: null })).toBe('Periyar boat at 15:30')
   })
   it('drops the check-in lead and never invents a name', () => {
     expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · tonight')
@@ -108,7 +139,18 @@ describe('rail and strip source rules', () => {
   const css = read('../src/styles.css')
   it('colours day marks through dayColor and numerals white', () => {
     expect(chrome).toContain('dayColor(')
-    expect(css).toContain('color: var(--color-primary-foreground)')
+    expect(css).toContain('.mv2-stop-mark { display: grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 800; background: var(--mv2-day-tone, var(--color-primary)); color: #FFFFFF; }')
+    expect(css).toContain('opacity: 1; }')
+  })
+  it('uses the Fix risk wash, a diamond and the window start in the rail', () => {
+    expect(css).toContain(':root:where([data-theme=\'dark\']) .mv2-stop.is-fix-problem { background: #3A1C18;')
+    expect(chrome).toContain('railMarkerKind({ kind: point.kind, category: point.stop.category, locked, isFix })')
+    expect(chrome).toContain('clock?.(row.startMin)')
+  })
+  it('gives the fold its own glyph and keeps the user clock setting', () => {
+    expect(chrome).toContain('<PanelLeftClose size={16} />')
+    expect(chrome).toContain('data-clock={timeFormat}')
+    expect(chrome).toContain('formatHM(point.arrive, timeFormat)')
   })
   it('hides the budget block on the Stay lens and takes the Paid chip from expenses', () => {
     expect(mapTab).toContain("hideBudget={lens === 'stay'}")

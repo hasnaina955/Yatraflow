@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, House, LocateFixed, Lock, MapPin, Plus, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, House, LocateFixed, Lock, MapPin, PanelLeftClose, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { fmtDur, legKey } from '../../lib/engine'
@@ -18,7 +18,7 @@ import { knownCostCells } from './lenses/LensPlaceCard'
 import { dayColor } from '../../lib/mapStyles/dayColors'
 import { ageText, coverageText } from './placeCardFacts'
 import { placeSubtype } from '../../lib/mapStyles/placeMarks'
-import { railMarkerKind, railStopPaid } from './railModel'
+import { fixProblemSubLine, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
 import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText, ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
@@ -84,7 +84,7 @@ export interface ItineraryStayView {
   sub: string | null
 }
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, budgetBar, clock, previewChip, stayView, hideBudget }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hideBudget }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
@@ -101,6 +101,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   fixStopId?: string | null
   /** The Fix row's short fact line. Absent falls back to the engine detail. */
   fixSubLine?: string | null
+  /** The Fix lens's own problem, with its engine evidence. */
+  fixProblem?: { title: string; evidence: readonly string[] } | null
   /** The detour budget bar. Null keeps the original two lines. */
   budgetBar?: { text: string; step: number } | null
   /** Formats one minute of the day for a window row. */
@@ -132,7 +134,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const engineFixSubLine = fixPoint == null
     ? null
     : fixReasonLine(fixPoint.title, formatHM(fixPoint.arrive, timeFormat), fixProblemReason(trip, activeDay))
-  const fixRowLine = fixSubLine ?? engineFixSubLine
+  const fixProblem = fixProblemProp ?? null
+  const fixRowLine = fixProblemSubLine(fixProblem) ?? fixSubLine ?? engineFixSubLine
   const fixRowRef = useRef<HTMLButtonElement | null>(null)
   const stopsRef = useRef<HTMLOListElement | null>(null)
   useEffect(() => {
@@ -176,7 +179,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       const duration = windowDurationText(row.startMin, row.endMin)
       const sub = [`${clock?.(row.startMin)}–${clock?.(row.endMin)}`, duration, row.detail].filter(part => part != null && part !== '').join(' · ')
       return <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
-        <time className="mv2-lens-window-time">{row.nextDayLabel ?? clock?.(atOf(row))}</time>
+        <time className="mv2-lens-window-time">{row.nextDayLabel ?? clock?.(row.startMin)}</time>
         <span className="mv2-window-ring" aria-hidden="true" />
         <span className="mv2-stop-copy"><strong>{row.label}</strong><small>{sub}</small></span>
       </li>
@@ -205,7 +208,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
       <p>{headSub ?? (journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.')}</p>
-      <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><ChevronLeft size={16} /></button>
+      <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><PanelLeftClose size={16} /></button>
     </header>
     {hideBudget !== true && <div className="mv2-budget mv2-lens-budget"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
@@ -236,7 +239,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
             <button type="button" ref={isFix ? fixRowRef : undefined} className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${isFix ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
               <time>{formatHM(point.arrive, timeFormat)}</time>
               <span className={`mv2-stop-mark is-${marker}`}>
-                {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : index + 1}
+                {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : railStopNumber(points, index)}
               </span>
               <span className="mv2-stop-copy"><strong title={point.title}>{point.kind === 'start' ? `Leave ${point.title}` : point.title}</strong>{isFix && fixRowLine != null ? <small className="mv2-lens-fix-reason">{fixRowLine}</small> : <small>{subLine}</small>}{previewChipAt(point.stop.id)}</span>
               {paid && <span className="mv2-stop-chip">Paid</span>}

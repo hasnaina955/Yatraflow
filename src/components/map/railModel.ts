@@ -30,6 +30,38 @@ export function railStopPaid(
   return paid || booked || stop.status === 'needs-booking'
 }
 
+/** One-based number of a rail row, shared with the map marker for that stop.
+ *  The departure anchor and other synthesized endpoints carry no number. */
+export function railStopNumber(points: ReadonlyArray<{ kind: JourneyPointKind; synthesized?: boolean }>, index: number): number {
+  let number = 0
+  for (let position = 0; position <= index; position += 1) {
+    const point = points[position]
+    if (!point || point.synthesized || point.kind === 'start' || point.kind === 'destination') continue
+    number += 1
+  }
+  return number
+}
+
+/** Short rail subtitle for a Fix problem, from the engine's real facts.
+ *  An unknown fact keeps its part out; a known arrival and a closed boarding
+ *  read "Jetty 15:05 · boarding closed". */
+export function fixProblemSubLine(problem: {
+  title: string
+  evidence: readonly string[]
+} | null): string | null {
+  if (problem == null) return null
+  const evidence = problem.evidence.find(line => line.trim() !== '')?.trim() ?? null
+  if (evidence == null) return null
+  const arrival = /~(\d{2}:\d{2})/.exec(evidence)?.[1] ?? null
+  const commitment = /(?:after|before) the (\d{2}:\d{2}) commitment/.exec(evidence)?.[1] ?? null
+  const closed = /after the|under ~45 min before|conflicts with/i.test(`${problem.title} ${evidence}`)
+  const jetty = /jetty|boat|boarding/i.test(`${problem.title} ${evidence}`)
+  if (arrival != null && commitment != null && jetty) {
+    return `Jetty ${arrival} · ${closed ? 'boarding closed' : `before ${commitment}`}`
+  }
+  return evidence
+}
+
 /** The sub line of a stay header. A part with no fact keeps itself out. */
 export function stayRailSub(parts: {
   arriveText: string | null
@@ -41,8 +73,10 @@ export function stayRailSub(parts: {
   const pieces: string[] = []
   if (parts.arriveText != null && parts.arriveText.trim() !== '') pieces.push(`Arrive ${parts.arriveText}`)
   if (parts.commitmentText != null && parts.commitmentText.trim() !== '') {
-    const title = parts.commitmentTitle?.trim().toLowerCase()
-    pieces.push(title ? `${title} at ${parts.commitmentText}` : `fixed at ${parts.commitmentText}`)
+    const title = parts.commitmentTitle?.trim()
+    const comparisonTitle = title?.toLowerCase()
+    if (comparisonTitle === 'boat') pieces.push(`boat at ${parts.commitmentText}`)
+    else pieces.push(title ? `${title} at ${parts.commitmentText}` : `fixed at ${parts.commitmentText}`)
   }
   if (parts.freeStartMin != null && parts.freeEndMin != null) {
     const duration = windowDurationText(parts.freeStartMin, parts.freeEndMin)

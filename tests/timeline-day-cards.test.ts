@@ -65,7 +65,7 @@ describe('DaySection reads its facts, never the trip on a closed path (#347)', (
 
   it('compares `day` by content, through the exhaustive comparator', () => {
     expect(day).toMatch(/\}, sameDaySectionProps\)/)
-    expect(day).toMatch(/import \{ sameDaySectionProps, type DayCardFacts, type DayTotals \}/)
+    expect(day).toMatch(/import \{ hasUserPlannedStop, sameDaySectionProps, type DayCardFacts, type DayTotals \}/)
   })
 
   it('takes the journey, schedule, origin, anchors and commitments from the facts', () => {

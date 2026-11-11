@@ -191,9 +191,18 @@ describe('#335 — the slot vote survives addDecision end to end', () => {
   it('the rail finds the live poll on its part after the store has stored it', () => {
     const trip = freshTrip()
     getSnapshot().sessionUserId = ownerId
+    // #841: an option carries its day. This is the legacy index-only shape
+    // (day 0, no stable id), so the rail must bind it by the actual day index.
+    const onDay = {
+      title: 'Grand Hotel', category: 'food' as const, locationName: 'Ernakulam',
+      lat: 10.01, lng: 76.3, visitMinutes: 45, dayIndex: 0,
+    }
     addDecision(trip.id, {
       question: 'Day 1 lunch - where?',
-      options: [{ id: 'slot:lunch:h1', label: 'Grand Hotel' }, { id: 'slot:lunch:h2', label: 'Halais' }],
+      options: [
+        { id: 'slot:lunch:h1', label: 'Grand Hotel', place: onDay },
+        { id: 'slot:lunch:h2', label: 'Halais', place: onDay },
+      ],
     })
     const d = lastDecision()
     voteOnDecision(d.id, d.options[1].id)
@@ -201,8 +210,8 @@ describe('#335 — the slot vote survives addDecision end to end', () => {
     // stale, and the rail reads votes off the LIVE one.
     const live = getSnapshot().decisions.find(x => x.id === d.id)!
 
-    // THIS poll only: `voteFor` takes the first open decision naming the part,
-    // and earlier tests in this file (or a seeded one) may name it too.
+    // THIS day only: `voteFor` binds by the option's day evidence and refuses
+    // an unscoped or ambiguous poll, so no other kind-named poll can attach.
     const lunch = daySlots(0, railDeps({ decisions: [live], memberCount: 3 }))
       .find(s => s.key === 'lunch')
     expect(lunch?.vote?.decisionId).toBe(live.id)   // fails before the fix: the ids were rewritten

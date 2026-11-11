@@ -21,7 +21,7 @@ import { transportPolicy } from '../../lib/transportPolicy'
 import { CREW_MAX, CREW_MIN, clampCrew } from '../../lib/crew'
 import { defaultVehicleProfile, parseCapacityL, parseVehicleEconomy } from '../../lib/vehicleProfile'
 import { zipDests, splitDests, renameDest, type DestPair } from '../../lib/destPairs'
-import { Field, RangeDial, StickyFormBar, toast, undoToast } from '../../components/ui'
+import { Field, RangeDial, StickyFormBar, toast, undoToast, useMedia } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DateRangeCalendar } from '../../components/DateRangeCalendar'
 import { PillNav } from '../../components/PillNav'
@@ -412,8 +412,19 @@ export function spendingStyleLabel(style: SettingsFormState['stayStyle']): strin
 
 export const SPENDING_STYLE_HINT = 'Changes which stays and restaurants the app suggests first.'
 export const NEW_DAY_HINT = 'Existing stops stay on their dates. The new day starts empty, ready to plan.'
+// A blocked save must not promise a date change. The plan keeps its days.
+export const SAVE_REFUSED_HINT = 'Save is blocked: the plan keeps its days.'
+
+export function settingsDayDeltaLabel(dayDelta: number | null, saveRefused: boolean): string {
+  if (saveRefused && dayDelta !== null && dayDelta !== 0) return 'Save is blocked: the plan keeps its days'
+  if (dayDelta === null) return 'Pick both dates to preview the day grid'
+  if (dayDelta === 0) return 'Day count unchanged'
+  if (dayDelta > 0) return `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
+  return `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
+}
 
 export function settingsDayGridHint(dayDelta: number | null, dayDeltaLabel: string, saveRefused: boolean): string {
+  if (saveRefused && dayDelta !== null && dayDelta !== 0) return SAVE_REFUSED_HINT
   if (!saveRefused && dayDelta !== null && dayDelta > 0) return NEW_DAY_HINT
   return `${dayDeltaLabel}. Existing stops stay on their dates.`
 }
@@ -528,6 +539,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
    *  the avatar stack resolve against the same person. */
   const meId = useSessionUserId()
   const users = useUsers()
+  const showBottomSave = useMedia('(max-width: 1180px)')
   /** #704: the last write the server did not keep. Shown beside the Save button; the draft stays. */
   const [writeErr, setWriteErr] = useState<string | null>(null)
   /** #704: true from the Save click until the server answers. Save stays disabled meanwhile. */
@@ -683,11 +695,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
   const travellers = clampCrew(f.travellers)
   const clampedBudget = Math.min(300000, Math.max(0, f.budget))
   const dayCount = dayDelta === null ? trip.days.length : trip.days.length + dayDelta
-  const dayDeltaLabel = dayDelta === null
-    ? 'Pick both dates to preview the day grid'
-    : dayDelta === 0 ? 'Day count unchanged'
-    : dayDelta > 0 ? `Adds ${dayDelta} empty day${dayDelta !== 1 ? 's' : ''} at the end`
-    : `Drops ${-dayDelta} empty trailing day${dayDelta !== -1 ? 's' : ''} (days with stops are kept)`
+  const dayDeltaLabel = settingsDayDeltaLabel(dayDelta, !dry.ok)
   const dayGridHint = settingsDayGridHint(dayDelta, dayDeltaLabel, !dry.ok)
   const fuelMode = isFuelEconomyMode(f.transportMode)
   const routeSummary = settingsRouteSummary(dests, f.startLocation, fuelMode && f.roundTrip)
@@ -738,6 +746,20 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     if (section) editedPerSection.set(section, (editedPerSection.get(section) ?? 0) + 1)
   }
   const grid = dayGrid(f.startDate, trip.days, dayCount)
+  // A day tile first drawn after the form has mounted rises at once (is-late),
+  // instead of waiting for its place in the entrance cascade. The mark is
+  // sticky while the tile stays on the page: a delay that changed while a tile
+  // animates would restart it. A tile that leaves and returns is drawn anew.
+  // The state is adjusted during render, so the tile has its class on its first paint.
+  const [dayMarks, setDayMarks] = useState(() => ({ live: new Set(grid.map(d => d.key)), late: new Set<string>() }))
+  const gridKeys = grid.map(d => d.key)
+  const enteringDays = gridKeys.filter(k => !dayMarks.live.has(k))
+  const leavingDays = [...dayMarks.live].filter(k => !gridKeys.includes(k))
+  let lateDays = dayMarks.late
+  if (enteringDays.length > 0 || leavingDays.length > 0) {
+    lateDays = new Set([...dayMarks.late].filter(k => !leavingDays.includes(k)).concat(enteringDays))
+    setDayMarks({ live: new Set(gridKeys), late: lateDays })
+  }
   const tripTotals = computeTotals(trip)
   /** What the plan already costs each head, read from the engine's own total
    *  and split by the party being drafted. The budget dial is read against
@@ -769,24 +791,50 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
     startLocation: trip.startLocation,
   })
 
-  /** The artboard marks the section you are looking at, not just the ones you
-   *  edited. One observer over the six section anchors; the first one whose top
-   *  crosses the reading line wins, so the mark follows the scroll. */
+  /** Mark the section at the reading line, including the phone rail offset. */
   const [activeSection, setActiveSection] = useState<string>('identity')
+  const railClick = useRef(false)
   useEffect(() => {
     const sections = SECTIONS
       .map(id => document.getElementById(`tset-${id}`))
       .filter((el): el is HTMLElement => el !== null)
     if (sections.length === 0) return
-    const seen = new Map<string, boolean>()
-    const io = new IntersectionObserver(entries => {
-      for (const e of entries) seen.set(e.target.id.replace('tset-', ''), e.isIntersecting)
-      const first = SECTIONS.find(id => seen.get(id))
-      if (first) setActiveSection(first)
-    }, { rootMargin: '-96px 0px -60% 0px', threshold: 0 })
+    const mark = () => {
+      if (railClick.current) return
+      const padding = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0
+      const margin = Number.parseFloat(getComputedStyle(sections[0]).scrollMarginTop) || 0
+      let active = sections[0]
+      for (const section of sections) if (section.getBoundingClientRect().top <= padding + margin + 1) active = section
+      if (Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 2) active = sections[sections.length - 1]
+      setActiveSection(active.id.replace('tset-', ''))
+    }
+    const io = new IntersectionObserver(mark, { rootMargin: '-96px 0px -60% 0px', threshold: 0 })
     sections.forEach(el => io.observe(el))
-    return () => io.disconnect()
+    const release = () => { railClick.current = false }
+    window.addEventListener('scroll', mark, { passive: true })
+    window.addEventListener('resize', mark)
+    for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) window.addEventListener(type, release, { passive: true })
+    mark()
+    return () => {
+      io.disconnect()
+      window.removeEventListener('scroll', mark)
+      window.removeEventListener('resize', mark)
+      for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) window.removeEventListener(type, release)
+    }
   }, [])
+  /** On a phone the nav is a sideways strip. When the section you are reading
+   *  changes, bring its item into view so the mark is never off screen. The
+   *  strip scrolls only when it overflows, so the desktop rail never moves. */
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav || nav.scrollWidth <= nav.clientWidth) return
+    const item = nav.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!item) return
+    const rail = nav.getBoundingClientRect(), row = item.getBoundingClientRect()
+    if (row.left < rail.left) nav.scrollLeft += row.left - rail.left
+    else if (row.right > rail.right) nav.scrollLeft += row.right - rail.right
+  }, [activeSection])
 
   // The sticky preview panel. It sits last in the grid, after every section,
   // so the artboard's three columns hold their shape on any section count.
@@ -930,7 +978,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
         {/* The artboard's short nav: one long page, six sections, and the two
             that carry unsaved edits say so. Every item is an in-page anchor,
             so it works with no JavaScript and keeps the URL. */}
-        <nav className="tset-nav" aria-label="Settings sections">
+        <nav className="tset-nav" aria-label="Settings sections" ref={navRef}>
           <span className="tset-nav-lbl">Trip settings</span>
           {([['identity', 'Name & cover', AlignLeft], ['dates', 'Dates & days', CalendarDays], ['group', 'Group & budget', Users],
             ['travel', 'How you travel', CarFront], ['people', 'People & sharing', Share2], ['danger', 'Archive or delete', Trash2]] as const)
@@ -942,6 +990,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                   {key === 'danger' && <span className="tset-nav-divider" aria-hidden="true" />}
                   <a href={`#tset-${key}`}
                     className={`tset-nav-item${edited ? ' is-edited' : ''}${key === 'danger' ? ' is-danger' : ''}`}
+                    onClick={() => { railClick.current = true; setActiveSection(key) }}
                     aria-current={activeSection === key ? 'true' : undefined}>
                     <Icon size={16} aria-hidden />
                     {label}
@@ -1034,27 +1083,29 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 <Fragment key={`${d.name}-${i}`}>
                   <span className="tsx-road" aria-hidden="true" />
                   <span className="tsx-node">
-                    <span className="tsx-node-ord" aria-hidden="true">{i + 1}</span>
-                    <span className="tsx-node-name">
-                      {renamingDest === i ? (
-                        <input
-                          className="input input--compact"
-                          aria-label={`Rename ${d.name}`}
-                          autoFocus
-                          value={renameDraft}
-                          onChange={e => setRenameDraft(e.target.value)}
-                          onBlur={() => commitRename(i)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') commitRename(i)
-                            if (e.key === 'Escape') { setRenamingDest(null); setRenameDraft('') }
-                          }}
-                        />
-                      ) : (
-                        <>
-                          {d.name}
-                          {d.lat != null && d.lng != null && <span className="dest-pin" aria-hidden>📍</span>}
-                        </>
-                      )}
+                    <span className="tsx-node-line">
+                      <span className="tsx-node-ord" aria-hidden="true">{i + 1}</span>
+                      <span className="tsx-node-name">
+                        {renamingDest === i ? (
+                          <input
+                            className="input input--compact"
+                            aria-label={`Rename ${d.name}`}
+                            autoFocus
+                            value={renameDraft}
+                            onChange={e => setRenameDraft(e.target.value)}
+                            onBlur={() => commitRename(i)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') commitRename(i)
+                              if (e.key === 'Escape') { setRenamingDest(null); setRenameDraft('') }
+                            }}
+                          />
+                        ) : (
+                          <>
+                            {d.name}
+                            {d.lat != null && d.lng != null && <span className="dest-pin" aria-hidden>📍</span>}
+                          </>
+                        )}
+                      </span>
                     </span>
                     {renamingDest !== i && editable && (
                       <button type="button" aria-label={`Rename ${d.name}`}
@@ -1170,7 +1221,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               <span className="flab">Your days</span>
               <div className="tset-daygrid">
                 {grid.map(d => (
-                  <div key={d.key} className={`tset-day${d.isNew ? ' is-new' : ''}`}>
+                  <div key={d.key} className={`tset-day${d.isNew ? ' is-new' : ''}${lateDays.has(d.key) ? ' is-late' : ''}`}>
                     <span className="tset-day-dow">{d.dow}</span>
                     <b className="tset-day-num">{d.dayOfMonth}</b>
                     <em className="tset-day-stops">
@@ -1408,16 +1459,17 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               </div>
               <div className="field">
                 <span className="flab">Pace</span>
-                <PillNav className="seg tset-pace-seg" role="group" aria-label="Travel style" activeKey={f.travelStyle}>
+                {/* The approved row grid keeps all ten choices in view. */}
+                <div className="tset-pace-rows" role="group" aria-label="Travel style">
                   {TRAVEL_STYLES.map(s => (
                     <button key={s} type="button" data-pill-key={s} disabled={!editable}
                       aria-pressed={f.travelStyle === s}
-                      className={`seg-btn${f.travelStyle === s ? ' on' : ''}`}
+                      className={`seg-btn tset-pace-row${f.travelStyle === s ? ' on' : ''}`}
                       onClick={() => setF(x => ({ ...x, travelStyle: s }))}>
                       {cap(s)}
                     </button>
                   ))}
-                </PillNav>
+                </div>
                 <span className="hint-text">Relaxed leaves 2 h free and ends days by 8 pm; packed pushes further. It never touches pricing.</span>
               </div>
             </div>
@@ -1567,11 +1619,10 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
         {saveAside}
       </div>
 
-      {/* The save bar stays for a keyboard user who scrolled past the panel:
-          the same verbs, reachable from anywhere on the page. */}
-      <StickyFormBar show>
+      {/* Narrow layouts keep the same verbs reachable past the panel. */}
+      <StickyFormBar show={showBottomSave}>
         {/* #413: a viewer used to get a vanished bar under disabled inputs —
-            permissioned read as broken. The bar renders for everyone; a
+            permissioned read as broken. The narrow bar renders for everyone; a
             viewer gets it disabled with the reason said out loud. */}
         {!editable && (
           <span className="ts-savebar-note hint-text" role="status">

@@ -21,74 +21,146 @@ with a backup.
 
 ## The current set
 
-Sixty-two images are committed: the twenty-two original scenes and forty India scenes.
-Each one is a byte-identical copy of an accepted derivative, except the eight Bihar and
-Odisha files, which are encoded from the accepted comparison revisions. The id carries no
-review round, so a replaced master keeps its id.
+One hundred and twelve images are committed: 105 landscape scenes and seven square
+empty-state vignettes. Every landscape id has four files: AVIF at 320, 640 and 960 pixels,
+plus WebP at 640. Every vignette has AVIF at 280 and 560, plus WebP at 560.
 
-### The original twenty-two
+### The 55 refreshed live scenes
 
-Fifteen landscape scenes and seven square state vignettes.
+These 55 landscape ids were already live and keep their names, so a replaced master never
+moves a selection. Each file is encoded from the SELECTED output of the approved balanced
+set.
 
-| Id | Used for | Widths | WebP |
-| --- | --- | --- | --- |
-| `kerala-1` | Kerala region | 320, 640, 960 | 640 |
-| `himalaya-1` | Kashmir region (the manifest key) | 320, 640, 960 | 640 |
-| `himalaya-2` | Kashmir region, second scene | 320, 640, 960 | 640 |
-| `rajasthan-1` | Rajasthan region | 320, 640, 960 | 640 |
-| `rajasthan-2` | Rajasthan region, second scene | 320, 640, 960 | 640 |
-| `goa-1` | Goa region | 320, 640, 960 | 640 |
-| `goa-2` | Goa region, second scene | 320, 640, 960 | 640 |
-| `coorg-1` | Coorg region | 320, 640, 960 | 640 |
-| `coorg-2` | Coorg region, second scene | 320, 640, 960 | 640 |
-| `meghalaya-1` | Meghalaya region | 320, 640, 960 | 640 |
-| `meghalaya-2` | Meghalaya region, second scene | 320, 640, 960 | 640 |
-| `city-1` | City fallback, one place. Declared, unreachable while every region has a scene | 320, 640, 960 | 640 |
-| `road-1` | Road fallback, two or more places. Declared, unreachable while every region has a scene | 320, 640, 960 | 640 |
-| `road-2` | Road fallback, second scene. Declared, unreachable while every region has a scene | 320, 640, 960 | 640 |
-| `generic-1` | Generic region, a destination no keyword matches | 320, 640, 960 | 640 |
-| `es-first-trip` | First-trip empty state (square) | 280, 560 | 560 |
-| `es-no-saved` | Explore saved-empty state (square) | 280, 560 | 560 |
-| `es-no-results` | Explore filter-empty state (square) | 280, 560 | 560 |
-| `es-no-purchases` | Purchases empty state (square) | 280, 560 | 560 |
-| `es-no-published` | Explore catalog-empty state (square) | 280, 560 | 560 |
-| `es-offline` | Offline state (square), declared and unused | 280, 560 | 560 |
-| `es-error` | Page read failed (square) | 280, 560 | 560 |
+- The fifteen original landscape scenes: `kerala-1`, `himalaya-1`, `himalaya-2`,
+  `rajasthan-1`, `rajasthan-2`, `goa-1`, `goa-2`, `coorg-1`, `coorg-2`, `meghalaya-1`,
+  `meghalaya-2`, `city-1`, `road-1`, `road-2` and `generic-1`.
+- The 31 jurisdiction scenes: `andhra-pradesh-v1`, `arunachal-pradesh-v1`, `assam-v1`,
+  `bihar-v1`, `chhattisgarh-v1`, `gujarat-v1`, `haryana-v1`, `jharkhand-v1`,
+  `karnataka-v1`, `madhya-pradesh-v1`, `maharashtra-v1`, `manipur-v1`, `mizoram-v1`,
+  `nagaland-v1`, `odisha-v1`, `punjab-v1`, `rajasthan-v1`, `sikkim-v1`,
+  `tamil-nadu-v1`, `telangana-v1`, `tripura-v1`, `uttar-pradesh-v1`,
+  `uttarakhand-v1`, `west-bengal-v1`, `andaman-and-nicobar-islands-v1`,
+  `chandigarh-v1`, `dadra-and-nagar-haveli-and-daman-and-diu-v1`, `delhi-v1`,
+  `jammu-and-kashmir-v2`, `lakshadweep-v1` and `puducherry-v1`.
+- The nine legacy destination scenes: `jaipur-v1`, `udaipur-v1`, `mumbai-v1`, `leh-v1`,
+  `manali-v1`, `rishikesh-v1`, `munnar-v1`, `darjeeling-v1` and `shillong-v1`.
 
-### The forty India scenes
-
-Thirty-one jurisdiction scenes and nine destination scenes. All are 3:2 at 320, 640 and
-960, with a 640 WebP.
-
-The jurisdiction scenes are `andhra-pradesh-v1`, `arunachal-pradesh-v1`, `assam-v1`,
-`bihar-v1`, `chhattisgarh-v1`, `gujarat-v1`, `haryana-v1`, `jharkhand-v1`, `karnataka-v1`,
-`madhya-pradesh-v1`, `maharashtra-v1`, `manipur-v1`, `mizoram-v1`, `nagaland-v1`,
-`odisha-v1`, `punjab-v1`, `sikkim-v1`, `tamil-nadu-v1`, `telangana-v1`, `tripura-v1`,
-`uttar-pradesh-v1`, `uttarakhand-v1`, `west-bengal-v1`, and these union territories and
-special regions: `andaman-and-nicobar-islands-v1`, `chandigarh-v1`,
-`dadra-and-nagar-haveli-and-daman-and-diu-v1`, `delhi-v1`, `jammu-and-kashmir-v2`,
-`lakshadweep-v1`, `puducherry-v1`, and `himalaya-1` for Ladakh.
-
-The destination scenes are `jaipur-v1`, `udaipur-v1`, `mumbai-v1`, `leh-v1`, `manali-v1`,
-`rishikesh-v1`, `munnar-v1`, `darjeeling-v1` and `shillong-v1`.
-
-Five jurisdictions reuse an existing scene rather than a new one: Kerala (`kerala-1`), Goa
+Five jurisdictions reuse a scene rather than own a new one: Kerala (`kerala-1`), Goa
 (`goa-1` and `goa-2`), Rajasthan (`rajasthan-v1`), Meghalaya (`meghalaya-1` and
 `meghalaya-2`) and Himachal Pradesh (`himalaya-2`). Ladakh takes `himalaya-1`, the
 trans-Himalayan lake scene. Jammu and Kashmir takes `jammu-and-kashmir-v2`, so a Kashmir
 valley destination never shows the Ladakh lake.
 
-The `places` table in `manifest.json` is what the art layer reads. It holds 36
-jurisdictions and 16 destinations. `src/lib/placeArt.ts` resolves a destination string
-against those tables; `coverFor` in `src/lib/regionArt.ts` consults it before the region
-chain.
+### The 50 new destination scenes
+
+Each id carries the review round (`-v2`). The display name and the jurisdiction live in the
+place table.
+
+| Id | Destination | State or UT |
+| --- | --- | --- |
+| `dest-agra-v2` | Agra | Uttar Pradesh |
+| `dest-alappuzha-v2` | Alappuzha | Kerala |
+| `dest-amritsar-v2` | Amritsar | Punjab |
+| `dest-ayodhya-v2` | Ayodhya | Uttar Pradesh |
+| `dest-cherrapunji-v2` | Cherrapunji | Meghalaya |
+| `dest-coorg-v2` | Coorg | Karnataka |
+| `dest-darjeeling-v2` | Darjeeling | West Bengal |
+| `dest-delhi-v2` | Delhi | Delhi |
+| `dest-dharamshala-v2` | Dharamshala | Himachal Pradesh |
+| `dest-ekta-nagar-v2` | Ekta Nagar | Gujarat |
+| `dest-gangtok-v2` | Gangtok | Sikkim |
+| `dest-goa-v2` | Goa | Goa |
+| `dest-gulmarg-v2` | Gulmarg | Jammu and Kashmir |
+| `dest-hampi-v2` | Hampi | Karnataka |
+| `dest-haridwar-v2` | Haridwar | Uttarakhand |
+| `dest-jaipur-v2` | Jaipur | Rajasthan |
+| `dest-jaisalmer-v2` | Jaisalmer | Rajasthan |
+| `dest-jodhpur-v2` | Jodhpur | Rajasthan |
+| `dest-kaziranga-v2` | Kaziranga | Assam |
+| `dest-kochi-v2` | Kochi | Kerala |
+| `dest-kodaikanal-v2` | Kodaikanal | Tamil Nadu |
+| `dest-kovalam-v2` | Kovalam | Kerala |
+| `dest-leh-v2` | Leh | Ladakh |
+| `dest-madurai-v2` | Madurai | Tamil Nadu |
+| `dest-manali-v2` | Manali | Himachal Pradesh |
+| `dest-mumbai-v2` | Mumbai | Maharashtra |
+| `dest-munnar-v2` | Munnar | Kerala |
+| `dest-mussoorie-v2` | Mussoorie | Uttarakhand |
+| `dest-mysuru-v2` | Mysuru | Karnataka |
+| `dest-nubra-valley-v2` | Nubra Valley | Ladakh |
+| `dest-ooty-v2` | Ooty | Tamil Nadu |
+| `dest-pahalgam-v2` | Pahalgam | Jammu and Kashmir |
+| `dest-pangong-tso-v2` | Pangong Tso | Ladakh |
+| `dest-puri-v2` | Puri | Odisha |
+| `dest-pushkar-v2` | Pushkar | Rajasthan |
+| `dest-rameswaram-v2` | Rameswaram | Tamil Nadu |
+| `dest-ranthambore-v2` | Ranthambore | Rajasthan |
+| `dest-rishikesh-v2` | Rishikesh | Uttarakhand |
+| `dest-shaheed-dweep-v2` | Shaheed Dweep | Andaman and Nicobar Islands |
+| `dest-shillong-v2` | Shillong | Meghalaya |
+| `dest-shimla-v2` | Shimla | Himachal Pradesh |
+| `dest-sonamarg-v2` | Sonamarg | Jammu and Kashmir |
+| `dest-sri-vijaya-puram-v2` | Sri Vijaya Puram | Andaman and Nicobar Islands |
+| `dest-srinagar-v2` | Srinagar | Jammu and Kashmir |
+| `dest-swaraj-dweep-v2` | Swaraj Dweep | Andaman and Nicobar Islands |
+| `dest-tawang-v2` | Tawang | Arunachal Pradesh |
+| `dest-thekkady-v2` | Thekkady | Kerala |
+| `dest-udaipur-v2` | Udaipur | Rajasthan |
+| `dest-varanasi-v2` | Varanasi | Uttar Pradesh |
+| `dest-white-rann-v2` | White Rann of Kutch | Gujarat |
+
+### The seven square vignettes
+
+The vignettes are unchanged. They keep the accepted masters and the 280, 560 and 560 WebP
+widths.
+
+| Id | Used for |
+| --- | --- |
+| `es-first-trip` | First-trip empty state |
+| `es-no-saved` | Explore saved-empty state |
+| `es-no-results` | Explore filter-empty state |
+| `es-no-purchases` | Purchases empty state |
+| `es-no-published` | Explore catalog-empty state |
+| `es-offline` | Offline state, declared and unused |
+| `es-error` | Page read failed |
+
+### Place tables and selection
+
+The `places` table in `manifest.json` holds 36 jurisdictions and 51 destinations. Sixteen
+legacy destination keys now list the new scene first and the old scene as a fallback. The
+other 35 destinations are new keys. Puducherry keeps `puducherry-v1`.
+
+`src/lib/placeArt.ts` resolves a destination string against those tables. The order is:
+
+1. The traveller's own upload, before this module is reached.
+2. An exact supported destination.
+3. A supported state or UT representative.
+4. The neutral road scene when the matched stops span two or more states.
+5. The neutral generic scene for anything unknown or ambiguous.
+
+Matching uses whole tokens only. It never uses a substring, so `Goalpara` is not Goa and
+`Keralapuram` is not Kerala. Unicode letters and combining marks stay in a token, so an
+Indic-script name is not split apart. An exact destination always selects the first id in
+its list. The later ids are fallback variants for the cover plan; they never replace the
+exact destination's own scene.
 
 ### Review status
 
-Only Bihar and Odisha have an explicit comparison acceptance, and those are the two
-masters from the accepted revision. The other thirty-eight new scenes are local-preview
-candidates. Do not describe them as universally approved: the manifest records ids, not a
-verdict, and the evidence folder holds the only review record.
+The user approved both approved sets on 2026-11-08. The live set has 55 of 55 records
+updated. The destination set has 28 updated records and 22 kept records. No further
+generation or cleanup is requested.
+
+The manifests that hold the selected output per id are outside git:
+
+- `E:/T3/evidence/art-live-balanced-20261108/records/balanced-manifest.json`
+- `E:/T3/evidence/art-destinations-20261108/records/balanced-set-v2-manifest.json`
+
+The review pages are `review/balanced-set.html` and `review/balanced-set-v2.html` in the same
+evidence folders. The PNG masters stay outside git.
+
+The live source files for Bihar and Odisha had mismatched original master revisions. Their
+approved outputs are lossless PNGs decoded from the actual app AVIF files, so the refresh
+keeps the scene the app already showed.
 
 Karnataka keeps the original `karnataka-v1`. The `karnataka-study-v2` revision was
 rejected and is not shipped.
@@ -113,12 +185,12 @@ change.
 A wide scene's 3:1 crop takes `focalY` 60 by default. `himalaya-2` sets its own 3:1 value of 40
 because its peaks sit high in the frame. That is a manifest value, not a code branch.
 
-`focalX` sits beside `focalY` with a default of 50. One id declares it: `rishikesh-v1` at
-`1:1` uses 70.3125. The master is 1536x1024, so a square crop has 512 px of horizontal
-overflow. The two towers sit at x 526..550 and x 1335..1354; a window of side 1024 keeps
-both for any left offset in 330..526 px. At 70.3125% the window is 360..1384, leaving
-166 px before the first tower and 30 px after the second. An out-of-range, non-finite or
-unknown value clamps to 50.
+`focalX` sits beside `focalY` with a default of 50. `rishikesh-v1` declares 70.3125 at
+`1:1`. The master is 1536x1024, so a square crop has 512 px of horizontal overflow. The
+two towers sit at x 526..550 and x 1335..1354; a window of side 1024 keeps both for any
+left offset in 330..526 px. At 70.3125% the window is 360..1384, leaving 166 px before the
+first tower and 30 px after the second. A new destination declares its own value only when
+the pixels need one. An out-of-range, non-finite or unknown value clamps to 50.
 
 ## Budget
 
@@ -130,11 +202,12 @@ unknown value clamps to 50.
 | AVIF, 640 px | 24 KiB |
 | AVIF, 960 px | 40 KiB |
 | WebP, any width | 45 KiB |
-| Whole folder | 6 MiB |
+| Whole folder | 11 MiB |
 
-The limits are in `manifest.json` under `budget`. The build and the tests read the same values.
-The current total is 4682873 bytes (4573.1 KiB) for 241 files. Every file is inside its own
-cap and the folder is inside the 6 MiB cap.
+The limits are in `manifest.json` under `budget`. The build and the tests read the same
+values. The total cap rose from 6 MiB to 11 MiB because the set grew from 241 files to 441.
+The per-image caps did not change. The current total is 9,886,308 bytes (9.43 MiB) for 441
+files.
 
 ## Encoder settings
 
@@ -154,62 +227,49 @@ Run the build from the repo root. Pass the folder that holds the masters:
 npm run art:build -- --masters C:\path\to\masters
 ```
 
-The build writes into `src/assets/art/`. It also deletes stale files that match the naming pattern
-and are no longer in the manifest. It prints a byte table and exits with code 1 when a file or the
-total is over its cap, or when a master is missing.
+The build writes into `src/assets/art/`. It also deletes stale files that match the naming
+pattern and are no longer in the manifest. It prints a byte table and exits with code 1 when
+a file or the total is over its cap, or when a master is missing.
 
-`MASTER_FILES` in `scripts/build-art.mjs` names each id's master relative to the folder you pass.
-The pilot masters sit flat, the batch masters sit in `batch1/` or `batch2/`, and the India
-masters sit in `india/`, so one root serves every id:
+`MASTER_FILES` in `scripts/build-art.mjs` names each id's master relative to the folder you
+pass. One staging root serves every id:
+
+```
+<staging>\balanced\      the 55 selected live masters, one per id
+<staging>\destinations\  the 50 selected destination masters, one per record id
+<staging>\es-first-trip-v3.png  the square first-trip vignette
+<staging>\batch1\        the six other square empty-state vignettes
+```
+
+The approved staging root for this batch is
+`E:\T3\evidence\art-balanced-final-staging-20261108`. It holds hard links to the selected
+evidence outputs, so its bytes match the approved masters. The table names only paths
+relative to that root, so any folder of the documented shape rebuilds the same bytes.
+
+To confirm every id resolves to a master of the right ratio, without encoding anything:
 
 ```powershell
-npm run art:build -- --masters E:\YatraFlow\yatraflow-art-codex\masters --check
+npm run art:build -- --masters E:\T3\evidence\art-balanced-final-staging-20261108 --list-masters
 ```
 
-A batch-2 master is not copied into the art workspace. Stage a folder of the same shape under
-`E:\T3` instead, with byte-identical copies, and point `--masters` at it:
+That command must print `112 of 112 ids resolved`. A missing master, an id that names no
+master, or a master whose dimensions contradict the manifest ratio fails the command.
 
-```
-<staging>\            the six pilot masters, flat
-<staging>\batch1\     the fifteen batch-1 masters
-<staging>\batch2\     the batch-2 masters
-<staging>\india\      the forty India masters
-```
+`ENCODER_OVERRIDES` holds a per-file quality and effort override. 69 entries
+keep files within their cap after the bounded ladder. A full rebuild at the baseline
+quality would silently lose those encodings, so the table is part of the contract. An
+entry that names no manifest file is an error.
 
-The table names only paths relative to that root, so no machine path enters the build. A rebuild
-from the staging root reproduces every derivative. The art workspace root reproduces all but
-`generic-1` and the India masters, because those were never copied into it.
-
-`ENCODER_OVERRIDES` holds a per-file quality and effort override. Twenty-two entries keep
-files that would otherwise exceed their cap: eighteen AVIF files at q48, q46 or q44, and
-four at effort 9 from the D1 compression batch. A full rebuild at the baseline quality
-would silently lose those encodings, so the table is part of the contract and an entry
-that names no manifest file is an error.
+To compare a build with the committed files without changing them, write to a scratch
+folder:
 
 ```powershell
-npm run art:build -- --masters E:\T3\evidence\art-batch2-generation-20261025\staging --list-masters
+npm run art:build -- --masters E:\T3\evidence\art-balanced-final-staging-20261108 --out C:\scratch\art-check --report C:\scratch\art-report.json
 ```
 
-The art workspace root resolves 21 of 22 ids. `--list-masters` against it reports
-`generic-1` missing, which is correct. Use the staging root for a full resolve, and expect the
-workspace root to fail the `generic-1` row. A build against the workspace root does not delete the
-four `generic-1` files: the stale-file sweep keeps every id the manifest declares, so the files
-survive and the run exits 1.
-
-To confirm every id still resolves to a master of the right ratio, without encoding anything:
-
-```powershell
-npm run art:build -- --masters E:\YatraFlow\yatraflow-art-codex\masters --list-masters
-```
-
-To compare a build with the committed files without changing them, write to a scratch folder:
-
-```powershell
-npm run art:build -- --masters C:\path\to\masters --out C:\scratch\art-check
-```
-
-Then compare the SHA-256 of each file with `src/assets/art/`. Only copy files into the repo after
-the hashes match or after you accept the new output.
+Then compare the SHA-256 of each file with `src/assets/art/`. Only copy files into the repo
+after the hashes match or after you accept the new output. The report holds the bytes and
+SHA-256 of every file.
 
 To check the committed files only, run:
 
@@ -217,14 +277,19 @@ To check the committed files only, run:
 npm run art:build -- --check
 ```
 
-On 2026-10-11 the build reproduced all 23 committed files byte for byte from the pilot masters.
+The 2026-11-08 batch reproduced all 441 committed files byte for byte from the staging root.
 
 ## Add or replace an image
 
-1. Put the master PNG in the masters folder. Use a 3:2 landscape master for a scene, or a 1:1 square master for a vignette.
-2. Add the master file name to `MASTER_FILES` in `scripts/build-art.mjs`. The name is relative to the masters folder. A batch file reads `batch1/goa-1-v1.png` or `batch2/generic-1-v1.png`.
-3. Add or update the id in `src/assets/art/manifest.json`. Set its widths, its WebP width, its ratio and its focal points.
-4. Add the id to the region or fallback list it belongs to.
+1. Put the master PNG in the staging root. Use a 3:2 landscape master for a scene, or a
+   1:1 square master for a vignette. A refreshed live master reads
+   `balanced/<id>.png`. A new destination master reads `destinations/<record-id>.png`.
+2. Add the relative path to `MASTER_FILES` in `scripts/build-art.mjs`. Do not write an
+   absolute machine path.
+3. Add or update the id in `src/assets/art/manifest.json`. Set its widths, its WebP
+   width, its ratio and its focal points.
+4. Add the id to the region, fallback or place table it belongs to. A destination lists
+   its primary scene first and any legacy variant after it.
 5. Run `--list-masters` to confirm the master resolves and its ratio matches the manifest.
 6. Run the build with `--out` to a scratch folder. Check the table and the caps.
 7. Run the build into `src/assets/art/`.

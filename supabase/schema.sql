@@ -1371,6 +1371,11 @@ declare
   v_notifications jsonb := '[]'::jsonb;
   v_result jsonb;
   v_keys text[];
+  v_ordered jsonb;
+  v_offer_place jsonb;
+  v_before_stop_id text;
+  v_insert_at integer;
+  v_ordered_stops jsonb;
 begin
   if v_actor is null or coalesce(public.is_disabled(), true) then
     return jsonb_build_object('status','forbidden','tripRevision',null);
@@ -1423,7 +1428,7 @@ begin
     when 'decision.create' then array['type','decisionId','decision']
     when 'decision.comment' then array['type','decisionId','commentId','text']
     when 'decision.ballot' then array['type','decisionId','optionId']
-    when 'decision.resolve' then array['type','decisionId','optionId','expectedRevision','dayId','dayIndex']
+    when 'decision.resolve' then array['type','decisionId','optionId','expectedRevision','dayId','dayIndex','orderedPlacement']
     when 'activity.append' then array['type','activityId','verb','target']
     else null end;
   if v_keys is null or exists(select 1 from jsonb_object_keys(p_command) as x(key) where key<>all(v_keys)) then
@@ -1722,7 +1727,17 @@ begin
         or jsonb_typeof(p_command->'expectedRevision') is distinct from 'number'
         or (p_command->>'expectedRevision') !~ '^[0-9]+$'
         or (p_command ? 'dayId' and (jsonb_typeof(p_command->'dayId') is distinct from 'string' or length(btrim(p_command->>'dayId')) not between 1 and 100))
-        or (p_command ? 'dayIndex' and (jsonb_typeof(p_command->'dayIndex') is distinct from 'number' or (p_command->>'dayIndex') !~ '^[0-9]+$')) then
+        or (p_command ? 'dayIndex' and (jsonb_typeof(p_command->'dayIndex') is distinct from 'number' or (p_command->>'dayIndex') !~ '^[0-9]+$'))
+        or (p_command ? 'orderedPlacement' and (
+          jsonb_typeof(p_command->'orderedPlacement') is distinct from 'object'
+          or (p_command->'orderedPlacement') - array['dayId','beforeStopId'] <> '{}'::jsonb
+          or jsonb_typeof(p_command->'orderedPlacement'->'dayId') is distinct from 'string'
+          or length(btrim(p_command->'orderedPlacement'->>'dayId')) not between 1 and 100
+          or not (p_command->'orderedPlacement' ? 'beforeStopId')
+          or (jsonb_typeof(p_command->'orderedPlacement'->'beforeStopId') not in ('string','null'))
+          or (jsonb_typeof(p_command->'orderedPlacement'->'beforeStopId')='string'
+            and length(btrim(p_command->'orderedPlacement'->>'beforeStopId')) not between 1 and 100)
+        )) then
         return jsonb_build_object('status','invalid','tripRevision',v_revision);
       end if;
       v_expected_revision:=(p_command->>'expectedRevision')::bigint;
@@ -1737,6 +1752,18 @@ begin
       end if;
       v_was_open:=v_row->>'status'='open';
       select o into v_option from jsonb_array_elements(v_row->'options') o where o->>'id'=v_choice;
+      v_ordered:=p_command->'orderedPlacement';
+      if v_ordered is not null then
+        v_offer_place:=v_option->'place';
+        if (p_command ? 'dayId' and p_command->>'dayId' is distinct from v_ordered->>'dayId')
+          or (p_command ? 'dayIndex' and (v_offer_place->>'dayIndex') !~ '^[0-9]+$'
+            or (v_offer_place->>'dayIndex')::integer<>(p_command->>'dayIndex')::integer)
+          or (v_offer_place ? 'dayId' and v_offer_place->>'dayId' is distinct from v_ordered->>'dayId')
+          or (v_offer_place ? 'dayIndex' and (v_offer_place->>'dayIndex') !~ '^[0-9]+$') then
+          return jsonb_build_object('status','invalid','tripRevision',v_revision); end if;
+        v_target_day_id:=v_ordered->>'dayId';
+        v_before_stop_id:=nullif(v_ordered->>'beforeStopId','');
+      end if;
       v_stop_id:=nullif(v_row->>'resolved_stop_id','');
       if v_stop_id is not null then
         v_result:=jsonb_build_object('status','alreadyApplied','tripRevision',v_revision,
@@ -1745,8 +1772,9 @@ begin
         v_has_place:=v_option ? 'place';
         v_place_identity_valid:=not v_has_place or public.collab_valid_decision_place(v_option->'place');
         v_placement_status:=case when v_has_place then 'needsDay' else 'notRequired' end;
-        v_target_day_id:=coalesce(nullif(p_command->>'dayId',''),nullif(v_option->'place'->>'dayId',''));
-        v_target_day_index:=coalesce(nullif(p_command->>'dayIndex','')::integer,nullif(v_option->'place'->>'dayIndex','')::integer);
+        v_target_day_id:=coalesce(v_ordered->>'dayId',nullif(p_command->>'dayId',''),nullif(v_option->'place'->>'dayId',''));
+        v_target_day_index:=case when v_ordered is not null then null
+          else coalesce(nullif(p_command->>'dayIndex','')::integer,nullif(v_option->'place'->>'dayIndex','')::integer) end;
         if v_has_place and v_place_identity_valid
           and jsonb_typeof(v_option->'place'->'lat')='number'
           and jsonb_typeof(v_option->'place'->'lng')='number'
@@ -1759,10 +1787,23 @@ begin
             where case when v_target_day_id is not null then day->>'id'=v_target_day_id
               else v_target_day_index is not null and (day->>'index') ~ '^[0-9]+$'
                 and (day->>'index')::integer=v_target_day_index end;
+          if v_ordered is not null and v_expected_revision<>v_revision then
+            return jsonb_build_object('status','conflict','tripRevision',v_revision); end if;
           if v_day_matches=1 and v_expected_revision=v_revision then
             select day into v_day from jsonb_array_elements(v_trip_row.days) day
               where case when v_target_day_id is not null then day->>'id'=v_target_day_id
                 else (day->>'index')::integer=v_target_day_index end;
+            if v_ordered is not null and v_before_stop_id is not null then
+              select count(*) into v_day_matches from jsonb_array_elements(coalesce(v_day->'stops','[]'::jsonb)) stop
+                where stop->>'id'=v_before_stop_id and stop->>'status' is distinct from 'rejected';
+              if v_day_matches<>1 then
+                return jsonb_build_object('status','invalid','tripRevision',v_revision); end if;
+              select count(*) into v_day_matches from jsonb_array_elements(v_trip_row.days) day
+                cross join lateral jsonb_array_elements(coalesce(day->'stops','[]'::jsonb)) stop
+                where stop->>'id'=v_before_stop_id and day->>'id' is distinct from v_ordered->>'dayId';
+              if v_day_matches>0 then
+                return jsonb_build_object('status','invalid','tripRevision',v_revision); end if;
+            end if;
             select stop->>'id' into v_stop_id
               from jsonb_array_elements(coalesce(v_day->'stops','[]'::jsonb)) stop
               where stop->>'status' is distinct from 'rejected'
@@ -1775,9 +1816,19 @@ begin
               v_placement_status:='alreadyApplied';
             else
               v_stop_id:='st_'||gen_random_uuid()::text;
+              v_insert_at:=coalesce(jsonb_array_length(coalesce(v_day->'stops','[]'::jsonb)),0)+1;
+              if v_ordered is null then
+                select coalesce(max(case when (stop->>'orderInDay') ~ '^[0-9]+$' then (stop->>'orderInDay')::integer end),-1)+1
+                  into v_insert_at
+                  from jsonb_array_elements(coalesce(v_day->'stops','[]'::jsonb)) stop;
+              elsif v_ordered is not null and v_before_stop_id is not null then
+                select min(ordinality)::integer into v_insert_at
+                  from jsonb_array_elements(coalesce(v_day->'stops','[]'::jsonb)) with ordinality as stops(stop,ordinality)
+                  where stop->>'id'=v_before_stop_id;
+              end if;
               select jsonb_build_object(
                 'id',v_stop_id,
-                'orderInDay',coalesce(max(case when (stop->>'orderInDay') ~ '^[0-9]+$' then (stop->>'orderInDay')::integer end),-1)+1,
+                'orderInDay',v_insert_at,
                 'title',v_option->'place'->>'title','category',coalesce(v_option->'place'->>'category','sightseeing'),
                 'locationName',v_option->'place'->>'locationName','lat',(v_option->'place'->>'lat')::double precision,
                 'lng',(v_option->'place'->>'lng')::double precision,'description',v_option->'place'->>'description',
@@ -1785,7 +1836,7 @@ begin
                 'openTime',v_option->'place'->>'openTime','closeTime',v_option->'place'->>'closeTime',
                 'entryFeeInrPerPerson',0,'transportCostInrTotal',0,'priority','nice-to-have',
                 'notes','Chosen by group vote — “'||(v_row->>'question')||'”','status','confirmed'
-              ) into v_stop from jsonb_array_elements(coalesce(v_day->'stops','[]'::jsonb)) stop;
+              ) into v_stop;
               if jsonb_typeof(v_option->'place'->'place')='object' then
                 v_stop:=v_stop||jsonb_strip_nulls(jsonb_build_object(
                   'placeId',v_option->'place'->'place'->>'placeId','eLoc',v_option->'place'->'place'->>'eLoc',
@@ -1801,9 +1852,24 @@ begin
               else
                 v_stop:=v_stop||jsonb_build_object('slotKey',nullif(substring(v_choice from '^slot:([a-z]+):'),'') );
                 v_stop:=v_stop- case when substring(v_choice from '^slot:([a-z]+):') is null then 'slotKey' else '__none__' end;
+                if v_ordered is null then
+                  v_ordered_stops:=coalesce(v_day->'stops','[]'::jsonb)||jsonb_build_array(v_stop);
+                else
+                  select coalesce(jsonb_agg(case when ordinality=v_insert_at then jsonb_build_array(v_stop,stop)
+                    else jsonb_build_array(stop) end order by ordinality),'[]'::jsonb) into v_ordered_stops
+                    from jsonb_array_elements(coalesce(v_day->'stops','[]'::jsonb)) with ordinality as stops(stop,ordinality);
+                  if v_before_stop_id is null then
+                    v_ordered_stops:=v_ordered_stops||jsonb_build_array(jsonb_build_array(v_stop));
+                  end if;
+                  select coalesce(jsonb_agg(jsonb_set(stop,'{orderInDay}',to_jsonb(ordinality),true) order by ordinality),'[]'::jsonb)
+                    into v_ordered_stops
+                    from (select element as stop, row_number() over (order by nested_ordinality, position)::integer as ordinality
+                      from jsonb_array_elements(v_ordered_stops) with ordinality as nested(row,nested_ordinality)
+                      cross join lateral jsonb_array_elements(row) with ordinality as elements(element,position)) expanded;
+                end if;
                 select jsonb_agg(case when case when v_target_day_id is not null then day->>'id'=v_target_day_id
                   else (day->>'index')::integer=v_target_day_index end
-                  then jsonb_set(day,'{stops}',coalesce(day->'stops','[]'::jsonb)||jsonb_build_array(v_stop),true)
+                  then jsonb_set(day,'{stops}',v_ordered_stops,true)
                   else day end order by ordinality)
                   into v_days from jsonb_array_elements(v_trip_row.days) with ordinality as days(day,ordinality);
                 update public.trips set days=v_days where id=v_trip_id returning write_version into v_revision;

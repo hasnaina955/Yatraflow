@@ -30,7 +30,7 @@ import type { ImpactResult } from './impact'
 import { removeStopFromDay, stopById } from './stopOrder'
 import { restoreStop } from '../store/store'
 import { toast, undoToast } from '../components/ui'
-import { PREVIEW_BUSY } from './previewChain'
+import { PREVIEW_BUSY, type KeptCallback, type OperationMeta } from './previewChain'
 
 /** The four phases a mutation can be in. Named here because every surface was
  *  re-deriving them: `staged` = proposed in the impact sheet, `kept` = written
@@ -79,12 +79,26 @@ export function refuseWhileStaged(staged: unknown): boolean {
 }
 
 /** A staged-change submitter: the workspace's `applyChange`. Every mutation that
- *  the user should see measured goes through it. */
+ *  the user must see measured goes through it.
+ *
+ *  `onKept` runs once after the store acknowledges the write, and it receives
+ *  that actual receipt. A zero-argument callback still fits. A writer that
+ *  reports placed items must check for the receipt and treat a missing one as
+ *  "not acknowledged". `operation` is client lifecycle metadata, not a server
+ *  receipt: a stable `id` that deduplicates the record, an `onDiscard` that
+ *  runs only when the proposal is discarded before any admission, an
+ *  `onStoreDiscarded` that runs once when the store proves the admitted write
+ *  discarded or foreign after a Keep, and an `onUncertain` that runs at most
+ *  once when the store admitted the write but its exact generation is still
+ *  pending or unknown. A failed, uncertain, pending or unknown save keeps the
+ *  record so the operation can recover. `onKept` is never called without a
+ *  validated acknowledgement. */
 export type ApplyChange = (
   mutator: (draft: Trip) => void,
   kind: ImpactResult['kind'],
   dayIndex: number,
-  onKept?: () => void,
+  onKept?: KeptCallback,
+  operation?: OperationMeta,
 ) => void
 
 /** How a destructive action gives the user a way back. `undo` = a toast with
@@ -139,7 +153,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
     recovery: 'undo',
     storeCall: 'deleteStop',
     surfaces: ['Map day plan (Fill, Fill the day)'],
-    why: 'This removal is itself the Undo of an add, and it runs after the preview has closed — the compensation for stopping at a place that turned out to be wrong.',
+    why: 'This removal is itself the Undo of an add, and it runs after the preview has closed — the compensation for stopping at a place that turned out to be wrong. #841: it is admitted through the guarded Undo, which refuses a stop that changed after the save.',
   },
   {
     action: 'shortlist.clear',
@@ -292,10 +306,10 @@ export function supersededPaths(): readonly { name: string; why: string }[] {
  *  is not on this list) — this is the only place a new direct writer can appear,
  *  so it shows up in review. */
 export const DIRECT_WRITE_ALLOWLIST: readonly { file: string; why: string }[] = [
-  {
-    file: 'src/pages/trip/map/useMapWriters.ts',
-    why: 'The Undo of a fill (single or batch) removes the stops that fill just added, after its preview closed — direct by design, and declared as stop.remove-from-fill. Moved here from MapTab.tsx with the writers (#420 slice 10).',
-  },
+  // #841: the Undo of a fill no longer calls the store. It goes through the
+  // shared guarded Undo (`guardedUndo`), which admits the inverse as a
+  // preview write with the same receipt rules as Keep, so no file writes a
+  // removal directly any more. A new direct writer must be declared here.
 ]
 
 /** The words for a removal, built once. The Undo restores the stop *to a day*,

@@ -268,7 +268,7 @@ describe('#408/#412/#414 — the form and its neighbours are wired as pinned', (
 
   it('halt plans are stamped, freshness-checked, and zombies pruned', () => {
     // One version bump so un-stamped payloads evict rather than hydrate "fresh".
-    expect(cache).toMatch(/const CACHE_VERSION = 8/)
+    expect(cache).toMatch(/const CACHE_VERSION = 9/)
     expect(cache).toMatch(/inputsHash: string; ts: number \}>/)
     expect(cache).toMatch(/setHaltCache = useCallback\(\(dayIndex: number, segments: SegmentHit\[\], plan: HaltPlanItem\[\], inputsHash: string\)/)
     // The stamp and the check are the pure exports, not inline copies.
@@ -368,10 +368,10 @@ describe('#413 — the dirty compare is over the saved field set, by value', () 
     expect(settingsAreDirty(run.patch, trip)).toBe(false)
   })
 
-  it('the bar renders for viewers, disabled, with the reason said', () => {
+  it('the narrow bar retains the viewer explanation and save guards', () => {
     const form = read('../src/pages/trip/TripSettingsForm.tsx')
-    // Never a vanished bar: the show-gate is unconditional on this surface.
-    expect(form).toMatch(/<StickyFormBar show>/)
+    expect(form).toContain("useMedia('(max-width: 1180px)')")
+    expect(form).toMatch(/<StickyFormBar show=\{showBottomSave\}>/)
     expect(form).not.toMatch(/<StickyFormBar show=\{editable\}>/)
     // Disabled exactly when a click would not write.
     expect(form).toMatch(/const canSave = dry\.ok && settingsAreDirty\(dry\.patch, trip\)/)

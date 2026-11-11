@@ -57,6 +57,10 @@ The check once read only unstaged edits, so a commit made it inspect zero lines 
 Use `npm run verify` — it runs the full gate:
 `tsc -b --clean` → fresh typecheck → full test suite → production build.
 
+On a busy machine, set process-only `VITEST_MAX_WORKERS=1` before `npm run verify`.
+Vitest 4.1.12 resolves this value as `maxWorkers`.
+Keep the test timeouts and lint baseline unchanged.
+
 Hard rules (each learned the hard way — do not relearn them):
 - **After syncing a large remote update, run `npm install` before `npm run verify`.**
   The Capacitor Android shell added `@capacitor/*` dependencies that a pre-shell

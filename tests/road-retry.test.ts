@@ -14,6 +14,13 @@ const board = read('../src/components/BoardView.tsx')
 const mapTab = read('../src/pages/trip/MapTab.tsx')
 const workspace = read('../src/pages/TripWorkspace.tsx')
 
+// A pin is live only when deleting its producer binding breaks the match.
+function assertLivePin(label: string, source: string, pattern: RegExp, marker: string) {
+  expect(source, `${label}: live source`).toMatch(pattern)
+  expect(source, `${label}: marker present`).toContain(marker)
+  expect(source.replace(marker, ''), `${label}: negative control`).not.toMatch(pattern)
+}
+
 describe('the source still wires the retry into the measurement (#188)', () => {
   it('useTripRoad keeps attempt in the effect deps and hands retry out on the view', () => {
     expect(workspace).toMatch(/const retry = useCallback\(\(\) => setAttempt\(a => a \+ 1\), \[\]\)/)
@@ -43,9 +50,26 @@ describe('BoardView — the failed note carries its retry', () => {
 
 describe('MapTab — the travel-day banner carries its retry', () => {
   it('latches the failure through the retry flight, clears on resolve or rebuild', () => {
-    expect(mapTab).toMatch(/if \(road\?\.status === 'failed'\) roadFailedEverRef\.current = true/)
-    expect(mapTab).toMatch(/if \(road\?\.status === 'ok'\) roadFailedEverRef\.current = false/)
-    expect(mapTab).toMatch(/const roadNeedsRetry = routeFailed \|\| !!roadRetryUnderway/)
+    // The port holds the latch in state, not in the excluded ref latch.
+    assertLivePin('state declaration', mapTab,
+      /const \[roadFailedEver, setRoadFailedEver\] = useState\(false\)/,
+      'const [roadFailedEver, setRoadFailedEver] = useState(false)')
+    assertLivePin('guarded failed write', mapTab,
+      /if \(road\?\.status === 'failed' && !roadFailedEver\) setRoadFailedEver\(true\)/,
+      "if (road?.status === 'failed' && !roadFailedEver) setRoadFailedEver(true)")
+    assertLivePin('guarded resolved write', mapTab,
+      /if \(road\?\.status === 'ok' && roadFailedEver\) setRoadFailedEver\(false\)/,
+      "if (road?.status === 'ok' && roadFailedEver) setRoadFailedEver(false)")
+    assertLivePin('derived pending gate', mapTab,
+      /const roadRetryUnderway = roadFailedEver && road\?\.status === 'pending'/,
+      "const roadRetryUnderway = roadFailedEver && road?.status === 'pending'")
+    assertLivePin('derived retry need', mapTab,
+      /const roadNeedsRetry = routeFailed \|\| roadRetryUnderway/,
+      'const roadNeedsRetry = routeFailed || roadRetryUnderway')
+    // Known-bad bindings must not return: a ref latch, a bare write, a double bang.
+    expect(mapTab).not.toMatch(/roadFailedEverRef\.current = (?:true|false)/)
+    expect(mapTab).not.toMatch(/if \(road\?\.status === 'failed'\) setRoadFailedEver\(true\)/)
+    expect(mapTab).not.toMatch(/const roadNeedsRetry = routeFailed \|\| !!roadRetryUnderway/)
     // the banner gate accepts the latched failure, not just the live one
     expect(mapTab).toMatch(/\(routeTotalKm != null \|\| roadNeedsRetry\)/)
     expect(mapTab).not.toMatch(/\(routeTotalKm != null \|\| routeFailed\)/)
@@ -63,8 +87,12 @@ describe('MapTab — the travel-day banner carries its retry', () => {
   })
 
   it('clears the latch only on a resolve — no effect-based reaper', () => {
-    const writes = mapTab.match(/roadFailedEverRef\.current = (?:true|false)/g) ?? []
+    const writes = mapTab.match(/setRoadFailedEver\((?:true|false)\)/g) ?? []
     expect(writes.length).toBe(2)
+    // The excluded ref latch is not the producer.
+    expect(mapTab).not.toMatch(/roadFailedEverRef\.current = (?:true|false)/)
+    // An effect reaper would clear the latch without a resolved measurement.
+    expect(mapTab).not.toMatch(/useEffect\(\(\) => \{ setRoadFailedEver\(false\)/)
     expect(mapTab).not.toMatch(/useEffect\(\(\) => \{ roadFailedEverRef\.current/)
   })
 })

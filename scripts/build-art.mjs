@@ -14,30 +14,20 @@
 // Exit code 1 when a master is missing, a file exceeds its cap, or the total
 // exceeds the budget. Never writes to the masters directory.
 //
-// The masters folder holds the pilot masters flat and the batch masters in a
-// `batch1/` or `batch2/` subfolder, so one root serves every id. MASTER_FILES
-// names the path under that root. The art workspace's own layout is the
-// reference:
+// The masters folder is one staging root with the layout below. MASTER_FILES
+// names the path under that root, so no machine path enters the build table:
 //
-//   E:\YatraFlow\yatraflow-art-codex\masters\            pilot masters (flat)
-//   E:\YatraFlow\yatraflow-art-codex\masters\batch1\     batch-1 masters
-//   E:\YatraFlow\yatraflow-art-codex\masters\batch2\     batch-2 masters
+//   <staging>\balanced\      the 55 approved live-set masters, one per id
+//   <staging>\destinations\  the 50 approved destination masters, one per id
+//   <staging>\es-first-trip-v3.png  the square first-trip vignette
+//   <staging>\batch1\        the six other square empty-state vignettes
 //
-// A batch-2 master that was generated outside that workspace is not copied into
-// it. Instead, stage a root of the same shape under E:\T3 and point --masters at
-// it. Every file in the staging root is a byte-identical copy. Only the staging
-// root can rebuild every id; the art workspace root has no batch-2 master and so
-// rebuilds all but generic-1:
+// The same two commands read the root:
 //
-//   <staging>\             the six pilot masters, flat
-//   <staging>\batch1\      the fifteen batch-1 masters
-//   <staging>\batch2\      the batch-2 masters
+//   npm run art:build -- --masters <staging> --list-masters
+//   npm run art:build -- --masters <staging> --out <scratch>
 //
-// All three of these commands read the same root:
-//
-//   npm run art:build -- --masters E:\YatraFlow\yatraflow-art-codex\masters --check
-//   npm run art:build -- --masters E:\YatraFlow\yatraflow-art-codex\masters --list-masters
-//   npm run art:build -- --masters E:\T3\evidence\art-batch2-generation-20261025\staging --list-masters
+// docs/ART-PIPELINE.md names the external evidence root that holds this shape.
 
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -61,127 +51,212 @@ const ENCODE = {
 // master names carry the review round (for example -v3); the manifest id does
 // not. Update this table when a master is replaced.
 //
-// A bare name is a pilot master at the root. A name with a folder is a batch
-// master under it, which is how the batch-1 set stays in `masters/batch1/`
-// instead of being copied flat next to the pilot files. The India set lives in
-// `india/`. Every path here is RELATIVE: no machine path is ever named, so any
-// staging root of the documented shape rebuilds the same bytes.
+// Every path here is RELATIVE to the --masters root, so a staging root of the
+// documented shape rebuilds the same bytes on any machine.
 const MASTER_FILES = {
-  'kerala-1': 'kerala-1-v3.png',
-  'himalaya-1': 'himalaya-1-v3.png',
-  'rajasthan-1': 'rajasthan-1-v4.png',
-  'city-1': 'city-1-v3.png',
-  'road-1': 'road-1-v2.png',
+  // The seven square empty-state vignettes. They are not part of the balanced
+  // refresh and keep their accepted masters.
   'es-first-trip': 'es-first-trip-v3.png',
-  // Batch 1, active set. goa-2-v2 and coorg-2-v2 are the cleanup revisions; the
-  // superseded goa-2-v1 and coorg-2-v1 stay in masters/batch1/archive and are
-  // named by nothing here.
-  'goa-1': 'batch1/goa-1-v1.png',
-  'goa-2': 'batch1/goa-2-v2.png',
-  'coorg-1': 'batch1/coorg-1-v1.png',
-  'coorg-2': 'batch1/coorg-2-v2.png',
-  'meghalaya-1': 'batch1/meghalaya-1-v1.png',
-  'meghalaya-2': 'batch1/meghalaya-2-v1.png',
-  'himalaya-2': 'batch1/himalaya-2-v1.png',
-  'rajasthan-2': 'batch1/rajasthan-2-v1.png',
-  'road-2': 'batch1/road-2-v1.png',
   'es-no-saved': 'batch1/es-no-saved-v1.png',
   'es-no-results': 'batch1/es-no-results-v1.png',
   'es-no-purchases': 'batch1/es-no-purchases-v1.png',
   'es-no-published': 'batch1/es-no-published-v1.png',
   'es-offline': 'batch1/es-offline-v1.png',
   'es-error': 'batch1/es-error-v1.png',
-  // Batch 2. The generic scene is the only approved batch-2 master. Its file
-  // lives under a `batch2/` folder so the masters root stays a single --masters
-  // argument. That root may be the art workspace or an external staging folder
-  // built from it; either way this table names only a path relative to the root.
-  'generic-1': 'batch2/generic-1-v1.png',
 
-  // ---- India jurisdiction set (31 new scenes) ----
-  // The 31 needed-new rows of the coverage plan. Bihar and Odisha map to the
-  // ACCEPTED comparison revisions (bihar-study-v2 / odisha-study-v2), staged
-  // under these file names. The remaining 29 are the plan's active v1 masters.
-  'andhra-pradesh-v1': 'india/andhra-pradesh-v1.png',
-  'arunachal-pradesh-v1': 'india/arunachal-pradesh-v1.png',
-  'assam-v1': 'india/assam-v1.png',
-  'bihar-v1': 'india/bihar-v1.png',
-  'chhattisgarh-v1': 'india/chhattisgarh-v1.png',
-  'gujarat-v1': 'india/gujarat-v1.png',
-  'haryana-v1': 'india/haryana-v1.png',
-  'jharkhand-v1': 'india/jharkhand-v1.png',
-  'karnataka-v1': 'india/karnataka-v1.png',
-  'madhya-pradesh-v1': 'india/madhya-pradesh-v1.png',
-  'maharashtra-v1': 'india/maharashtra-v1.png',
-  'manipur-v1': 'india/manipur-v1.png',
-  'mizoram-v1': 'india/mizoram-v1.png',
-  'nagaland-v1': 'india/nagaland-v1.png',
-  'odisha-v1': 'india/odisha-v1.png',
-  'punjab-v1': 'india/punjab-v1.png',
-  'rajasthan-v1': 'india/rajasthan-v1.png',
-  'sikkim-v1': 'india/sikkim-v1.png',
-  'tamil-nadu-v1': 'india/tamil-nadu-v1.png',
-  'telangana-v1': 'india/telangana-v1.png',
-  'tripura-v1': 'india/tripura-v1.png',
-  'uttar-pradesh-v1': 'india/uttar-pradesh-v1.png',
-  'uttarakhand-v1': 'india/uttarakhand-v1.png',
-  'west-bengal-v1': 'india/west-bengal-v1.png',
-  'andaman-and-nicobar-islands-v1': 'india/andaman-and-nicobar-islands-v1.png',
-  'dadra-and-nagar-haveli-and-daman-and-diu-v1': 'india/dadra-and-nagar-haveli-and-daman-and-diu-v1.png',
-  'delhi-v1': 'india/delhi-v1.png',
-  // The active revision is v2. jammu-and-kashmir-v1 stays on disk as the
-  // superseded revision and is named by nothing here.
-  'jammu-and-kashmir-v2': 'india/jammu-and-kashmir-v2.png',
-  'lakshadweep-v1': 'india/lakshadweep-v1.png',
-  'puducherry-v1': 'india/puducherry-v1.png',
-  'chandigarh-v1': 'india/chandigarh-v1.png',
+  // ---- The 55 refreshed live landscape scenes ----
+  // Each id keeps its name. The balanced folder holds the SELECTED output for
+  // that id, so a review round never enters the manifest id.
+  'kerala-1': 'balanced/kerala-1.png',
+  'himalaya-1': 'balanced/himalaya-1.png',
+  'himalaya-2': 'balanced/himalaya-2.png',
+  'rajasthan-1': 'balanced/rajasthan-1.png',
+  'rajasthan-2': 'balanced/rajasthan-2.png',
+  'goa-1': 'balanced/goa-1.png',
+  'goa-2': 'balanced/goa-2.png',
+  'coorg-1': 'balanced/coorg-1.png',
+  'coorg-2': 'balanced/coorg-2.png',
+  'meghalaya-1': 'balanced/meghalaya-1.png',
+  'meghalaya-2': 'balanced/meghalaya-2.png',
+  'city-1': 'balanced/city-1.png',
+  'road-1': 'balanced/road-1.png',
+  'road-2': 'balanced/road-2.png',
+  'generic-1': 'balanced/generic-1.png',
+  'andhra-pradesh-v1': 'balanced/andhra-pradesh-v1.png',
+  'arunachal-pradesh-v1': 'balanced/arunachal-pradesh-v1.png',
+  'assam-v1': 'balanced/assam-v1.png',
+  'bihar-v1': 'balanced/bihar-v1.png',
+  'chhattisgarh-v1': 'balanced/chhattisgarh-v1.png',
+  'gujarat-v1': 'balanced/gujarat-v1.png',
+  'haryana-v1': 'balanced/haryana-v1.png',
+  'jharkhand-v1': 'balanced/jharkhand-v1.png',
+  'karnataka-v1': 'balanced/karnataka-v1.png',
+  'madhya-pradesh-v1': 'balanced/madhya-pradesh-v1.png',
+  'maharashtra-v1': 'balanced/maharashtra-v1.png',
+  'manipur-v1': 'balanced/manipur-v1.png',
+  'mizoram-v1': 'balanced/mizoram-v1.png',
+  'nagaland-v1': 'balanced/nagaland-v1.png',
+  'odisha-v1': 'balanced/odisha-v1.png',
+  'punjab-v1': 'balanced/punjab-v1.png',
+  'rajasthan-v1': 'balanced/rajasthan-v1.png',
+  'sikkim-v1': 'balanced/sikkim-v1.png',
+  'tamil-nadu-v1': 'balanced/tamil-nadu-v1.png',
+  'telangana-v1': 'balanced/telangana-v1.png',
+  'tripura-v1': 'balanced/tripura-v1.png',
+  'uttar-pradesh-v1': 'balanced/uttar-pradesh-v1.png',
+  'uttarakhand-v1': 'balanced/uttarakhand-v1.png',
+  'west-bengal-v1': 'balanced/west-bengal-v1.png',
+  'andaman-and-nicobar-islands-v1': 'balanced/andaman-and-nicobar-islands-v1.png',
+  'dadra-and-nagar-haveli-and-daman-and-diu-v1': 'balanced/dadra-and-nagar-haveli-and-daman-and-diu-v1.png',
+  'delhi-v1': 'balanced/delhi-v1.png',
+  'jammu-and-kashmir-v2': 'balanced/jammu-and-kashmir-v2.png',
+  'lakshadweep-v1': 'balanced/lakshadweep-v1.png',
+  'puducherry-v1': 'balanced/puducherry-v1.png',
+  'chandigarh-v1': 'balanced/chandigarh-v1.png',
+  'udaipur-v1': 'balanced/udaipur-v1.png',
+  'munnar-v1': 'balanced/munnar-v1.png',
+  'darjeeling-v1': 'balanced/darjeeling-v1.png',
+  'jaipur-v1': 'balanced/jaipur-v1.png',
+  'mumbai-v1': 'balanced/mumbai-v1.png',
+  'leh-v1': 'balanced/leh-v1.png',
+  'manali-v1': 'balanced/manali-v1.png',
+  'rishikesh-v1': 'balanced/rishikesh-v1.png',
+  'shillong-v1': 'balanced/shillong-v1.png',
 
-  // ---- India destination set (9 new scenes) ----
-  'udaipur-v1': 'india/udaipur-v1.png',
-  'munnar-v1': 'india/munnar-v1.png',
-  'darjeeling-v1': 'india/darjeeling-v1.png',
-  'jaipur-v1': 'india/jaipur-v1.png',
-  'mumbai-v1': 'india/mumbai-v1.png',
-  'leh-v1': 'india/leh-v1.png',
-  'manali-v1': 'india/manali-v1.png',
-  'rishikesh-v1': 'india/rishikesh-v1.png',
-  'shillong-v1': 'india/shillong-v1.png',
+  // ---- The 50 new destination scenes ----
+  // The file name is the approved record id; the manifest id adds dest- and the
+  // review round so a selected output can never be confused with an older id.
+  'dest-agra-v2': 'destinations/agra.png',
+  'dest-alappuzha-v2': 'destinations/alappuzha.png',
+  'dest-amritsar-v2': 'destinations/amritsar.png',
+  'dest-ayodhya-v2': 'destinations/ayodhya.png',
+  'dest-cherrapunji-v2': 'destinations/cherrapunji.png',
+  'dest-coorg-v2': 'destinations/coorg.png',
+  'dest-darjeeling-v2': 'destinations/darjeeling.png',
+  'dest-delhi-v2': 'destinations/delhi.png',
+  'dest-dharamshala-v2': 'destinations/dharamshala.png',
+  'dest-ekta-nagar-v2': 'destinations/ekta-nagar.png',
+  'dest-gangtok-v2': 'destinations/gangtok.png',
+  'dest-goa-v2': 'destinations/goa.png',
+  'dest-gulmarg-v2': 'destinations/gulmarg.png',
+  'dest-hampi-v2': 'destinations/hampi.png',
+  'dest-haridwar-v2': 'destinations/haridwar.png',
+  'dest-jaipur-v2': 'destinations/jaipur.png',
+  'dest-jaisalmer-v2': 'destinations/jaisalmer.png',
+  'dest-jodhpur-v2': 'destinations/jodhpur.png',
+  'dest-kaziranga-v2': 'destinations/kaziranga.png',
+  'dest-kochi-v2': 'destinations/kochi.png',
+  'dest-kodaikanal-v2': 'destinations/kodaikanal.png',
+  'dest-kovalam-v2': 'destinations/kovalam.png',
+  'dest-leh-v2': 'destinations/leh.png',
+  'dest-madurai-v2': 'destinations/madurai.png',
+  'dest-manali-v2': 'destinations/manali.png',
+  'dest-mumbai-v2': 'destinations/mumbai.png',
+  'dest-munnar-v2': 'destinations/munnar.png',
+  'dest-mussoorie-v2': 'destinations/mussoorie.png',
+  'dest-mysuru-v2': 'destinations/mysuru.png',
+  'dest-nubra-valley-v2': 'destinations/nubra-valley.png',
+  'dest-ooty-v2': 'destinations/ooty.png',
+  'dest-pahalgam-v2': 'destinations/pahalgam.png',
+  'dest-pangong-tso-v2': 'destinations/pangong-tso.png',
+  'dest-puri-v2': 'destinations/puri.png',
+  'dest-pushkar-v2': 'destinations/pushkar.png',
+  'dest-rameswaram-v2': 'destinations/rameswaram.png',
+  'dest-ranthambore-v2': 'destinations/ranthambore.png',
+  'dest-rishikesh-v2': 'destinations/rishikesh.png',
+  'dest-shaheed-dweep-v2': 'destinations/shaheed-dweep.png',
+  'dest-shillong-v2': 'destinations/shillong.png',
+  'dest-shimla-v2': 'destinations/shimla.png',
+  'dest-sonamarg-v2': 'destinations/sonamarg.png',
+  'dest-sri-vijaya-puram-v2': 'destinations/sri-vijaya-puram.png',
+  'dest-srinagar-v2': 'destinations/srinagar.png',
+  'dest-swaraj-dweep-v2': 'destinations/swaraj-dweep.png',
+  'dest-tawang-v2': 'destinations/tawang.png',
+  'dest-thekkady-v2': 'destinations/thekkady.png',
+  'dest-udaipur-v2': 'destinations/udaipur.png',
+  'dest-varanasi-v2': 'destinations/varanasi.png',
+  'dest-white-rann-v2': 'destinations/white-rann.png',
 }
 
 // Per-file encoder overrides, keyed "<id>-<width>.<format>".
 //
-// The India set was compressed against its caps with a bounded ladder: baseline
-// q50/effort 6 first, then q48, q46, q44 at effort 6, first rung that fits wins.
-// 18 of those 160 files landed on a non-baseline rung. Those exact params are
-// recorded here so a full rebuild reproduces the SELECTED bytes rather than
-// silently re-encoding at q50 and losing the cap overrides.
-//
-// The four D1 compression-batch files (jaipur-v1-960, manali-v1-640,
-// manali-v1-960, rishikesh-v1-960) were recompressed at effort 9 outside the
-// batch ladder; their selected params are recorded the same way.
+// Both landscape sets were compressed against their caps with a bounded ladder:
+// baseline AVIF q50/effort 6 and WebP q60/effort 6 first, then AVIF q48, q46,
+// q44 at effort 6, and for two dense scenes q42 and q38. The first rung that
+// fits wins. 69 of the 420 landscape files landed on a non-baseline rung. Those
+// exact params are recorded here so a full rebuild reproduces the SELECTED
+// bytes rather than silently re-encoding at baseline and losing the cap
+// overrides. The 21 square vignette files all stayed at baseline.
 const ENCODER_OVERRIDES = {
   'arunachal-pradesh-v1-960.avif': { quality: 48, effort: 6 },
-  'chhattisgarh-v1-960.avif': { quality: 48, effort: 6 },
+  'bihar-v1-960.avif': { quality: 48, effort: 6 },
+  'chhattisgarh-v1-960.avif': { quality: 46, effort: 6 },
+  'coorg-1-960.avif': { quality: 48, effort: 6 },
+  'darjeeling-v1-640.avif': { quality: 48, effort: 6 },
+  'darjeeling-v1-960.avif': { quality: 44, effort: 6 },
+  'dest-amritsar-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-ayodhya-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-coorg-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-coorg-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-darjeeling-v2-960.avif': { quality: 46, effort: 6 },
+  'dest-dharamshala-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-gangtok-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-hampi-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-haridwar-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-jaipur-v2-640.avif': { quality: 44, effort: 6 },
+  'dest-jaipur-v2-640.webp': { quality: 55, effort: 6 },
+  'dest-jaipur-v2-960.avif': { quality: 38, effort: 6 },
+  'dest-jaisalmer-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-jodhpur-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-kochi-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-leh-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-leh-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-madurai-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-madurai-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-manali-v2-960.avif': { quality: 46, effort: 6 },
+  'dest-mumbai-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-munnar-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-mussoorie-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-mysuru-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-nubra-valley-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-nubra-valley-v2-960.avif': { quality: 46, effort: 6 },
+  'dest-ooty-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-pangong-tso-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-pushkar-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-rameswaram-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-rameswaram-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-ranthambore-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-ranthambore-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-shaheed-dweep-v2-640.avif': { quality: 42, effort: 6 },
+  'dest-shaheed-dweep-v2-640.webp': { quality: 50, effort: 6 },
+  'dest-shaheed-dweep-v2-960.avif': { quality: 38, effort: 6 },
+  'dest-shillong-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-shillong-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-shimla-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-sonamarg-v2-960.avif': { quality: 46, effort: 6 },
+  'dest-srinagar-v2-960.avif': { quality: 48, effort: 6 },
+  'dest-swaraj-dweep-v2-640.avif': { quality: 48, effort: 6 },
+  'dest-swaraj-dweep-v2-960.avif': { quality: 44, effort: 6 },
+  'dest-thekkady-v2-960.avif': { quality: 48, effort: 6 },
   'haryana-v1-640.avif': { quality: 48, effort: 6 },
   'haryana-v1-960.avif': { quality: 46, effort: 6 },
+  'jaipur-v1-960.avif': { quality: 46, effort: 6 },
+  'jammu-and-kashmir-v2-960.avif': { quality: 48, effort: 6 },
   'jharkhand-v1-960.avif': { quality: 48, effort: 6 },
   'karnataka-v1-960.avif': { quality: 48, effort: 6 },
-  'madhya-pradesh-v1-960.avif': { quality: 48, effort: 6 },
-  'maharashtra-v1-640.avif': { quality: 48, effort: 6 },
-  'maharashtra-v1-960.avif': { quality: 46, effort: 6 },
+  'maharashtra-v1-960.avif': { quality: 48, effort: 6 },
+  'manali-v1-640.avif': { quality: 48, effort: 6 },
+  'manali-v1-960.avif': { quality: 44, effort: 6 },
   'mizoram-v1-960.avif': { quality: 48, effort: 6 },
+  'munnar-v1-960.avif': { quality: 48, effort: 6 },
+  'nagaland-v1-960.avif': { quality: 48, effort: 6 },
   'rajasthan-v1-960.avif': { quality: 48, effort: 6 },
+  'rishikesh-v1-960.avif': { quality: 48, effort: 6 },
+  'shillong-v1-960.avif': { quality: 48, effort: 6 },
   'sikkim-v1-960.avif': { quality: 46, effort: 6 },
   'telangana-v1-960.avif': { quality: 48, effort: 6 },
   'uttarakhand-v1-640.avif': { quality: 48, effort: 6 },
-  'uttarakhand-v1-960.avif': { quality: 44, effort: 6 },
-  'munnar-v1-960.avif': { quality: 48, effort: 6 },
-  'darjeeling-v1-640.avif': { quality: 48, effort: 6 },
-  'darjeeling-v1-960.avif': { quality: 46, effort: 6 },
-  // D1 compression batch: effort 9, outside the ladder.
-  'jaipur-v1-960.avif': { quality: 48, effort: 9 },
-  'manali-v1-640.avif': { quality: 48, effort: 9 },
-  'manali-v1-960.avif': { quality: 44, effort: 9 },
-  'rishikesh-v1-960.avif': { quality: 48, effort: 9 },
+  'uttarakhand-v1-960.avif': { quality: 46, effort: 6 },
 }
 
 /** Encoder settings for one output file: the override if any, else the baseline. */

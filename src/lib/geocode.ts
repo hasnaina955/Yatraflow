@@ -1,7 +1,9 @@
 // ============ Place search facade ============
-// Google-first when VITE_GOOGLE_MAPS_API_KEY is configured, the 100% free
-// stack underneath as the automatic fallback on key-absence, any error, or
-// quota exhaustion (providers/quota.ts). Consumers keep importing from here
+// Google-first when VITE_GOOGLE_MAPS_API_KEY is configured. Fallback rules
+// differ per surface: the typeahead and the rank-everything text search
+// degrade to the free stack on failure or quota; the POI corridor never
+// does — keyless mode is free-only, keyed mode is Google-only.
+// Consumers keep importing from here
 // exactly as before — downstream logic (corridor sampling, home zone, gap
 // bias, ranking, budget math) never touches a provider directly.
 //

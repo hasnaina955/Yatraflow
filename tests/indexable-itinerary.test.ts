@@ -57,8 +57,11 @@ describe('the body never prints locked content', () => {
     expect(html).toContain('Tea museum')
     expect(html).toContain('Walk the estate.')
   })
-  it('prints a locked day as its title and an in-app line only', () => {
-    expect(html).toContain('Day 2: Thekkady forest')
+  it('prints a locked day as its number and an in-app line only', () => {
+    // #774 — the day title is the creator's own text, so a locked day hides it.
+    expect(html).toContain('<h2>Day 2</h2>')
+    expect(html).not.toContain('Thekkady forest')
+    expect(html).not.toContain('Alleppey backwaters')
     expect(html).toContain('The full plan for this day is in the app.')
     expect(html).not.toContain(SECRET)
     expect(html).not.toContain('Houseboat')

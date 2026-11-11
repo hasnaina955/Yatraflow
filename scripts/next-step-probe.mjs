@@ -126,9 +126,11 @@ export async function readAllPages(fetchPage, pageSize = PAGE_SIZE) {
 
 // -------------------------------------------------------------- access state
 // What this anonymous read actually RECEIVED, read from the SHAPE
-// get_public_trip returned — not from the publication's price (#652 AC3). The
-// RPC stamps LOCKED_STOP_MARKER onto every stubbed stop (#352), so the shape
-// decides whenever stops exist. The price only narrows the last case: a locked
+// get_public_trip returned — not from the publication's price (#652 AC3).
+// Since #774 the RPC marks each day it withheld with `locked: true` and sends
+// no stop for it, so the flag decides first. A database that still runs the
+// older function stamps LOCKED_STOP_MARKER onto every stubbed stop (#352), so
+// that shape decides next. The price only narrows the last case: a locked
 // preview whose days carry no stops to stamp, where the always-stripped money
 // fields are the remaining signal.
 export const LOCKED_STOP_MARKER = 'Locked — the full plan is on the original itinerary.'
@@ -136,6 +138,8 @@ export const LOCKED_STOP_MARKER = 'Locked — the full plan is on the original i
 export function readAccessState(pub, rawTrip) {
   if (!rawTrip) return 'no-row'
   const days = Array.isArray(rawTrip.days) ? rawTrip.days : []
+  const withheld = days.filter(d => d?.locked === true).length
+  if (withheld > 0) return withheld === days.length ? 'locked' : 'partly-locked'
   const stops = days.flatMap(d => (Array.isArray(d?.stops) ? d.stops : []))
   const stubbed = stops.filter(s => s?.description === LOCKED_STOP_MARKER).length
   if (stubbed > 0) return stubbed === stops.length ? 'locked' : 'partly-locked'

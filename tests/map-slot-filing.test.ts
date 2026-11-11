@@ -11,7 +11,7 @@
  * discipline `tests/map-sight-rows.test.ts` uses: a rule that drifts back into the
  * page, or a call that stops going through this module, has to fail something.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   filingOptionsFor,
@@ -20,8 +20,13 @@ import {
   slotFileRefusal,
   slotKindsForCategory,
 } from '../src/pages/trip/map/slotFiling'
+import { createManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
+import { STALE_SEARCH_REFUSAL, useSlotSearch, type SlotSearchState } from '../src/pages/trip/map/useSlotSearch'
 import type { PlaceHit } from '../src/lib/providers/hits'
 import type { DaySlotKind, SlotState } from '../src/lib/daySlots'
+
+const toasts = vi.hoisted(() => [] as string[])
+vi.mock('../src/components/ui', () => ({ toast: (message: string) => { toasts.push(message) } }))
 
 const mapTab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
 const module_ = readFileSync(new URL('../src/pages/trip/map/slotFiling.ts', import.meta.url), 'utf8')
@@ -181,10 +186,12 @@ describe('MapTab goes THROUGH the module (wiring is part of the contract)', () =
   it('imports the five rules from ./map/slotFiling', () => {
     // #420 slice 17: the refusal moved with its caller. The page keeps the
     // three render-side rules. The hook carries the fourth.
+    // #841: the candidate merge and the manual candidate shape left the page too;
+    // the rows come from the shared day plan, so only the filing-option rule stays.
     expect(mapTab).toMatch(/from '\.\/map\/slotFiling'/)
-    for (const name of ['filingOptionsFor', 'manualCandidateFor', 'mergeSlotCandidates']) {
-      expect(mapTab, name).toContain(name)
-    }
+    expect(mapTab).toContain('filingOptionsFor')
+    expect(mapTab).not.toContain('manualCandidateFor')
+    expect(mapTab).not.toContain('mergeSlotCandidates')
     expect(mapTab).not.toContain('slotFileRefusal')
     expect(slotHook).toMatch(/from '\.\/slotFiling'/)
     expect(slotHook).toContain('slotFileRefusal')
@@ -207,5 +214,73 @@ describe('MapTab goes THROUGH the module (wiring is part of the contract)', () =
 
   it('asks the module for the offered slots rather than re-deriving them', () => {
     expect(mapTab).toMatch(/filingOptionsFor\([^)]*activeDaySlots\)/)
+  })
+})
+
+// ---- #841 F6: filing is bound to the stable trip/day/slot, never a bare key ----
+
+describe('useSlotSearch files under the stable context only (#841 F6)', () => {
+  const lunchOn = (dayId: string) => ({
+    key: 'lunch', label: 'Lunch', kind: 'meal', state: 'empty', candidates: [],
+    ref: { tripId: 'trip-1', dayId },
+  }) as unknown as Parameters<ReturnType<typeof useSlotSearch>['addManualCandidate']>[0]
+  const identity = { names: new Set<string>(), keys: new Set<string>(), places: [], added: new Set<string>(), dismissed: new Set<string>(), staged: new Map<string, string>() } as never
+
+  function build(over: { isSearchCurrent?: (key: string) => boolean } = {}) {
+    toasts.length = 0
+    const store = createManualSlotStore()
+    let search: SlotSearchState | null = { key: 'lunch', q: 'cafe', busy: false, hits: [hit('a')], err: null }
+    let bumps = 0
+    const writer = useSlotSearch({
+      setSlotManual: update => { bumps += 1; void update },
+      setSlotSearch: update => { search = typeof update === 'function' ? update(search) : update },
+      identity,
+      store,
+      ...over,
+    })
+    return { store, writer, search: () => search, bumps: () => bumps }
+  }
+
+  it('files into the stable store and writes no bare-key bucket', () => {
+    const { store, writer, bumps } = build()
+    writer.addManualCandidate(lunchOn('day-a'), hit('a'))
+    expect(store.picksFor({ tripId: 'trip-1', dayId: 'day-a', slotKey: 'lunch' }).map(h => h.id)).toEqual(['a'])
+    expect(store.picksFor({ tripId: 'trip-1', dayId: 'day-b', slotKey: 'lunch' })).toEqual([])
+    expect(bumps()).toBe(1)
+  })
+
+  it('a pick filed on Day A never refuses or duplicates the same place on Day B', () => {
+    const { store, writer } = build()
+    writer.addManualCandidate(lunchOn('day-a'), hit('a'))
+    writer.addManualCandidate(lunchOn('day-b'), hit('a'))
+    expect(store.picksFor({ tripId: 'trip-1', dayId: 'day-b', slotKey: 'lunch' }).map(h => h.id)).toEqual(['a'])
+    expect(toasts.some(line => /already a candidate/.test(line))).toBe(false)
+  })
+
+  it('a search that belongs to another day files nothing and clears nothing', () => {
+    const { store, writer, search } = build({ isSearchCurrent: () => false })
+    writer.addManualCandidate(lunchOn('day-b'), hit('a'))
+    expect(store.picksFor({ tripId: 'trip-1', dayId: 'day-b', slotKey: 'lunch' })).toEqual([])
+    expect(toasts).toEqual([STALE_SEARCH_REFUSAL])
+    expect(search()?.hits).toHaveLength(1)
+    expect(search()?.q).toBe('cafe')
+  })
+
+  it('a current search is cleared after its own filing', () => {
+    const { writer, search } = build({ isSearchCurrent: key => key === 'lunch' })
+    writer.addManualCandidate(lunchOn('day-a'), hit('a'))
+    expect(search()).toMatchObject({ q: '', hits: [], err: null })
+  })
+
+  it('a slot with no stable day is refused, never guessed', () => {
+    const { store, writer } = build()
+    writer.addManualCandidate({ key: 'lunch', label: 'Lunch', candidates: [] } as never, hit('a'))
+    expect(toasts[0]).toMatch(/no stable day/)
+    expect(store.picksFor({ tripId: 'trip-1', dayId: 'day-a', slotKey: 'lunch' })).toEqual([])
+  })
+
+  it('MapTab hands the hook the scope check (production wiring)', () => {
+    expect(mapTab).toContain('isSearchCurrent: slotKey => isSlotSearchCurrent(slotSearchCell, slotSearchScope, searchScopeNow, slotKey)')
+    expect(slotHook).not.toMatch(/slotManual\[/)
   })
 })

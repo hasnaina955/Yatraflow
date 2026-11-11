@@ -10,6 +10,12 @@ import type { ArtManifest } from '../src/lib/regionArt'
 
 const ART_DIR = fileURLToPath(new URL('../src/assets/art/', import.meta.url))
 const manifest = JSON.parse(readFileSync(path.join(ART_DIR, 'manifest.json'), 'utf8')) as ArtManifest
+const places = (manifest as ArtManifest & {
+  places: {
+    destination: Record<string, { ids: string[] }>
+    state: Record<string, { ids: string[] }>
+  }
+}).places
 const FILE_PATTERN = /^[a-z0-9-]+-\d+\.(avif|webp)$/
 const DIMENSION_TOLERANCE_PX = 2
 
@@ -84,6 +90,39 @@ describe('art manifest', () => {
       expect(name, `bad name ${name}`).toMatch(FILE_PATTERN)
     }
   })
+
+  it('declares the full balanced inventory: 105 landscape scenes and 7 square vignettes', () => {
+    const entries = Object.entries(manifest.ids)
+    const landscape = entries.filter(([, entry]) => entry.ratio === '3:2')
+    const square = entries.filter(([, entry]) => entry.ratio === '1:1')
+    expect(entries).toHaveLength(112)
+    expect(landscape).toHaveLength(105)
+    expect(square).toHaveLength(7)
+    for (const [id, entry] of landscape) {
+      expect(entry.widths, id).toEqual([320, 640, 960])
+      expect(entry.webp, id).toBe(640)
+    }
+  })
+
+  it('declares all fifty new destination scenes with their own ids', () => {
+    const destinationIds = Object.keys(manifest.ids).filter(id => id.startsWith('dest-'))
+    expect(destinationIds).toHaveLength(50)
+    expect(new Set(destinationIds).size).toBe(50)
+    for (const id of destinationIds) {
+      expect(id, id).toMatch(/^dest-[a-z0-9-]+-v2$/)
+      expect(manifest.ids[id], id).toBeDefined()
+      expect(manifest.ids[id].ratio, id).toBe('3:2')
+    }
+  })
+
+  it('points every place-table id at a declared scene', () => {
+    expect(Object.keys(places.destination)).toHaveLength(51)
+    expect(Object.keys(places.state)).toHaveLength(36)
+    for (const [name, entry] of [...Object.entries(places.destination), ...Object.entries(places.state)]) {
+      expect(entry.ids.length, name).toBeGreaterThan(0)
+      for (const id of entry.ids) expect(manifest.ids[id], `${name} -> ${id}`).toBeDefined()
+    }
+  })
 })
 
 describe('art size budget', () => {
@@ -102,7 +141,9 @@ describe('art size budget', () => {
   })
 })
 
-describe('art file headers', () => {
+// Each case reads every art file from disk. That can pass the 5 s default
+// when the full suite runs in parallel. The assertions do not change.
+describe('art file headers', { timeout: 30_000 }, () => {
   it('has AVIF files whose ispe width matches the file name and whose height matches the ratio', () => {
     for (const expected of expectedFiles().filter(file => file.format === 'avif')) {
       const dimensions = avifDimensions(readFileBuffer(expected.name))

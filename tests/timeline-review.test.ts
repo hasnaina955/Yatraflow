@@ -93,8 +93,12 @@ describe('the provider pitfall is answered by one viewport gate (#421)', () => {
     // grew the header 18px in a single frame when it did. The viewport gate is
     // unchanged — it still waits for the day to be near the screen.
     expect(day).toMatch(/\{\(!reviewMode \|\| inView\) && <DayWeatherChip/)
-    expect(day).toMatch(/ordered\.length > 0 \|\| \(reviewMode && !inView\)/)
-    expect(day).toMatch(/\[editable, open, trip, ordered\.length, reviewMode, inView, facts\.prevPoint, facts\.homeCenter, facts\.assumptions\.mode\]/)
+    // #842 F17: automatic anchors and rejected suggestions do not make a day
+    // "planned"; the effect keys on the bias VALUE and anchor coords, so a
+    // title rename cannot re-fire the paid search.
+    expect(day).toMatch(/hasPlannedStop \|\| \(reviewMode && !inView\)/)
+    expect(day).toMatch(/\[editable, open, nearbyBiasKey, hasPlannedStop, reviewMode, inView,/)
+    expect(day).not.toMatch(/\[editable, open, trip,/)
     // What the day shows from its own resolved facts is never gated: every stop
     // row and leg below the day body still renders, in review too.
     expect(day.slice(day.indexOf('data-yf-list={listId}'))).not.toMatch(/inView/)

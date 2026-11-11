@@ -122,7 +122,10 @@ describe('MapTab vote writers (source tripwire to the composed contract)', () =>
     // boundary here calls resolvePick — votes, adds and fills alike.
     expect(src).not.toMatch(/(?<!require)resolveHitCoords\(/)
     expect(src).not.toMatch(/requireHitCoords\(/)
-    expect(src).toMatch(/resolvePick\(/)
+    // #841: MapTab hands the guard to the shared writer (the arc no longer
+    // resolves inline), and the writer calls it for every pick it stages.
+    expect(src).toMatch(/resolvePick,/)
+    expect(readFileSync(new URL('../src/pages/trip/map/mapWriterActions.ts', import.meta.url), 'utf8')).toMatch(/deps\.resolvePick\(/)
     // the extracted shortlist writers did not grow a resolver of their own
     expect(shortlistSrc).not.toMatch(/(?<!require)resolveHitCoords\(/)
     expect(shortlistSrc).not.toMatch(/requireHitCoords\(/)

@@ -178,8 +178,10 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
     // rewrite that removes the `select *`.
     expect(code).toMatch(/if v_pub\.unpublished_at is not null then/)
     expect(code).toMatch(/from public\.entitlements e\s+where e\.pub_id = v_pub\.id and e\.user_id = auth\.uid\(\)/)
-    // …and the stubbing the paywall itself depends on.
-    expect(code).toMatch(/Locked — the full plan is on the original itinerary/)
+    // …and the withholding the paywall itself depends on. Since #774 the
+    // function builds each locked day itself and edits no stored stop.
+    expect(code).toMatch(/'locked', true/)
+    expect(code).not.toMatch(/jsonb_set\(v_stop/)
   })
 
   it('get_trip_by_invite_code carries the guard its uuid sibling has had all along', () => {

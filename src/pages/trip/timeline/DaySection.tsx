@@ -23,7 +23,7 @@ import {
 import type { ScheduledLeg } from '../../../lib/engine'
 import { distanceStatLabel, roadStateOf, type RoadState } from '../../../lib/roadStatLabel'
 import type { RoadStatus } from '../../../lib/tripRoad'
-import { sameDaySectionProps, type DayCardFacts, type DayTotals } from '../../../lib/dayCards'
+import { hasUserPlannedStop, sameDaySectionProps, type DayCardFacts, type DayTotals } from '../../../lib/dayCards'
 import type { LegEstimate, ScheduleWarning, OptimizeDayResult } from '../../../lib/engine'
 import { stayDaySummary } from '../../../lib/daySummary'
 import { insertionSlotBetween } from '../../../lib/stopOrder'
@@ -741,23 +741,37 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // and only while the day is OPEN, since the chips live in the body and `trip`
   // is handed to the open day alone (#347). A collapsed empty day used to search
   // the corridor for chips nobody could see.
+  // #842 F17: a day whose only rows are automatic anchors (trip start/end,
+  // route waypoints) is still an unplanned day — it gets discovery chips.
+  const hasPlannedStop = hasUserPlannedStop(ordered)
+  // The bias is a real search input, so the effect keys on its VALUE: a
+  // day-title rename changes `trip` but not the bias, and the paid search
+  // must not re-fire (#842 F17, audit case 2).
+  const nearbyBias = useMemo(() => (trip ? computeCategoryBias(trip) : {}), [trip])
+  const nearbyBiasKey = JSON.stringify(nearbyBias)
+  // #842 F17: a failed chips search says so — the old swallowed catch made a
+  // provider failure read exactly like "nothing nearby".
+  const [nearbyFailed, setNearbyFailed] = useState(false)
   useEffect(() => {
-    if (!editable || !open || !trip || ordered.length > 0 || (reviewMode && !inView)) { setNearby([]); return }
-    let cancelled = false
     const anchor = facts.prevPoint ?? facts.homeCenter
-    if (!anchor) return
+    if (!editable || !open || !trip || hasPlannedStop || (reviewMode && !inView) || !anchor) {
+      setNearby([]); setNearbyFailed(false); return
+    }
+    let cancelled = false
     searchNearbyPois(anchor.lat, anchor.lng, 10000, 6, {
       includeFuel: facts.assumptions.mode === 'car' || facts.assumptions.mode === 'motorcycle',
       homeCenter: facts.homeCenter,
-      categoryBias: computeCategoryBias(trip),
+      categoryBias: nearbyBias,
     })
-      .then(hits => { if (!cancelled) setNearby(hits.slice(0, 3)) })
-      .catch(() => { /* suggestions are best-effort */ })
+      .then(hits => { if (!cancelled) { setNearbyFailed(false); setNearby(hits.slice(0, 3)) } })
+      .catch(() => { if (!cancelled) setNearbyFailed(true) })
     return () => { cancelled = true }
     // #213 Phase 3 + #347: depend on the values the effect actually reads — the
     // resolved anchor and home center from `facts`, the mode that gates fuel,
     // and the open flag that decides whether a body exists to show them in.
-  }, [editable, open, trip, ordered.length, reviewMode, inView, facts.prevPoint, facts.homeCenter, facts.assumptions.mode])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nearbyBiasKey pins the bias value; the trip object must not re-fire the search
+  }, [editable, open, nearbyBiasKey, hasPlannedStop, reviewMode, inView,
+      facts.prevPoint?.lat, facts.prevPoint?.lng, facts.homeCenter?.lat, facts.homeCenter?.lng, facts.assumptions.mode])
 
   const dayStartHM = day.startTime ?? A.dayStart
   const sev = warnings.some(w => w.severity === 'high') ? 'high' : warnings.some(w => w.severity === 'medium') ? 'medium' : 'ok'
@@ -1069,7 +1083,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
         <StateBlock kind="empty" size="compact" icon={<CloudSun size={38} aria-hidden />} title="Nothing planned yet"
           body="Add your first stop for this day — or drag one here from another day."
           actions={editable ? <button className="btn btn-primary btn-sm" onClick={() => onAdd(day.index)}>+ Add stop</button> : undefined} />
-        {editable && ((nextAnchor && !alreadyAtNext) || nearby.length > 0) && (
+        {editable && ((nextAnchor && !alreadyAtNext) || nearby.length > 0 || nearbyFailed) && (
           <div className="day-suggest">
             {nextAnchor && !alreadyAtNext && (
               <button className="chip-btn" onClick={() => onAddQuickStop(day.index, nextWaypointStop(nextAnchor))} title="Add this as a route waypoint">
@@ -1081,6 +1095,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                 <InlineIcon icon={Plus} size={12} gap={3} />{h.name}
               </button>
             ))}
+            {nearbyFailed && <p className="day-suggest-note" role="status">Nearby ideas could not load.</p>}
           </div>
         )}
         </div>

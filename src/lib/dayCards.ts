@@ -264,3 +264,12 @@ export function reuseWarningGroups(
   }
   return map
 }
+
+/**
+ * #842 F17: a user-planned day has at least one live, non-automatic stop.
+ * Automatic anchors (trip start/end, route waypoints) and rejected
+ * suggestions do not count — a day of only those still gets discovery chips.
+ */
+export function hasUserPlannedStop(stops: { auto?: boolean; status?: string }[]): boolean {
+  return stops.some(s => s.auto !== true && s.status !== 'rejected')
+}

@@ -11,6 +11,7 @@ import {
   type DaySummary,
 } from '../src/lib/publicStorefront'
 import { originOf, simulateDay } from '../src/lib/engine'
+import { lockedDayCounts, numberedSummary, readableDayStart, wireLockedSummary } from '../src/lib/lockedDay'
 import { DayCard } from '../src/components/storefront/DayCard'
 import { WhatIsInside } from '../src/components/storefront/WhatIsInside'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
@@ -520,6 +521,8 @@ describe('page storefront dataflow (the actual page callback)', () => {
       summariseDayFromLegs, flightSignalFor, kindOfCategory, countKinds, planLede,
       lockedRunLine, chooseCover, foldWeeks, truncatePitch, hasAirLeg,
       cap,
+      // #774 — the locked-day readers. A day the server locked holds counts only.
+      lockedDayCounts, numberedSummary, readableDayStart, wireLockedSummary,
       // The page's closure variables.
       trip, pub, orderedDays: trip.days, unlocked, mayShowPriceCta: true,
     }
@@ -588,7 +591,10 @@ describe('page storefront dataflow (the actual page callback)', () => {
       // No places key, no names, no coordinates, no flight word.
       expect(Object.hasOwn(card, 'places')).toBe(false)
       const text = textOf(card)
-      expect(text).toBe('Day 1 Locked Travel day 32 m on the road')
+      // #774 — the card names the day by number. "Travel day" is the creator's
+      // own title, and a locked card never prints it.
+      expect(text).toBe('Day 1 Locked Day 1 32 m on the road')
+      expect(text).not.toContain('Travel day')
       expect(text).not.toContain('Flight day')
       expect(text).not.toContain('Nothing planned')
     }

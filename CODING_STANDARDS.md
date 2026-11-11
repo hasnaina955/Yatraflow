@@ -33,6 +33,9 @@ anywhere in this repo means the entry labelled `6b` below.
 Source-contract tests must handle both LF and CRLF line endings.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
 
+Fixture query parameters must change the rendered state or fail explicitly.
+A form fixture cannot prove failed or retained reads owned by its parent.
+
 Budget guidance must compare the target with the current plan estimate.
 It must not promise room or transport choices from a spending target alone.
 
@@ -1337,6 +1340,10 @@ process.
 - **A shared component's paint offset must be geometry the container owns, not a number the component invents (learned 2026-10-29).** `PillNav` measured its glider as `item.height - 8` and `item.top + 4`. Those numbers came from one control shape and applied to all fifteen callsites. A 44px active pill painted 36px tall. In the workspace rail (6px padding, 1px border, 58px outer) the fill sat 11px in where the source has 7. The result was a flat pill, not a concentric one. The rule: a nested capsule takes its spacing from the container's padding and border. The component measures the item's border box and adds nothing. Put the arithmetic in a pure module (`src/lib/pillGeometry.ts`). Test it at every real control shape (`tests/pill-geometry.test.ts`). A source-only pin cannot see this class of bug. A test that only matches the component's own text will pass while every rendered pill is wrong.
 
 - **A stack of overlapping avatars must not paint one colour (learned 2026-10-29).** Three initials circles in the same pale mint merge where they overlap. The stack then reads as one block, not as three people. Give each member a tone from the approved token trio. Two properties must hold together. The tone must be stable for an identity, so a rerender or a reorder does not reshuffle the colours. Neighbours must also differ, which a plain hash cannot promise. The stack resolves collisions in `assignAvatarTones`. Only a colliding member moves. A real photo still wins over a tone. Keep the visible circle and its hit target separate. The target may be 44px tall. A negative margin on a wide target either cancels the overlap or steals the neighbour's hits. `tests/avatar-tone.test.ts` pins the distinctness, the stability and the stylesheet pairing.
+
+- **A real-workspace receipt test must not mock the decision module as its transport (learned 2026-11-06, #841).** A workspace test that stubs the decision layer proves only the stub. Keep the production bridge and pass a controlled persistence under it. The uncertain write must reach the real `onUncertain` bridge. The kept callback must receive the acknowledged receipt, never `undefined`; a test that accepts `undefined` cannot see a fake success. Run this bridge in the focused suite. Label a mocked transport as client-only evidence, and never as server proof.
+
+- **A paywall must build the withheld shape, and never clear fields from the stored row (learned 2026-11-10, #774).** `get_public_trip` cleared the description, the notes and the times of each locked stop. It kept every field it did not name, so the title and the coordinates stayed in the response. A list of fields to remove fails open for each new field. Build the locked value from counts, and copy no stored field into it. Apply the same rule to every function that returns the same row: `get_invite_trip` served the full row by trip id. A blur in the browser is not a lock. Prove the boundary by execution. `tests/public-trip-paywall-db.test.ts` runs the migration on PGlite and calls the function as each kind of viewer. A source scan cannot show what a function returns. On the client, read the locked shape in one module (`src/lib/lockedDay.ts`), and keep an unknown count apart from zero.
 
 ## 3. Scripted edits
 

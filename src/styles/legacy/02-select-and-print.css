@@ -702,6 +702,8 @@
 .dwell-bar.busiest { height: 14px; background: var(--saffron); border-color: var(--warn-600); }
 
 .day-suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+/* #842 F17: a failed chips search says so — silence read as "nothing nearby". */
+.day-suggest-note { margin: 0; font-size: 12px; color: var(--text-2); }
 .chip-btn {
   border: 1px dashed var(--line); background: var(--card-soft); color: var(--text-2);
   border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
@@ -2247,8 +2249,37 @@ main:has(.auth-wrap) { display: flex; flex-direction: column; }
 main:has(.auth-wrap) .route-panel { flex: 1; display: flex; flex-direction: column; }
 .auth-wrap { display: flex; justify-content: center; align-items: center; flex: 1; padding: 54px 18px; }
 .form-page { max-width: 1080px; padding-top: 26px; padding-bottom: 30px; }
-/* #86: Profile's single-column content — readable measure, no empty grid gutter. */
-.profile-col { max-width: 720px; }
+/* Profile and settings: the artboard's three columns. It used to be one
+   720px column (#86), which left a 340px gutter empty at desktop widths. The
+   rail is 240px, the form takes the rest and the supporting rail is 380px; the
+   page keeps its own 1180px container, so the two rails leave a 476px form. */
+.prof-page { --container-max: 1180px; max-width: var(--container-max); }
+.prof-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 380px;
+  gap: var(--space-10);
+  align-items: start;
+}
+.prof-main { display: flex; flex-direction: column; gap: var(--space-7); min-width: 0; }
+.prof-aside { display: flex; flex-direction: column; gap: var(--space-7); min-width: 0; }
+/* Below 1180 the supporting rail has no room beside the form, so it drops
+   under it and the form keeps a readable measure beside the rail. */
+@media (max-width: 1180px) {
+  .prof-grid { grid-template-columns: 200px minmax(0, 1fr); }
+  .prof-aside { grid-column: 1 / -1; }
+}
+/* Below 860 the grid is one column. The rail's own phone rules (the sticky
+   sideways strip) live at the end of the Profile region in 12-pages.css: this
+   file loads first, so an equal-specificity rule here lost to the base
+   `.prof-nav { flex-direction: column }` that follows it, and the phone showed a
+   vertical card instead of a strip. */
+@media (max-width: 860px) {
+  .prof-grid { grid-template-columns: minmax(0, 1fr); }
+  .prof-aside { grid-column: auto; }
+}
+/* A finger needs 44px. The Profile controls that sit under it are raised in
+   12-pages.css beside the rules that size them: this file loads first, so a
+   coarse-pointer rule here loses to the later base rule. */
 /* The filter bar's own backdrop-filter (.glass-soft) makes it a stacking
    context, so the .cselect menu opened inside it was trapped at the bar's rung
    — and every card below is positioned, so they painted over the open menu:

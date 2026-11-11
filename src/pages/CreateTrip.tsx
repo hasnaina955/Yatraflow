@@ -35,7 +35,7 @@ import { createSubmitIntent, guidedConstraintErrors } from '../lib/createGuidedG
 import { reviewLines, reviewOptional } from '../lib/createReview'
 import { StepProgress, StepNav, useStepFocus } from '../components/CreateFlowShell'
 import { CreateFlowCalendar } from '../components/CreateFlowCalendar'
-import { CreateFlowTicket } from '../components/CreateFlowTicket'
+import { CreateFlowBill, CreateFlowTicket } from '../components/CreateFlowTicket'
 import { currentQuery, navigate, onRouteChange } from '../lib/router'
 import { budgetTargetMessage, suggestedBudgetTarget, fuelFallbackNotice, revalidateCommitments, commitmentMoveMessage, composerRowError, ticketFuelSegments } from '../lib/createHonesty'
 import { addCrewFields, isMaskedLabel, normalizeIndianMobile, type CrewEntry } from '../lib/crewInvite'
@@ -980,6 +980,7 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
     party={`${f.travellers} traveller${f.travellers === 1 ? '' : 's'}`}
     budget={`₹${f.budgetPerPersonInr.toLocaleString('en-IN')} per person`}
     total={bill.perHead != null ? bill.perHead * f.travellers : null} perHead={bill.perHead}
+    cover={ticketCoverPlan}
     failed={!!saveError} review={step === 'review'} onChange={changeFromReview} />
 
   const startField = <LocationInput id={guided ? 'gcf-start-location' : undefined}
@@ -1085,7 +1086,7 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
           {guided && step === 'review' && (
             <div className="ct-review">
               <h2>Check and create</h2>
-              <p className="ct-hint">One last look. Everything below can still change.</p>
+              <p className="ct-hint">One last look. Everything here can still change.</p>
               <ul className="ct-review-list">
                 {reviewLines({
                   name: f.name, startLocation: f.startLocation,
@@ -1146,6 +1147,13 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
             {errs.name && <p className="err-text" id="ct-name-err" role="status" aria-live="polite">{errs.name}</p>}
           </div>
 
+          {/* ---- Review: the rough bill, read from the same estimate as the
+               ticket. Three real categories, no invented fourth. ---- */}
+          {guided && step === 'review' && (
+            <CreateFlowBill days={bill.days} travellers={f.travellers} perHead={bill.perHead}
+              budgetPerHead={f.budgetPerPersonInr} transport={bill.transportCost} stay={bill.stayCost} meal={bill.mealCost} />
+          )}
+
           {/* ---- 1 - Where ---- */}
           <div className={`ct-q${whereDone ? ' done' : ''}`} hidden={guided && step !== 'where'}>
             <span className="ct-n">1</span>
@@ -1160,6 +1168,12 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
                 </div> : <Field label="Starting location" error={errs.startLocation}>{startField}</Field>}
               </div>
 
+              {guided && (
+                <div className="ct-stops-row">
+                  <span className="ct-stops-lab">Stops</span>
+                  <span className="ct-stops-hint">Use the arrows to change the order</span>
+                </div>
+              )}
               <div className="ct-chips" role="list" aria-label="Stops in order">
                 {dests.map((d, i) => {
                   const first = i === 0
@@ -1169,12 +1183,14 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
                     <span className={`ct-dchip${isReturn ? ' ret' : ''}`} role="listitem" key={`${d.name}-${i}`}>
                       <span className="n" aria-hidden>{i + 1}</span>
                       <span title={d.name}>{d.name}</span>
+                      {/* The guided stops are a vertical list, so the order controls point up and
+                          down. The legacy long form keeps its inline chips and its side arrows. */}
                       <button type="button" className="mv" aria-label={`Move ${d.name} earlier`} disabled={first}
-                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, -1) }}>&lsaquo;</button>
+                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, -1) }}>{guided ? <ChevronUp size={16} aria-hidden /> : <>&lsaquo;</>}</button>
                       <button type="button" className="mv" aria-label={`Move ${d.name} later`} disabled={lastStop}
-                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, 1) }}>&rsaquo;</button>
+                        onClick={() => { haptic(HAPTIC.tick); moveDest(i, 1) }}>{guided ? <ChevronDown size={16} aria-hidden /> : <>&rsaquo;</>}</button>
                       <button type="button" className="x" aria-label={`Remove ${d.name}`}
-                        onClick={() => { haptic(HAPTIC.tick); removeDest(i) }}>&#10005;</button>
+                        onClick={() => { haptic(HAPTIC.tick); removeDest(i) }}>{guided ? <X size={16} aria-hidden /> : <>&#10005;</>}</button>
                     </span>
                   )
                 })}

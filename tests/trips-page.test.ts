@@ -468,7 +468,7 @@ describe('heroPostcards', () => {
       coverEmoji: goa.coverEmoji || undefined,
     }])
   })
-  it.each([['Rishikesh', 'rishikesh-v1'], ['Srinagar', 'jammu-and-kashmir-v2']])('keeps %s destinations available for hero art', (place, id) => {
+  it.each([['Rishikesh', 'dest-rishikesh-v2'], ['Srinagar', 'dest-srinagar-v2']])('keeps %s destinations available for hero art', (place, id) => {
     const trip = heroTrip({ id: 'art-trip', destinations: [place] })
     const card = heroPostcards({ trips: [trip], today: TODAY, ready: true })[0]
     expect(card.destinations).toEqual([place])

@@ -63,7 +63,7 @@ const board = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Kerala loop', startLocation: 'Kochi', startLocationCoords: { lat: 9.9312, lng: 76.2673 }, destinations: ['Kochi'], destinationCoords: [{ lat: 9.9658, lng: 76.2421 }],
   startDate: '2026-11-14', endDate: '2026-11-19', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
   createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }],
-  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', stopId: 'fixture-boat', notes: 'Paid booking. Boarding closes at 15:00. Sample data.' }],
+  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', stopId: 'fixture-boat', notes: 'Paid booking. Boarding opens at 15:00. Sample data.' }],
   days: [
     { id: 'fixture-day-1', index: 0, startTime: '09:00', title: 'Kochi to Munnar', stops: [
       stop('fixture-d1-falls', 'Cheeyappara waterfalls', 'nature', 10.0107, 76.9187, 1, 40),
@@ -124,6 +124,10 @@ const syntheticSeeds: CrewSeed[] = [
 // Sample place picks for the board trip. The Kitchen, Café and Garden fill the
 // 11:30–14:30 lunch window near km 57. The four stay picks sit inside the
 // 15 min walk / 30 min drive rings around Spice Village. Every row is sample.
+/** Sample place picks for the board's Day 3. The Kitchen, Café and Garden
+ *  fill the 11:30–14:30 lunch window near km 57. The three Kalari, market and
+ *  garden picks sit inside the 15 min walk ring around Spice Village; the boat
+ *  landing viewpoint sits inside the 30 min drive ring. All are sample. */
 const boardRoadPoint = (km: number): [number, number] => {
   const line = boardRoad.coordinates as [number, number][]
   const cumulative = [0]
@@ -138,27 +142,27 @@ const boardPoint = (km: number, dLat: number, dLng: number): { lat: number; lng:
   const [lng, lat] = boardRoadPoint(km)
   return { lat: Number((lat + dLat).toFixed(6)), lng: Number((lng + dLng).toFixed(6)) }
 }
-const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: number, visitMinutes: number): PlaceHit => ({
-  id, name, kind: 'poi', source: 'osm', category: 'food',
-  ...boardPoint(km, dLat, dLng),
-  openTime: '11:00', closeTime: '15:30', visitMinutes,
+const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+  id: `sample_lunch_${id}`, name, kind: 'poi', source: 'osm', category: 'food',
+  latitude: boardPoint(km, dLat, dLng).lat, longitude: boardPoint(km, dLat, dLng).lng,
+  openTime, closeTime,
 })
 const SAMPLE_LUNCH: readonly PlaceHit[] = [
-  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.003, 0.011, 45),
-  sampleHit(930002, 'Spice Route Café', 57, -0.004, 0.012, 40),
-  sampleHit(930003, 'Hill Garden Meals', 57, 0.006, 0.014, 45),
+  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.003, 0.011, '11:00', '15:30'),
+  sampleHit(930002, 'Spice Route Café', 57, -0.004, 0.012, '08:00', '15:00'),
+  sampleHit(930003, 'Hill Garden Meals', 57, 0.006, 0.014, '12:00', '16:00'),
 ]
-const sampleStayHit = (id: number, name: string, dLat: number, dLng: number, visitMinutes: number): PlaceHit => ({
-  id, name, kind: 'poi', source: 'osm', category: 'sightseeing',
-  lat: Number((boardRoad.stops.spiceVillage.at[1] + dLat).toFixed(6)),
-  lng: Number((boardRoad.stops.spiceVillage.at[0] + dLng).toFixed(6)),
-  openTime: '17:00', closeTime: '21:00', visitMinutes,
+const sampleStayHit = (id: number, name: string, dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+  id: `sample_stay_${id}`, name, kind: 'poi', source: 'osm', category: 'sightseeing',
+  latitude: Number((boardRoad.stops.spiceVillage.at[1] + dLat).toFixed(6)),
+  longitude: Number((boardRoad.stops.spiceVillage.at[0] + dLng).toFixed(6)),
+  openTime, closeTime,
 })
 const SAMPLE_STAY: readonly PlaceHit[] = [
-  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 0.0004, 0.0006, 60),
-  sampleStayHit(930008, 'Kumily spice market', -0.0003, 0.0006, 45),
-  sampleStayHit(930009, 'Periyar spice garden', 0.0006, -0.0004, 60),
-  sampleStayHit(930010, 'Boat landing viewpoint', 0.008, 0.011, 30),
+  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 0.0004, 0.0006, '17:00', '19:30'),
+  sampleStayHit(930008, 'Kumily spice market', -0.0003, 0.0006, '08:00', '21:00'),
+  sampleStayHit(930009, 'Periyar spice garden', 0.0006, -0.0004, '09:00', '18:00'),
+  sampleStayHit(930010, 'Boat landing viewpoint', 0.008, 0.011, '06:00', '18:30'),
 ]
 for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
   const context = { tripId: trip.id, dayId: 'fixture-day-3', slotKey }

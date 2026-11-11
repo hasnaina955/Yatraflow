@@ -152,7 +152,7 @@ export function fixtureBoardElements(): {
         id: place.id,
         lat: Number((line[index][1] + place.dLat).toFixed(6)),
         lon: Number((line[index][0] + place.dLng).toFixed(6)),
-      tags: { name: place.name, sample: 'yes', 'addr:city': 'Kumily', ...place.tags },
+        tags: { name: place.name, sample: 'yes', 'addr:city': 'Kumily', ...place.tags },
       }
     }),
   }

@@ -5,7 +5,7 @@
 import type { Trip } from '../../../data/types'
 import type { PlaceHit } from '../../../lib/geocode'
 import type { FixChangeSet } from '../../../lib/mapLensContracts'
-import { previewAdd, type AddPreview, type PreviewUnknownReason, type ReadyAddPreview } from './editing/addPreview'
+import { previewAdd, type AddPreview, type PreviewUnknownReason, type PreviewWarning, type ReadyAddPreview } from './editing/addPreview'
 import { fixesForWarning, warningRefs } from './fixLens'
 import { pickStopFor, roadInsertIndex } from './pickPreview'
 import type { LegCorrections } from '../../../lib/impact'
@@ -49,10 +49,29 @@ const SLOT_PREFIX = /^(breakfast|lunch|dinner|check[ -]?in)\s*[·:]\s*(.*)$/i
 /** The stop a warning names. The engine uses the same title in both wordings. */
 const NAMED_WARNING = /^(?:Conflicts with|Thin buffer before)\s+(.+)$/
 
+/** The stop a warning is about: its named title, its detail, then the linked
+ *  fixed commitment. A warning that names no stop keeps a null subject. */
+function warningSubject(preview: ReadyAddPreview, warning: PreviewWarning): string | null {
+  const named = warning.title.match(NAMED_WARNING)?.[1]?.trim() ?? null
+  if (named != null) return named
+  const reached = /You reach (.+?) ~\d{1,2}:\d{2}/.exec(warning.detail)?.[1]?.trim() ?? null
+  if (reached != null) return reached
+  const days = preview.proposedTrip.days
+  const day = Array.isArray(days) ? days.find(entry => entry.index === preview.dayIndex) : undefined
+  const titled = day?.stops.find(stop => stop.title.length > 0 && warning.title.startsWith(`${stop.title}: `))?.title ?? null
+  return titled ?? null
+}
+
+/** True when a warning names a stop, so a Clears line may be tied to that
+ *  stop. A day-wide warning keeps its Clears line. */
+function namedStopOf(warning: PreviewWarning): string | null {
+  return warning.title.match(NAMED_WARNING)?.[1]?.trim() ?? null
+}
+
 /** A day's fixed commitments, whose clocks the add cannot move. */
 function fixedStopIds(preview: ReadyAddPreview): Set<string> {
   return new Set((preview.proposedTrip.fixedCommitments ?? [])
-    .filter(entry => entry.dayIndex === preview.dayIndex)
+    .filter(entry => entry.dayIndex === preview.dayIndex && entry.stopId != null)
     .map(entry => String(entry.stopId)))
 }
 
@@ -168,8 +187,13 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   for (const warning of preview.warnings.cleared) {
     // A worse or new warning on the same stop means the stop is not clear.
     // Only a stop with no warning after the change earns the Clears line.
-    const named = warning.title.match(NAMED_WARNING)?.[1] ?? null
-    if (named != null && preview.warnings.added.some(added => added.title.match(NAMED_WARNING)?.[1] === named)) continue
+    const named = namedStopOf(warning)
+    if (named == null) {
+      lines.push({ key: `clears-${warning.code}-${warning.title}`, tone: 'ok', parts: [{ text: `Clears: ${warning.title}` }] })
+      continue
+    }
+    const subject = warningSubject(preview, warning)
+    if (subject != null && preview.warnings.added.some(added => warningSubject(preview, added) === subject)) continue
     lines.push({ key: `clears-${warning.code}-${warning.title}`, tone: 'ok', parts: [{ text: `Clears: ${warning.title}` }] })
   }
 
@@ -249,6 +273,6 @@ export function addFixOffer(preview: AddPreview, trip: Trip): AddFixOffer | null
   // A warning that names its stop in the title (a fixed commitment) has no
   // stopId. Its own words still name the real stop, so the action stays specific.
   const named = ready.warnings.added.find(warning => warning.code === target.code)?.title
-    .match(/^(?:Conflicts with|Thin buffer before)\s+(.+)$/)?.[1] ?? null
+    .match(NAMED_WARNING)?.[1] ?? null
   return { set, stopTitle: stop == null ? named : labelStopName(stop.title) }
 }

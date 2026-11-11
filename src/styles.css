@@ -1587,3 +1587,16 @@
   .mv2-place-cta { box-shadow: none; }
   .mv2-pick-card { --mv2-detail-arrive: flex; --mv2-detail-visit: none; --mv2-detail-used: none; --mv2-detail-pct: inline; --mv2-directions-display: none; --mv2-secondary-display: none; }
 }
+
+/* 911-W15-last: one-line stay sub. The fold button takes its own row slot, so
+   the sub line gets the full header width in 12 h and 24 h. */
+.mv2-itinerary[data-lens='stay'] .mv2-day-header p {
+  padding-inline: var(--space-7);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.mv2-itinerary[data-lens='stay'] .mv2-fold-day {
+  top: calc(var(--space-7) + 2px);
+  bottom: auto;
+}

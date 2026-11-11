@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- **The add preview no longer claims a fixed booking moved or a warning cleared.** A "Clears" line appears only when the named stop has no warning after the add. A fixed stop keeps its own clock. The retime line leaves it out. The risk line still states the arrival. The Stay sub line uses the full header width in 12h and 24h. It stays on one line. The phone "Go" pill uses the Route glyph. The map fixture carries the board's sample lunch and stay picks. The boat is a 90-minute adventure. Spice Village is a 20-minute check-in. Every pick has sample hours. (#911)
+
 ### Added
 
 - **The W14 rail now follows the boards after review.** Stops number from 1 after the departure anchor, with white numerals in both themes. Leg bars use the full day colour. The Fix row carries the risk wash, coral border, red diamond and a short problem subtitle from engine facts. Stay names keep their case. Window rows use their start time. The rail follows the 12h/24h setting. Folding uses a distinct panel glyph. (#889)

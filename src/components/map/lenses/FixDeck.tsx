@@ -4,6 +4,7 @@ import { Check, Route } from 'lucide-react'
 import type { FixSummary } from '../../../pages/trip/map/fixLens'
 import type { FixChangeSet, LensPhase } from '../../../lib/mapLensContracts'
 import { LensDeckHeader } from './LensDeckHeader'
+import { LensPhaseNote } from './LensPhaseNote'
 
 /** The phase text of each phase that has no deck. */
 const PHASE_TEXT = {
@@ -37,7 +38,7 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
   if (phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-fix-deck" aria-label="Fix this day">
       <LensDeckHeader kicker={fixDeckKicker(0, dayNumber)} onClose={onClose} />
-      <p className="mv2-lens-phase" data-phase={phase}>{PHASE_TEXT[phase]}</p>
+      <LensPhaseNote phase={phase}>{PHASE_TEXT[phase]}</LensPhaseNote>
     </section>
   }
   const count = problem ? 1 : 0

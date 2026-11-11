@@ -151,6 +151,21 @@ describe('GAP_NO_FIT_TEXT', () => {
 describe('gapPeek and gapCount', () => {
   const labelOf = (key: SlotKey) => key.charAt(0).toUpperCase() + key.slice(1)
 
+  it('shows a failed or paused search as its own phase when no pick was kept', () => {
+    const slots = [slot('lunch', 'empty'), slot('dinner', 'empty', { windowMin: [1080, 1200] })]
+    for (const kind of ['failed', 'quota'] as const) {
+      const view = gapLensRows({ status: { kind }, dayIndex: 0, slots, rows: [] })
+      expect(view).toEqual({ phase: kind, rows: [], degraded: null })
+    }
+  })
+
+  it('keeps the open parts as kept rows when a failed search still holds a pick', () => {
+    const slots = [slot('lunch', 'empty')]
+    const view = gapLensRows({ status: { kind: 'failed' }, dayIndex: 0, slots, rows: [candidate('kept')] })
+    expect(view.phase).toBe('ready')
+    expect(view.degraded).toBe('failed')
+  })
+
   it('keeps a failed read as a phase, never as none', () => {
     const view = gapLensRows({ status: { kind: 'failed' }, dayIndex: 0, slots: [], rows: [] })
     expect(gapPeek(view, clock, labelOf)).toEqual({ kind: 'phase', phase: 'failed' })

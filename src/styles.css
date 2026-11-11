@@ -1502,10 +1502,24 @@
 /* 911-W13-logic: a viewer never sees a deck add action; the Fix badge sits on
    its stop, and the Stay empty body offers the wider drive ring. */
 .mv2-workspace[data-role="viewer"] .mv2-lens-place-add { display: none; }
-.mv2-stop-warn { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: #A6342A; color: #FFFFFF; transform: rotate(45deg); box-shadow: 0 0 0 2px var(--pw-card), var(--shadow-sm); }
+.mv2-stop-warn { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: var(--pw-risk); color: var(--pw-card); transform: rotate(45deg); box-shadow: 0 0 0 2px var(--pw-card), var(--shadow-sm); }
 .mv2-stop-warn > svg { transform: rotate(-45deg); }
 .mv2-map-stop.is-stay .mv2-stop-warn { right: auto; left: -6px; }
-/* The Fix tag uses the stop-tag ground and tokens. It centres on its stop and
-   the collision layout moves it right, left, below or above. */
-.mv2-pin-anchor > .mv2-stop-tag--fix { left: 50%; top: 50%; translate: -50% -50%; max-width: 260px; z-index: 3; }
+/* The Fix tag uses the stop-tag ground and tokens. It sits left of its stop,
+   beside the badge. The collision layout moves it below, above or right. */
+.mv2-pin-anchor > .mv2-stop-tag--fix { width: max-content; max-width: 260px; z-index: 3; }
 .mv2-lens-widen { margin-top: var(--space-3); }
+/* 911-final: lens phase notes (a wait, a failure, a paused search and an empty
+   each draw their own mark and tint) and the ribbon label that has no room. */
+.mv2-lens-phase-note { display: flex; align-items: flex-start; gap: var(--space-4); padding: var(--space-5) var(--space-5); border-radius: 12px; border: 1px solid transparent; background: var(--pw-soft); color: var(--pw-ink); }
+.mv2-lens-phase-note > svg { flex: none; margin-top: 1px; color: var(--pw-ink-3); }
+.mv2-lens-phase-note > .mv2-lens-phase { padding: 0; border-radius: 0; background: none; }
+.mv2-lens-phase-note[data-phase='scanning'] > svg { animation: mv2-phase-pulse calc(var(--motion-slower) * 3) ease-in-out infinite; }
+.mv2-lens-phase-note[data-phase='failed'] { border-color: var(--pw-risk); background: color-mix(in srgb, var(--pw-risk) 12%, var(--pw-card)); }
+.mv2-lens-phase-note[data-phase='failed'] > svg { color: var(--pw-risk); }
+.mv2-lens-phase-note[data-phase='quota'] { border-color: var(--pw-marigold-500); background: var(--pw-marigold-50); }
+.mv2-lens-phase-note[data-phase='quota'] > svg { color: var(--pw-marigold-ink); }
+.mv2-lens-phase-note[data-phase='empty'] { border-style: dashed; border-color: var(--pw-line); background: transparent; }
+@keyframes mv2-phase-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .mv2-lens-phase-note[data-phase='scanning'] > svg { animation: none; } }
+.mv2-clock-label[data-tight='true'] { visibility: hidden; }

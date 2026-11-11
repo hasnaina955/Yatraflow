@@ -6,6 +6,7 @@ import type { PlaceHit } from '../../../lib/geocode'
 import { Car, Footprints } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { LensDeckHeader } from './LensDeckHeader'
+import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
 
 export const STAY_PHASE_TEXT: Record<LensPhase, string> = {
@@ -168,12 +169,12 @@ export function StayDeck(props: StayDeckProps) {
       })}
     </div>
     {result.kind === 'needs-base' && <div className="mv2-lens-body-state">
-      <p className="mv2-lens-phase">{NEEDS_BASE_TEXT}</p>
+      <LensPhaseNote phase="unscanned">{NEEDS_BASE_TEXT}</LensPhaseNote>
       <button type="button" className="btn btn-primary mv2-lens-set" onClick={onSetStay}>Set tonight's stay</button>
     </div>}
-    {result.kind === 'phase' && <p className="mv2-lens-phase">{STAY_PHASE_TEXT[result.phase]}</p>}
+    {result.kind === 'phase' && result.phase !== 'ready' && <LensPhaseNote phase={result.phase}>{STAY_PHASE_TEXT[result.phase]}</LensPhaseNote>}
     {result.kind === 'ready' && readyPicks.length === 0 && <div className="mv2-lens-body-state">
-      <p className="mv2-lens-phase">{STAY_PHASE_TEXT.empty}</p>
+      <LensPhaseNote phase="empty">{STAY_PHASE_TEXT.empty}</LensPhaseNote>
       {widen && <button type="button" className="btn btn-ghost mv2-lens-widen" onClick={() => onRing('drive-30')}>Try ≤30 min drive</button>}
     </div>}
     {result.kind === 'ready' && readyPicks.length > 0 && <>

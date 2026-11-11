@@ -6,6 +6,7 @@ import type {
   DriveCardStrip, DriveTab, DriveTabGroup, DriveTabsResult, ScopeBand,
 } from '../../../pages/trip/map/driveLens'
 import { LensDeckHeader } from './LensDeckHeader'
+import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
 import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -138,14 +139,14 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   if (result.phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
       <LensDeckHeader kicker="Along the drive" onClose={onClose} />
-      <p className="mv2-lens-phase" data-phase={result.phase}>{PHASE_TEXT[result.phase]}</p>
+      <LensPhaseNote phase={result.phase}>{PHASE_TEXT[result.phase]}</LensPhaseNote>
     </section>
   }
   const groups = result.tabs
   if (groups.length === 0) {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
       <LensDeckHeader kicker="Along the drive" onClose={onClose} />
-      <p className="mv2-lens-phase" data-phase="empty">{PHASE_TEXT.empty}</p>
+      <LensPhaseNote phase="empty">{PHASE_TEXT.empty}</LensPhaseNote>
     </section>
   }
   const current = activeTab ?? groups[0].tab

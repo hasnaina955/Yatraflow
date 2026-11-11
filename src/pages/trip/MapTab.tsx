@@ -2376,18 +2376,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onAddGapPick={pick => addLensHit(pick.candidate.hit, activeDayIndex)}
               onApplyFix={applyLensFix}
               onPreviewFix={previewLensFix}
-              onShortlist={hit => toggleShortlist(hit)}
-              shortlistedOf={hit => isShortlisted(hit)}
+              {...(editable ? { onShortlist: (hit: PlaceHit) => toggleShortlist(hit), shortlistedOf: (hit: PlaceHit) => isShortlisted(hit) } : {})}
             />
             {lens === 'drive' && <div className="poi-plan-list is-ledger">
-              {!filterActive && arcs.slice(0, 2).length > 0 && (
+              {editable && !filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp mv2-deck-arc-group">
                   <span className="poi-grp-k">Route arcs</span>
                   <span className="poi-grp-n">{arcs.slice(0, 2).length}</span>
                   <span className="poi-grp-ln" />
                 </div>
               )}
-              {arcs.slice(0, 2).map(arc => (
+              {editable && arcs.slice(0, 2).map(arc => (
                 <div key={arc.theme} className="poi-plan-row poi-plan-arc mv2-deck-arc">
                   <div className="ride-spot-title">
                     <span className="ride-purpose ride-purpose-sight">{arc.theme}</span>
@@ -2442,7 +2441,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           reachable while the rails scroll. #420 slice 1 moved the markup into
           map/ShortlistTray.tsx; the actions below stay here until slice 2. */}
       <ShortlistTray
-        count={trayShortlist.length}
+        count={editable ? trayShortlist.length : 0}
         busy={addingAny}
         onAddAll={() => void addShortlisted()}
         onVote={() => void raiseShortlistVote()}

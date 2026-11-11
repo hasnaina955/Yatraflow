@@ -38,7 +38,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { BASE_TAG_GAP, CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -1016,16 +1016,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       if (!p.auto && !warned && !(showTag && isBase) && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
       if (stopWarning?.stopId === p.id && stopWarning.text != null && stopWarning.text.trim() !== '') {
         const tag = stopTagBox(stopWarning.text, 260)
-        // The board puts the tag left of the badge. Left, below and above come
-        // before right, so the right-side map controls never cover it.
+        // The board puts the tag beside the badge, on its left, like the base tag.
+        // The box starts there. Below and above come next, then the right side,
+        // so the map controls on the right never cover it.
+        const box = baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h)
+        const rightDx = STOP_BOX.drawW + BASE_TAG_GAP * 2 + tag.w
         spreadMarks.push({
-          id: `fix-tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: 0, w: tag.w, h: tag.h, ...base,
+          id: `fix-tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base,
           maxTravel: 500,
           alternates: [
-            [-((STOP_BOX.drawW + tag.w) / 2 + 2), 0],
             [0, (STOP_BOX.drawH + tag.h) / 2 + 2],
             [0, -((STOP_BOX.drawH + tag.h) / 2 + 2)],
-            [(STOP_BOX.drawW + tag.w) / 2 + 2, 0],
+            [rightDx, 0],
           ],
         })
       }

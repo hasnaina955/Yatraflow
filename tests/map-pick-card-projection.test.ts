@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MapPickCard } from '../src/components/map/MapWorkspaceChrome'
+import { MapPickCard } from '../src/components/map/MapPickCard'
 import { intendedVisitMinutes, hoursDisplayFor, visitDateForDay } from '../src/lib/hoursContext'
 import type { Trip } from '../src/data/types'
 import type { JourneyActions } from '../src/lib/journeyProjection'
@@ -57,7 +57,7 @@ describe('projected facts on the card', () => {
       arriveMin: 770,
     })
     expect(html).toContain('25 min')
-    expect(html).toContain('27% of budget')
+    expect(html).toContain('27%')
     expect(html).toContain('Google Places')
     expect(html).toContain('Retained result')
     expect(html).toContain('+12 min')
@@ -67,7 +67,7 @@ describe('projected facts on the card', () => {
   it('hides a projected unknown visit instead of printing a guess', () => {
     const fallback = intendedVisitMinutes(hit)
     const html = render({ visitMin: null, actions: allowAll })
-    expect(html).not.toContain('<dt>Visit</dt>')
+    expect(html).not.toContain('data-cell="visit"')
     expect(html).not.toContain('Unknown')
     // Known-bad control: the old unconditional fallback would print this number.
     expect(html).not.toContain(`${fallback} min`)
@@ -117,7 +117,7 @@ describe('the unprojected search pin keeps its prior path', () => {
   it('uses the existing computed visit and shows no projected labels', () => {
     const html = render()
     expect(html).toContain(`${intendedVisitMinutes(hit)} min`)
-    expect(html).not.toContain('% of budget')
+    expect(html).not.toContain('data-cell="budget"')
     expect(html).not.toContain('Freshness')
     expect(html).toMatch(/<button[^>]*class="btn btn-primary"(?![^>]*disabled)[^>]*>/)
   })

@@ -43,7 +43,7 @@ describe('W8-card place card', () => {
     const html = card({ hit: { rating: 4.4, ratingCount: 1200 } })
     expect(html).toContain('mv2-lens-place-rating')
     expect(html).toContain('4.4')
-    expect(html).toContain('1200')
+    expect(html).toContain('1.2k')
     expect(card({ hit: { rating: 4.4 } })).not.toContain('mv2-lens-place-rating')
     expect(ratingText({ rating: 4.4 })).not.toBeNull()
   })
@@ -60,12 +60,13 @@ describe('W8-card place card', () => {
 
   it('adds only the buttons whose handlers exist', () => {
     expect(card()).not.toContain('mv2-lens-round')
-    const both = card({ onShortlist: noop, onSwap: noop })
+    const both = card({ selected: true, onShortlist: noop, onSwap: noop })
     expect((both.match(/mv2-lens-round/g) ?? []).length).toBe(2)
+    expect(card({ onShortlist: noop, onSwap: noop })).not.toContain('mv2-lens-place-actions')
   })
 
   it('puts a plus icon inside the add pill', () => {
-    const html = card()
+    const html = card({ selected: true })
     expect(html).toContain('mv2-lens-place-add')
     expect(html).toContain('Add as Day 3 lunch')
     expect(html).toContain('<svg')
@@ -99,11 +100,11 @@ describe('W8-card stylesheet', () => {
   it('makes the cells one container and the label not amber', () => {
     expect(css).toMatch(/\.mv2-lens-strip \{[^}]*background: var\(--pw-soft\)/)
     expect(css).toMatch(/\.mv2-lens-cell \{[^}]*background: transparent/)
-    expect(css).toMatch(/\.mv2-lens-cell-label \{[^}]*color: var\(--pw-ink-2\)/)
+    expect(css).toMatch(/\.mv2-lens-cell-label \{[^}]*color: var\(--pw-ink-3\)/)
   })
 
-  it('uses a 1.5px teal selected border and no ring', () => {
-    expect(css).toMatch(/\.mv2-lens-place\.is-selected \{[^}]*border-width: 1\.5px[^}]*box-shadow: none/)
+  it('uses a 1.5px teal selected border and the soft teal glow', () => {
+    expect(css).toMatch(/\.mv2-lens-place\.is-selected \{[^}]*border-width: 1\.5px[^}]*box-shadow: 0 0 0 4px var\(--pw-lagoon-100\)/)
   })
 
   it('keeps the phone scope rules inside their media block', () => {

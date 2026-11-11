@@ -136,13 +136,14 @@ export function driveCardStrip(
 export function driveDeckIntro(
   row: DriveLensRow,
   clock: (min: number) => string,
+  roadKm?: number | null,
 ): string | null {
   const r = row.row
   const w = r.windowMin
   if (typeof r.arriveMin !== 'number' || w == null || r.inWindow == null) return null
   const word = r.inWindow === false ? 'outside' : 'inside'
   // The km shows when the pick's road position is known: "You pass km 57 at 12:05".
-  const km = r.hit.alongRouteKm ?? r.hit.cumKm
+  const km = roadKm ?? r.hit.alongRouteKm ?? r.hit.cumKm
   const at = typeof km === 'number' && Number.isFinite(km) && km >= 0 ? `km ${Math.round(km)} at ` : ''
   return `You pass ${at}${clock(r.arriveMin)}, ${word} the ${clock(w[0])}–${clock(w[1])} window`
 }

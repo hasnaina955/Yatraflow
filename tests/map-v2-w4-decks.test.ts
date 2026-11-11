@@ -130,7 +130,7 @@ describe('LensPlaceCard', () => {
     const rated = card({ hit: { rating: 4.5, ratingCount: 2100 } })
     expect(rated).toContain('mv2-lens-place-rating')
     expect(rated).toContain('4.5')
-    expect(rated).toContain('2100')
+    expect(rated).toContain('2.1k')
     expect(card({ hit: { ratingCount: 2100 } })).not.toContain('mv2-lens-place-rating')
     expect(card({ hit: {} })).not.toContain('mv2-lens-place-rating')
   })
@@ -168,10 +168,16 @@ describe('LensPlaceCard', () => {
   })
 
   it('renders the heart and the swap button when real handlers exist', () => {
-    const html = card({ onShortlist: noop, onSwap: noop })
+    const html = card({ selected: true, onShortlist: noop, onSwap: noop })
     expect(html).toContain('aria-label="Add to shortlist"')
     expect(html).toContain('aria-label="Swap this stop"')
     expect((html.match(/mv2-lens-round/g) ?? []).length).toBe(2)
+  })
+
+  it('keeps a card without selection compact', () => {
+    const html = card({ onShortlist: noop, onSwap: noop })
+    expect(html).not.toContain('mv2-lens-place-actions')
+    expect(html).not.toContain('mv2-lens-place-add')
   })
 
   it('marks the selected card with the raised outline class', () => {
@@ -353,7 +359,7 @@ describe('decks draw the shared header', () => {
 
   it('keeps the problem title and the evidence in the problem box', () => {
     const html = fixHtml()
-    expect(html).toContain('Boarding closes at 15:00.')
+    expect(html.replace(/<[^>]+>/g, '')).toContain('Boarding closes at 15:00.')
     expect(html).toContain('Found by the opening-hours check')
   })
 })

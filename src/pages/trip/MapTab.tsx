@@ -1541,14 +1541,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     if (!editable || isAlreadyAdded(hit, identity)) return
     edit.startAdd(hit, dayIndex)
   }
-  function applyLensFix(set: FixChangeSet) {
+  function applyFixAgainst(baseTrip: Trip, set: FixChangeSet) {
     // Check the real plan first. A fix that does not pass its check never writes.
-    const checked = verifyFixSet(trip, set)
+    const checked = verifyFixSet(baseTrip, set)
     if (!fixIsOffered(checked)) {
       toast('This fix did not pass its check. Nothing changed.')
       return
     }
-    const next = applyFixChangeSet(trip, checked)
+    const next = applyFixChangeSet(baseTrip, checked)
     const day = next?.days.find(entry => entry.index === checked.dayIndex)
     if (!day) {
       toast('This fix could not apply to this trip. Nothing changed.')
@@ -1561,6 +1561,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       target.startTime = day.startTime
     }, 'edit', checked.dayIndex)
     toast('Fix applied to this day.')
+  }
+  function applyLensFix(set: FixChangeSet) {
+    applyFixAgainst(trip, set)
   }
   function previewLensFix(set: FixChangeSet) {
     // Preview draws nothing new: it selects the day and shows the Fix lens.
@@ -1632,11 +1635,23 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       : null
     const raw = detailAddPreview({ trip, dayIndex: detailDay, hit: selectedHit, routeKmOf: kmOf, legCorrections })
     if (raw == null) return null
-    return { view: detailPreviewView(raw, hm => formatHM(hm, timeFormat)), offer: addFixOffer(raw, trip) }
+    return {
+      view: detailPreviewView(raw, hm => formatHM(hm, timeFormat)),
+      offer: addFixOffer(raw, trip),
+      proposed: raw.kind === 'ready' ? raw.proposedTrip : null,
+      visitMin: raw.kind === 'ready'
+        ? raw.proposedTrip.days.find(day => day.index === raw.dayIndex)?.stops.find(stop => stop.id === raw.stopId)?.visitMinutes ?? null
+        : null,
+    }
   })()
   const detailDetourMin = selectedHit ? (selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null) : null
+  // The detail's budget cell reads the day after the add: its current spend
+  // plus this pick. Unknown parts keep the whole used-of line out.
+  const detailBudgetUsed = detailDetourMin != null && Number.isFinite(detailDetourMin) && driveBudget != null
+    ? Math.max(0, Math.round(driveBudget.usedMin + Math.max(0, detailDetourMin)))
+    : null
   const detailArriveMin = selectedHit
-    ? selectedRow?.arriveMin ?? (selectedProjected ? null : pickArrivalMin(passClockMin(passAnchors, selectedHit.alongRouteKm ?? selectedHit.cumKm), detailDetourMin))
+    ? selectedRow?.arriveMin ?? pickArrivalMin(passClockMin(passAnchors, selectedHit.alongRouteKm ?? selectedHit.cumKm ?? routeKmOf(selectedHit.latitude, selectedHit.longitude)), detailDetourMin)
     : null
   const mapShowsAll = mapFilter === 'all' || dayFocus === 'all'
   // Only the all-days view draws other days thin.
@@ -2387,6 +2402,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               dayLabel={lensDayLabel}
               dayNumber={activeDayIndex + 1}
               clock={lensClock}
+              scopeMinutes={scopeMinutes}
               activeDriveTab={driveTab}
               onDriveTab={setDriveTab}
               driveLetters={drivePickLetters}
@@ -2394,12 +2410,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 const strip = driveCardStrip(row, lensClock)
                 if (strip.arrive != null) return strip
                 // The slot engine had no arrival. Read the day's road clock at the pick.
-                const km = row.row.hit.alongRouteKm ?? row.row.hit.cumKm
+                const km = row.row.hit.alongRouteKm ?? row.row.hit.cumKm ?? routeKmOf(row.row.hit.latitude, row.row.hit.longitude)
                 const arrive = pickArrivalMin(passClockMin(passAnchors, km), row.detourMin)
                 return arrive == null ? strip : { ...strip, arrive: lensClock(arrive) }
               }}
               bandOf={row => scopeBandOf(row, scopeMinutes, budgetHeldIds)}
-              introOf={row => driveDeckIntro(row, lensClock)}
+              introOf={row => driveDeckIntro(row, lensClock, routeKmOf(row.row.hit.latitude, row.row.hit.longitude))}
               onOpenDrive={row => inspectHit(row.row.hit)}
               onAddDrive={row => addLensHit(row.row.hit, activeDayIndex)}
               activeStayWindow={activeStayWindowId}
@@ -2465,10 +2481,24 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               arriveText={detailArriveMin == null ? null : lensClock(detailArriveMin)}
               {...(lens === 'stay' ? { kicker: `Around the stay · ${kindWordOf(selectedHit.category)}` } : {})}
               preview={detailPreviewData?.view ?? null}
-              fixOffer={detailPreviewData?.offer ? { label: `Add, then fix ${detailPreviewData.offer.stopTitle ?? 'the day'}` } : null}
-              onAddAndFix={() => { if (editable && detailDay != null) edit.addNow(selectedHit, detailDay, () => { chooseDay(detailDay); setLens('fix'); setSheetTab('see'); setDeckOpen(true) }) }}
-              visitMin={selectedRow ? selectedRow.visitMin : selectedProjected ? null : undefined}
+              fixOffer={detailPreviewData?.offer ? { label: `Add and fix ${detailPreviewData.offer.stopTitle ?? 'the day'}` } : null}
+              onAddAndFix={() => {
+                if (!editable || detailDay == null) return
+                const proposed = detailPreviewData?.proposed ?? null
+                const offer = detailPreviewData?.offer ?? null
+                edit.addNow(selectedHit, detailDay, () => {
+                  // The fix was checked on the proposed plan. That plan is the
+                  // one the add just wrote, so the same set is safe to apply.
+                  if (proposed != null && offer != null) applyFixAgainst(proposed, offer.set)
+                  chooseDay(detailDay)
+                  setLens('fix')
+                  setSheetTab('see')
+                  setDeckOpen(true)
+                })
+              }}
+              visitMin={selectedRow?.visitMin ?? detailPreviewData?.visitMin ?? (selectedProjected ? null : undefined)}
               budgetSharePct={selectedRow ? selectedRow.budgetSharePct : selectedProjected ? null : undefined}
+              budgetText={detailBudgetUsed == null ? null : `${detailBudgetUsed} of ${mapBudget}`}
               source={selectedRow ? selectedRow.source : selectedProjected ? null : undefined}
               freshness={selectedRow ? selectedRow.freshness : selectedProjected ? 'unknown' : undefined}
               actions={mapCardActions(selectedRow, selectedProjected)}

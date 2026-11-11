@@ -218,7 +218,7 @@ export interface EditProposal {
 }
 
 function warningRef(w: ImpactResult['newWarnings'][number]): PreviewWarning {
-  return { code: w.code, title: w.title, severe: w.severity === 'high', dayIndex: w.dayIndex ?? null }
+  return { code: w.code, title: w.title, detail: w.detail, severe: w.severity === 'high', dayIndex: w.dayIndex ?? null }
 }
 
 function dayClocks(base: Trip, proposed: Trip, dayIndexes: readonly number[], corrections: LegCorrections): PreviewClock[] {

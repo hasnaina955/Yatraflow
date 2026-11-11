@@ -193,7 +193,7 @@
 .mv2-place-cta > .btn { flex: 1; min-height: 44px; }
 .mv2-place-heart { position: relative; width: 42px; height: 42px; padding: 0; }
 .mv2-place-heart::before { content: ''; position: absolute; inset: -1px; }
-.mv2-directions { width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--space-3); min-height: 44px; margin: 0; padding: var(--space-4); border: 0; background: transparent; color: var(--pw-ink-3); font-size: var(--text-xs); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mv2-directions { width: 100%; display: var(--mv2-directions-display, flex); align-items: center; justify-content: center; gap: var(--space-3); min-height: 44px; margin: 0; padding: var(--space-4); border: 0; background: transparent; color: var(--pw-ink-3); font-size: var(--text-xs); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .mv2-source { display: flex; align-items: flex-start; gap: var(--space-3); margin: 0; padding: var(--space-5) var(--space-7) var(--space-7); color: var(--pw-ink-3); font-size: 11.5px; line-height: 1.4; }
 .mv2-source svg { flex: 0 0 auto; margin-top: var(--space-1); }
 .mv2-viewer-note { font-size: var(--text-xs); color: var(--text-2); }
@@ -1038,13 +1038,13 @@
 
 /* One place card for every lens: Drive, Stay and Gap. */
 .mv2-lens-place { position: relative; display: flex; flex-direction: column; gap: var(--space-4a); padding: var(--space-5); border: 1px solid var(--pw-line); border-radius: 16px; background: var(--pw-card); transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
-.mv2-lens-place.is-selected { border-color: var(--pw-time-drive); box-shadow: 0 0 0 4px var(--pw-lagoon-100); }
+.mv2-lens-place.is-selected { border-width: 1.5px; border-color: var(--pw-time-drive); box-shadow: 0 0 0 4px var(--pw-lagoon-100); }
 .mv2-lens-place.is-just-past { border-style: dashed; border-color: var(--pw-marigold-ink); }
 .mv2-lens-place.is-over-budget { background: var(--pw-soft); opacity: .75; }
 .mv2-lens-place-letter { position: absolute; top: -5px; left: -5px; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-pill); background: var(--pw-ink); color: var(--pw-card); font: var(--pw-kicker); font-size: 10.5px; font-weight: 800; }
 .mv2-lens-place-head { display: flex; align-items: flex-start; gap: var(--space-2); }
 .mv2-lens-place-open { display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-2); min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.mv2-lens-place-tile { position: relative; flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--mark-tint, var(--pw-card)); border: 1px solid var(--mark-edge, var(--pw-line)); color: var(--mark-ink, var(--pw-ink-3)); transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-lens-place-tile { position: relative; flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--mark-tint, var(--pw-card)); border: 1.5px solid var(--mark-edge, var(--pw-line)); color: var(--mark-ink, var(--pw-ink-3)); transition: background var(--motion-fast) var(--ease-paper); }
 .mv2-lens-place-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .mv2-lens-place-name { color: var(--pw-ink); font: var(--pw-ui); font-size: 14.5px; font-weight: 700; }
 .mv2-lens-place-sub { color: var(--pw-ink-3); font-size: 12px; }
@@ -1123,7 +1123,7 @@
 .mv2-lens-rail-progress-fill[data-step='4'] { width: 100%; }
 .mv2-lens-window-row { margin-top: var(--space-3); padding: var(--space-3); border: 2px solid var(--warn); border-radius: var(--radius-sm); background: var(--warn-soft); font: var(--pw-ui); font-size: 12px; }
 .mv2-lens-problem-row { padding: var(--space-3); border: 1px solid var(--coral); border-radius: var(--radius-sm); background: var(--yf-coral-100); font: var(--pw-ui); font-size: 12px; }
-.mv2-lens-more > summary { display: flex; align-items: center; min-height: 44px; padding: var(--space-5) 0; color: var(--text-2); font: var(--pw-ui); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mv2-lens-more > summary { display: flex; align-items: center; min-height: 44px; padding: var(--space-5) 0; color: var(--pw-sea-700); font: var(--pw-ui); font-size: 13px; font-weight: 700; cursor: pointer; }
 @media (max-width: 860px) {
   .mv2-lens-scope-band { left: var(--space-4); right: var(--space-4); bottom: calc(var(--mv2-sheet-height, 148px) + 84px); width: auto; }
   .mv2-lens-rail-card { left: var(--space-4); right: var(--space-4); bottom: calc(var(--mv2-sheet-height, 148px) + 84px); width: auto; }
@@ -1510,16 +1510,23 @@
 /* 911-W14-deck: deck footer sources, Fix deck problem card, and the place detail
    (title block, cells, "If you add it" preview, actions and phone pills). */
 .mv2-lens-deck-kicker.is-risk { color: var(--pw-risk); }
-.mv2-lens-source { display: flex; align-items: flex-start; gap: var(--space-3); margin: var(--space-4) 0 0; color: var(--pw-ink-3); font-size: 11.5px; line-height: 1.4; }
+.mv2-lens-source { position: sticky; bottom: 0; z-index: 1; display: flex; align-items: flex-start; gap: var(--space-3); margin: var(--space-4) 0 0; padding: var(--space-4) var(--space-5) var(--space-5); background: var(--card); color: var(--pw-ink-3); font-size: 11.5px; line-height: 1.4; }
 .mv2-lens-source > svg { flex: none; margin-top: var(--space-1); }
 .mv2-lens-evidence-line { margin: 0; color: var(--pw-ink); font: var(--pw-meta); font-size: 12.5px; line-height: 1.45; }
 .mv2-lens-evidence-line b, .mv2-lens-evidence-lines b { font-weight: 700; }
 .mv2-pick-card { display: flex; flex-direction: column; min-height: 100%; }
 .mv2-pick-card > .mv2-source { margin-top: auto; }
-.mv2-detail-head { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.mv2-detail-head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .mv2-detail-kicker { color: var(--pw-sea-700); font: var(--pw-kicker); font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
-.mv2-detail-meta { display: flex; align-items: center; gap: var(--space-4); margin: 0; font-size: 12.5px; color: var(--pw-ink-3); }
+.mv2-detail-meta { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; font-size: 12.5px; color: var(--pw-ink-3); }
 .mv2-detail-meta .mv2-rating b { font-weight: 700; }
+.mv2-detail-cells { margin: 0; padding: 9px var(--space-4a); }
+.mv2-detail-cells .mv2-lens-cell-label { font-size: 11px; font-weight: 700; }
+.mv2-detail-cells .mv2-lens-cell-value { font-size: 13.5px; }
+.mv2-detail-cells .mv2-lens-cell[data-cell='arrive'] { display: var(--mv2-detail-arrive, none); }
+.mv2-detail-cells .mv2-lens-cell[data-cell='visit'] { display: var(--mv2-detail-visit, flex); }
+.mv2-detail-budget-used { display: var(--mv2-detail-used, inline); }
+.mv2-detail-budget-pct { display: var(--mv2-detail-pct, none); }
 .mv2-detail-preview { --mv2-preview-ink: #7C5CFC; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border: 1px dashed var(--mv2-preview-ink); border-radius: 14px; background: color-mix(in srgb, var(--mv2-preview-ink) 8%, transparent); }
 :root:where([data-theme='dark']) .mv2-detail-preview { --mv2-preview-ink: #A48BFF; }
 .mv2-detail-preview-kicker { color: var(--pw-ink-3); font: var(--pw-kicker); font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
@@ -1532,7 +1539,7 @@
 .mv2-detail-preview-text s { color: var(--pw-ink-4); }
 .mv2-detail-fit { display: none; }
 .mv2-detail-risk-mark { display: flex; }
-.mv2-place-secondary { display: flex; align-items: center; justify-content: center; gap: var(--space-3); min-height: 44px; padding: 0 var(--space-6); border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); font: var(--pw-ui); font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.mv2-place-secondary { display: var(--mv2-secondary-display, flex); align-items: center; justify-content: center; gap: var(--space-3); min-height: 44px; padding: 0 var(--space-6); border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); font: var(--pw-ui); font-size: 13.5px; font-weight: 700; cursor: pointer; }
 .mv2-place-secondary:disabled { opacity: .6; cursor: not-allowed; }
 .mv2-place-pills { display: none; gap: var(--space-4); }
 .mv2-place-pill { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 var(--space-6); border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-ink); font: var(--pw-ui); font-size: 13.5px; font-weight: 700; cursor: pointer; }
@@ -1544,4 +1551,5 @@
   .mv2-place-pills { display: flex; }
   .mv2-place-heart { display: none; }
   .mv2-place-cta { box-shadow: none; }
+  .mv2-pick-card { --mv2-detail-arrive: flex; --mv2-detail-visit: none; --mv2-detail-used: none; --mv2-detail-pct: inline; --mv2-directions-display: none; --mv2-secondary-display: none; }
 }

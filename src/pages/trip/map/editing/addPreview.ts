@@ -32,6 +32,8 @@ export interface PreviewClock {
 export interface PreviewWarning {
   code: string
   title: string
+  /** The engine's own explanation, with its real times and place. */
+  detail: string
   severe: boolean
   dayIndex: number | null
 }
@@ -124,7 +126,7 @@ function clockDelta(from: string, to: string): number | null {
 }
 
 function warningRef(w: ImpactResult['newWarnings'][number]): PreviewWarning {
-  return { code: w.code, title: w.title, severe: w.severity === 'high', dayIndex: w.dayIndex ?? null }
+  return { code: w.code, title: w.title, detail: w.detail, severe: w.severity === 'high', dayIndex: w.dayIndex ?? null }
 }
 
 function pointBefore(sim: DaySchedule, index: number, origin: Point): Point {

@@ -15,7 +15,6 @@ import { formatHMRange, useTimeFormat } from '../../lib/timefmt'
 import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSuggestionView'
 import type { DetailPreviewView, PreviewLine } from '../../pages/trip/map/detailPreview'
 import { CatIcon } from '../icons'
-import { knownCostCells } from './lenses/LensPlaceCard'
 import { PlacePhotos } from './PlacePhotos'
 import { ageText, compactCount, coverageText, kindWordOf, sourceNameOf } from './placeCardFacts'
 
@@ -32,12 +31,14 @@ function PreviewLineView({ line }: { line: PreviewLine }) {
   </>
 }
 
-export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, source, freshness, actions, arriveMin, arriveText, kicker, preview, fixOffer, onAdd, onAddAndFix, onShortlist, onClose, onDirections }: {
+export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, budgetText, source, freshness, actions, arriveMin, arriveText, kicker, preview, fixOffer, onAdd, onAddAndFix, onShortlist, onClose, onDirections }: {
   hit: PlaceHit; trip: Trip; dayIndex: number | null; detourMin: number | null; reason: string | null; added: boolean; editable: boolean; busy: boolean; shortlisted: boolean
   /** Projected visit length. Undefined = unprojected (existing fallback); null = unknown. */
   visitMin?: number | null
   /** Projected share of the day's detour budget; null or absent adds nothing. */
   budgetSharePct?: number | null
+  /** The projected used-of-total budget, such as "28 of 45". Null hides it. */
+  budgetText?: string | null
   /** Projected source. Undefined = unprojected; null = unknown source. */
   source?: PlaceHit['source'] | null
   /** Projected evidence freshness. Undefined = unprojected. */
@@ -78,13 +79,16 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
   const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
   // The art band takes the category family, as the place card tile does.
   const artFamily = placeSubtype({ category: hit.category ?? undefined, name: hit.name }).family
-  // The same cells as the deck card. Phone shows Arrive in place of Visit.
-  const costCells = knownCostCells([
+  // The same cell style as the deck card. Desktop reads Detour / Visit / Budget;
+  // the phone sheet swaps Visit for the pick's Arrive, as its board does.
+  const budgetPct = detour.kind === 'extra' && budgetSharePct != null ? `${Math.round(budgetSharePct)}%` : null
+  const budgetUsed = detour.kind === 'extra' && budgetText != null && budgetText.trim() !== '' ? budgetText : null
+  const costCells = [
     { key: 'arrive', label: 'Arrive', value: arriveText ?? null },
     { key: 'detour', label: 'Detour', value: detourMin == null ? null : detourDisplayText(detourMin) },
     { key: 'visit', label: 'Visit', value: visit == null ? null : `${visit} min` },
-    { key: 'budget', label: 'Budget', value: detour.kind === 'extra' && budgetSharePct != null ? `${Math.round(budgetSharePct)}%` : null },
-  ])
+    { key: 'budget', label: 'Budget', value: budgetPct ?? budgetUsed },
+  ].filter(cell => cell.value != null && cell.value.trim() !== '')
   const sub = hit.description ?? [hit.admin1, hit.category].filter(Boolean).join(' · ')
   const count = compactCount(hit.ratingCount)
   const kickerText = kicker ?? `Along the drive · ${kindWordOf(hit.category)}`
@@ -104,7 +108,9 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
       {(hours || reason) && <div className="mv2-reason-chips">{reason && <span className="is-reason">{reason}</span>}{hours && <span>{hours}</span>}</div>}
       {costCells.length > 0 && <div className="mv2-lens-strip mv2-detail-cells">{costCells.map(cell => <span className="mv2-lens-cell" data-cell={cell.key} key={cell.key}>
         <span className="mv2-lens-cell-label">{cell.label}</span>
-        <span className="mv2-lens-cell-value">{cell.value}</span>
+        <span className="mv2-lens-cell-value">{cell.key === 'budget' && budgetUsed != null && budgetPct != null
+          ? <><span className="mv2-detail-budget-used">{budgetUsed}</span><span className="mv2-detail-budget-pct">{budgetPct}</span></>
+          : cell.value}</span>
       </span>)}</div>}
       {editable && !added && preview != null && <>
         <section className="mv2-detail-preview" aria-label="If you add it, preview">

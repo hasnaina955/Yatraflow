@@ -44,10 +44,10 @@ describe('the place card text', () => {
   })
 
   it('calls the shared rule at the card, and shows a share only for an extra detour', () => {
-    const chrome = read('src', 'components', 'map', 'MapWorkspaceChrome.tsx')
-    expect(chrome).toContain('detourDisplayText(detourMin)')
-    expect(chrome).toContain("detour.kind === 'extra' && budgetSharePct != null")
-    expect(chrome).not.toMatch(/detourMin > 0/)
+    const card = read('src', 'components', 'map', 'MapPickCard.tsx')
+    expect(card).toContain('detourDisplayText(detourMin)')
+    expect(card).toContain("detour.kind === 'extra' && budgetSharePct != null")
+    expect(card).not.toMatch(/detourMin > 0/)
   })
 
   it('calls the shared rule in the rail labels', () => {

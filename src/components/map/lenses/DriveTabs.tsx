@@ -1,13 +1,13 @@
 // Drive lens deck. It draws one DriveTabsResult and calls the caller back.
 // It reads no store, no map and no provider. The caller supplies every value.
-import { useId, useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type {
   DriveCardStrip, DriveTab, DriveTabGroup, DriveTabsResult, ScopeBand,
 } from '../../../pages/trip/map/driveLens'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
-import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
+import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlaceCard'
 import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
 import type { PlaceHit } from '../../../lib/geocode'
 
@@ -147,6 +147,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
 }) {
   const uid = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const [chosen, setChosen] = useState<string | null>(null)
   if (result.phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
       <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} />
@@ -164,6 +165,8 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   const active = groups.find(group => group.tab === current) ?? groups[0]
   // The badge letter is the map letter. Both read the same road order.
   const letters = lettersProp ?? driveLettersByRoad(active.shown)
+  // One card carries the actions. A click or a focus on another card moves them.
+  const selectedAt = selectedCardIndex(active.shown.map(row => String(row.row.hit.id)), chosen)
 
   function moveTo(index: number) {
     const group = groups[index]
@@ -239,7 +242,8 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
                 onShortlist: () => onShortlist(hit),
                 shortlisted: shortlistedOf?.(hit) ?? false,
               })}
-              selected={index === 0}
+              selected={index === selectedAt}
+              onSelect={() => setChosen(String(hit.id))}
             />
           </li>
         })}

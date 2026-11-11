@@ -1,5 +1,6 @@
 // Presentational gap deck. It draws lens data and calls callbacks.
 // Phase texts follow the stay deck. They name this day, not the stay.
+import { useState } from 'react'
 import type { GapPick, GapPicks } from '../../../pages/trip/map/gapLens'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import type { LensPhase } from '../../../lib/mapLensContracts'
@@ -8,7 +9,7 @@ import { addSlotLabel } from './DriveTabs'
 import { STAY_PHASE_TEXT } from './StayDeck'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
-import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
+import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlaceCard'
 
 export const GAP_PHASE_TEXT: Record<LensPhase, string> = {
   unscanned: 'Pick a day to see its open parts.',
@@ -79,6 +80,7 @@ export interface GapDeckProps {
 
 export function GapDeck(props: GapDeckProps) {
   const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose, onRetry } = props
+  const [chosen, setChosen] = useState<string | null>(null)
   const first = gaps[0]
   const kicker = first == null ? 'Gap' : gapDeckKicker(first.title, first.windowText)
   if (phase !== 'ready' && phase !== 'empty') {
@@ -97,6 +99,7 @@ export function GapDeck(props: GapDeckProps) {
     <LensDeckHeader kicker={kicker} title={gapDeckTitle(gaps.length)} onClose={onClose} />
     {gaps.map((gap, index) => {
       const picks = gap.picks.picks.slice(0, 3)
+      const selectedAt = selectedCardIndex(picks.map(pick => String(pick.candidate.hit.id)), chosen)
       return <div className="mv2-lens-section" key={`${gap.title}-${index}`}>
         <p className="mv2-section-label mv2-lens-gap-label">{gap.title}</p>
         {picks.length > 0 && <ul className="mv2-lens-cards">
@@ -122,7 +125,8 @@ export function GapDeck(props: GapDeckProps) {
                   onShortlist: () => onShortlist(hit),
                   shortlisted: shortlistedOf?.(hit) ?? false,
                 })}
-                selected={at === 0}
+                selected={at === selectedAt}
+                onSelect={() => setChosen(String(hit.id))}
               />
             </li>
           })}

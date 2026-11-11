@@ -38,3 +38,52 @@ export function coverageText(coverage: DiscoveryCoverage | null | undefined): st
   if (coveredKm == null || totalKm == null || !Number.isFinite(coveredKm) || !Number.isFinite(totalKm)) return null
   return `Searched ${Math.round(coveredKm)} of ${Math.round(totalKm)} km of the road`
 }
+
+/** The reader's name of a place source. Null when the source is not supplied. */
+export function sourceNameOf(source: string | null | undefined): string | null {
+  switch (source) {
+    case 'google': return 'Google Places'
+    case 'osm': return 'OpenStreetMap'
+    case 'wikipedia': return 'Wikipedia'
+    case 'mappls': return 'Mappls'
+    case 'open-meteo': return 'Open-Meteo'
+    default: return null
+  }
+}
+
+/** The deck's provenance line: the sources of the shown places, then the data
+ *  age and the road coverage. Each part shows only when it is known. A deck
+ *  with no known source gives null, so no line is drawn. */
+export function deckSourceLine(args: {
+  sources: ReadonlyArray<string | null | undefined>
+  fetchedAt: number | null | undefined
+  coverage: DiscoveryCoverage | null | undefined
+  now: number
+}): string | null {
+  const names: string[] = []
+  for (const source of args.sources) {
+    const name = sourceNameOf(source)
+    if (name != null && !names.includes(name)) names.push(name)
+  }
+  if (names.length === 0) return null
+  const parts = [names.join(' and '), ageText(args.fetchedAt, args.now), coverageText(args.coverage)]
+  return parts.filter((part): part is string => part != null).join(' · ')
+}
+
+/** A review count as the boards draw it: 480, 1.2k, 12k. Unknown gives null. */
+export function compactCount(count: number | null | undefined): string | null {
+  if (typeof count !== 'number' || !Number.isFinite(count) || count < 0) return null
+  const whole = Math.round(count)
+  if (whole < 1000) return String(whole)
+  const thousands = whole / 1000
+  return `${thousands >= 10 ? Math.round(thousands) : Math.round(thousands * 10) / 10}k`
+}
+
+/** The kind word of the detail kicker, from the hit category. */
+export function kindWordOf(category: string | null | undefined): string {
+  const word = (category ?? '').trim().toLowerCase()
+  if (word === '') return 'Place'
+  if (word === 'sightseeing') return 'Sight'
+  if (word === 'hotel') return 'Stay'
+  return word.charAt(0).toUpperCase() + word.slice(1).replace(/-/g, ' ')
+}

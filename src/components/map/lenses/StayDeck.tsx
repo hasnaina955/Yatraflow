@@ -1,5 +1,6 @@
 // Presentational stay deck. It draws lens data and calls callbacks.
 // It reads no store, no map and no provider. The caller supplies every value.
+import { useState } from 'react'
 import { STAY_RINGS, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
 import type { LensPhase } from '../../../lib/mapLensContracts'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -7,7 +8,7 @@ import { Car, Footprints } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
-import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
+import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlaceCard'
 
 export const STAY_PHASE_TEXT: Record<LensPhase, string> = {
   unscanned: 'Pick a window to look around the stay.',
@@ -140,11 +141,13 @@ export function StayDeck(props: StayDeckProps) {
     dayNumber, dayLabel, baseName, windows, activeWindowId, onWindow, result, ringId,
     onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose,
   } = props
+  const [chosen, setChosen] = useState<string | null>(null)
   const readyPicks = result.kind === 'ready' ? stayPicksInRing(result.picks, ringId) : []
   const count = readyPicks.length
   const activeWindow = windows.find(window => window.id === activeWindowId) ?? null
   const addLabel = stayAddLabel(dayNumber, activeWindow?.startMin ?? null, clock)
   const rest = readyPicks.slice(MAX_CARDS)
+  const selectedAt = selectedCardIndex(readyPicks.slice(0, MAX_CARDS).map(pick => String(pick.row.row.hit.id)), chosen)
   const alsoCount = result.kind === 'ready' ? result.alsoCount : 0
   const hiddenByRing = result.kind === 'ready' ? result.picks.length - readyPicks.length : 0
   const widen = result.kind === 'ready' && readyPicks.length === 0 && stayWidenOffer(result.picks, ringId)
@@ -203,7 +206,8 @@ export function StayDeck(props: StayDeckProps) {
                 onShortlist: () => onShortlist(hit),
                 shortlisted: shortlistedOf?.(hit) ?? false,
               })}
-              selected={index === 0}
+              selected={index === selectedAt}
+              onSelect={() => setChosen(String(hit.id))}
             />
           </li>
         })}

@@ -262,7 +262,7 @@ describe('the CSS keeps the approved sheet geometry', () => {
     expect(css).toContain(".mv2-workspace[data-snap='full']")
     // W9: the ribbon is an in-flow child of the sheet now, so it carries no
     // bottom offset of its own and keeps its 56px floor.
-    expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon \{[^}]*position: static;[^}]*min-height: 56px;/)
+    expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon,[^{]*\.mv2-workspace \.poi-col > \.mv2-ribbon-sheet[^{]*\{[^}]*position: static;[^}]*min-height: 56px;/)
   })
 
   it('rides the named motion token, not a raw millisecond value', () => {

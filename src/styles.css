@@ -1213,13 +1213,7 @@
   .mv2-workspace .mv2-lenses > button b { min-width: 16px; height: 16px; }
   .mv2-workspace .poi-col { overflow-y: auto; overscroll-behavior: contain; }
   .mv2-workspace .poi-col > .mv2-ribbon,
-  .mv2-workspace .mv2-detail > .mv2-ribbon {
-    position: static; inset: auto; flex: 0 0 auto; z-index: auto;
-    height: auto; min-height: 56px; margin: var(--space-2) var(--space-4) 0; padding: var(--space-3) var(--space-4);
-    border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--card) 88%, transparent);
-    box-shadow: var(--shadow-soft); -webkit-backdrop-filter: blur(var(--yf-blur-panel)); backdrop-filter: blur(var(--yf-blur-panel));
-  }
+  .mv2-workspace .mv2-detail > .mv2-ribbon,
   .mv2-workspace .poi-col > .mv2-ribbon-sheet,
   .mv2-workspace .mv2-detail > .mv2-ribbon-sheet {
     position: static; inset: auto; flex: 0 0 auto; z-index: auto;

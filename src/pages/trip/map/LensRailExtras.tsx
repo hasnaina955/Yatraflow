@@ -119,7 +119,7 @@ export function fixRailLine(
   if (arrivalText == null || commitmentText == null) return null
   if (arrivalText.trim() === '' || commitmentText.trim() === '') return null
   const label = commitmentTitle != null && commitmentTitle.trim() !== ''
-    ? commitmentTitle.trim().toLowerCase()
+    ? commitmentTitle.trim()
     : 'commitment'
   return `reach ${arrivalText} · ${label} ${commitmentText}`
 }

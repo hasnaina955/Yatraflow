@@ -7,7 +7,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { knownCostCells } from '../src/components/map/lenses/LensPlaceCard'
 import { StayDeck, stayPicksInRing, stayWidenOffer } from '../src/components/map/lenses/StayDeck'
 import { sheetSnapKeepsHandleFocus } from '../src/components/map/MapPhoneSheetHandle'
+import { MapStopSymbol } from '../src/components/map/MapWorkspaceMarks'
 import { fixMarkFactsLabel } from '../src/lib/mapStyles/lensMarks'
+import { layoutMarks } from '../src/lib/mapStyles/placeMarks'
 import { fixRailLine } from '../src/pages/trip/map/LensRailExtras'
 import type { StayPick } from '../src/pages/trip/map/stayLens'
 
@@ -66,9 +68,36 @@ describe('fix facts', () => {
   })
 
   it('builds the rail line from the same two facts', () => {
-    expect(fixRailLine('2:53 PM', 'Periyar boat', '3:00 PM')).toBe('reach 2:53 PM · periyar boat 3:00 PM')
+    expect(fixRailLine('2:53 PM', 'Periyar boat', '3:00 PM')).toBe('reach 2:53 PM · Periyar boat 3:00 PM')
     expect(fixRailLine(null, 'Periyar boat', '3:00 PM')).toBeNull()
     expect(fixRailLine('2:53 PM', 'Periyar boat', null)).toBeNull()
+  })
+})
+
+describe('fix tag and badge', () => {
+  it('draws the warning badge on the stop symbol', () => {
+    const html = renderToStaticMarkup(createElement(MapStopSymbol, { order: 4, warn: true }))
+    expect(html).toContain('mv2-stop-warn')
+  })
+
+  it('flips the fix tag left when the right edge is short', () => {
+    const spots = layoutMarks([
+      { id: 'stop', layer: 'stop', x: 150, y: 100, w: 36, h: 36 },
+      { id: 'fix-tag', layer: 'clock', follows: 'stop', x: 150, y: 100, w: 60, h: 20, alternates: [[50, 0], [-50, 0], [0, 30], [0, -30]] },
+    ], { bounds: { left: 0, top: 0, right: 215, bottom: 200 } })
+    const tag = spots.get('fix-tag')!
+    expect(tag.hidden).toBe(false)
+    expect(tag.dx).toBeLessThan(0)
+  })
+
+  it('drops the fix tag below when neither side fits', () => {
+    const spots = layoutMarks([
+      { id: 'stop', layer: 'stop', x: 100, y: 100, w: 36, h: 36 },
+      { id: 'fix-tag', layer: 'clock', follows: 'stop', x: 100, y: 100, w: 120, h: 20, alternates: [[80, 0], [-80, 0], [0, 30], [0, -30]] },
+    ], { bounds: { left: 0, top: 0, right: 200, bottom: 200 } })
+    const tag = spots.get('fix-tag')!
+    expect(tag.hidden).toBe(false)
+    expect(tag.dy).toBeGreaterThan(0)
   })
 })
 

@@ -24,17 +24,15 @@ export function PlaceSubtypeMark({ category, name, size = 15, letter }: { catego
 
 /** A problem with a fix. The parent supplies the facts. `text` is the short
  *  visible label built from real facts. Absent keeps the mark bare. */
-export function WarningDiamond({ label, text = null, severe = false, onOpen }: { label: string; text?: string | null; severe?: boolean; onOpen?: () => void }) {
-  return <span className="mv2-warn-mark">
-    <button type="button" className={`mv2-warn-diamond${severe ? ' is-severe' : ''}`} aria-label={label} title={label} onClick={onOpen}><AlertTriangle size={13} aria-hidden="true" /></button>
-    {text != null && text.trim() !== '' && <span className="mv2-warn-label">{text}</span>}
-  </span>
+export function WarningDiamond({ label, severe = false, onOpen }: { label: string; severe?: boolean; onOpen?: () => void }) {
+  return <button type="button" className={`mv2-warn-diamond${severe ? ' is-severe' : ''}`} aria-label={label} title={label} onClick={onOpen}><AlertTriangle size={13} aria-hidden="true" /></button>
 }
 
-export function MapStopSymbol({ order, stay = false, fixed = false }: { order: number; stay?: boolean; fixed?: boolean }) {
+export function MapStopSymbol({ order, stay = false, fixed = false, warn = false }: { order: number; stay?: boolean; fixed?: boolean; warn?: boolean }) {
   return <span className="mv2-stop-symbol" aria-hidden="true">
     {stay ? <><House size={18} /><span className="mv2-stay-order">{order}</span></> : <span>{order}</span>}
     {fixed && <span className="mv2-stop-lock"><LockKeyhole size={10} /></span>}
+    {warn && <span className="mv2-stop-warn"><AlertTriangle size={9} /></span>}
   </span>
 }
 

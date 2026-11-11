@@ -1505,18 +1505,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const fixMarkText = fixMarkFactsLabel(problemStop?.title ?? null, commitmentClock, problemClock)
   // The rail row names the same two facts in one short line.
   const fixRowLine = fixRailLine(problemClock, fixCommitment?.title ?? null, commitmentClock)
-  const fixWarningMarks = lens === 'fix' && problemStop != null
+  const fixStopWarning = lens === 'fix' && problemStop != null && fixMarkText != null
     && Number.isFinite(problemStop.lat) && Number.isFinite(problemStop.lng)
     && problemStop.lat !== 0 && problemStop.lng !== 0
-    ? [{
-      id: `fix-${fixStopId}`,
-      lat: problemStop.lat,
-      lng: problemStop.lng,
-      label: fixMarkText ?? problemStop.title,
+    ? {
+      stopId: String(problemStop.id),
+      label: fixMarkText,
       text: fixMarkText,
       severe: true,
-    }]
-    : []
+    }
+    : null
   const driveBudget = lens === 'drive' && lenses.drive.phase === 'ready'
     ? {
       usedMin: Math.round(lenses.drive.view.rows.reduce((sum, row) => {
@@ -2324,7 +2322,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {...(onGapRing ? { onGapRing } : {})}
               {...(Object.keys(pickBands).length > 0 ? { pickBands } : {})}
               {...(pickLetters && Object.keys(pickLetters).length > 0 ? { pickLetters } : {})}
-              {...(fixWarningMarks.length > 0 ? { warningMarks: fixWarningMarks } : {})}
+              {...(fixStopWarning ? { stopWarning: fixStopWarning } : {})}
               {...(edit.previewRoad ? { previewRoad: edit.previewRoad } : {})}
               corridorDay={lens === 'drive' ? activeDayIndex : null}
             />

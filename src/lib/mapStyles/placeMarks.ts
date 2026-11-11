@@ -133,7 +133,16 @@ export function resolveMarkCollisions(items: (MarkBox & { droppable?: boolean; m
 
 export type MarkLayer = 'stop' | 'warn' | 'slot' | 'pick' | 'clock'
 // `w` and `h` are the hit box. A pill never takes a tap, so it only has to clear the drawn size, `drawW` by `drawH`.
-export interface LayoutMark extends MarkBox { layer: MarkLayer; follows?: string; drawW?: number; drawH?: number }
+export interface LayoutMark extends MarkBox {
+  layer: MarkLayer
+  follows?: string
+  drawW?: number
+  drawH?: number
+  /** Optional pill anchors, relative to the host box's centre. */
+  alternates?: [number, number][]
+  /** Optional travel limit for a pill. The default is CLOCK_MAX_TRAVEL. */
+  maxTravel?: number
+}
 
 // A stop badge always wins. A warning, an empty-part pin and a pick follow. A clock pill gives way first.
 const LAYER_RANK: Record<MarkLayer, number> = { stop: 0, warn: 1, slot: 2, pick: 3, clock: 4 }
@@ -156,10 +165,17 @@ export function layoutMarks(marks: LayoutMark[], opts: { gap?: number; maxSteps?
     const y = m.y + (anchor?.dy ?? 0)
     // Beside the stop first, then above it. The pill stays next to its own badge.
     const host = m.follows ? fixed.find(f => f.id === m.follows) : undefined
-    const alternates: [number, number][] = host
-      ? [[-((host.w + m.w) / 2 + 2) + (host.x - x), host.y - y], [((host.w + m.w) / 2 + 2) + (host.x - x), host.y - y], [host.x - x, host.y - y - ((host.h + m.h) / 2 + 2)]]
+    const anchors: [number, number][] = host
+      ? m.alternates ?? [
+        [-((host.w + m.w) / 2 + 2), 0],
+        [((host.w + m.w) / 2 + 2), 0],
+        [0, -((host.h + m.h) / 2 + 2)],
+      ]
       : []
-    return { id: m.id, x, y, w: m.w, h: m.h, droppable: true, maxTravel: CLOCK_MAX_TRAVEL, alternates }
+    const alternates: [number, number][] = host
+      ? anchors.map(([ax, ay]) => [host.x - x + ax, host.y - y + ay])
+      : []
+    return { id: m.id, x, y, w: m.w, h: m.h, droppable: true, maxTravel: m.maxTravel ?? CLOCK_MAX_TRAVEL, alternates }
   })
   const second = resolveMarkCollisions([...fixed, ...clocks], opts)
   for (const clock of clocks) out.set(clock.id, second.get(clock.id)!)

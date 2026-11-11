@@ -543,7 +543,7 @@ export interface PreviewRoadView {
   legOutMeasured: boolean | null
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [], corridorDay = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [], stopWarning = null, corridorDay = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -578,7 +578,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** A rank letter for each pick, keyed by the pick id the map already uses. */
   pickLetters?: Record<string, 'A' | 'B' | 'C'>
   /** Real problems to mark with a diamond. The parent supplies each fact. */
-  warningMarks?: { id: string; lat: number; lng: number; label: string; text?: string | null; severe?: boolean; onOpen?: () => void }[]
+  warningMarks?: { id: string; lat: number; lng: number; label: string; severe?: boolean; onOpen?: () => void }[]
+  /** One problem that belongs to a plotted stop. The badge sits on that stop. */
+  stopWarning?: { stopId: string; label: string; text: string | null; severe?: boolean } | null
   /** the map's own day chips report the day they just filtered to, so a host
       whose plan rail carries the same choice can follow it. A host that cannot
       represent 'all' (the slots rail always plans one day) simply ignores it. */
@@ -996,7 +998,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
       spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, drawW: p.auto ? 30 : STOP_BOX.drawW, drawH: p.auto ? 30 : STOP_BOX.drawH, ...base })
       const isBase = p.category === 'hotel'
-      const showTag = isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay)
+      const warned = stopWarning?.stopId === p.id
+      const showTag = !warned && (isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay))
       // A tag is a pill: it never takes a tap and it yields to every badge. The
       // clock pill already gives way first, so the tag keeps its place.
       if (showTag) {
@@ -1010,7 +1013,22 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
       // The Stay board hides the clock pill while the base tag shows. Hiding it
       // here keeps the two pills from ever colliding on one mark.
-      if (!p.auto && !(showTag && isBase) && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
+      if (!p.auto && !warned && !(showTag && isBase) && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
+      if (stopWarning?.stopId === p.id && stopWarning.text != null && stopWarning.text.trim() !== '') {
+        const tag = stopTagBox(stopWarning.text, 260)
+        // The board puts the tag left of the badge. Left, below and above come
+        // before right, so the right-side map controls never cover it.
+        spreadMarks.push({
+          id: `fix-tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: 0, w: tag.w, h: tag.h, ...base,
+          maxTravel: 500,
+          alternates: [
+            [-((STOP_BOX.drawW + tag.w) / 2 + 2), 0],
+            [0, (STOP_BOX.drawH + tag.h) / 2 + 2],
+            [0, -((STOP_BOX.drawH + tag.h) / 2 + 2)],
+            [(STOP_BOX.drawW + tag.w) / 2 + 2, 0],
+          ],
+        })
+      }
     }
     for (const m of dayEndpointMarkers) spreadMarks.push({ id: `endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, layer: 'stop', x: 0, y: 0, w: 30, h: 30, lat: m.position.lat, lng: m.position.lng, ox: 0, oy: 0 })
     for (const w of warningMarks) if (validMapCoordinate({ lat: w.lat, lng: w.lng })) spreadMarks.push({ id: `warn:${w.id}`, layer: 'warn', x: 0, y: 0, ...WARN_BOX, lat: w.lat, lng: w.lng, ox: 0, oy: 0 })
@@ -1040,7 +1058,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const layoutOnMap = useCallback((map: MapRef, bounds?: MarkBounds) => {
     const marks: LayoutMark[] = spreadMarksRef.current.map(m => {
       const { x, y } = map.project([m.lng, m.lat])
-      return { id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, drawW: m.drawW, drawH: m.drawH, x: x + m.ox + (m.layer === 'clock' ? m.x : 0), y: y + m.oy + (m.layer === 'clock' ? m.y : 0) }
+      return {
+        id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, drawW: m.drawW, drawH: m.drawH,
+        x: x + m.ox + (m.layer === 'clock' ? m.x : 0), y: y + m.oy + (m.layer === 'clock' ? m.y : 0),
+        ...(m.alternates ? { alternates: m.alternates } : {}),
+        ...(m.maxTravel != null ? { maxTravel: m.maxTravel } : {}),
+      }
     })
     const spots = layoutMarks(marks, { bounds })
     // Only stops and pills steer the camera. A far pick must not pull the frame out.
@@ -1957,7 +1980,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </>}
             {warningMarks.filter(w => validMapCoordinate({ lat: w.lat, lng: w.lng })).map(w => (
               <MapMarker key={`warn-${w.id}`} longitude={w.lng} latitude={w.lat}>
-                <MarkerContent>{offsetWrap(`warn:${w.id}`, <WarningDiamond label={w.label} text={w.text ?? null} severe={w.severe} onOpen={w.onOpen} />)}</MarkerContent>
+                <MarkerContent>{offsetWrap(`warn:${w.id}`, <WarningDiamond label={w.label} severe={w.severe} onOpen={w.onOpen} />)}</MarkerContent>
                 <MarkerTooltip>{w.label}</MarkerTooltip>
               </MapMarker>
             ))}
@@ -2027,8 +2050,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const spot = workspaceChrome ? markSpots.get(`stop:${p.id}`) : undefined
                 const clockSpot = workspaceChrome ? markSpots.get(`clock:${p.id}`) : undefined
                 const tagSpot = workspaceChrome ? markSpots.get(`tag:${p.id}`) : undefined
+                const warn = workspaceChrome && stopWarning?.stopId === p.id ? stopWarning : null
+                const warnTagSpot = workspaceChrome ? markSpots.get(`fix-tag:${p.id}`) : undefined
                 const isBase = p.category === 'hotel'
-                const showTag = workspaceChrome && (isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay))
+                const showTag = !warn && workspaceChrome && (isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay))
                 const dx = (off?.dx ?? 0) + (spot?.dx ?? 0)
                 const dy = (off?.dy ?? 0) + (spot?.dy ?? 0)
                 const offsetStyle = dx || dy ? { transform: `translate(${dx}px, ${dy}px)` } : undefined
@@ -2064,14 +2089,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}
                       >
-                        {workspaceChrome ? <MapStopSymbol order={num} stay={p.category === 'hotel'} fixed={trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex)} /> : <span className="yf-pin-face">
+                        {workspaceChrome ? <MapStopSymbol order={num} stay={p.category === 'hotel'} fixed={trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex)} warn={!!warn} /> : <span className="yf-pin-face">
                           <span className="yf-pin-ico" aria-hidden><CatIcon category={p.category} size={15} className="yf-pin-svg" /></span>
                           <i className="yf-pin-num">{num}</i>
                         </span>}
                       </button>
                       </span>
                       {showTag && <span className={`mv2-stop-tag${isBase ? ' mv2-stop-tag--base' : ''}`} data-collapsed={tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{isBase ? baseTagText(p.title) : p.title}</span>}
-                      {c && !(showTag && isBase) && (workspaceChrome
+                      {warn?.text != null && <span className="mv2-stop-tag mv2-stop-tag--fix" data-collapsed={warnTagSpot?.hidden ? 'true' : undefined} style={warnTagSpot && !warnTagSpot.hidden ? { transform: `translate(${warnTagSpot.dx + dx}px, ${warnTagSpot.dy + dy}px)` } : undefined}>{warn.text}</span>}
+                      {c && !warn && !(showTag && isBase) && (workspaceChrome
                         ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {c.cumKm}</small></span>
                         : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
                       </>)}

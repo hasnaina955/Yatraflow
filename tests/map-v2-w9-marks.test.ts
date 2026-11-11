@@ -116,7 +116,7 @@ describe('the corridor render', () => {
 describe('the base tag', () => {
   it('renders the place name and hides the clock pill', () => {
     expect(map).toMatch(/isBase \? baseTagText\(p\.title\) : p\.title/)
-    expect(map).toMatch(/\{c && !\(showTag && isBase\) && \(workspaceChrome/)
+    expect(map).toMatch(/\{c && !warn && !\(showTag && isBase\) && \(workspaceChrome/)
   })
 
   it('sits to the left of the mark', () => {

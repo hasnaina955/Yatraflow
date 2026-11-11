@@ -4,7 +4,7 @@ import { collectWarnings, groupWarnings } from '../../../lib/engine'
 import type { Trip } from '../../../data/types'
 import { warningRefs } from './fixLens'
 import { stayRingOptions, type RingId } from '../../../components/map/lenses/StayDeck'
-import { Car, Footprints } from 'lucide-react'
+import { CarFront, PersonStanding } from 'lucide-react'
 import type { MapLensId } from './useMapLenses'
 
 export interface RailRingChoice {
@@ -155,11 +155,11 @@ export function LensRailExtras({ lens, ringId, onRing }: LensRailExtrasProps) {
       {railRingChoices().map(choice => (
         <button key={choice.id} type="button" className="mv2-lens-rail-ring-btn"
           aria-label={choice.ariaLabel} aria-pressed={choice.id === ringId} onClick={() => onRing(choice.id)}>
-          {choice.mode === 'walk' ? <Footprints size={14} aria-hidden /> : <Car size={14} aria-hidden />}
+          {choice.mode === 'walk' ? <PersonStanding size={13} aria-hidden /> : <CarFront size={13} aria-hidden />}
           {choice.label}
         </button>
       ))}
     </div>
-    <p className="mv2-lens-rail-note">The crew's mode sets the default.</p>
+    <p className="mv2-lens-rail-note">The crew's mode sets the default; the walk ring and the 30 min drive ring draw on the map.</p>
   </section>
 }

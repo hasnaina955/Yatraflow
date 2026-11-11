@@ -1499,3 +1499,13 @@
     transform: translateY(-50%);
   }
 }
+/* 911-W13-logic: a viewer never sees a deck add action; the Fix badge sits on
+   its stop, and the Stay empty body offers the wider drive ring. */
+.mv2-workspace[data-role="viewer"] .mv2-lens-place-add { display: none; }
+.mv2-stop-warn { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: #A6342A; color: #FFFFFF; transform: rotate(45deg); box-shadow: 0 0 0 2px var(--pw-card), var(--shadow-sm); }
+.mv2-stop-warn > svg { transform: rotate(-45deg); }
+.mv2-map-stop.is-stay .mv2-stop-warn { right: auto; left: -6px; }
+/* The Fix tag uses the stop-tag ground and tokens. It centres on its stop and
+   the collision layout moves it right, left, below or above. */
+.mv2-pin-anchor > .mv2-stop-tag--fix { left: 50%; top: 50%; translate: -50% -50%; max-width: 260px; z-index: 3; }
+.mv2-lens-widen { margin-top: var(--space-3); }

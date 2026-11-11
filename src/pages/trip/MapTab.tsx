@@ -8,7 +8,7 @@ import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import type { WriterRoadBinding } from './map/writerRoadBinding'
-import { buildJourney, type JourneyPoint, minutesToHM, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
+import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
 import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
@@ -46,8 +46,8 @@ import type { RingId } from '../../components/map/lenses/StayDeck'
 import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
-import { LensRailExtras, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
-import { fixMarkLabel } from '../../lib/mapStyles/lensMarks'
+import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
+import { fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
 } from './map/minuteScope'
@@ -1436,7 +1436,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const shownDriveIds = new Set(lens === 'drive' ? (driveGroup?.shown ?? []).map(row => String(row.row.hit.id)) : [])
   const hiddenRows = hiddenDrivePicks(seeForRail, shownDriveIds)
   const drivePickLetters: Record<string, 'A' | 'B' | 'C'> = lens === 'drive'
-    ? driveLettersByRoad(driveGroup?.shown ?? [])
+    ? driveLettersByRoad(lenses.drive.view.rows)
     : {}
   const stayPickLetters: Record<string, 'A' | 'B' | 'C'> = {}
   const activeStayPicks = activeStayWindowId == null ? undefined : lenses.stay.picks[activeStayWindowId]
@@ -1495,18 +1495,26 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const problemTime = problemStopIndex >= 0
     ? journeyDay?.daySchedule?.arrivalTimes[problemStopIndex] ?? null
     : null
-  const commitmentTime = trip.fixedCommitments.find(entry => entry.dayIndex === activeDayIndex)?.time ?? null
-  const fixWarningMarks = lens === 'fix' && problemStop != null
+  const fixCommitment = fixStopId == null
+    ? null
+    : trip.fixedCommitments.find(entry => entry.dayIndex === activeDayIndex && entry.stopId != null && String(entry.stopId) === String(fixStopId))
+      ?? trip.fixedCommitments.find(entry => entry.dayIndex === activeDayIndex)
+      ?? null
+  const problemClock = problemTime == null ? null : lensClock(hmToMinutes(problemTime))
+  const commitmentClock = fixCommitment?.time == null ? null : lensClock(hmToMinutes(fixCommitment.time))
+  const fixMarkText = fixMarkFactsLabel(problemStop?.title ?? null, commitmentClock, problemClock)
+  // The rail row names the same two facts in one short line.
+  const fixRowLine = fixRailLine(problemClock, fixCommitment?.title ?? null, commitmentClock)
+  const fixStopWarning = lens === 'fix' && problemStop != null && fixMarkText != null
     && Number.isFinite(problemStop.lat) && Number.isFinite(problemStop.lng)
     && problemStop.lat !== 0 && problemStop.lng !== 0
-    ? [{
-      id: `fix-${fixStopId}`,
-      lat: problemStop.lat,
-      lng: problemStop.lng,
-      label: fixMarkLabel(problemStop.title, problemTime, commitmentTime) ?? problemStop.title,
+    ? {
+      stopId: String(problemStop.id),
+      label: fixMarkText,
+      text: fixMarkText,
       severe: true,
-    }]
-    : []
+    }
+    : null
   const driveBudget = lens === 'drive' && lenses.drive.phase === 'ready'
     ? {
       usedMin: Math.round(lenses.drive.view.rows.reduce((sum, row) => {
@@ -1594,7 +1602,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     }
   }, [])
   const selectedHit = mapPois.find(hit => hit.id === detailId) ?? null
-  const detailDay = selectedHit ? dayForKm(selectedHit.cumKm) : null
+  const selectedDriveRow = selectedHit ? driveRowForHit(driveRows, selectedHit) : undefined
+  // The card's day wins over a km guess, so the detail shows the same day.
+  const detailDay = selectedHit ? selectedDriveRow?.dayIndex ?? dayForKm(selectedHit.cumKm) : null
   // A projected row is the card's fact source. The rail selection names its
   // slot occurrence; a map pin names only the place, so repeated slot
   // occurrences stay ambiguous instead of borrowing another row's facts.
@@ -1838,7 +1848,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     </details>
   )
   return (
-    <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap}>
+    <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
       {!phoneSheet && settingsTools}
       {(clockVerdict.verdict !== 'ok' || (splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status" role="status">
         {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `This drive needs ${travelDayNeed} travel days. The current plan has ${trip.days.length}.`}
@@ -1854,7 +1864,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={stayWindowRows} windowRow={windowRow} daysCaption={daysCaption} fixStopId={fixStopId} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={stayWindowRows} windowRow={windowRow} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
@@ -2312,7 +2322,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {...(onGapRing ? { onGapRing } : {})}
               {...(Object.keys(pickBands).length > 0 ? { pickBands } : {})}
               {...(pickLetters && Object.keys(pickLetters).length > 0 ? { pickLetters } : {})}
-              {...(fixWarningMarks.length > 0 ? { warningMarks: fixWarningMarks } : {})}
+              {...(fixStopWarning ? { stopWarning: fixStopWarning } : {})}
               {...(edit.previewRoad ? { previewRoad: edit.previewRoad } : {})}
               corridorDay={lens === 'drive' ? activeDayIndex : null}
             />
@@ -2349,6 +2359,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               clock={lensClock}
               activeDriveTab={driveTab}
               onDriveTab={setDriveTab}
+              driveLetters={drivePickLetters}
               stripOf={row => driveCardStrip(row, lensClock)}
               bandOf={row => scopeBandOf(row, scopeMinutes, budgetHeldIds)}
               introOf={row => driveDeckIntro(row, lensClock)}

@@ -11,8 +11,14 @@ export interface LensCostCell {
   key: string
   /** Sentence case in source. CSS sets the capitals. */
   label: string
-  /** The known text. Null shows the unknown mark. */
+  /** The known text. Null hides the cell. */
   value: string | null
+}
+
+/** The cells with a known value. An unknown fact hides its cell, so a strip
+ *  with no known fact draws no strip. */
+export function knownCostCells(cells: readonly LensCostCell[]): LensCostCell[] {
+  return cells.filter(cell => cell.value != null && cell.value.trim() !== '')
 }
 
 /** "{area} · {kind}" from the hit. Null hides the line. The lead word is
@@ -95,6 +101,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
   // A rating shows only when the hit has both a rating and its count.
   const showRating = rating != null && rating.count != null
   const subLine = hit ? placeSubLine(hit) : null
+  const shownCells = knownCostCells(cells)
   // The tile takes the category family colour, as the map marks do.
   const family = placeSubtype({ category: category ?? undefined, name }).family
   const openClass = 'mv2-lens-place-open'
@@ -127,16 +134,12 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
     {reasons.length > 0 && <div className="mv2-lens-reasons">
       {reasons.map(reason => <span className="mv2-lens-reason" key={reason}>{reason}</span>)}
     </div>}
-    <div className="mv2-lens-strip">
-      {cells.map(cell => <span className="mv2-lens-cell" key={cell.key}>
+    {shownCells.length > 0 && <div className="mv2-lens-strip">
+      {shownCells.map(cell => <span className="mv2-lens-cell" key={cell.key}>
         <span className="mv2-lens-cell-label">{cell.label}</span>
-        <span className="mv2-lens-cell-value">
-          {cell.value == null
-            ? <span aria-label="unknown">—</span>
-            : cell.value}
-        </span>
+        <span className="mv2-lens-cell-value">{cell.value}</span>
       </span>)}
-    </div>
+    </div>}
     <div className="mv2-lens-place-actions">
       <button
         type="button"

@@ -126,17 +126,20 @@ function roadKmOf(row: DriveLensRow): number | null {
 
 /**
  * The letters for the shown Drive cards, in road order.
- * A row with no known road position gets no letter. The set stops at C.
+ * A row with no known road position keeps its card order after the placed
+ * rows. The map pins, the cards and the peek read this one map. The set
+ * stops at C.
  */
 export function driveLettersByRoad(
   rows: readonly DriveLensRow[],
 ): Record<string, 'A' | 'B' | 'C'> {
-  const placed: Array<{ id: string; km: number }> = []
-  for (const row of rows) {
-    const km = roadKmOf(row)
-    if (km != null) placed.push({ id: String(row.row.hit.id), km })
-  }
-  placed.sort((a, b) => a.km - b.km)
+  const placed = rows.map((row, index) => ({ id: String(row.row.hit.id), km: roadKmOf(row), index }))
+  placed.sort((a, b) => {
+    if (a.km == null && b.km == null) return a.index - b.index
+    if (a.km == null) return 1
+    if (b.km == null) return -1
+    return a.km - b.km
+  })
   const letters: Record<string, 'A' | 'B' | 'C'> = {}
   placed.slice(0, PICK_LETTERS.length).forEach((entry, index) => {
     letters[entry.id] = PICK_LETTERS[index]

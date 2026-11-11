@@ -134,10 +134,10 @@ export function clampBoundsWithin(
 /** The stop name tag's height and its drop under the mark. Values from the Drive board. */
 export const STOP_TAG_BOX = { w: 132, h: 26, dy: 34 }
 
-/** The tag width a stop name needs. A long name stops at 184 px. */
-export function stopTagBox(title: string): { w: number; h: number } {
+/** The tag width a stop name needs. A long name stops at `maxWidth` px. */
+export function stopTagBox(title: string, maxWidth = 184): { w: number; h: number } {
   const chars = [...title.trim()].length
-  return { w: Math.min(184, Math.max(56, Math.round(chars * 6.4 + 18))), h: STOP_TAG_BOX.h }
+  return { w: Math.min(maxWidth, Math.max(56, Math.round(chars * 6.4 + 18))), h: STOP_TAG_BOX.h }
 }
 
 /** The base tag clears its mark by 7 px. The board shows 6 to 8 px. */
@@ -255,4 +255,16 @@ export function fixMarkLabel(
   if (stopName == null) return null
   const head = arriveTime == null ? stopName : `${stopName} ${arriveTime}`
   return jettyTime == null ? head : `${head} · jetty ${jettyTime}`
+}
+
+/** The visible fix-mark label. Both real times must be known. A missing fact
+ *  keeps the mark bare, so no label is invented. */
+export function fixMarkFactsLabel(
+  stopName: string | null,
+  commitmentText: string | null,
+  arrivalText: string | null,
+): string | null {
+  if (stopName == null || commitmentText == null || arrivalText == null) return null
+  if (stopName.trim() === '' || commitmentText.trim() === '' || arrivalText.trim() === '') return null
+  return fixMarkLabel(stopName, commitmentText, arrivalText)
 }

@@ -135,7 +135,7 @@ describe('LensPlaceCard', () => {
     expect(card({ hit: {} })).not.toContain('mv2-lens-place-rating')
   })
 
-  it('renders a dash with the unknown label for a missing cost value', () => {
+  it('renders only the known cost cells', () => {
     const html = card({
       cells: [
         { key: 'arrive', label: 'Arrive', value: null },
@@ -143,8 +143,10 @@ describe('LensPlaceCard', () => {
         { key: 'budget', label: 'Budget', value: null },
       ],
     })
-    expect(html).toContain('aria-label="unknown"')
-    expect((html.match(/—/g) ?? []).length).toBe(2)
+    expect(html).not.toContain('aria-label="unknown"')
+    expect(html).not.toContain('—')
+    expect(html).toContain('mv2-lens-cell-label">Detour')
+    expect(html).not.toContain('mv2-lens-cell-label">Arrive')
   })
 
   it('draws the letter badge only when the pick has a letter', () => {
@@ -316,7 +318,7 @@ describe('decks draw the shared header', () => {
     expect(html).toContain('1 pick near Hotel Ashoka')
     expect(html).toContain('Add to Day 2 · 17:00')
     expect(html).toContain('Walk')
-    expect(html).toContain('aria-label="unknown"')
+    expect(html).not.toContain('aria-label="unknown"')
   })
 
   it('shows no pick count while the stay is still waiting', () => {

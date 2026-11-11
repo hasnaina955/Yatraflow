@@ -109,6 +109,21 @@ export function fixReasonLine(place: string | null, timeText: string | null, rea
   return `${place} ${timeText} · ${reason}`
 }
 
+/** The Fix row's short line from two real times: the reach and the commitment.
+ *  A missing time keeps the whole line out. */
+export function fixRailLine(
+  arrivalText: string | null,
+  commitmentTitle: string | null,
+  commitmentText: string | null,
+): string | null {
+  if (arrivalText == null || commitmentText == null) return null
+  if (arrivalText.trim() === '' || commitmentText.trim() === '') return null
+  const label = commitmentTitle != null && commitmentTitle.trim() !== ''
+    ? commitmentTitle.trim()
+    : 'commitment'
+  return `reach ${arrivalText} · ${label} ${commitmentText}`
+}
+
 /** The reason the Fix lens names for one day. It reads the same engine
  *  warnings and targets as the deck, so the rail cannot disagree with it. */
 export function fixProblemReason(trip: Trip, dayIndex: number): string | null {

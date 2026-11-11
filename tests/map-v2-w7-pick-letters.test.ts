@@ -36,12 +36,12 @@ describe('driveLettersByRoad', () => {
     expect(letters.far).toBe('C')
   })
 
-  it('gives no letter to a pick with no road position', () => {
+  it('gives the next letter to a pick with no road position', () => {
     const letters = driveLettersByRoad(lensRows([row('unknown'), row('near', 5), row('mid', 12)]))
-    expect(letters.unknown).toBeUndefined()
+    expect(letters.unknown).toBe('C')
     expect(letters.near).toBe('A')
     expect(letters.mid).toBe('B')
-    expect(Object.keys(letters)).toHaveLength(2)
+    expect(Object.keys(letters)).toHaveLength(3)
   })
 
   it('stops at C when more than three picks have a road position', () => {
@@ -54,9 +54,9 @@ describe('driveLettersByRoad', () => {
     expect(letters.p4).toBeUndefined()
   })
 
-  it('never gives a letter to a pick with a non-finite road position', () => {
+  it('keeps a non-finite road position in card order', () => {
     const letters = driveLettersByRoad(lensRows([row('bad', Number.POSITIVE_INFINITY)]))
-    expect(letters).toEqual({})
+    expect(letters).toEqual({ bad: 'A' })
   })
 
   it('uses the cumulative km when the exact leg is absent', () => {
@@ -105,8 +105,8 @@ describe('DriveTabs card badge', () => {
     expect(badges(markup)).toEqual([['far', 'C'], ['near', 'A'], ['mid', 'B']])
   })
 
-  it('shows no badge on a card with no road position', () => {
+  it('shows the card-order badge on a card with no road position', () => {
     const markup = markupFor(lensRows([row('unknown'), row('near', 5)]))
-    expect(badges(markup)).toEqual([['near', 'A']])
+    expect(badges(markup)).toEqual([['unknown', 'B'], ['near', 'A']])
   })
 })

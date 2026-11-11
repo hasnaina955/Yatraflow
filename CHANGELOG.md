@@ -16,6 +16,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+**The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It still reports 562 errors, so `verify` does not run it yet. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.
+
 ## [0.84.0] - 2026-11-11
 
 **This minor release closes the paid-plan leak and adds fifty destination scenes.** A locked day of a paid plan now stays on the server. The database migration `20261110_paywall_locked_day_boundary.sql` closes the leak. Apply it after this release is live. The release also brings the guided create flow, day-slot voting, and the Settings and Profile polish.

@@ -1452,19 +1452,6 @@
 .mv2-lens-ring-btn:active { transform: scale(.98); }
 :root:where([data-theme='dark']) .mv2-lens-ring-btn[aria-checked="true"] { background: var(--pw-line); }
 
-/* A lone Drive category is a heading row, not a one-item tab track. */
-.mv2-lens-single-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0 var(--space-2);
-  color: var(--pw-ink);
-  font: var(--pw-ui);
-  font-weight: 700;
-}
-.mv2-lens-single-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
 /* The detail panel hugs the edit card. A tall card still scrolls. */
 @media (min-width: 1181px) {
   .mv2-workspace .mv2-detail:has(> .map-edit-wrap) {
@@ -1511,9 +1498,9 @@
 .mv2-lens-widen { margin-top: var(--space-3); }
 /* 911-final: lens phase notes (a wait, a failure, a paused search and an empty
    each draw their own mark and tint) and the ribbon label that has no room. */
-.mv2-lens-phase-note { display: flex; align-items: flex-start; gap: var(--space-4); padding: var(--space-5) var(--space-5); border-radius: 12px; border: 1px solid transparent; background: var(--pw-soft); color: var(--pw-ink); }
+.mv2-lens-phase-note { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); padding: var(--space-5) var(--space-5); border-radius: 12px; border: 1px solid transparent; background: var(--pw-soft); color: var(--pw-ink); }
 .mv2-lens-phase-note > svg { flex: none; margin-top: 1px; color: var(--pw-ink-3); }
-.mv2-lens-phase-note > .mv2-lens-phase { padding: 0; border-radius: 0; background: none; }
+.mv2-lens-phase-note > .mv2-lens-phase { flex: 1 1 0; min-width: 0; padding: 0; border-radius: 0; background: none; }
 .mv2-lens-phase-note[data-phase='scanning'] > svg { animation: mv2-phase-pulse calc(var(--motion-slower) * 3) ease-in-out infinite; }
 .mv2-lens-phase-note[data-phase='failed'] { border-color: var(--pw-risk); background: color-mix(in srgb, var(--pw-risk) 12%, var(--pw-card)); }
 .mv2-lens-phase-note[data-phase='failed'] > svg { color: var(--pw-risk); }
@@ -1525,3 +1512,9 @@
 .mv2-clock-label[data-tight='true'] { visibility: hidden; }
 .mv2-workspace .mv2-sheet-handle:focus-visible > span { background: var(--ink-teal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink-teal) 28%, transparent); }
 @media (prefers-reduced-motion: reduce) { .mv2-sheet-handle > span { transition: none; } }
+.mv2-lens-retry { position: relative; display: inline-flex; align-items: center; gap: var(--space-3); margin-left: auto; padding: var(--space-3) var(--space-5); border: 1px solid var(--pw-risk); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-risk); font: var(--pw-ui); font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.mv2-lens-retry::before { content: ''; position: absolute; inset: -8px -4px; }
+.mv2-lens-retry:hover { background: color-mix(in srgb, var(--pw-risk) 12%, var(--pw-card)); }
+.mv2-lens-retry:active { background: color-mix(in srgb, var(--pw-risk) 20%, var(--pw-card)); }
+.mv2-lens-retry:focus-visible { outline: 2px solid var(--pw-risk); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .mv2-lens-retry { transition: none; } }

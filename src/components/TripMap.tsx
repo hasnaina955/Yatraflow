@@ -37,7 +37,7 @@ import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
-import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { ghostInk, ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
 import { BASE_TAG_GAP, CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
@@ -498,15 +498,15 @@ function GhostLegRoute({ id, leg, role }: { id: string; leg: GhostLeg; role: 'ne
 }
 
 /**
- * The add preview's road: one dashed line in the day colour. A proven
+ * The add preview's road: one dashed line in the board's ghost ink. A proven
  * unmeasured leg draws dotted, so an estimate cannot read as a road.
  */
-function PreviewRoadRoute({ road, colorFor }: { road: PreviewRoadView; colorFor: (dayIndex: number) => string }) {
+function PreviewRoadRoute({ road, dark }: { road: PreviewRoadView; dark: boolean }) {
   const coordinates = road.path.filter(validMapCoordinate).map(point => [point.lng, point.lat] as [number, number])
   if (coordinates.length < 2) return null
   const measured = (road.legInMeasured ?? true) && (road.legOutMeasured ?? true)
   const paint = ghostLegPaint({ measured }, 'new')
-  return <MapRoute id="yf-preview-road" coordinates={coordinates} color={colorFor(road.dayIndex)} width={paint.width} opacity={paint.opacity} dashArray={paint.dash} interactive={false} />
+  return <MapRoute id="yf-preview-road" coordinates={coordinates} color={ghostInk(dark)} width={paint.width} opacity={paint.opacity} dashArray={paint.dash} interactive={false} />
 }
 
 /** Drop consecutive duplicate points (shared endpoints between legs). */
@@ -1803,7 +1803,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </MapMarker>}
             {/* The add preview's road is the lower line: the plan the traveller
                 owns must stay above a road that is only proposed. */}
-            {previewRoad && <PreviewRoadRoute road={previewRoad} colorFor={colorForDay} />}
+            {previewRoad && <PreviewRoadRoute road={previewRoad} dark={theme === 'dark'} />}
             {/* In All-days view a single connected main line from the trip start
                 through every stop to the end; in single-day view, coloured lines.
                 Both get a contrasting casing underneath (road-map halo) and

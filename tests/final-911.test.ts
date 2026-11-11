@@ -109,3 +109,50 @@ describe('the fixture provider modes', () => {
     expect(Math.abs(answer.elements[0].lat - 10.1)).toBeLessThan(0.01)
   })
 })
+
+describe('failed lens note retry', () => {
+  type Node = { type?: unknown; props?: { className?: string; onClick?: () => void; children?: unknown } } | string | null | false | undefined
+  const find = (node: unknown, className: string): Node => {
+    if (node == null || typeof node !== 'object') return null
+    const el = node as NonNullable<Exclude<Node, string>>
+    if (el.props?.className === className) return el
+    const kids = el.props?.children
+    for (const kid of Array.isArray(kids) ? kids : [kids]) {
+      const hit = find(kid, className)
+      if (hit) return hit
+    }
+    return null
+  }
+
+  it('calls the retry when the Retry button is pressed', () => {
+    let calls = 0
+    const tree = LensPhaseNote({ phase: 'failed', onRetry: () => { calls += 1 }, children: 'The search failed. Try again.' })
+    const button = find(tree, 'mv2-lens-retry') as { props: { onClick: () => void } } | null
+    expect(button).not.toBeNull()
+    button!.props.onClick()
+    expect(calls).toBe(1)
+  })
+
+  it('draws the Retry button only for a failed note that has a retry', () => {
+    const withRetry = (phase: (typeof phasesAll)[number], retry?: () => void) => renderToStaticMarkup(createElement(LensPhaseNote, { phase, onRetry: retry }, 'text'))
+    const phasesAll = ['unscanned', 'scanning', 'failed', 'quota', 'empty'] as const
+    expect(withRetry('failed', () => {})).toContain('mv2-lens-retry')
+    expect(withRetry('failed')).not.toContain('mv2-lens-retry')
+    for (const phase of ['unscanned', 'scanning', 'quota', 'empty'] as const) expect(withRetry(phase, () => {})).not.toContain('mv2-lens-retry')
+  })
+
+  it('wires one scan retry to the Refresh button and to the Drive, Stay and Gap decks', () => {
+    const tab = read('src/pages/trip/MapTab.tsx')
+    expect(tab).toContain('const retryScan')
+    expect(tab).toMatch(/onRetry=\{retryScan\}/)
+    const panel = read('src/pages/trip/map/MapLensPanel.tsx')
+    expect(panel.match(/props\.onRetry == null \? \{\} : \{ onRetry: props\.onRetry \}/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+    for (const deck of ['DriveTabs', 'StayDeck', 'GapDeck']) expect(read(`src/components/map/lenses/${deck}.tsx`)).toMatch(/<LensPhaseNote[^>]*\{\.\.\.\(\w*\.?onRetry == null/)
+  })
+
+  it('keeps one message per phase and the page banner away from an open deck', () => {
+    expect(read('src/pages/trip/MapTab.tsx')).toMatch(/!deckOpen/)
+    expect(read('src/components/map/lenses/DriveTabs.tsx')).toContain('DRIVE_NOTE_TITLE')
+    expect(read('src/components/map/lenses/GapDeck.tsx')).toContain('GAP_NOTE_TITLE')
+  })
+})

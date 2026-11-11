@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ghostLegPaint, pickLetter, placeSubtype, resolveMarkCollisions } from '../src/lib/mapStyles/placeMarks'
+import { ghostInk, ghostLegPaint, pickLetter, placeSubtype, resolveMarkCollisions } from '../src/lib/mapStyles/placeMarks'
 import { roadSnappedIndex } from '../src/components/map/stopDragReorder'
 
 describe('place subtype', () => {
@@ -58,6 +58,14 @@ describe('ghost road paint', () => {
     expect(estimate.width).toBeLessThan(measured.width)
     expect(estimate.opacity).toBeLessThan(measured.opacity)
     expect(estimate.dash).not.toEqual(measured.dash)
+  })
+
+  it('draws a measured preview in the board ghost ink, not a day colour', () => {
+    expect(ghostInk(false)).toBe('#7C5CFC')
+    expect(ghostInk(true)).toBe('#A48BFF')
+    const paint = ghostLegPaint({ measured: true }, 'new')
+    expect(paint.width).toBe(4)
+    expect(paint.opacity).toBe(1)
   })
 
   it('dims the replaced road below both new roads', () => {

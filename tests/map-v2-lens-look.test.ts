@@ -1,5 +1,5 @@
-// W13 look: the Drive deck draws a lone category as a heading row, never as a
-// one-item tab track. The deck has no DOM test, so the branch is checked in the
+// W13 look, 911-final: the Drive deck never draws a lone category as a one-item
+// tab track, and never as a repeated heading row: the deck title names it. The deck has no DOM test, so the branch is checked in the
 // source and the rule itself is checked as a pure function.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -8,9 +8,9 @@ import { driveTabMode } from '../src/components/map/lenses/DriveTabs'
 const source = readFileSync('src/components/map/lenses/DriveTabs.tsx', 'utf8')
 
 describe('driveTabMode', () => {
-  it('draws a heading row for no category or one category', () => {
-    expect(driveTabMode(0)).toBe('heading')
-    expect(driveTabMode(1)).toBe('heading')
+  it('draws nothing for no category or one category, because the title names it', () => {
+    expect(driveTabMode(0)).toBe('none')
+    expect(driveTabMode(1)).toBe('none')
   })
 
   it('draws the tab track for two or more categories', () => {
@@ -21,12 +21,13 @@ describe('driveTabMode', () => {
 
 describe('DriveTabs render', () => {
   it('guards the tab track with the mode', () => {
-    expect(source).toContain("driveTabMode(groups.length) === 'heading'")
-    expect(source).toContain('mv2-lens-single-tab')
+    expect(source).toContain("driveTabMode(groups.length) === 'none'")
+    // No repeated label row: the lone category has no markup of its own.
+    expect(source).not.toContain('mv2-lens-single-tab')
   })
 
   it('keeps the tablist inside the non-heading branch', () => {
-    const heading = source.indexOf("driveTabMode(groups.length) === 'heading'")
+    const heading = source.indexOf("driveTabMode(groups.length) === 'none'")
     const track = source.indexOf('role="tablist"')
     expect(heading).toBeGreaterThan(-1)
     expect(track).toBeGreaterThan(heading)

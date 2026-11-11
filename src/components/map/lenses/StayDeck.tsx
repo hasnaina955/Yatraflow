@@ -117,6 +117,8 @@ export interface StayDeckProps {
   clock(min: number): string
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
+  /** The search retry. Absent draws a failed note with no Retry button. */
+  onRetry?: () => void
 }
 
 /** One row of the list under the cards. */
@@ -172,7 +174,7 @@ export function StayDeck(props: StayDeckProps) {
       <LensPhaseNote phase="unscanned">{NEEDS_BASE_TEXT}</LensPhaseNote>
       <button type="button" className="btn btn-primary mv2-lens-set" onClick={onSetStay}>Set tonight's stay</button>
     </div>}
-    {result.kind === 'phase' && result.phase !== 'ready' && <LensPhaseNote phase={result.phase}>{STAY_PHASE_TEXT[result.phase]}</LensPhaseNote>}
+    {result.kind === 'phase' && result.phase !== 'ready' && <LensPhaseNote phase={result.phase} {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}>{STAY_PHASE_TEXT[result.phase]}</LensPhaseNote>}
     {result.kind === 'ready' && readyPicks.length === 0 && <div className="mv2-lens-body-state">
       <LensPhaseNote phase="empty">{STAY_PHASE_TEXT.empty}</LensPhaseNote>
       {widen && <button type="button" className="btn btn-ghost mv2-lens-widen" onClick={() => onRing('drive-30')}>Try ≤30 min drive</button>}

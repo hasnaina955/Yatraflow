@@ -1698,6 +1698,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 
   // W10: on a phone the search settings leave the map's top flow and become
   // one row in the planning sheet. Desktop keeps them where they were.
+  // The one scan retry. The Refresh button and the Retry button of a failed deck both call it.
+  const retryScan = () => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }
   const settingsTools = (
     <details className="mv2-tools" id="mv2-map-settings">
         <summary><SlidersHorizontal size={15} aria-hidden />Search settings and route advice<ChevronDown size={14} aria-hidden /></summary>
@@ -1710,7 +1712,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <button
               className="btn btn-outline btn-sm suggestion-refresh-btn"
               title="Refresh suggestions"
-              onClick={() => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }}
+              onClick={retryScan}
               disabled={loadingPois}
             >
               <InlineIcon icon={RotateCcw} size={12} gap={3} />Refresh
@@ -1854,7 +1856,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `This drive needs ${travelDayNeed} travel days. The current plan has ${trip.days.length}.`}
         {' '}<button type="button" className="mv2-route-advice" onClick={() => { const tools = listRef.current?.parentElement?.querySelector('details.mv2-tools'); if (tools instanceof HTMLDetailsElement) { tools.open = true; tools.querySelector('summary')?.focus() } }}>Review route advice</button>
       </div>}
-      {(poisFailed || quotaOut) && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Open search settings to retry.'}</p>}
+      {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Open search settings to retry.'}</p>}
       {filterActive && (
         <div className="poi-filterbar" role="status">
           {/* #162: the bar reads the label, the filter keys on the stable key. */}
@@ -2353,6 +2355,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <MapLensPanel
               lens={lens}
               onFold={foldDeck}
+              onRetry={retryScan}
               lenses={lenses}
               dayLabel={lensDayLabel}
               dayNumber={activeDayIndex + 1}
@@ -2400,11 +2403,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   </div>
                 </div>
               ))}
-              {quotaOut && (
-                <p className="hint-text" role="status">⚠ Google Places reached its 80% safety pause for this month - corridor suggestions resume next UTC month. Remove the key in Settings and reload to use the free stack.</p>
-              )}
+              {/* One state, one message: the deck note above says wait, failed, paused or empty. */}
               {seeForRail.length === 0
-                ? <p className="muted small" role="status">{loadingPois ? 'Finding stops along the drive…' : poisFailed ? 'Route suggestions could not be loaded. Open search settings to retry.' : quotaOut ? 'New Google searches are paused by the provider limit.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>
+                ? (lenses.drive.phase === 'ready' && <p className="muted small" role="status">No extra picks yet. Search for a place or open the day plan.</p>)
                 : hiddenRows.length > 0 && (
                     <details className="poi-more mv2-deck-more mv2-lens-more">
                       <summary>More like this · {hiddenRows.length}</summary>

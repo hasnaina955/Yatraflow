@@ -19,6 +19,14 @@ export const GAP_PHASE_TEXT: Record<LensPhase, string> = {
   ready: '',
 }
 
+/** A deck with no cards still shows its title, so every phase keeps one header. */
+export const GAP_NOTE_TITLE = 'Open parts of this day'
+
+/** The kicker of a deck with no cards, for example "Gap · Day 1". */
+export function gapNoteKicker(dayNumber: number): string {
+  return Number.isFinite(dayNumber) ? `Gap · Day ${dayNumber}` : 'Gap'
+}
+
 export const GAP_EMPTY_TEXT = 'No open part of this day needs a stop.'
 
 /** The kicker of the deck header, for example "Gap · 11:30–14:30". */
@@ -65,21 +73,23 @@ export interface GapDeckProps {
   clock(min: number): string
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
+  /** The search retry. Absent draws a failed note with no Retry button. */
+  onRetry?: () => void
 }
 
 export function GapDeck(props: GapDeckProps) {
-  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose } = props
+  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose, onRetry } = props
   const first = gaps[0]
   const kicker = first == null ? 'Gap' : gapDeckKicker(first.title, first.windowText)
   if (phase !== 'ready' && phase !== 'empty') {
     return <section className="mv2-lens-deck" aria-label="Gaps in this day">
-      <LensDeckHeader kicker={kicker} onClose={onClose} />
-      <LensPhaseNote phase={phase}>{GAP_PHASE_TEXT[phase]}</LensPhaseNote>
+      <LensDeckHeader kicker={gapNoteKicker(dayNumber)} title={GAP_NOTE_TITLE} onClose={onClose} />
+      <LensPhaseNote phase={phase} {...(onRetry == null ? {} : { onRetry })}>{GAP_PHASE_TEXT[phase]}</LensPhaseNote>
     </section>
   }
   if (phase === 'empty' || gaps.length === 0) {
     return <section className="mv2-lens-deck" aria-label="Gaps in this day">
-      <LensDeckHeader kicker="Gap" onClose={onClose} />
+      <LensDeckHeader kicker={gapNoteKicker(dayNumber)} title={GAP_NOTE_TITLE} onClose={onClose} />
       <LensPhaseNote phase="empty">{GAP_EMPTY_TEXT}</LensPhaseNote>
     </section>
   }

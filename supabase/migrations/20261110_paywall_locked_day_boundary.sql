@@ -48,9 +48,9 @@
 --     They name the same towns as the public `route_summary`.
 --   * `get_trip_by_invite_code`. The code is a join capability. Its holder
 --     can become a member and then reads the row through RLS. Its own priced
---     clause still reads `coalesce(premium_price_inr, 0) > 0`, so a price of
---     0 opens it. That code is not enumerable, unlike the trip id. Close it
---     in its own migration.
+--     clause still reads `coalesce(premium_price_inr, 0) > 0`. The constraint
+--     at the end of this file forbids a price of 0, so that clause now picks
+--     the same rows as `is not null`.
 --   * The read policies of `suggestions`, `decisions` and `activity`. Their
 --     public branch reads `trips` under the caller's own RLS. A stranger sees
 --     no `trips` row, so that branch is false for a stranger already.
@@ -349,5 +349,25 @@ $$;
 
 revoke all on function public.get_invite_trip(uuid) from public, anon;
 grant execute on function public.get_invite_trip(uuid) to anon, authenticated;
+
+-- ------------------------------------------------------------ price of zero
+-- A price is NULL (free) or at least 1. The client, the publish form and the
+-- checkout all read 0 as free, and the checkout refuses a price below 1. The
+-- paywall reads any non-null price as priced. A row at 0 was thus locked and
+-- impossible to buy. The publish form never writes 0, so no real row changes.
+-- This also makes `coalesce(premium_price_inr, 0) > 0` in
+-- `get_trip_by_invite_code` equal to `is not null`.
+do $$
+begin
+  if exists (select 1 from public.published_itineraries where premium_price_inr = 0) then
+    raise exception 'a publication has price 0. Set it to null (free) or a real price, then run this file again';
+  end if;
+end $$;
+
+alter table public.published_itineraries
+  drop constraint if exists published_itineraries_price_not_zero;
+alter table public.published_itineraries
+  add constraint published_itineraries_price_not_zero
+  check (premium_price_inr is null or premium_price_inr >= 1);
 
 commit;

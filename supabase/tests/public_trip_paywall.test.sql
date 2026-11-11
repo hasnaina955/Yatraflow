@@ -36,6 +36,12 @@ delete from public.published_itineraries where id like 'pub_774_%';
 delete from public.trip_members where trip_id::text like '77410000-%';
 delete from public.trips where id::text like '77410000-%';
 
+-- The migration forbids a price of 0. Section 9 proves that. Until then the
+-- constraint is lifted, so a zero-priced row can prove the defence in depth:
+-- the paywall stays shut for it even with no constraint to stop it.
+alter table public.published_itineraries
+  drop constraint if exists published_itineraries_price_not_zero;
+
 -- Accounts: ...01 creator, ...02 buyer, ...03 non-buyer, ...04 trip member.
 insert into public.trips (id, owner_id, name, visibility, invite_code, expenses, fixed_commitments, days) values
   ('77410000-0000-4000-8000-000000000001', '77400000-0000-4000-8000-000000000001',
@@ -395,6 +401,24 @@ begin
       raise exception '% is granted to PUBLIC', fn;
     end if;
   end loop;
+end $$;
+
+-- ================================================================ 9. price of zero
+-- Put the constraint back as the migration writes it. The zero row must go
+-- first, because the constraint checks every row.
+delete from public.published_itineraries where id = 'pub_774_zero';
+alter table public.published_itineraries
+  add constraint published_itineraries_price_not_zero
+  check (premium_price_inr is null or premium_price_inr >= 1);
+do $$
+begin
+  begin
+    insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr, free_day_indexes)
+    values ('pub_774_zero', '77410000-0000-4000-8000-000000000007', '77400000-0000-4000-8000-000000000001', 0, '[]'::jsonb);
+  exception when check_violation then
+    return;
+  end;
+  raise exception 'a publication was saved with price 0';
 end $$;
 
 -- The fixture rows stay. The harness reads them again for the client mapping,

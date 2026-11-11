@@ -369,6 +369,8 @@ export const NO_PROBE_SURFACE = {
     // coordinates. The behaviour is executed, not scanned:
     // tests/public-trip-paywall-db.test.ts runs this file on PGlite and then
     // runs supabase/tests/public_trip_paywall.test.sql as each kind of viewer.
+    // The file also adds `published_itineraries_price_not_zero`. A read-only
+    // probe cannot see a CHECK constraint either; the harness proves it.
     reason: 'redefines `get_public_trip` and `get_invite_trip` — the functions exist before and after, so presence answers nothing; absence is silent (locked place data stays in the response); executed on PGlite by tests/public-trip-paywall-db.test.ts through supabase/tests/public_trip_paywall.test.sql',
   },
 }

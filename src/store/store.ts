@@ -7745,7 +7745,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     cover_image_url: p.coverImageUrl, route_summary: p.routeSummary, duration_days: p.durationDays,
     estimated_budget_per_person_inr: p.estimatedBudgetPerPersonInr, travel_style: p.travelStyle,
     best_season: p.bestSeason, travel_tips: p.travelTips, warnings_and_assumptions: p.warningsAndAssumptions,
-    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr, subscriber_cta: p.subscriberCta,
+    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr || undefined, subscriber_cta: p.subscriberCta,
     ...(hasRefreshedCol ? { refreshed_at: p.refreshedAt } : {}),
     ...(hasUnpublishedCol ? { unpublished_at: null } : {}),
   })

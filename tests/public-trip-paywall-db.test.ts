@@ -89,6 +89,19 @@ describe('20261110 paywall boundary on a real database', () => {
 
   afterAll(async () => db?.close())
 
+  // First, before the contract file lifts the constraint for its own fixture.
+  it('the migration refuses a price of 0 and keeps null and real prices', async () => {
+    await asSuper()
+    const insert = (id: string, price: number | null) => db.query(
+      `insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr) values ($1, $2, $2, $3)`,
+      [id, '77499999-0000-4000-8000-000000000000', price],
+    )
+    await expect(insert('pub_zero_probe', 0)).rejects.toThrow(/published_itineraries_price_not_zero/)
+    await insert('pub_null_probe', null)
+    await insert('pub_one_probe', 1)
+    await db.exec(`delete from public.published_itineraries where id in ('pub_null_probe', 'pub_one_probe')`)
+  })
+
   it('passes the SQL contract test: anon, non-buyer, buyer, creator, member', async () => {
     const results = await db.exec(readSql(CONTRACT))
     await asSuper()

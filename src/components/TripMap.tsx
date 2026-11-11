@@ -37,8 +37,8 @@ import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
-import { ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { ghostInk, ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { BASE_TAG_GAP, CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -498,15 +498,15 @@ function GhostLegRoute({ id, leg, role }: { id: string; leg: GhostLeg; role: 'ne
 }
 
 /**
- * The add preview's road: one dashed line in the day colour. A proven
+ * The add preview's road: one dashed line in the board's ghost ink. A proven
  * unmeasured leg draws dotted, so an estimate cannot read as a road.
  */
-function PreviewRoadRoute({ road, colorFor }: { road: PreviewRoadView; colorFor: (dayIndex: number) => string }) {
+function PreviewRoadRoute({ road, dark }: { road: PreviewRoadView; dark: boolean }) {
   const coordinates = road.path.filter(validMapCoordinate).map(point => [point.lng, point.lat] as [number, number])
   if (coordinates.length < 2) return null
   const measured = (road.legInMeasured ?? true) && (road.legOutMeasured ?? true)
   const paint = ghostLegPaint({ measured }, 'new')
-  return <MapRoute id="yf-preview-road" coordinates={coordinates} color={colorFor(road.dayIndex)} width={paint.width} opacity={paint.opacity} dashArray={paint.dash} interactive={false} />
+  return <MapRoute id="yf-preview-road" coordinates={coordinates} color={ghostInk(dark)} width={paint.width} opacity={paint.opacity} dashArray={paint.dash} interactive={false} />
 }
 
 /** Drop consecutive duplicate points (shared endpoints between legs). */
@@ -1016,16 +1016,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       if (!p.auto && !warned && !(showTag && isBase) && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
       if (stopWarning?.stopId === p.id && stopWarning.text != null && stopWarning.text.trim() !== '') {
         const tag = stopTagBox(stopWarning.text, 260)
-        // The board puts the tag left of the badge. Left, below and above come
-        // before right, so the right-side map controls never cover it.
+        // The board puts the tag beside the badge, on its left, like the base tag.
+        // The box starts there. Below and above come next, then the right side,
+        // so the map controls on the right never cover it.
+        const box = baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h)
+        const rightDx = STOP_BOX.drawW + BASE_TAG_GAP * 2 + tag.w
         spreadMarks.push({
-          id: `fix-tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: 0, w: tag.w, h: tag.h, ...base,
+          id: `fix-tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base,
           maxTravel: 500,
           alternates: [
-            [-((STOP_BOX.drawW + tag.w) / 2 + 2), 0],
             [0, (STOP_BOX.drawH + tag.h) / 2 + 2],
             [0, -((STOP_BOX.drawH + tag.h) / 2 + 2)],
-            [(STOP_BOX.drawW + tag.w) / 2 + 2, 0],
+            [rightDx, 0],
           ],
         })
       }
@@ -1801,7 +1803,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </MapMarker>}
             {/* The add preview's road is the lower line: the plan the traveller
                 owns must stay above a road that is only proposed. */}
-            {previewRoad && <PreviewRoadRoute road={previewRoad} colorFor={colorForDay} />}
+            {previewRoad && <PreviewRoadRoute road={previewRoad} dark={theme === 'dark'} />}
             {/* In All-days view a single connected main line from the trip start
                 through every stop to the end; in single-day view, coloured lines.
                 Both get a contrasting casing underneath (road-map halo) and

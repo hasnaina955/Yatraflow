@@ -238,7 +238,9 @@ describe('#346 — fills and deletes filter locally', () => {
     // Refresh button + endpoint-change are input changes, not local filters.
     const clears = [...mapTab.matchAll(/suggestionCache\.clearMap\(\)/g)].length
     expect(clears).toBe(2)
-    expect(mapTab).toMatch(/onClick=\{\(\) => \{ suggestionCache\.clearMap\(\); setRefreshTick\(t => t \+ 1\) \}\}/)
+    // The Refresh button and the failed-note Retry share one handler with the same two calls.
+    expect(mapTab).toMatch(/const retryScan = \(\) => \{ suggestionCache\.clearMap\(\); setRefreshTick\(t => t \+ 1\) \}/)
+    expect(mapTab).toMatch(/onClick=\{retryScan\}/)
   })
 
   it('dismiss relies on the same render filtering it always did — no refreshTick', () => {

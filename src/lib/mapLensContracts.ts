@@ -186,6 +186,12 @@ export function gapLensRows(input: GapLensInput): LensView<GapLensRow> {
         noFit: gapNoFitReason(candidates),
       }
     })
+  // The rows are open parts of the day. They come from the plan, not from the
+  // search. A failed or paused search that kept no pick must show its own phase.
+  // Without this, each part would read "no place found", which is a false empty.
+  if ((input.status.kind === 'failed' || input.status.kind === 'quota') && rows.every(row => row.candidates.length === 0)) {
+    return { phase: input.status.kind, rows: [], degraded: null }
+  }
   return lensViewOf(input.status, rows)
 }
 

@@ -47,6 +47,8 @@ export interface MapLensPanelProps {
   shortlistedOf?: (hit: PlaceHit) => boolean
   /** The deck fold handler. Absent uses the Map tab fold button. */
   onFold?: () => void
+  /** The scan retry of the Drive, Stay and Gap decks. Absent draws no Retry button. */
+  onRetry?: () => void
 }
 
 /** The stay deck when the base exists but no free window is known. */
@@ -79,6 +81,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
       {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       onClose={props.onFold}
+      {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />
   }
   if (lens === 'stay') {
@@ -126,6 +129,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       onSetStay={props.onSetStay}
       clock={props.clock}
       onClose={props.onFold}
+      {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />
   }
   if (lens === 'gap') {
@@ -139,6 +143,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       clock={props.clock}
       onClose={props.onFold}
+      {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />
   }
   return <FixDeck

@@ -6,6 +6,7 @@ import type {
   DriveCardStrip, DriveTab, DriveTabGroup, DriveTabsResult, ScopeBand,
 } from '../../../pages/trip/map/driveLens'
 import { LensDeckHeader } from './LensDeckHeader'
+import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
 import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
 import type { PlaceHit } from '../../../lib/geocode'
@@ -21,6 +22,14 @@ const PHASE_TEXT = {
   quota: 'The place search is over its limit for now.',
   empty: 'Nothing along this drive fits your scope.',
 } as const
+
+/** A deck with no cards still shows its title, so every phase keeps one header. */
+export const DRIVE_NOTE_TITLE = 'Along the drive'
+
+/** The kicker of a deck with no cards, for example "Drive · Day 3". */
+export function driveNoteKicker(dayNumber: number): string {
+  return Number.isFinite(dayNumber) ? `Drive · Day ${dayNumber}` : 'Drive'
+}
 
 /** The tag of each band that shows one. The other bands show no tag. */
 const BAND_TAG: Partial<Record<ScopeBand, string>> = {
@@ -95,10 +104,11 @@ export function driveAddLabel(dayNumber: number, label: string): string {
   return addSlotLabel(dayNumber, driveSlotWord(label))
 }
 
-/** How a deck draws its categories. One category is a plain heading row, so a
- *  lone chip never looks like a broken track. Two or more draw the tab track. */
-export function driveTabMode(count: number): 'heading' | 'tabs' {
-  return count <= 1 ? 'heading' : 'tabs'
+/** How a deck draws its categories. One category draws nothing: the deck title
+ *  already names it, so a lone chip or a repeated heading adds no fact. Two or
+ *  more draw the tab track. */
+export function driveTabMode(count: number): 'none' | 'tabs' {
+  return count <= 1 ? 'none' : 'tabs'
 }
 
 /** The three strip cells, in board order. */
@@ -110,7 +120,7 @@ export function driveCells(strip: DriveCardStrip): LensCostCell[] {
   ]
 }
 
-export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, onClose }: {
+export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, onClose, onRetry }: {
   result: DriveTabsResult
   activeTab: DriveTab | null
   onTab: (tab: DriveTab) => void
@@ -132,20 +142,22 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   shortlistedOf?: (hit: PlaceHit) => boolean
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
+  /** The search retry. Absent draws a failed note with no Retry button. */
+  onRetry?: () => void
 }) {
   const uid = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   if (result.phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
-      <LensDeckHeader kicker="Along the drive" onClose={onClose} />
-      <p className="mv2-lens-phase" data-phase={result.phase}>{PHASE_TEXT[result.phase]}</p>
+      <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} />
+      <LensPhaseNote phase={result.phase} {...(onRetry == null ? {} : { onRetry })}>{PHASE_TEXT[result.phase]}</LensPhaseNote>
     </section>
   }
   const groups = result.tabs
   if (groups.length === 0) {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
-      <LensDeckHeader kicker="Along the drive" onClose={onClose} />
-      <p className="mv2-lens-phase" data-phase="empty">{PHASE_TEXT.empty}</p>
+      <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} />
+      <LensPhaseNote phase="empty">{PHASE_TEXT.empty}</LensPhaseNote>
     </section>
   }
   const current = activeTab ?? groups[0].tab
@@ -174,11 +186,8 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
       sub={intro}
       onClose={onClose}
     />
-    {driveTabMode(groups.length) === 'heading'
-      ? <p className="mv2-lens-single-tab" aria-label={`${active.label} ${active.total}`}>
-        <span className="mv2-lens-single-tab-name">{active.label}</span>{' '}
-        <span className="mv2-lens-tab-total">{active.total}</span>
-      </p>
+    {driveTabMode(groups.length) === 'none'
+      ? null
       : <div className="mv2-lens-tabs" role="tablist" aria-label="Along the drive tabs">
         {groups.map((group, index) => {
           const selected = group.tab === active.tab
@@ -201,7 +210,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
         })}
       </div>}
     <div className="mv2-lens-panel" id={`${uid}-panel`} role="tabpanel"
-      {...(driveTabMode(groups.length) === 'heading'
+      {...(driveTabMode(groups.length) === 'none'
         ? { 'aria-label': active.label }
         : { 'aria-labelledby': `${uid}-tab-${active.tab}` })}>
       <ul className="mv2-lens-cards">

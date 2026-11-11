@@ -269,7 +269,7 @@
   .mv2-workspace .yf-map-ctrls button { min-width: 44px; min-height: 44px; }
   .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail { top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: var(--mv2-sheet-height); padding-bottom: var(--safe-bottom); border-radius: var(--radius-lg) var(--radius-lg) 0 0; transition: height var(--motion-med) var(--ease-resize); }
   .mv2-sheet-handle { display: flex; align-items: center; justify-content: center; position: sticky; top: 0; z-index: 2; width: 100%; height: 44px; flex: 0 0 auto; padding: 0; border: 0; background: var(--card); color: var(--text-2); touch-action: none; cursor: ns-resize; }
-  .mv2-sheet-handle > span { height: 4px; width: 36px; border-radius: var(--radius-pill); background: var(--line); }
+  .mv2-sheet-handle > span { height: 4px; width: 36px; border-radius: var(--radius-pill); background: var(--line); transition: background var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
   .mv2-workspace .mv2-deck-header { padding: 0 var(--space-7) var(--space-4); }
   .mv2-deck-header h2 { font-size: 17px; }
   .mv2-workspace .poi-plan-list { padding-top: var(--space-2); }
@@ -823,7 +823,7 @@
    --ring is a full shadow, so a focus rule uses it as the whole value.
    Motion keeps the tokens, and the workspace reduced-motion rule makes snaps instant. */
 .mv2-itinerary .mv2-fold-day::before { content: ""; position: absolute; inset: -8px; border-radius: var(--radius-pill); }
-.mv2-workspace .mv2-sheet-handle:focus-visible { outline: none; box-shadow: inset var(--ring); }
+.mv2-workspace .mv2-sheet-handle:focus-visible { outline: none; }
 .mv2-workspace .mv2-peek-place:focus-visible, .mv2-workspace .mv2-directions:focus-visible { outline: none; box-shadow: var(--ring); }
 .mv2-workspace .mv2-directions { min-height: 44px; }
 @media (max-width: 760px) {
@@ -1450,20 +1450,7 @@
 }
 .mv2-lens-ring-btn:hover:not([aria-checked="true"]) { background: var(--card); color: var(--text); }
 .mv2-lens-ring-btn:active { transform: scale(.98); }
-:root:where([data-theme='dark']) .mv2-lens-ring-btn[aria-checked="true"] { background: var(--bg-soft); }
-
-/* A lone Drive category is a heading row, not a one-item tab track. */
-.mv2-lens-single-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0 var(--space-2);
-  color: var(--pw-ink);
-  font: var(--pw-ui);
-  font-weight: 700;
-}
-.mv2-lens-single-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root:where([data-theme='dark']) .mv2-lens-ring-btn[aria-checked="true"] { background: var(--pw-line); }
 
 /* The detail panel hugs the edit card. A tall card still scrolls. */
 @media (min-width: 1181px) {
@@ -1502,10 +1489,32 @@
 /* 911-W13-logic: a viewer never sees a deck add action; the Fix badge sits on
    its stop, and the Stay empty body offers the wider drive ring. */
 .mv2-workspace[data-role="viewer"] .mv2-lens-place-add { display: none; }
-.mv2-stop-warn { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: #A6342A; color: #FFFFFF; transform: rotate(45deg); box-shadow: 0 0 0 2px var(--pw-card), var(--shadow-sm); }
+.mv2-stop-warn { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: var(--pw-risk); color: var(--pw-card); transform: rotate(45deg); box-shadow: 0 0 0 2px var(--pw-card), var(--shadow-sm); }
 .mv2-stop-warn > svg { transform: rotate(-45deg); }
 .mv2-map-stop.is-stay .mv2-stop-warn { right: auto; left: -6px; }
-/* The Fix tag uses the stop-tag ground and tokens. It centres on its stop and
-   the collision layout moves it right, left, below or above. */
-.mv2-pin-anchor > .mv2-stop-tag--fix { left: 50%; top: 50%; translate: -50% -50%; max-width: 260px; z-index: 3; }
+/* The Fix tag uses the stop-tag ground and tokens. It sits left of its stop,
+   beside the badge. The collision layout moves it below, above or right. */
+.mv2-pin-anchor > .mv2-stop-tag--fix { width: max-content; max-width: 260px; z-index: 3; }
 .mv2-lens-widen { margin-top: var(--space-3); }
+/* 911-final: lens phase notes (a wait, a failure, a paused search and an empty
+   each draw their own mark and tint) and the ribbon label that has no room. */
+.mv2-lens-phase-note { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); padding: var(--space-5) var(--space-5); border-radius: 12px; border: 1px solid transparent; background: var(--pw-soft); color: var(--pw-ink); }
+.mv2-lens-phase-note > svg { flex: none; margin-top: 1px; color: var(--pw-ink-3); }
+.mv2-lens-phase-note > .mv2-lens-phase { flex: 1 1 0; min-width: 0; padding: 0; border-radius: 0; background: none; }
+.mv2-lens-phase-note[data-phase='scanning'] > svg { animation: mv2-phase-pulse calc(var(--motion-slower) * 3) ease-in-out infinite; }
+.mv2-lens-phase-note[data-phase='failed'] { border-color: var(--pw-risk); background: color-mix(in srgb, var(--pw-risk) 12%, var(--pw-card)); }
+.mv2-lens-phase-note[data-phase='failed'] > svg { color: var(--pw-risk); }
+.mv2-lens-phase-note[data-phase='quota'] { border-color: var(--pw-marigold-500); background: var(--pw-marigold-50); }
+.mv2-lens-phase-note[data-phase='quota'] > svg { color: var(--pw-marigold-ink); }
+.mv2-lens-phase-note[data-phase='empty'] { border-style: dashed; border-color: var(--pw-line); background: transparent; }
+@keyframes mv2-phase-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .mv2-lens-phase-note[data-phase='scanning'] > svg { animation: none; } }
+.mv2-clock-label[data-tight='true'] { visibility: hidden; }
+.mv2-workspace .mv2-sheet-handle:focus-visible > span { background: var(--ink-teal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink-teal) 28%, transparent); }
+@media (prefers-reduced-motion: reduce) { .mv2-sheet-handle > span { transition: none; } }
+.mv2-lens-retry { position: relative; display: inline-flex; align-items: center; gap: var(--space-3); margin-left: auto; padding: var(--space-3) var(--space-5); border: 1px solid var(--pw-risk); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-risk); font: var(--pw-ui); font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.mv2-lens-retry::before { content: ''; position: absolute; inset: -8px -4px; }
+.mv2-lens-retry:hover { background: color-mix(in srgb, var(--pw-risk) 12%, var(--pw-card)); }
+.mv2-lens-retry:active { background: color-mix(in srgb, var(--pw-risk) 20%, var(--pw-card)); }
+.mv2-lens-retry:focus-visible { outline: 2px solid var(--pw-risk); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .mv2-lens-retry { transition: none; } }

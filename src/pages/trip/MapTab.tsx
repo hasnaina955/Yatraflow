@@ -1698,6 +1698,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
 
   // W10: on a phone the search settings leave the map's top flow and become
   // one row in the planning sheet. Desktop keeps them where they were.
+  // The one scan retry. The Refresh button and the Retry button of a failed deck both call it.
+  const retryScan = () => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }
   const settingsTools = (
     <details className="mv2-tools" id="mv2-map-settings">
         <summary><SlidersHorizontal size={15} aria-hidden />Search settings and route advice<ChevronDown size={14} aria-hidden /></summary>
@@ -1710,7 +1712,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <button
               className="btn btn-outline btn-sm suggestion-refresh-btn"
               title="Refresh suggestions"
-              onClick={() => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }}
+              onClick={retryScan}
               disabled={loadingPois}
             >
               <InlineIcon icon={RotateCcw} size={12} gap={3} />Refresh
@@ -1854,7 +1856,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `This drive needs ${travelDayNeed} travel days. The current plan has ${trip.days.length}.`}
         {' '}<button type="button" className="mv2-route-advice" onClick={() => { const tools = listRef.current?.parentElement?.querySelector('details.mv2-tools'); if (tools instanceof HTMLDetailsElement) { tools.open = true; tools.querySelector('summary')?.focus() } }}>Review route advice</button>
       </div>}
-      {(poisFailed || quotaOut) && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Open search settings to retry.'}</p>}
+      {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Open search settings to retry.'}</p>}
       {filterActive && (
         <div className="poi-filterbar" role="status">
           {/* #162: the bar reads the label, the filter keys on the stable key. */}
@@ -2353,6 +2355,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <MapLensPanel
               lens={lens}
               onFold={foldDeck}
+              onRetry={retryScan}
               lenses={lenses}
               dayLabel={lensDayLabel}
               dayNumber={activeDayIndex + 1}
@@ -2376,18 +2379,17 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               onAddGapPick={pick => addLensHit(pick.candidate.hit, activeDayIndex)}
               onApplyFix={applyLensFix}
               onPreviewFix={previewLensFix}
-              onShortlist={hit => toggleShortlist(hit)}
-              shortlistedOf={hit => isShortlisted(hit)}
+              {...(editable ? { onShortlist: (hit: PlaceHit) => toggleShortlist(hit), shortlistedOf: (hit: PlaceHit) => isShortlisted(hit) } : {})}
             />
             {lens === 'drive' && <div className="poi-plan-list is-ledger">
-              {!filterActive && arcs.slice(0, 2).length > 0 && (
+              {editable && !filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp mv2-deck-arc-group">
                   <span className="poi-grp-k">Route arcs</span>
                   <span className="poi-grp-n">{arcs.slice(0, 2).length}</span>
                   <span className="poi-grp-ln" />
                 </div>
               )}
-              {arcs.slice(0, 2).map(arc => (
+              {editable && arcs.slice(0, 2).map(arc => (
                 <div key={arc.theme} className="poi-plan-row poi-plan-arc mv2-deck-arc">
                   <div className="ride-spot-title">
                     <span className="ride-purpose ride-purpose-sight">{arc.theme}</span>
@@ -2401,11 +2403,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   </div>
                 </div>
               ))}
-              {quotaOut && (
-                <p className="hint-text" role="status">⚠ Google Places reached its 80% safety pause for this month - corridor suggestions resume next UTC month. Remove the key in Settings and reload to use the free stack.</p>
-              )}
+              {/* One state, one message: the deck note above says wait, failed, paused or empty. */}
               {seeForRail.length === 0
-                ? <p className="muted small" role="status">{loadingPois ? 'Finding stops along the drive…' : poisFailed ? 'Route suggestions could not be loaded. Open search settings to retry.' : quotaOut ? 'New Google searches are paused by the provider limit.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>
+                ? (lenses.drive.phase === 'ready' && <p className="muted small" role="status">No extra picks yet. Search for a place or open the day plan.</p>)
                 : hiddenRows.length > 0 && (
                     <details className="poi-more mv2-deck-more mv2-lens-more">
                       <summary>More like this · {hiddenRows.length}</summary>
@@ -2441,13 +2441,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
           reachable while the rails scroll. #420 slice 1 moved the markup into
           map/ShortlistTray.tsx; the actions below stay here until slice 2. */}
-      <ShortlistTray
+      {editable && <ShortlistTray
         count={trayShortlist.length}
         busy={addingAny}
         onAddAll={() => void addShortlisted()}
         onVote={() => void raiseShortlistVote()}
         onClear={clearShortlist}
-      />
+      />}
       {/* pick-a-day modal for adding a suggested POI — explicit confirm */}
       <Modal open={!!poiDraft} onClose={() => setPoiDraft(null)} title={`Add “${poiDraft?.hit.name ?? ''}”`}>
         {poiDraft && (

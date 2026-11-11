@@ -1,5 +1,5 @@
 // Presentational gap deck. It draws lens data and calls callbacks.
-// Phase texts match the stay deck, with the stay phrase swapped for "this day".
+// Phase texts follow the stay deck. They name this day, not the stay.
 import type { GapPick, GapPicks } from '../../../pages/trip/map/gapLens'
 import type { JourneyRow } from '../../../lib/journeyProjection'
 import type { LensPhase } from '../../../lib/mapLensContracts'
@@ -7,17 +7,24 @@ import type { PlaceHit } from '../../../lib/geocode'
 import { addSlotLabel } from './DriveTabs'
 import { STAY_PHASE_TEXT } from './StayDeck'
 import { LensDeckHeader } from './LensDeckHeader'
+import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, type LensCostCell } from './LensPlaceCard'
 
-const swap = (text: string): string => text.replace('around the stay', 'this day')
-
 export const GAP_PHASE_TEXT: Record<LensPhase, string> = {
-  unscanned: swap(STAY_PHASE_TEXT.unscanned),
-  scanning: swap(STAY_PHASE_TEXT.scanning),
-  failed: swap(STAY_PHASE_TEXT.failed),
-  quota: swap(STAY_PHASE_TEXT.quota),
-  empty: swap(STAY_PHASE_TEXT.empty),
+  unscanned: 'Pick a day to see its open parts.',
+  scanning: 'Looking for places for this day…',
+  failed: 'The search for this day failed. Try again.',
+  quota: STAY_PHASE_TEXT.quota,
+  empty: 'Nothing open for this day in this window.',
   ready: '',
+}
+
+/** A deck with no cards still shows its title, so every phase keeps one header. */
+export const GAP_NOTE_TITLE = 'Open parts of this day'
+
+/** The kicker of a deck with no cards, for example "Gap · Day 1". */
+export function gapNoteKicker(dayNumber: number): string {
+  return Number.isFinite(dayNumber) ? `Gap · Day ${dayNumber}` : 'Gap'
 }
 
 export const GAP_EMPTY_TEXT = 'No open part of this day needs a stop.'
@@ -66,22 +73,24 @@ export interface GapDeckProps {
   clock(min: number): string
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
+  /** The search retry. Absent draws a failed note with no Retry button. */
+  onRetry?: () => void
 }
 
 export function GapDeck(props: GapDeckProps) {
-  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose } = props
+  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose, onRetry } = props
   const first = gaps[0]
   const kicker = first == null ? 'Gap' : gapDeckKicker(first.title, first.windowText)
   if (phase !== 'ready' && phase !== 'empty') {
     return <section className="mv2-lens-deck" aria-label="Gaps in this day">
-      <LensDeckHeader kicker={kicker} onClose={onClose} />
-      <p className="mv2-lens-phase">{GAP_PHASE_TEXT[phase]}</p>
+      <LensDeckHeader kicker={gapNoteKicker(dayNumber)} title={GAP_NOTE_TITLE} onClose={onClose} />
+      <LensPhaseNote phase={phase} {...(onRetry == null ? {} : { onRetry })}>{GAP_PHASE_TEXT[phase]}</LensPhaseNote>
     </section>
   }
   if (phase === 'empty' || gaps.length === 0) {
     return <section className="mv2-lens-deck" aria-label="Gaps in this day">
-      <LensDeckHeader kicker="Gap" onClose={onClose} />
-      <p className="mv2-lens-phase">{GAP_EMPTY_TEXT}</p>
+      <LensDeckHeader kicker={gapNoteKicker(dayNumber)} title={GAP_NOTE_TITLE} onClose={onClose} />
+      <LensPhaseNote phase="empty">{GAP_EMPTY_TEXT}</LensPhaseNote>
     </section>
   }
   return <section className="mv2-lens-deck" aria-label="Gaps in this day">
@@ -119,7 +128,7 @@ export function GapDeck(props: GapDeckProps) {
           })}
         </ul>}
         {picks.length === 0 && gap.picks.noFitText != null &&
-          <p className="mv2-lens-phase">{gap.picks.noFitText}</p>}
+          <LensPhaseNote phase="empty">{gap.picks.noFitText}</LensPhaseNote>}
         {gap.picks.moreCount > 0 &&
           <p className="mv2-section-label mv2-lens-more">{gap.picks.moreCount} more</p>}
       </div>

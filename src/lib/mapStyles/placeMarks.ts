@@ -190,5 +190,12 @@ export interface GhostRoad { legIn: GhostLeg | null; legOut: GhostLeg | null; re
 /** An estimate must not look measured: it is thinner, fainter and dotted. */
 export function ghostLegPaint(leg: Pick<GhostLeg, 'measured'>, role: 'new' | 'replaced'): { width: number; opacity: number; dash: [number, number] } {
   if (role === 'replaced') return { width: 5, opacity: 0.18, dash: [1, 0] as [number, number] }
-  return leg.measured ? { width: 4, opacity: 0.9, dash: [2, 1.5] } : { width: 2.5, opacity: 0.55, dash: [0.6, 1.8] }
+  // Measured: the board's ghost route, 4 px, 7 px dash and 6 px gap. The round
+  // cap adds one line width to each dash, so the dash value is 3 px and the gap 10 px.
+  return leg.measured ? { width: 4, opacity: 1, dash: [0.75, 2.5] } : { width: 2.5, opacity: 0.55, dash: [0.6, 1.8] }
+}
+
+/** The ghost route ink of the Map language board. It is not a day colour, so it never reads as the plan. */
+export function ghostInk(dark: boolean): string {
+  return dark ? '#A48BFF' : '#7C5CFC'
 }

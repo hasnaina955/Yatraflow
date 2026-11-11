@@ -100,7 +100,7 @@ button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-50
 .mv2-stop-tag[data-collapsed='true'] { opacity: 0; }
 .mv2-pin-anchor > .mv2-stop-tag { position: absolute; left: 50%; top: calc(100% + 6px); translate: -50% 0; }
 /* The stay base tag sits beside the house mark, as the Stay board shows. */
-.mv2-pin-anchor > .mv2-stop-tag--base { left: auto; right: calc(100% + 8px); top: 50%; translate: 0 -50%; }
+.mv2-pin-anchor > .mv2-stop-tag--base, .mv2-pin-anchor > .mv2-stop-tag--fix { left: auto; right: calc(100% + 8px); top: 50%; translate: 0 -50%; }
 .mv2-workspace .maplibregl-marker:has(.mv2-stop-tag) { z-index: 2; }
 /* Reduced motion keeps the tag fade still. */
 @media (prefers-reduced-motion: reduce) {

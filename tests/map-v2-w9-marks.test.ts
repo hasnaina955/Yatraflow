@@ -120,7 +120,7 @@ describe('the base tag', () => {
   })
 
   it('sits to the left of the mark', () => {
-    expect(marksCss).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag--base \{[^}]*right: calc\(100% \+ 8px\)/)
+    expect(marksCss).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag--base(?:, [^{]*)? \{[^}]*right: calc\(100% \+ 8px\)/)
   })
 
   it('gives the Stay base the board rings', () => {

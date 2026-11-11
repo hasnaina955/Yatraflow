@@ -82,8 +82,33 @@ export function fixtureOverpassElements(query: string): {
   }
 }
 
+/**
+ * The `near` answer: one stub place beside each anchor in the query, so the
+ * places spread along the whole road and not only at its start.
+ */
+export function fixtureNearElements(query: string): {
+  elements: Array<{ type: 'node'; id: number; lat: number; lon: number; tags: Record<string, string> }>
+} {
+  const anchors = [...query.matchAll(/around:\d+,(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)]
+    .map(match => ({ lat: Number(match[1]), lng: Number(match[2]) }))
+    .filter(anchor => Number.isFinite(anchor.lat) && Number.isFinite(anchor.lng))
+  const unique = anchors.filter((anchor, index) => anchors.findIndex(other => other.lat === anchor.lat && other.lng === anchor.lng) === index)
+  return {
+    elements: unique.slice(0, 8).map((anchor, index) => {
+      const place = SYNTHETIC_PLACES[index % SYNTHETIC_PLACES.length]
+      return {
+        type: 'node' as const,
+        id: 920000 + index,
+        lat: Number((anchor.lat + 0.002).toFixed(6)),
+        lon: Number((anchor.lng + 0.02).toFixed(6)),
+        tags: { name: `${place.name} ${index + 1}`, ...place.tags },
+      }
+    }),
+  }
+}
+
 /** The JSON body of the controlled answer for one provider request. */
-export function fixtureAnswerBody(url: string, body?: string | null): string {
+export function fixtureAnswerBody(url: string, body?: string | null, near = false): string {
   const provider = fixtureProviderFor(url)
   if (provider === 'wikipedia') return JSON.stringify({ batchcomplete: true, query: { pages: {} } })
   if (provider === 'overpass') {
@@ -94,14 +119,14 @@ export function fixtureAnswerBody(url: string, body?: string | null): string {
     } catch {
       query = ''
     }
-    return JSON.stringify(fixtureOverpassElements(query))
+    return JSON.stringify(near ? fixtureNearElements(query) : fixtureOverpassElements(query))
   }
   return '{}'
 }
 
 /** The controlled answer as a response the provider code can read. */
-export function fixtureResponse(url: string, body?: string | null): Response {
-  return new Response(fixtureAnswerBody(url, body), {
+export function fixtureResponse(url: string, body?: string | null, near = false): Response {
+  return new Response(fixtureAnswerBody(url, body, near), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   })
@@ -113,17 +138,40 @@ export interface FixtureFetchScope {
 }
 
 /**
- * Answer every place provider call from this file. Returns the undo function.
- * A call settles at once, so no lens can wait on a network read.
+ * How the controlled provider answers. `answer` is the default. The other
+ * three exist so a review can draw each lens phase on purpose:
+ *  - `fail` answers with a server error, so a deck shows its failed phase.
+ *  - `hang` never answers, so a deck stays in its scanning phase.
+ *  - `empty` answers with no place, so a deck shows its empty phase.
+ *  - `near` puts each place close to the road, so a pick has a proven road
+ *    position and its add preview, with the ghost road, can draw.
  */
-export function installFixtureTransport(scope: FixtureFetchScope = globalThis as unknown as FixtureFetchScope): () => void {
+export type FixtureProviderMode = 'answer' | 'fail' | 'hang' | 'empty' | 'near'
+
+/** The mode a URL query asks for. An unknown value gives the default. */
+export function fixtureModeFromSearch(search: string): FixtureProviderMode {
+  const value = new URLSearchParams(search).get('provider')
+  return value === 'fail' || value === 'hang' || value === 'empty' || value === 'near' ? value : 'answer'
+}
+
+/**
+ * Answer every place provider call from this file. Returns the undo function.
+ * In the default mode a call settles at once, so no lens can wait on a network read.
+ */
+export function installFixtureTransport(
+  scope: FixtureFetchScope = globalThis as unknown as FixtureFetchScope,
+  mode: FixtureProviderMode = 'answer',
+): () => void {
   const original = scope.fetch
   if (typeof original !== 'function') return () => undefined
   scope.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (fixtureProviderFor(url) == null) return original(input, init)
+    if (mode === 'hang') return new Promise<Response>(() => undefined)
+    if (mode === 'fail') return Promise.resolve(new Response('{}', { status: 503 }))
+    if (mode === 'empty') return Promise.resolve(new Response(JSON.stringify({ elements: [], batchcomplete: true, query: { pages: {} } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const body = typeof init?.body === 'string' ? init.body : null
-    return Promise.resolve(fixtureResponse(url, body))
+    return Promise.resolve(fixtureResponse(url, body, mode === 'near'))
   }) as typeof fetch
   return () => { scope.fetch = original }
 }

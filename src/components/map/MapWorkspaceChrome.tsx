@@ -206,6 +206,9 @@ function previewTitle(preview: RibbonPreview, format: ReturnType<typeof useTimeF
   return `Re-timed preview · new stop ${formatHM(preview.newStop.arrive, format)}–${formatHM(preview.newStop.depart, format)}`
 }
 
+/** A label with less than this share of the track has no room to read. It hides. */
+const RIBBON_LABEL_MIN_PCT = 10
+
 export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub, inSheet = false }: {
   journey: Journey | null; corrections?: Record<string, LegEstimate>
   onScrub: (position: RibbonPosition, minute: number) => void
@@ -245,10 +248,11 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
       <div className="mv2-clock-drawing" aria-hidden="true">
         <span className="mv2-clock-line" />
         {stops.map((stop, index) => <span key={stop.point.stop.id} className={`mv2-clock-stop${stop.point.stop.category === 'hotel' ? ' is-stay' : ''}`} style={{ left: `${percent(stop.arrive)}%`, width: `${Math.max(1, percent(stop.depart) - percent(stop.arrive))}%` }}><i />{index === stops.length - 1 && <i className="mv2-clock-end" />}</span>)}
-        {stops.map((stop, index) => <b key={`label-${stop.point.stop.id}`} className="mv2-clock-label" data-phone-label={index === 1 || index === stops.length - 1 ? 'true' : undefined}
-          title={stop.point.title} style={{ left: `${percent(stop.arrive)}%`, width: `${Math.max(0, percent(stops[index + 1]?.arrive ?? end) - percent(stop.arrive))}%` }}>
+        {stops.map((stop, index) => { const slot = Math.max(0, percent(stops[index + 1]?.arrive ?? end) - percent(stop.arrive)); return <b key={`label-${stop.point.stop.id}`} className="mv2-clock-label" data-phone-label={index === 1 || index === stops.length - 1 ? 'true' : undefined}
+          data-tight={slot < RIBBON_LABEL_MIN_PCT ? 'true' : undefined}
+          title={stop.point.title} style={{ left: `${percent(stop.arrive)}%`, width: `${slot}%` }}>
           {stop.point.kind === 'start' ? 'Start' : stop.point.kind === 'destination' ? 'End' : stop.point.title.split(' · ')[0]}
-        </b>)}
+        </b> })}
         <span className="mv2-clock-cursor" style={{ left: `${percent(minute)}%` }} />
       </div>
       <label className="sr-only" htmlFor={id}>Journey time. Arrow keys move by five minutes. Home and End jump to the start and end.</label>

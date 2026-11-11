@@ -13,6 +13,7 @@ import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
 import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
+import { fullPlanRead, hasWireLockedDay, isWireLocked, lockedDayCounts, lockedDayTitle, numberedSummary, planStopCount, readableDayStart, wireLockedSummary } from '../lib/lockedDay'
 import { describePreviewSplit } from '../lib/previewSplit'
 import { simulateDay, scheduleRowsById, originOf, minutesToHM, formatInr, getAssumptions, computeTotals, isRoundTrip } from '../lib/engine'
 import { cap, titleCase } from '../lib/labels'
@@ -331,9 +332,10 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // Curated highlights: the three meatiest days, back in trip order.
   const highlights = useMemo(() => {
     if (!trip) return []
-    const scored = orderedDays.map(day => {
+    // #774 — a day the server locked has no stop to rank. It is never a highlight.
+    const scored = orderedDays.filter(day => !isWireLocked(day)).map(day => {
       const stops = [...day.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
-      const sim = simulateDay(day, trip, originOf(trip, day.index), day.index)
+      const sim = simulateDay(day, trip, readableDayStart(trip.days, day) ?? originOf(trip, day.index), day.index)
       const lead = stops.find(s => s.auto !== true) ?? stops[0]
       return {
         day,
@@ -409,14 +411,41 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     }).finally(() => setPostPurchaseRetrying(false))
   }, [pub?.id, meId, postPurchaseRetrying])
 
+  // #774 — the viewer may read the plan and the page still holds locked days.
+  // That happens when the first read ran before the session was known. The
+  // loading line on a locked day is true only while a read is in flight, so
+  // `ask` starts one here. The read ends in the full plan or in `failed`.
+  // (Above the early returns with the other hooks, the #310 rule.)
+  const [fullPlanFailedFor, setFullPlanFailedFor] = useState<string | null>(null)
+  const pubId = pub?.id ?? null
+  const fullPlan = fullPlanRead({
+    mayRead: unlocked,
+    holdsLockedCopy: !!trip && hasWireLockedDay(trip.days),
+    firstReadSettled: fetched !== null || miss,
+    purchaseInFlight: buying,
+    failed: pubId !== null && fullPlanFailedFor === pubId,
+  })
+  useEffect(() => {
+    if (fullPlan !== 'ask' || pubId === null) return
+    let alive = true
+    void fetchPublicTrip(pubId).then(fresh => {
+      if (!alive) return
+      // Locked days again, or no row: the full plan did not arrive.
+      if (fresh && !hasWireLockedDay(fresh.days)) setFetched(fresh)
+      else setFullPlanFailedFor(pubId)
+    })
+    return () => { alive = false }
+  }, [fullPlan, pubId])
+
   // ---- "What is inside": the storefront view of the days. Presentation only.
   // The page's own `unlocked` flag and the publication's freeDayIndexes pick the
   // state of each card; nothing here asks a new entitlement question.
-  // A locked day keeps its own title and its road minutes, and it carries no
-  // places field: a locked card is built from `summariseDay`, which reads stop
-  // categories and visit minutes only. The locked run line is built from
-  // category counts alone. Never pass a stop title, a location name or a
-  // coordinate into a locked card or a locked line.
+  // #774 — the server decides first. A day it locked arrives as a day number
+  // and two counts, and its card is built from those counts alone. A locked
+  // card names the day by its number: the title is the creator's own text.
+  // The locked run line is built from category counts alone. Never pass a day
+  // title, a stop title, a location name or a coordinate into a locked card
+  // or a locked line.
   const storefront = useMemo(() => {
     if (!pub || !trip) return null
     const free = new Set(pub.freeDayIndexes)
@@ -427,8 +456,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       // Auto anchors are start, end and night markers. They are not places, so
       // the counts and the place lists both leave them out and always agree.
       const live = day.stops.filter(s => s.status !== 'rejected' && s.auto !== true)
-      const sim = simulateDay(day, trip, originOf(trip, day.index), day.index)
-      const isLocked = !free.has(day.index) && !unlocked
+      const sim = simulateDay(day, trip, readableDayStart(trip.days, day) ?? originOf(trip, day.index), day.index)
+      // Null means the server sent this day in full. A day the server locked
+      // stays locked here, whatever this page believes about the viewer.
+      const wire = lockedDayCounts(day)
+      const isLocked = wire !== null || (!free.has(day.index) && !unlocked)
       // A locked card never says "Flight day": `flightSignalFor` withholds the
       // flight, and a withheld flight drops the pace word rather than reading as
       // an empty day.
@@ -441,8 +473,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       // OR the air leg the engine actually planned for this day. It still goes
       // through `flightSignalFor`, so a locked card discloses no flight.
       const hasFlight = flightDays.has(day.index) || hasAirLeg(sim.legs)
-      const summary = summariseDayFromLegs({ ...day, stops: live }, sim.legs, flightSignalFor(hasFlight, isLocked))
-      const cats = live.map(s => ({ category: s.category }))
+      const readSummary = summariseDayFromLegs({ ...day, stops: live }, sim.legs, flightSignalFor(hasFlight, isLocked))
+      // A locked card is named by its day number. A day the server locked is
+      // built from the server's counts alone.
+      const summary = wire ? wireLockedSummary(day, wire) : isLocked ? numberedSummary(readSummary) : readSummary
+      const cats: Array<{ category: string }> = wire ? wire.categories : live.map(s => ({ category: s.category }))
       allCats.push(...cats)
       if (isLocked) {
         const run = lockedRuns[lockedRuns.length - 1]
@@ -524,6 +559,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   const totalsN = totals!
   const routePointsN = routePoints
   const highlightsN = highlights
+  // #774 — a viewer with locked days holds the free days only. A road total
+  // from them would be a figure for part of the plan, so the page shows none.
+  // The stop count stays: the server counts the stops of each locked day.
+  const hasLockedDays = hasWireLockedDay(trip.days)
+  const stopsInPlan = hasLockedDays ? planStopCount(trip.days) : totalsN.stopCount
 
   const creator = userById(pub.creatorId)
   // The stored cover is not necessarily sized: a row written before the sizing
@@ -597,10 +637,9 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
       // earns the ceremony.
       if (outcome !== 'unlocked' && outcome !== 'already') return
       // This page holds the copy the server served BEFORE the purchase, and
-      // that copy is wire-stubbed: the stub keeps stop titles and coordinates
-      // while emptying descriptions, notes, timings and costs. Rendering it
-      // with the lock lifted shows a full-looking plan that is still
-      // placeholder text. Re-read through the same RPC — the entitlement now
+      // that copy has locked days: each one is a day number and two counts,
+      // with no stop (#774). Rendering it with the lock lifted would show
+      // empty days. Re-read through the same RPC — the entitlement now
       // exists, so it answers with real days — rather than clearing `fetched`,
       // which would flash the loading state mid-ceremony.
       // #588 — null here is a dropped connection, not a missing row (the
@@ -671,8 +710,8 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <hr className="pub-stats-divider" />
             <div className="pub-stats-row">
               <span><MetaIcon icon={ MapPin } tone="place" />{pub.routeSummary.length} place{pub.routeSummary.length === 1 ? '' : 's'}</span>
-              <span><InlineIcon icon={Route} size={12} gap={3} />{totalsN.totalDistanceKm.toFixed(0)} km</span>
-              <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(totalsN.totalTravelMinutes)} on the road</span>
+              {!hasLockedDays && <span><InlineIcon icon={Route} size={12} gap={3} />{totalsN.totalDistanceKm.toFixed(0)} km</span>}
+              {!hasLockedDays && <span><MetaIcon icon={ Clock } tone="time" />{minutesToHM(totalsN.totalTravelMinutes)} on the road</span>}
               <span><MetaIcon icon={ Calendar } tone="time" />{pub.durationDays} days</span>
             </div>
           </aside>
@@ -749,10 +788,16 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             <div>
               <span className="editorial-kicker">The journey</span>
               <h2 className="editorial-title">Why this route works</h2>
+              {hasLockedDays ? (
+                <p className="editorial-body">
+                  A {pub.durationDays}-day route. The free days are open below. Road time, pacing and costs for the locked days are in the full plan.
+                </p>
+              ) : (
               <p className="editorial-body">
                 Built around {minutesToHM(totalsN.totalTravelMinutes)} of real road time across {pub.durationDays} days —
                 pacing, breaks and costs are all in the plan below.
               </p>
+              )}
             </div>
             {/* Double-Bezel: this wrapper is the TRAY, the .card inside it is the
                 PLATE. Same pair Explore uses, so there is one bezel recipe. */}
@@ -767,7 +812,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                   points={routePointsN}
                 />
                 <div className="route-glance-list">{pub.routeSummary.join(' · ')}</div>
-                <span className="route-glance-meta">{totalsN.stopCount} stops in the plan</span>
+                {stopsInPlan !== null && <span className="route-glance-meta">{stopsInPlan} stops in the plan</span>}
               </aside>
             </div>
           </div>
@@ -783,7 +828,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                       <span className="editorial-kicker">Day {String(h.day.index + 1).padStart(2, '0')} · {h.label}</span>
                       <span className={`stop-kind-tag kind-${h.kind}`}>{h.label}</span>
                     </div>
-                    <b className="day-highlight-title">{h.day.title ?? `Day ${h.day.index + 1}`}</b>
+                    <b className="day-highlight-title">{(pub.freeDayIndexes.includes(h.day.index) || unlocked) ? (h.day.title ?? lockedDayTitle(h.day.index)) : lockedDayTitle(h.day.index)}</b>
                     <span className="day-highlight-meta">{h.meta}</span>
                   </div>
                 ))}
@@ -842,46 +887,60 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
             {/* ---- Day-by-day (free vs premium) ---- */}
             {trip.days.map(day => {
               const isFree = pub.freeDayIndexes.includes(day.index)
-              const sim = simulateDay(day, trip, originOf(trip, day.index), day.index)
+              // #774 — null means the server sent this day in full. Otherwise
+              // the server locked it, and it holds a day number and two counts.
+              const wire = lockedDayCounts(day)
+              const readable = wire === null && (isFree || unlocked)
+              const sim = simulateDay(day, trip, readableDayStart(trip.days, day) ?? originOf(trip, day.index), day.index)
               const A = getAssumptions(trip)
               const stops = [...day.stops].filter(s => s.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
+              // Unknown stays unknown: a locked day with no count shows no number.
+              const lockedStops = wire ? wire.stopCount : stops.length
+              // The viewer owns the plan and the full days have not arrived.
+              // That is a load, or a failed load. It is never a sale. The
+              // words come from `fullPlan`: a read is in flight, or it failed.
+              const awaitingFullPlan = unlocked && wire !== null
               return (
                 <div key={day.id} className="day-section" style={{ position: 'relative', overflow: 'hidden' }}>
                   <div className="day-header">
                     <div className="day-badge"><small>Day</small><b>{day.index + 1}</b></div>
                     <div>
-                      <h2>{day.title ?? `Day ${day.index + 1}`}</h2>
+                      <h2>{readable ? (day.title ?? lockedDayTitle(day.index)) : lockedDayTitle(day.index)}</h2>
                       <div className="small muted">
-                        {sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5
+                        {wire
+                          ? (wire.stopCount === null ? 'Locked day' : `${wire.stopCount} stop${wire.stopCount === 1 ? '' : 's'}`)
+                          : sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5
                           ? 'Local day — no drive planned'
                           : `${stops.length} stops · ~${minutesToHM(sim.totalTravelMinutes)} travel`}
                       </div>
                     </div>
-                    {!isFree && <Chip tone="saffron"><InlineIcon icon={Lock} size={12} gap={3} vAlign="-1px" />Premium</Chip>}
+                    {(!isFree || wire !== null) && <Chip tone="saffron"><InlineIcon icon={Lock} size={12} gap={3} vAlign="-1px" />Premium</Chip>}
                   </div>
 
-                  {(isFree || unlocked) ? (
+                  {readable ? (
                     <DayStops stops={stops} sim={sim} assumptions={A} timeFormat={timeFormat} stayDay={sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5} mode={trip.transportMode} />
                   ) : (
                     <>
                       <div className="locked-overlay">
                         <div style={{ filter: 'blur(5px)', pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
-                          {stops.slice(0, 3).map((s, i) => (
-                            <div key={s.id} className="stop-card"><div className="stop-num">{i + 1}</div><div className="stop-main"><div className="stop-title">{s.title}</div></div></div>
+                          {/* Placeholder rows only. No stop title reaches this markup (#774). */}
+                          {Array.from({ length: Math.min(lockedStops ?? 3, 3) }, (_, i) => (
+                            <div key={i} className="stop-card"><div className="stop-num">{i + 1}</div><div className="stop-main"><div className="stop-title">Stop {i + 1}</div></div></div>
                           ))}
                         </div>
                         <div className="locked-cta">
-                          <b><InlineIcon icon={Lock} size={13} gap={4} />{stops.length} more stops on this day</b>
+                          <b><InlineIcon icon={Lock} size={13} gap={4} />{lockedStops === null ? 'This day is locked' : `${lockedStops} more stops on this day`}</b>
                           <p className="small">Stay contacts, timings and the budget breakdown are in the full plan.</p>
                           {/* #359 — the price CTA is a CLAIM about what this viewer
                               does not own, so it may only render on a read that
                               actually answered. Over a failed read it would be a
                               price tag on a plan the buyer already paid for. */}
-                          {price !== undefined && mayShowPriceCta && <>
+                          {awaitingFullPlan && <p className="small" role="status">{fullPlan === 'failed' ? 'The full plan did not load. Reload the page to try again.' : 'Loading the full plan…'}</p>}
+                          {price !== undefined && mayShowPriceCta && !awaitingFullPlan && <>
                             <button className="btn btn-saffron" disabled={buying} onClick={unlockThis}>{buying ? 'Opening payments…' : <>Unlock full plan · {formatInr(price)}</>}</button>
                             <p className="hint-text" style={{ margin: '6px 0 0' }}>One-time payment. No subscription.</p>
                           </>}
-                          {price !== undefined && !mayShowPriceCta && (tripReReadFailed
+                          {price !== undefined && !mayShowPriceCta && !awaitingFullPlan && (tripReReadFailed
                             ? <PurchaseLoadState onRetry={retryPostPurchaseReads} retrying={postPurchaseRetrying} />
                             : <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} />)}
                         </div>
@@ -925,7 +984,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <div className="card">
                 <h2>Take this trip with you</h2>
                 <p className="hint-text" style={{ margin: '8px 0 14px' }}>
-                  Forks the free preview into your YatraFlow account — locked days come over as placeholders you can fill in yourself.
+                  Forks the free preview into your YatraFlow account — locked days come over as empty days you can fill in yourself.
                 </p>
                 <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
                   <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}

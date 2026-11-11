@@ -19,6 +19,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { DRIVES_PART_MISSING_REASON, drivesPartWriteVerdict, isMissingColumnError, rowToTrip, tripToRow, tripUpdateRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { emptyLockedDay, isWireLocked, withoutLockMarker } from '../lib/lockedDay'
 import type { ShareSource } from '../lib/shareUrl'
 import { dayCountForRange } from '../lib/dayCount'
 import { validHM } from '../lib/timefmt'
@@ -3129,11 +3130,6 @@ async function persistTripRows(trip: Trip, ownerId: ID, opts: { retry?: boolean;
   return true
 }
 
-/** Copy text stamped onto every stop of a premium (non-free) day when a
- *  published itinerary is forked. Titles stay so the fork keeps the trip's
- *  shape; every other detail is stripped. */
-const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
-
 /** Shared body for every trip copy (fork / copy-this-trip / share import).
  *  Strips the fields a copy must NEVER inherit: `inviteCode` would collide with
  *  the source's row on the unique `idx_trips_invite_code` index and fail the
@@ -3142,11 +3138,12 @@ const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original iti
  *  land the copy straight in the trash.
  *
  *  `freeDayIndexes` (the published-itinerary fork) keeps those days fully
- *  intact and reduces every other day's stops to stubs: title and priority
- *  are kept, the description becomes the locked notice, notes are cleared,
- *  entry/transport costs and open/close times are zeroed, and the stop is
- *  marked confirmed. Expenses tagged with a locked `dayIndex` and fixed
- *  commitments on locked days are dropped (trip-level expenses stay). */
+ *  intact and copies every other day as an EMPTY day (#774): no title, no
+ *  stop and no coordinate. The older stub kept each locked stop's title and
+ *  position, so a fork carried the locked places out. A day the server
+ *  locked is empty too, whatever the free list says. Expenses tagged with a
+ *  locked `dayIndex` and fixed commitments on locked days are dropped
+ *  (trip-level expenses stay). */
 function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[]; keepName?: boolean; ref?: ShareSource | null; origin?: ForkOrigin }): Trip {
   const free = opts.freeDayIndexes ? new Set(opts.freeDayIndexes) : null
   const copy: Trip = structuredClone(source)
@@ -3182,22 +3179,9 @@ function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; 
     stopId: f.stopId != null ? stopIdMap.get(String(f.stopId)) : undefined,
   })
   if (free) {
-    copy.days = copy.days.map(d => ({
-      ...d,
-      id: uid('day'),
-      stops: d.stops.map(s => free.has(d.index)
-        ? freshStopId(s)
-        : {
-            ...freshStopId(s),
-            description: LOCKED_STOP_DESCRIPTION,
-            notes: '',
-            entryFeeInrPerPerson: 0,
-            transportCostInrTotal: 0,
-            openTime: undefined,
-            closeTime: undefined,
-            status: 'confirmed' as const,
-          }),
-    }))
+    copy.days = copy.days.map(d => free.has(d.index) && !isWireLocked(d)
+      ? { ...withoutLockMarker(d), id: uid('day'), stops: d.stops.map(freshStopId) }
+      : { ...emptyLockedDay(d), id: uid('day') })
     copy.expenses = copy.expenses
       .filter(e => e.dayIndex === undefined || free.has(e.dayIndex))
       .map(e => ({ ...e, id: uid('ex') }))
@@ -3205,7 +3189,7 @@ function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; 
       .filter(f => free.has(f.dayIndex))
       .map(remapCommitment)
   } else {
-    copy.days = copy.days.map(d => ({ ...d, id: uid('day'), stops: d.stops.map(freshStopId) }))
+    copy.days = copy.days.map(d => ({ ...withoutLockMarker(d), id: uid('day'), stops: d.stops.map(freshStopId) }))
     copy.expenses = copy.expenses.map(e => ({ ...e, id: uid('ex') }))
     copy.fixedCommitments = copy.fixedCommitments.map(remapCommitment)
   }
@@ -7761,7 +7745,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     cover_image_url: p.coverImageUrl, route_summary: p.routeSummary, duration_days: p.durationDays,
     estimated_budget_per_person_inr: p.estimatedBudgetPerPersonInr, travel_style: p.travelStyle,
     best_season: p.bestSeason, travel_tips: p.travelTips, warnings_and_assumptions: p.warningsAndAssumptions,
-    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr, subscriber_cta: p.subscriberCta,
+    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr || undefined, subscriber_cta: p.subscriberCta,
     ...(hasRefreshedCol ? { refreshed_at: p.refreshedAt } : {}),
     ...(hasUnpublishedCol ? { unpublished_at: null } : {}),
   })

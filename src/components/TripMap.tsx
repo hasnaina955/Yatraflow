@@ -578,7 +578,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** A rank letter for each pick, keyed by the pick id the map already uses. */
   pickLetters?: Record<string, 'A' | 'B' | 'C'>
   /** Real problems to mark with a diamond. The parent supplies each fact. */
-  warningMarks?: { id: string; lat: number; lng: number; label: string; severe?: boolean; onOpen?: () => void }[]
+  warningMarks?: { id: string; lat: number; lng: number; label: string; text?: string | null; severe?: boolean; onOpen?: () => void }[]
   /** the map's own day chips report the day they just filtered to, so a host
       whose plan rail carries the same choice can follow it. A host that cannot
       represent 'all' (the slots rail always plans one day) simply ignores it. */
@@ -1957,7 +1957,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             </>}
             {warningMarks.filter(w => validMapCoordinate({ lat: w.lat, lng: w.lng })).map(w => (
               <MapMarker key={`warn-${w.id}`} longitude={w.lng} latitude={w.lat}>
-                <MarkerContent>{offsetWrap(`warn:${w.id}`, <WarningDiamond label={w.label} severe={w.severe} onOpen={w.onOpen} />)}</MarkerContent>
+                <MarkerContent>{offsetWrap(`warn:${w.id}`, <WarningDiamond label={w.label} text={w.text ?? null} severe={w.severe} onOpen={w.onOpen} />)}</MarkerContent>
                 <MarkerTooltip>{w.label}</MarkerTooltip>
               </MapMarker>
             ))}

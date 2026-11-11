@@ -23,6 +23,8 @@ export interface MapLensPanelProps {
   clock: (min: number) => string
   activeDriveTab: DriveTab | null
   onDriveTab: (tab: DriveTab) => void
+  /** The one pick-letter map for the map pins, cards and peek. */
+  driveLetters?: Record<string, 'A' | 'B' | 'C'>
   stripOf: (row: DriveRow) => DriveCardStrip
   bandOf: (row: DriveRow) => ScopeBand
   introOf: (row: DriveRow) => string | null
@@ -73,6 +75,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       onAdd={props.onAddDrive}
       dayNumber={props.dayNumber}
       reasonOf={row => row.row.reason}
+      {...(props.driveLetters == null ? {} : { letters: props.driveLetters })}
       {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
       {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       onClose={props.onFold}

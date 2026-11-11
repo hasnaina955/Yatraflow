@@ -22,9 +22,13 @@ export function PlaceSubtypeMark({ category, name, size = 15, letter }: { catego
   </span>
 }
 
-/** A problem with a fix. The parent supplies the facts. */
-export function WarningDiamond({ label, severe = false, onOpen }: { label: string; severe?: boolean; onOpen?: () => void }) {
-  return <button type="button" className={`mv2-warn-diamond${severe ? ' is-severe' : ''}`} aria-label={label} title={label} onClick={onOpen}><AlertTriangle size={13} aria-hidden="true" /></button>
+/** A problem with a fix. The parent supplies the facts. `text` is the short
+ *  visible label built from real facts. Absent keeps the mark bare. */
+export function WarningDiamond({ label, text = null, severe = false, onOpen }: { label: string; text?: string | null; severe?: boolean; onOpen?: () => void }) {
+  return <span className="mv2-warn-mark">
+    <button type="button" className={`mv2-warn-diamond${severe ? ' is-severe' : ''}`} aria-label={label} title={label} onClick={onOpen}><AlertTriangle size={13} aria-hidden="true" /></button>
+    {text != null && text.trim() !== '' && <span className="mv2-warn-label">{text}</span>}
+  </span>
 }
 
 export function MapStopSymbol({ order, stay = false, fixed = false }: { order: number; stay?: boolean; fixed?: boolean }) {

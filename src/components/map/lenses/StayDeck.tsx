@@ -24,6 +24,19 @@ const MAX_CARDS = 3
 
 export type RingId = (typeof STAY_RINGS)[number]['id']
 
+/** The picks inside the active reach ring. Walk keeps a walkable pick. */
+export function stayPicksInRing(picks: readonly StayPick[], ringId: RingId): StayPick[] {
+  return picks.filter(pick => ringId === 'walk-15'
+    ? pick.reach.walkMin <= 15
+    : pick.reach.driveMin <= 30)
+}
+
+/** True when the walk ring is empty and the wider drive ring holds a pick. */
+export function stayWidenOffer(picks: readonly StayPick[], ringId: RingId): boolean {
+  if (ringId !== 'walk-15') return false
+  return stayPicksInRing(picks, 'drive-30').length > 0
+}
+
 export interface StayRingOption {
   id: RingId
   mode: 'walk' | 'drive'
@@ -124,10 +137,14 @@ export function StayDeck(props: StayDeckProps) {
     dayNumber, dayLabel, baseName, windows, activeWindowId, onWindow, result, ringId,
     onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose,
   } = props
-  const count = result.kind === 'ready' ? result.picks.length : 0
+  const readyPicks = result.kind === 'ready' ? stayPicksInRing(result.picks, ringId) : []
+  const count = readyPicks.length
   const activeWindow = windows.find(window => window.id === activeWindowId) ?? null
   const addLabel = stayAddLabel(dayNumber, activeWindow?.startMin ?? null, clock)
-  const rest = result.kind === 'ready' ? result.picks.slice(MAX_CARDS) : []
+  const rest = readyPicks.slice(MAX_CARDS)
+  const alsoCount = result.kind === 'ready' ? result.alsoCount : 0
+  const hiddenByRing = result.kind === 'ready' ? result.picks.length - readyPicks.length : 0
+  const widen = result.kind === 'ready' && readyPicks.length === 0 && stayWidenOffer(result.picks, ringId)
   return <section className="mv2-lens-deck" aria-label="Around the stay">
     <LensDeckHeader
       kicker={stayDeckKicker(activeWindow, clock)}
@@ -155,9 +172,13 @@ export function StayDeck(props: StayDeckProps) {
       <button type="button" className="btn btn-primary mv2-lens-set" onClick={onSetStay}>Set tonight's stay</button>
     </div>}
     {result.kind === 'phase' && <p className="mv2-lens-phase">{STAY_PHASE_TEXT[result.phase]}</p>}
-    {result.kind === 'ready' && <>
+    {result.kind === 'ready' && readyPicks.length === 0 && <div className="mv2-lens-body-state">
+      <p className="mv2-lens-phase">{STAY_PHASE_TEXT.empty}</p>
+      {widen && <button type="button" className="btn btn-ghost mv2-lens-widen" onClick={() => onRing('drive-30')}>Try ≤30 min drive</button>}
+    </div>}
+    {result.kind === 'ready' && readyPicks.length > 0 && <>
       <ul className="mv2-lens-cards">
-        {result.picks.slice(0, MAX_CARDS).map((pick, index) => {
+        {readyPicks.slice(0, MAX_CARDS).map((pick, index) => {
           const hit = pick.row.row.hit
           const reason = pick.row.row.reason
           const reasons = [
@@ -184,10 +205,10 @@ export function StayDeck(props: StayDeckProps) {
           </li>
         })}
       </ul>
-      {(rest.length > 0 || result.alsoCount > 0) && <div className="mv2-lens-also-block">
+      {(rest.length > 0 || (alsoCount > 0 && hiddenByRing === 0)) && <div className="mv2-lens-also-block">
         <p className="mv2-section-label mv2-lens-also">Also in this window</p>
         {rest.map(pick => <AlsoRow key={pick.letter} pick={pick} />)}
-        {rest.length === 0 && <p className="mv2-lens-more">{result.alsoCount} more</p>}
+        {rest.length === 0 && <p className="mv2-lens-more">{alsoCount} more</p>}
       </div>}
     </>}
   </section>

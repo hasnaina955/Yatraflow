@@ -23,6 +23,11 @@ import {
   type SheetSnapSource,
 } from '../../lib/mapSheetGesture'
 
+/** A keyboard snap never hands focus to the panel. The handle keeps the keys. */
+export function sheetSnapKeepsHandleFocus(source: SheetSnapSource): boolean {
+  return source === 'keyboard'
+}
+
 export function MapPhoneSheetHandle({ snap, onChange, onSnapSettled }: {
   snap: SheetSnap
   onChange: (snap: SheetSnap) => void
@@ -88,6 +93,12 @@ export function MapPhoneSheetHandle({ snap, onChange, onSnapSettled }: {
     // Only the keys this control owns are stopped, so the page keeps its own.
     event.preventDefault()
     commit(next, 'keyboard')
+    // A keyboard snap keeps focus on the handle. The parent may move focus
+    // into the revealed panel, so the handle takes it back in the next frame.
+    if (sheetSnapKeepsHandleFocus('keyboard')) {
+      const handle = event.currentTarget
+      requestAnimationFrame(() => { if (handle.isConnected) handle.focus({ preventScroll: true }) })
+    }
   }
 
   return <button type="button" className="mv2-sheet-handle" aria-label={`Planning sheet ${snap} height. Use up and down arrows to resize.`}

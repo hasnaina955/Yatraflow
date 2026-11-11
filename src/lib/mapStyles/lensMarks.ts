@@ -256,3 +256,15 @@ export function fixMarkLabel(
   const head = arriveTime == null ? stopName : `${stopName} ${arriveTime}`
   return jettyTime == null ? head : `${head} · jetty ${jettyTime}`
 }
+
+/** The visible fix-mark label. Both real times must be known. A missing fact
+ *  keeps the mark bare, so no label is invented. */
+export function fixMarkFactsLabel(
+  stopName: string | null,
+  commitmentText: string | null,
+  arrivalText: string | null,
+): string | null {
+  if (stopName == null || commitmentText == null || arrivalText == null) return null
+  if (stopName.trim() === '' || commitmentText.trim() === '' || arrivalText.trim() === '') return null
+  return fixMarkLabel(stopName, commitmentText, arrivalText)
+}

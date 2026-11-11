@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LocateFixed, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
@@ -14,6 +14,7 @@ import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSugg
 import { budgetBlockView, budgetValueParts, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
 import type { DiscoveryCoverage } from '../../lib/providers/hits'
 import { PlacePhotos } from './PlacePhotos'
+import { knownCostCells } from './lenses/LensPlaceCard'
 import { dayColor } from '../../lib/mapStyles/dayColors'
 import { ageText, coverageText } from './placeCardFacts'
 import { ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
@@ -65,7 +66,7 @@ export interface ItineraryPreviewChip {
   label: string | null
 }
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, budgetBar, clock, previewChip }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, budgetBar, clock, previewChip }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
@@ -80,6 +81,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   daysCaption?: string | null
   /** The stop the Fix lens names. An unknown id keeps its tint out. */
   fixStopId?: string | null
+  /** The Fix row's short fact line. Absent falls back to the engine detail. */
+  fixSubLine?: string | null
   /** The detour budget bar. Null keeps the original two lines. */
   budgetBar?: { text: string; step: number } | null
   /** Formats one minute of the day for a window row. */
@@ -100,9 +103,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const budget = budgetBlockView(budgetBar ?? null, budgetMin)
   // The Fix problem row's sub line. One fix stop, one set of engine facts.
   const fixPoint = fixStopId == null ? null : points.find(point => point.stop.id === fixStopId) ?? null
-  const fixSubLine = fixPoint == null
+  const engineFixSubLine = fixPoint == null
     ? null
     : fixReasonLine(fixPoint.title, formatHM(fixPoint.arrive, timeFormat), fixProblemReason(trip, activeDay))
+  const fixRowLine = fixSubLine ?? engineFixSubLine
+  const fixRowRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (fixStopId != null) fixRowRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [fixStopId])
   const estimated = points.some((point, index) => {
     if (!point.legIn) return false
     const previous = points[index - 1]
@@ -167,12 +175,12 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         <li>
         {index === 0 && previewChipAt(null)}
         {index > 0 && point.legIn && <div className="mv2-travel-leg"><span />{Math.round(point.legIn.distanceKm)} km · {fmtDur(point.legIn.durationMinutes)}</div>}
-        <button type="button" className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${fixStopId === point.stop.id ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
+        <button type="button" ref={fixStopId === point.stop.id ? fixRowRef : undefined} className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${fixStopId === point.stop.id ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
           <time>{formatHM(point.arrive, timeFormat)}</time>
           <span className={`mv2-stop-mark${point.kind === 'halt' || point.stop.category === 'hotel' ? ' is-stay' : ''}`}>
             {point.kind === 'start' || point.kind === 'destination' ? <Car size={13} /> : point.stop.category === 'hotel' ? <Home size={15} /> : index}
           </span>
-          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixSubLine != null && <small className="mv2-lens-fix-reason">{fixSubLine}</small>}{previewChipAt(point.stop.id)}</span>
+          <span className="mv2-stop-copy"><strong>{point.title}</strong><small>{point.stop.category === 'travel' ? 'Journey anchor' : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`}</small>{fixStopId === point.stop.id && fixRowLine != null && <small className="mv2-lens-fix-reason">{fixRowLine}</small>}{previewChipAt(point.stop.id)}</span>
           {locks.has(point.stop.id) && <LockKeyhole size={13} aria-label="Fixed time" />}
         </button>
       </li>
@@ -293,6 +301,11 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
   const canNavigate = actions?.navigate ?? true
   const hasReportedHours = (hit.hours != null && hit.hours.basis !== 'none') || !!hit.openTime || !!hit.closeTime
   const hoursNote = hours ? 'Reported opening hours' : hasReportedHours ? 'Visit hours need checking' : 'Hours unavailable'
+  const costCells = knownCostCells([
+    { key: 'drive', label: 'Extra driving', value: detourMin == null ? null : `${detourDisplayText(detourMin)}${detour.kind === 'extra' && budgetSharePct != null ? ` · ${Math.round(budgetSharePct)}% of budget` : ''}` },
+    { key: 'visit', label: 'Visit', value: visit == null ? null : `${visit} min` },
+    { key: 'placement', label: 'Placement', value: dayIndex == null ? null : `Day ${dayIndex + 1}` },
+  ])
   return <article id="rail-detail" className="mv2-pick-card" tabIndex={-1} aria-label={`Place details: ${hit.name}`}>
     <div className="mv2-place-art"><CatIcon category={hit.category} size={38} /><span>{titleCase(hit.category ?? 'place')}</span><button className="mv2-icon-btn" type="button" aria-label="Close place details" onClick={onClose}><X size={18} /></button></div>
     <PlacePhotos hit={hit} />
@@ -302,9 +315,9 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
       {hit.rating != null && <p className="mv2-rating"><Star size={14} aria-hidden /><strong>{hit.rating.toFixed(1)}</strong>{hit.ratingCount != null && <span>· {hit.ratingCount.toLocaleString('en-IN')} reviews</span>}</p>}
       {hit.description && <p className="mv2-place-description">{hit.description}</p>}
       {(hours || reason) && <div className="mv2-reason-chips">{hours && <span>{hours}</span>}{reason && <span>{reason}</span>}</div>}
-      <dl className="mv2-cost-strip"><div><dt>Extra driving</dt><dd>{detourDisplayText(detourMin)}{detour.kind === 'extra' && budgetSharePct != null ? ` · ${Math.round(budgetSharePct)}% of budget` : ''}</dd></div><div><dt>Visit</dt><dd>{visit == null ? 'Unknown' : `${visit} min`}</dd></div><div><dt>Placement</dt><dd>{dayIndex == null ? 'Choose day' : `Day ${dayIndex + 1}`}</dd></div></dl>
+      {costCells.length > 0 && <dl className="mv2-cost-strip">{costCells.map(cell => <div key={cell.key}><dt>{cell.label}</dt><dd>{cell.value}</dd></div>)}</dl>}
       <div className="mv2-preview-note"><Clock3 size={17} aria-hidden /><p>Check the impact before you keep it. Travel and visit time can move later stops.</p></div>
-      {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : 'Add to a day'}</button><button className="mv2-icon-btn" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
+      {editable ? <div className="mv2-place-actions"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={17} /> : <Plus size={17} />}{added ? 'In your plan' : dayIndex == null ? 'Add to a day' : `Add to Day ${dayIndex + 1}`}</button><button className="mv2-icon-btn" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={18} fill={shortlisted ? 'currentColor' : 'none'} /></button></div> : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
       <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={15} aria-hidden />View place in Google Maps</button>
       <p className="mv2-source"><MapPin size={13} aria-hidden />{sourceLabel} · {hit.measuredRoadFact ? 'Road evidence supplied' : 'Driving estimate'} · {hoursNote}{freshnessLabel ? ` · ${freshnessLabel}` : ''}{dataFacts.map(fact => ` · ${fact}`).join('')}</p>
     </div>

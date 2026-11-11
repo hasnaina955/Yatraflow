@@ -107,10 +107,11 @@ describe('DriveTabs', () => {
     expect(tabKeyStep('Enter', 1, 3)).toBeNull()
   })
 
-  it('shows a dash and an unknown label for a null strip value', () => {
+  it('hides a cell with no known strip value', () => {
     const markup = renderDrive({ stripOf: () => ({ arrive: null, detour: '+6 min', budget: '4%' }) })
-    expect(markup).toContain('—')
-    expect(markup).toContain('aria-label="unknown"')
+    expect(markup).not.toContain('—')
+    expect(markup).not.toContain('aria-label="unknown"')
+    expect(markup).not.toContain('mv2-lens-cell-label">Arrive')
     // The strip labels sit in sentence case in the source. CSS sets the capitals.
     expect(markup).toContain('Detour')
     expect(markup).toContain('Budget')

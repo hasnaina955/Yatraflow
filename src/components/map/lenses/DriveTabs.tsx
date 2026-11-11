@@ -104,7 +104,7 @@ export function driveCells(strip: DriveCardStrip): LensCostCell[] {
   ]
 }
 
-export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, onShortlist, shortlistedOf, onClose }: {
+export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, onClose }: {
   result: DriveTabsResult
   activeTab: DriveTab | null
   onTab: (tab: DriveTab) => void
@@ -118,6 +118,8 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   dayNumber: number
   /** The reason the model gives for a row. Null shows no chip. */
   reasonOf?: (row: DriveRow) => string | null
+  /** The one letter map the page and the cards share. Absent derives it here. */
+  letters?: Record<string, 'A' | 'B' | 'C'>
   /** The Keep action. Absent hides the heart. */
   onShortlist?: (hit: PlaceHit) => void
   /** True draws the kept heart. */
@@ -143,7 +145,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   const current = activeTab ?? groups[0].tab
   const active = groups.find(group => group.tab === current) ?? groups[0]
   // The badge letter is the map letter. Both read the same road order.
-  const letters = driveLettersByRoad(active.shown)
+  const letters = lettersProp ?? driveLettersByRoad(active.shown)
 
   function moveTo(index: number) {
     const group = groups[index]

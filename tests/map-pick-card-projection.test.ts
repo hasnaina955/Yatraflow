@@ -64,10 +64,11 @@ describe('projected facts on the card', () => {
     expect(html).not.toContain('Unknown')
   })
 
-  it('keeps a projected unknown visit Unknown instead of the computed fallback', () => {
+  it('hides a projected unknown visit instead of printing a guess', () => {
     const fallback = intendedVisitMinutes(hit)
     const html = render({ visitMin: null, actions: allowAll })
-    expect(html).toMatch(/<dt>Visit<\/dt><dd>Unknown<\/dd>/)
+    expect(html).not.toContain('<dt>Visit</dt>')
+    expect(html).not.toContain('Unknown')
     // Known-bad control: the old unconditional fallback would print this number.
     expect(html).not.toContain(`${fallback} min`)
   })
@@ -101,13 +102,13 @@ describe('projected actions only restrict the existing controls', () => {
       actions: { preview: false, add: false, shortlist: false, vote: false, navigate: false },
     })
     expect((html.match(/disabled=""/g) ?? []).length).toBeGreaterThanOrEqual(3)
-    expect(html).toMatch(/disabled=""[^>]*>[\s\S]{0,900}Add to a day/)
+    expect(html).toMatch(/disabled=""[^>]*>[\s\S]{0,900}Add to Day 1/)
     expect(html).toMatch(/disabled=""[^>]*>[\s\S]{0,900}View place in Google Maps/)
   })
 
   it('leaves the controls enabled for an allowing row', () => {
     const html = render({ actions: allowAll })
-    expect(html).toMatch(/<button[^>]*class="btn btn-primary"(?![^>]*disabled)[^>]*>[\s\S]{0,900}Add to a day/)
+    expect(html).toMatch(/<button[^>]*class="btn btn-primary"(?![^>]*disabled)[^>]*>[\s\S]{0,900}Add to Day 1/)
     expect(html).toMatch(/<button[^>]*class="mv2-directions"(?![^>]*disabled)[^>]*>/)
   })
 })

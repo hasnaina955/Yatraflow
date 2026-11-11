@@ -1,4 +1,4 @@
-import { AlertTriangle, Armchair, Binoculars, BedDouble, Building2, Castle, Church, Coffee, Droplets, FerrisWheel, Flag, Flower2, Footprints, Fuel, House, Landmark, Leaf, Lightbulb, LockKeyhole, Mountain, MountainSnow, PlugZap, Search, Ship, Store, Sunrise, Trees, TreeDeciduous, Umbrella, Utensils, Waves, X, Drama, type LucideIcon } from 'lucide-react'
+import { Armchair, Binoculars, BedDouble, Building2, Castle, Church, Coffee, Droplets, FerrisWheel, Flag, Flower2, Footprints, Fuel, House, Landmark, Leaf, Lightbulb, LockKeyhole, Mountain, MountainSnow, PlugZap, Search, Ship, Store, Sunrise, Trees, TreeDeciduous, Umbrella, Utensils, Waves, X, Drama, type LucideIcon } from 'lucide-react'
 import { placeSubtype } from '../../lib/mapStyles/placeMarks'
 import './mapMarks.css'
 
@@ -25,14 +25,14 @@ export function PlaceSubtypeMark({ category, name, size = 15, letter }: { catego
 /** A problem with a fix. The parent supplies the facts. `text` is the short
  *  visible label built from real facts. Absent keeps the mark bare. */
 export function WarningDiamond({ label, severe = false, onOpen }: { label: string; severe?: boolean; onOpen?: () => void }) {
-  return <button type="button" className={`mv2-warn-diamond${severe ? ' is-severe' : ''}`} aria-label={label} title={label} onClick={onOpen}><AlertTriangle size={13} aria-hidden="true" /></button>
+  return <button type="button" className={`mv2-warn-diamond${severe ? ' is-severe' : ''}`} aria-label={label} title={label} onClick={onOpen}><b aria-hidden="true">!</b></button>
 }
 
 export function MapStopSymbol({ order, stay = false, fixed = false, warn = false }: { order: number; stay?: boolean; fixed?: boolean; warn?: boolean }) {
   return <span className="mv2-stop-symbol" aria-hidden="true">
     {stay ? <><House size={18} /><span className="mv2-stay-order">{order}</span></> : <span>{order}</span>}
     {fixed && <span className="mv2-stop-lock"><LockKeyhole size={10} /></span>}
-    {warn && <span className="mv2-stop-warn"><AlertTriangle size={9} /></span>}
+    {warn && <span className="mv2-stop-warn"><b>!</b></span>}
   </span>
 }
 
@@ -49,7 +49,7 @@ export function MapWorkspaceKey({ id, onClose }: { id: string; onClose: () => vo
       <div><span className="mv2-key-mark mv2-key-pick"><Lightbulb size={16} /></span><div><dt>Suggested place</dt><dd>Select it to open its details.</dd></div></div>
       <div><span className="mv2-key-mark mv2-key-pick is-selected"><Lightbulb size={16} /></span><div><dt>Selected place</dt><dd>The ring follows the open place card.</dd></div></div>
       <div><span className="mv2-key-mark mv2-key-slot">F</span><div><dt>Unplanned part</dt><dd>Open it to see that part of the plan. A letter ranks the picks for it.</dd></div></div>
-      <div><span className="mv2-key-mark"><span className="mv2-warn-diamond"><AlertTriangle size={13} /></span></span><div><dt>Problem</dt><dd>A diamond marks a problem the plan can fix.</dd></div></div>
+      <div><span className="mv2-key-mark"><span className="mv2-warn-diamond"><b aria-hidden="true">!</b></span></span><div><dt>Problem</dt><dd>A diamond marks a problem the plan can fix.</dd></div></div>
       <div><span className="mv2-key-mark mv2-key-search"><Search size={16} /></span><div><dt>Search result</dt><dd>A magnifier marks a place you found.</dd></div></div>
       <div><span className="mv2-key-mark mv2-key-cluster">7</span><div><dt>Grouped suggestions</dt><dd>The count badge opens as you zoom in.</dd></div></div>
       <div><span className="mv2-key-mark mv2-key-route" /><div><dt>Road geometry</dt><dd>Direction arrows follow the road.</dd></div></div>

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, House, LocateFixed, Lock, MapPin, PanelLeftClose, Plus, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, House, LocateFixed, Lock, MapPin, MoreHorizontal, PanelLeftClose, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { fmtDur, legKey } from '../../lib/engine'
@@ -29,17 +29,42 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
   const at = days.findIndex(day => day.index === activeDay)
   const day = days[at]
   const title = journey ? `${journey.startTitle ?? ''} → ${journey.endTitle ?? ''}` : day?.title || 'Your day on the map'
+  // "All days" is a mode, not a day step. The board's slim row carries only the
+  // two chevrons, so the mode moves into a small overflow beside them.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (event: Event) => {
+      if (event.type === 'keydown') {
+        if (!(event instanceof KeyboardEvent) || event.key !== 'Escape') return
+      } else if (moreRef.current?.contains(event.target as Node)) return
+      setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [menuOpen])
   return <div className="mv2-phone-day" aria-label="Map day">
     {/* W10: the board's left chevron is the way back to the trip. It is the
         leftmost control and keeps its own 44 px hit area. */}
     {onBack && <button type="button" className="mv2-phone-day-back" aria-label="Back to trip" onClick={onBack}><ArrowLeft size={18} /></button>}
     <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at <= 0} aria-label="Previous map day" onClick={() => { const previous = days[at - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={16} /></button>
     <div className="mv2-phone-day-copy">
-      <span className="mv2-phone-day-label"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1} · Map</span>
+      <span className="mv2-phone-day-label"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />{allDays ? 'All days' : `Day ${activeDay + 1} · Map`}</span>
       <strong>{title}</strong>
     </div>
-    <button type="button" className="mv2-phone-day-all" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>
     <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at < 0 || at >= days.length - 1} aria-label="Next map day" onClick={() => { const next = days[at + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={16} /></button>
+    <div className="mv2-phone-day-more" ref={moreRef}>
+      <button type="button" className="mv2-phone-day-overflow" aria-label="Map day options" aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(open => !open)}><MoreHorizontal size={18} aria-hidden /></button>
+      {menuOpen && <div className="mv2-phone-day-menu" role="menu" aria-label="Map days to show">
+        <button type="button" role="menuitemradio" aria-checked={!allDays} onClick={() => { onDayChange(activeDay); setMenuOpen(false) }}>{!allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}This day</button>
+        <button type="button" role="menuitemradio" aria-checked={allDays} onClick={() => { onShowAll(); setMenuOpen(false) }}>{allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}All days</button>
+      </div>}
+    </div>
   </div>
 }
 

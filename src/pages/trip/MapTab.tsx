@@ -47,7 +47,7 @@ import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
 import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
-import { fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
+import { baseTagText, fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
 } from './map/minuteScope'
@@ -1349,15 +1349,30 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     : []
   const phoneSheet = useMedia('(max-width: 760px)')
 
-  // W9-phone: MapLibre starts its compact attribution open, so a 390 px map
-  // reads as a full credit line. Collapse it to the (i) button once here.
+  // W14: MapLibre starts its compact attribution open and can open it again on
+  // a style load. The board shows the (i) button alone, on desktop and on a
+  // phone, so the full credit line never runs across the marks. A bounded set of
+  // late passes closes it after the lazy map mounts; a tap by the reader wins,
+  // and no observer runs, so a re-open cannot loop.
   useEffect(() => {
-    if (!phoneSheet) return
-    const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
-    if (!node) return
-    node.classList.remove('maplibregl-compact-show')
-    node.removeAttribute('open')
-  }, [phoneSheet])
+    let openedByReader = false
+    const onPointerDown = (event: Event) => {
+      if ((event.target as Element | null)?.closest('.maplibregl-ctrl-attrib-button')) openedByReader = true
+    }
+    const collapse = () => {
+      if (openedByReader) return
+      const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
+      if (!node) return
+      node.classList.remove('maplibregl-compact-show')
+      node.removeAttribute('open')
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    const timers = [0, 250, 750, 1500, 3000, 5000, 8000].map(ms => window.setTimeout(collapse, ms))
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [])
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)
   const [deckOpen, setDeckOpen] = useState(true)
@@ -1387,12 +1402,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? stayWindow
     : lenses.stay.windows[0]?.id ?? null
   const stayRingDef = STAY_RINGS.find(ring => ring.id === stayRing) ?? STAY_RINGS[0]
-  const stayRings = lens === 'stay' && lenses.stay.base != null
-    ? [{
-      id: stayRingDef.id,
-      label: `${stayRingDef.minutes} min ${stayRingDef.mode}`,
-      ring: ringPolygon(lenses.stay.base, ringRadiusKm(stayRingDef.mode, stayRingDef.minutes)),
-    }]
+  // Both reach rings draw, each with its caption. The chosen ring comes first: the
+  // camera frames it and only it wears the wash.
+  const stayBaseForRings = lenses.stay.base
+  const stayRings = lens === 'stay' && stayBaseForRings != null
+    ? [stayRingDef, ...STAY_RINGS.filter(ring => ring.id !== stayRingDef.id)].map(ring => ({
+      id: ring.id,
+      label: `${ring.minutes} min ${ring.mode}`,
+      ring: ringPolygon(stayBaseForRings, ringRadiusKm(ring.mode, ring.minutes)),
+      active: ring.id === stayRingDef.id,
+    }))
     : undefined
   // W10b: the phone sheet hides the bottom of the map. Its live height is the
   // bottom inset, measured again when a snap transition ends.
@@ -2301,6 +2320,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 explicit choice — this surface writes nothing on its own. */}
             <MapOmnibar
               editable={editable}
+              {...(lens === 'stay' && lenses.stay.base?.name ? { placeholder: `Search near ${baseTagText(lenses.stay.base.name)}` } : {})}
               query={omniQ}
               onQueryChange={q => {
                 setOmniQ(q)

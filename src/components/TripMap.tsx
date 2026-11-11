@@ -10,7 +10,7 @@ import { resolveHitCoords } from '../lib/geocode'
 import { hasCoords, mappablePois } from '../lib/providers/hits'
 import { buildRoadChain, measureDayRide, roadChainSig, routeDrawGrade } from '../lib/tripRoad'
 import { dayColor } from '../lib/mapStyles/dayColors'
-import { buildJourney, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
+import { buildJourney, coLocates, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
 import { buildStopClock } from '../lib/stopClock'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
@@ -18,7 +18,7 @@ import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
-import { clusterCandidates, clusterFeatureCollection, clusterSummary, splitByCluster } from '../lib/mapCluster'
+import { clusterCandidates, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -38,7 +38,7 @@ import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
 import { DayRouteLayers } from './map/DayRouteLayers'
 import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
 import { ghostInk, ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
-import { BASE_TAG_GAP, CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, STOP_TAG_BOX, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { BASE_TAG_GAP, CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, NUMBER_TAG_GAP, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, smoothCorridorLine, thinCorridorLine, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
 import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
@@ -48,7 +48,7 @@ import {
 import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, Car, CircleDot, Clock, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
+  Box, Car, CircleDot, Clock, Compass, Crosshair, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
@@ -103,6 +103,9 @@ const ROUGH_DASH: [number, number] = [2, 2]
 // 4.69 / 6.51 / 7.44:1 there, pinned by tests/map-cluster.test.ts.
 const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#123F49']
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
+/** The workspace chrome hands the cluster layer no point, so no canvas badge can
+ *  stand under a stop pin. One object, so the layer's data effect does not churn. */
+const NO_CLUSTER_DATA = { type: 'FeatureCollection' as const, features: [] }
 
 // How long the map's ready gate waits for the style's 'load' event before
 // opening anyway (see the mapLoaded effect). The fit behind that gate is a
@@ -563,7 +566,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
    *  the real route, so the plan the traveller owns stays the top line. */
   previewRoad?: PreviewRoadView | null
   /** The stay lens's reach rings. Absent or empty draws nothing. */
-  stayRings?: Array<{ id: string; label: string; ring: [number, number][] }>
+  stayRings?: Array<{ id: string; label: string; ring: [number, number][]; active?: boolean }>
   /** True only when the Stay lens is active and the day has a stay base. The
    *  ring camera framing never runs for another lens or a missing base. */
   frameStayRing?: boolean
@@ -660,6 +663,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
   // The settled map zoom. Other days' base tags appear only at zoom 9 or more.
   const [mapZoom, setMapZoom] = useState(5)
+  // The map moved. A ring caption reads the camera, so it draws again after every move.
+  const [, setViewTick] = useState(0)
+  // The compass shows the map's own bearing and resets it to north.
+  const [bearing, setBearing] = useState(0)
   const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
   const toolbarId = useId()
   // A host drives the day filter through the prop (Board columns, the slots
@@ -834,23 +841,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Stable identity matters: a new callback re-subscribes the layer's reporting
   // effect and re-reports on every render.
   const onClustersChange = useCallback((ids: Set<string>) => { setClusteredIds(ids) }, [])
-  const clusterPins = useMemo(
-    () => clusterCandidates(
-      visiblePois.filter(h => !slotPinIds.has(String(h.id))),
-      { activeId: activeHitId, searchIds: searchHitIds },
-    ),
-    [visiblePois, slotPinIds, activeHitId, searchHitIds],
-  )
-  const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
-  const { individual: individualClusterPins } = useMemo(
-    () => splitByCluster(clusterPins, clusteredIds),
-    [clusterPins, clusteredIds],
-  )
-  const individualPinIds = useMemo(
-    () => new Set(individualClusterPins.map(c => c.id)),
-    [individualClusterPins],
-  )
-  const clusterNote = clusterSummary(clusterPins.length - individualClusterPins.length)
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -875,6 +865,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const root = container.closest('.mv2-workspace') ?? document
       const covers = Array.from(root.querySelectorAll(WORKSPACE_COVER_SELECTOR)).map(el => el.getBoundingClientRect())
       insets = mergeInsets(insets, coverInsets(container.getBoundingClientRect(), covers))
+      // W14: the scope band sits in one corner, so the generic rule ignores it. A
+      // mark or a clock pill under it would be cut. Reserve the map above its top edge.
+      const band = root.querySelector('.mv2-lens-scope-band')
+      if (band) {
+        const bandRect = band.getBoundingClientRect()
+        const canvasRect = container.getBoundingClientRect()
+        if (bandRect.height > 0 && bandRect.top > canvasRect.top && bandRect.top < canvasRect.bottom) {
+          insets = mergeInsets(insets, { top: 0, left: 0, right: 0, bottom: Math.max(0, canvasRect.bottom - bandRect.top) })
+        }
+      }
     }
     return { size, insets }
   }, [top, bottom, left, right, workspaceChrome])
@@ -955,6 +955,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     return { dayRoutePoints: out, stopClock: buildStopClock(trip, legCorrections) }
   }, [trip, legCorrections])
+  // W14: a single day reads its own kilometres, as the board's clock pills do.
+  // The trip total stays in the tooltip. The day starts where the day before ended.
+  const dayKmBase = useMemo(() => {
+    if (dayFilter === 'all') return 0
+    let base = 0
+    for (const d of [...trip.days].sort((x, y) => x.index - y.index)) {
+      if (d.index >= dayFilter) break
+      for (const st of [...d.stops].sort((x, y) => x.orderInDay - y.orderInDay)) {
+        const entry = stopClock.get(st.id)
+        if (entry) base = entry.cumKm
+      }
+    }
+    return base
+  }, [dayFilter, stopClock, trip.days])
   // #613: whether the map has anything to draw. A day can carry a real derived
   // journey without stored stops, so the single-day gate reads the journey —
   // the pins alone would hide a driving day behind the no-stops message. The
@@ -984,10 +998,48 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     return extraJourneyMarkers(j.points, plotted, j.direction)
   }, [trip, dayFilter, daysToPlot, legCorrections])
 
+  // A stop mark or a start/end flag owns its place on the map. A suggestion at
+  // that same place gets no map mark: it would either cluster into a canvas
+  // badge under the pin (the stray dark circle at the route start) or stack a
+  // second pin on the first. Its rail card stays. The engine's under-1-km rule
+  // decides "same place".
+  const markClearPoints = useMemo(
+    () => [
+      ...allPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+      ...dayEndpointMarkers.map(m => m.position),
+    ],
+    [allPoints, dayEndpointMarkers],
+  )
+  const markPois = useMemo(
+    () => clearOfMarks(visiblePois, markClearPoints, coLocates),
+    [visiblePois, markClearPoints],
+  )
+  const clusterPins = useMemo(
+    () => clusterCandidates(
+      markPois.filter(h => !slotPinIds.has(String(h.id))),
+      { activeId: activeHitId, searchIds: searchHitIds },
+    ),
+    [markPois, slotPinIds, activeHitId, searchHitIds],
+  )
+  const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
+  const { individual: individualClusterPins } = useMemo(
+    () => splitByCluster(clusterPins, clusteredIds),
+    [clusterPins, clusteredIds],
+  )
+  const individualPinIds = useMemo(
+    () => new Set(individualClusterPins.map(c => c.id)),
+    [individualClusterPins],
+  )
+  const clusterNote = clusterSummary(clusterPins.length - individualClusterPins.length)
+
   // Close marks must not overlap on screen. Marks keep their real coordinates.
   // The spread only moves how they are drawn, after each camera move.
   // A stop wins over a problem, an empty part, a pick and a clock pill, in that order.
   const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  // W14: a reach ring wider than the view has its caption point off the map. The
+  // camera pass parks the caption at the nearest edge of the clear map area. It is
+  // computed here, never read from a ref during render.
+  const [ringCaptionSpots, setRingCaptionSpots] = useState<Record<string, { lat: number; lng: number; edge: boolean }>>({})
   // A stop name tag follows the active day. The stay base keeps its tag on every day,
   // so the house mark always says where tonight's base is.
   const activeTagDay = dayFilter === 'all' ? selectedDay ?? null : dayFilter
@@ -1006,9 +1058,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         const tag = stopTagBox(isBase ? baseTagText(p.title) : p.title)
         // The base tag sits beside its mark. Its box starts there, so a spread
         // slide stays next to the stop instead of pushing the tag far left.
-        const box = isBase
-          ? baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h)
-          : { x: 0, y: STOP_TAG_BOX.dy }
+        const box = baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h, isBase ? BASE_TAG_GAP : NUMBER_TAG_GAP)
         spreadMarks.push({ id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base })
       }
       // The Stay board hides the clock pill while the base tag shows. Hiding it
@@ -1046,7 +1096,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       if (!Number.isFinite(ring.lat) || !Number.isFinite(ring.lng) || (ring.lat === 0 && ring.lng === 0)) continue
       spreadMarks.push({ id: `gap:${ring.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat: ring.lat, lng: ring.lng, ox: 0, oy: 0 })
     }
-    for (const hit of visiblePois) {
+    for (const hit of markPois) {
       if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
       const hasAdd = !!onAddNearby && !workspaceChrome
       spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
@@ -1083,19 +1133,47 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const spread = () => {
       try {
         setMapZoom(map.getZoom())
+        setViewTick(tick => tick + 1)
         const { size, insets } = measureFrame()
-        const { spots: next } = layoutOnMap(map, safeRect(size, insets))
+        const safe = safeRect(size, insets)
+        const { spots: next } = layoutOnMap(map, safe)
         setMarkSpots(prev => {
           const same = prev.size === next.size && [...next].every(([id, spot]) => { const old = prev.get(id); return old && Math.round(old.dx) === Math.round(spot.dx) && Math.round(old.dy) === Math.round(spot.dy) && old.hidden === spot.hidden })
           return same ? prev : next
         })
+        // A ring caption stands on the ring's foot point. When that point is off
+        // the clear map area, keep the caption at the nearest edge instead.
+        const captions: Record<string, { lat: number; lng: number; edge: boolean }> = {}
+        for (const ring of stayRings) {
+          const foot = ringCaptionPoint(ring.ring)
+          if (!foot) continue
+          const projected = map.project(foot)
+          const x = Math.min(Math.max(projected.x, safe.left + 80), safe.right - 80)
+          const y = Math.min(Math.max(projected.y, safe.top + 16), safe.bottom - 40)
+          if (x !== projected.x || y !== projected.y) {
+            const moved = map.unproject([x, y])
+            captions[ring.id] = { lat: moved.lat, lng: moved.lng, edge: true }
+          } else {
+            captions[ring.id] = { lat: foot[1], lng: foot[0], edge: false }
+          }
+        }
+        setRingCaptionSpots(prev => (JSON.stringify(prev) === JSON.stringify(captions) ? prev : captions))
       } catch { /* the map was removed while measuring */ }
     }
     spread()
     map.on('moveend', spread)
     map.on('resize', spread)
     return () => { map.off('moveend', spread); map.off('resize', spread) }
-  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap])
+  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRings])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!workspaceChrome || !map || !mapLoaded) return
+    const read = () => setBearing(Math.round(map.getBearing()))
+    read()
+    map.on('rotate', read)
+    return () => { map.off('rotate', read) }
+  }, [workspaceChrome, mapLoaded])
 
   // The map mounts lazily inside a Suspense boundary, so mapRef may be null on
   // the first render(s). Poll until the instance exists, then attach to its real
@@ -1261,7 +1339,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     if (!first) return
     const framed = stayFrameBounds(first.ring, STAY_RING_CANVAS_FRACTION)
     if (!framed) return
-    const bounds = clampBoundsWithin(framed, boundsOf(fitPoints)) ?? framed
+    // A base at the end of the route would slide the ring into a corner of the
+    // route extent. The clamp holds only when it keeps most of the ring's frame.
+    const clamped = clampBoundsWithin(framed, boundsOf(fitPoints)) ?? framed
+    const area = (b: [[number, number], [number, number]]) => (b[1][0] - b[0][0]) * (b[1][1] - b[0][1])
+    const bounds = area(clamped) >= area(framed) * 0.8 ? clamped : framed
     const m = mapRef.current
     m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1536,7 +1618,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
   return (
     <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open={workspaceToolsOpen ? 'true' : 'false'}>
-      {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><MapIcon size={18} aria-hidden /></button>}
+      {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><Layers size={18} aria-hidden /></button>}
       {workspaceChrome && showToolbar && <MapPhoneLocate onLocate={fitToTrip} />}
       {showToolbar && (
       <div className="map-toolbar" id={toolbarId}>
@@ -1572,9 +1654,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             ))}
           </div>
           )}
-          {/* W8-tools card 3: locate, clock, layers, directions and expand. */}
+          {/* W8-tools card 3: compass, locate, clock, layers, directions and expand. */}
           <div className="mv2-map-tools-card mv2-map-tools-card--tools" role="group" aria-label="Map layers and day actions">
-            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><LocateFixed size={17} aria-hidden /></button>
+            <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing}
+              onClick={() => { mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration }) }}
+              aria-label={bearing === 0 ? 'The map points north' : `Turn the map back to north. It is turned ${Math.abs(bearing)} degrees`}
+              title={bearing === 0 ? 'The map points north' : 'Turn the map back to north'}>
+              <Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} />
+            </button>
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
             {clockMilestones && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
@@ -1873,9 +1962,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     {!rough && drawsCorridor(corridorDay, d.index) && (() => {
                       // The Drive board: a 46 px day-colour wash at 0.15, with a
                       // 1 px dashed edge at 0.5 on each side of the band.
-                      const edges = corridorEdgeGeoJson(coords)
+                      const wash = smoothCorridorLine(thinCorridorLine(coords), 3)
+                      const edges = corridorEdgeGeoJson(wash)
                       return <>
-                        <MapRoute id={`yf-day-corridor-${d.index}`} coordinates={coords} color={colorForDay(d.index)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />
+                        <MapRoute id={`yf-day-corridor-${d.index}`} coordinates={wash} color={colorForDay(d.index)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />
                         {([-1, 1] as const).map(side => (
                           <MapGeoJSON
                             key={`yf-day-edge-${d.index}-${side}`}
@@ -1942,7 +2032,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 top point. */}
             {stayRings.length > 0 && <MapGeoJSON
               id="yf-stay-rings-fill"
-              data={stayRingsFillGeoJson(stayRings) as unknown as MapGeoJSONData}
+              data={stayRingsFillGeoJson(stayRings.filter(ring => ring.active !== false)) as unknown as MapGeoJSONData}
               fillPaint={{ 'fill-color': STAY_RING_INK, 'fill-opacity': 0.16 }}
               linePaint={false}
               interactive={false}
@@ -1954,9 +2044,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               const foot = ringCaptionPoint(ring.ring)
               if (!foot) return null
               const Icon = ringCaptionMode(ring.id) === 'drive' ? Car : PersonStanding
+              // A ring wider than the view has its caption off the map edge. The
+              // camera pass parks it at the nearest edge of the clear area.
+              const spot = ringCaptionSpots[ring.id]
+              const at: [number, number] = spot ? [spot.lng, spot.lat] : foot
               return (
-                <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={foot[0]} latitude={foot[1]} anchor="top">
-                  <MarkerContent><span className="mv2-lens-ring-label"><Icon size={13} aria-hidden />{ring.label}</span></MarkerContent>
+                <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={at[0]} latitude={at[1]} anchor="top">
+                  <MarkerContent><span className={`mv2-lens-ring-label${spot?.edge ? ' is-edge' : ''}`} data-ring={ring.id}><Icon size={13} aria-hidden />{ring.label}</span></MarkerContent>
                 </MapMarker>
               )
             })}
@@ -2002,9 +2096,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* #417: the suggestion family the map groups. `unclusteredVisible`
                 false because every pin the map did NOT group keeps its own DOM
                 marker below — tooltip, role, keyboard activation and all — so a
-                GL circle for it would be a second, dead copy. */}
+                GL circle for it would be a second, dead copy.
+                W14: the workspace chrome draws no canvas badge. A badge sits
+                under every DOM mark, so one that landed on a stop or a start
+                flag showed as a stray dark crescent behind the pin and hid its
+                own count. The board draws its picks individually with letters,
+                so the workspace hands the clusterer nothing; the classic map
+                keeps the grouping. */}
             <MapClusterLayer
-              data={clusterData}
+              data={workspaceChrome ? NO_CLUSTER_DATA : clusterData}
               clusterColors={IDEA_CLUSTER_COLORS}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}
@@ -2086,7 +2186,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
                         className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${isBase && frameStayRing ? ' is-stay-hero' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
-                        style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#02080D' } : {}) } as React.CSSProperties}
+                        style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#FFFFFF' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
                         aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}
@@ -2100,7 +2200,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       {showTag && <span className={`mv2-stop-tag${isBase ? ' mv2-stop-tag--base' : ''}`} data-collapsed={tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{isBase ? baseTagText(p.title) : p.title}</span>}
                       {warn?.text != null && <span className="mv2-stop-tag mv2-stop-tag--fix" data-collapsed={warnTagSpot?.hidden ? 'true' : undefined} style={warnTagSpot && !warnTagSpot.hidden ? { transform: `translate(${warnTagSpot.dx + dx}px, ${warnTagSpot.dy + dy}px)` } : undefined}>{warn.text}</span>}
                       {c && !warn && !(showTag && isBase) && (workspaceChrome
-                        ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {c.cumKm}</small></span>
+                        ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {Math.max(0, c.cumKm - dayKmBase)}</small></span>
                         : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
                       </>)}
                     </MarkerContent>
@@ -2143,7 +2243,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* nearby idea markers — category-coloured, dashed, with quick-add.
                 Pin click/hover = select: the panel row highlights and scrolls
                 into view; adding moved to the explicit + chip beside the pin. */}
-            {visiblePois.map(hit => {
+            {markPois.map(hit => {
               // S4: an empty-part pin already stands here for this exact hit —
               // it carries more (the part it would fill, plus the cost line) and
               // its tap opens the plan, so it is the one that stays.

@@ -54,6 +54,7 @@ import {
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
 import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
+import { MapPhoneLocate } from './map/MapWorkspaceChrome'
 import { MapBasemapStatus, useWorkspaceBasemapStatus } from './map/MapBasemapStatus'
 import { DetourSpurOverlay } from './map/DetourSpurOverlay'
 import {
@@ -1511,6 +1512,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   return (
     <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open={workspaceToolsOpen ? 'true' : 'false'}>
       {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><MapIcon size={18} aria-hidden /></button>}
+      {workspaceChrome && showToolbar && <MapPhoneLocate onLocate={fitToTrip} />}
       {showToolbar && (
       <div className="map-toolbar" id={toolbarId}>
         {workspaceChrome ? (
@@ -1592,6 +1594,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               title={expanded ? 'Shrink the map back into the page (Esc)' : 'Expand the map to fill the screen'}
               aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}>
               {expanded ? <X size={17} aria-hidden /> : <Maximize2 size={17} aria-hidden />}
+            </button>
+          </div>
+          <div className="mv2-map-tools-card mv2-map-tools-card--extras" role="group" aria-label="Live location and map key">
+            <button type="button" className={`mv2-map-tools-btn${liveOn ? ' on' : ''}`}
+              onClick={toggleLive} aria-pressed={liveOn}
+              aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
+              title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}>
+              <LocateFixed size={17} aria-hidden />
+            </button>
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" ref={keyToggle} className="mv2-map-tools-btn"
+              onClick={toggleLegend} aria-expanded={legendOpen} aria-controls={keyId}
+              aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
+              title={legendOpen ? 'Hide the map key' : 'Show the map key'}>
+              {legendOpen ? <X size={17} aria-hidden /> : <Info size={17} aria-hidden />}
             </button>
           </div>
         </div>
@@ -2183,26 +2200,27 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         )}
 
         <div className="map-legend">
-          <button
-            className={`map-legend-toggle${liveOn ? ' map-live-on' : ''}`}
-            onClick={toggleLive}
-            aria-pressed={liveOn}
-            title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
-            aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
-          >
-            <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
-          </button>
-          <button
-            ref={keyToggle}
-            className="map-legend-toggle"
-            onClick={toggleLegend}
-            aria-expanded={legendOpen}
-            aria-controls={workspaceChrome ? keyId : undefined}
-            title={legendOpen ? 'Hide the map key' : 'Show the map key'}
-            aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
-          >
-            {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
-          </button>
+          {!workspaceChrome && <>
+            <button
+              className={`map-legend-toggle${liveOn ? ' map-live-on' : ''}`}
+              onClick={toggleLive}
+              aria-pressed={liveOn}
+              title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
+              aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
+            >
+              <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
+            </button>
+            <button
+              ref={keyToggle}
+              className="map-legend-toggle"
+              onClick={toggleLegend}
+              aria-expanded={legendOpen}
+              title={legendOpen ? 'Hide the map key' : 'Show the map key'}
+              aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
+            >
+              {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
+            </button>
+          </>}
           {legendOpen && (workspaceChrome ? <MapWorkspaceKey id={keyId} onClose={closeWorkspaceKey} /> : (
             <div className="map-legend-body">
               {dayFilter === 'all'

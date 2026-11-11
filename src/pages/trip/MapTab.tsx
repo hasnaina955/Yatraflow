@@ -1659,11 +1659,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // W9-phone: on a phone the journey ribbon and the Drive scope band are
   // in-flow children of the open sheet. They cannot overlap the map or the
   // top row at any snap. A folded deck keeps the ribbon docked on the map.
-  const ribbonSheet: 'see' | 'needs' | 'detail' | null = !phoneSheet || !deckOpen
+  const ribbonSheet: 'see' | 'needs' | 'detail' | null = !phoneSheet || !deckOpen || snap === 'peek'
     ? null
     : selectedHit ? 'detail' : sheetTab === 'needs' ? 'needs' : 'see'
   const phoneRibbon = (
-    <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet} onScrub={(position, minute) => {
+    <MapJourneyRibbon journey={journey} corrections={legCorrections} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet && snap !== 'peek'} onScrub={(position, minute) => {
       if (position.grade === 'estimated') { setScrubCursor(null); return }
       setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
       setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
@@ -1675,6 +1675,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // W10: the peek names the active lens with its real count, and shows the
   // first pick from that lens. An unknown count stays null, never a guess.
   const peekHit = seeForRail[0]?.hit ?? null
+  const peekLetter = peekHit ? drivePickLetters[String(peekHit.id)] ?? null : null
   const peekDrive = peekHit ? driveRowForHit(driveRows, peekHit) : undefined
   const peekTotal = lens === 'drive' ? lenses.counts.drive ?? (loadingPois ? null : seeForRail.length) : lenses.counts[lens]
   const peekEyebrow = lens === 'drive' ? 'Along the drive' : lens === 'stay' ? 'Around the stay' : lens === 'gap' ? 'Gaps in this day' : 'Fix this day'
@@ -2330,8 +2331,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   <strong className="mv2-peek-title">{peekTitle}</strong>
                 </div>
                 <div className="mv2-peek-row">
-                  <span className="mv2-peek-mark" data-letter={drivePickLetters[String(peekHit.id)] ?? undefined}><CatIcon category={peekHit.category} size={20} /></span>
-                  <button type="button" className="mv2-peek-place" onClick={() => inspectHit(peekHit)}><strong>{peekHit.name}</strong>{peekSub != null && <small>{peekSub}</small>}</button>
+                  <span className="mv2-peek-mark"><CatIcon category={peekHit.category} size={20} /></span>
+                  <button type="button" className="mv2-peek-place" onClick={() => inspectHit(peekHit)}>
+                    {peekLetter != null && <span className="mv2-lens-place-letter" aria-hidden="true">{peekLetter}</span>}
+                    <strong>{peekHit.name}</strong>{peekSub != null && <small>{peekSub}</small>}
+                  </button>
                   {editable && <button type="button" className="btn btn-primary mv2-peek-add" disabled={addingAny || !!previewOpen} onClick={() => openAddModal(peekHit)}><Plus size={15} aria-hidden />Add</button>}
                 </div>
               </> : <p className="mv2-peek-empty">{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Open search settings to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}

@@ -26,7 +26,8 @@ describe('package B block', () => {
   it('keeps the full sheet ribbon in flow and drops the handle offset', () => {
     expect(css).not.toContain('var(--mv2-lens-ribbon-h)')
     expect(css).not.toContain('margin-bottom: 192px')
-    expect(css).toMatch(/\.poi-col > \.mv2-ribbon \{[^}]*position: static/)
+    expect(css).toContain('.mv2-workspace .poi-col > .mv2-ribbon-sheet,')
+    expect(css).toMatch(/\.mv2-workspace \.mv2-detail > \.mv2-ribbon-sheet \{[^}]*position: static/)
   })
 
   it('holds every control it touches to 44px', () => {

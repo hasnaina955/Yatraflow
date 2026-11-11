@@ -1,6 +1,6 @@
 // Fix lens deck. It draws one problem and the fixes another module built.
 // It shows only the fixes it is given. It never builds or ranks a fix.
-import { Check, MapPin } from 'lucide-react'
+import { Check, Route } from 'lucide-react'
 import type { FixSummary } from '../../../pages/trip/map/fixLens'
 import type { FixChangeSet, LensPhase } from '../../../lib/mapLensContracts'
 import { LensDeckHeader } from './LensDeckHeader'
@@ -79,7 +79,7 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
                 onClick={() => onApply(fix.set)}>Apply</button>
               <button type="button" className="mv2-lens-preview"
                 onClick={() => onPreview(fix.set)}>
-                <MapPin size={13} aria-hidden />
+                <Route size={14} aria-hidden />
                 Preview on map
               </button>
             </div>

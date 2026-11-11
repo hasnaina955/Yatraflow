@@ -11,7 +11,7 @@ import { GapDeck, gapDeckKicker, gapDeckTitle } from '../src/components/map/lens
 import { LensDeckHeader } from '../src/components/map/lenses/LensDeckHeader'
 import { LensPlaceCard, type LensCostCell } from '../src/components/map/lenses/LensPlaceCard'
 import {
-  StayDeck, stayAddLabel, stayDeckKicker, stayDeckTitle,
+  StayDeck, stayAddLabel, stayDeckKicker, stayDeckTitle, stayRingOptions,
 } from '../src/components/map/lenses/StayDeck'
 import type { DriveCardStrip, DriveTabGroup } from '../src/pages/trip/map/driveLens'
 import type { FixChangeSet } from '../src/lib/mapLensContracts'
@@ -79,14 +79,21 @@ describe('deck kicker and title per lens', () => {
     expect(driveAddLabel(3, 'Lunch gap')).toBe('Add as Day 3 lunch')
   })
 
-  it('names the stay letter in the kicker and the base in the title', () => {
-    expect(stayDeckKicker('A')).toBe('Around the stay · A')
-    expect(stayDeckKicker(null)).toBe('Around the stay')
+  it('names the free stay window in the kicker and the base in the title', () => {
+    expect(stayDeckKicker({ startMin: 1020, endMin: 1200 }, clock)).toBe('Around the stay · free 17:00–20:00')
+    expect(stayDeckKicker(null, clock)).toBe('Around the stay')
+    expect(stayDeckKicker({ startMin: 1200, endMin: 1020 }, clock)).toBe('Around the stay')
     expect(stayDeckTitle(3, 'Hotel Ashoka')).toBe('3 picks near Hotel Ashoka')
     expect(stayDeckTitle(1, 'Hotel Ashoka')).toBe('1 pick near Hotel Ashoka')
+    expect(stayDeckTitle(5, 'Check in · Spice Village')).toBe('5 picks near Spice Village')
+    expect(stayDeckTitle(null, 'Hotel Ashoka')).toBe('Around Hotel Ashoka')
     expect(stayDeckTitle(0, null)).toBe('Around the stay')
     expect(stayAddLabel(2, 1020, clock)).toBe('Add to Day 2 · 17:00')
     expect(stayAddLabel(2, null, clock)).toBe('Add to Day 2')
+    expect(stayRingOptions()).toEqual([
+      { id: 'walk-15', mode: 'walk', label: '≤15 min', ariaLabel: 'Within 15 minutes walk' },
+      { id: 'drive-30', mode: 'drive', label: '≤30 min', ariaLabel: 'Within 30 minutes drive' },
+    ])
   })
 
   it('names the gap window in the kicker and the open windows in the title', () => {
@@ -303,9 +310,9 @@ describe('decks draw the shared header', () => {
     expect(html).toContain('mv2-lens-tab-total">1<')
   })
 
-  it('draws the stay kicker with the first letter and the base in the title', () => {
+  it('draws the free stay window in the kicker and the base in the title', () => {
     const html = stayHtml()
-    expect(html).toContain('Around the stay · A')
+    expect(html).toContain('Around the stay · free 17:00–21:00')
     expect(html).toContain('1 pick near Hotel Ashoka')
     expect(html).toContain('Add to Day 2 · 17:00')
     expect(html).toContain('Walk')

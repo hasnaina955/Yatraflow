@@ -1,5 +1,5 @@
 import { Fragment, useId, useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, Heart, Home, LocateFixed, LockKeyhole, MapPin, Plus, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { fmtDur, legKey } from '../../lib/engine'
@@ -38,6 +38,13 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
     <button type="button" className="mv2-phone-day-all" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>
     <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at < 0 || at >= days.length - 1} aria-label="Next map day" onClick={() => { const next = days[at + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={16} /></button>
   </div>
+}
+
+/** The phone locate action. It reuses the map's existing recentre handler. */
+export function MapPhoneLocate({ onLocate }: { onLocate: () => void }) {
+  return <button type="button" className="mv2-map-phone-locate mv2-icon-btn"
+    aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"
+    onClick={onLocate}><LocateFixed size={18} aria-hidden /></button>
 }
 
 export { MapPhoneSheetHandle as MapSheetHandle } from './MapPhoneSheetHandle'

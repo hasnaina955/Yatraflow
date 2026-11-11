@@ -288,10 +288,13 @@ describe('approved map day palette', () => {
     }
   })
 
-  it('keeps the approved opaque disc ink at least 4.5:1 on every day disc', () => {
-    expect(markerInk).toBe('#02080D')
+  // The board and the user set a white numeral on every day disc. White stays
+  // at 3.5:1 or better on the lightest day colour, so the numeral reads.
+  it('keeps the approved white disc ink at least 3.5:1 on every day disc', () => {
+    expect(markerInk).toBe('#FFFFFF')
     for (const hex of DAY_COLORS) {
-      expect(contrast(rgb(markerInk), rgb(hex)), `${markerInk} on ${hex}`).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(rgb(markerInk), rgb(hex)), `${markerInk} on ${hex}`).toBeGreaterThanOrEqual(3.5)
     }
   })
+})
 })

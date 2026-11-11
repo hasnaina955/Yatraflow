@@ -47,7 +47,7 @@ import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
 import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep } from './map/LensRailExtras'
-import { fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
+import { baseTagText, fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
 } from './map/minuteScope'
@@ -1347,15 +1347,25 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     : []
   const phoneSheet = useMedia('(max-width: 760px)')
 
-  // W9-phone: MapLibre starts its compact attribution open, so a 390 px map
-  // reads as a full credit line. Collapse it to the (i) button once here.
+  // W14: MapLibre starts its compact attribution open. The board shows the (i)
+  // button alone, on desktop and on a phone. The map mounts late, so the effect
+  // waits for the control, collapses it once, and leaves later taps to the user.
   useEffect(() => {
-    if (!phoneSheet) return
-    const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
-    if (!node) return
-    node.classList.remove('maplibregl-compact-show')
-    node.removeAttribute('open')
-  }, [phoneSheet])
+    let frame = 0
+    let tries = 0
+    const collapse = () => {
+      const node = document.querySelector('.mv2-workspace .maplibregl-ctrl-attrib')
+      if (node) {
+        node.classList.remove('maplibregl-compact-show')
+        node.removeAttribute('open')
+        return
+      }
+      tries += 1
+      if (tries < 120) frame = requestAnimationFrame(collapse)
+    }
+    collapse()
+    return () => cancelAnimationFrame(frame)
+  }, [])
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)
   const [deckOpen, setDeckOpen] = useState(true)
@@ -1385,12 +1395,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? stayWindow
     : lenses.stay.windows[0]?.id ?? null
   const stayRingDef = STAY_RINGS.find(ring => ring.id === stayRing) ?? STAY_RINGS[0]
-  const stayRings = lens === 'stay' && lenses.stay.base != null
-    ? [{
-      id: stayRingDef.id,
-      label: `${stayRingDef.minutes} min ${stayRingDef.mode}`,
-      ring: ringPolygon(lenses.stay.base, ringRadiusKm(stayRingDef.mode, stayRingDef.minutes)),
-    }]
+  // Both reach rings draw, each with its caption. The chosen ring comes first: the
+  // camera frames it and only it wears the wash.
+  const stayBaseForRings = lenses.stay.base
+  const stayRings = lens === 'stay' && stayBaseForRings != null
+    ? [stayRingDef, ...STAY_RINGS.filter(ring => ring.id !== stayRingDef.id)].map(ring => ({
+      id: ring.id,
+      label: `${ring.minutes} min ${ring.mode}`,
+      ring: ringPolygon(stayBaseForRings, ringRadiusKm(ring.mode, ring.minutes)),
+      active: ring.id === stayRingDef.id,
+    }))
     : undefined
   // W10b: the phone sheet hides the bottom of the map. Its live height is the
   // bottom inset, measured again when a snap transition ends.
@@ -2235,6 +2249,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 explicit choice — this surface writes nothing on its own. */}
             <MapOmnibar
               editable={editable}
+              {...(lens === 'stay' && lenses.stay.base?.name ? { placeholder: `Search near ${baseTagText(lenses.stay.base.name)}` } : {})}
               query={omniQ}
               onQueryChange={q => {
                 setOmniQ(q)

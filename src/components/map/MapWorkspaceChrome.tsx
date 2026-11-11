@@ -34,10 +34,9 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
     {onBack && <button type="button" className="mv2-phone-day-back" aria-label="Back to trip" onClick={onBack}><ArrowLeft size={18} /></button>}
     <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at <= 0} aria-label="Previous map day" onClick={() => { const previous = days[at - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={16} /></button>
     <div className="mv2-phone-day-copy">
-      <span className="mv2-phone-day-label"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1} · Map</span>
+      <span className="mv2-phone-day-label"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1} · Map<button type="button" className="mv2-phone-day-all" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All days</button></span>
       <strong>{title}</strong>
     </div>
-    <button type="button" className="mv2-phone-day-all" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>
     <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at < 0 || at >= days.length - 1} aria-label="Next map day" onClick={() => { const next = days[at + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={16} /></button>
   </div>
 }

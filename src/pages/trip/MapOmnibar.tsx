@@ -38,6 +38,7 @@ export function MapOmnibar({
   onClear,
   onPlace,
   editable = true,
+  placeholder = 'Search, or find a stop along your route…',
 }: {
   query: string
   onQueryChange: (q: string) => void
@@ -57,6 +58,8 @@ export function MapOmnibar({
   onClear: () => void
   onPlace: (option: PlacementOption) => void
   editable?: boolean
+  /** The Stay lens names its base here. Absent keeps the general line. */
+  placeholder?: string
 }) {
   const [showAll, setShowAll] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -97,7 +100,7 @@ export function MapOmnibar({
           value={query}
           disabled={quotaOut}
           onChange={e => onQueryChange(e.target.value)}
-          placeholder="Search, or find a stop along your route…"
+          placeholder={placeholder}
           aria-label="Search the map for a place to add"
           style={{ flex: 1 }}
         />

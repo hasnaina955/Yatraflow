@@ -46,6 +46,16 @@ const MAX_MOVED = 2
 
 const SLOT_PREFIX = /^(breakfast|lunch|dinner|check[ -]?in)\s*[·:]\s*(.*)$/i
 
+/** The stop a warning names. The engine uses the same title in both wordings. */
+const NAMED_WARNING = /^(?:Conflicts with|Thin buffer before)\s+(.+)$/
+
+/** A day's fixed commitments, whose clocks the add cannot move. */
+function fixedStopIds(preview: ReadyAddPreview): Set<string> {
+  return new Set((preview.proposedTrip.fixedCommitments ?? [])
+    .filter(entry => entry.dayIndex === preview.dayIndex)
+    .map(entry => String(entry.stopId)))
+}
+
 /** A stop name as a sentence part. "Lunch · Nalla Ruchi Kitchen" reads "lunch". */
 export function spokenStopName(title: string): string {
   const match = SLOT_PREFIX.exec(title.trim())
@@ -125,7 +135,11 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   lines.push({ key: 'lands', tone: 'ok', parts: [{ text: `Lands as stop ${preview.insertion.order}, ${place}` }] })
 
   const moved = preview.clocks.filter(entry => entry.deltaMin != null && entry.deltaMin !== 0)
+  const fixedIds = fixedStopIds(preview)
   for (const entry of moved.slice(0, MAX_MOVED)) {
+    // A fixed booking keeps its own clock. The preview's arrival moves, not
+    // the commitment, so a retime line would say the booking moved.
+    if (fixedIds.has(String(entry.stopId))) continue
     lines.push({
       key: `moved-${entry.stopId}`,
       tone: 'clock',
@@ -143,7 +157,7 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   }
 
   for (const warning of preview.warnings.added) {
-    const named = warning.title.match(/^(?:Conflicts with|Thin buffer before)\s+(.+)$/)?.[1] ?? null
+    const named = warning.title.match(NAMED_WARNING)?.[1] ?? null
     const detail = named == null ? warning.detail : warning.detail.replace(`You reach ${named} ~`, 'You reach it ~')
     lines.push({
       key: `risk-${warning.code}-${warning.title}`,
@@ -152,6 +166,10 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     })
   }
   for (const warning of preview.warnings.cleared) {
+    // A worse or new warning on the same stop means the stop is not clear.
+    // Only a stop with no warning after the change earns the Clears line.
+    const named = warning.title.match(NAMED_WARNING)?.[1] ?? null
+    if (named != null && preview.warnings.added.some(added => added.title.match(NAMED_WARNING)?.[1] === named)) continue
     lines.push({ key: `clears-${warning.code}-${warning.title}`, tone: 'ok', parts: [{ text: `Clears: ${warning.title}` }] })
   }
 

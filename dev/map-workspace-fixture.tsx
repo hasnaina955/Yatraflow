@@ -20,6 +20,7 @@ import { getSnapshot } from '../src/store/store'
 import { placeIdentity } from '../src/lib/placeIdentity'
 import { buildDnaVectorAcrossTrips, crewSeedEvents, crewSeedsFromSuggestions, loadDnaLog, type CrewSeed } from '../src/lib/tripDna'
 import { useJourneyDays } from '../src/pages/trip/journey/useJourneyDays'
+import { mapManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 import type { CorridorSnapshot } from '../src/pages/trip/map/corridorSnapshot'
 import type { ApplyChange } from '../src/lib/mutationLifecycle'
 import type { PlaceHit } from '../src/lib/providers/hits'
@@ -79,8 +80,8 @@ const board = (): Trip => ({
         stop('fixture-lunch', 'Lunch · Nalla Ruchi Kitchen', 'food', at('kattappana').lat, at('kattappana').lng, 2, 45),
         stop('fixture-farm', 'Spice farm walk', 'sightseeing', at('anakkara').lat, at('anakkara').lng, 3, 20),
       ] : []),
-      stop('fixture-hotel', 'Check in · Spice Village', 'hotel', at('spiceVillage').lat, at('spiceVillage').lng, fixScenario ? 4 : 2, fixScenario ? 81 : 91),
-      stop('fixture-boat', 'Periyar boat', 'nature', at('jetty').lat, at('jetty').lng, fixScenario ? 5 : 3, 90),
+      stop('fixture-hotel', 'Check in · Spice Village', 'hotel', at('spiceVillage').lat, at('spiceVillage').lng, fixScenario ? 4 : 2, 20),
+      stop('fixture-boat', 'Periyar boat', 'adventure', at('jetty').lat, at('jetty').lng, fixScenario ? 5 : 3, 90),
     ] },
     { id: 'fixture-day-4', index: 3, startTime: '09:00', title: 'Around Thekkady', stops: [
       stop('fixture-d4-walk', 'Forest walk', 'nature', 9.5705, 77.1802, 1, 90),
@@ -119,6 +120,50 @@ const syntheticSeeds: CrewSeed[] = [
   { name: 'Synthetic cardamom walk', category: 'nature', lat: 9.71, lng: 77.14 },
   { name: 'Synthetic tea break', category: 'food', lat: 9.79, lng: 77.09 },
 ]
+
+// Sample place picks for the board trip. The Kitchen, Café and Garden fill the
+// 11:30–14:30 lunch window near km 57. The four stay picks sit inside the
+// 15 min walk / 30 min drive rings around Spice Village. Every row is sample.
+const boardRoadPoint = (km: number): [number, number] => {
+  const line = boardRoad.coordinates as [number, number][]
+  const cumulative = [0]
+  for (let index = 1; index < line.length; index += 1) {
+    cumulative.push(cumulative[index - 1] + Math.hypot((line[index][1] - line[index - 1][1]) * 111, (line[index][0] - line[index - 1][0]) * 109))
+  }
+  const scale = cumulative[cumulative.length - 1] / boardRoad.totalKm
+  const at = cumulative.findIndex(value => value >= km * scale)
+  return line[at < 0 ? line.length - 1 : at]
+}
+const boardPoint = (km: number, dLat: number, dLng: number): { lat: number; lng: number } => {
+  const [lng, lat] = boardRoadPoint(km)
+  return { lat: Number((lat + dLat).toFixed(6)), lng: Number((lng + dLng).toFixed(6)) }
+}
+const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: number, visitMinutes: number): PlaceHit => ({
+  id, name, kind: 'poi', source: 'osm', category: 'food',
+  ...boardPoint(km, dLat, dLng),
+  openTime: '11:00', closeTime: '15:30', visitMinutes,
+})
+const SAMPLE_LUNCH: readonly PlaceHit[] = [
+  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.003, 0.011, 45),
+  sampleHit(930002, 'Spice Route Café', 57, -0.004, 0.012, 40),
+  sampleHit(930003, 'Hill Garden Meals', 57, 0.006, 0.014, 45),
+]
+const sampleStayHit = (id: number, name: string, dLat: number, dLng: number, visitMinutes: number): PlaceHit => ({
+  id, name, kind: 'poi', source: 'osm', category: 'sightseeing',
+  lat: Number((boardRoad.stops.spiceVillage.at[1] + dLat).toFixed(6)),
+  lng: Number((boardRoad.stops.spiceVillage.at[0] + dLng).toFixed(6)),
+  openTime: '17:00', closeTime: '21:00', visitMinutes,
+})
+const SAMPLE_STAY: readonly PlaceHit[] = [
+  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 0.0004, 0.0006, 60),
+  sampleStayHit(930008, 'Kumily spice market', -0.0003, 0.0006, 45),
+  sampleStayHit(930009, 'Periyar spice garden', 0.0006, -0.0004, 60),
+  sampleStayHit(930010, 'Boat landing viewpoint', 0.008, 0.011, 30),
+]
+for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
+  const context = { tripId: trip.id, dayId: 'fixture-day-3', slotKey }
+  for (const hit of hits) mapManualSlotStore.file(context, hit)
+}
 const crewSuggestions = syntheticSeeds.map((seed, index) => ({
   status: 'open', title: seed.name, category: seed.category, lat: seed.lat, lng: seed.lng, id: `fixture-seed-${index}`,
 }))

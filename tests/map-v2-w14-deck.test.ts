@@ -126,6 +126,48 @@ describe('the place detail preview', () => {
     expect(view.kind).toBe('unknown')
     expect(view.lines[0]?.parts[0]?.text).toContain('road order')
   })
+
+  it('does not claim Clears when the same stop gets a worse warning', () => {
+    const view = detailPreviewView(ready({
+      warnings: {
+        added: [{ code: 'commitment', title: 'Conflicts with Periyar boat', detail: 'You reach Periyar boat ~15:52, after the 15:30 commitment.', severe: true, dayIndex: 0 }],
+        cleared: [{ code: 'buffer', title: 'Thin buffer before Periyar boat', detail: 'You reach Periyar boat ~15:05, under ~45 min before the 15:30 commitment.', severe: false, dayIndex: 0 }],
+      },
+    }), clock)
+    expect(view.lines.some(line => line.parts.map(part => part.text).join('').startsWith('Clears:'))).toBe(false)
+    expect(view.lines.some(line => line.tone === 'risk')).toBe(true)
+  })
+
+  it('claims Clears when the stop has no warning after the add', () => {
+    const view = detailPreviewView(ready({
+      warnings: {
+        added: [],
+        cleared: [{ code: 'buffer', title: 'Thin buffer before Periyar boat', detail: 'You reach Periyar boat ~15:05, under ~45 min before the 15:30 commitment.', severe: false, dayIndex: 0 }],
+      },
+    }), clock)
+    expect(view.lines.some(line => line.parts.map(part => part.text).join('') === 'Clears: Thin buffer before Periyar boat')).toBe(true)
+  })
+
+  it('leaves out the retime line for a fixed booking', () => {
+    const trip = {
+      fixedCommitments: [{ id: 'lock', dayIndex: 0, stopId: 'boat', title: 'Periyar boat', time: '15:30', type: 'event' }],
+      days: [{ index: 0, stops: [{ id: 'boat', title: 'Periyar boat', category: 'nature' }, { id: 'hotel', title: 'Check in · Spice Village', category: 'hotel' }] }],
+    } as unknown as Trip
+    const view = detailPreviewView(ready({
+      proposedTrip: trip,
+      clocks: [
+        { stopId: 'boat', title: 'Periyar boat', from: '15:30', to: '15:52', deltaMin: 22 },
+        { stopId: 'hotel', title: 'Check in · Spice Village', from: '14:00', to: '14:22', deltaMin: 22 },
+      ],
+      warnings: {
+        added: [{ code: 'commitment', title: 'Conflicts with Periyar boat', detail: 'You reach Periyar boat ~15:52, after the 15:30 commitment.', severe: true, dayIndex: 0 }],
+        cleared: [],
+      },
+    }), clock)
+    const retimed = view.lines.filter(line => line.key.startsWith('moved-')).map(line => line.key)
+    expect(retimed).toEqual(['moved-hotel'])
+    expect(view.lines.some(line => line.tone === 'risk')).toBe(true)
+  })
 })
 
 describe('the road clock at a pick', () => {

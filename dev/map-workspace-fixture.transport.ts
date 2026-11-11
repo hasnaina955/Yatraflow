@@ -113,15 +113,15 @@ export function fixtureNearElements(query: string): {
 /** One sample place of the board trip: a spot on the recorded road, and a small offset from it. */
 const BOARD_PLACES: ReadonlyArray<{ id: number; name: string; km: number; dLat: number; dLng: number; tags: Record<string, string> }> = [
   { id: 930001, name: 'Nalla Ruchi Kitchen', km: 57, dLat: 0.003, dLng: 0.011, tags: { amenity: 'restaurant', cuisine: 'kerala', 'diet:vegetarian': 'yes', opening_hours: 'Mo-Su 11:00-15:30' } },
-  { id: 930002, name: 'Spice Route Café', km: 49, dLat: -0.004, dLng: 0.012, tags: { amenity: 'cafe', cuisine: 'south_indian', opening_hours: 'Mo-Su 08:00-15:00' } },
-  { id: 930003, name: 'Hill Garden Meals', km: 72, dLat: 0.006, dLng: 0.014, tags: { amenity: 'restaurant', cuisine: 'regional', opening_hours: 'Mo-Su 12:00-16:00' } },
+  { id: 930002, name: 'Spice Route Café', km: 57, dLat: -0.004, dLng: 0.012, tags: { amenity: 'restaurant', cuisine: 'south_indian', opening_hours: 'Mo-Su 08:00-15:00' } },
+  { id: 930003, name: 'Hill Garden Meals', km: 57, dLat: 0.006, dLng: 0.014, tags: { amenity: 'restaurant', cuisine: 'regional', opening_hours: 'Mo-Su 12:00-16:00' } },
   { id: 930004, name: 'Idukki dam', km: 40, dLat: 0.012, dLng: -0.02, tags: { tourism: 'attraction', man_made: 'dam' } },
   { id: 930005, name: 'Kalvari Mount', km: 36, dLat: -0.01, dLng: 0.025, tags: { tourism: 'viewpoint' } },
   { id: 930006, name: 'Murickassery spice garden', km: 31, dLat: 0.008, dLng: 0.015, tags: { tourism: 'attraction', leisure: 'garden' } },
-  { id: 930007, name: 'Kadathanadan Kalari Centre', km: 87.8, dLat: 0.004, dLng: -0.006, tags: { tourism: 'attraction', amenity: 'theatre', opening_hours: 'Mo-Su 17:00-19:30' } },
-  { id: 930008, name: 'Kumily spice market', km: 88.2, dLat: -0.003, dLng: 0.004, tags: { amenity: 'marketplace', opening_hours: 'Mo-Su 08:00-21:00' } },
-  { id: 930009, name: 'Tiger trail edge walk', km: 89.5, dLat: -0.012, dLng: 0.016, tags: { leisure: 'nature_reserve', opening_hours: 'Mo-Su 07:00-17:30' } },
-  { id: 930010, name: 'Boat landing viewpoint', km: 91, dLat: 0.002, dLng: 0.008, tags: { tourism: 'viewpoint' } },
+  { id: 930007, name: 'Kadathanadan Kalari Centre', km: 88.7, dLat: 0.0004, dLng: 0.0006, tags: { tourism: 'attraction', amenity: 'theatre', opening_hours: 'Mo-Su 17:00-19:30' } },
+  { id: 930008, name: 'Kumily spice market', km: 88.7, dLat: -0.0003, dLng: 0.0006, tags: { amenity: 'marketplace', opening_hours: 'Mo-Su 08:00-21:00' } },
+  { id: 930009, name: 'Periyar spice garden', km: 88.7, dLat: 0.0006, dLng: -0.0004, tags: { tourism: 'attraction', leisure: 'garden', opening_hours: 'Mo-Su 09:00-18:00' } },
+  { id: 930010, name: 'Boat landing viewpoint', km: 88.7, dLat: 0.008, dLng: 0.011, tags: { tourism: 'viewpoint', opening_hours: 'Mo-Su 06:00-18:30' } },
   { id: 930011, name: 'Bamboo rafting', km: 90.2, dLat: -0.016, dLng: 0.02, tags: { tourism: 'attraction', leisure: 'sports_centre' } },
 ]
 
@@ -152,7 +152,7 @@ export function fixtureBoardElements(): {
         id: place.id,
         lat: Number((line[index][1] + place.dLat).toFixed(6)),
         lon: Number((line[index][0] + place.dLng).toFixed(6)),
-        tags: { name: place.name, sample: 'yes', ...place.tags },
+      tags: { name: place.name, sample: 'yes', 'addr:city': 'Kumily', ...place.tags },
       }
     }),
   }

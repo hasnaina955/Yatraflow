@@ -34,7 +34,7 @@ const { state, toast } = vi.hoisted(() => ({
     /** Trip rows and membership rows, so a hydrate has a trip scope. */
     tripRows: [] as unknown[],
     memberRows: [] as unknown[],
-    deferred: {} as Record<string, (() => void) | undefined>,
+    deferred: {} as Record<string, (() => Promise<void>) | undefined>,
     /** A held SDK signOut: the call BEGINS for the caller, and its completion
      *  only resolves when the test releases it. */
     signOutGate: null as null | Promise<void>,
@@ -65,8 +65,6 @@ const { state, toast } = vi.hoisted(() => ({
     authEvents: 0,
     /** Authorization headers a request pinned through `pinBearer`. */
     pinnedHeaders: [] as Array<[string, string]>,
-    /** A held SDK signOut, so a test can change the session mid-flight. */
-    signOutGate: null as null | Promise<void>,
     /** The offline snapshot `loadSnapshot` answers. */
     snapshot: null as null | { users: unknown[]; trips: unknown[]; trashedTrips: unknown[]; published: unknown[]; suggestions: unknown[]; decisions: unknown[]; activity: unknown[]; savedAt: number },
   },
@@ -1016,7 +1014,7 @@ describe('a public refresh overlays fresh fields onto a retained private row', (
     expect(me.profile.name).toBe('Asha Nair')
     expect(me.profile.avatarUrl).toBe('https://cdn/a2.png')
     expect(me.profile.creatorAvailable).toBe(false)
-    const u2 = store.getSnapshot().users.find(u => u.id === 'u-2') as { kind: string; profile: Record<string, unknown> }
+    const u2 = store.getSnapshot().users.find(u => u.id === 'u-2')!
     expect(u2.kind).toBe('private')
     expect(u2.profile.name).toBe('Bilal Ahmed')
     expect(u2.profile.creatorAvailable).toBe(false)
@@ -1054,7 +1052,7 @@ describe('a hostile nested social key never survives a public projection', () =>
   const HOSTILE = {
     id: 'u-1', kind: 'private' as const, email: 'a@example.invalid', createdAt: 1,
     profile: {
-      name: 'Asha', languages: ['en'], travelStyles: [], isCreator: true,
+      name: 'Asha', languages: ['en'], travelStyles: [], isCreator: true, creatorAvailable: true,
       socialLinks: { youtube: 'https://y/@a', email: 'a@example.invalid' } as unknown as { youtube?: string },
     },
   }
@@ -1068,7 +1066,7 @@ describe('a hostile nested social key never survives a public projection', () =>
     const result = buildCatalog(
       { userId: 'u-1', identityEpoch: 0, authorityEpoch: 0, admin: false },
       {
-        public: { users: [fresh], failed: false, complete: false },
+        public: { users: [fresh], failed: false, complete: false, requested: true },
         self: { status: 'not-requested' },
         admin: { status: 'not-requested' },
       },
@@ -1091,11 +1089,11 @@ describe('a hostile nested social key never survives a public projection', () =>
     const result = buildCatalog(
       { userId: 'u-9', identityEpoch: 0, authorityEpoch: 1, admin: false },
       {
-        public: { users: [], failed: false, complete: true },
+        public: { users: [], failed: false, complete: true, requested: true },
         self: { status: 'not-requested' },
         admin: { status: 'ok', value: [HOSTILE] },
       },
-      { ownerUserId: null, authorityEpoch: null, selfAuthorized: false, users: [] },
+      { ownerUserId: null, identityEpoch: null, authorityEpoch: null, selfAuthorized: false, users: [] },
     )
     const public1 = result.users.find(u => u.id === 'u-1')
     expect(public1?.kind).toBe('public')

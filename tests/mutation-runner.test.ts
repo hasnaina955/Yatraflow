@@ -9,6 +9,30 @@ type Status = 'passed' | 'failed' | 'skipped' | 'todo' | 'pending'
 type Assertion = { fullName: string; status: Status; message?: string }
 type FileRecord = { name: string; status?: 'passed' | 'failed'; message?: string; assertions: Assertion[] }
 
+/** The runner helpers are plain JS, so TS types every defaulted field as `null`
+ *  and widens `kind`. Re-type the seam here; the runtime call is unchanged. */
+type RunInput = {
+  exitCode?: number | null
+  signal?: string | null
+  error?: string | null
+  reportText?: string | null
+  reportError?: string | null
+  unhandledErrors?: string[] | null
+  expectedFiles?: string[] | null
+}
+type RunVerdict = {
+  kind: string
+  failedTests?: Array<{ name: string; message: string }>
+  fileErrors?: Array<{ file: string; message: string }>
+  testErrors?: Array<{ name: string; message: string }>
+  unhandled?: string[]
+  reason?: string
+}
+const classify = (input: RunInput): RunVerdict =>
+  classifyRun(input as Parameters<typeof classifyRun>[0]) as RunVerdict
+const exitCode = (input: { cancelledWith?: string | null; infra?: number; skipped?: number; suiteError?: number }) =>
+  exitCodeFor(input as Parameters<typeof exitCodeFor>[0])
+
 const A = 'tests/gate-round4-fresh.test.ts'
 const B = 'tests/gate-banner-probes.test.ts'
 const SEVEN = [
@@ -83,7 +107,7 @@ afterEach(() => {
 
 describe('mutation runner: what one run means', () => {
   it('a failed assertion pins the mutation and names that assertion', () => {
-    const verdict = classifyRun({ ...SINGLE, exitCode: 1, reportText: report([
+    const verdict = classify({ ...SINGLE, exitCode: 1, reportText: report([
       { fullName: 'discard refresh failures keeps the held copy', status: 'failed' },
       { fullName: 'fresh round four interleavings replays', status: 'passed' },
     ]) })
@@ -95,39 +119,39 @@ describe('mutation runner: what one run means', () => {
   })
 
   it('a suite with no failed assertion is not pinned', () => {
-    expect(classifyRun({ ...SINGLE, exitCode: 0, reportText: report([{ fullName: 'a', status: 'passed' }]) }).kind)
+    expect(classify({ ...SINGLE, exitCode: 0, reportText: report([{ fullName: 'a', status: 'passed' }]) }).kind)
       .toBe('not-pinned')
   })
 
   it('a runner that cannot start is an infrastructure failure, never a pin', () => {
-    expect(classifyRun({ ...SINGLE, exitCode: null, error: 'spawn EPERM', reportText: null }).kind).toBe('infra')
+    expect(classify({ ...SINGLE, exitCode: null, error: 'spawn EPERM', reportText: null }).kind).toBe('infra')
   })
 
   it('a runner killed by a signal is an infrastructure failure, never a pin', () => {
-    const verdict = classifyRun({ ...SINGLE, exitCode: null, signal: 'SIGKILL', reportText: report([{ fullName: 'a', status: 'passed' }]) })
+    const verdict = classify({ ...SINGLE, exitCode: null, signal: 'SIGKILL', reportText: report([{ fullName: 'a', status: 'passed' }]) })
     expect(verdict.kind).toBe('infra')
   })
 
   it('a missing or unreadable report is an infrastructure failure', () => {
-    expect(classifyRun({ ...SINGLE, exitCode: 1, reportText: '' }).kind).toBe('infra')
-    expect(classifyRun({ ...SINGLE, exitCode: 1, reportText: '{not json' }).kind).toBe('infra')
+    expect(classify({ ...SINGLE, exitCode: 1, reportText: '' }).kind).toBe('infra')
+    expect(classify({ ...SINGLE, exitCode: 1, reportText: '{not json' }).kind).toBe('infra')
   })
 
   it('a run that executes no test is an infrastructure failure', () => {
-    expect(classifyRun({ ...SINGLE, exitCode: 1, reportText: report([]) }).kind).toBe('infra')
+    expect(classify({ ...SINGLE, exitCode: 1, reportText: report([]) }).kind).toBe('infra')
   })
 
   it('a file that fails to load is a suite error, not an assertion pin', () => {
     const reportText = JSON.stringify({ testResults: [{
       name: `/scratch/${A}`, status: 'failed', message: 'SyntaxError: Unexpected token', assertionResults: [],
     }] })
-    const verdict = classifyRun({ ...SINGLE, exitCode: 1, reportText })
+    const verdict = classify({ ...SINGLE, exitCode: 1, reportText })
     expect(verdict.kind).toBe('suite-error')
     expect(verdict.fileErrors).toEqual([{ file: `/scratch/${A}`, message: 'SyntaxError: Unexpected token' }])
   })
 
   it('a test that throws a runtime error is a suite error, not an assertion pin', () => {
-    const verdict = classifyRun({ ...SINGLE, exitCode: 1, reportText: report([{
+    const verdict = classify({ ...SINGLE, exitCode: 1, reportText: report([{
       fullName: 'discard refresh failures keeps the held copy', status: 'failed',
       message: 'ReferenceError: readSharedTrip is not defined',
     }]) })
@@ -139,7 +163,7 @@ describe('mutation runner: what one run means', () => {
   })
 
   it('an assertion failure beside another file\'s SyntaxError is a suite error, not a pin', () => {
-    const verdict = classifyRun({ ...PAIR, exitCode: 1, reportText: reportFiles([
+    const verdict = classify({ ...PAIR, exitCode: 1, reportText: reportFiles([
       { name: `/scratch/${A}`, assertions: [{ fullName: 'discard keeps the held copy', status: 'failed' }] },
       { name: `/scratch/${B}`, status: 'failed', message: 'SyntaxError: Unexpected token', assertions: [] },
     ]) })
@@ -148,7 +172,7 @@ describe('mutation runner: what one run means', () => {
   })
 
   it('an assertion failure beside a test that throws a ReferenceError is a suite error, not a pin', () => {
-    const verdict = classifyRun({ ...SINGLE, exitCode: 1, reportText: report([
+    const verdict = classify({ ...SINGLE, exitCode: 1, reportText: report([
       { fullName: 'discard keeps the held copy', status: 'failed' },
       { fullName: 'replays the queue', status: 'failed', message: 'ReferenceError: readSharedTrip is not defined' },
     ]) })
@@ -157,7 +181,7 @@ describe('mutation runner: what one run means', () => {
   })
 
   it('an unhandled error beside a failed assertion is a suite error, not a pin', () => {
-    const verdict = classifyRun({ ...SINGLE, unhandledErrors: ['late boom'], exitCode: 1, reportText: report([
+    const verdict = classify({ ...SINGLE, unhandledErrors: ['late boom'], exitCode: 1, reportText: report([
       { fullName: 'discard keeps the held copy', status: 'failed' },
     ]) })
     expect(verdict.kind).toBe('suite-error')
@@ -165,28 +189,28 @@ describe('mutation runner: what one run means', () => {
   })
 
   it('an unhandled error with every test green is a suite error, never a clean run', () => {
-    const verdict = classifyRun({ ...SINGLE, unhandledErrors: ['late boom'], exitCode: 0, reportText: report([
+    const verdict = classify({ ...SINGLE, unhandledErrors: ['late boom'], exitCode: 0, reportText: report([
       { fullName: 'a', status: 'passed' },
     ]) })
     expect(verdict.kind).toBe('suite-error')
   })
 
   it('a run with no unhandled-error record is infrastructure, never a pin', () => {
-    const verdict = classifyRun({ ...SINGLE, unhandledErrors: null, exitCode: 1, reportText: report([
+    const verdict = classify({ ...SINGLE, unhandledErrors: null, exitCode: 1, reportText: report([
       { fullName: 'discard keeps the held copy', status: 'failed' },
     ]) })
     expect(verdict.kind).toBe('infra')
   })
 
   it('a report that covers one of seven requested files is incomplete, never a pin', () => {
-    const verdict = classifyRun({ expectedFiles: SEVEN, unhandledErrors: [], exitCode: 1, reportText: reportFiles([
+    const verdict = classify({ expectedFiles: SEVEN, unhandledErrors: [], exitCode: 1, reportText: reportFiles([
       { name: `/scratch/${SEVEN[5]}`, assertions: [{ fullName: 'discard keeps the held copy', status: 'failed' }] },
     ]) })
     expect(verdict.kind).toBe('infra')
   })
 
   it('skipped and todo records are not executed, so a file with only those is infrastructure', () => {
-    const verdict = classifyRun({ ...PAIR, exitCode: 1, reportText: reportFiles([
+    const verdict = classify({ ...PAIR, exitCode: 1, reportText: reportFiles([
       { name: `/scratch/${A}`, assertions: [{ fullName: 'discard keeps the held copy', status: 'failed' }] },
       { name: `/scratch/${B}`, assertions: [{ fullName: 'later', status: 'skipped' }, { fullName: 'planned', status: 'todo' }] },
     ]) })
@@ -194,12 +218,12 @@ describe('mutation runner: what one run means', () => {
   })
 
   it('a run where every record is skipped executes nothing, so it is infrastructure', () => {
-    const verdict = classifyRun({ ...SINGLE, exitCode: 0, reportText: report([{ fullName: 'later', status: 'skipped' }]) })
+    const verdict = classify({ ...SINGLE, exitCode: 0, reportText: report([{ fullName: 'later', status: 'skipped' }]) })
     expect(verdict.kind).toBe('infra')
   })
 
   it('a clean run that fails an assertion in every requested file is still pinned', () => {
-    const verdict = classifyRun({ ...PAIR, exitCode: 1, reportText: reportFiles([
+    const verdict = classify({ ...PAIR, exitCode: 1, reportText: reportFiles([
       { name: `/scratch/${A}`, assertions: [{ fullName: 'discard keeps the held copy', status: 'failed' }] },
       { name: `/scratch/${B}`, assertions: [{ fullName: 'replays the queue', status: 'failed' }] },
     ]) })
@@ -266,7 +290,7 @@ describe('mutation runner: a report that cannot be read', () => {
       unhandledPath,
     })
     expect(run.reportError).toMatch(/EISDIR/)
-    expect(classifyRun({
+    expect(classify({
       ...SINGLE,
       exitCode: run.exitCode,
       reportText: run.reportText,
@@ -285,18 +309,18 @@ describe('mutation runner: containment, exit codes and tallies', () => {
   })
 
   it('a cancelled run keeps its signal code, even after the loop ends', () => {
-    expect(exitCodeFor({ cancelledWith: 'SIGINT' })).toBe(130)
-    expect(exitCodeFor({ cancelledWith: 'SIGTERM', infra: 0, skipped: 0 })).toBe(143)
+    expect(exitCode({ cancelledWith: 'SIGINT' })).toBe(130)
+    expect(exitCode({ cancelledWith: 'SIGTERM', infra: 0, skipped: 0 })).toBe(143)
   })
 
   it('an infrastructure failure or a skipped mutation makes the run non-zero', () => {
-    expect(exitCodeFor({ infra: 1 })).toBe(2)
-    expect(exitCodeFor({ skipped: 1 })).toBe(2)
-    expect(exitCodeFor({})).toBe(0)
+    expect(exitCode({ infra: 1 })).toBe(2)
+    expect(exitCode({ skipped: 1 })).toBe(2)
+    expect(exitCode({})).toBe(0)
   })
 
   it('a suite error leaves a mutation unjudged, so the run exits non-zero', () => {
-    expect(exitCodeFor({ suiteError: 1 })).toBe(2)
+    expect(exitCode({ suiteError: 1 })).toBe(2)
   })
 
   it('tallies each kind of result on its own line', () => {

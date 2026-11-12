@@ -94,8 +94,9 @@ import {
   duplicateTrip, updateTrip, tripById, tripWriteReceipt, admitTripPreview, trackTripPreview,
   observeTripPreview, tripPreviewPending, resolveQueuedTripWrite, getSnapshot, logout, subscribe,
   _setTripWriteDebounceMs, _cancelTripWrites,
-  type TripPreviewObservation,
 } from '../src/store/store'
+import type { TripPreviewObservation } from '../src/store/tripPreviewRecovery'
+import type { Trip } from '../src/data/types'
 import { clearWritesFor, pendingWrites } from '../src/lib/writeQueue'
 
 const tick = async () => { await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0)) }
@@ -180,7 +181,7 @@ describe('exact preview admission facts', () => {
     if (admission.kind !== 'admitted') return
     patch.name = 'Changed after admission'
     const queued = (await pendingWrites()).find(write => write.tripId === trip.id)
-    expect(queued?.trip.name).toBe('Preview')
+    expect((queued?.trip as Trip).name).toBe('Preview')
     expect(admission.operation.revision).toBe(queued?.revision)
     expect(admission.operation.capturedAt).toBe(queued?.capturedAt)
     expect(admission.operation.userId).toBe('owner-test')

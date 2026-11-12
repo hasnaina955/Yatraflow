@@ -101,7 +101,7 @@ A rule with no row here is a judgment call.
 | §2.17 promote | Judgment; `git rev-list --count origin/main..origin/test` |
 | §2.18 prior art | Judgment; the PR description lists projects, licences and choice |
 | §2.19 claim before you start | Judgment; the issue assignee, the claim comment and `git ls-remote --heads origin` |
-| §3 gate, CI, migrations | `npm run verify`; `ci.yml`; `npm run check:migrations`; live probe |
+| §3 gate, CI, migrations | `npm run verify`; `ci.yml`; `npm run check:migrations` (manual: not in `verify` or CI); live probe |
 | §4 conventions | `CODING_STANDARDS.md`; `supabase/tests/rls_contract.test.sql` (manual: not in `verify` or CI); `tests/design-system.test.ts` |
 | §6 roadmap version | `tests/roadmap-status.test.ts` |
 | §6 docs claims | `tests/doc-drift.test.ts` |

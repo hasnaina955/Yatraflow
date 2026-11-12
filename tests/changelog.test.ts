@@ -266,4 +266,9 @@ describe('adoption wiring', () => {
   it('pins fragments and receipts to LF', () => {
     expect(text('.gitattributes')).toMatch(/^changelog\.d\/\*\* text eol=lf$/m)
   })
+  it('leaves CHANGELOG.md without a union merge driver, so a conflict shows', () => {
+    const attributes = text('.gitattributes')
+    expect(attributes).not.toMatch(/^\s*(?:CHANGELOG\.md|changelog\.d\S*)\s.*merge=/m)
+    expect(text('changelog.d/README.md')).toContain('git check-attr merge -- CHANGELOG.md')
+  })
 })

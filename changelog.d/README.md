@@ -65,7 +65,9 @@ The checker uses `transition.json` to detect that boundary. The release patch re
 On a changelog conflict, compare both sides with the merge base.
 Keep both sets of pending notes under one Unreleased heading.
 Preserve the preamble and released history. Use editor primitives and run the checker.
-Do not restore an older whole file. Do not use a union merge driver after adoption.
+Do not restore an older whole file. `CHANGELOG.md` has no union merge driver, so git shows each conflict.
+Run `git check-attr merge -- CHANGELOG.md` once per clone. It must print `unspecified`.
+If it names a driver, remove that line from `.git/info/attributes` and from `merge.*` in the git config.
 On a fragment conflict, coordinate with its owner and keep one final claim.
 
 ## Design sources

@@ -402,7 +402,7 @@ A rule with no row is a judgment call, and that is where repeats come from. Rule
 | Rule | Gate, or who decides |
 | --- | --- |
 | §2.1 push to `main` only on confirmation | Judgment (the user). Vercel serves `main`. |
-| §2.2–3 fragments | `changelog:check`; `lint:ste`; PR delta tests; release coverage review. During the transition, a direct `CHANGELOG.md` edit still counts as the PR note, and `.gitattributes` keeps its `union` merge driver until the last migration step. |
+| §2.2–3 fragments | `changelog:check`; `lint:ste`; PR delta tests; release coverage review. Until the next release, a direct `CHANGELOG.md` edit still counts as the PR note. `CHANGELOG.md` has no `union` merge driver, so a direct conflict needs a hand merge. |
 | §2.4 claim the work in the same breath | Judgment. The manual check is `git ls-remote --heads origin \| grep <n>`. |
 | §2.5 UI-audit fixes tick `ROADMAP.md` in the same commit | Review; judgment. |
 | §2.6 re-derive "done" from git, never from memory | Manual, on every resume: `git status -sb` and `git log`. |

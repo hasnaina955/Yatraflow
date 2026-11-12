@@ -92,7 +92,7 @@ describe('#420 — the corridor cost chip', () => {
 })
 
 describe('#420 — the empty-part pin says the same thing', () => {
-  const slot = (over: Partial<DaySlot>): DaySlot => ({
+  const slot = (over: Omit<Partial<DaySlot>, 'key'> & { key?: string }): DaySlot => ({
     key: 'day1:lunch', kind: 'meal', label: 'Lunch', state: 'empty',
     windowMin: null, windowLabel: null, segment: null, candidates: [],
     ...over,

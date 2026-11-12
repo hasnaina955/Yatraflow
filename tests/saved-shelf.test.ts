@@ -11,7 +11,7 @@ function stop(patch: Partial<ItineraryStop> = {}): ItineraryStop {
   return {
     id: 's1',
     title: 'Anjuna Flea Market',
-    category: 'sight',
+    category: 'sightseeing',
     locationName: 'Anjuna',
     lat: 15.6,
     lng: 73.7,

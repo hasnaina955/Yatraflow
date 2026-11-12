@@ -107,7 +107,7 @@ vi.mock('../src/lib/supabase', async () => {
     builder.maybeSingle = () => builder
     builder.single = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => {
+      new Promise<{ data: unknown; error: unknown }>(resolve => {
         // select() paths: trips table serves the seeded row; the optional-column
         // probes error out (columns "missing") which the store handles.
         resolve(table === 'trips' && builder.__isSelect
@@ -115,7 +115,7 @@ vi.mock('../src/lib/supabase', async () => {
           : { data: null, error: table.startsWith('trips') ? null : { message: 'denied' } })
       }).then(res)
     builder.__isSelect = false
-    const origSelect = builder.select
+    const origSelect = builder.select as () => Record<string, unknown>
     builder.select = () => { builder.__isSelect = true; return origSelect() }
     return builder
   }

@@ -207,8 +207,6 @@ describe('#846 a closing overnight belongs to the day it closes', () => {
       [...fourDayHalts(), proposedHalt, pastPlan],
       [0, 1, 2, 3].map(index => ({ index, stops: [] })),
       {
-        haltSegments: [],
-        dayStops: [],
         anchors: ANCHORS,
         dayOfSegment: proposed.dayOfSegment,
         daySpanKm: proposed.daySpanKm,

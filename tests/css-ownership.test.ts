@@ -15,7 +15,21 @@ import { checkOwnership, loadOwnershipMap, formatFindings, ALLOWED_ON_CONFIG, cl
 const OWNER = 'src/styles/components/select.css'
 const LEGACY = 'src/styles/legacy/10-explore.css'
 
-function fixture(files) {
+/** One finding the ownership check reports, as the `.mjs` module returns it. */
+type OwnershipFinding = {
+  code: string
+  file: string
+  selector: string
+  prop: string
+  message: string
+  key?: string
+}
+/** A registered variable exception, deliberately partial in some fixtures. */
+type VariableDebt = { file: string; selector?: string; variable?: string; reason?: string }
+/** The ownership map's owner entry, as far as these assertions read it. */
+type OwnerEntry = { id: string }
+
+function fixture(files: Record<string, string>) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'yf-css-owner-'))
   for (const [rel, text] of Object.entries(files)) {
     const abs = path.join(root, rel)
@@ -50,7 +64,7 @@ const ENTRY = `@import './styles/components/select.css';\n@import './styles/lega
 const OWNER_CSS = `.select { border: 1px solid var(--line); }\n`
 const PAGE_CSS = `.ex-page { display: flex; }\n`
 
-function run(files, options) {
+function run(files: Record<string, string>, options?: { legacy?: string[]; baselines?: Record<string, unknown> }) {
   const { root, map } = mapFor(options)
   for (const [rel, text] of Object.entries(files)) {
     const abs = path.join(root, rel)
@@ -304,7 +318,7 @@ describe('css ownership: the real repository is clean', () => {
       ).toBe(true)
     }
     expect(map.owners.length).toBeGreaterThanOrEqual(10)
-    expect(map.owners.map((o) => o.id)).toContain('dialog')
+    expect(map.owners.map((o: OwnerEntry) => o.id)).toContain('dialog')
   })
 
   it('leaves no root token definitions in the legacy modules', () => {
@@ -334,8 +348,8 @@ describe('css ownership: the real repository is clean', () => {
     })
     const graph = loadCssGraph('src/styles.css', { root })
     const kept = applyAppearanceBaseline(checkOwnership(graph, map, root), map.baselines)
-    const appearance = kept.filter((f) => f.code === 'config-appearance')
-    const named = new Set(appearance.map((f) => classTokens(f.selector).find((t) => shared.includes(t))))
+    const appearance = kept.filter((f: OwnershipFinding) => f.code === 'config-appearance')
+    const named = new Set(appearance.map((f: OwnershipFinding) => classTokens(f.selector).find((t) => shared.includes(t))))
     expect([...named].sort()).toEqual([...shared].sort())
     for (const f of appearance) expect(f.prop).toBe('color')
 
@@ -348,7 +362,7 @@ describe('css ownership: the real repository is clean', () => {
     const layoutGraph = loadCssGraph('src/styles.css', { root: layoutRoot })
     const layoutFindings = applyAppearanceBaseline(
       checkOwnership(layoutGraph, map, layoutRoot), map.baselines,
-    ).filter((f) => f.code === 'config-appearance' || f.code === 'config-variable')
+    ).filter((f: OwnershipFinding) => f.code === 'config-appearance' || f.code === 'config-variable')
     expect(layoutFindings).toEqual([])
   })
 })
@@ -372,7 +386,7 @@ describe('css ownership: a page cannot restyle the button', () => {
   const ENTRY_BTN = `@import './styles/components/button.css';\n@import './styles/legacy/12-pages.css';\n`
   const RECIPE = `.btn { display: inline-flex; padding: 9px 17px; border-radius: 999px; }\n`
 
-  function buttonRun(pageCss, keys = [], variableDebt = []) {
+  function buttonRun(pageCss: string, keys: string[] = [], variableDebt: VariableDebt[] = []) {
     const root = fixture({
       'docs/css-ownership.json': JSON.stringify({
         entry: 'src/styles.css',
@@ -393,9 +407,9 @@ describe('css ownership: a page cannot restyle the button', () => {
 
   it('rejects a page-level appearance repair', () => {
     const findings = buttonRun(`.hero .btn { border-radius: 0; background: red; }\n`)
-    expect(findings.map((f) => f.code)).toEqual(['config-appearance', 'config-appearance'])
+    expect(findings.map((f: OwnershipFinding) => f.code)).toEqual(['config-appearance', 'config-appearance'])
     expect(findings[0].file).toBe(PAGE)
-    expect(findings.map((f) => f.prop).sort()).toEqual(['background', 'border-radius'])
+    expect(findings.map((f: OwnershipFinding) => f.prop).sort()).toEqual(['background', 'border-radius'])
   })
 
   it('accepts placement and a documented variable', () => {
@@ -475,7 +489,7 @@ describe('css ownership: the bypasses that hid a regression', () => {
     '',
   ].join('\n')
 
-  function run(files) {
+  function run(files: Record<string, string>) {
     const root = fixture({
       'docs/css-ownership.json': JSON.stringify({
         entry: 'src/styles.css',
@@ -509,7 +523,7 @@ describe('css ownership: the bypasses that hid a regression', () => {
         [BUTTON]: '.btn { padding: 9px 17px; }\n',
         [PAGE]: `.hero .${variant} { padding: 20px; }\n`,
       })
-      expect(findings.map((f) => f.code), variant).toContain('config-appearance')
+      expect(findings.map((f: OwnershipFinding) => f.code), variant).toContain('config-appearance')
       expect(findings[0].file, variant).toBe(PAGE)
     }
   })
@@ -523,7 +537,7 @@ describe('css ownership: the bypasses that hid a regression', () => {
       [BUTTON]: '.btn { padding: 9px 17px; }\n:root { --rogue: red; }\n',
       [PAGE]: '.hero { display: flex; }\n',
     })
-    const token = findings.filter((f) => f.code === 'token-context')
+    const token = findings.filter((f: OwnershipFinding) => f.code === 'token-context')
     expect(token).toHaveLength(1)
     expect(token[0].file).toBe(BUTTON)
   })

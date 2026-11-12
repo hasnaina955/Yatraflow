@@ -54,6 +54,7 @@ const handled = new Set<string>([
 
 const srcRoot = new URL('../src/', import.meta.url)
 const files = readdirSync(srcRoot, { recursive: true })
+  .map((f) => String(f))
   .filter((f) => /\.tsx?$/.test(f))
   .map((f) => 'src/' + f.split('\\').join('/'))
 

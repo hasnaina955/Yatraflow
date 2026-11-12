@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { seedData } from '../src/data/seed'
 import type { QueuedWrite, WriteQueueStore } from '../src/lib/writeQueue'
+import type { Trip } from '../src/data/types'
 
 const { state } = vi.hoisted(() => ({
   state: {
@@ -114,8 +115,8 @@ describe('reentrant trip writes', () => {
       expect(nested).toBe(1)
       await tick()
       const queued = (await pendingWrites()).find(write => write.tripId === trip.id)
-      expect(queued?.trip.name).toBe('Outer edit')
-      expect(queued?.trip.travellers).toBe(7)
+      expect((queued?.trip as Trip).name).toBe('Outer edit')
+      expect((queued?.trip as Trip).travellers).toBe(7)
       const verdict = tripWriteVerdict(trip.id)
       _flushTripWrites()
       await tick()

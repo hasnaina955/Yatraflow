@@ -42,7 +42,7 @@ vi.mock('../src/lib/supabase', async () => {
     builder.single = () => builder
     // Chainable + thenable: the write is issued here, and only here.
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {

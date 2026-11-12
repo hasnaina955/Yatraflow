@@ -254,7 +254,7 @@ vi.mock('../src/lib/supabase', () => {
         signOut: async () => { state.signOuts += 1; return { error: null } },
       },
       rpc: (name: string) => {
-        const result = Promise.resolve({ data: name === 'is_disabled' ? state.tables.profiles?.some(row => row.is_disabled === true) : [], error: null })
+        const result = Promise.resolve({ data: name === 'is_disabled' ? state.tables.profiles?.some((row: unknown) => (row as { is_disabled?: boolean }).is_disabled === true) : [], error: null })
         return { setHeader() { return this }, then: result.then.bind(result) }
       },
     },

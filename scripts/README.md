@@ -38,6 +38,7 @@ Add a row here when you add a new script.
 | `scripts/checkMigrations.mjs` | Asks the live project whether every migration artifact is there. | `npm run check:migrations` | wired |
 | `scripts/clean-env.mjs` | Clears the `NODE_ENV=production` trap before an npm operation. | `npm run clean:env` | wired |
 | `scripts/css-ownership.mjs` | Checks who may write each rule in the CSS source graph. | `npm run check:css`; `npm run verify` | wired |
+| `scripts/hooks.mjs` | Turns the opt-in pre-push hook on or off for this clone. | `npm run hooks:install`; `npm run hooks:uninstall` | wired |
 | `scripts/integration/integrationHarness.mjs` | Asserts row-level behaviour against a real Supabase project. | `npm run test:integration` | wired |
 | `scripts/jev-router-audit.test.ts` | Diffs Jev's capability answer against the deterministic route. | `npm test` (vitest `scripts/**/*.test.ts`; needs `JEV_AUDIT=1`) | wired |
 | `scripts/landing-overflow-probe.mjs` | Measures real horizontal overflow on the Landing page at phone widths. | `npm run probe:landing-overflow` | wired |
@@ -48,3 +49,4 @@ Add a row here when you add a new script.
 | `scripts/start.ps1` | Launches the dev server, the test suite or the production build. | `npm run start` | wired |
 | `scripts/ui-sweep.mjs` | Takes a dev-only screenshot sweep of the web app. | `npm run ui:sweep` | wired |
 | `scripts/uiAntipatterns.mjs` | Runs the mechanical subset of the UI design rules. | `npm run check:ui` | wired |
+| `scripts/verify-fast.mjs` | Runs `tsc -b` and `vitest related` on the changed files. `--base <rev>` limits the list to committed changes. | `npm run verify:fast`; `.githooks/pre-push` | wired |

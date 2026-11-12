@@ -97,7 +97,7 @@ describe('the journey consumer forwards the shared driving plan', () => {
       expect(call.dayStartTimes).toEqual(plan.outbound.map(day =>
         `${String(Math.floor(day.startMin / 60)).padStart(2, '0')}:${String(day.startMin % 60).padStart(2, '0')}`,
       ))
-      const planned = vi.mocked(planRideSegments).mock.results[0].value
+      const planned: ReturnType<typeof planRideSegments> = vi.mocked(planRideSegments).mock.results[0].value
       expect(planned.filter(segment => segment.dayEnd).map(segment => segment.targetKm))
         .toEqual(plan.outbound.slice(0, -1).map(day => day.endKm))
       expect(hits.filter(hit => hit.segment.purpose === 'overnight').map(hit => hit.segment.targetKm))

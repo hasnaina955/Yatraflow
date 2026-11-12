@@ -158,7 +158,7 @@ describe('20261110 paywall boundary on a real database', () => {
     expect(lockedDayCounts(stranger.days[0])).toBeNull()
     // The share page closes the same day and prints no title for it.
     const parts = planBody({ premium_price_inr: 499, free_day_indexes: [0, 1] }, stranger)
-    expect(parts.map(part => part.open)).toEqual([true, false])
+    expect(parts.map((part: { open: boolean }) => part.open)).toEqual([true, false])
     expect(parts[1].title).toBe('')
 
     await as('authenticated', BUYER)

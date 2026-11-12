@@ -190,7 +190,7 @@ function row(id = 'shared', owner = 'A'): TripRow {
     id, owner_id: owner, name: 'Original plan', start_location: 'Kochi', start_location_coords: null,
     destinations: ['Kochi'], destination_coords: null, start_date: '2026-10-01', end_date: '2026-10-01',
     travellers: 2, transport_mode: 'car', budget_per_person_inr: 5000, travel_style: 'balanced',
-    fixed_commitments: [], days: [{ index: 0, stops: [
+    fixed_commitments: [], days: [{ id: 'day-0', index: 0, stops: [
       { id: 'keep', title: 'Fort', category: 'sightseeing', locationName: 'Fort', lat: 10, lng: 76,
         visitMinutes: 30, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0 },
       { id: 'delete', title: 'Museum', category: 'sightseeing', locationName: 'Museum', lat: 10, lng: 76,
@@ -216,6 +216,8 @@ async function fresh(bootstrap = false) {
 }
 
 async function pending() { return (await import('../src/lib/writeQueue')).pendingWrites() }
+/** The queued write's trip copy: the queue stores it opaquely on the wire. */
+const queuedTripName = (write: QueuedWrite | undefined) => (write?.trip as { name?: string } | undefined)?.name
 async function capture(store: Awaited<ReturnType<typeof fresh>>, name = 'My offline plan') {
   store.updateTrip('shared', { name })
   await store.tripWriteVerdict('shared')
@@ -245,6 +247,14 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
+/** The seam takes a full wire envelope; these probes carry only the fields the
+ *  store reads, so the cast is stated once here instead of at every call. */
+const feed = (
+  store: Awaited<ReturnType<typeof fresh>>,
+  table: string,
+  payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new?: unknown; old?: unknown; [field: string]: unknown },
+) => store._applyRealtimeEventForTest(table, payload as never)
+
 
 describe('round three additional real-store behavior', () => {
   it('a failed demotion refresh cannot leave an editable proposal after a regrant and removal', async () => {
@@ -252,17 +262,17 @@ describe('round three additional real-store behavior', () => {
     const viewer={trip_id:'shared',user_id:'A',role:'viewer',joined_at:1};
     state.members=state.members.map(m=>m.user_id==='A'?viewer:m);
     state.offlineReads=true;
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:viewer,old:{}}); await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:viewer,old:{},errors:[]}); await flush();
     expect((await pending())[0]).toMatchObject({reason:'access-revoked'});
     // The new discard rule assumes reasoned copies are absent from the cache.
     expect(await store.resolveQueuedTripWrite('shared','discard')).toBe(true);
     expect(await pending()).toEqual([]);
     const editor={...viewer,role:'editor'};
     state.members=state.members.map(m=>m.user_id==='A'?editor:m);
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:editor,old:{}}); await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:editor,old:{},errors:[]}); await flush();
     vi.stubGlobal('navigator',{onLine:false});
     store.updateTrip('shared',{travellers:3}); await store.tripWriteVerdict('shared'); await flush();
-    expect((await pending())[0]?.trip.name).not.toBe('PRIVATE DEMOTED COPY');
+    expect(queuedTripName((await pending())[0])).not.toBe('PRIVATE DEMOTED COPY');
   });
   it('replay must install the authoritative demotion role before permitting a later local edit', async () => {
     const store=await fresh(true); await capture(store,'FIRST PRIVATE COPY');
@@ -271,7 +281,7 @@ describe('round three additional real-store behavior', () => {
     const before=(await pending())[0];
     expect.soft(store.canEdit(store.roleOf(store.getSnapshot().trips[0],'A'))).toBe(false);
     // UI derives edit availability from this same cached role.
-    expect.soft(store.getSnapshot().trips[0].members.find(m=>m.userId==='A')?.role).toBe('viewer');
+    expect.soft(store.getSnapshot().trips[0].members!.find(m=>m.userId==='A')?.role).toBe('viewer');
     expect(before).toMatchObject({reason:'access-revoked',trip:{name:'FIRST PRIVATE COPY'}});
   });
   it('a deleted trip found by hydrate names trip-unavailable rather than membership removal', async () => {
@@ -294,14 +304,14 @@ describe('round three additional real-store behavior', () => {
     const store=await fresh(true); await capture(store,'HELD COPY');
     state.offlineReads=true;
     expect(await store.resolveQueuedTripWrite('shared','discard')).toBe(false);
-    expect((await pending())[0].trip.name).toBe('HELD COPY'); expect(store.getSnapshot().trips[0].name).toBe('HELD COPY');
+    expect(queuedTripName((await pending())[0])).toBe('HELD COPY'); expect(store.getSnapshot().trips[0].name).toBe('HELD COPY');
     state.offlineReads=false;
     expect(await store.resolveQueuedTripWrite('shared','discard')).toBe(true);
     expect(await pending()).toEqual([]); expect(store.getSnapshot().trips[0].name).toBe('Original plan');
   });
   it('an account cannot discard another queued owner', async () => {
     const store=await fresh(true); await capture(store,'A COPY');
-    state.actor='B'; state.authHandler('SIGNED_IN',profileSession({user:{id:'B'}})); await flush();
+    state.actor='B'; state.authHandler!('SIGNED_IN',profileSession({user:{id:'B'}})); await flush();
     expect(await store.resolveQueuedTripWrite('shared','discard')).toBe(false);
     expect(state.writes).toEqual([]);
   });
@@ -310,7 +320,7 @@ describe('round three additional real-store behavior', () => {
     const hold=gate();state.removeGate=hold.promise;state.removeCalls=0;
     const request=store.resolveQueuedTripWrite('shared','discard');await flush();
     expect(state.removeCalls).toBe(1);
-    state.rows.delete('shared');store._applyRealtimeEventForTest('trips',{eventType:'DELETE',new:{},old:{id:'shared'}});await flush();
+    state.rows.delete('shared');feed(store, 'trips',{eventType:'DELETE',new:{},old:{id:'shared'},errors:[]});await flush();
     hold.release();expect(await request).toBe(false);await flush();
     expect((await pending())[0]).toMatchObject({reason:'trip-unavailable',trip:{name:'COPY DURING DROP'}});
     expect(store.getSnapshot().trips).toEqual([]);
@@ -342,12 +352,12 @@ describe('round three additional real-store behavior', () => {
         if(phase==='drop') state.removeGate=hold.promise;
         vi.stubGlobal('navigator',{onLine:true});
         const request=store.resolveQueuedTripWrite('shared','discard'); await flush();
-        const observed=[];
+        const observed: Array<string | null> = [];
         store.subscribe(()=>{const s=store.getSnapshot();if((s.sessionUserId==='B'||!s.sessionUserId)&&s.trips.some(t=>t.name==='A PRIVATE COPY'))observed.push(s.sessionUserId);});
-        if(transition==='switch') {state.actor='B';state.authHandler('SIGNED_IN',profileSession({user:{id:'B'}}));}
-        else {state.actor=null;state.authHandler('SIGNED_OUT',null);}
+        if(transition==='switch') {state.actor='B';state.authHandler!('SIGNED_IN',profileSession({user:{id:'B'}}));}
+        else {state.actor=null;state.authHandler!('SIGNED_OUT',null);}
         await flush();
-        if(transition==='same-user-new-generation') {state.actor='A';state.authHandler('SIGNED_IN',profileSession({user:{id:'A'}}));await flush();}
+        if(transition==='same-user-new-generation') {state.actor='A';state.authHandler!('SIGNED_IN',profileSession({user:{id:'A'}}));await flush();}
         hold.release(); expect(await request).toBe(false); await flush();
         expect(observed).toEqual([]); expect(state.writes).toEqual([]);
         expect(store.getSnapshot().trips.some(t=>t.name==='A PRIVATE COPY')).toBe(false);

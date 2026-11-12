@@ -45,7 +45,7 @@ describe('free-day rules', () => {
     expect([...(freeDaySet({ premium_price_inr: 5, free_day_indexes: [-1, 1.5, '0', 2] }) as Set<number>)]).toEqual([2])
   })
   it('locks a listed day that still carries the database marker, and a day with no index', () => {
-    const open = planBody(priced, trip).map(day => day.open)
+    const open = planBody(priced, trip).map((day: { open: boolean }) => day.open)
     expect(open).toEqual([true, false, false, false])
   })
 })

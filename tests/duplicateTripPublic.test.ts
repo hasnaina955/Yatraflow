@@ -25,7 +25,7 @@ vi.mock('../src/lib/supabase', () => {
     builder.in = () => builder
     builder.limit = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => { if (method) calls.push({ table, method }); resolve({ data: null, error: null }) }).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => { if (method) calls.push({ table, method }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {

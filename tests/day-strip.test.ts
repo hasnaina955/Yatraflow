@@ -9,7 +9,7 @@ let seq = 0
 function stop(patch: Partial<ItineraryStop> = {}): ItineraryStop {
   seq += 1
   return {
-    id: `s${seq}`, title: `Stop ${seq}`, category: 'sight',
+    id: `s${seq}`, title: `Stop ${seq}`, category: 'sightseeing',
     locationName: 'Somewhere', lat: 26.9, lng: 75.8, visitMinutes: 60,
     entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do',
     status: 'confirmed', orderInDay: 0, ...patch,

@@ -593,7 +593,6 @@
 .day-progress-fill.sev-ok { background: var(--ok); }
 .day-progress-fill.sev-medium { background: var(--warn-600); }
 .day-progress-fill.sev-high { background: var(--danger); }
-.day-spark { flex: 0 0 auto; opacity: .92; }
 
 /* --- Collapsed day summary (docs/TIMELINE-PLAN.md Phase 1) --- */
 /* Title row carries a tinted kind chip; below it, an optional route chain
@@ -1090,22 +1089,10 @@
    lands on top of everything. Read the numbers from the ladder tokens at the top
    of this file, not from this sentence. */
 
-/* ---- Board tab canvas: the kanban wants the whole viewport. The default page
-   container caps at 1180px and the trip band + tabs eat ~440px of height, which
-   squeezed columns into fixed 272px strips with both scrollbars going at once.
-   On the Board tab the container widens, the trip band compacts (members row
-   lives on Overview/Share), and the board claims what's left of the viewport. */
-.container--board { max-width: 1680px; }
 /* Map tab runs a 3-column rail layout — widen the shell so the map keeps its
    full size and the two idea rails fit beside it. */
 .container--map { max-width: 1760px; }
-.container--board .trip-head-card { padding: 13px 20px; }
-.container--board .trip-head-card h1 { font-size: 20px; margin-top: 4px; }
-.container--board .trip-head-card p { margin-top: 3px; }
-/* fade+collapse the member row on the Board tab (display:none would snap) */
 .member-stack { max-height: 48px; overflow: hidden; transition: opacity var(--t-med) var(--ease-out), max-height var(--t-med) var(--ease-out); }
-.container--board .member-stack { opacity: 0; max-height: 0; margin-top: 0 !important; }
-.container--board .tabbar { margin-top: 12px; margin-bottom: 12px; }
 
 
 
@@ -2121,17 +2108,6 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    only to a two-col that actually has a sidebar. Nested inside a content
    column, the sidebar width made the row 424/340 instead of 382/382. */
 .two-col--even { grid-template-columns: 1fr 1fr; }
-.trip-head-card {
-  transition: padding var(--t-med) var(--ease-out);
-  border-radius: var(--radius-lg); padding: 26px 28px; color: #fff;
-  background:
-    radial-gradient(circle at 86% 12%, rgba(245,158,45,.15), transparent 42%),
-    linear-gradient(115deg, var(--yf-navy) 0%, #0B2545 78%);
-  position: relative; overflow: hidden;
-  box-shadow: var(--shadow-soft);
-}
-.trip-head-card::after { content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: rgba(245,158,45,.10); }
-.trip-head-card h1 { font-family: var(--font-display); transition: font-size var(--t-med) var(--ease-out); }
 .trip-hero-back {
   border: none; background: none; padding: 0; cursor: pointer;
   color: rgba(255,255,255,.75); font-size: 11.5px; font-weight: 800;

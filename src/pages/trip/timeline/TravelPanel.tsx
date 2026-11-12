@@ -3,7 +3,7 @@
 // departure→ETA, the halt planner (HaltPlanDraft/HaltPlanRow) and corridor search.
 // ============ Trip workspace — Timeline tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
-// Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
+// Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow,
 // MoveStopModal and ClampedText — the whole timeline hot path.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {

@@ -344,13 +344,7 @@ html.native-shell {
   .poi-chev { transition: none; }
 }
 
-/* ---- V2 rails: corridor ruler, detour whisker, chip filters, shortlist tray ---- */
-.poi-ruler { position: relative; height: 22px; margin: 2px 2px 10px; border-bottom: 1px solid var(--line); }
-.poi-ruler-axis { position: absolute; left: 0; right: 0; bottom: 6px; height: 1.5px; background: var(--line); }
-.poi-ruler-dot { position: absolute; bottom: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--card); border: 2px solid var(--teal); }
-.poi-ruler-dot--meal { border-color: var(--yf-amber); }
-.poi-ruler-dot--see { border-color: var(--yf-poi-see); }
-.poi-ruler-km { position: absolute; right: 0; top: 0; font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* ---- V2 rails: detour whisker, chip filters, shortlist tray ---- */
 .poi-whisk { margin-left: auto; flex: none; }
 .poi-whisk-route { stroke: var(--teal); stroke-width: 1.5; stroke-linecap: round; fill: none; opacity: .35; }
 .poi-whisk-spur { stroke: var(--text-3); stroke-width: 1.1; stroke-dasharray: 2.5 2.5; fill: none; }

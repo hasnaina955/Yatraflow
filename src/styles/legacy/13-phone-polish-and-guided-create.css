@@ -63,17 +63,7 @@
   mask-image: linear-gradient(90deg, transparent, #000 20px);
 }
 
-/* ---------- #677 - the trip header band and rail on a phone ----------
-   At 390px the band and the rail took about 420px of an 844px screen. The tab
-   panel then started below the fold. The Board tab already ships a compact band
-   (`.container--board .trip-head-card`, near line 1600). A phone now takes that
-   treatment as its default. Two inline margins in TripWorkspace.tsx must yield,
-   so this block uses `!important`. The Board's member-stack rule already does. */
 @media (max-width: 720px) {
-  .trip-head-card { padding: 12px 14px; }
-  .trip-head-card h1 { font-size: 20px; margin-top: 6px !important; }
-  .trip-head-card p { margin-top: 2px !important; }
-  .trip-head-card .member-stack { margin-top: 6px !important; }
   .tabbar { margin-bottom: 10px; }
 }
 

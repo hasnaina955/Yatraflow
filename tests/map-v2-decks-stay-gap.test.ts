@@ -118,18 +118,21 @@ describe('StayDeck', () => {
   })
 
   it('draws no fit line when fitText is null', () => {
-    expect(stayHtml({ result: readyStay([stayPick('A', null)]) })).not.toContain('mv2-lens-reason')
+    expect(stayHtml({ result: readyStay([stayPick('A', null)]) })).not.toContain('mv2-lens-open-fit')
     const withText = stayHtml({ result: readyStay([stayPick('A', 'Fits 17:00–18:00')]) })
-    expect(withText).toContain('mv2-lens-reason')
+    expect(withText).toContain('mv2-lens-open-fit')
     expect(withText).toContain('Fits 17:00–18:00')
   })
 
-  it('draws letters A, B and C in order, at most 3 cards', () => {
+  it('opens pick A in full and lists the others under "also in this window"', () => {
     const picks = [stayPick('A'), stayPick('B'), stayPick('C'), stayPick('A')]
     const html = stayHtml({ result: readyStay(picks) })
-    const letters = [...html.matchAll(/mv2-lens-place-letter"[^>]*>([A-C])<\/span>/g)].map(m => m[1])
-    expect(letters).toEqual(['A', 'B', 'C'])
-    expect((html.match(/<article/g) ?? []).length).toBe(3)
+    const open = [...html.matchAll(/mv2-lens-place-letter"[^>]*>([A-C])<\/span>/g)].map(m => m[1])
+    expect(open).toEqual(['A'])
+    expect((html.match(/<article/g) ?? []).length).toBe(1)
+    const also = [...html.matchAll(/mv2-lens-also-letter">([A-C])<\/span>/g)].map(m => m[1])
+    expect(also).toEqual(['B', 'C', 'A'])
+    expect(html).toContain('Also in this window')
   })
 
   it('shows alsoCount only when greater than 0', () => {

@@ -1,6 +1,10 @@
 // Pure facts for the place card: photo keys, attribution, data age and coverage.
 // Each helper returns null for an unknown fact, so the card shows nothing then.
-import type { DiscoveryCoverage, PlacePhotoRef } from '../../lib/providers/hits'
+import type { DiscoveryCoverage, PlaceFacts, PlacePhotoRef } from '../../lib/providers/hits'
+import { formatHM, type TimeFormat } from '../../lib/timefmt'
+import { SLOT_SEARCH_PROVENANCE } from '../../pages/trip/map/slotFiling'
+
+export { SLOT_SEARCH_PROVENANCE }
 
 /** The next photo index for a key. Null for any key that is not navigation, or for one photo. */
 export function photoStep(index: number, count: number, key: string): number | null {
@@ -86,4 +90,29 @@ export function kindWordOf(category: string | null | undefined): string {
   if (word === 'sightseeing') return 'Sight'
   if (word === 'hotel') return 'Stay'
   return word.charAt(0).toUpperCase() + word.slice(1).replace(/-/g, ' ')
+}
+
+/**
+ * The fact chips of one pick card, in board order: why it fits, when it closes,
+ * the food type. A chip shows only when the hit or the engine carries the fact;
+ * a hit with no data gives no chip. The slot-search provenance is bookkeeping,
+ * so it never shows. A repeated fact shows once.
+ */
+export function pickFactChips(args: {
+  reason: string | null | undefined
+  hit: { closeTime?: string | null; facts?: PlaceFacts | null }
+  format: TimeFormat
+}): string[] {
+  const chips: string[] = []
+  const add = (text: string | null | undefined) => {
+    const clean = text?.trim() ?? ''
+    if (clean === '' || clean === SLOT_SEARCH_PROVENANCE || chips.includes(clean)) return
+    chips.push(clean)
+  }
+  add(args.reason)
+  add(args.hit.facts?.why)
+  const close = /^(\d{1,2}):(\d{2})$/.exec(args.hit.closeTime?.trim() ?? '')
+  if (close != null && Number(close[1]) < 24 && Number(close[2]) < 60) add(`open till ${formatHM(`${close[1]}:${close[2]}`, args.format)}`)
+  add(args.hit.facts?.diet)
+  return chips
 }

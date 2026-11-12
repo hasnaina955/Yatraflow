@@ -322,7 +322,7 @@ describe('decks draw the shared header', () => {
     const html = stayHtml()
     expect(html).toContain('Around the stay · free 17:00–21:00')
     expect(html).toContain('1 pick near Hotel Ashoka')
-    expect(html).toContain('Add to Day 2 · 17:00')
+    expect(html).toContain('Add to Day 2 · 17:08')
     expect(html).toContain('Walk')
     expect(html).not.toContain('aria-label="unknown"')
   })
@@ -334,9 +334,11 @@ describe('decks draw the shared header', () => {
     expect(html).toContain('Looking around the stay…')
   })
 
-  it('lists the picks past the third card under the cards', () => {    const picks = [stayPick('A'), stayPick('B'), stayPick('C'), stayPick('A')]
+  it('lists every pick but the open one under "also in this window"', () => {
+    const picks = [stayPick('A'), stayPick('B'), stayPick('C'), stayPick('A')]
     const html = stayHtml({ result: { kind: 'ready', picks, alsoCount: 1 } })
-    expect(html.match(/<article/g)).toHaveLength(3)
+    expect(html.match(/<article/g)).toHaveLength(1)
+    expect(html.match(/mv2-lens-also-row/g)).toHaveLength(3)
     expect(html).toContain('Also in this window')
     expect(html).toContain('mv2-lens-also-row')
   })

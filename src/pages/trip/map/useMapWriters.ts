@@ -49,6 +49,7 @@ import {
   type DayPlan,
   type EffectiveDaySlot,
 } from '../../../lib/dayPlan'
+import { dayDetourBudgetForDay } from '../../../lib/detourBudget'
 import type { Trip } from '../../../data/types'
 import {
   ZERO_VERIFIED_SAVE_MESSAGE,
@@ -259,6 +260,7 @@ export function useMapWriters({
         slotManual: slotManual ?? {},
         detourMinFor,
         detourKmFor,
+        budgetMin: dayDetourBudgetForDay(trip, activeDayIndex),
       }),
       identity: presence ?? null,
     })

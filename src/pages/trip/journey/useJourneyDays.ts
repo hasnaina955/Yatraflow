@@ -14,6 +14,7 @@ import type { DnaVector } from '../../../lib/tripDna'
 import type { CorridorSnapshot } from '../map/corridorSnapshot'
 import { mapManualSlotStore } from '../map/manualSlotContexts'
 import { readManualPicksForDay, type ManualPicksForDay } from '../map/manualPicks'
+import { dayDetourBudgetForDay } from '../../../lib/detourBudget'
 import { readDnaSlotHints } from '../map/useDaySlots'
 import { createJourneySelector, type JourneySelectorInput } from './journeySelector'
 import type { JourneyNetAddedRoad, WorkspaceJourneyDays } from './journeyDays'
@@ -61,6 +62,7 @@ export function captureManualPicks(
       slotManual,
       detourMinFor: snapshot.detourMinFor,
       detourKmFor: snapshot.detourKmFor,
+      budgetMin: dayDetourBudgetForDay(trip, day.index),
     }))
   }
   return out

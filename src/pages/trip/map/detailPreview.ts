@@ -8,6 +8,7 @@ import type { FixChangeSet } from '../../../lib/mapLensContracts'
 import { previewAdd, type AddPreview, type PreviewUnknownReason, type PreviewWarning, type ReadyAddPreview } from './editing/addPreview'
 import { fixesForWarning, warningRefs } from './fixLens'
 import { pickStopFor, roadInsertIndex } from './pickPreview'
+import { NAMED_WARNING, warningNamedStop, warningSubjectStop } from './warningSubject'
 import type { LegCorrections } from '../../../lib/impact'
 
 /** One piece of a line. A clock that moved shows the old one struck through. */
@@ -46,9 +47,6 @@ const MAX_MOVED = 2
 
 const SLOT_PREFIX = /^(breakfast|lunch|dinner|check[ -]?in)\s*[·:]\s*(.*)$/i
 
-/** The stop a warning names. The engine uses the same title in both wordings. */
-const NAMED_WARNING = /^(?:Conflicts with|Thin buffer before)\s+(.+)$/
-
 /** A warning title's day prefix. Inside one day's preview the prefix is noise. */
 const DAY_PREFIX = /^Day\s+\d+\s*:\s*/i
 
@@ -71,20 +69,15 @@ export function warningSentence(title: string, detail: string): string {
 /** The stop a warning is about: its named title, its detail, then the linked
  *  fixed commitment. A warning that names no stop keeps a null subject. */
 function warningSubject(preview: ReadyAddPreview, warning: PreviewWarning): string | null {
-  const named = warning.title.match(NAMED_WARNING)?.[1]?.trim() ?? null
-  if (named != null) return named
-  const reached = /You reach (.+?) ~\d{1,2}:\d{2}/.exec(warning.detail)?.[1]?.trim() ?? null
-  if (reached != null) return reached
   const days = preview.proposedTrip.days
   const day = Array.isArray(days) ? days.find(entry => entry.index === preview.dayIndex) : undefined
-  const titled = day?.stops.find(stop => stop.title.length > 0 && warning.title.startsWith(`${stop.title}: `))?.title ?? null
-  return titled ?? null
+  return warningSubjectStop(warning, day)
 }
 
 /** True when a warning names a stop, so a Clears line may be tied to that
  *  stop. A day-wide warning keeps its Clears line. */
 function namedStopOf(warning: PreviewWarning): string | null {
-  return warning.title.match(NAMED_WARNING)?.[1]?.trim() ?? null
+  return warningNamedStop(warning.title)
 }
 
 /** A day's fixed commitments, whose clocks the add cannot move. */

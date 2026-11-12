@@ -1,0 +1,40 @@
+/* W19: the Fix row's short line keeps both clocks readable at 1480. */
+.mv2-stop.is-fix-problem > .mv2-stop-copy > .mv2-lens-fix-reason {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* W20: the open pick of a Stay or Gap deck. A photo (or a kind tile) sits on top, the
+   facts row and the fit line follow, and the actions close the card. */
+.mv2-lens-place.is-open { gap: var(--space-4); overflow: hidden; }
+.mv2-lens-place.is-open > .mv2-place-photo {
+  margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
+}
+.mv2-lens-place.is-open > .mv2-place-photo img { max-height: 150px; aspect-ratio: 16 / 9; }
+.mv2-lens-open-art {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 64px;
+  margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
+  background: var(--mark-tint, var(--pw-soft));
+  color: var(--mark-ink, var(--pw-ink-3));
+}
+.mv2-lens-open-art > span {
+  font: var(--pw-kicker);
+  font-size: 11px;
+  letter-spacing: var(--kicker-tracking);
+  text-transform: uppercase;
+}
+.mv2-lens-open-fit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--pw-ink-2);
+  font: var(--pw-caption);
+}
+.mv2-lens-open-fit > svg { flex: none; margin-top: 1px; color: var(--pw-sea-700); }

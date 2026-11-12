@@ -6,6 +6,7 @@ import type { ItineraryDay, ItineraryStop, Trip } from '../../../data/types'
 import { scheduleRowsById, simulateDay, originOf, type DaySchedule } from '../../../lib/engine'
 import type { PlaceHit } from '../../../lib/geocode'
 import { intendedVisitMinutes } from '../../../lib/hoursContext'
+import { clockHM } from '../../../lib/clockOverlay'
 import { activeStopsInOrder } from '../../../lib/stopOrder'
 import { formatHM, type TimeFormat } from '../../../lib/timefmt'
 import type { EditOutcome } from './editing/outcomes'
@@ -71,6 +72,9 @@ export function pickStopFor(hit: PlaceHit, id: string): ItineraryStop {
     visitMinutes: intendedVisitMinutes(hit),
     ...(hit.openTime ? { openTime: hit.openTime } : {}),
     ...(hit.closeTime ? { closeTime: hit.closeTime } : {}),
+    ...(hit.plannedStartMin != null && Number.isFinite(hit.plannedStartMin)
+      ? { arrivalTime: formatHM(clockHM(hit.plannedStartMin), '24h') }
+      : {}),
     entryFeeInrPerPerson: 0,
     transportCostInrTotal: 0,
     priority: 'nice-to-have',

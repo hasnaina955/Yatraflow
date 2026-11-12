@@ -1,6 +1,6 @@
 // W4-B: left-rail extras that change with the active lens.
 // Only known facts render. A missing value keeps its part out.
-import { collectWarnings, groupWarnings } from '../../../lib/engine'
+import { collectWarnings, groupWarnings, type LegEstimate } from '../../../lib/engine'
 import type { Trip } from '../../../data/types'
 import { warningRefs } from './fixLens'
 import { stayRingOptions, type RingId } from '../../../components/map/lenses/StayDeck'
@@ -110,17 +110,17 @@ export function fixReasonLine(place: string | null, timeText: string | null, rea
 }
 
 /** The Fix row's short line from the engine's own problem facts. */
-export function fixRailLine(problemTitle: string | null): string | null {
+export function fixRailLine(problemTitle: string | null, clock: (hm: string) => string = hm => hm): string | null {
   if (problemTitle == null || problemTitle.trim() === '') return null
-  return problemTitle.trim()
+  return problemTitle.trim().replace(/\b\d{1,2}:\d{2}\b/g, clock)
 }
 
 /** The reason the Fix lens names for one day. It reads the same engine
- *  warnings and targets as the deck, so the rail cannot disagree with it. */
-export function fixProblemReason(trip: Trip, dayIndex: number): string | null {
-  const { byDay } = groupWarnings(collectWarnings(trip))
+ *  warnings and targets as the deck, on the same measured legs. */
+export function fixProblemReason(trip: Trip, dayIndex: number, legCorrections?: Record<string, LegEstimate>): string | null {
+  const { byDay } = groupWarnings(collectWarnings(trip, legCorrections))
   const warnings = byDay.get(dayIndex) ?? []
-  const targets = warningRefs(trip, dayIndex)
+  const targets = warningRefs(trip, dayIndex, legCorrections)
   const pairs = warnings.flatMap((warning, index) => {
     const target = targets[index]
     return target ? [{ warning, severe: target.severe }] : []

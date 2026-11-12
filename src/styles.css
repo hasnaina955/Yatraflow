@@ -40,6 +40,7 @@
 @import './styles/legacy/17-overview-tiles-and-cover.css';
 @import './styles/components/pill-nav-17.css';
 @import './styles/pages/budget.css';
+@import './styles/components/map-v2-rail.css';
 
 /* Settings controls keep their state legible in both themes. */
 .tset-main .tset-danger-btn:disabled { opacity: 1; color: var(--pw-ink-2); }
@@ -1049,7 +1050,9 @@
 
 /* Stay: the picks under the cards. */
 .mv2-lens-also-block { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; border-top: 1px solid var(--pw-line); }
-.mv2-lens-also-row { display: grid; grid-template-columns: 24px 24px minmax(0, 1fr); align-items: center; gap: 10px; padding: 7px 8px; border-radius: 12px; }
+.mv2-lens-also-row { display: grid; grid-template-columns: 24px 24px minmax(0, 1fr); align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 7px 8px; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-lens-also-row:hover { background: var(--pw-sunken); }
+.mv2-lens-also-row:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
 .mv2-lens-also-letter { color: var(--pw-ink-3); font: var(--pw-caption); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .mv2-lens-also-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--pw-sunken); color: var(--pw-ink-3); }
 .mv2-lens-also-copy { display: flex; flex-direction: column; min-width: 0; }

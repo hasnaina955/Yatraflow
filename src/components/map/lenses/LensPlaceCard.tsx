@@ -1,12 +1,15 @@
 // One place card, shared by the Drive, Stay and Gap decks. The deck supplies
 // every value. A missing fact shows a dash with an "unknown" label. This file
 // reads no store, no map and no provider.
-import { ArrowLeftRight, Heart, Plus, Star } from 'lucide-react'
+import { ArrowLeftRight, Check, Heart, Plus, Star } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { cap } from '../../../lib/labels'
 import { placeSubtype } from '../../../lib/mapStyles/placeMarks'
 import { SUBTYPE_ICON } from '../MapWorkspaceMarks'
-import { compactCount } from '../placeCardFacts'
+import { compactCount, kindWordOf } from '../placeCardFacts'
+import { PlacePhotos } from '../PlacePhotos'
+import { cardPhotoRefs } from '../../../lib/providers/google'
+import type { PlacePhotoRef } from '../../../lib/providers/hits'
 
 /** One cost strip cell. A null value is unknown, and it is never zero. */
 export interface LensCostCell {
@@ -28,8 +31,10 @@ export function knownCostCells(cells: readonly LensCostCell[]): LensCostCell[] {
 export function placeSubLine(hit: {
   admin1?: string | null
   category?: string | null
+  facts?: { kind?: string | null } | null
 }): string | null {
-  const parts = [hit.admin1, hit.category]
+  // The cuisine or kind the data names reads better than the bare category.
+  const parts = [hit.admin1, hit.facts?.kind?.trim() || hit.category]
     .map(value => (typeof value === 'string' ? value.trim() : ''))
     .filter(value => value !== '')
   return parts.length === 0 ? null : cap(parts.join(' · '))
@@ -53,7 +58,7 @@ export interface LensPlaceCardProps {
   category?: string | null
   name: string
   /** The hit. The card reads the rating and the sub line from it. */
-  hit?: { admin1?: string | null; category?: string | null; rating?: number | null; ratingCount?: number | null }
+  hit?: { admin1?: string | null; category?: string | null; rating?: number | null; ratingCount?: number | null; facts?: { kind?: string | null } | null }
   /** Reason chips. The lens model supplies them. Never build one here. */
   reasons?: readonly string[]
   /** The cost strip cells, in board order. */
@@ -78,6 +83,14 @@ export interface LensPlaceCardProps {
   shortlisted?: boolean
   /** Swap. Rendered only when a real handler exists. */
   onSwap?: () => void
+  /** The open pick of a deck: a photo or kind slot on top, the fit line, the
+   *  action row. The other picks stay compact rows beside it. */
+  open?: boolean
+  /** The attributed photos, when the provider gives them. Without them the open
+   *  card keeps its kind tile. */
+  photos?: readonly PlacePhotoRef[] | undefined
+  /** The one fit sentence under the facts row. Null shows none. */
+  fitLine?: string | null
 }
 
 /** The index of the selected card. A chosen id wins while it is on the list.
@@ -104,7 +117,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
   const {
     letter, category, name, hit, reasons = [], cells, tag, band, addLabel,
     addDisabled = false, addTitle, onAdd, onOpen, selected = false,
-    onShortlist, shortlisted = false, onSwap, onSelect,
+    onShortlist, shortlisted = false, onSwap, onSelect, open = false, photos, fitLine = null,
   } = props
   const rating = hit ? ratingText(hit) : null
   // A rating shows only when the hit has both a rating and its count.
@@ -133,9 +146,16 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
 
   // Selection happens on the click, never on press or focus: the action row
   // changes the card's height, and a press-time reflow would swallow the click.
+  const hasPhoto = open && cardPhotoRefs({ photos: photos == null ? [] : [...photos] }).length > 0
   return <article
-    className={`mv2-lens-place${selected ? ' is-selected' : ''}${band != null ? ` is-${band}` : ''}`}
+    className={`mv2-lens-place${selected ? ' is-selected' : ''}${open ? ' is-open' : ''}${band != null ? ` is-${band}` : ''}`}
     onClick={onSelect}>
+    {open && (hasPhoto
+      ? <PlacePhotos hit={{ name, photos: photos == null ? [] : [...photos] }} />
+      : <div className="mv2-lens-open-art" data-family={family} aria-hidden="true">
+        {TileIcon ? <TileIcon size={30} /> : <CatIcon category={category ?? undefined} size={30} />}
+        <span>{kindWordOf(category)}</span>
+      </div>)}
     <div className="mv2-lens-place-head">
       {onOpen
         ? <button type="button" className={openClass} onClick={onOpen}>{headInner}</button>
@@ -156,6 +176,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
         <span className="mv2-lens-cell-value">{cell.value}</span>
       </span>)}
     </div>}
+    {open && fitLine != null && fitLine.trim() !== '' && <p className="mv2-lens-open-fit"><Check size={14} aria-hidden /><span>{fitLine}</span></p>}
     {selected && <div className="mv2-lens-place-actions">
       <button
         type="button"

@@ -16,7 +16,7 @@ import { detourDisplay, detourDisplayText } from '../../pages/trip/map/driveSugg
 import type { DetailPreviewView, PreviewLine } from '../../pages/trip/map/detailPreview'
 import { CatIcon } from '../icons'
 import { PlacePhotos } from './PlacePhotos'
-import { ageText, compactCount, coverageText, kindWordOf, sourceNameOf } from './placeCardFacts'
+import { ageText, compactCount, coverageText, kindWordOf, sourceNameOf, SLOT_SEARCH_PROVENANCE } from './placeCardFacts'
 
 /** One panel line: its icon, then its parts. A moved clock shows the old one struck. */
 function PreviewLineView({ line }: { line: PreviewLine }) {
@@ -91,7 +91,10 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
     { key: 'visit', label: 'Visit', value: visit == null ? null : `${visit} min` },
     { key: 'budget', label: 'Budget', value: budgetPct ?? budgetUsed },
   ].filter(cell => cell.value != null && cell.value.trim() !== '')
-  const sub = hit.description ?? [hit.admin1, hit.category].filter(Boolean).join(' · ')
+  const sub = hit.description ?? [hit.admin1, hit.facts?.kind ?? hit.category].filter(Boolean).join(' · ')
+  // The place's own facts: why it fits, and the food type. Hours keep their own
+  // chip above. Nothing here is written by the app.
+  const factChips = [hit.facts?.why, hit.facts?.diet].filter((chip): chip is string => chip != null && chip.trim() !== '' && chip !== reason)
   const count = compactCount(hit.ratingCount)
   const kickerText = kicker ?? `Along the drive · ${kindWordOf(hit.category)}`
   const addLabel = added ? 'In your plan' : preview?.order != null ? `Add as stop ${preview.order}` : dayIndex == null ? 'Add to a day' : `Add to Day ${dayIndex + 1}`
@@ -107,7 +110,7 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
           {sub !== '' && <span className="mv2-place-description">{sub}</span>}
         </p>}
       </div>
-      {(hours || reason) && <div className="mv2-reason-chips">{reason && <span className="is-reason">{reason}</span>}{hours && <span>{hours}</span>}</div>}
+      {(hours || reason || factChips.length > 0) && <div className="mv2-reason-chips">{reason && reason !== SLOT_SEARCH_PROVENANCE && <span className="is-reason">{reason}</span>}{factChips.map(chip => <span key={chip}>{chip}</span>)}{hours && <span>{hours}</span>}</div>}
       {costCells.length > 0 && <div className="mv2-lens-strip mv2-detail-cells">{costCells.map(cell => <span className="mv2-lens-cell" data-cell={cell.key} key={cell.key}>
         <span className="mv2-lens-cell-label">{cell.label}</span>
         <span className="mv2-lens-cell-value">{cell.key === 'budget' && budgetUsed != null && budgetPct != null

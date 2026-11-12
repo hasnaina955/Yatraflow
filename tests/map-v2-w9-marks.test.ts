@@ -158,7 +158,7 @@ describe('one family colour source', () => {
 
   it('covers the place tile with one rule set for every family', () => {
     for (const family of ['water', 'nature', 'views', 'faith', 'heritage', 'culture', 'needs']) {
-      const light = marksCss.match(new RegExp(`\\.mv2-lens-place-tile\\[data-family='${family}'\\] \\{[^}]*\\}`))?.[0] ?? ''
+      const light = marksCss.match(new RegExp(`\\.mv2-lens-place-tile\\[data-family='${family}'\\](?:, [^{]*)? \\{[^}]*\\}`))?.[0] ?? ''
       expect(light).toContain('--mark-family:')
       expect(light).toContain('--mark-tint:')
       expect(light).toContain('--mark-edge:')

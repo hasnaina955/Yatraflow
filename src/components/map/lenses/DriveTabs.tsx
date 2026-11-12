@@ -9,6 +9,8 @@ import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlaceCard'
 import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
+import { useTimeFormat } from '../../../lib/timefmt'
+import { pickFactChips } from '../placeCardFacts'
 import type { PlaceHit } from '../../../lib/geocode'
 
 /** One row of a Drive tab group. */
@@ -120,7 +122,7 @@ export function driveCells(strip: DriveCardStrip): LensCostCell[] {
   ]
 }
 
-export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, onClose, onRetry }: {
+export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, swapOf, onClose, onRetry }: {
   result: DriveTabsResult
   activeTab: DriveTab | null
   onTab: (tab: DriveTab) => void
@@ -140,12 +142,15 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   onShortlist?: (hit: PlaceHit) => void
   /** True draws the kept heart. */
   shortlistedOf?: (hit: PlaceHit) => boolean
+  /** The swap action of a pick. Null means the pick has no planned stop to replace. */
+  swapOf?: (hit: PlaceHit) => (() => void) | null
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
   /** The search retry. Absent draws a failed note with no Retry button. */
   onRetry?: () => void
 }) {
   const uid = useId()
+  const timeFormat = useTimeFormat()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [chosen, setChosen] = useState<string | null>(null)
   if (result.phase !== 'ready') {
@@ -229,7 +234,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
               category={hit.category}
               name={nameOf(row)}
               letter={letters[String(hit.id)] ?? null}
-              reasons={reason == null || reason.trim() === '' ? [] : [reason]}
+              reasons={pickFactChips({ reason, hit, format: timeFormat })}
               cells={driveCells(stripOf(row))}
               tag={tag}
               band={band === 'inside' || band === 'outside' || band === 'unknown' ? null : band}
@@ -242,6 +247,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
                 onShortlist: () => onShortlist(hit),
                 shortlisted: shortlistedOf?.(hit) ?? false,
               })}
+              {...(swapOf?.(hit) == null ? {} : { onSwap: swapOf(hit) as () => void })}
               selected={index === selectedAt}
               onSelect={() => setChosen(String(hit.id))}
             />

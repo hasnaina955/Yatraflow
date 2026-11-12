@@ -1,7 +1,7 @@
 // Presentational stay deck. It draws lens data and calls callbacks.
 // It reads no store, no map and no provider. The caller supplies every value.
 import { useState } from 'react'
-import { STAY_RINGS, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
+import { STAY_RINGS, stayPickStartMin, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
 import type { LensPhase } from '../../../lib/mapLensContracts'
 import type { PlaceHit } from '../../../lib/geocode'
 import { clockHM } from '../../../lib/clockOverlay'
@@ -11,6 +11,7 @@ import { CatIcon } from '../../icons'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlaceCard'
+import { pickFactChips } from '../placeCardFacts'
 
 export const STAY_PHASE_TEXT: Record<LensPhase, string> = {
   unscanned: 'Pick a window to look around the stay.',
@@ -22,9 +23,6 @@ export const STAY_PHASE_TEXT: Record<LensPhase, string> = {
 }
 
 const NEEDS_BASE_TEXT = "Set tonight's stay to see what is around it."
-
-/** The most cards the deck shows. The other picks go in the list below. */
-const MAX_CARDS = 3
 
 export type RingId = (typeof STAY_RINGS)[number]['id']
 
@@ -89,12 +87,23 @@ export function stayAddLabel(
   return startMin == null ? day : `${day} · ${clock(startMin)}`
 }
 
-/** The three strip cells of one pick, in board order. */
+/** A visit length as the boards say it: "45 min", "1 h", "1 h 30". Unknown gives null. */
+export function visitMinText(min: number | null | undefined): string | null {
+  if (min == null || !Number.isFinite(min) || min <= 0) return null
+  const whole = Math.round(min)
+  if (whole < 60) return `${whole} min`
+  const hours = Math.floor(whole / 60)
+  const rest = whole % 60
+  return rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, '0')}`
+}
+
+/** The three strip cells of one pick, in board order: the walk there, the visit,
+ *  and the clock the group is back. An unknown fact hides its cell. */
 export function stayCells(pick: StayPick, clock: (min: number) => string): LensCostCell[] {
   const fit = pick.fit
   return [
     { key: 'walk', label: 'Walk', value: `${pick.reach.walkMin} min` },
-    { key: 'show', label: 'Show', value: fit == null ? null : clock(fit.arriveMin) },
+    { key: 'visit', label: 'Visit', value: visitMinText(pick.visitMin ?? pick.row.row.visitMin) },
     { key: 'back', label: 'Back by', value: fit == null ? null : clock(fit.backMin) },
   ]
 }
@@ -111,13 +120,16 @@ export interface StayDeckProps {
   ringId: RingId
   onRing(id: RingId): void
   onOpenPick(pick: StayPick): void
-  onAddPick(pick: StayPick): void
+  /** The writer receives the pick's own start inside the free window. */
+  onAddPick(pick: StayPick, startMin: number | null): void
   /** The Keep action. Absent hides the heart. */
   onShortlist?: (hit: PlaceHit) => void
   /** True draws the kept heart. */
   shortlistedOf?: (hit: PlaceHit) => boolean
   onSetStay(): void
   clock(min: number): string
+  /** The swap action of a pick. Null means the pick has no planned stop to replace. */
+  swapOf?: (hit: PlaceHit) => (() => void) | null
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
   /** The search retry. Absent draws a failed note with no Retry button. */
@@ -143,34 +155,41 @@ export function stayHoursText(
   return close == null ? null : `open till ${formatHM(clockHM(close), format)}`
 }
 
-/** One row of the list under the cards. */
-function AlsoRow({ pick, timeFormat }: { pick: StayPick; timeFormat: TimeFormat }) {
+/** One row of the "also in this window" list. A tap opens that pick in the deck. */
+function AlsoRow({ pick, timeFormat, onChoose, shortlisted }: { pick: StayPick; timeFormat: TimeFormat; onChoose: () => void; shortlisted: boolean }) {
   const hit = pick.row.row.hit
   const hours = stayHoursText(hit, timeFormat)
-  const line = [pick.fitText ?? `${pick.reach.walkMin} min walk`, hours].filter(part => part != null && part !== '').join(' · ')
-  return <div className="mv2-lens-also-row">
+  const walk = `${pick.reach.walkMin} min ${pick.reach.walkMin <= 15 ? 'walk' : 'drive'}`
+  const line = [shortlisted ? 'Shortlisted' : null, pick.reach.walkMin <= 15 ? walk : `${pick.reach.driveMin} min drive`, hours].filter(part => part != null && part !== '').join(' · ')
+  return <button type="button" className="mv2-lens-also-row" onClick={onChoose}>
     {pick.letter != null && <span className="mv2-lens-also-letter">{pick.letter}</span>}
     <span className="mv2-lens-also-icon"><CatIcon category={hit.category} size={13} /></span>
     <span className="mv2-lens-also-copy">
       <span className="mv2-lens-also-name">{hit.name}</span>
       <span className="mv2-lens-also-line">{line}</span>
     </span>
-  </div>
+  </button>
 }
 
 export function StayDeck(props: StayDeckProps) {
   const {
     dayNumber, dayLabel, baseName, windows, activeWindowId, onWindow, result, ringId,
-    onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose,
+    onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose, swapOf,
   } = props
   const [chosen, setChosen] = useState<string | null>(null)
   const timeFormat = useTimeFormat()
   const readyPicks = result.kind === 'ready' ? stayPicksInRing(result.picks, ringId) : []
   const count = readyPicks.length
   const activeWindow = windows.find(window => window.id === activeWindowId) ?? null
-  const addLabel = stayAddLabel(dayNumber, activeWindow?.startMin ?? null, clock)
-  const rest = readyPicks.slice(MAX_CARDS)
-  const selectedAt = selectedCardIndex(readyPicks.slice(0, MAX_CARDS).map(pick => String(pick.row.row.hit.id)), chosen)
+  // Each card offers its own start: the window opens after the fixed booking,
+  // and the walk to the place sets the clock. No start outside the window.
+  const startOf = (pick: StayPick): number | null =>
+    activeWindow == null ? null : stayPickStartMin(activeWindow, pick.reach.walkMin)
+  // The board opens one pick in full and lists the others under "Also in this
+  // window". A tap on a listed pick opens it here. The first pick opens first.
+  const selectedAt = selectedCardIndex(readyPicks.map(pick => String(pick.row.row.hit.id)), chosen)
+  const openPick = selectedAt >= 0 ? readyPicks[selectedAt] : null
+  const others = readyPicks.filter((_, index) => index !== selectedAt)
   const alsoCount = result.kind === 'ready' ? result.alsoCount : 0
   const hiddenByRing = result.kind === 'ready' ? result.picks.length - readyPicks.length : 0
   const widen = result.kind === 'ready' && readyPicks.length === 0 && stayWidenOffer(result.picks, ringId)
@@ -205,42 +224,45 @@ export function StayDeck(props: StayDeckProps) {
       <LensPhaseNote phase="empty">{STAY_PHASE_TEXT.empty}</LensPhaseNote>
       {widen && <button type="button" className="btn btn-ghost mv2-lens-widen" onClick={() => onRing('drive-30')}>Try ≤30 min drive</button>}
     </div>}
-    {result.kind === 'ready' && readyPicks.length > 0 && <>
+    {result.kind === 'ready' && openPick != null && <>
       <ul className="mv2-lens-cards">
-        {readyPicks.slice(0, MAX_CARDS).map((pick, index) => {
+        {(() => {
+          const pick = openPick
           const hit = pick.row.row.hit
-          const reason = pick.row.row.reason
-          const hours = stayHoursText(hit, timeFormat)
           const reasons = [
-            ...(reason == null || reason.trim() === '' ? [] : [reason]),
-            ...(pick.fitText == null ? [] : [pick.fitText]),
-            ...(hours == null ? [] : [hours]),
+            ...pickFactChips({ reason: pick.row.row.reason, hit, format: timeFormat }),
           ]
-          return <li key={pick.letter} className="mv2-lens-card">
+          const swap = swapOf?.(hit) ?? null
+          return <li key={pick.letter ?? String(hit.id)} className="mv2-lens-card">
             <LensPlaceCard
+              open
               letter={pick.letter}
               hit={hit}
+              photos={hit.photos}
               category={hit.category}
               name={hit.name}
               reasons={reasons}
               cells={stayCells(pick, clock)}
-              addLabel={addLabel}
+              fitLine={pick.fitText}
+              addLabel={stayAddLabel(dayNumber, startOf(pick), clock)}
               onOpen={() => onOpenPick(pick)}
-              onAdd={() => onAddPick(pick)}
+              onAdd={() => onAddPick(pick, startOf(pick))}
               {...(onShortlist == null ? {} : {
                 onShortlist: () => onShortlist(hit),
                 shortlisted: shortlistedOf?.(hit) ?? false,
               })}
-              selected={index === selectedAt}
-              onSelect={() => setChosen(String(hit.id))}
+              {...(swap == null ? {} : { onSwap: swap })}
+              selected
             />
           </li>
-        })}
+        })()}
       </ul>
-      {(rest.length > 0 || (alsoCount > 0 && hiddenByRing === 0)) && <div className="mv2-lens-also-block">
+      {(others.length > 0 || (alsoCount > 0 && hiddenByRing === 0)) && <div className="mv2-lens-also-block">
         <p className="mv2-section-label mv2-lens-also">Also in this window</p>
-        {rest.map(pick => <AlsoRow key={pick.row.row.hit.id} pick={pick} timeFormat={timeFormat} />)}
-        {rest.length === 0 && <p className="mv2-lens-more">{alsoCount} more</p>}
+        {others.map(pick => <AlsoRow key={pick.row.row.hit.id} pick={pick} timeFormat={timeFormat}
+          shortlisted={shortlistedOf?.(pick.row.row.hit) ?? false}
+          onChoose={() => setChosen(String(pick.row.row.hit.id))} />)}
+        {others.length === 0 && <p className="mv2-lens-more">{alsoCount} more</p>}
       </div>}
     </>}
   </section>

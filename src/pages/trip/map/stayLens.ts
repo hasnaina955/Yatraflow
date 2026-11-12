@@ -3,6 +3,7 @@
 import type { Trip, ItineraryStop } from '../../../data/types'
 import type { StayBase, StayLensRow, StayLensOutput, LensPhase } from '../../../lib/mapLensContracts'
 import { DEFAULT_SPEED_KMH } from '../../../lib/providers/hits'
+import { intendedVisitMinutes } from '../../../lib/hoursContext'
 import { lensFit, fitCopy, type FitWindow, type LensFit } from './lensFit'
 
 // The two reach rings: 15 min walk and 30 min drive.
@@ -34,6 +35,16 @@ export interface StayWindow extends FitWindow {
   label: string
 }
 
+/** The fixed evening booking the free window has to wait for: the boat's own
+ *  clock, its length and the way back to the base. A missing length is treated
+ *  as zero (the window starts when the booking starts), never guessed. */
+export interface StayEveningBook {
+  startMin: number
+  visitMin: number | null
+  /** Minutes from the booking back to the base. Null = unknown, not invented. */
+  backMin?: number | null
+}
+
 export interface StayPick {
   /** A to C in walk-ring rank order. A fourth pick has no letter, as the board's
    *  boat landing has none. */
@@ -42,6 +53,9 @@ export interface StayPick {
   reach: StayReach
   fit: LensFit | null
   fitText: string | null
+  /** The visit length the pick would carry once added: the row's own, else the
+   *  length the add path already intends for this kind of place. */
+  visitMin?: number | null
 }
 
 export type StayPicksResult =
@@ -111,17 +125,40 @@ export function stayReach(base: { lat: number; lng: number }, place: { lat: numb
   return { walkMin, driveMin, estimate: true }
 }
 
-// Free evening and morning windows from the caller times.
+/**
+ * Free evening and morning windows from the caller times. One function for the
+ * rail row, the deck header and the pick's start time, so they cannot disagree.
+ *
+ * The evening starts when the traveller is actually free: after the base
+ * arrival AND after a fixed evening booking ends. A 15:30 boat for 90 min makes
+ * the evening free from 17:00, not from the 13:40 check-in. The booking's
+ * length is the stop's own visit length; an unknown length counts as zero.
+ */
 export function stayWindows(input: {
   arriveAtBaseMin: number | null
   leaveBaseMin: number | null
+  eveningBook?: StayEveningBook | null
+  /** Where an empty dinner window begins. The free evening ends there, so the
+   *  two windows never overlap. Absent keeps the day-end clock. */
+  dinnerStartMin?: number | null
 }): StayWindow[] {
   const windows: StayWindow[] = []
-  const { arriveAtBaseMin, leaveBaseMin } = input
-  if (arriveAtBaseMin !== null
-    && Number.isFinite(arriveAtBaseMin)
-    && STAY_DAY_END_MIN - arriveAtBaseMin >= 30) {
-    windows.push({ id: 'evening', label: 'Free evening', startMin: arriveAtBaseMin, endMin: STAY_DAY_END_MIN })
+  const { arriveAtBaseMin, leaveBaseMin, eveningBook } = input
+  const book = eveningBook != null && Number.isFinite(eveningBook.startMin) ? eveningBook : null
+  const bookEnd = book == null
+    ? null
+    : book.startMin + (book.visitMin != null && Number.isFinite(book.visitMin) ? Math.max(0, book.visitMin) : 0)
+  const eveningStart = arriveAtBaseMin != null && Number.isFinite(arriveAtBaseMin)
+    ? bookEnd == null ? arriveAtBaseMin : Math.max(arriveAtBaseMin, bookEnd)
+    : bookEnd
+  const dinnerStart = input.dinnerStartMin
+  const eveningEnd = eveningStart !== null && dinnerStart != null && Number.isFinite(dinnerStart) && dinnerStart > eveningStart
+    ? Math.min(STAY_DAY_END_MIN, dinnerStart)
+    : STAY_DAY_END_MIN
+  if (eveningStart !== null
+    && Number.isFinite(eveningStart)
+    && eveningEnd - eveningStart >= 30) {
+    windows.push({ id: 'evening', label: 'Free evening', startMin: eveningStart, endMin: eveningEnd })
   }
   if (leaveBaseMin !== null
     && Number.isFinite(leaveBaseMin)
@@ -129,6 +166,22 @@ export function stayWindows(input: {
     windows.push({ id: 'morning', label: 'Before you leave', startMin: STAY_DAY_START_MIN, endMin: leaveBaseMin })
   }
   return windows
+}
+
+/**
+ * The start a stay pick is offered at. The group leaves the base at the
+ * window's start, walks to the place, and can start there — never before the
+ * window opens, and never at the check-in time. A walk that does not fit the
+ * window gives null: no start is invented.
+ */
+export function stayPickStartMin(
+  window: FitWindow,
+  walkMin: number | null | undefined,
+): number | null {
+  if (!Number.isFinite(window.startMin) || !Number.isFinite(window.endMin)) return null
+  const walk = walkMin != null && Number.isFinite(walkMin) ? Math.max(0, Math.round(walkMin)) : 0
+  const start = window.startMin + walk
+  return start < window.endMin ? start : null
 }
 
 // Lettered picks in input order. A null visit gives a null fit.
@@ -151,12 +204,12 @@ export function stayPicks(
     const reach = stayReach(base, { lat: hit.latitude, lng: hit.longitude })
     // A walk of 15 min or less uses walk minutes. Longer walks use drive minutes.
     const travel = reach.walkMin <= 15 ? reach.walkMin : reach.driveMin
-    const visit = row.row.visitMin
+    const visit = row.row.visitMin ?? intendedVisitMinutes(hit)
     const fit = lensFit(window, null, travel, visit)
     const fitText = fit !== null && visit !== null
       ? fitCopy(window, fit, travel, visit, clock)
       : null
-    usable.push({ letter: null, row, reach, fit, fitText })
+    usable.push({ letter: null, row, reach, fit, fitText, visitMin: visit })
   }
   // The walk ring ranks first, so its picks keep A/B/C and the wider ring's
   // pick stays unlettered. A row order that puts a drive pick in the walk

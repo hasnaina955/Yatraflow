@@ -112,7 +112,8 @@ describe('W4-B map and rail', () => {
 
   it('guards the source: stay framing waits for the lens flag', () => {
     const source = read('../src/components/TripMap.tsx')
-    expect(source).toContain('if (!frameStayRing || !mapLoaded || !mapRef.current) return')
+    expect(source).toContain('stayFrameAction({')
+    expect(source).toContain('if (!stayOwnsCamera)')
     expect(source).toContain('clampBoundsWithin(framed, boundsOf(fitPoints))')
     expect(source).toContain("'fill-opacity': 0.16")
     expect(source).toContain('width={2} opacity={0.95}')

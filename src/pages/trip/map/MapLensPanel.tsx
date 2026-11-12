@@ -37,7 +37,7 @@ export interface MapLensPanelProps {
   stayRing: RingId
   onStayRing: (id: RingId) => void
   onOpenStayPick: (pick: StayPick) => void
-  onAddStayPick: (pick: StayPick) => void
+  onAddStayPick: (pick: StayPick, startMin: number | null) => void
   onSetStay: () => void
   onOpenGapPick: (pick: GapPick) => void
   onAddGapPick: (pick: GapPick) => void
@@ -47,6 +47,8 @@ export interface MapLensPanelProps {
   onShortlist?: (hit: PlaceHit) => void
   /** True draws the kept heart on a card. */
   shortlistedOf?: (hit: PlaceHit) => boolean
+  /** The swap action of a pick. Null means the pick has no planned stop to replace. */
+  swapOf?: (hit: PlaceHit) => (() => void) | null
   /** The deck fold handler. Absent uses the Map tab fold button. */
   onFold?: () => void
   /** The scan retry of the Drive, Stay and Gap decks. Absent draws no Retry button. */
@@ -86,6 +88,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       {...(props.driveLetters == null ? {} : { letters: props.driveLetters })}
       {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
       {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
+      {...(props.swapOf == null ? {} : { swapOf: props.swapOf })}
       onClose={props.onFold}
       {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />
@@ -134,6 +137,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       onSetStay={props.onSetStay}
       clock={props.clock}
+      {...(props.swapOf == null ? {} : { swapOf: props.swapOf })}
       onClose={props.onFold}
       {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />
@@ -148,6 +152,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       {...(props.onShortlist == null ? {} : { onShortlist: props.onShortlist })}
       {...(props.shortlistedOf == null ? {} : { shortlistedOf: props.shortlistedOf })}
       clock={props.clock}
+      {...(props.swapOf == null ? {} : { swapOf: props.swapOf })}
       onClose={props.onFold}
       {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />

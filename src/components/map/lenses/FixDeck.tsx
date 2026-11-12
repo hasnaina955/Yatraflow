@@ -16,9 +16,6 @@ const PHASE_TEXT = {
   empty: 'Nothing for this day fits your scope.',
 } as const
 
-/** The most fixes the deck shows. The board shows three. */
-const MAX_FIXES = 3
-
 /** The kicker of the deck header, for example "Fix · 1 problem on Day 3". */
 export function fixDeckKicker(count: number, dayNumber: number): string {
   const noun = count === 1 ? 'problem' : 'problems'
@@ -58,7 +55,7 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
     </section>
   }
   const count = problem ? 1 : 0
-  const shown = problem ? fixes.slice(0, MAX_FIXES) : []
+  const shown = problem ? fixes : []
   return <section className="mv2-lens mv2-lens-fix-deck" aria-label="Fix this day">
     <LensDeckHeader
       kicker={fixDeckKicker(count, dayNumber)}

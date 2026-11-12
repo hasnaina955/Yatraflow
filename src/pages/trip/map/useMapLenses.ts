@@ -10,7 +10,7 @@ import { useMemo } from 'react'
 import type { Trip } from '../../../data/types'
 import type { DaySlot } from '../../../lib/daySlots'
 import type { JourneyRow } from '../../../lib/journeyProjection'
-import type { DaySchedule } from '../../../lib/engine'
+import type { DaySchedule, LegEstimate } from '../../../lib/engine'
 import { collectWarnings, groupWarnings, hmToMinutes } from '../../../lib/engine'
 import { validHM } from '../../../lib/timefmt'
 import {
@@ -21,8 +21,8 @@ import {
 import type { JourneyStatus } from '../journey/journeyDays'
 import { driveTabs, type DriveTabsResult } from './driveLens'
 import { gapPicks, gapCount, type GapPicks } from './gapLens'
-import { fixesForWarning, fixSummary, warningRefs, type FixSummary } from './fixLens'
-import { resolveStayBase, stayPicks, stayWindows, type StayPicksResult, type StayWindow } from './stayLens'
+import { fixesForWarning, fixSummary, formatFixEvidence, warningRefs, type FixSummary } from './fixLens'
+import { resolveStayBase, stayPicks, stayWindows, type StayEveningBook, type StayPicksResult, type StayWindow } from './stayLens'
 
 /** The four lens ids, in board order. */
 export type MapLensId = 'drive' | 'stay' | 'gap' | 'fix'
@@ -106,6 +106,12 @@ export interface MapLensesInput {
   clock: (min: number) => string
   /** The deck's day line, for example "Day 3". */
   dayLabel: string
+  /** The measured legs the rail draws. The Fix lens reads the same ones, so
+   *  its warning and the rail's clocks describe one schedule. */
+  legCorrections?: Record<string, LegEstimate>
+  /** The fixed evening booking the free window must wait for. Absent keeps the
+   *  base arrival. */
+  eveningBook?: StayEveningBook | null
 }
 
 /** A count is the ready row count. An empty search is a real zero. Every other phase is unknown, so null. */
@@ -159,12 +165,20 @@ function clockMinOrNull(hm: string | undefined | null): number | null {
  */
 const FIX_READY: JourneyStatus = { kind: 'ready', source: 'scan' }
 
-/** The first severe warning of the day, else the first warning in engine order. */
-function fixProblemFor(trip: Trip, dayIndex: number): { target: FixTarget; problem: FixProblem } | null {
-  const { byDay } = groupWarnings(collectWarnings(trip))
+/** The first severe warning of the day, else the first warning in engine order.
+ *  `legCorrections` is the caller's measured road: without it the warning was
+ *  computed on a faster estimate than the rail's schedule, so the Fix card and
+ *  the rail named two different arrivals for one plan. */
+export function fixProblemFor(
+  trip: Trip,
+  dayIndex: number,
+  legCorrections?: Record<string, LegEstimate>,
+  clock: (hm: string) => string = hm => hm,
+): { target: FixTarget; problem: FixProblem } | null {
+  const { byDay } = groupWarnings(collectWarnings(trip, legCorrections))
   const warnings = byDay.get(dayIndex) ?? []
   if (warnings.length === 0) return null
-  const targets = warningRefs(trip, dayIndex)
+  const targets = warningRefs(trip, dayIndex, legCorrections)
   const pairs: Array<{ warning: (typeof warnings)[number]; target: FixTarget; severe: boolean }> = []
   warnings.forEach((warning, index) => {
     const target = targets[index]
@@ -176,7 +190,7 @@ function fixProblemFor(trip: Trip, dayIndex: number): { target: FixTarget; probl
     target: chosen.target,
     problem: {
       title: chosen.warning.title,
-      evidence: chosen.warning.detail ? [chosen.warning.detail] : [],
+      evidence: chosen.warning.detail ? [formatFixEvidence(chosen.warning.detail, clock)] : [],
       foundBy: `${chosen.warning.code} check`,
     },
   }
@@ -187,7 +201,7 @@ function fixProblemFor(trip: Trip, dayIndex: number): { target: FixTarget; probl
  * An unknown value is null, and each phase keeps its own answer.
  */
 export function mapLensesFor(input: MapLensesInput): MapLenses {
-  const { trip, dayIndex, status, rows, slots, budgetMin, schedule, clock } = input
+  const { trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, legCorrections, eveningBook } = input
 
   // Drive: corridor suggestions, grouped into the board's three tabs.
   const driveView = driveLensRows({ status, dayIndex, rows, budgetMin })
@@ -219,7 +233,9 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
     const arriveAtBaseMin = stopAt >= 0 ? clockMinOrNull(schedule?.arrivalTimes[stopAt]) : null
     const nextDay = trip.days.find(entry => entry.index === dayIndex + 1)
     const leaveBaseMin = clockMinOrNull(nextDay?.startTime)
-    const windows = stayWindows({ arriveAtBaseMin, leaveBaseMin })
+    // An empty dinner window ends the free evening, as the board draws it.
+    const dinner = slots.find(entry => entry.key === 'dinner' && entry.state === 'empty' && entry.windowMin != null)
+    const windows = stayWindows({ arriveAtBaseMin, leaveBaseMin, dinnerStartMin: dinner?.windowMin?.[0] ?? null, ...(eveningBook != null ? { eveningBook } : {}) })
     const output = stayLensRows({
       status,
       dayIndex,
@@ -259,16 +275,22 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
   const gap: GapLensDeck = { phase: gapView.phase, view: gapView, gaps }
 
   // Fix: the first warning of the day, and the fixes the engine verified.
-  const problem = dayIndex == null ? null : fixProblemFor(trip, dayIndex)
+  // Both run on the caller's measured legs, like the rail's own schedule.
+  const problem = dayIndex == null ? null : fixProblemFor(trip, dayIndex, legCorrections, hm => clock(hmToMinutes(hm)))
+  const dayStops = dayIndex == null ? [] : trip.days.find(day => day.index === dayIndex)?.stops ?? []
   const fixes = problem == null || dayIndex == null
     ? []
-    : fixesForWarning(trip, dayIndex, problem.target).map(set => ({
+    : fixesForWarning(trip, dayIndex, problem.target, Number.POSITIVE_INFINITY, legCorrections).map(set => ({
       set,
       summary: fixSummary(set, stopId => {
         const stop = trip.days.find(day => day.stops.some(entry => entry.id === stopId))
           ?.stops.find(entry => entry.id === stopId)
         return stop?.title ?? stopId
-      }, clock),
+      }, clock, dayStops, stopId => {
+        // A booked stop shows its booking clock, never the engine arrival.
+        const lock = trip.fixedCommitments?.find(entry => entry.dayIndex === dayIndex && entry.stopId != null && String(entry.stopId) === String(stopId))
+        return lock?.time == null ? null : hmToMinutes(lock.time)
+      }),
     }))
   const fixPhase: LensPhase = dayIndex == null ? 'unscanned' : 'ready'
   const fixView = fixLensRows({
@@ -299,9 +321,9 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
  * parent re-render that changed nothing the lenses read.
  */
 export function useMapLenses(input: MapLensesInput): MapLenses {
-  const { trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, dayLabel } = input
+  const { trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, dayLabel, legCorrections, eveningBook } = input
   return useMemo(
-    () => mapLensesFor({ trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, dayLabel }),
-    [trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, dayLabel],
+    () => mapLensesFor({ trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, dayLabel, legCorrections, eveningBook }),
+    [trip, dayIndex, status, rows, slots, budgetMin, schedule, clock, dayLabel, legCorrections, eveningBook],
   )
 }

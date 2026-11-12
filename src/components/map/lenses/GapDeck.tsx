@@ -10,6 +10,8 @@ import { STAY_PHASE_TEXT } from './StayDeck'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
 import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlaceCard'
+import { useTimeFormat } from '../../../lib/timefmt'
+import { pickFactChips } from '../placeCardFacts'
 
 export const GAP_PHASE_TEXT: Record<LensPhase, string> = {
   unscanned: 'Pick a day to see its open parts.',
@@ -72,6 +74,8 @@ export interface GapDeckProps {
   /** True draws the kept heart. */
   shortlistedOf?: (hit: PlaceHit) => boolean
   clock(min: number): string
+  /** The swap action of a pick. Null means the pick has no planned stop to replace. */
+  swapOf?: (hit: PlaceHit) => (() => void) | null
   /** The fold handler. Absent uses the Map tab fold button. */
   onClose?: () => void
   /** The search retry. Absent draws a failed note with no Retry button. */
@@ -79,7 +83,8 @@ export interface GapDeckProps {
 }
 
 export function GapDeck(props: GapDeckProps) {
-  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, onClose, onRetry } = props
+  const { dayNumber, phase, gaps, onOpenPick, onAddPick, clock, onShortlist, shortlistedOf, swapOf, onClose, onRetry } = props
+  const timeFormat = useTimeFormat()
   const [chosen, setChosen] = useState<string | null>(null)
   const first = gaps[0]
   const kicker = first == null ? 'Gap' : gapDeckKicker(first.title, first.windowText)
@@ -107,7 +112,7 @@ export function GapDeck(props: GapDeckProps) {
             const hit = pick.candidate.hit
             const reason = pick.candidate.reason
             const reasons = [
-              ...(reason == null || reason.trim() === '' ? [] : [reason]),
+              ...pickFactChips({ reason, hit, format: timeFormat }),
               ...(pick.fitText == null ? [] : [pick.fitText]),
             ]
             return <li key={pick.letter} className="mv2-lens-card">
@@ -125,6 +130,7 @@ export function GapDeck(props: GapDeckProps) {
                   onShortlist: () => onShortlist(hit),
                   shortlisted: shortlistedOf?.(hit) ?? false,
                 })}
+                {...(swapOf?.(hit) == null ? {} : { onSwap: swapOf(hit) as () => void })}
                 selected={at === selectedAt}
                 onSelect={() => setChosen(String(hit.id))}
               />

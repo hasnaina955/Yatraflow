@@ -618,7 +618,7 @@ Line numbers are for `origin/test` at `dc897c4e`. Re-derive them before you edit
 | `src/components/trips/TripArt.tsx` | `TripArt({ region })` line 146 | Header cover art. |
 | `src/styles.css` | 12,275 lines. Append at the end. | New rules. See below. |
 | `tests/overview-tab-classes.test.ts` | pins `Surface` class strings and counts | Must change. |
-| `CHANGELOG.md` | `[Unreleased]` | One final-state entry. |
+| `changelog.d/pending/<uuid>.md` | Pending notes | One final-state fragment. |
 | `ROADMAP.md`, `docs/consistency/app-consistency-plan.md` | P2, P12 rows | Tick in the same commit if the rows exist. |
 
 New files are allowed. Suggested names: a pure route and terrain module under `src/lib`, and one test file beside the existing Overview tests.
@@ -807,9 +807,11 @@ Run each command in the clone. Paste the last lines of the output into the repor
 
 ### CHANGELOG rule
 
-Edit `CHANGELOG.md` with editor primitives only. Never use a script, a heredoc or shell interpolation (section 2.9). Check the diff stat after the edit.
+Feature work edits a pending fragment. Apply checked release patches to `CHANGELOG.md` with editor primitives only, per section 2.9.
+Check the diff stat after the edit.
 
-Add one entry under `[Unreleased]`. The first bold sentence states the user-visible result. The entry states final state, not session history. It names no branch, round or finding story. Issue numbers may trail the entry. Write it in STE.
+Add one fragment in `changelog.d/pending/`. The first bold sentence states the result.
+The fragment states final state. It names no branch, round or finding story. Issue numbers may trail the entry. Write it in STE.
 
 ### Hard rules from AGENTS.md that apply here
 

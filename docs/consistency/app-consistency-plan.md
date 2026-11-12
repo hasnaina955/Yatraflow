@@ -23,7 +23,7 @@ Rules:
 - Keep all data and logic. Do not invent ratings, counts or reviews.
 - The cream canvas #F8F7EF stays.
 - Write new prose in Simplified Technical English (ASD-STE100). Use short sentences.
-- Edit CHANGELOG.md with editor primitives only. Write the final state, not the session story.
+- Edit a change fragment. State the final outcome. Use editor primitives for release patches to CHANGELOG.md.
 - Append new CSS to the END of src/styles.css. The design-system baseline is keyed by line.
 - Ask every decision with the AskUserQuestion picker.
 - Credentials come only from environment variables. Never write them to a file.
@@ -53,7 +53,7 @@ Then follow the page order in section 6. Use the per-page loop in section 5 for 
 9. Keep the honesty pins. Loading, failed and empty states stay three separate renderings (AGENTS.md §6).
 10. The cream canvas `#F8F7EF` (`--yf-cream`) stays.
 11. Write new prose in Simplified Technical English. Run `npm run lint:ste` before each commit.
-12. Edit `CHANGELOG.md` with editor primitives only. Write final-state wording under `[Unreleased]`.
+12. Add a final-state fragment in `changelog.d/pending/`. Apply release patches to `CHANGELOG.md` with editor primitives only.
 13. Append new CSS to the end of `src/styles.css`, under a new section comment. Do not insert above existing rules.
 14. Every new interactive surface ships motion from the motion tokens (`docs/MOTION-TOKENS.md`). Every animated rule needs a `prefers-reduced-motion` opt-out. A raw `ms` value in a new rule is a defect.
 15. Ask every decision with the AskUserQuestion picker. Do not ask in plain text.
@@ -341,7 +341,7 @@ Run this loop for every page. Do not start the next page until the user accepts 
 8. **Accessibility basics.** One h1. Heading levels do not skip. Every control has a name. Focus ring is `var(--ring)`. Contrast passes in the design-system test.
 9. **Guards.** Update `tests/page-consistency-baseline.json` downward only. Add the page's routes to the motion check if it is public. Add a page pin test when the page has a load-bearing structure (for example, the paywall lock order).
 10. **Verify gate.** `npm run verify`. Then `npm run lint:ratchet`. If the design-system baseline moves, follow the re-baseline procedure in AGENTS.md and prove the diff is line numbers only.
-11. **Changelog.** One `[Unreleased]` entry under Changed, written in STE, final state, editor primitives only.
+11. **Changelog.** One pending fragment under Changed, written in STE, with a bold final-state outcome sentence.
 12. **Opus review.** An Opus subagent reviews the diff, the screenshots and the difference list. Fix what it finds.
 13. **Localhost hand-off.** Give the user the exact URLs, light and dark, and what to check. Wait for acceptance.
 14. **PR.** On the user's say-so, push the branch and open a PR into `test`. Never merge without the user's say-so. After a merge, check `gh issue view` for any referenced issue.

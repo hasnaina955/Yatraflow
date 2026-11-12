@@ -137,6 +137,12 @@ The Google key is **optional** and the app fully works without it (free stack on
 2. `npm run check:migrations` — every migration probed present on the live project; apply anything missing in the Supabase SQL editor *first* (a release whose SQL never ran fails at runtime, not in CI)
 3. Smoke-test locally: login → demo trips load → create trip (persists after reload) → add stop → map renders → publish → copy from Explore
 4. Check `vercel env ls` — `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` present for **Production *and* a branch-free Preview** (the `environments (git branch)` column must read `Preview`, never `Preview (<branch>)`; Production-only or branch-pinned scoping is the #1 cause of "login works here but not on the preview")
-5. Update `CHANGELOG.md`; for feature-worthy releases also bump `package.json` + lockfile and refresh README highlights (newest first)
+5. The promotion agent freezes the input commit and runs `npm run changelog:release -- --version X.Y.Z --date YYYY-MM-DD --base <sha>`.
+   The default prints a diff and writes nothing. `--write` saves the patch only.
+   Review the notes against the batch commits. Existing Unreleased notes stay and ship in this release.
+   Apply the checked patch with editor primitives. Commit the receipt and remove the consumed fragments.
+   Update `package.json`, the lockfile, the roadmap snapshot, and README highlights, newest first.
+   The patch also removes `changelog.d/transition.json`. The direct-entry exception for PRs #911 and #914 ends with this release.
+   Run `npm run verify` again after all release edits. The user reviews the `CHANGELOG.md` diff before any push to `main`.
 6. Commit, merge to `main` (user-gated), push, watch the Vercel deployment finish
 7. Verify the live URL serves the new build. Hard-refresh and check that the bundle hash changed. Then tag the promotion merge (`vX.Y.Z`, annotated). The tag push builds the Android APK and attaches it to the release. The APK reads its `versionCode`/`versionName` from `package.json`, so the tag and the installed build agree.

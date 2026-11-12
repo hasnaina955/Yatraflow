@@ -24,7 +24,7 @@
 // Stage a new file with `git add -N` so the default run sees it.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chooseLintBase, GateError, requireMergeBase } from './lint-ste-base.mjs'
@@ -821,6 +821,12 @@ function main() {
   if (base.warning) console.error(base.warning)
   const added = addedLines([base.sha])
   checkAdded(excludeExtractedLines(added), false)
+  const pending = path.resolve('changelog.d/pending')
+  if (existsSync(pending)) {
+    for (const name of readdirSync(pending)) {
+      if (name.endsWith('.md')) checkWholeText(path.join(pending, name), readFileSync(path.join(pending, name), 'utf8'))
+    }
+  }
   return report(base.label, rangeNote(base, added))
 }
 

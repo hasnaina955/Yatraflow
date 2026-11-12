@@ -45,6 +45,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 
 /** Docs whose sentences describe what the product does TODAY. */
 const LIVE = [
+  '../changelog.d/README.md',
   '../README.md',
   '../ROADMAP.md',
   '../AGENTS.md',

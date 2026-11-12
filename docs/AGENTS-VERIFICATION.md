@@ -397,7 +397,7 @@ the same job:
 | PR into `test` | yes | **no** |
 | `v*` tag | — | yes (builds the APK and attaches it to the release) |
 
-The APK workflow triggers on `push` to `main`, `feat/capacitor-android` and `v*`
+The APK workflow triggers on `push` to `main` and `v*`
 tags — **not on pull requests**. So a PR into `main` costs one `ci.yml` run plus
 Vercel, while the merge itself is what burns an Android build. Verify with
 `gh pr checks <n>` rather than reasoning from the YAML; the check list names the

@@ -7,7 +7,7 @@ name: Android APK
 # artifact — the APK release cadence is decoupled from web deploys.
 on:
   push:
-    branches: ['main', 'feat/capacitor-android']
+    branches: ['main']
     tags: ['v*']
   workflow_dispatch:
 

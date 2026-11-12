@@ -22,6 +22,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **The scripts folder now has an index, and 27 unused CSS-3 tools are gone.** `scripts/README.md` lists every tracked script with its purpose, how it runs, and its status. The APK workflow drops the trigger for `feat/capacitor-android`, a branch that no longer exists. `docs/README.md` links to the index. `control-runs-r13.mjs` and `verify-bound-r13.mjs` stay because `tests/release-tooling.test.ts` names both.
 
+- **A push can run the fast gate first, when you opt in.** `npm run hooks:install` points Git at `.githooks/pre-push`. Before each branch push, the hook runs `npm run verify:fast -- --base <base>` on the commits being pushed. It blocks the push when the gate fails. It also blocks a push when HEAD is not the branch tip. It blocks a push when the tree has uncommitted or untracked files, because the gate would test something else. Tags and branch deletions pass without the gate. `verify:fast` gains `--base <rev>`, which lists only the commits from that base to HEAD. Nothing installs the hook by default, and `npm run verify` is still the gate before a push.
+
 ### Changed
 
 - **Agent instruction docs now match the repo.** The corrected rules cover CSS placement, rule ranges, the verify chain, and enforcement notes. They also cover haptics, retired lanes, the migration path, issue closing, baseline keys, and key locations. This change removes stale facts and a fixed defect entry.

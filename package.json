@@ -25,7 +25,9 @@
     "verify": "tsc -b --clean && tsc -b && npm run lint:ratchet && npm run lint:ste && npm run check:css && npm test && vite build",
     "verify:typecheck": "tsc -b --clean && tsc -b",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
-    "verify:fast": "node scripts/verify-fast.mjs"
+    "verify:fast": "node scripts/verify-fast.mjs",
+    "hooks:install": "node scripts/hooks.mjs install",
+    "hooks:uninstall": "node scripts/hooks.mjs uninstall"
   },
   "allowScripts": {
     "esbuild": true

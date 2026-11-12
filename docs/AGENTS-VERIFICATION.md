@@ -615,7 +615,16 @@ that shape: the check names a file, a human runs it, the next run flips to `ok`
 
 Use these two commands for fast feedback while you work. They do not replace the gate.
 
-- `npm run verify:fast` runs `tsc -b` for `src/`. It then runs `vitest related --run` on the changed files. The changed files are the files that differ from the merge base with `origin/test`, plus uncommitted and untracked files. The command prints what it runs and what it skips.
+- `npm run verify:fast` runs `tsc -b` for `src/`. It then runs `vitest related --run` on the changed files. The changed files are the files that differ from the merge base with `origin/test`, plus uncommitted and untracked files. `npm run verify:fast -- --base <rev>` lists only the commits from `<rev>` to HEAD. The command prints what it runs and what it skips.
 - `npm run typecheck:tests` runs `tsc -p tsconfig.tests.json`. It type-checks `src/` and `tests/`. It is not in `verify` yet, because the test files still have type errors.
 
 `npm run verify` stays the gate before a push. Run it before every push, even after `verify:fast` passes.
+
+### Opt-in pre-push hook
+
+- `npm run hooks:install` sets `core.hooksPath` to `.githooks` for this clone. `npm run hooks:uninstall` removes it. No install step runs the hook by itself.
+- Before a branch push, `.githooks/pre-push` runs `npm run verify:fast -- --base <base>`. The base is the remote tip that the push replaces. A new branch uses the merge base with `origin/test`, or with `origin/main` when `origin/test` is missing. If neither ref exists, the hook blocks the push. Run `git fetch origin` first.
+- The hook blocks the push when HEAD is not the branch tip. It also blocks the push when the tree has an uncommitted or untracked file. It blocks the push when the gate fails. It does not check tags or branch deletions. A blocked push prints one line that names the escape hatch.
+- Skip one push with `YF_SKIP_PRE_PUSH=1 git push ...`. The hook then prints that it skipped. Say why in the chat. Do not use `git push --no-verify`, which skips the hook too, unless the user asks for it.
+- The setting lives in the repository config, so every linked worktree of this clone shares it. A worktree without `node_modules` fails the gate, because `verify:fast` needs `tsc` and `vitest`. The hook also blocks a push when `npm` does not start in the shell that runs `git push`.
+- The hook runs `verify:fast`, not `verify`. Run `npm run verify` before every push.

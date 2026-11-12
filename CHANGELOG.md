@@ -30,6 +30,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 - **Two slow test cases have more time, so the full suite passes in one run.** One case in `tests/lint-ste.test.ts` builds two git repositories and now has 40 s. One case in `tests/migration-status.test.ts` reads every migration file and now has 20 s. Each case passed alone and timed out only when the full suite ran.
 
+- **Six Idea bank rows now say what is left.** A check against `src/` found that parts of I-22, I-28, I-30, I-31, I-66 and I-84 had already shipped. Each row now names only the open work. I-22 keeps the benchmark. I-28 keeps the stop-level link. I-30 keeps the booking and budget links. I-31 keeps the Timeline chip and the place name. I-66 keeps the per-stop heights, the daily climb and the limit line. I-84 keeps the rest-stop line. The same check found that I-107 (expense-row stagger) is not built, so its row stays. No code changed.
+
 ### Removed
 
 - **Unused code and tests that checked nothing are removed. The app behaves as before.** The rail ruler module had no caller, so it and its test file are gone. Sixteen unused declarations are removed from ten source files. The `geocode` facade drops six re-exports that no file imported through it. Thirteen test cases are removed. They covered the rail ruler, five constant pins and one redundant inline-style pin. The art evidence test now skips with a named reason when its file is absent. Before, it returned early and reported a pass.

@@ -45,6 +45,7 @@ describe('net added minutes — one producer, one number', () => {
   it('equals the impact preview’s time delta for the same inserted plan', () => {
     const cand = candidate()
     const proposed = withCandidateInserted(base.days[0], cand)
+    if (!proposed) throw new Error('expected the candidate to fit the day')
     const trip: Trip = { ...base, days: base.days.map(day => (day.index === 0 ? proposed : day)) }
     const preview = computeImpact(base, trip, 'add', 0).timeDeltaMin
     expect(netAddedMinutes({ trip: base, dayIndex: 0 }, cand)).toBe(preview)

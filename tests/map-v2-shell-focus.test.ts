@@ -12,7 +12,7 @@ import { sheetSnapForKey } from '../src/lib/mapSheetGesture'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (...parts: string[]) => readFileSync(join(root, ...parts), 'utf8').replace(/\r\n/g, '\n')
-const css = read('src', 'styles.css')
+const css = read('src', 'styles', 'components', 'map-v2-rail.css')
 const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')
 const chrome = read('src', 'components', 'map', 'MapWorkspaceChrome.tsx')
 const placeCard = read('src', 'components', 'map', 'MapPickCard.tsx')

@@ -136,7 +136,7 @@ describe('keyboard sheet handle', () => {
 
 describe('viewer', () => {
   it('hides the deck add action for a viewer', () => {
-    const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+    const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8')
     expect(css).toContain('.mv2-workspace[data-role="viewer"] .mv2-lens-place-add')
   })
 })

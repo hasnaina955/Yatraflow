@@ -59,6 +59,7 @@ describe('#141 — confidence-weighted rain: probability × severity', () => {
     const storm = planTravelClock({ ...base, travelStyle: 'balanced', dayRainPct: [90, null], dayWeatherCode: [95, null] })
     expect(dry.verdict).toBe('ok')
     expect(storm.verdict).toBe('ok')
+    if (dry.verdict !== 'ok' || storm.verdict !== 'ok') throw new Error('expected an ok travel clock')
     expect(storm.days[0].kmCovered).toBeLessThan(dry.days[0].kmCovered)
     // a shrunk wet day 1 spills honestly into more days, never silence
     expect(storm.days.length).toBeGreaterThan(dry.days.length)

@@ -123,13 +123,13 @@ describe('AC2 — a supported scenic stop fits a stretch; a wrong-kind place can
 
   it('a scenic viewpoint cannot fill fuel — the gap stays a gap', () => {
     expect(fitScoreForPurpose(hit({ category: 'nature', family: 'views' }), 'fuel')).toBe(0)
-    const seg = { index: 0, purpose: 'fuel' as const, label: 'Fuel', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 600 }
+    const seg = { index: 0, purpose: 'fuel' as const, label: 'Fuel', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 600, hint: '' }
     expect(scoreHitForSegment(hit({ category: 'nature', family: 'views', offRouteKm: 0 }), seg, anchors)).toBeNull()
   })
 
   it('a waterfall 1 km off a ghat road outranks a petrol pump for a stretch break', () => {
     // same on-road position; only kind differs (source MD test list)
-    const seg = { index: 0, purpose: 'stretch' as const, label: 'Short break', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 600 }
+    const seg = { index: 0, purpose: 'stretch' as const, label: 'Short break', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 600, hint: '' }
     const waterfall = scoreHitForSegment(hit({ name: 'Falls', category: 'nature', family: 'water', subtype: 'waterfall', offRouteKm: 1 }), seg, anchors)
     const pump = scoreHitForSegment(hit({ name: 'Pump', category: 'transport-hub', offRouteKm: 0.2 }), seg, anchors)
     expect(waterfall).not.toBeNull()
@@ -139,7 +139,7 @@ describe('AC2 — a supported scenic stop fits a stretch; a wrong-kind place can
 })
 
 describe('rain sets align with the confirmed source rows', () => {
-  const seg = (rainy: boolean) => ({ index: 0, purpose: 'stretch' as const, label: 'Short break', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 600, rainy })
+  const seg = (rainy: boolean) => ({ index: 0, purpose: 'stretch' as const, label: 'Short break', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 600, hint: '', rainy })
 
   it('a temple is sheltered (was wrongly sensitive)', () => {
     const dry = scoreHitForSegment(hit({ category: 'temple', offRouteKm: 0 }), seg(false), anchors)
@@ -210,7 +210,7 @@ describe('AC5 — family queries feed the provider scan and the presentation ada
     const waterfallHit = hit({ name: 'Athirapilly Waterfalls', category: 'nature', family: 'water', subtype: 'waterfall' })
     const row = driveRowFromCandidate(
       { hit: waterfallHit, detourMin: 24, detourKm: 8, budgetSharePct: 53, posKm: 100, arriveMin: 753, arriveLabel: '12:33', inWindow: true, score: 12, reason: '12 km off-route' },
-      { key: 'lunch', kind: 'meal', label: 'Lunch', state: 'empty', windowMin: [690, 870], windowLabel: '11:30-14:30', segment: { index: 0, purpose: 'meal', label: 'Lunch', targetKm: 100, minKm: 80, maxKm: 130, kmFromPrev: 100, minutesFromPrev: 120, hint: '' }, filledStop: null, auto: false, drift: null, urgencyMin: 10, candidates: [] },
+      { key: 'lunch', kind: 'meal', label: 'Lunch', state: 'empty', windowMin: [690, 870], windowLabel: '11:30-14:30', segment: { index: 0, purpose: 'meal', label: 'Lunch', targetKm: 100, minKm: 80, maxKm: 130, kmFromPrev: 100, minutesFromPrev: 120, hint: '' }, filledStop: null, auto: false, drift: null, urgencyMin: 10, candidates: [], ref: null, reason: null },
       0,
       { detourMinFor: () => 24, days: [], dayForKm: () => null, travelStyle: 'balanced', added: () => false, dismissed: () => false, heldBack: new Set<string>() },
     )

@@ -44,7 +44,7 @@ vi.mock('../src/lib/supabase', () => {
     builder.maybeSingle = () => builder
     builder.single = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => resolve({ data: state.tables[table] ?? [], error: null })).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => resolve({ data: state.tables[table] ?? [], error: null })).then(res)
     return builder
   }
   const chain: Record<string, unknown> = { on: () => chain, subscribe: () => ({}) }
@@ -74,7 +74,7 @@ import { parseCapacityL, parseVehicleEconomy } from '../src/lib/vehicleProfile'
 import { reconcileDays } from '../src/store/store'
 import { pruneHaltKeys, isHaltCacheFresh } from '../src/hooks/useSuggestionCache'
 
-const stop = (id: string): ItineraryStop => ({ id, index: 0, title: 'A stop', orderInDay: 0 } as ItineraryStop)
+const stop = (id: string): ItineraryStop => ({ id, title: 'A stop', orderInDay: 0 } as ItineraryStop)
 
 /** A four-day trip, budget + party set, empty grid by default. */
 function trip4(fill: 'none' | 'tail-stops' = 'none'): Trip {
@@ -361,7 +361,8 @@ describe('#413 — the dirty compare is over the saved field set, by value', () 
 
   it('a null stored coord and an undefined patch coord are the same "not set"', () => {
     const trip = trip4()
-    trip.startLocationCoords = null
+    // A row stored before the column existed carries a SQL NULL here.
+    trip.startLocationCoords = null as unknown as Trip['startLocationCoords']
     const run = settingsDryRun(formFromTrip(trip), routeOf(trip), null, trip)
     if (!run.ok) throw new Error('dry run should pass')
     expect(run.patch.startLocationCoords).toBeUndefined()

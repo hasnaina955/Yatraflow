@@ -133,7 +133,7 @@ describe('W4-B map and rail', () => {
   })
 
   it('guards the source: no absolute rail card and no second budget card', () => {
-    const css = read('../src/styles.css')
+    const css = read('../src/styles/components/map-v2-rail.css')
     expect(css).toContain('.mv2-itinerary .mv2-lens-rail-card {\n  position: static;')
     const extras = read('../src/pages/trip/map/LensRailExtras.tsx')
     expect(extras).not.toContain('The detour budget for this day is unknown')

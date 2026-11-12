@@ -13,11 +13,11 @@ import { planInputsHash } from '../src/hooks/useSuggestionCache'
 import { transportPolicy } from '../src/lib/transportPolicy'
 
 /** Enough input for the segment planner to reach its drive-day split. */
-const SEGS = {
+const SEGS: { totalKm: number; driveMinutes: number; dayStartTimes: string[] } = {
   totalKm: 1800,
   driveMinutes: 1800,
   dayStartTimes: ['08:30'],
-} as const
+}
 
 describe('the wheel answer reaches the segment planner', () => {
   it('plans a Mixed trip as driving until it is answered', () => {
@@ -90,10 +90,13 @@ describe('a passenger trip never gets a fuel or charge halt', () => {
   // a bus trip still produced charge segments, because the charge flag was
   // never gated by the wheel. These call the REAL segment planner with the same
   // inputs the Map tab passes, and assert the stops it returns.
-  const CHARGE_TRIP = {
+  const CHARGE_TRIP: {
+    totalKm: number; driveMinutes: number; dayStartTimes: string[]
+    multiDay: boolean; includeCharge: boolean; vehicleRangeKm: number
+  } = {
     totalKm: 1000, driveMinutes: 1200, dayStartTimes: ['08:30'],
     multiDay: true, includeCharge: true, vehicleRangeKm: 300,
-  } as const
+  }
 
   // A charge stop can fold into a meal or an overnight ("Meal + charge"), so
   // the observable is the Charge wording the traveller sees, not the purpose.
@@ -126,7 +129,7 @@ describe('a passenger trip never gets a fuel or charge halt', () => {
 describe('the map cache key separates all three answers', () => {
   const base = {
     anchorsHash: 'a', routeHash: 'r', travelStyle: 'balanced',
-    transportMode: 'mixed', scopeKm: 50, travellers: 2,
+    transportMode: 'mixed', scopeKm: 50, travellers: 2, budgetPerPersonInr: 0,
   }
   const key = (drivesPart?: boolean) =>
     planInputsHash({ ...base, drivesPart })

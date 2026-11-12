@@ -111,7 +111,7 @@ describe('W7 left rail', () => {
     expect(chrome).toContain('mv2-lens-budget')
     expect(chrome).toContain('mv2-lens-fix-reason')
     expect(chrome).toContain('mv2-lens-window-time')
-    const css = read('../src/styles.css')
+    const css = read('../src/styles/components/map-v2-rail.css')
     expect(css).toContain('.mv2-lens-budget .mv2-budget-progress { grid-column: 1 / -1;')
   })
 })

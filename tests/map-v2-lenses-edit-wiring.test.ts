@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 const read = (p: string) => readFileSync(p, 'utf8').replace(/\r\n/g, '\n')
 const hook = read('src/pages/trip/map/useMapEdit.ts')
 const page = read('src/pages/trip/MapTab.tsx')
-const css = read('src/styles.css')
+const css = read('src/styles/components/map-v2-rail.css')
 
 describe('edit wiring', () => {
   it('holds the session in the editing reducer and previews before it writes', () => {

@@ -458,7 +458,7 @@ describe('F5 the direct add rides the shared stage/verify/undo pipeline', () => 
     expect(saved.stops.map(s => s.id)).toEqual([START.id, LUNCH_A.id, result.planned[0].plan.stop.id, END.id])
     const completion = h.completions.at(-1)!
     expect(completion.placed).toHaveLength(1)
-    let admitted: { patch: Trip } | null = null
+    let admitted: { patch: Trip } | null = null as { patch: Trip } | null
     const outcome = await guardedUndo(
       {
         currentTrip: h.current,

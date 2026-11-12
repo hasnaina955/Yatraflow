@@ -74,7 +74,7 @@ describe('a fresh PostgREST builder can carry a captured bearer', () => {
 
     // Caller capture, before the request exists.
     const capture = await client.auth.getSession()
-    expect(capture.data.session.access_token).toBe('synthetic-A')
+    expect(capture.data.session!.access_token).toBe('synthetic-A')
 
     // Start consumption. The SDK now awaits its own token lookup.
     const consumed = Promise.resolve(client.rpc('join_trip', { p_code: 'SYNTHETIC' }))
@@ -96,7 +96,7 @@ describe('a fresh PostgREST builder can carry a captured bearer', () => {
     const client = syntheticClient(requests, parkedLookup(entered, release))
 
     const capture = await client.auth.getSession()
-    const pinned = capture.data.session.access_token
+    const pinned = capture.data.session!.access_token
 
     const consumed = Promise.resolve(
       client.rpc('join_trip', { p_code: 'SYNTHETIC' }).setHeader('Authorization', `Bearer ${pinned}`),
@@ -116,7 +116,7 @@ describe('a fresh PostgREST builder can carry a captured bearer', () => {
     const client = syntheticClient(requests, parkedLookup(entered, release))
 
     const capture = await client.auth.getSession()
-    const pinned = capture.data.session.access_token
+    const pinned = capture.data.session!.access_token
 
     const first = Promise.resolve(
       client.rpc('join_trip', { p_code: 'FIRST' }).setHeader('Authorization', `Bearer ${pinned}`),

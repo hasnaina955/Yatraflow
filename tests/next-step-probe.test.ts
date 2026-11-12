@@ -81,6 +81,16 @@ describe('readAccessState — the access state comes from the shape (#652)', () 
     expect(readAccessState(pub(199), trip([[realStop], [lockedStop]]))).toBe('partly-locked')
   })
 
+  it('reads the day flag of the newer function before any other signal (#774)', () => {
+    // The newer function sends a withheld day with the flag and with no stop.
+    const withheldDay = { index: 1, locked: true, stops: [], lockedPreview: { stopCount: 2, categories: { food: 2 } } }
+    const openDay = { index: 0, stops: [realStop] }
+    expect(readAccessState(pub(199), { days: [openDay, withheldDay], expenses: [], fixed_commitments: [] })).toBe('partly-locked')
+    expect(readAccessState(pub(199), { days: [withheldDay], expenses: [], fixed_commitments: [] })).toBe('locked')
+    // Only the boolean is the flag. Any other value is not a withheld day.
+    expect(readAccessState(pub(null), { days: [{ index: 0, locked: 'true', stops: [realStop] }] })).toBe('whole')
+  })
+
   it('uses the money strip only when the price is set and no stop proves it', () => {
     // Priced, no stops to stamp, both money fields stripped → locked preview.
     expect(readAccessState(pub(199), { days: [], expenses: [], fixed_commitments: [] })).toBe('locked')

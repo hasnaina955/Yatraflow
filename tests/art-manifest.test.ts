@@ -141,7 +141,9 @@ describe('art size budget', () => {
   })
 })
 
-describe('art file headers', () => {
+// Each case reads every art file from disk. That can pass the 5 s default
+// when the full suite runs in parallel. The assertions do not change.
+describe('art file headers', { timeout: 30_000 }, () => {
   it('has AVIF files whose ispe width matches the file name and whose height matches the ratio', () => {
     for (const expected of expectedFiles().filter(file => file.format === 'avif')) {
       const dimensions = avifDimensions(readFileBuffer(expected.name))

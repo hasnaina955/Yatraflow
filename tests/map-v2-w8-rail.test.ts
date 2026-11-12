@@ -147,13 +147,13 @@ describe('W8 rail top and stay rail', () => {
   it('keeps the window time in a fixed, unbroken column', () => {
     const html = rail({ windowRow: { label: 'Free evening', startMin: 1020, endMin: 1200 }, clock })
     expect(html).toContain('class="mv2-lens-window-time">17:00</time>')
-    const css = read('../src/styles.css')
+    const css = read('../src/styles/components/map-v2-rail.css')
     expect(css).toContain('.mv2-lens-window-time {\n  white-space: nowrap; text-align: right;')
     expect(css).toContain('font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);')
   })
 
   it('renders the stay rail card with its title, both rings and the note', () => {
-    const html = renderToStaticMarkup(createElement(LensRailExtras, { lens: 'stay', ringId: 'walk', onRing: noop }))
+    const html = renderToStaticMarkup(createElement(LensRailExtras, { lens: 'stay', ringId: 'walk-15', onRing: noop }))
     expect(html).toContain('How far from the base')
     expect(html).toContain('aria-label="Reach from the base"')
     expect(html.match(/mv2-lens-rail-ring-btn/g)).toHaveLength(2)
@@ -161,11 +161,11 @@ describe('W8 rail top and stay rail', () => {
   })
 
   it('renders no rail card outside the stay lens', () => {
-    expect(renderToStaticMarkup(createElement(LensRailExtras, { lens: 'drive', ringId: 'walk', onRing: noop }))).toBe('')
+    expect(renderToStaticMarkup(createElement(LensRailExtras, { lens: 'drive', ringId: 'walk-15', onRing: noop }))).toBe('')
   })
 
   it('guards the CSS: the boards card, track and window row values', () => {
-    const css = read('../src/styles.css')
+    const css = read('../src/styles/components/map-v2-rail.css')
     expect(css).toContain('.mv2-budget.mv2-lens-budget {\n  display: grid; grid-template-columns: minmax(0, 1fr) auto;')
     expect(css).toContain('padding: 10px var(--space-5); border-radius: 14px;')
     expect(css).toContain('--mv2-rail-sunken: #F4F1EA;')

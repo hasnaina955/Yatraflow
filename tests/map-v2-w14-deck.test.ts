@@ -19,6 +19,7 @@ function ready(over: Partial<ReadyAddPreview> = {}): ReadyAddPreview {
     dayIndex: 0,
     stopId: 'farm',
     insertion: { index: 2, order: 3, total: 5, afterTitle: 'Lunch · Nalla Ruchi Kitchen', beforeTitle: 'Check in · Spice Village' },
+    orderChanged: false,
     road: { legIn: null, legOut: null, replaced: null },
     newStop: { arrive: '13:20', depart: '14:05' },
     keptClocks: [],

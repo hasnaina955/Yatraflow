@@ -5,7 +5,7 @@
 // the pixels.
 import { describe, it, expect } from 'vitest'
 import {
-  STEP_PARAM, isCreateStep, stepFromQuery, stepHref, previousStep, nextStep,
+  isCreateStep, stepFromQuery, stepHref, previousStep, nextStep,
 } from '../src/lib/createStepUrl'
 import { CREATE_STEPS } from '../src/lib/createSteps'
 
@@ -127,11 +127,5 @@ describe('isCreateStep', () => {
     for (const bad of ['', 'Where', 'packing', null, undefined, 3, {}]) {
       expect(isCreateStep(bad)).toBe(false)
     }
-  })
-})
-
-describe('the parameter name', () => {
-  it('is short, because it rides in every create URL', () => {
-    expect(STEP_PARAM).toBe('step')
   })
 })

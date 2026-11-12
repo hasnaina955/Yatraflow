@@ -372,6 +372,7 @@ describe('scoreHitForSegment journey seam with visitDates', () => {
     kmFromPrev: 0,
     minutesFromPrev: 0,
     etaMinutes: hm('17:00'),
+    hint: '',
   }
   const anchors = [{ lat: 10.0, lng: 76.0 }]
 

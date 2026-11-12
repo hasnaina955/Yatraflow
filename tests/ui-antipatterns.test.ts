@@ -4,7 +4,7 @@
 // violation AND stays silent on the shapes this repo deliberately uses, since
 // a gate that cries wolf on correct code stops being run.
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readCssSource } from '../scripts/css-source-graph.mjs'
 import { check, RULES, MAP_TARGET_FLOOR_CLASSES, isFloorSelector } from '../scripts/uiAntipatterns.mjs'
 
 const cleanCss = `
@@ -156,7 +156,7 @@ describe('ui anti-pattern gate', () => {
   })
 
   describe('U4 floor-presence contract (the shared rules must exist)', () => {
-    const live = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+    const live = readCssSource('src/styles.css')
 
     it('carries the 44px floor on the shared control rule itself', () => {
       const f = check({ 'src/styles.css': live })

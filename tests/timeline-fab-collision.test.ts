@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const root = new URL('../src/', import.meta.url)
-const entry = readFileSync(new URL('styles.css', root), 'utf8')
+const entry = readFileSync(new URL('styles/components/map-v2-rail.css', root), 'utf8')
 const legacy = readFileSync(new URL('styles/legacy/02-select-and-print.css', root), 'utf8')
 
 describe('phone timeline fold control vs floating Add', () => {

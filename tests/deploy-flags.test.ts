@@ -25,7 +25,7 @@ const QUOTED = /'([^']+)'/g
  *  phase cannot be added without the other two lists noticing. */
 function phasesInSrc(): string[] {
   const dir = new URL('../src/', import.meta.url)
-  const files = readdirSync(dir, { recursive: true }).filter(f => /\.tsx?$/.test(f))
+  const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter(f => /\.tsx?$/.test(f))
   const found = new Set<string>()
   for (const f of files) {
     for (const m of codeOf(readFileSync(new URL(f, dir), 'utf8')).matchAll(PHASE_CALL)) found.add(m[1])

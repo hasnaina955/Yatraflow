@@ -410,8 +410,7 @@
       "configClasses": [],
       "variables": [],
       "files": [
-        "src/styles/components/map-v2-rail.css",
-        "src/styles.css"
+        "src/styles/components/map-v2-rail.css"
       ]
     }
   ],

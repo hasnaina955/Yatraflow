@@ -60,9 +60,9 @@ describe('visit dates come from the trip calendar, never from today', () => {
 
   it('one date per segment, and a day closes on its overnight segment', () => {
     const segments = segmentsFromPlan([
-      { id: 's', km: 100, purpose: 'stretch' },
-      { id: 'o', km: 400, purpose: 'overnight' },
-      { id: 'm', km: 500, purpose: 'meal' },
+      { km: 100, minutes: 0, purpose: 'stretch' },
+      { km: 400, minutes: 0, purpose: 'overnight' },
+      { km: 500, minutes: 0, purpose: 'meal' },
     ], 600, 500)
     const dates = visitDatesForPlan(segments, '2026-11-05')
     const overnight = segments.findIndex(s => s.dayEnd)
@@ -180,7 +180,9 @@ describe('card display names the relevant interval, not the first legacy period'
   })
 
   it('structured hours never fall back to the legacy first period', () => {
-    const shown = hoursDisplayFor({ category: 'temple', openTime: '05:00', closeTime: '12:00', hours: splitTemple() }, { date: '2026-11-08', arrivalMin: null })
+    // A variable keeps the legacy pair out of the type. The test proves the code ignores it.
+    const legacyAndStructured = { category: 'temple', openTime: '05:00', closeTime: '12:00', hours: splitTemple() }
+    const shown = hoursDisplayFor(legacyAndStructured, { date: '2026-11-08', arrivalMin: null })
     expect(shown.ranges).toEqual([{ open: '05:00', close: '12:00' }, { open: '16:00', close: '20:00' }])
   })
 })

@@ -14,7 +14,7 @@ import {
   acknowledgedReceiptOf, cacheHoldsProposal, composeOperations, discardOperations, isAcknowledgement, keepIsStale, keepOutcomeOf, markAttempted, markUnadmitted, notifyUncertain, previewBase,
   runOperations, runStoreDiscarded, stagedChange, withUncertainty, withoutOperations,
 } from '../src/lib/previewChain'
-import type { Trip } from '../src/data/types'
+import type { ItineraryStop, Trip } from '../src/data/types'
 
 function trip(): Trip {
   return {
@@ -34,7 +34,7 @@ function trip(): Trip {
   }
 }
 
-const stop = (id: string, title: string) => ({
+const stop = (id: string, title: string): ItineraryStop => ({
   id, title, category: 'food', locationName: title, lat: 9.5, lng: 76.3,
   visitMinutes: 45, entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
   priority: 'nice-to-have', status: 'suggested', orderInDay: 2,

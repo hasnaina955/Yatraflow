@@ -98,7 +98,7 @@ describe('previewAdd: the proposed journey', () => {
     }
     expect(result.dayEnd.from).toMatch(/^\d\d:\d\d$/)
     expect(result.dayEnd.to).toMatch(/^\d\d:\d\d$/)
-    expect(result.clocks.some(c => c.deltaMin > 0)).toBe(true)
+    expect(result.clocks.some(c => (c.deltaMin ?? 0) > 0)).toBe(true)
   })
 
   it('uses the existing impact engine: net added minutes equal the impact time delta', () => {
@@ -194,7 +194,7 @@ describe('edit session: success needs the writer’s acknowledgement', () => {
   if (ready.kind !== 'ready') throw new Error('expected ready')
   const receipt = { kind: 'acknowledged', revision: 'r1', writeVersion: 3 } as const
 
-  function previewing(): EditSession {
+  function previewing() {
     return editSessionReducer(IDLE_SESSION, { type: 'preview', preview: ready })
   }
 

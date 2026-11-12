@@ -54,6 +54,7 @@ describe('googleRoute', () => {
       }],
     }), { status: 200 })))
     const r = await googleRoute(A, B, 'car')
+    if (!('km' in r)) throw new Error('expected a single-leg route result')
     expect(r.km).toBeCloseTo(14.2)
     expect(r.min).toBeCloseTo(1245 / 60)
     expect(r.coords.length).toBe(3)

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { scopeBandPlacement } from '../src/pages/trip/map/MapScopeBand'
 
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8')
 const tab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
 
 /** The 911-W9-phone block, from its comment to the next comment. */

@@ -15,7 +15,7 @@ import type { Journey } from '../src/lib/engine'
 
 const noop = () => undefined
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-const css = read('../src/styles.css')
+const css = read('../src/styles/components/map-v2-rail.css')
 const tokens = read('../src/styles/tokens.css')
 
 /** One CSS rule body. The selector must be unique in the file. */

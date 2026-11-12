@@ -111,6 +111,6 @@ describe('photos at display time', () => {
   it('never falls back to another photo source when a key is set', () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
     const { photos: _photos, ...noPhotos } = withPhotos
-    expect(cardPhotoRefs(noPhotos)).toEqual([])
+    expect(cardPhotoRefs({ ...noPhotos, photos: undefined })).toEqual([])
   })
 })

@@ -68,7 +68,3 @@
 
 /* The card's hover nudge on the next-stop chevron. Kept with the deferred set
    because no source file renders `.trip-next-chevron` inside a card. */
-.itin-card:hover .trip-next-chevron { transform: translateX(2px); }
-@media (prefers-reduced-motion: reduce) {
-  .itin-card:hover .trip-next-chevron { transform: none; }
-}

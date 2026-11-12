@@ -79,7 +79,7 @@ describe('#401 — tone follows the severest warning present', () => {
     for (const sev of ['high', 'medium', 'low'] as const) {
       expect(severityLead(sev)).toMatch(/severity:/i)
     }
-    expect(new Set(['high', 'medium', 'low'].map(severityLead)).size).toBe(3)
+    expect(new Set((['high', 'medium', 'low'] as const).map(severityLead)).size).toBe(3)
   })
 })
 

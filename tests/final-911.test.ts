@@ -15,7 +15,7 @@ describe('LensPhaseNote', () => {
   const phases = ['unscanned', 'scanning', 'failed', 'quota', 'empty'] as const
 
   it('draws every phase with its own marker, and keeps the text in the inner paragraph', () => {
-    const markup = phases.map(phase => renderToStaticMarkup(createElement(LensPhaseNote, { phase }, `text ${phase}`)))
+    const markup = phases.map(phase => renderToStaticMarkup(createElement(LensPhaseNote, { phase, children: `text ${phase}` })))
     for (const [index, html] of markup.entries()) {
       expect(html).toContain(`data-phase="${phases[index]}"`)
       expect(html).toContain(`<p class="mv2-lens-phase" data-phase="${phases[index]}">text ${phases[index]}</p>`)
@@ -28,7 +28,7 @@ describe('LensPhaseNote', () => {
   })
 
   it('tints a failed note apart from an empty note', () => {
-    const css = read('src/styles.css')
+    const css = read('src/styles/components/map-v2-rail.css')
     expect(css).toMatch(/\.mv2-lens-phase-note\[data-phase='failed'\] \{[^}]*--pw-risk/)
     expect(css).toMatch(/\.mv2-lens-phase-note\[data-phase='empty'\] \{[^}]*dashed/)
   })
@@ -51,7 +51,7 @@ describe('the Fix tag spot', () => {
   })
 
   it('anchors the tag to the stop edge in CSS and uses a token for the badge ground', () => {
-    const css = read('src/styles.css')
+    const css = read('src/styles/components/map-v2-rail.css')
     expect(read('src/components/map/mapMarks.css')).toMatch(/\.mv2-pin-anchor > \.mv2-stop-tag--fix \{[^}]*right: calc\(100% \+ 8px\)/)
     expect(css).toMatch(/\.mv2-stop-warn \{[^}]*background: var\(--pw-risk\)/)
     expect(css).not.toMatch(/\.mv2-stop-warn \{[^}]*#[0-9A-Fa-f]{3,6}/)
@@ -111,10 +111,11 @@ describe('the fixture provider modes', () => {
 })
 
 describe('failed lens note retry', () => {
-  type Node = { type?: unknown; props?: { className?: string; onClick?: () => void; children?: unknown } } | string | null | false | undefined
+  type El = { type?: unknown; props?: { className?: string; onClick?: () => void; children?: unknown } }
+  type Node = El | string | null | false | undefined
   const find = (node: unknown, className: string): Node => {
     if (node == null || typeof node !== 'object') return null
-    const el = node as NonNullable<Exclude<Node, string>>
+    const el = node as El
     if (el.props?.className === className) return el
     const kids = el.props?.children
     for (const kid of Array.isArray(kids) ? kids : [kids]) {
@@ -134,7 +135,7 @@ describe('failed lens note retry', () => {
   })
 
   it('draws the Retry button only for a failed note that has a retry', () => {
-    const withRetry = (phase: (typeof phasesAll)[number], retry?: () => void) => renderToStaticMarkup(createElement(LensPhaseNote, { phase, onRetry: retry }, 'text'))
+    const withRetry = (phase: (typeof phasesAll)[number], retry?: () => void) => renderToStaticMarkup(createElement(LensPhaseNote, { phase, onRetry: retry, children: 'text' }))
     const phasesAll = ['unscanned', 'scanning', 'failed', 'quota', 'empty'] as const
     expect(withRetry('failed', () => {})).toContain('mv2-lens-retry')
     expect(withRetry('failed')).not.toContain('mv2-lens-retry')

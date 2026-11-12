@@ -81,7 +81,7 @@ describe('W10 phone full screen', () => {
   })
 
   it('hides the trip header and gives the map the viewport in the phone query', () => {
-    const css = read('src', 'styles.css')
+    const css = read('src', 'styles', 'components', 'map-v2-rail.css')
     expect(css).toMatch(/@media \(max-width: 760px\) \{[\s\S]*\.yf-workspace\[data-map-fullscreen='true'\] \.yf-page \{ display: none; \}/)
     expect(css).toMatch(/\.yf-workspace\[data-map-fullscreen='true'\] \.mv2-workspace \{ height: 100dvh;/)
   })
@@ -93,7 +93,7 @@ describe('W10 phone full screen', () => {
     const deck = mapTab.indexOf('<MapLensPanel', see)
     const settings = mapTab.indexOf('{phoneSheet && <div className="mv2-sheet-settings">', see)
     expect(settings).toBeGreaterThan(deck)
-    const css = read('src', 'styles.css')
+    const css = read('src', 'styles', 'components', 'map-v2-rail.css')
     expect(css).toMatch(/\.mv2-sheet-settings \.mv2-tools > summary \{[^}]*border: 0;[^}]*background: transparent;/)
   })
 
@@ -110,7 +110,7 @@ describe('W10 phone full screen', () => {
   })
 
   it('makes the phone ribbon an inset card and the peek a titled row', () => {
-    const css = read('src', 'styles.css')
+    const css = read('src', 'styles', 'components', 'map-v2-rail.css')
     expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon[^{]*\{[^}]*border-radius: var\(--radius-sm\)/)
     expect(css).toContain('.mv2-workspace .mv2-detail > .mv2-ribbon-sheet')
     expect(css).toContain('.mv2-peek-eyebrow')

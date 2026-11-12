@@ -68,7 +68,6 @@ export const SPEC_RULE_IDS = [
   'PUBLICATION_MIRRORS_TRIP', // durationDays/budget/travelStyle agree with the trip
   'REFERENCES_INTACT',     // expense.stopId / dayIndex point at something real
 ] as const
-export type SpecRuleId = (typeof SPEC_RULE_IDS)[number]
 
 // ---------------- key allowlists ----------------
 // A key outside these lists is ignored by every consumer, so an author who sets

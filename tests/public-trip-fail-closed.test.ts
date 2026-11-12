@@ -140,8 +140,12 @@ describe('every redefinition keeps what the previous three fixes added', () => {
     expect(fn, '#351 (whole-row select) came back').not.toMatch(/select\s+\*\s+into v_trip/i)
     expect(fn, '#352 (money) was dropped').toMatch(/v_trip\.fixed_commitments := '\[\]'::jsonb/)
     expect(fn, '#353 (free-day guard) was dropped').toMatch(/jsonb_typeof\(v_pub\.free_day_indexes\) = 'array'/)
-    // And the paywall the whole file exists for.
-    expect(fn).toMatch(/Locked — the full plan is on the original itinerary/)
+    // And the paywall the whole file exists for. Since #774 the function
+    // builds each locked day itself. The earlier body edited each stored stop
+    // in place, which kept its title and its coordinates in the response.
+    expect(fn, '#774 (locked day built from counts) was dropped').toMatch(/'locked', true/)
+    expect(fn, '#774 (stored stop rows came back)').not.toMatch(/jsonb_set\(v_stop/)
+    expect(fn, '#774 (stored day came back)').not.toMatch(/jsonb_set\(v_day/)
   })
 
   it('keeps the anon grant on the latest function definition', () => {

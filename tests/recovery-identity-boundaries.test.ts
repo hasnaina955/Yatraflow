@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import type { QueuedWrite, WriteQueueStore } from '../src/lib/writeQueue'
 import type { TripRow } from '../src/lib/tripRow'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 type Row = Record<string, unknown>
 type Operation = { table: string; method: string; actor: string | null; filters: Record<string, unknown>; payload?: Row }
+
+type Change = RealtimePostgresChangesPayload<Record<string, unknown>>
+/** A wire payload needs its envelope fields; the dispatcher reads only eventType, new and old. */
+const change = (payload: Omit<Change, 'schema' | 'table' | 'commit_timestamp' | 'errors'>): Change =>
+  ({ schema: 'public', table: 'trips', commit_timestamp: '2026-11-12T00:00:00.000Z', errors: [], ...payload })
 
 const { state } = vi.hoisted(() => ({ state: {
   actor: 'A' as string | null,
@@ -145,9 +151,9 @@ vi.mock('../src/lib/supabase', () => {
           }
           if (method !== 'select') return { data: null, error: null }
           const optional = table === 'trips' && selection !== '*' && !('id' in filters)
-          const allowedIds = state.members.filter(m => m.user_id === actor).map(m => m.trip_id)
-          let rows: Row[] = table === 'trips' ? [...state.rows.values()].filter(r => allowedIds.includes(r.id) && !state.hiddenTrips.has(r.id))
-            : table === 'trip_members' ? state.members.filter(r => allowedIds.includes(r.trip_id)) : []
+          const allowedIds = state.members.filter(m => m.user_id === actor).map(m => String(m.trip_id))
+          let rows: Row[] = table === 'trips' ? [...state.rows.values()].filter(r => allowedIds.includes(String(r.id)) && !state.hiddenTrips.has(String(r.id)))
+            : table === 'trip_members' ? state.members.filter(r => allowedIds.includes(String(r.trip_id))) : []
           rows = rows.filter(row => Object.entries(filters).every(([key, value]) =>
             Array.isArray(value) ? value.includes(row[key]) : row[key] === value))
           const copy = structuredClone(rows)
@@ -200,7 +206,7 @@ function row(id = 'shared', owner = 'A'): TripRow {
     id, owner_id: owner, name: 'Original plan', start_location: 'Kochi', start_location_coords: null,
     destinations: ['Kochi'], destination_coords: null, start_date: '2026-10-01', end_date: '2026-10-01',
     travellers: 2, transport_mode: 'car', budget_per_person_inr: 5000, travel_style: 'balanced',
-    fixed_commitments: [], days: [{ index: 0, stops: [
+    fixed_commitments: [], days: [{ id: 'd0', index: 0, stops: [
       { id: 'keep', title: 'Fort', category: 'sightseeing', locationName: 'Fort', lat: 10, lng: 76,
         visitMinutes: 30, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0 },
       { id: 'delete', title: 'Museum', category: 'sightseeing', locationName: 'Museum', lat: 10, lng: 76,
@@ -265,10 +271,10 @@ describe('independent exact-SHA recovery probes', () => {
     await capture(store, 'PRIVATE LOCAL OVERLAY');
     const member = { trip_id: 'shared', user_id: 'A', role: 'viewer', joined_at: 1 };
     state.members = state.members.map(m => m.user_id === 'A' ? member : m);
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'UPDATE', new: member, old: {} });
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'UPDATE', new: member, old: {} }));
     await flush();
     expect((await pending())[0]).toMatchObject({ reason: 'access-revoked' });
-    expect(store.getSnapshot().trips[0].members.find(m => m.userId === 'A').role).toBe('viewer');
+    expect(store.getSnapshot().trips[0]!.members!.find(m => m.userId === 'A')!.role).toBe('viewer');
     expect(store.getSnapshot().trips[0].name).toBe('Original plan');
   });
   it('a later grant and hydrate must not overlay a revoked copy', async () => {
@@ -293,7 +299,7 @@ describe('independent exact-SHA recovery probes', () => {
     state.readGate = hold.promise;
     const discard = store.resolveQueuedTripWrite('shared', 'discard');
     await flush();
-    store._applyRealtimeEventForTest('trips', { eventType: 'DELETE', new: {}, old: { id: 'shared' } });
+    store._applyRealtimeEventForTest('trips', change({ eventType: 'DELETE', new: {}, old: { id: 'shared' } }));
     await flush();
     expect(store.getSnapshot().trips).toEqual([]);
     hold.release();
@@ -319,7 +325,7 @@ describe('independent exact-SHA recovery probes', () => {
     hold.release();
     await flush();
     state.actor = 'B';
-    state.authHandler('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
+    state.authHandler!('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
     await flush();
     expect(store.getSnapshot().sessionUserId).toBe('B');
     queue.release();
@@ -340,7 +346,7 @@ describe('independent exact-SHA recovery probes', () => {
     const replay = store.replayQueuedWrites();
     await flush();
     state.actor = 'B';
-    state.authHandler('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
+    state.authHandler!('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
     await flush();
     expect(store.getSnapshot().sessionUserId).toBe('B');
     // The shared plan is published by a read that waits for the sign-out
@@ -621,15 +627,15 @@ describe('recovery identity regressions', () => {
     // The trip is readable again for B.
     state.hiddenTrips.delete('shared');
     state.actor = 'B';
-    state.authHandler('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
+    state.authHandler!('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
     await flush();
     expect(store.getSnapshot().sessionUserId).toBe('B');
     // The sign-out cleanup waits for the storage write below, so B's read
     // cannot publish the shared plan yet, and the delayed invalidation would
     // find an empty list. A realtime row puts B's plan on screen now, so the
     // invalidation has a plan to remove.
-    store._applyRealtimeEventForTest('trips', { eventType: 'UPDATE',
-      new: { ...state.rows.get('shared') }, old: {} });
+    store._applyRealtimeEventForTest('trips', change({ eventType: 'UPDATE',
+      new: { ...state.rows.get('shared') }, old: {} }));
     await flush();
     expect(store.getSnapshot().trips.map(t => t.id)).toEqual(['shared']);
     watching = true;

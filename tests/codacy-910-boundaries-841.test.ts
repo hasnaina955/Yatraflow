@@ -20,24 +20,24 @@ const baseStop = (over: Partial<ItineraryStop> = {}): ItineraryStop => ({
 } as ItineraryStop)
 
 function makeTrip(): Trip {
+  const stops: ItineraryStop[] = [
+    { id: 'st-start', title: 'Start', category: 'travel', locationName: 'Start', lat: 10.0, lng: 76.0,
+      visitMinutes: 0, orderInDay: 1, status: 'confirmed',
+      entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do' },
+    { id: 'st-stay', title: 'Stay', category: 'hotel', locationName: 'Stay', lat: 10.5, lng: 76.5,
+      visitMinutes: 0, orderInDay: 2, status: 'confirmed',
+      entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do' },
+  ]
   return {
     id: 't1', name: 'Trip', startLocation: 'Kochi', destinations: ['Munnar'],
     startDate: '2026-11-01', endDate: '2026-11-02', travellers: 2,
     transportMode: 'car', budgetPerPersonInr: 5000, travelStyle: 'balanced',
     fixedCommitments: [],
-    days: [{
-      id: 'd1', index: 0, date: '2026-11-01', label: 'Day 1',
-      stops: [
-        { id: 'st-start', title: 'Start', category: 'travel', locationName: 'Start', lat: 10.0, lng: 76.0,
-          visitMinutes: 0, orderInDay: 1, status: 'confirmed' },
-        { id: 'st-stay', title: 'Stay', category: 'hotel', locationName: 'Stay', lat: 10.5, lng: 76.5,
-          visitMinutes: 0, orderInDay: 2, status: 'confirmed' },
-      ],
-    }],
+    days: [{ id: 'd1', index: 0, stops }],
     expenses: [], members: [{ userId: 'owner', role: 'owner', joinedAt: 1 }],
     coverEmoji: '🧭', visibility: 'private', createdAt: 1, updatedAt: 1,
     writeVersion: 7, roundTrip: false,
-  } as Trip
+  }
 }
 
 describe('#910 safe field and index lookups', () => {

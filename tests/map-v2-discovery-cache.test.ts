@@ -41,7 +41,7 @@ const hit = { id: 'sight-a', name: 'Museum', latitude: 12.01, longitude: 77.01, 
 
 function input(dayIndex = 0): CorridorCacheArgs {
   return {
-    trip: { id: 'trip', days: [{ id: 'a', index: 0, stops: [] }, { id: 'b', index: 1, stops: [] }], travelStyle: 'balanced', transportMode: 'car', travellers: 2, budgetPerPersonInr: 1000 } as CorridorCacheArgs['trip'],
+    trip: { id: 'trip', days: [{ id: 'a', index: 0, stops: [] }, { id: 'b', index: 1, stops: [] }], travelStyle: 'balanced', transportMode: 'car', travellers: 2, budgetPerPersonInr: 1000 } as unknown as CorridorCacheArgs['trip'],
     discoveryDay: { dayIndex, routeGeometry: null, stayBase: { lat: 12 + dayIndex, lng: 77 }, purposes: ['sight'] },
     anchors: [{ lat: 25, lng: 80 }], routeGeometry: null, scopeKm: 10,
     dayRainPct: null, dayWeatherCode: null, crewSeeds: [], dnaTick: 0,
@@ -87,7 +87,7 @@ describe('day scan ownership and evidence', () => {
     expect(render(next).result.discoveryRows.map(row => row.hit?.id)).toEqual(['day-two'])
   })
 
-  it.each([new Error('network'), new QuotaExhaustedError('textSearch')])('retains same-context rows and their real timestamp after %s', async error => {
+  it.each([new Error('network'), new QuotaExhaustedError('textSearchPro')])('retains same-context rows and their real timestamp after %s', async error => {
     runtime.scan.mockResolvedValueOnce([hit]).mockRejectedValueOnce(error)
     const args = input()
     const cleanups = render(args).start()

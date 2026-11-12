@@ -20,7 +20,7 @@ const { server } = vi.hoisted(() => {
   const server = {
     currentUser: 'user-a' as string | null,
     /** When set, the next submissions answer with this raw response. */
-    failWith: null as { data?: unknown; error?: unknown } | null,
+    failWith: null as { data: unknown; error: unknown } | null,
     /** When true, submissions park in `held` until release() answers them. */
     hold: false,
     held: [] as Array<{ params: any; resolve: (v: any) => void }>,
@@ -255,7 +255,7 @@ vi.mock('../src/lib/supabase', () => {
 })
 
 import {
-  submitCollabCommand,
+  submitCollabCommand, type CollabOutcome,
 } from '../src/store/collabCommand'
 import {
   addCommentToSuggestion, voteSuggestion, addSuggestion, addDecision, voteOnDecision,
@@ -265,6 +265,10 @@ import { reportCollabOutcome } from '../src/lib/collabFeedback'
 import { toast } from '../src/components/ui'
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
+
+/** The receipt names the suggestion only on the two statuses that carry one. */
+const receiptSuggestion = (outcome: CollabOutcome) =>
+  outcome.status === 'applied' || outcome.status === 'alreadyApplied' ? outcome.suggestion : undefined
 
 const TRIP = 'trip-832'
 const SUG = '30000000-0000-4000-8000-000000000001'
@@ -334,7 +338,7 @@ describe('acceptance case 2 — a retry commits once; a failure commits nothing'
     expect(server.notifications).toHaveLength(1)
     // alreadyApplied re-reads the current row, so the retry still sees the
     // contribution it is replaying.
-    expect(second.suggestion?.comments[0]?.text).toBe('one copy only')
+    expect(receiptSuggestion(second)?.comments[0]?.text).toBe('one copy only')
   })
 
   it('a failed write creates nothing on the server and rolls the cache back', async () => {
@@ -537,8 +541,8 @@ describe('a receipt must keep the metadata the command promised (#839)', () => {
       },
     })
     expect(outcome.status).toBe('applied')
-    expect(outcome.suggestion?.dayId).toBe('day-1')
-    expect(outcome.suggestion?.place).toEqual(PLACE)
+    expect(receiptSuggestion(outcome)?.dayId).toBe('day-1')
+    expect(receiptSuggestion(outcome)?.place).toEqual(PLACE)
   })
 
   it('a create without metadata is applied with no receipt check at all', async () => {
@@ -555,7 +559,7 @@ describe('a receipt must keep the metadata the command promised (#839)', () => {
       },
     })
     expect(outcome.status).toBe('applied')
-    expect(outcome.suggestion?.place).toBeUndefined()
+    expect(receiptSuggestion(outcome)?.place).toBeUndefined()
   })
 
   it('the old RPC refusal never becomes a stripped retry', async () => {

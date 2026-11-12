@@ -25,7 +25,7 @@ vi.mock('../src/lib/supabase', () => {
     builder.in = () => builder
     builder.limit = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => { if (method) calls.push({ table, method }); resolve({ data: null, error: null }) }).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => { if (method) calls.push({ table, method }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {
@@ -47,8 +47,6 @@ function stopOf(trip: Trip, dayIndex: number, title: string): ItineraryStop {
   return day.stops.find(s => s.title === title)!
 }
 
-const LOCKED = 'Locked — the full plan is on the original itinerary.'
-
 describe('duplicateTripPublicPersisted premium stripping', () => {
   it('keeps free days fully intact and strips premium days to stubs', async () => {
     const copy = (await duplicateTripPublicPersisted(source, ownerId, [0])).trip
@@ -62,29 +60,38 @@ describe('duplicateTripPublicPersisted premium stripping', () => {
     expect(freeCopy.openTime).toBe(freeStop.openTime)
     expect(freeCopy.status).toBe(freeStop.status)
 
-    // Premium day (day 1): stub, not a copy.
-    const premiumSrc = stopOf(source, 1, source.days[1]!.stops[0]!.title)
-    const premiumCopy = stopOf(copy, 1, premiumSrc.title)
-    expect(premiumCopy.title).toBe(premiumSrc.title) // shape survives
-    expect(premiumCopy.priority).toBe(premiumSrc.priority)
-    expect(premiumCopy.description).toBe(LOCKED)
-    expect(premiumCopy.notes).toBe('')
-    expect(premiumCopy.entryFeeInrPerPerson).toBe(0)
-    expect(premiumCopy.transportCostInrTotal).toBe(0)
-    expect(premiumCopy.openTime).toBeUndefined()
-    expect(premiumCopy.closeTime).toBeUndefined()
-    expect(premiumCopy.status).toBe('confirmed')
-    expect(premiumCopy.visitMinutes).toBe(premiumSrc.visitMinutes) // untouched pass-through
+    // Premium day (day 1): an empty day, not a copy (#774). The earlier stub
+    // kept the stop title and its coordinates, so the fork carried them out.
+    const premiumDay = copy.days.find(d => d.index === 1)!
+    expect(premiumDay.stops).toEqual([])
+    expect(premiumDay.title).toBeUndefined()
+    const premiumSrc = source.days[1]!.stops[0]!
+    expect(JSON.stringify(premiumDay)).not.toContain(premiumSrc.title)
+    expect(JSON.stringify(copy.days.filter(d => d.index !== 0))).not.toContain(String(premiumSrc.lat))
   })
 
-  it('every stop of a premium day is stripped, free day count unchanged', async () => {
+  it('every premium day is empty, and the day count does not change', async () => {
     const copy = (await duplicateTripPublicPersisted(source, ownerId, [0])).trip
     const premiumDays = copy.days.filter(d => d.index !== 0)
     expect(premiumDays.length).toBe(source.days.length - 1)
     for (const d of premiumDays) {
-      expect(d.stops.length).toBe(source.days.find(x => x.index === d.index)!.stops.length)
-      for (const s of d.stops) expect(s.description).toBe(LOCKED)
+      expect(Object.keys(d).sort()).toEqual(['id', 'index', 'stops'])
+      expect(d.stops).toEqual([])
     }
+  })
+
+  it('a day the server locked is empty even when the free list names it', async () => {
+    const locked: Trip = {
+      ...source,
+      days: source.days.map(d => d.index === 0
+        ? { id: 'locked-day-0', index: 0, locked: true, stops: [], lockedPreview: { stopCount: 2, categories: { food: 2 } } }
+        : d),
+    }
+    const copy = (await duplicateTripPublicPersisted(locked, ownerId, source.days.map(d => d.index))).trip
+    const first = copy.days.find(d => d.index === 0)!
+    expect(Object.keys(first).sort()).toEqual(['id', 'index', 'stops'])
+    // No copied day carries the lock fields: they describe one viewer's read.
+    for (const d of copy.days) expect('locked' in d || 'lockedPreview' in d).toBe(false)
   })
 
   it('an all-free fork is a full copy of every day', async () => {
@@ -139,6 +146,6 @@ describe('duplicateTripPublicPersisted premium stripping', () => {
     expect(calls.some(c => c.table === 'trips' && c.method === 'insert')).toBe(true)
     expect(calls.some(c => c.table === 'trip_members' && c.method === 'insert')).toBe(true)
     // The cached copy is the stripped one — re-read it from the store.
-    expect(tripById(copy.id)!.days[1]!.stops[0]!.description).toBe(LOCKED)
+    expect(tripById(copy.id)!.days[1]!.stops).toEqual([])
   })
 })

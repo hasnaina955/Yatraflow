@@ -108,6 +108,7 @@ function makeDriveRow(
     reason: null,
     chips: [],
     state: 'live',
+    photos: [],
     ...overrides,
   }
 }

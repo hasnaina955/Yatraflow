@@ -55,6 +55,8 @@ export class UsageError extends Error {}
  * (deleted on the branch) is deliberately NOT selected — vitest must never
  * receive a missing file — and counts as a source change, so a delete cannot
  * slip through as an empty green either.
+ *
+ * @param {{ repoRoot?: string, base?: string, extras?: string[] }} [options]
  */
 export function selectChangedTests({ repoRoot: root = repoRoot, base, extras = [] } = {}) {
   const git = (args) => {

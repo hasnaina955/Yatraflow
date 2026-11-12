@@ -711,7 +711,7 @@ export function dedupeCandidates<T extends Pick<PlaceHit, 'latitude' | 'longitud
   return out
 }
 
-export interface PlannedStop {
+interface PlannedStop {
   lat: number
   lng: number
   name?: string

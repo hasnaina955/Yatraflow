@@ -209,9 +209,10 @@ describe('presenceFromSync × the installed SDK serializer — malformed joinedA
       bad: { metas: [{ phx_ref: 'bad-ref', userId: 'bad', name: 'Bad', joinedAt: hostileJoinedAt }] },
       good: { metas: [{ phx_ref: 'good-ref', userId: 'good', name: 'Good', joinedAt: 1 }] },
     })
-    // The serializer passes the malformed field through as-is.
     expect(Array.isArray(snapshot.bad)).toBe(true)
-    expect(snapshot.bad[0].joinedAt).toEqual({ toString: null, valueOf: null })
+    // The serializer passes the malformed field through as-is; the SDK's own
+    // record type does not model it, so read it through the test's own shape.
+    expect((snapshot.bad[0] as unknown as { joinedAt: unknown }).joinedAt).toEqual({ toString: null, valueOf: null })
     expect(presenceFromSync(snapshot).peers).toEqual([
       { sessionKey: 'bad', userId: 'bad', name: 'Bad', joinedAt: 0 },
       { sessionKey: 'good', userId: 'good', name: 'Good', joinedAt: 1 },

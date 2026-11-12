@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { MapScopeBand, phoneLensAriaLabel, scopeBandPlacement } from '../src/pages/trip/map/MapScopeBand'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const css = readFileSync(join(root, 'src', 'styles.css'), 'utf8').replace(/\r\n/g, '\n')
+const css = readFileSync(join(root, 'src', 'styles', 'components', 'map-v2-rail.css'), 'utf8').replace(/\r\n/g, '\n')
 const block = css.slice(css.indexOf('/* 911-W9-phone.'))
 const tab = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
 

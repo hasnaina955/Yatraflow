@@ -42,7 +42,7 @@ import {
   type WriterRetryTicket,
   type WriterPick,
 } from '../src/pages/trip/map/mapWriterActions'
-import { createWriterOperationGate } from '../src/pages/trip/map/writerOperationGate'
+import { createWriterOperationGate, type WriterCapturedPick } from '../src/pages/trip/map/writerOperationGate'
 import { useMapWriters } from '../src/pages/trip/map/useMapWriters'
 import { arcStageLine, retryArcAdd, stageArcAdd, type ArcPickPlan } from '../src/pages/trip/map/arcAdd'
 
@@ -482,7 +482,7 @@ describe('a retry never resumes settled, in-flight or forgotten work', () => {
       operationId: first.operationId,
       context: request.context,
       intent: 'single',
-      picks: (request.picks as readonly WriterPick[]).map(pick => ({
+      picks: (request.picks as readonly WriterPick[]).map((pick): WriterCapturedPick => ({
         hit: pick.hit,
         slotKey: pick.slotKey,
         dayId: pick.dayId ?? null,

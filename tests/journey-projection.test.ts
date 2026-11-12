@@ -233,7 +233,7 @@ describe('slot facts win in place', () => {
       driveRows: [{
         id: 'drive-merge', hit, lane: 'need', purpose: 'meal', segmentIndex: 0, dayIndex: 0,
         detourMin: 7, arriveMin: null, arriveLabel: null, budgetSharePct: null,
-        inWindow: null, reason: 'Drive reason', chips: [], state: 'live',
+        inWindow: null, reason: 'Drive reason', chips: [], state: 'live', photos: [],
       }],
       budgetMin: 45,
       editable: true,

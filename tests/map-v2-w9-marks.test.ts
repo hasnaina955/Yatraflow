@@ -11,7 +11,7 @@ import {
 
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const marksCss = read('../src/components/map/mapMarks.css')
-const stylesCss = read('../src/styles.css')
+const stylesCss = read('../src/styles/components/map-v2-rail.css')
 const map = read('../src/components/TripMap.tsx')
 const tab = read('../src/pages/trip/MapTab.tsx')
 

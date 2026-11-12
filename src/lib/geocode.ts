@@ -18,11 +18,10 @@
 // ("the app behaves exactly as today when the key is absent"). Google picks
 // resolve via one Place Details call instead of OSM Nominatim.
 export { DEBOUNCE_MS } from './providers/free'
-export { mapplsEnabled, parseOpeningHours, fetchOpeningHours, type OpeningHours } from './providers/free'
-export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourKm, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
-export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
+export { mapplsEnabled, fetchOpeningHours } from './providers/free'
+export { HOME_ZONE_KM, corridorAnchors, detourKm, asymmetricDetourKm, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
+export type { NearbyOpts, PlaceHit } from './providers/hits'
 export { googleEnabled } from './providers/google'
-export { googleSearchText, QuotaExhaustedError } from './providers/google'
 export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
 export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, deriveDrivingPlan, effectiveDrivingDays, drivingPlanFingerprint, anchorsForCrew, isSelfDrivenMode, rainFactorFor, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict, type DrivingPlan, type DrivingPlanDay, type DrivingPlanInput } from './ridePlan'

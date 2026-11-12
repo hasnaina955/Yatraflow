@@ -104,17 +104,17 @@ describe('terrain specs', () => {
     expect(TERRARIUM_DEM_SOURCE.encoding).toBe('terrarium')
     expect(TERRARIUM_DEM_SOURCE.tileSize).toBe(256)
     expect(TERRARIUM_DEM_SOURCE.maxzoom).toBe(14)
-    expect(TERRARIUM_DEM_SOURCE.tiles[0]).toContain('s3.amazonaws.com/elevation-tiles-prod/terrarium')
-    expect(TERRARIUM_DEM_SOURCE.tiles[0]).not.toMatch(/[?&]key=/)
+    expect(TERRARIUM_DEM_SOURCE.tiles![0]).toContain('s3.amazonaws.com/elevation-tiles-prod/terrarium')
+    expect(TERRARIUM_DEM_SOURCE.tiles![0]).not.toMatch(/[?&]key=/)
     expect(TERRARIUM_DEM_SOURCE.attribution).toContain('AWS Terrain Tiles')
   })
 
   it('hillshade paints from the same DEM source with the prototype values', () => {
     expect(HILLSHADE_LAYER.id).toBe(YF_HILLSHADE_LAYER_ID)
     expect(HILLSHADE_LAYER.source).toBe(YF_DEM_SOURCE_ID)
-    expect(HILLSHADE_LAYER.paint['hillshade-exaggeration']).toBe(0.6)
-    expect(HILLSHADE_LAYER.paint['hillshade-shadow-color']).toBe('#3E5560')
-    expect(HILLSHADE_LAYER.paint['hillshade-accent-color']).toBe('#3D6B70')
+    expect(HILLSHADE_LAYER.paint!['hillshade-exaggeration']).toBe(0.6)
+    expect(HILLSHADE_LAYER.paint!['hillshade-shadow-color']).toBe('#3E5560')
+    expect(HILLSHADE_LAYER.paint!['hillshade-accent-color']).toBe('#3D6B70')
   })
 })
 

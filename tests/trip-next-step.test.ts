@@ -13,7 +13,7 @@ function stop(patch: Partial<ItineraryStop> = {}): ItineraryStop {
   return {
     id: `s${seq}`,
     title: `Stop ${seq}`,
-    category: 'sight',
+    category: 'sightseeing',
     locationName: 'Somewhere',
     lat: 26.9,
     lng: 75.8,

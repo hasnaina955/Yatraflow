@@ -63,7 +63,7 @@ export function publishedToRow(p: PublishedItinerary, withRefreshedAt: boolean) 
     estimated_budget_per_person_inr: p.estimatedBudgetPerPersonInr,
     travel_style: p.travelStyle, best_season: p.bestSeason ?? null,
     travel_tips: p.travelTips, warnings_and_assumptions: p.warningsAndAssumptions,
-    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr ?? null,
+    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr || null, // 0 is free: the database refuses a price of 0
     subscriber_cta: p.subscriberCta ?? null,
     published_at: p.publishedAt, views: p.views, copies: p.copies,
   }

@@ -174,7 +174,8 @@ describe('migration status — every migration is accounted for', () => {
     for (const m of plan().migrations) {
       expect(m.probes.length > 0 || Boolean(m.noProbeSurface), `${m.file} is neither probed nor declared`).toBe(true)
     }
-  })
+    // plan() reads every migration file. Under full suite load the default 5 s was not enough.
+  }, 20000)
 
   it('every declared no-probe-surface entry names a file that exists', () => {
     // The reverse direction: a registry entry outliving its migration would

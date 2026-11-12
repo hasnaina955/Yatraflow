@@ -471,7 +471,7 @@ describe('#704 R23 — a publish reports its outcome, and only an accepted write
   const payloadFor = (tripId: string) => ({
     tripId, creatorId: 'u-owner', title: `Plan ${tripId}`, tagline: 'A route',
     coverImageUrl: 'https://images.example.test/k.jpg', routeSummary: ['Kochi', 'Munnar'],
-    durationDays: 3, estimatedBudgetPerPersonInr: 5000, travelStyle: 'balanced',
+    durationDays: 3, estimatedBudgetPerPersonInr: 5000, travelStyle: 'balanced' as const,
     travelTips: [], warningsAndAssumptions: [], freeDayIndexes: [0],
   })
 

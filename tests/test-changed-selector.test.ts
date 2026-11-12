@@ -16,10 +16,10 @@ import { selectChangedTests, UsageError } from '../scripts/test-changed.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** One isolated git repo per test; cleaned up on afterEach. */
-let repo
+let repo: string
 function makeRepo() {
   repo = mkdtempSync(path.join(tmpdir(), 'test-changed-fixture-'))
-  const git = (args) => {
+  const git = (args: string[]) => {
     const res = spawnSync('git', ['-c', 'core.quotePath=false', '-c', 'user.email=t@t', '-c', 'user.name=t', ...args], {
       cwd: repo, encoding: 'utf8',
     })
@@ -30,12 +30,12 @@ function makeRepo() {
   return { git, path: repo }
 }
 
-function commitAll(git, message) {
+function commitAll(git: (args: string[]) => string, message: string) {
   git(['add', '-A'])
   git(['commit', '-qm', message])
 }
 
-function write(rel, content) {
+function write(rel: string, content: string) {
   const abs = path.join(repo, rel)
   mkdirSync(path.dirname(abs), { recursive: true })
   writeFileSync(abs, content)

@@ -25,7 +25,7 @@ function row(key: string, km?: number): JourneyRow {
 }
 
 function lensRows(rows: JourneyRow[]): DriveLensRow[] {
-  return driveLensRows({ status: READY, dayIndex: 0, rows, budgetMin: 60 }).rows
+  return [...driveLensRows({ status: READY, dayIndex: 0, rows, budgetMin: 60 }).rows]
 }
 
 describe('driveLettersByRoad', () => {
@@ -73,7 +73,7 @@ describe('driveLettersByRoad', () => {
 
 describe('DriveTabs card badge', () => {
   function groupsOf(rows: DriveLensRow[]): DriveTabGroup {
-    const tabs = driveTabs({ phase: 'ready', rows }, [])
+    const tabs = driveTabs({ phase: 'ready', rows, degraded: null }, [])
     return tabs.tabs[0]!
   }
 

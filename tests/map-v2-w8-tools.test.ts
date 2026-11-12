@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 const tsx = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8')
 
 // The workspace branch runs from the ternary to the legacy branch.
 function workspaceBranch(): string {

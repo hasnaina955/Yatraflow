@@ -8,7 +8,7 @@ import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText } from '..
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 describe('rail marker kinds', () => {
-  const base = { kind: 'stop' as const, category: 'sight', locked: false, isFix: false }
+  const base = { kind: 'visit' as const, category: 'sight', locked: false, isFix: false }
   it('draws one mark per row in order of weight', () => {
     expect(railMarkerKind(base)).toBe('number')
     expect(railMarkerKind({ ...base, category: 'hotel' })).toBe('stay')
@@ -136,7 +136,7 @@ describe('journey strip axis', () => {
 describe('rail and strip source rules', () => {
   const chrome = read('../src/components/map/MapWorkspaceChrome.tsx')
   const mapTab = read('../src/pages/trip/MapTab.tsx')
-  const css = read('../src/styles.css')
+  const css = read('../src/styles/components/map-v2-rail.css')
   it('colours day marks through dayColor and numerals white', () => {
     expect(chrome).toContain('dayColor(')
     expect(css).toContain('.mv2-stop-mark { display: grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 800; background: var(--mv2-day-tone, var(--color-primary)); color: #FFFFFF; }')

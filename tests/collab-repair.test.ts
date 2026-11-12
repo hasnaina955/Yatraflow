@@ -15,6 +15,7 @@
 // the real realtime dispatch; only the transport, persistence and session are
 // synthetic.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { CollabOutcome } from '../src/store/collabCommand'
 
 type CommentRow = { id: string; authorId: string; text: string; createdAt: number }
 type SuggestionRow = {
@@ -77,8 +78,8 @@ const { fake } = vi.hoisted(() => {
       const prior = fake.ledger.get(params.p_command_id)
       if (prior) {
         if (JSON.stringify(prior.params) !== JSON.stringify(params)) return { data: { status: 'conflict', tripRevision: 0 }, error: null }
-        const canonical = c.type.startsWith('suggestion.') ? { suggestion: structuredClone(fake.rows.get(c.suggestionId)!) }
-          : c.type.startsWith('decision.') && c.type !== 'decision.create' ? { decision: structuredClone(fake.decisionRows.get(c.decisionId)!) }
+        const canonical = 'suggestionId' in c ? { suggestion: structuredClone(fake.rows.get(c.suggestionId)!) }
+          : 'decisionId' in c && c.type !== 'decision.create' ? { decision: structuredClone(fake.decisionRows.get(c.decisionId)!) }
           : c.type === 'decision.create' ? { decision: structuredClone(fake.decisionRows.get(c.decisionId)!) }
           : {}
         return { data: { ...structuredClone(prior.receipt), status: 'alreadyApplied', ...canonical }, error: null }
@@ -163,9 +164,9 @@ const { fake } = vi.hoisted(() => {
       // the queued-write membership check.
       if (table === 'trip_members') {
         const match = fake.membersRow && fake.membersRow.trip_id === eqs.trip_id
-        return Promise.resolve({ data: single ? (match ? structuredClone(fake.membersRow) : null) : (match ? [structuredClone(fake.membersRow)] : []), error: null })
+        return Promise.resolve({ data: single ? (match ? structuredClone(fake.membersRow) : null) : (match ? [structuredClone(fake.membersRow)] : []), error: null } as Response)
       }
-      return Promise.resolve({ data: snapshot, error: null })
+      return Promise.resolve({ data: snapshot, error: null } as Response)
     },
     /** The trips UPDATE, so a queued-edit test can fail it for real. Every
      *  try is recorded, so a test can prove the UPDATE was reached. */
@@ -235,11 +236,14 @@ async function freshStore() {
   const { suggestionRowToEntry, decisionRowToEntry } = await import('../src/store/collabCommand')
   const db = store.getSnapshot()
   db.sessionUserId = fake.actor
-  db.trips.push({ id: fake.trip, title: 'Synthetic trip', destination: 'Synthetic',
-    startDate: '2026-10-23', endDate: '2026-10-23', attendees: 2, ownerId: fake.actor,
-    writeVersion: 0, budgetPerPersonInr: 10000, members: [{ userId: fake.actor, role: 'owner', joinedAt: 1 }],
-    days: [{ index: 0, date: '2026-10-23', label: 'Day 1', stops: [] }], expenses: [], collaborators: [],
-  } as Parameters<typeof db.trips.push>[0])
+  db.trips.push({
+    id: fake.trip, name: 'Synthetic trip', startLocation: 'Synthetic', destinations: ['Synthetic'],
+    startDate: '2026-10-23', endDate: '2026-10-23', travellers: 2, transportMode: 'car',
+    budgetPerPersonInr: 10000, travelStyle: 'balanced', fixedCommitments: [], writeVersion: 0,
+    members: [{ userId: fake.actor, role: 'owner', joinedAt: 1 }],
+    days: [{ id: 'day-0', index: 0, title: 'Day 1', stops: [] }], expenses: [],
+    coverEmoji: '🧭', visibility: 'private', createdAt: 1, updatedAt: 1,
+  })
   for (const id of [S1, S2]) {
     const row = { id, trip_id: fake.trip, day_index: 0, proposed_by: '10000000-0000-4000-8000-000000000002',
       title: id === S1 ? 'First row' : 'Independent row', category: 'food' as const, location_name: 'Synthetic',
@@ -258,12 +262,20 @@ async function freshStore() {
 
 beforeEach(() => vi.clearAllMocks())
 
+/** The receipt names the suggestion only on the two statuses that carry one. */
+const receiptSuggestion = (outcome: CollabOutcome) =>
+  outcome.status === 'applied' || outcome.status === 'alreadyApplied' ? outcome.suggestion : undefined
+/** The receipt names the decision only on the two statuses that carry one. */
+const receiptDecision = (outcome: CollabOutcome) =>
+  outcome.status === 'applied' || outcome.status === 'alreadyApplied' ? outcome.decision : undefined
+
 /** Admit a server row through the real realtime dispatch, so the cache row
  *  the writers clone is the same object a live peer event would produce. */
 function admitRow(store: Awaited<ReturnType<typeof freshStore>>, table: 'suggestions' | 'decisions', row: Record<string, unknown>): void {
   store._applyRealtimeEventForTest(table, {
     eventType: 'UPDATE', schema: 'public', table,
     commit_timestamp: new Date().toISOString(), old: { id: (row as { id: string }).id }, new: structuredClone(row),
+    errors: [],
   } as Parameters<typeof store._applyRealtimeEventForTest>[1])
 }
 
@@ -276,7 +288,7 @@ describe('gate round 2 — F1 surgical rollback', () => {
     expect((await submitCollabCommand(id, fake.trip, command)).status).toBe('applied')
     const replay = await submitCollabCommand(id, fake.trip, command)
     expect(replay.status).toBe('alreadyApplied')
-    expect(replay.suggestion?.comments.map(c => c.text)).toEqual(['control'])
+    expect(receiptSuggestion(replay)?.comments.map(c => c.text)).toEqual(['control'])
     expect(fake.activity).toHaveLength(1)
     expect(fake.notifications).toHaveLength(1)
   })
@@ -430,7 +442,7 @@ describe('gate round 3 — R1 the poll retry keeps the retained action', () => {
     const retained = fake.calls[0]
     const control = await submitCollabCommand(retained.p_command_id, retained.p_trip_id, retained.p_command)
     expect(control.status).toBe('alreadyApplied')
-    expect(control.decision!.id).toBe((committed.data as Receipt).decision!.id)
+    expect(receiptDecision(control)!.id).toBe((committed.data as Receipt).decision!.id)
     // The retry REPLAYED the retained envelope: same command id, same payload
     // (including the option ids minted inside the first action), one poll.
     expect(second.status).toBe('alreadyApplied')
@@ -672,6 +684,7 @@ describe('gate round 2-3 — F4/C1 conflict reconciliation and the unresolved dr
     store._applyRealtimeEventForTest('suggestions', {
       eventType: 'UPDATE', schema: 'public', table: 'suggestions',
       commit_timestamp: new Date().toISOString(), old: { id: peer.id }, new: structuredClone(peer),
+      errors: [],
     } as Parameters<typeof store._applyRealtimeEventForTest>[1])
     const observed = store.getSnapshot().suggestions.find(x => x.id === S1)!.comments.map(c => c.text)
     expect(observed).toContain('peer event')
@@ -831,7 +844,7 @@ describe('gate round 5 — chained ballot refusals and in-flight comment drafts'
     fake.hold = false
     const next = await store.voteSuggestion(fake.trip, S1, 1)
     expect(next.status).toBe('applied')
-    expect(fake.calls[2].p_command.value).toBe(1)
+    expect((fake.calls[2].p_command as Extract<Command, { type: 'suggestion.ballot' }>).value).toBe(1)
     expect(fake.rows.get(S1)!.votes.map(v => v.value)).toEqual([1])
   })
 
@@ -877,7 +890,7 @@ describe('gate round 5 — chained ballot refusals and in-flight comment drafts'
     fake.hold = false
     const next = await store.voteOnDecision(D1, 'opt-1')
     expect(next.status).toBe('applied')
-    expect(fake.calls[2].p_command.optionId).toBe('opt-1')
+    expect((fake.calls[2].p_command as Extract<Command, { type: 'decision.ballot' }>).optionId).toBe('opt-1')
     expect(fake.decisionRows.get(D1)!.votes_by_user_id[fake.actor]).toBe('opt-1')
   })
 
@@ -933,8 +946,8 @@ describe('gate round 5 — chained ballot refusals and in-flight comment drafts'
     expect((await comment).status).toBe('applied')
     await tick()
     const final = store.getSnapshot().suggestions.find(x => x.id === S1)!
-    expect(final.comments.map(c => c.id)).toEqual([command.p_command.commentId])
-    expect(fake.rows.get(S1)!.comments.map(c => c.id)).toEqual([command.p_command.commentId])
+    expect(final.comments.map(c => c.id)).toEqual([(command.p_command as Extract<Command, { type: 'suggestion.comment' }>).commentId])
+    expect(fake.rows.get(S1)!.comments.map(c => c.id)).toEqual([(command.p_command as Extract<Command, { type: 'suggestion.comment' }>).commentId])
     expect(fake.calls).toHaveLength(2)
     expect(fake.notifications).toHaveLength(1)
   })

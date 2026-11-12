@@ -70,10 +70,10 @@ describe('the corrected fact contract (probe roadDelta)', () => {
   })
 
   it('a negative delta, missing legs or non-finite values stay unknown', () => {
-    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 84, via: { totalMin: 60, arrivalLegMin: 30 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
-    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: null, via: { totalMin: 84, arrivalLegMin: 40 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
-    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 60, via: { totalMin: 84, arrivalLegMin: Number.NaN }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
-    expect(roadDetourFromLegs({ hitId: 'h', baselineMin: 60, via: null, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }).invalid).toBe(true)
+    expect((roadDetourFromLegs({ hitId: 'h', baselineMin: 84, via: { totalMin: 60, arrivalLegMin: 30 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }) as { invalid?: true }).invalid).toBe(true)
+    expect((roadDetourFromLegs({ hitId: 'h', baselineMin: null, via: { totalMin: 84, arrivalLegMin: 40 }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }) as { invalid?: true }).invalid).toBe(true)
+    expect((roadDetourFromLegs({ hitId: 'h', baselineMin: 60, via: { totalMin: 84, arrivalLegMin: Number.NaN }, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }) as { invalid?: true }).invalid).toBe(true)
+    expect((roadDetourFromLegs({ hitId: 'h', baselineMin: 60, via: null, generation: 1, routeFingerprint: FP, measuredAt: 1000, departAtMin: 600 }) as { invalid?: true }).invalid).toBe(true)
   })
 })
 
@@ -221,7 +221,7 @@ describe('the measured fact wins over estimates in the unified consumer', () => 
 
   it('the scorer uses the road-true fact verbatim regardless of the speed guess', () => {
     const anchors2 = [{ lat: 10, lng: 10 }]
-    const seg = { index: 0, purpose: 'meal' as const, label: 'Lunch', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 750 }
+    const seg = { index: 0, purpose: 'meal' as const, label: 'Lunch', targetKm: 0, minKm: 0, maxKm: 10, kmFromPrev: 0, minutesFromPrev: 0, etaMinutes: 750, hint: '' }
     const base = { name: 'Eat', latitude: 10, longitude: 10, kind: 'poi' as const, category: 'food', offRouteKm: 0 }
     const estimated = scoreHitForSegment({ ...base, offRouteKm: 8 } as never, seg, anchors2, {})
     const measured = scoreHitForSegment({ ...base, measuredRoadFact: fact(24) } as never, seg, anchors2, {})

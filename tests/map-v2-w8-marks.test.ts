@@ -9,7 +9,7 @@ import {
 } from '../src/lib/mapStyles/lensMarks'
 
 const marksCss = readFileSync(new URL('../src/components/map/mapMarks.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-const stylesCss = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const stylesCss = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const map = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 describe('showsStopTag', () => {

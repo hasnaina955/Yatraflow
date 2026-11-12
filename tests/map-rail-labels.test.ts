@@ -81,7 +81,7 @@ describe('#08 — the sentence is formatted from canonical row facts', () => {
 })
 
 describe('#420 — the empty-part pin says the same thing', () => {
-  const slot = (over: Partial<DaySlot>): DaySlot => ({
+  const slot = (over: Omit<Partial<DaySlot>, 'key'> & { key?: string }): DaySlot => ({
     key: 'lunch', kind: 'meal', label: 'Lunch', state: 'empty',
     windowMin: null, windowLabel: null, segment: null, candidates: [],
     ...over,

@@ -5,17 +5,18 @@ import { tripById, duplicateTripPersisted, duplicateTripPublicPersisted, registe
 import type { ShareSource } from './shareUrl'
 import { fetchMyEntitlements } from './unlock'
 import { hasUnlock } from './payments'
+import { emptyLockedDay, isWireLocked } from './lockedDay'
 import { toast } from '../components/ui'
 import { finishPendingFork, pendingForkId, rememberFork, type CampaignId } from './growthAttribution'
 
 const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
 const inFlight = new Map<string, Promise<boolean>>()
 
-/** Defense-in-depth stub: re-applies the locked-day stub to days NOT in the
- *  publication's free list, EVEN IF the session's copy somehow carries real
- *  content. The server (get_public_trip) already stubs at the wire; this
- *  mirrors it so a stale cached row or a missed RLS update can never turn
- *  into a fork of paid content. Same field shape as buildTripCopy.
+/** Defense-in-depth stub: empties every day NOT in the publication's free
+ *  list, and every day the server locked, EVEN IF the session's copy somehow
+ *  carries real content. The server (get_public_trip) already withholds at the
+ *  wire; this mirrors it so a stale cached row or a missed RLS update can
+ *  never turn into a fork of paid content. Same result as buildTripCopy.
  *
  *  #352 — `stripMoney` empties the trip's expenses and fixed commitments for
  *  the same reason the RPC does: the page's own locked copy promises the
@@ -30,23 +31,9 @@ function restubLockedDays(src: Trip, freeDayIndexes: number[], stripMoney: boole
   return {
     ...src,
     ...(stripMoney ? { expenses: [], fixedCommitments: [] } : {}),
-    days: src.days.map(d => free.has(d.index) ? d : {
-      ...d,
-      stops: d.stops.map(s => ({
-        ...s,
-        description: LOCKED_STOP_DESCRIPTION,
-        notes: '',
-        openTime: undefined,
-        closeTime: undefined,
-        departTime: undefined,
-        arrivalTime: undefined,
-        sourceUrl: undefined,
-        placeId: undefined,
-        entryFeeInrPerPerson: 0,
-        transportCostInrTotal: 0,
-        status: 'confirmed' as const,
-      })),
-    }),
+    // #774 — a locked day is copied as an empty day. The older stub kept each
+    // stop's title and coordinates, so a fork carried the locked places out.
+    days: src.days.map(d => free.has(d.index) && !isWireLocked(d) ? d : emptyLockedDay(d)),
   }
 }
 
@@ -60,8 +47,10 @@ function restubLockedDays(src: Trip, freeDayIndexes: number[], stripMoney: boole
  *  handing a paying buyer an empty day. An unentitled viewer never reaches it. */
 export function wireWithheld(src: Trip, freeDayIndexes: number[]): boolean {
   const free = new Set(freeDayIndexes)
-  return src.days.some(d => !free.has(d.index)
-    && d.stops.some(s => s.description === LOCKED_STOP_DESCRIPTION))
+  // #774 — the server now marks each day it withheld. The notice check stays
+  // for a database that still runs the older function.
+  return src.days.some(d => isWireLocked(d)
+    || (!free.has(d.index) && d.stops.some(s => s.description === LOCKED_STOP_DESCRIPTION)))
 }
 
 /** Fork `pub` into the viewer's trips. Login-gated. The days forked are

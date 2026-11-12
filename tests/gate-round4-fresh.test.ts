@@ -4,6 +4,8 @@ import type { TripRow } from '../src/lib/tripRow'
 
 type Row = Record<string, unknown>
 type Operation = { table: string; method: string; actor: string | null; filters: Record<string, unknown>; payload?: Row }
+/** The queued write's trip copy: the queue stores it opaquely on the wire. */
+const queuedTripName = (write: QueuedWrite) => (write.trip as { name?: string }).name
 
 const { state } = vi.hoisted(() => ({ state: {
   actor: 'A' as string | null,
@@ -198,7 +200,7 @@ function row(id = 'shared', owner = 'A'): TripRow {
     id, owner_id: owner, name: 'Original plan', start_location: 'Kochi', start_location_coords: null,
     destinations: ['Kochi'], destination_coords: null, start_date: '2026-10-01', end_date: '2026-10-01',
     travellers: 2, transport_mode: 'car', budget_per_person_inr: 5000, travel_style: 'balanced',
-    fixed_commitments: [], days: [{ index: 0, stops: [
+    fixed_commitments: [], days: [{ id: 'day-0', index: 0, stops: [
       { id: 'keep', title: 'Fort', category: 'sightseeing', locationName: 'Fort', lat: 10, lng: 76,
         visitMinutes: 30, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0 },
       { id: 'delete', title: 'Museum', category: 'sightseeing', locationName: 'Museum', lat: 10, lng: 76,
@@ -254,6 +256,14 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
+/** The seam takes a full wire envelope; these probes carry only the fields the
+ *  store reads, so the cast is stated once here instead of at every call. */
+const feed = (
+  store: Awaited<ReturnType<typeof fresh>>,
+  table: string,
+  payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new?: unknown; old?: unknown; [field: string]: unknown },
+) => store._applyRealtimeEventForTest(table, payload as never)
+
 
 
 describe('fresh round four interleavings',()=>{
@@ -266,11 +276,11 @@ describe('fresh round four interleavings',()=>{
     state.failFullRead=false;state.readGate=null;
     if(transition==='switch') {
       state.members.push({trip_id:'shared',user_id:'B',role:'editor',joined_at:1});
-      state.actor='B';state.authHandler('SIGNED_IN',{user:{id:'B'},access_token:'token-B'});await flush();
+      state.actor='B';state.authHandler!('SIGNED_IN',{user:{id:'B'},access_token:'token-B'});await flush();
     } else {
       const editor={trip_id:'shared',user_id:'A',role:'editor',joined_at:1};
       state.members=state.members.map(m=>m.user_id==='A'?editor:m);
-      store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:editor,old:{}});await flush();
+      feed(store, 'trip_members',{eventType:'UPDATE',new:editor,old:{},errors:[]});await flush();
     }
     expect(store.getSnapshot().trips.some(t=>t.id==='shared')).toBe(true);
     hold.release();await replay;await flush();
@@ -281,14 +291,14 @@ describe('fresh round four interleavings',()=>{
     const viewer={trip_id:'shared',user_id:'A',role:'viewer',joined_at:1};
     state.members=state.members.map(m=>m.user_id==='A'?viewer:m);
     const hold=gate();state.failFullRead=true;state.readGate=hold.promise;
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:viewer,old:{}});await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:viewer,old:{},errors:[]});await flush();
     state.failFullRead=false;state.readGate=null;
     if(transition==='switch') {
       state.members.push({trip_id:'shared',user_id:'B',role:'editor',joined_at:1});state.actor='B';
-      state.authHandler('SIGNED_IN',{user:{id:'B'},access_token:'token-B'});await flush();
+      state.authHandler!('SIGNED_IN',{user:{id:'B'},access_token:'token-B'});await flush();
     } else {
       const editor={...viewer,role:'editor'};state.members=state.members.map(m=>m.user_id==='A'?editor:m);
-      store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:editor,old:{}});await flush();
+      feed(store, 'trip_members',{eventType:'UPDATE',new:editor,old:{},errors:[]});await flush();
     }
     hold.release();await flush();expect(store.getSnapshot().trips.some(t=>t.id==='shared')).toBe(true);
   });
@@ -296,8 +306,8 @@ describe('fresh round four interleavings',()=>{
     const store=await fresh(true);await capture(store,'PRIVATE SIGNOUT');
     const hold=gate();state.removeGate=hold.promise;
     const discard=store.resolveQueuedTripWrite('shared','discard');await flush();expect(state.removeCalls).toBe(1);
-    state.rows.delete('shared');store._applyRealtimeEventForTest('trips',{eventType:'DELETE',new:{},old:{id:'shared'}});await flush();
-    state.actor=null;state.authHandler('SIGNED_OUT',null);await flush();
+    state.rows.delete('shared');feed(store, 'trips',{eventType:'DELETE',new:{},old:{id:'shared'},errors:[]});await flush();
+    state.actor=null;state.authHandler!('SIGNED_OUT',null);await flush();
     hold.release();expect(await discard).toBe(false);await flush();
     expect(await pending()).toEqual([]);
   });
@@ -307,16 +317,16 @@ describe('fresh round four interleavings',()=>{
     state.readGate=null;
     const viewer={trip_id:'shared',user_id:'A',role:'viewer',joined_at:1};
     state.members=state.members.map(m=>m.user_id==='A'?viewer:m);
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:viewer,old:{}});await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:viewer,old:{},errors:[]});await flush();
     hold.release();await hydration;await flush();
     expect(store.getSnapshot().trips[0]?.name).not.toBe('PRIVATE HYDRATE');
-    expect(store.getSnapshot().trips[0]?.members.find(m=>m.userId==='A')?.role).toBe('viewer');
+    expect(store.getSnapshot().trips[0]?.members!.find(m=>m.userId==='A')?.role).toBe('viewer');
   });
   it('realtime membership persists shared refresh before pending delayed capture',async()=>{
     const store=await fresh(true);await capture(store,'PRIVATE MEMBERS');
     const viewer={trip_id:'shared',user_id:'C',role:'viewer',joined_at:1};
     vi.stubGlobal('navigator',{onLine:true});
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:viewer,old:{}});await store.tripWriteVerdict('shared');await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:viewer,old:{},errors:[]});await store.tripWriteVerdict('shared');await flush();
     console.log('membership-persist',JSON.stringify(state.writes));
     expect(state.writes.length).toBe(0);
   });
@@ -328,13 +338,13 @@ describe('second shared read boundary',()=>{
   const first=gate(),second=gate();state.readGate=first.promise;state.fullGate=second.promise;
   const request=store.resolveQueuedTripWrite('shared','discard');await flush();
   const newer={...state.rows.get('shared'),name:'CURRENT SHARED',write_version:1,updated_at:20};state.rows.set('shared',newer);
-  store._applyRealtimeEventForTest('trips',{eventType:'UPDATE',new:newer,old:{}});
+  feed(store, 'trips',{eventType:'UPDATE',new:newer,old:{},errors:[]});
   state.readGate=null;first.release();await flush();expect(state.heldFullRead).toBe(2);
-  if(transition==='switch') {state.members.push({trip_id:'shared',user_id:'B',role:'editor',joined_at:1});state.actor='B';state.authHandler('SIGNED_IN',{user:{id:'B'},access_token:'token-B'});await flush();}
-  else {state.rows.delete('shared');store._applyRealtimeEventForTest('trips',{eventType:'DELETE',new:{},old:{id:'shared'}});await flush();}
+  if(transition==='switch') {state.members.push({trip_id:'shared',user_id:'B',role:'editor',joined_at:1});state.actor='B';state.authHandler!('SIGNED_IN',{user:{id:'B'},access_token:'token-B'});await flush();}
+  else {state.rows.delete('shared');feed(store, 'trips',{eventType:'DELETE',new:{},old:{id:'shared'},errors:[]});await flush();}
   second.release();const result=await request;await flush();
   expect.soft(result).toBe(false);
-  if(transition==='switch')expect(store.getSnapshot().trips[0]?.members.some(m=>m.userId==='B')).toBe(true);
+  if(transition==='switch')expect(store.getSnapshot().trips[0]?.members!.some(m=>m.userId==='B')).toBe(true);
   else expect(store.getSnapshot().trips).toEqual([]);
  });
 });
@@ -346,10 +356,10 @@ describe('discard refresh failures',()=>{
     const result=await store.resolveQueuedTripWrite('shared','discard');
     state.failMemberRead=false;await flush();
     expect(result).toBe(false);
-    expect((await pending()).map(w=>w.trip.name)).toEqual(['PRIVATE MEMBERSHIP']);
+    expect((await pending()).map(queuedTripName)).toEqual(['PRIVATE MEMBERSHIP']);
     const shown=store.getSnapshot().trips.find(t=>t.id==='shared');
     expect(shown?.name).toBe('PRIVATE MEMBERSHIP');
-    expect(shown?.members.map(m=>m.userId).sort()).toEqual(['A','C']);
+    expect(shown?.members!.map(m=>m.userId).sort()).toEqual(['A','C']);
   });
   it('a failed re-read after a newer server row keeps the held copy',async()=>{
     const store=await fresh(true);await capture(store,'PRIVATE REREAD');
@@ -357,11 +367,11 @@ describe('discard refresh failures',()=>{
     const request=store.resolveQueuedTripWrite('shared','discard');await flush();
     const newer={...state.rows.get('shared'),name:'CURRENT SHARED',write_version:1,updated_at:20};
     state.rows.set('shared',newer);
-    store._applyRealtimeEventForTest('trips',{eventType:'UPDATE',new:newer,old:{}});
+    feed(store, 'trips',{eventType:'UPDATE',new:newer,old:{},errors:[]});
     state.readGate=null;first.release();
     const result=await request;await flush();
     expect(result).toBe(false);
-    expect((await pending()).map(w=>w.trip.name)).toEqual(['PRIVATE REREAD']);
+    expect((await pending()).map(queuedTripName)).toEqual(['PRIVATE REREAD']);
     expect(store.getSnapshot().trips.find(t=>t.id==='shared')?.name).toBe('PRIVATE REREAD');
   });
   it('a re-read still older than the server ledger keeps the held copy',async()=>{
@@ -369,13 +379,13 @@ describe('discard refresh failures',()=>{
     const first=gate(),second=gate();state.readGate=first.promise;state.fullGate=second.promise;
     const request=store.resolveQueuedTripWrite('shared','discard');await flush();
     const newer={...state.rows.get('shared'),name:'CURRENT SHARED',write_version:1,updated_at:20};
-    store._applyRealtimeEventForTest('trips',{eventType:'UPDATE',new:newer,old:{}});
+    feed(store, 'trips',{eventType:'UPDATE',new:newer,old:{},errors:[]});
     state.readGate=null;first.release();await flush();expect(state.heldFullRead).toBe(2);
     // The re-read started before the server row changed, so it still returns the older row.
     state.rows.set('shared',newer);second.release();
     const result=await request;await flush();
     expect(result).toBe(false);
-    expect((await pending()).map(w=>w.trip.name)).toEqual(['PRIVATE STALE']);
+    expect((await pending()).map(queuedTripName)).toEqual(['PRIVATE STALE']);
     expect(store.getSnapshot().trips.find(t=>t.id==='shared')?.name).toBe('PRIVATE STALE');
   });
   it('a local edit made during the discard refresh keeps its contents and refuses success',async()=>{
@@ -387,7 +397,7 @@ describe('discard refresh failures',()=>{
     const result=await request;await flush();
     expect(result).toBe(false);
     expect(store.getSnapshot().trips.find(t=>t.id==='shared')?.name).toBe('NEWER EDIT');
-    expect((await pending()).map(w=>w.trip.name)).toEqual(['NEWER EDIT']);
+    expect((await pending()).map(queuedTripName)).toEqual(['NEWER EDIT']);
   });
   it('a successful discard publishes the server membership and removes the copy',async()=>{
     const store=await fresh(true);await capture(store,'PRIVATE HAPPY');
@@ -397,16 +407,16 @@ describe('discard refresh failures',()=>{
     expect(await pending()).toEqual([]);
     const shown=store.getSnapshot().trips.find(t=>t.id==='shared');
     expect(shown?.name).toBe('Original plan');
-    expect(shown?.members.find(m=>m.userId==='C')?.role).toBe('viewer');
+    expect(shown?.members!.find(m=>m.userId==='C')?.role).toBe('viewer');
   });
   it('a failed membership read during demotion never publishes an empty membership',async()=>{
     const store=await fresh(true);await capture(store,'PRIVATE DEMOTED');
     const viewer={trip_id:'shared',user_id:'A',role:'viewer',joined_at:1};
     state.members=state.members.map(m=>m.user_id==='A'?viewer:m);
     state.failMemberRead=true;
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:viewer,old:{}});await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:viewer,old:{},errors:[]});await flush();
     state.failMemberRead=false;
     const shown=store.getSnapshot().trips.find(t=>t.id==='shared');
-    expect(shown===undefined||shown.members.length>0).toBe(true);
+    expect(shown===undefined||shown.members!.length>0).toBe(true);
   });
 });

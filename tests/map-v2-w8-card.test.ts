@@ -8,7 +8,7 @@ import { LensPlaceCard, placeSubLine, ratingText, type LensCostCell } from '../s
 import { MapScopeBand, scopeBandCountsText, scopeBandCountParts } from '../src/pages/trip/map/MapScopeBand'
 
 const noop = () => undefined
-const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 const CELLS: LensCostCell[] = [
   { key: 'arrive', label: 'Arrive', value: '12:05' },

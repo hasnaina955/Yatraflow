@@ -46,7 +46,7 @@ function tripWithStops(): Trip {
       namedStop('boat', 'Periyar boat', 5),
     ],
   } as ItineraryDay
-  return { id: 't', days: [day], fixedCommitments: [] } as Trip
+  return { id: 't', days: [day], fixedCommitments: [] } as unknown as Trip
 }
 
 describe('item 1: the Stay ring camera fits once per lens or base change', () => {

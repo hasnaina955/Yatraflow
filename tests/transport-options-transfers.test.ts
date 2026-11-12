@@ -25,8 +25,9 @@ describe('a file export and import carry the answer', () => {
   it('survives export and import, both answers and the unanswered state', () => {
     for (const drivesPart of [true, false, undefined]) {
       const source = trip({ transportMode: 'mixed', drivesPart })
-      const doc = buildTripExport(source, undefined, '0.0.0-test') as { trip: Record<string, unknown> }
-      const walled = normalizeTrip(doc.trip, emptyReport(), [])
+      const doc = buildTripExport(source, undefined, '0.0.0-test')
+      // A file is JSON: read the typed trip as the serialized record it writes.
+      const walled = normalizeTrip(doc.trip as unknown as Record<string, unknown>, emptyReport(), [])
       expect(walled, String(drivesPart)).not.toBeNull()
       // The repair wall is for foreign files, and this field is identity, so it
       // rides back the way id and vehicleProfile do.

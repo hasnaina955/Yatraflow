@@ -114,8 +114,6 @@
   stroke-linejoin: round;
 }
 
-.ovw-elev-base { stroke: var(--pw-line); stroke-width: 1; }
-
 /* Stops: a cream fill with a saffron ring. The start is a filled sea dot and
    the end is a filled saffron dot. */
 .ovw-elev-dot {

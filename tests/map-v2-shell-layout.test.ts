@@ -9,7 +9,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const css = readFileSync(join(root, 'src', 'styles.css'), 'utf8').replace(/\r\n/g, '\n')
+const css = readFileSync(join(root, 'src', 'styles', 'components', 'map-v2-rail.css'), 'utf8').replace(/\r\n/g, '\n')
 const block = css.slice(css.indexOf('/* Map V2 shell, package B.'))
 
 describe('package B block', () => {

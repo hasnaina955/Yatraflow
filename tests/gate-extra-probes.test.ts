@@ -189,7 +189,7 @@ function row(id = 'shared', owner = 'A'): TripRow {
     id, owner_id: owner, name: 'Original plan', start_location: 'Kochi', start_location_coords: null,
     destinations: ['Kochi'], destination_coords: null, start_date: '2026-10-01', end_date: '2026-10-01',
     travellers: 2, transport_mode: 'car', budget_per_person_inr: 5000, travel_style: 'balanced',
-    fixed_commitments: [], days: [{ index: 0, stops: [
+    fixed_commitments: [], days: [{ id: 'day-0', index: 0, stops: [
       { id: 'keep', title: 'Fort', category: 'sightseeing', locationName: 'Fort', lat: 10, lng: 76,
         visitMinutes: 30, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0 },
       { id: 'delete', title: 'Museum', category: 'sightseeing', locationName: 'Museum', lat: 10, lng: 76,
@@ -244,6 +244,14 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
+/** The seam takes a full wire envelope; these probes carry only the fields the
+ *  store reads, so the cast is stated once here instead of at every call. */
+const feed = (
+  store: Awaited<ReturnType<typeof fresh>>,
+  table: string,
+  payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new?: unknown; old?: unknown; [field: string]: unknown },
+) => store._applyRealtimeEventForTest(table, payload as never)
+
 
 describe('round two behavioral coverage', () => {
   it('replay demotion applies shared content and viewer permission without realtime', async () => {
@@ -252,9 +260,9 @@ describe('round two behavioral coverage', () => {
     state.members = state.members.map(m => m.user_id === 'A' ? {...m,role:'viewer'} : m);
     vi.stubGlobal('navigator',{onLine:true});
     await store.replayQueuedWrites(); await flush();
-    console.log('replay-demotion',JSON.stringify({cacheName:store.getSnapshot().trips[0]?.name,cacheRole:store.getSnapshot().trips[0]?.members.find(m=>m.userId==='A')?.role,queue:(await pending()).map(w=>({reason:w.reason,state:w.state})),writes:state.writes}));
+    console.log('replay-demotion',JSON.stringify({cacheName:store.getSnapshot().trips[0]?.name,cacheRole:store.getSnapshot().trips[0]?.members!.find(m=>m.userId==='A')?.role,queue:(await pending()).map(w=>({reason:w.reason,state:w.state})),writes:state.writes}));
     expect.soft(store.getSnapshot().trips[0].name).toBe('Original plan');
-    expect.soft(store.getSnapshot().trips[0].members.find(m=>m.userId==='A')?.role).toBe('viewer');
+    expect.soft(store.getSnapshot().trips[0].members!.find(m=>m.userId==='A')?.role).toBe('viewer');
     expect((await pending())[0]).toMatchObject({reason:'access-revoked'});
   });
   it('failed demotion read must not expose the local proposal as the viewer shared plan', async () => {
@@ -262,10 +270,10 @@ describe('round two behavioral coverage', () => {
     const member={trip_id:'shared',user_id:'A',role:'viewer',joined_at:1};
     state.members=state.members.map(m=>m.user_id==='A'?member:m);
     state.offlineReads=true;
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:member,old:{}});
+    feed(store, 'trip_members',{eventType:'UPDATE',new:member,old:{},errors:[]});
     await flush();
     expect((await pending())[0]).toMatchObject({reason:'access-revoked'});
-    expect(store.getSnapshot().trips.find(t=>t.id==='shared'&&t.members.some(m=>m.userId==='A'&&m.role==='viewer'))?.name).not.toBe('PRIVATE VIEWER PROPOSAL');
+    expect(store.getSnapshot().trips.find(t=>t.id==='shared'&&t.members!.some(m=>m.userId==='A'&&m.role==='viewer'))?.name).not.toBe('PRIVATE VIEWER PROPOSAL');
   });
   it('Use shared plan on a failed read keeps a downloadable copy and reports failure', async () => {
     const store=await fresh(true); const copy=await capture(store,'UNSYNCED RECOVERY');
@@ -308,7 +316,7 @@ describe('round two behavioral coverage', () => {
     const hold=gate(); state.readGate=hold.promise; vi.stubGlobal('navigator',{onLine:true});
     const discard=store.resolveQueuedTripWrite('shared','discard'); await flush();
     const newer={...state.rows.get('shared'),name:'NEW SHARED SERVER PLAN',write_version:1,updated_at:20}; state.rows.set('shared',newer);
-    store._applyRealtimeEventForTest('trips',{eventType:'UPDATE',new:newer,old:{}});
+    feed(store, 'trips',{eventType:'UPDATE',new:newer,old:{},errors:[]});
     hold.release(); await discard; await flush();
     expect(store.getSnapshot().trips[0].name).toBe('NEW SHARED SERVER PLAN');
   });
@@ -317,7 +325,7 @@ describe('round two behavioral coverage', () => {
     const hold=gate(); state.listCount=0; state.listHoldAt=1; state.listGate=hold.promise;
     vi.stubGlobal('navigator',{onLine:true}); const discard=store.resolveQueuedTripWrite('shared','discard'); await flush();
     state.rows.delete('shared');
-    store._applyRealtimeEventForTest('trips',{eventType:'DELETE',new:{},old:{id:'shared'}}); await flush();
+    feed(store, 'trips',{eventType:'DELETE',new:{},old:{id:'shared'},errors:[]}); await flush();
     hold.release(); const result=await discard; await flush();
     console.log('initial-queue-generation',JSON.stringify({result,queue:await pending(),trips:store.getSnapshot().trips}));
     expect.soft(result).toBe(false);
@@ -328,7 +336,7 @@ describe('round two behavioral coverage', () => {
     const store=await fresh(true); await capture(store);
     const hold=gate(); state.listCount=0; state.listHoldAt=2; state.listGate=hold.promise;
     vi.stubGlobal('navigator',{onLine:true}); const discard=store.resolveQueuedTripWrite('shared','discard'); await flush();
-    store._applyRealtimeEventForTest('trips',{eventType:'DELETE',new:{},old:{id:'shared'}}); await flush();
+    feed(store, 'trips',{eventType:'DELETE',new:{},old:{id:'shared'},errors:[]}); await flush();
     const tokenBefore=state.sessionCalls; hold.release();
     expect(await discard).toBe(false); await flush();
     expect(state.sessionCalls).toBe(tokenBefore);
@@ -338,7 +346,7 @@ describe('round two behavioral coverage', () => {
     const store=await fresh(true); await capture(store);
     const hold=gate(); state.readGate=hold.promise; vi.stubGlobal('navigator',{onLine:true});
     const discard=store.resolveQueuedTripWrite('shared','discard'); await flush();
-    store._applyRealtimeEventForTest('trips',{eventType:'DELETE',new:{},old:{id:'shared'}}); await flush();
+    feed(store, 'trips',{eventType:'DELETE',new:{},old:{id:'shared'},errors:[]}); await flush();
     hold.release(); expect(await discard).toBe(false); await flush();
     expect((await pending())[0]).toMatchObject({reason:'trip-unavailable'});
     expect(state.removeCalls).toBe(0); expect(store.getSnapshot().trips).toEqual([]);
@@ -347,9 +355,9 @@ describe('round two behavioral coverage', () => {
     const store=await fresh(true); await capture(store,'REVOKED PLAN');
     const member={trip_id:'shared',user_id:'A',role:'viewer',joined_at:1};
     state.members=state.members.map(m=>m.user_id==='A'?member:m);
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:member,old:{}}); await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:member,old:{},errors:[]}); await flush();
     const grant={...member,role:'editor'}; state.members=state.members.map(m=>m.user_id==='A'?grant:m);
-    store._applyRealtimeEventForTest('trip_members',{eventType:'UPDATE',new:grant,old:{}}); await flush();
+    feed(store, 'trip_members',{eventType:'UPDATE',new:grant,old:{},errors:[]}); await flush();
     vi.stubGlobal('navigator',{onLine:true});
     expect(await store.resolveQueuedTripWrite('shared','retry')).toBe(false);
     expect(await store.resolveQueuedTripWrite('shared','replace')).toBe(false);
@@ -361,8 +369,8 @@ describe('round two behavioral coverage', () => {
     const store=await fresh(true); await capture(store);
     const hold=gate(); state.readGate=hold.promise; vi.stubGlobal('navigator',{onLine:true});
     const discard=store.resolveQueuedTripWrite('shared','discard'); await flush();
-    state.actor=null; state.authHandler('SIGNED_OUT',null); await flush();
-    state.actor='A'; state.authHandler('SIGNED_IN',{user:{id:'A'},access_token:'token-A'}); await flush();
+    state.actor=null; state.authHandler!('SIGNED_OUT',null); await flush();
+    state.actor='A'; state.authHandler!('SIGNED_IN',{user:{id:'A'},access_token:'token-A'}); await flush();
     hold.release(); expect(await discard).toBe(false); await flush();
     expect(store.getSnapshot().sessionUserId).toBe('A'); expect(store.getSnapshot().trips[0]?.name).toBe('Original plan');
   });

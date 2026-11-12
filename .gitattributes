@@ -9,6 +9,9 @@ eslint-baseline.json text eol=lf
 src/styles.css text eol=lf
 src/styles/** text eol=lf
 
+# Git runs the pre-push hook under sh. A CRLF checkout breaks its shebang line.
+.githooks/* text eol=lf
+
 # CHANGELOG.md: sequential PRs both append an entry at the same anchor (top of
 # [Unreleased] Fixed), so every second PR merge hit a hand-merge conflict
 # (#643 against #642's entry, #654 against #653's). The union merge driver

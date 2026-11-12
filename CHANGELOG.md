@@ -30,6 +30,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Changed
 
+- **Every rule ID in `CODING_STANDARDS.md` is now unique, and the stale rules are corrected.** Five IDs named two rules each: `6ah`, `6ak`, `6al`, `6am` and `6aw`. The first rule keeps its ID. The second rule is now `6bg`, `6bh`, `6bi`, `6bj` and `6bk`, in that order. Rules `6bj` and `6ar` no longer say to append CSS to `src/styles.css`, which is an import list. Rule `6ar` now parses the owner CSS file. It drops the CRLF note, because `.gitattributes` pins `src/styles/**` to LF. Rule `6am` now names both paths that `lint:ste` skips. Rule `6bi` now searches `src/styles/`. Rule `6au` is removed: no file renders `.container--board` or `.trip-head-card`, and `TripWorkspace.tsx` has no inline styles. The fix-ready comment rule is now `6bg`, so the 0.73.0 entry that cites `§6ah` means `6bg`. `docs/README.md` now uses the new range.
+
 - **Agent instruction docs now match the repo.** The corrected rules cover CSS placement, rule ranges, the verify chain, and enforcement notes. They also cover haptics, retired lanes, the migration path, issue closing, baseline keys, and key locations. This change removes stale facts and a fixed defect entry.
 
 - **Two slow test cases have more time, so the full suite passes in one run.** One case in `tests/lint-ste.test.ts` builds two git repositories and now has 40 s. One case in `tests/migration-status.test.ts` reads every migration file and now has 20 s. Each case passed alone and timed out only when the full suite ran.

@@ -294,7 +294,7 @@ The 2026-11-08 batch reproduced all 441 committed files byte for byte from the s
 6. Run the build with `--out` to a scratch folder. Check the table and the caps.
 7. Run the build into `src/assets/art/`.
 8. Run `npx vitest run tests/region-art.test.ts tests/art-manifest.test.ts`.
-9. Update the table in this file and the changelog entry.
+9. Update the table in this file and the change fragment.
 
 A state vignette also needs a key in `manifest.vignettes`, and a `StateVignette` at a page-level
 `StateBlock` whose condition really means that state. Do not wire a vignette to a state the page

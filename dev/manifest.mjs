@@ -17,7 +17,7 @@ if (!OUT) { console.error('usage: node manifest.mjs <root> <outfile>'); process.
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'coverage', '.vite', 'build'])
 
 /** The scoped trees plus the root config files this batch can touch. */
-const TREES = ['src', 'tests', 'dev']
+const TREES = ['src', 'tests', 'dev', 'changelog.d']
 const ROOT_FILES = [
   'package.json', 'vite.config.ts', 'vite.profile-fixture.config.ts',
   'tsconfig.json', 'eslint.config.js', 'eslint-baseline.json',

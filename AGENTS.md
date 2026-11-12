@@ -57,14 +57,14 @@ git rev-list --count origin/main..origin/test
 ## 2. Workflow rules (non-negotiable, user-mandated)
 
 1. Never push to `main` without explicit user confirmation. Commit locally first. Full text: docs/agents/AGENTS-FULL.md §2.1
-2. Every push ships a `CHANGELOG.md` entry in the same commit, written as final state. Full text: docs/agents/AGENTS-FULL.md §2.2
-3. Give each fix and feature a changelog entry readable six months later. Full text: docs/agents/AGENTS-FULL.md §2.3
+2. Every pushed change ships a final-state fragment in `changelog.d/pending/` in the same commit. A release commits the checked assembly patch and receipt. Full text: docs/agents/AGENTS-FULL.md §2.2
+3. Give each fix and feature a fragment readable six months later. Edit the pending fragment when later work replaces its claim. Full text: docs/agents/AGENTS-FULL.md §2.3
 4. Claim an issue in the same breath as your analysis, or another lane may repeat the fix. Full text: docs/agents/AGENTS-FULL.md §2.4
 5. Tick a UI-audit finding in `ROADMAP.md` in the same commit that fixes it. Full text: docs/agents/AGENTS-FULL.md §2.5
 6. Check each "done" claim against git first. The 6-series rules (6a onward) live in `CODING_STANDARDS.md`. Full text: docs/agents/AGENTS-FULL.md §2.6
 7. Prove a localhost URL serves this tree with its backend. A server without its backend looks broken. Full text: docs/agents/AGENTS-FULL.md §2.7
 8. Run `npm run verify` before any push. Wait for the user to confirm the branch. Every PR to `hasnaina955/Yatraflow` targets `test`, security fixes included. Full text: docs/agents/AGENTS-FULL.md §2.8
-9. Edit `CHANGELOG.md` with editor primitives only. A bulk rewrite once cut it from 830 lines to 21. Full text: docs/agents/AGENTS-FULL.md §2.9
+9. Edit `CHANGELOG.md` with editor primitives only. At release time, apply the checked fragment assembly patch. Preserve the preamble and released history. Full text: docs/agents/AGENTS-FULL.md §2.9
 10. Every interactive surface ships motion from `docs/MOTION-TOKENS.md`. A raw `ms` value is a review flag. Full text: docs/agents/AGENTS-FULL.md §2.10
 11. Keep work local until the batch is complete and the localhost check passes. Full text: docs/agents/AGENTS-FULL.md §2.11
 12. A PR merged into `test` closes the issues its body names with a closing keyword. A PR merged into `main` closes them through GitHub's own keywords. Close an issue by hand only when the workflow does not close it. Full text: docs/agents/AGENTS-FULL.md §2.12
@@ -84,13 +84,13 @@ A rule with no row here is a judgment call.
 | Rule | Gate, or who decides |
 | --- | --- |
 | §2.1 push to `main` | Judgment (the user) |
-| §2.2–3 changelog | `lint:ste`; review; `.gitattributes` union merge |
+| §2.2–3 fragments | `changelog:check`; `lint:ste`; PR delta tests; release coverage review |
 | §2.4 claim the work | Judgment; `git ls-remote --heads origin` |
 | §2.5 UI-audit ticks | Review |
 | §2.6 done claims | `git status -sb` and `git log` on every resume |
 | §2.7 localhost URL | Judgment; probe commands in the rule |
 | §2.8 build and branch | Judgment (the user confirms). Opt-in `.githooks/pre-push` runs `verify:fast` before each branch push |
-| §2.9 CHANGELOG edits | Review of the diff stat; `lint:ste` |
+| §2.9 CHANGELOG edits | Editor patch; unchanged-history checks; release receipt |
 | §2.10 motion | `tests/design-system.test.ts`; `npm run check:ui` (manual: not in `verify` or CI) |
 | §2.11 stays local | Judgment (the user says when to push) |
 | §2.12 issues closed | `.github/workflows/issue-autoclose.yml`; `gh issue view` |
@@ -126,12 +126,15 @@ Supabase DDL can fail read-only, so manage realtime publications in the Dashboar
 
 ## 6. Documentation protocol
 
-Keep ROADMAP.md, CHANGELOG.md and the doc index current in the same commit as the work. Full text: docs/agents/AGENTS-FULL.md §6.
+Keep ROADMAP.md, the change fragment, and the doc index current in the same commit as the work. Assemble CHANGELOG.md at release time. Full text: docs/agents/AGENTS-FULL.md §6.
 
 - ROADMAP.md is the only plan of record. Its Idea bank lists every unbuilt idea, tiered by readiness.
 - Update progress lines in the same edit as the tick. Put each deferral in the Idea bank in the same commit.
 - A roadmap row can be wrong. A Sep-6 row was still listed as unbuilt, though the engine had shipped it. Check `src/` first.
-- Changelog entries open with a bold outcome sentence. Version headings use a hyphen: `## [X.Y.Z] - YYYY-MM-DD`.
+- Fragment bullets open with a bold outcome sentence. Releases retain Added, Changed, Fixed, and Removed sections. Version headings use a hyphen: `## [X.Y.Z] - YYYY-MM-DD`.
+- New changes need fragments from the adoption PR. Existing Unreleased notes stay in place and ship with the next release.
+- PRs #911 and #914 can keep direct Unreleased edits. The coverage check accepts those edits until the next release.
+- The promotion agent owns assembly. The user reviews the CHANGELOG.md diff before any push to `main`.
 - README highlights run newest first. Re-derive evergreen claims from the code.
 - Every new doc gets a row in `docs/README.md`.
 - iOS Safari does not vibrate. A browser that supports `navigator.vibrate` does. The Capacitor shell uses the native plugin.

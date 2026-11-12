@@ -97,18 +97,26 @@ that notices the drift.
 
 1. **Never push to `main` without the user's explicit confirmation** — commit
    locally, then ask.
-2. **Every push ships documentation**: CHANGELOG.md entry in the same commit
-   (under `[Unreleased]`, or a versioned section for releases). Feature-worthy
-   releases also bump `package.json` + lockfile version and update README.
-   **The changelog records final state, not session history.** No "round 2",
-   "PR #N follow-up", "bug-hunt batch", branch names or finding-the-bug
-   stories in the entry text — say what the product does now, once, under the
-   right Added/Changed/Fixed heading. When a fix supersedes an earlier
-   `[Unreleased]` entry, **edit that entry** instead of adding a second one;
-   issue numbers may trail an entry as traceability (`(#123)`), never as its
-   framing. Release notes consolidate; the reader gets the shipped truth.
-3. Fixes and features get changelog entries with enough context to understand
-   them six months later.
+2. **Every push ships documentation.** Each pushed change includes its fragment in the same commit.
+   Put fragments in `changelog.d/pending/`. Use a UUID filename from `npm run changelog:new`.
+   This rule includes documentation and tooling changes. A release commits the checked assembly patch and receipt instead.
+   Releases also update the package version, lockfile, roadmap snapshot, and README highlights.
+
+   **Fragments record final state.** Say what the product does now. Keep session stories, branch names, and review rounds out.
+   Use Added, Changed, Fixed, or Removed. Start each bullet with a bold outcome sentence.
+   Issue numbers may trail the entry. If later work replaces a pending claim, edit that fragment.
+   Coordinate when another lane owns it. Review fragment coverage before release.
+   Only the release owner applies the checked assembly patch to `CHANGELOG.md`.
+
+   New changes need fragments from the adoption PR. Existing Unreleased notes stay in place and ship with the next release.
+   PRs #911 and #914 can keep direct Unreleased edits. The coverage check accepts direct Unreleased edits until the next release.
+   The agent that prepares the `test` to `main` promotion owns assembly.
+   The user reviews the resulting `CHANGELOG.md` diff before any push to `main`.
+   On a changelog conflict, compare both sides with the merge base. Keep both sets of pending notes under one Unreleased heading.
+   Preserve the preamble and released bytes. Use editor primitives, then run `npm run changelog:check`.
+   Do not restore an older whole file. See `changelog.d/README.md` for the release procedure.
+3. Fixes and features get fragments with enough context to understand them six months later.
+   Details follow the bold outcome sentence.
 4. **Another agent may commit into this same working copy** — Hermes has
    dropped doc commits directly onto local `test` (an uncorrected duplicate
    of its own PR branch). Before trusting or pushing a local branch, run
@@ -201,8 +209,13 @@ that notices the drift.
    `git diff <target>...HEAD` before you open the PR. If the diff includes
    unrelated work, create a branch from the exact `test` revision. Apply only
    the issue commits. Preserve the original branch and its evidence.
-9. **Never bulk-rewrite `CHANGELOG.md` with a script, heredoc or shell
-   interpolation — edit it with editor primitives only.** This failure mode has
+9. **Edit `CHANGELOG.md` with editor primitives only.** Feature work edits fragments.
+   At release time, `npm run changelog:release` emits a patch and writes no repository file by default.
+   The explicit `--write` flag saves the patch only. It never writes `CHANGELOG.md`.
+   The release owner reviews and applies the patch with editor primitives.
+   The checker must prove that the preamble and all released bytes stay unchanged. A failed check stops the release.
+   Never pipe script output into a changelog writer. Historical repairs need a separate reviewed change.
+   This failure mode has
    already hit twice — three, counting the scripting-language variant (2026-09-21):
    a python splice meant as `lines[i:i] = [entry]` was written as `lines[i:i] =
    entry` over a *string*, which slice-assigns CHARACTER-wise and shredded 4
@@ -389,13 +402,13 @@ A rule with no row is a judgment call, and that is where repeats come from. Rule
 | Rule | Gate, or who decides |
 | --- | --- |
 | §2.1 push to `main` only on confirmation | Judgment (the user). Vercel serves `main`. |
-| §2.2–3 changelog entry, final state, in the push | `npm run lint:ste` on the entry's prose; review for the rest. `.gitattributes` gives `CHANGELOG.md` a `union` merge driver, so two sequential PRs no longer conflict on their appends. |
+| §2.2–3 fragments | `changelog:check`; `lint:ste`; PR delta tests; release coverage review. Until the next release, a direct `CHANGELOG.md` edit still counts as the PR note. `CHANGELOG.md` has no `union` merge driver, so a direct conflict needs a hand merge. |
 | §2.4 claim the work in the same breath | Judgment. The manual check is `git ls-remote --heads origin \| grep <n>`. |
 | §2.5 UI-audit fixes tick `ROADMAP.md` in the same commit | Review; judgment. |
 | §2.6 re-derive "done" from git, never from memory | Manual, on every resume: `git status -sb` and `git log`. |
 | §2.7 hand over exact, proven localhost URLs | Judgment. The probe commands are in the rule. |
 | §2.8 build locally, confirm the target branch, then push | Judgment (the user confirms). Opt-in `.githooks/pre-push`, set up by `npm run hooks:install`, runs `npm run verify:fast -- --base <base>` before each branch push. It is not the full gate, so `npm run verify` must still pass. |
-| §2.9 edit `CHANGELOG.md` with editor primitives only | Review of the diff stat. `npm run lint:ste` checks the prose on each changed line. |
+| §2.9 edit `CHANGELOG.md` with editor primitives only | Editor patch; unchanged-history checks; release receipt. |
 | §2.10 motion tokens on every new interactive surface | `tests/design-system.test.ts`, *a surface that appears carries motion*: page roots are discovered from `src/App.tsx`, so a new page fails until its root carries `page-enter`. `.page-enter > *` must give each child a token-duration entrance with a `--stagger-step` delay and a reduced-motion opt-out. An unreadable binding fails the test. The same file pins duration, type, spacing and contrast. `npm run check:ui` adds a partial check (`transition: all`, raw z-index ≥ 999, blocked pinch-zoom). It is manual: not in `verify` or CI. |
 | §2.10 page blocks move in the real app, not only in CSS text | CI job `motion` runs `npm run check:motion` (`scripts/browser-motion-check.mjs`). It serves the build, samples each page root's blocks once per animation frame from before navigation, and fails a block that appears between two frames. `npm run verify` stays browser-free. |
 | §2.11 work stays local until the batch is done | Judgment. The user says when to push. |
@@ -517,10 +530,10 @@ See [`docs/README.md`](docs/README.md) for the full doc index.
   had described it correctly the whole time. The two files disagreed and the
   roadmap was the one that was wrong. Budget for a source check whenever you
   touch, quote, or pick up a row.
-- **Keep-a-Changelog with a lead sentence.** CHANGELOG entries: first bold
-  sentence = user-visible outcome; detail after; deep technical dives belong
-  in `docs/` or the commit body, not a 300-word bullet. Categories stay
-  Added/Changed/Fixed/Removed per release.
+- **Keep a Changelog with a lead sentence.** Each fragment bullet starts with a bold sentence that states the outcome.
+  Details follow. Put deep technical detail in `docs/` or the commit body.
+  Categories stay Added, Changed, Fixed, and Removed. Pending fragments are the source for the next release.
+  `CHANGELOG.md` holds the assembled releases. The release owner checks final-state wording and coverage before assembly.
 - **Version headings use a hyphen separator: `## [X.Y.Z] - YYYY-MM-DD`.** Not an
   em-dash. Keep a Changelog specifies `-`, and the em-dash variant had drifted
   into all nine headings before being normalised (Sep 2026). The one

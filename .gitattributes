@@ -12,13 +12,5 @@ src/styles/** text eol=lf
 # Git runs the pre-push hook under sh. A CRLF checkout breaks its shebang line.
 .githooks/* text eol=lf
 
-# CHANGELOG.md: sequential PRs both append an entry at the same anchor (top of
-# [Unreleased] Fixed), so every second PR merge hit a hand-merge conflict
-# (#643 against #642's entry, #654 against #653's). The union merge driver
-# keeps both sides' lines instead of conflicting — proven on two scratch
-# branches: the same two-append merge that read CONFLICT without the driver
-# resolves clean with it, both entries kept. Cost: union's line order is
-# "ours then theirs", so a merged-in entry can sit below an older one until a
-# docs commit tidies it. NEVER extend union to source or test files — it
-# duplicates lines on any non-append overlap.
-CHANGELOG.md merge=union
+# Change fragments and release receipts are hashed. A CRLF checkout would change the hash.
+changelog.d/** text eol=lf

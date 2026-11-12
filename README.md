@@ -93,6 +93,8 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 _Release highlights, newest first — the full record lives in [CHANGELOG.md](CHANGELOG.md)._
 
+Pending notes live in [change fragments](changelog.d/README.md). The release owner assembles them into the public record.
+
 ## The v0.84.0 release
 
 v0.84.0 is deployed to production. It closes the paid-plan leak and adds fifty destination scenes.

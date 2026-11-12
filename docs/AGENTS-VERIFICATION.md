@@ -21,6 +21,14 @@ Sections:
 
 ## The gate
 
+Change notes use `changelog.d/pending/`. `npm run changelog:check` checks format, STE prose, IDs, and PR coverage.
+`npm run verify` runs the check. A pull request run uses the event base and head SHAs. A push run checks format only.
+Local checks use the merge base with `origin/test` or an explicit `--base`. With no commit ahead of that base, the check covers format only.
+The direct-entry bridge ends at the next release. Existing Unreleased notes stay in place until that release.
+The promotion agent freezes the release input, reviews the diff, and applies the checked patch with editor primitives.
+Assembly must preserve the preamble and released bytes. The line count must include every inserted line.
+See [the fragment guide](../changelog.d/README.md) for commands and receipt checks.
+
 Locate a named unpublished dependency before planning its replacement.
 Separate unavailable source from an absent live database function. A repository search proves only repository contents.
 Do not certify a server contract from tests that replace its transport.
@@ -55,7 +63,7 @@ Browser checks must accept this floor instead of requiring an exact zero.
 The check once read only unstaged edits, so a commit made it inspect zero lines and always pass. If the checked count is zero, read the base named in the verdict before you trust the pass.
 
 Use `npm run verify` — it runs the full gate:
-`tsc -b --clean` → `tsc -b` → `npm run typecheck:tests` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run check:css` → `npm test` → `vite build`.
+`tsc -b --clean` → `tsc -b` → `npm run typecheck:tests` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run changelog:check` → `npm run check:css` → `npm test` → `vite build`.
 
 On a busy machine, set process-only `VITEST_MAX_WORKERS=1` before `npm run verify`.
 Vitest 4.1.12 resolves this value as `maxWorkers`.
@@ -135,9 +143,9 @@ Hard rules (each learned the hard way — do not relearn them):
   touched a file both sides edited, run the full `npm run verify` on the
   rebased tree before pushing — and when a suite fails wholesale after a
   rebase, suspect the merge of the file the suite covers before suspecting the
-  branch's own change. The replay also means **the branch's CHANGELOG entries
-  re-filed themselves into the released section** if the branch was cut before
-  the release:  check `git diff origin/test..HEAD -- CHANGELOG.md` lands under `[Unreleased]`.
+  branch's own change. Older branches also moved pending changelog notes into released sections.
+  New work uses fragments. On a transition conflict, compare both sides with the merge base.
+  Keep each pending note under one Unreleased heading and preserve every released byte.
 - **A custom `merge=<driver>` attribute can delete a file's change from a rebased
   commit while the rebase reports success (learned 2026-09-26).** Resolving a
   four-branch stack's recurring `CHANGELOG.md` conflicts with a `--union` driver
@@ -227,7 +235,9 @@ curl -s -m 12 -w '\nHTTP %{http_code}\n' -H "apikey: $KEY" -H "Authorization: Be
 discriminates a migration-gated table in one call — **`200 []` means the table EXISTS and RLS withholds the rows from an anon caller, `404 PGRST205` means it does not exist** — and control-running it against a nonsense table name is what anchors the reading, since `PGRST205` is also the exact code the client's degradation path keys on. `https://example.com` is the cheap "is the network up at all" check. Pull `$URL`/`$KEY` from `.env.local` (`grep '^VITE_SUPABASE_URL=' .env.local | cut -d= -f2- | tr -d '\r"'`) rather than pasting them into a transcript. **For an RPC, send its real argument names** — a bare `{}` answers `404 PGRST202` for a function whose parameters have no defaults, which reads as absent when the function is there and merely mis-called (measured 2026-09-22: `owns_publication` and `bump_published_stats` both looked absent that way and both exist); the same code, with the real arguments, is the honest missing-check. The root `/rest/v1/` schema endpoint is not an option for this — it answers `401 Invalid API key`, since only a `service_role` key may read it.
 - **A fresh harness sandbox starts as a shallow, blob-filtered partial clone with only `test` fetched — no `origin/main` ref, no `node_modules`, no `.env.local` (learned 2026-09-22).** `git rev-list origin/main…` therefore dies with *unknown revision* until you fetch the ref you need; run `npm install` before any `npm run verify`; and the live-DB checks (`npm run check:migrations`, PostgREST probes) must run from the user's credentialed box, since the keys never reach this clone. The local `git log` is depth-1 — answer history questions with `gh api` / `git ls-remote`, not the local log.
 - **A pull request can carry no `Verify` run at all, and its page will not say so (learned 2026-09-25).** Two PRs were pushed with **zero** workflow runs on their branches: `gh pr checks` listed only Codacy and Vercel, which reads as "the gate is fine" because nothing is red. `gh run list --branch <branch>` is what tells the difference — if it returns nothing for the head SHA, the gate never ran and a local `npm run verify` on that branch is the only evidence there is. Companion: a **stacked PR** (a branch cut from another PR's branch) shows only its own delta in `git diff <base>...<head>` while its PR diff against the base still carries the parent's work, so merge the parent first and then `git merge origin/test` into the child — the child's `CHANGELOG.md` conflict disappeared entirely once its parent landed.
-- **When a release cut has already moved `[Unreleased]` into a version heading, an incoming `[Unreleased]` entry must be folded INTO that heading (learned 2026-09-25).** Merging `test` into a promote branch conflicts on `CHANGELOG.md` exactly this way; resolving it by keeping your own side silently drops the incoming entries from the release. Take the incoming file (`git checkout --theirs CHANGELOG.md`), re-apply the cut heading above its sections with `edit`, and check the entry count on both sides of the conflict before committing — twenty entries in, twenty entries under the heading.
+- **Release conflicts need a new assembly from frozen inputs.** A 2026-09-25 merge lost incoming notes when it kept one changelog side.
+  Compare both sides with the merge base. Keep both sets of pending notes and preserve released history with editor primitives.
+  Freeze a new input after the conflict resolution. Run assembly and verification again. Never restore one whole side.
 - **A lane worktree lives OUTSIDE the session workspace, so the harness's default `workspace-write` policy denies every write to it — and a note claiming the sandbox is already full-access can be stale (learned 2026-09-27).** Where parallel lanes each get their own `git worktree` beside the clone (`git worktree list` names them), the first `write` into that tree comes back `[sandbox: file access denied]`: a policy fact, not a bad path. With an `ask` approval policy, retry that exact write once with `danger-full-access` — the narrower mode cannot reach outside the workspace, so it cannot be the answer; with approvals disabled, do the work inside the workspace instead. Re-derive the policy from the session's own runtime context rather than from a doc: the §2.7 dev-server entry describes the same failure shape, where the policy actually in force, not the tool, decides the outcome.
 - **Never run dependent git checks as parallel shell calls** — during the PR
   audit, a ref-rewriting fetch raced a `merge-base --is-ancestor` check and

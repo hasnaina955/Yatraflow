@@ -17,6 +17,17 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 **The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It still reports 562 errors, so `verify` does not run it yet. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.
+
+### Added
+
+- **The scripts folder now has an index, and 27 unused CSS-3 tools are gone.** `scripts/README.md` lists every tracked script with its purpose, how it runs, and its status. The APK workflow drops the trigger for `feat/capacitor-android`, a branch that no longer exists. `docs/README.md` links to the index. `control-runs-r13.mjs` and `verify-bound-r13.mjs` stay because `tests/release-tooling.test.ts` names both.
+
+### Changed
+
+- **Agent instruction docs now match the repo.** The corrected rules cover CSS placement, rule ranges, the verify chain, and enforcement notes. They also cover haptics, retired lanes, the migration path, issue closing, baseline keys, and key locations. This change removes stale facts and a fixed defect entry.
+
+- **Two slow test cases have more time, so the full suite passes in one run.** One case in `tests/lint-ste.test.ts` builds two git repositories and now has 40 s. One case in `tests/migration-status.test.ts` reads every migration file and now has 20 s. Each case passed alone and timed out only when the full suite ran.
+
 ### Removed
 
 - **Unused code and tests that checked nothing are removed. The app behaves as before.** The rail ruler module had no caller, so it and its test file are gone. Sixteen unused declarations are removed from ten source files. The `geocode` facade drops six re-exports that no file imported through it. Thirteen test cases are removed. They covered the rail ruler, five constant pins and one redundant inline-style pin. The art evidence test now skips with a named reason when its file is absent. Before, it returned early and reported a pass.
@@ -27,15 +38,11 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Added
 
-- **The scripts folder now has an index, and 27 unused CSS-3 tools are gone.** `scripts/README.md` lists every tracked script with its purpose, how it runs, and its status. The APK workflow drops the trigger for `feat/capacitor-android`, a branch that no longer exists. `docs/README.md` links to the index. `control-runs-r13.mjs` and `verify-bound-r13.mjs` stay because `tests/release-tooling.test.ts` names both.
-
 - **Fifty named destinations now have their own illustration.** Each scene has a `dest-<id>-v2` id. The fifty are Agra, Alappuzha, Amritsar, Ayodhya, Cherrapunji, Coorg, Darjeeling, Delhi and Dharamshala. They continue with Ekta Nagar, Gangtok, Goa, Gulmarg, Hampi, Haridwar, Jaipur, Jaisalmer and Jodhpur. They continue with Kaziranga, Kochi, Kodaikanal, Kovalam, Leh, Madurai, Manali, Mumbai and Munnar. They continue with Mussoorie, Mysuru, Nubra Valley, Ooty, Pahalgam, Pangong Tso, Puri, Pushkar and Rameswaram. They continue with Ranthambore, Rishikesh, Shaheed Dweep, Shillong, Shimla, Sonamarg, Sri Vijaya Puram and Srinagar. They end with Swaraj Dweep, Tawang, Thekkady, Udaipur, Varanasi and White Rann of Kutch. Every id has AVIF at 320, 640 and 960 pixels and a 640 WebP fallback. The seven square empty-state vignettes are unchanged. (#913)
 
 - **Day slots now share one candidate truth, one road order, one acknowledged save path, and one atomic vote.** Every slot now carries a stable trip and day identity. A renamed or reordered day keeps its choices, and a lunch cannot leak into another day. Search results, manual comparisons, votes and single or batch fills read one effective candidate projection. All placement writers share one road-order policy. A new stop inserts before the correct endpoint in road order. An unmeasured road refuses with an explicit reason. A batch reserves its places within the operation, and an explicit repeat stays possible. Preview, save and Undo now have distinct states. A staged change never touches the shortlist. Success reads only from a checked server acknowledgement. A late or superseded acknowledgement recovers to the exact generation that sent it. Undo deletes only the stops its own operation placed. A preview discard releases only that operation's reservations. Only a verified stop leaves the shortlist, so a skipped place stays available with its reason. A resolved slot vote now lands through one atomic server transition that also resolves the road order. Legacy poll ids and recorded ballots stay readable. The vote-order migration `20261026a` is authored in the repo, and no shared backend has it yet. The atomic vote path stays local until its approved apply. The impact preview now reserves the toast zone's bottom lane. The uncertain Retry stays clickable. A plain, action or mixed toast stack never covers Keep, Move or Remove. A short viewport caps the toast lane so the sheet keeps a usable height. (#841)
 
 ### Changed
-
-- **Agent instruction docs now match the repo.** The corrected rules cover CSS placement, rule ranges, the verify chain, and enforcement notes. They also cover haptics, retired lanes, the migration path, issue closing, baseline keys, and key locations. This change removes stale facts and a fixed defect entry.
 
 - **The 55 live landscape scenes now use the approved balanced artwork, without moving a single selection.** Each id keeps its name and its role. Existing trips show the same scene with richer colour, broader forms and a calmer sunrise and sunset mix. The Bihar and Odisha masters are lossless PNGs decoded from the live app files. This repairs their earlier revision mismatch. The art build table now names one relative master per id under a single staging root. `--list-masters` resolves all 112 ids. (#913)
 

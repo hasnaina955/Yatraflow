@@ -627,7 +627,8 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     const clean = fixtureRepo(GOOD)
     commitFile(clean, 'docs/sp ace/n.md', GOOD)
     expect(runScript(clean).code).toBe(0)
-  }, SLOW)
+    // Two fixture repositories, so twice the room. Under full suite load one SLOW was not enough.
+  }, SLOW * 2)
 
   it('exempts docs/consistency/ from the diff runs, and still checks the same line elsewhere', () => {
     // docs/consistency/ holds planning notes written before the rules applied.

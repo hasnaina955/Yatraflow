@@ -55,7 +55,7 @@ Browser checks must accept this floor instead of requiring an exact zero.
 The check once read only unstaged edits, so a commit made it inspect zero lines and always pass. If the checked count is zero, read the base named in the verdict before you trust the pass.
 
 Use `npm run verify` — it runs the full gate:
-`tsc -b --clean` → fresh typecheck → full test suite → production build.
+`tsc -b --clean` → `tsc -b` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run check:css` → `npm test` → `vite build`.
 
 On a busy machine, set process-only `VITEST_MAX_WORKERS=1` before `npm run verify`.
 Vitest 4.1.12 resolves this value as `maxWorkers`.

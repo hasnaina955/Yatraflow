@@ -4,7 +4,7 @@ Conventions and hard-won pitfalls. Read during **review**, and reach for a
 single rule while implementing when a change touches that area.
 
 This file was extracted from `AGENTS.md` §4 (conventions & pitfalls) and
-`AGENTS.md` §2 rules 6a–6z (the pitfall entries that had accreted there
+the 6-series rules of `AGENTS.md` §2 (the pitfall entries that had accreted there
 over time). The rule **numbers are unchanged** — a reference to `§2.6b`
 anywhere in this repo means the entry labelled `6b` below.
 
@@ -28,7 +28,7 @@ anywhere in this repo means the entry labelled `6b` below.
 
 ---
 
-## 1. Pitfall entries (`AGENTS.md` §2 rules 6a–6z)
+## 1. Pitfall entries (`AGENTS.md` §2, the 6-series rules (6a onward))
 
 Source-contract tests must handle both LF and CRLF line endings.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
@@ -93,8 +93,8 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    radius below the boxed block, and on any `.gcf.trip-starter` answer rule.
    **Rule: after appending any `.trip-starter` / page-scoped block, probe the
    computed style of a control the earlier block styled.** `:not(.gcf)` on the later
-   rule works only for one property at a time — line 12206 got it right and 12204
-   did not, so a whole block still leaked.
+   rule works only for one property at a time — in `src/styles/legacy/13-phone-polish-and-guided-create.css`, one rule got it
+   right and one did not, so a whole block still leaked.
  6e. **Two silent killers from the crew-channels pass (learned 2026-09-23).**
    (1) `window.open(url, '_blank', 'noopener')` **always returns null** — the
    `noopener` feature implies no window handle — so `if (!win) throw` or
@@ -268,9 +268,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    belongs in its OWN migration that creates no function and deletes nothing, so
    it cannot silently disturb what the function pins (here the 730-day clamp
    paired with the funnel reader) — and it must sort AFTER the file that granted
-   the door, which is load-bearing rather than cosmetic; (4) `schema.sql` is a
+   the door, which is load-bearing rather than cosmetic; (4) `supabase/schema.sql` is a
    second and independent way to build the database, so a grant fixed only in
-   the migration series leaves a fresh `schema.sql` instance wide open. Fix both
+   the migration series leaves a fresh `supabase/schema.sql` instance wide open. Fix both
    and let a test compare them.
  6m. **A redefinition inherits the holes of the body it copies — and a comment
    claiming a field is unused is a hypothesis, not evidence (learned
@@ -858,7 +858,7 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    write is a stack. The fix is a fresh branch plus a cherry-pick, never a force-push.
 
 6ar. **A conflict at the end of `src/styles.css` breaks a brace at the seam (learned 2026-10-14).**
-   Each page PR appends CSS at the end of `src/styles.css`. The next page PR then conflicts with it.
+   Each page PR adds CSS to the owner file under `src/styles/` (see `docs/css-ownership.json`). The next page PR then conflicts with it.
    Merge one PR first. Then rebase the next PR once.
    When you resolve the conflict, keep both blocks.
    Then check the seam. The shared closing brace `}` belongs to the last block only.
@@ -1190,7 +1190,7 @@ process.
   catches it. Anchor `old_string`/`new_string` pairs so line endings can't
   shift: include the following line in both, or end neither with a newline.
 
-- **`src/styles.css` is CRLF on disk — Node one-off scripts must handle `\r`.**
+- **`src/styles.css` is LF on disk. `.gitattributes` pins `eol=lf` for it. Source-reading pins must still convert CRLF to LF.**
   Bulk CSS edits via `node` scripts split on `\n`, so every line carries a
   trailing `\r` and exact-string anchors silently fail (or, worse, writing
   LF-only sections leaves the file mixed-ending). Strip `\r` before matching,
@@ -1219,7 +1219,7 @@ process.
   and port only the intended hunks.
 
 - **Re-cut a stale visual branch, never merge it. Move layout overrides on shared classes into page classes, with three exceptions (learned 2026-09-29, #512; revised 2026-10-11, R5).** The V2 settings branch predated five behavior waves on the same form. A merge silently reverted one side. The recut keeps the state, handlers and tests from `test` and applies only the presentation again. Every landed mapping stays landed. The stale `HEALTH_TONE`, `MODE_ICON` and inline settlement math were the traps.
-  Move an inline layout value into a page-prefixed class (R1). Find every rule that sets the same property on the shared class. Include the `+`, `>` and ancestor forms, such as `.card + .card`. If one exists, use a same-element compound selector, such as `.row-between.bud-watch-row`. If none exists, use the page class alone. Append the rule at the end of `src/styles.css` (R6). A two-class compound only ties a combinator rule. If a host rule has more specificity than two classes, keep the value inline.
+  Move an inline layout value into a page-prefixed class (R1). Find every rule that sets the same property on the shared class. Include the `+`, `>` and ancestor forms, such as `.card + .card`. If one exists, use a same-element compound selector, such as `.row-between.bud-watch-row`. If none exists, use the page class alone. `src/styles.css` is an import list. Do not add rules to it. Put new CSS in the file under `src/styles/` that owns the selector family (see `docs/css-ownership.json`). `npm run check:css` checks this. A two-class compound only ties a combinator rule. If a host rule has more specificity than two classes, keep the value inline.
   Keep the value inline in three cases. (1) A test collects rules by selector name and the new selector contains that name. `tests/health-band.test.ts` collects every `health` or `pulse` selector, and four `.tsx-read .health-*` overrides failed it in #512. Do not widen the test to pass. (2) The value breaks a design-system gate (R13). (3) The value comes from data (R4).
 
 - **A squash-merge can silently DROP files, and nothing in the gate catches it.**
@@ -1269,8 +1269,8 @@ process.
 - **A day is addressed by `day.index` and never by array position — and one report names only one of the places that got it wrong (learned 2026-09-26).** Issue #338 read as a per-day money bug in `computeTotals` (`byDay` was built positionally but read with `byDay[day.index]`, the round-trip drive home went to `byDay[len - 1]`, and an expense's `dayIndex` was clamped to the last day — so on a sparse trip, indexes 0,2,3 after a deleted middle day, a day could show a stranger's total). Fixing exactly that was not enough for the issue's own acceptance test *"an unsorted `trip.days` array follows `day.index`"*: the same index-vs-position mistake lived in `originOf`'s `dayEndPosition` (`trip.days[dayIndex]`, so a sparse trip's later days woke up at their own start and measured zero legs), in `firstFixedPoint`/`lastActiveStopPoint` ("home" and the return turnaround read from the array's first/last slot, so shuffling the array moved the whole route), and in two `day.index === trip.days.length - 1` return-shape checks (a count is not the last index). When a day-keyed bug lands, grep `trip.days[` **and** `days.length - 1` across `src/lib` before calling it fixed. The readers clamp too: the Timeline's chip, `printModel` and the engine's own lookups each had their own positional `Math.min(index, len - 1)` — a lookup that finds no bucket must render NOTHING, never another day's number. Two smaller lessons from the same wave: the page handlers that carry this class of bug can still be regression-tested in the node suite — `react-dom/server` renders a pure component (`tests/timefmt.test.ts`, `tests/form-error-summary.test.ts` are the precedent, used here for `DaySpark`'s NaN coordinates) and a narrow source assertion binds a handler to the helper it must call (`tests/decision-resolve.test.ts` is the precedent); and a guard keyed on a row's `status` must treat a MISSING status as open (`if (sg.status && sg.status !== 'open')`), because a hydrated row that predates the field would otherwise become un-actionable — the `fire-and-forget` fixture has no status and caught exactly that.
 
 - **A test that reads source text must turn CRLF into LF first (learned 2026-10-11).**
-  On Windows, `core.autocrlf` is `true`. Git stores LF and writes CRLF to the
-  working tree. A pin that searches for `\n\n` or `/>\n` then finds nothing, and
+  The value of `core.autocrlf` depends on the clone. Read it with `git config --get core.autocrlf`.
+  A clone set to `true` stores LF and writes CRLF to the working tree. A pin that searches for `\n\n` or `/>\n` then finds nothing, and
   it fails on every Windows checkout. CI on Linux hides the fault. Read the file
   with `.replace(/\r\n/g, '\n')`. Two pins failed this way
   (`tests/trips-my-trips-defects.test.ts`, `tests/ladakh-calculator.test.ts`).
@@ -1302,7 +1302,7 @@ process.
   app routes by path (`/trips`). A signed-out visit to a signed-in route keeps
   its URL and shows the landing page in place. A check that compares URLs
   reports success on a wrong page. Compare the page content, such as the h1.
-  `AGENTS.md` still says "hash routing". Treat that line as stale. Link to a page with `appLink('/path')`, never with a `#/` anchor. `tests/app-link.test.ts` fails when a source file does.
+  Link to a page with `appLink('/path')`, never with a `#/` anchor. `tests/app-link.test.ts` fails when a source file does.
 
 - **A snapshot payload keeps its fragment, and every reader of it must agree (learned 2026-10-18, #805).**
   `snapshotUrl` returns `<origin>/#/share/<payload>`. A browser sends `pathname

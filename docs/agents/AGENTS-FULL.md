@@ -382,58 +382,38 @@ that notices the drift.
 
 ### What enforces each rule
 
-A rule nobody checks fails silently. This table pairs each rule above (and the
-two moved sections) with the gate that fails when you break it. "Judgment"
-means no gate exists — only a human or an agent that reads the rule can catch
-a breach, so treat those rows as the ones most easily skipped.
+A rule nobody checks fails silently. This table pairs each rule with the gate that fails when you break it. "Judgment" means no gate exists. Only a human, or an agent that reads the rule, can catch a breach. Treat those rows as the ones most easily skipped.
 
-| Rule | What fails when you break it |
+A rule with no row is a judgment call, and that is where repeats come from. Rule 10 (motion) went for months with no check for its presence. The duration gate passed a surface that shipped with no animation at all. The operator had to point that out three times before anyone fixed the mechanism, not only the instance. When an operator corrects you on a rule with no row, add the check in the same change. The rows for §3 and §4 cover the sections that moved out of this file.
+
+| Rule | Gate, or who decides |
 | --- | --- |
-| §2.1 push to `main` only on confirmation | judgment — the user; Vercel serves `main` |
-| §2.2–3 changelog entry, final state, in the push | `lint:ste` on the entry's prose; review for the rest; `.gitattributes` gives `CHANGELOG.md` a union merge driver, so two sequential PRs no longer conflict on their appends |
-| §2.4 claim the work in the same breath | judgment — `git ls-remote --heads origin \| grep <n>` is the manual check |
-| §2.5 UI-audit fixes tick ROADMAP in the same commit | review; judgment |
-| §2.6 re-derive "done" from git, never from memory | `git status -sb` + `git log` — manual, on every resume |
-| §2.7 hand over exact, proven localhost URLs | judgment — the probe commands in the rule |
-| §2.8 build locally, confirm target branch, then push | judgment — the user confirms |
-| §2.9 edit CHANGELOG with editor primitives only | review of the diff stat; `lint:ste` reads every changed line |
-| §2.10 motion tokens on every new interactive surface | `npm run check:ui` (partial: `transition: all`, z-index ≥ 999, blocked pinch-zoom; manual: not in `verify` or CI) |
-| §2.11 work stays local until the batch is done | judgment — the user says when to push |
-| §2.12 close the issues a `test` merge leaves open | `.github/workflows/issue-autoclose.yml`, pinned by `tests/pr-auto-close.test.ts`; fall back to `gh issue view` after every merge |
-| §2.13 new prose in Simplified Technical English | `npm run lint:ste` (runs inside `verify` too) |
-| §2.14 lint is a ratchet — never add errors | `npm run lint:ratchet` vs `eslint-baseline.json` (inside `verify`) |
-| §2.15 clear `NODE_ENV` before installs | `npm run clean:env` (manual: not in `verify` or CI) |
-| §2.16 work only in your own clone | judgment — the global user-level `AGENTS.md` clone table |
-| §2.17 promote per batch; patch for fixes; two-step SQL | judgment — `git rev-list --count origin/main..origin/test` shows the backlog |
-| §2.18 search for prior art before you build | judgment — the PR description lists the projects, licences and choice |
-| §2.19 claim before you start | judgment — the assignee, the claim comment and `git ls-remote --heads origin` are the manual check |
-| §3 gate, CI, migrations | `npm run verify` locally; `ci.yml` on push and PR (`tests/ci-workflow.test.ts` pins the triggers); `npm run check:migrations` + a live PostgREST probe for schema |
-| §4 code conventions and pitfalls | the pin tests named in each rule — `verify` runs them all |
+| §2.1 push to `main` only on confirmation | Judgment (the user). Vercel serves `main`. |
+| §2.2–3 changelog entry, final state, in the push | `npm run lint:ste` on the entry's prose; review for the rest. `.gitattributes` gives `CHANGELOG.md` a `union` merge driver, so two sequential PRs no longer conflict on their appends. |
+| §2.4 claim the work in the same breath | Judgment. The manual check is `git ls-remote --heads origin \| grep <n>`. |
+| §2.5 UI-audit fixes tick `ROADMAP.md` in the same commit | Review; judgment. |
+| §2.6 re-derive "done" from git, never from memory | Manual, on every resume: `git status -sb` and `git log`. |
+| §2.7 hand over exact, proven localhost URLs | Judgment. The probe commands are in the rule. |
+| §2.8 build locally, confirm the target branch, then push | Judgment (the user confirms). Opt-in `.githooks/pre-push`, set up by `npm run hooks:install`, runs `npm run verify:fast -- --base <base>` before each branch push. It is not the full gate, so `npm run verify` must still pass. |
+| §2.9 edit `CHANGELOG.md` with editor primitives only | Review of the diff stat. `npm run lint:ste` checks the prose on each changed line. |
+| §2.10 motion tokens on every new interactive surface | `tests/design-system.test.ts`, *a surface that appears carries motion*: page roots are discovered from `src/App.tsx`, so a new page fails until its root carries `page-enter`. `.page-enter > *` must give each child a token-duration entrance with a `--stagger-step` delay and a reduced-motion opt-out. An unreadable binding fails the test. The same file pins duration, type, spacing and contrast. `npm run check:ui` adds a partial check (`transition: all`, raw z-index ≥ 999, blocked pinch-zoom). It is manual: not in `verify` or CI. |
+| §2.10 page blocks move in the real app, not only in CSS text | CI job `motion` runs `npm run check:motion` (`scripts/browser-motion-check.mjs`). It serves the build, samples each page root's blocks once per animation frame from before navigation, and fails a block that appears between two frames. `npm run verify` stays browser-free. |
+| §2.11 work stays local until the batch is done | Judgment. The user says when to push. |
+| §2.12 close the issues a `test` merge leaves open | `.github/workflows/issue-autoclose.yml` and `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts`. Fall back to `gh issue view` after every merge. |
+| §2.13 new prose in Simplified Technical English | `npm run lint:ste`, on changed lines only. It runs inside `verify`. |
+| §2.14 lint is a ratchet, never add errors | `npm run lint:ratchet` against `eslint-baseline.json`, per rule and per file. It runs inside `verify`. |
+| §2.15 clear `NODE_ENV` before installs | `npm run clean:env`. Manual: not in `verify` or CI. |
+| §2.16 work only in your own clone | Judgment. The global, user-level `AGENTS.md` clone table. |
+| §2.17 promote per batch; patch for fixes; two-step SQL | Judgment. `git rev-list --count origin/main..origin/test` shows the backlog. |
+| §2.18 search for prior art before you build | Judgment. The PR description lists the projects, licences and choice. |
+| §2.19 claim before you start | Judgment. The issue assignee, the claim comment and `git ls-remote --heads origin`. |
+| §3 gate, CI, migrations | `npm run verify` locally. `ci.yml` runs `verify` on push and PR; `tests/ci-workflow.test.ts` pins the triggers. `npm run check:migrations` and a live PostgREST probe check the schema. Both are manual: not in `verify` or CI (`docs/AGENTS-VERIFICATION.md` §3.2). |
+| §4 code conventions and pitfalls | `CODING_STANDARDS.md`; the pin tests named in each rule, which `verify` runs; `supabase/tests/rls_contract.test.sql` (manual: not in `verify` or CI); CSS gates in `tests/design-system.test.ts`. |
+| A panel painted with the glass token must carry its blur (§4, `CODING_STANDARDS.md` 6an) | `tests/design-system.test.ts`. *One rule owns the popover glass*: only `.popover` may paint `var(--popover-bg)`, and it must declare `backdrop-filter`. *Every glass paint carries its blur*: any rule that paints a translucent glass token must declare `backdrop-filter`, or sit in that test's reason-carrying exception list. A stale exception fails too. |
+| §6 the roadmap's version and date track the release | `tests/roadmap-status.test.ts`, against `package.json` and the newest `CHANGELOG.md` heading. |
+| §6 docs must not promise a surface the code does not have | `tests/doc-drift.test.ts`, through its `LIVE` list. |
 
-
-### What enforces each rule
-
-The rules above are prose, and prose does not fail a build. This table names the
-check behind each one that has a check. **A rule with no row here is a judgment
-call, and that is where repeats come from:** rule 10 (motion) sat here for months
-with nothing enforcing its *presence*, so the duration gate happily passed a
-surface that shipped with no animation at all — the operator had to point that
-out three times before anyone fixed the mechanism instead of the instance. When
-an operator corrects you on a rule with no row, add the check in the same change.
-
-| Rule | Enforced by |
-| --- | --- |
-| §2.10 motion ships with every surface | `tests/design-system.test.ts` → *a surface that appears carries motion*: page roots are **discovered** from `src/App.tsx`, so a new page fails until its root carries `page-enter`, and the shared `.page-enter > *` rule must give its children a token-duration entrance with a `--stagger-step` delay plus the reduced-motion opt-out; a binding the walk cannot read fails the test rather than leaving a gap; the same file pins duration/type/spacing/contrast |
-| §2.13 new prose is STE100 | `npm run lint:ste` (changed lines only) |
-| §2.14 never add lint errors | `npm run lint:ratchet` against `eslint-baseline.json`, per rule and per file |
-| §2.12 a merge into `test` does not close issues | `.github/workflows/issue-autoclose.yml` + `scripts/pr-auto-close.mjs`, pinned by `tests/pr-auto-close.test.ts` |
-| §6 the roadmap's version and date track the release | `tests/roadmap-status.test.ts` (against `package.json` and the newest CHANGELOG heading) |
-| §6 docs must not promise a surface the code does not have | `tests/doc-drift.test.ts` (its LIVE list) |
-| A panel painted with the glass token must carry its blur (§4 / `CODING_STANDARDS` 6an) | `tests/design-system.test.ts` → *one rule owns the popover glass*: only `.popover` may paint `var(--popover-bg)`, and it must declare `backdrop-filter` …; and *every glass paint carries its blur*: any rule painting a translucent glass token must declare `backdrop-filter`, or sit in that test's reason-carrying exception list, and a stale entry fails too |
-| A page block must move in the real app, not only in CSS text (§2.10) | CI job `motion` → `npm run check:motion` (`scripts/browser-motion-check.mjs`): serves the build, samples each page root's blocks once per animation frame from before navigation, and fails a block that appears between two frames. `npm run verify` stays browser-free |
-| §4 conventions (RLS, SQL, providers, scripted edits) | `CODING_STANDARDS.md` + `supabase/tests/rls_contract.test.sql` (manual: not in `verify` or CI); the CSS gates land in `tests/design-system.test.ts` |
-
-Both local runs and CI run the same command: `npm run verify`.
+Local runs and the CI `verify` job run the same command: `npm run verify`. The CI `motion` job also runs `npm run check:motion`.
 
 ## 3. Verification, CI and the migration check
 

@@ -6,6 +6,15 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stayFrameAction } from '../src/lib/map/stayRings'
+import { fixPlaceTitle, fixSummary } from '../src/pages/trip/map/fixLens'
+import type { FixChangeSet } from '../src/lib/mapLensContracts'
+import type { ItineraryStop } from '../src/data/types'
+import { dayEndTown, lastNightStaySub, railDepartClock, railLegVisible, stayRailTitle } from '../src/components/map/railModel'
+import { formatClocksInText } from '../src/lib/timefmt'
+import { pickFactChips, SLOT_SEARCH_PROVENANCE } from '../src/components/map/placeCardFacts'
+import { placeSubLine } from '../src/components/map/lenses/LensPlaceCard'
+import { manualCandidateFor } from '../src/pages/trip/map/slotFiling'
+import { stayWindows } from '../src/pages/trip/map/stayLens'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const read = (file: string) => readFileSync(join(here, '..', file), 'utf-8').replace(/\r\n/g, '\n')
@@ -48,9 +57,6 @@ describe('A1: the Stay camera frames the ring once per lens or base change', () 
 })
 
 // ---------- A4: Fix titles and sub lines in place words ----------
-import { fixPlaceTitle, fixSummary } from '../src/pages/trip/map/fixLens'
-import type { FixChangeSet } from '../src/lib/mapLensContracts'
-import type { ItineraryStop } from '../src/data/types'
 
 const mkStop = (id: string, title: string, visitMinutes = 30): ItineraryStop => ({
   id, title, category: 'sightseeing', locationName: title, lat: 9.6, lng: 77.15, visitMinutes,
@@ -123,7 +129,6 @@ describe('A4: the Fix sub line says what changes for the traveller', () => {
 })
 
 // ---------- B: rail and header ----------
-import { dayEndTown, railDepartClock, railLegVisible, stayRailTitle } from '../src/components/map/railModel'
 
 describe('B6: the day header names the route town to town', () => {
   it('reads the night-halt town from the day title', () => {
@@ -176,7 +181,6 @@ describe('B9: the leave row carries the clock you actually leave', () => {
 })
 
 // ---------- A3: every clock in map text goes through timefmt ----------
-import { formatClocksInText } from '../src/lib/timefmt'
 
 describe('A3: clocks inside map text follow the 12 h / 24 h setting', () => {
   it('renders each stored clock in 12 h', () => {
@@ -199,9 +203,6 @@ describe('A3: clocks inside map text follow the 12 h / 24 h setting', () => {
 })
 
 // ---------- C10-C13: pick card facts ----------
-import { pickFactChips, SLOT_SEARCH_PROVENANCE } from '../src/components/map/placeCardFacts'
-import { placeSubLine } from '../src/components/map/lenses/LensPlaceCard'
-import { manualCandidateFor } from '../src/pages/trip/map/slotFiling'
 
 describe('C10: the slot-search provenance never shows as a pick chip', () => {
   it('drops the provenance reason and keeps a real one', () => {
@@ -240,7 +241,7 @@ describe('C11: fact chips come only from data the hit carries', () => {
 })
 
 describe('C12: the category line names the kind when the data has it', () => {
-  it('prefers the cuisine over the category', () => {
+  it('prefers the place kind over the category', () => {
     expect(placeSubLine({ admin1: 'Kattappana', category: 'food', facts: { kind: 'Kerala meals' } })).toBe('Kattappana · Kerala meals')
   })
   it('falls back to the category', () => {
@@ -249,8 +250,6 @@ describe('C12: the category line names the kind when the data has it', () => {
 })
 
 // ---------- B9: the free evening ends where an empty dinner window begins ----------
-import { stayWindows } from '../src/pages/trip/map/stayLens'
-import { lastNightStaySub } from '../src/components/map/railModel'
 
 describe('B9: the free evening stops at the dinner window', () => {
   it('ends the evening at the dinner start, as the board draws 17:00–20:00', () => {
@@ -276,5 +275,26 @@ describe('B9: a food stop at last night’s stay says so', () => {
     expect(lastNightStaySub(stop, { lat: 9.6, lng: 77.16 }, 'Munnar')).toBeNull()
     expect(lastNightStaySub(stop, null, 'Munnar')).toBeNull()
     expect(lastNightStaySub({ category: 'nature', lat: 10.0889, lng: 77.0596 }, { lat: 10.0889, lng: 77.0596 }, 'Munnar')).toBeNull()
+  })
+})
+
+describe('D15-D17: the Drive map draws the plan marks and the detail card shows the place facts', () => {
+  it('passes the pick words and the route marks from the Map tab to the map', () => {
+    const tab = read('src/pages/trip/MapTab.tsx')
+    expect(tab).toContain('pickBandTag(band, row.detourMin, scopeMinutes)')
+    expect(tab).toContain('{ pickTags }')
+    expect(tab).toContain('{ routeMarks }')
+    expect(tab).toContain('clockTicks(anchors)')
+  })
+  it('draws ticks, the window label and the pick words from props only', () => {
+    const map = read('src/components/TripMap.tsx')
+    expect(map).toContain('mv2-route-tick')
+    expect(map).toContain('mv2-route-window')
+    expect(map).toContain('mv2-pick-tag')
+  })
+  it('keeps the slot-search provenance off the detail card and shows its place facts', () => {
+    const card = read('src/components/map/MapPickCard.tsx')
+    expect(card).toContain('reason !== SLOT_SEARCH_PROVENANCE')
+    expect(card).toContain('hit.facts?.why')
   })
 })

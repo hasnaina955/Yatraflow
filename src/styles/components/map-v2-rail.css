@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  height: 92px;
+  height: 64px;
   margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
   background: var(--mark-tint, var(--pw-soft));
   color: var(--mark-ink, var(--pw-ink-3));

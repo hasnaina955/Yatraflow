@@ -29,7 +29,7 @@ vi.mock('../src/lib/supabase', () => {
     builder.maybeSingle = () => builder
     builder.single = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {
@@ -42,7 +42,7 @@ vi.mock('../src/lib/supabase', () => {
       rpc: (fn: string, params?: unknown) => {
         const qb: Record<string, unknown> = {}
         qb.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-          new Promise(resolve => { calls.push({ table: fn, method: 'rpc', payload: params }); resolve({ data: currentReceipt(), error: null }) }).then(res)
+          new Promise<{ data: unknown; error: unknown }>(resolve => { calls.push({ table: fn, method: 'rpc', payload: params }); resolve({ data: currentReceipt(), error: null }) }).then(res)
         return qb
       },
     },

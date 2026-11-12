@@ -128,8 +128,8 @@ describe('#344 — non-finite detours defer, never ride free', () => {
   it('splitByDetourBudget defers NaN detours (the old NaN path landed within)', () => {
     const items = [{ id: 'nan', detourMin: Number.NaN }, { id: 'ok', detourMin: 10 }]
     const { within, deferred } = splitByDetourBudget(items as never, 45)
-    expect(deferred.map(i => (i as { id: string }).id)).toEqual(['nan'])
-    expect(within.map(i => (i as { id: string }).id)).toEqual(['ok'])
+    expect(deferred.map(i => (i as unknown as { id: string }).id)).toEqual(['nan'])
+    expect(within.map(i => (i as unknown as { id: string }).id)).toEqual(['ok'])
   })
 
   it('candidatesFor skips non-finite detours explicitly', () => {

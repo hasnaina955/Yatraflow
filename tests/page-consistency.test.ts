@@ -227,7 +227,7 @@ const countFaceNames = (text: string): number => count(text, FACE_NAME_IN_TSX)
 
 function listSourceTsx(): string[] {
   return readdirSync(new URL('../src/', import.meta.url), { recursive: true })
-    .map((f) => 'src/' + f.split('\\').join('/'))
+    .map((f) => 'src/' + String(f).split('\\').join('/'))
     .filter((f) => f.endsWith('.tsx'))
     .sort()
 }
@@ -273,7 +273,7 @@ interface Snapshot {
 
 function listPageFiles(): string[] {
   return readdirSync(new URL('../' + PAGE_DIR, import.meta.url), { recursive: true })
-    .map((f) => PAGE_DIR + f.split('\\').join('/'))
+    .map((f) => PAGE_DIR + String(f).split('\\').join('/'))
     .filter((f) => f.endsWith('.tsx'))
     .sort()
 }

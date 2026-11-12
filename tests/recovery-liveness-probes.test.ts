@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedWrite, WriteQueueStore } from '../src/lib/writeQueue'
 import type { TripRow } from '../src/lib/tripRow'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 type Row = Record<string, unknown>
 type Operation = { table: string; method: string; actor: string | null; filters: Record<string, unknown>; payload?: Row }
+
+type Change = RealtimePostgresChangesPayload<Record<string, unknown>>
+/** A wire payload needs its envelope fields; the dispatcher reads only eventType, new and old. */
+const change = (payload: Omit<Change, 'schema' | 'table' | 'commit_timestamp' | 'errors'>): Change =>
+  ({ schema: 'public', table: 'trips', commit_timestamp: '2026-11-12T00:00:00.000Z', errors: [], ...payload })
 
 const { state } = vi.hoisted(() => ({ state: {
   actor: 'A' as string | null,
@@ -194,7 +200,7 @@ function row(id = 'shared', owner = 'A'): TripRow {
     id, owner_id: owner, name: 'Original plan', start_location: 'Kochi', start_location_coords: null,
     destinations: ['Kochi'], destination_coords: null, start_date: '2026-10-01', end_date: '2026-10-01',
     travellers: 2, transport_mode: 'car', budget_per_person_inr: 5000, travel_style: 'balanced',
-    fixed_commitments: [], days: [{ index: 0, stops: [
+    fixed_commitments: [], days: [{ id: 'd0', index: 0, stops: [
       { id: 'keep', title: 'Fort', category: 'sightseeing', locationName: 'Fort', lat: 10, lng: 76,
         visitMinutes: 30, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0 },
       { id: 'delete', title: 'Museum', category: 'sightseeing', locationName: 'Museum', lat: 10, lng: 76,
@@ -273,7 +279,7 @@ describe('liveness owner regressions', () => {
     expect(result).toBe(true);
     const published = store.getSnapshot().trips.find(t => t.id === 'shared');
     // The published plan must carry the server's members, so B is on it.
-    expect(published?.members.some(m => m.userId === 'B')).toBe(true);
+    expect(published?.members?.some(m => m.userId === 'B')).toBe(true);
   });
 
   it('the second shared read refuses to publish after an account switch', async () => {
@@ -288,13 +294,13 @@ describe('liveness owner regressions', () => {
     // takes the second read.
     const newer = { ...state.rows.get('shared'), name: 'CURRENT SHARED', write_version: 1, updated_at: 20 };
     state.rows.set('shared', newer);
-    store._applyRealtimeEventForTest('trips', { eventType: 'UPDATE', new: newer, old: {} });
+    store._applyRealtimeEventForTest('trips', change({ eventType: 'UPDATE', new: newer, old: {} }));
     state.readGate = null; first.release();
     await flush();
     // The account changes while the second read is held.
     state.members.push({ trip_id: 'shared', user_id: 'B', role: 'editor', joined_at: 1 });
     state.actor = 'B';
-    state.authHandler('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
+    state.authHandler!('SIGNED_IN', { user: { id: 'B' }, access_token: 'token-B' });
     await flush();
     second.release();
     // HARD: the discard must not report a clean success under the new account.
@@ -313,12 +319,12 @@ describe('liveness owner regressions', () => {
     await flush();
     const newer = { ...state.rows.get('shared'), name: 'CURRENT SHARED', write_version: 1, updated_at: 20 };
     state.rows.set('shared', newer);
-    store._applyRealtimeEventForTest('trips', { eventType: 'UPDATE', new: newer, old: {} });
+    store._applyRealtimeEventForTest('trips', change({ eventType: 'UPDATE', new: newer, old: {} }));
     state.readGate = null; first.release();
     await flush();
     // The trip is deleted while the second read is held.
     state.rows.delete('shared');
-    store._applyRealtimeEventForTest('trips', { eventType: 'DELETE', new: {}, old: { id: 'shared' } });
+    store._applyRealtimeEventForTest('trips', change({ eventType: 'DELETE', new: {}, old: { id: 'shared' } }));
     await flush();
     second.release();
     const result = await request;
@@ -342,7 +348,7 @@ describe('liveness owner regressions', () => {
     state.failFullRead = false; state.readGate = null;
     const editor = { trip_id: 'shared', user_id: 'A', role: 'editor', joined_at: 1 };
     state.members = state.members.map(m => m.user_id === 'A' ? editor : m);
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'UPDATE', new: editor, old: {} });
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'UPDATE', new: editor, old: {} }));
     await flush();
     hold.release();
     await replay;
@@ -359,13 +365,13 @@ describe('liveness owner regressions', () => {
     state.failFullRead = true; state.readGate = hold.promise;
     vi.stubGlobal('navigator', { onLine: true });
     // The realtime demotion fires and its shared read is held.
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'UPDATE', new: viewer, old: {} });
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'UPDATE', new: viewer, old: {} }));
     await flush();
     state.failFullRead = false; state.readGate = null;
     // A grant lands while the read is held, so the account may edit again.
     const editor = { ...viewer, role: 'editor' };
     state.members = state.members.map(m => m.user_id === 'A' ? editor : m);
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'UPDATE', new: editor, old: {} });
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'UPDATE', new: editor, old: {} }));
     await flush();
     hold.release();
     await flush();

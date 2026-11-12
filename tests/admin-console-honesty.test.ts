@@ -126,7 +126,7 @@ describe("#367 — deleting a mere member keeps the crew's trip", () => {
     expect(ok).toBe(true)
     const db = getSnapshot()
     expect(db.trips.find(t => t.id === 'trip-evict-test')).toBeTruthy()
-    expect(db.trips.find(t => t.id === 'trip-evict-test')?.members.some(m => m.userId === 'member-9')).toBe(false)
+    expect(db.trips.find(t => t.id === 'trip-evict-test')?.members!.some(m => m.userId === 'member-9')).toBe(false)
   })
 
   it('an owner target: the trip goes with them (the DB cascade is honest)', async () => {

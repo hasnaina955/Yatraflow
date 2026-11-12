@@ -152,7 +152,7 @@ describe('coverFor', () => {
   it('returns null when no image exists at any step, which means the SVG floor', () => {
     const empty: ArtManifest = {
       ...ART_MANIFEST,
-      regions: Object.fromEntries(REGIONS.map(region => [region, []])) as ArtManifest['regions'],
+      regions: REGIONS.reduce((acc, region) => ({ ...acc, [region]: [] }), {} as Record<ArtRegion, string[]>),
       fallbacks: { road: [], city: [] },
     }
     for (const region of REGIONS) {

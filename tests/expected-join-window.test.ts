@@ -147,7 +147,7 @@ describe('B2 — the own-echo exemption ends with the try that opened it', () =>
     ownInsertEcho()
     releaseTheRead()
     expect(await join).toBe('joined')
-    expect(tripById(TRIP)?.members.some(m => m.userId === ME)).toBe(true)
+    expect(tripById(TRIP)?.members!.some(m => m.userId === ME)).toBe(true)
   })
 
   it('a RETIRED try does not open the window, so the echo cannot publish a row', async () => {
@@ -262,7 +262,7 @@ describe('B2 — the own-echo exemption ends with the try that opened it', () =>
     releaseTheRead()
 
     expect(await newer).toBe('joined')
-    expect(tripById(TRIP)?.members.some(m => m.userId === ME)).toBe(true)
+    expect(tripById(TRIP)?.members!.some(m => m.userId === ME)).toBe(true)
     state.sessionGate = null
     expect(newerLive).toBe(true)
   })

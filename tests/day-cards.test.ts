@@ -42,7 +42,7 @@ describe('buildDayCards — reuse while a day\'s inputs are unchanged', () => {
     const first = build(t)
     // Budget and crew are not inputs to a day card's journey or schedule.
     const edited = structuredClone(t)
-    edited.budgetInr = (edited.budgetInr ?? 0) + 5000
+    edited.budgetPerPersonInr = (edited.budgetPerPersonInr ?? 0) + 5000
     const second = build(edited, undefined, first)
     for (const day of daysOf(edited)) {
       expect(second.byDay.get(day.index)).toBe(first.byDay.get(day.index))
@@ -212,7 +212,7 @@ describe('dayCardKey — the input list', () => {
     const origin = originOf(t, day.index)
     const base = dayCardKey(t, day, origin, null, null)
     const edited = structuredClone(t)
-    edited.budgetInr = 99999
+    edited.budgetPerPersonInr = 99999
     edited.travellers = 9
     expect(dayCardKey(edited, edited.days[0], origin, null, null)).toBe(base)
   })

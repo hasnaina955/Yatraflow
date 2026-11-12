@@ -31,15 +31,17 @@ const freshStore = async () => {
 
 function trip(): Trip {
   return {
-    id: 'trip-841', title: 'Trip', destination: 'Test', startDate: '2026-11-01', endDate: '2026-11-02',
-    attendees: 2, ownerId: owner, writeVersion: 7, createdAt: 1, updatedAt: 1,
+    id: 'trip-841', name: 'Trip', startLocation: 'Test', destinations: ['Test'], startDate: '2026-11-01', endDate: '2026-11-02',
+    travellers: 2, transportMode: 'car', budgetPerPersonInr: 5000, travelStyle: 'balanced',
+    fixedCommitments: [], coverEmoji: '🧭', visibility: 'private',
+    writeVersion: 7, createdAt: 1, updatedAt: 1,
     days: [
-      { id: 'day-a', index: 0, date: '2026-11-01', label: 'Day 1', stops: [] },
-      { id: 'day-b', index: 1, date: '2026-11-02', label: 'Day 2', stops: [] },
+      { id: 'day-a', index: 0, title: 'Day 1', stops: [] },
+      { id: 'day-b', index: 1, title: 'Day 2', stops: [] },
     ],
     members: [{ userId: owner, role: 'owner', joinedAt: 1 }],
-    expenses: [], collaborators: [],
-  } as Trip
+    expenses: [],
+  }
 }
 
 function seed(store: Awaited<ReturnType<typeof freshStore>>): void {
@@ -49,7 +51,7 @@ function seed(store: Awaited<ReturnType<typeof freshStore>>): void {
   db.decisions = [{
     id: 'decision-841', tripId: 'trip-841', question: 'Lunch?', context: '',
     options: [
-      { id: 'slot:lunch:winner', label: 'Winner', place: { title: 'Cafe', dayId: 'day-a', dayIndex: 0 } },
+      { id: 'slot:lunch:winner', label: 'Winner', place: { title: 'Cafe', category: 'food', locationName: 'Cafe', lat: 15.5, lng: 73.9, visitMinutes: 45, dayId: 'day-a', dayIndex: 0 } },
       { id: 'slot:lunch:other', label: 'Other' },
     ],
     votesByUserId: { [owner]: 'slot:lunch:winner' }, comments: [], status: 'open',

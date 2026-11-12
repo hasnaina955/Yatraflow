@@ -223,7 +223,7 @@ function mountWriter(trip: Trip, applyChange: WriterApplyChange, gate: WriterOpe
   }
   renderToStaticMarkup(createElement(Probe))
   if (!api) throw new Error('the writer hook did not mount')
-  return { api, resolverCalls }
+  return { api: api as ReturnType<typeof useMapWriters>, resolverCalls }
 }
 
 function deferredHold() {

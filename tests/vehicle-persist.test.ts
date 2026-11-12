@@ -73,7 +73,8 @@ const ALL_COLUMNS = {
   economy: true, price: true, roundTrip: true, cover: true,
   inviteCode: true, deleted: true, stayStyle: true,
   driverCount: true, hasVulnerable: true, driveAfterDinner: true, vehicleProfile: true,
-  tankL: true, rentPerDayInr: true, localTrain: true,
+  tankL: true, rentPerDayInr: true, localTrain: true, flights: true,
+  drivesPart: true, ref: true,
 }
 
 function input(over: Partial<NewTripInput> = {}): NewTripInput {
@@ -89,7 +90,7 @@ function input(over: Partial<NewTripInput> = {}): NewTripInput {
 /** The whole persistence chain, ending at the Trip shape Settings inits from. */
 function throughSettings(payload: NewTripInput) {
   const trip = createTrip('owner-377', payload)
-  return rowToTrip(tripToRow(trip, 'owner-377', ALL_COLUMNS), MEMBERS)
+  return rowToTrip({ ...tripToRow(trip, 'owner-377', ALL_COLUMNS), created_at: trip.createdAt, updated_at: trip.updatedAt }, MEMBERS)
 }
 
 describe('create → Settings round-trip', () => {

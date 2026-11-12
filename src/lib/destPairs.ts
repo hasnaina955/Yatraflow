@@ -52,22 +52,3 @@ export function splitDests(pairs: readonly DestPair[]): {
 export function renameDest(pairs: readonly DestPair[], index: number, name: string): DestPair[] {
   return pairs.map((p, i) => (i === index ? { ...p, name } : p))
 }
-
-/** Pin (or unpin) a pair by index, touching nothing else. */
-export function setDestCoords(pairs: readonly DestPair[], index: number, coords: { lat: number; lng: number } | null): DestPair[] {
-  return pairs.map((p, i) => (i === index ? (coords ? { ...p, ...coords } : stripCoords(p)) : p))
-}
-
-function stripCoords(p: DestPair): DestPair {
-  const { name } = p
-  return { name }
-}
-
-/** Are two pair lists the same chain, by name + pin? Used by the dirty
- *  compare (D3b, #413) and by the Preview's route-tail hint (#411). */
-export function destPairsEqual(a: readonly DestPair[], b: readonly DestPair[]): boolean {
-  return a.length === b.length && a.every((p, i) => {
-    const q = b[i]
-    return p.name === q.name && (p.lat ?? null) === (q.lat ?? null) && (p.lng ?? null) === (q.lng ?? null)
-  })
-}

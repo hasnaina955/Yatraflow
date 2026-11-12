@@ -208,11 +208,17 @@ describe('build reproducibility', () => {
 })
 
 describe('evidence handoff', () => {
-  it('keeps the accepted revisions in the evidence folder, not in the repo', () => {
-    // The two accepted masters and their selection record live under E:, so the
-    // repo stays small and the provenance travels with the handoff.
-    const accepted = 'E:/T3/evidence/art-opus-comparison-20261026/SELECTION.json'
-    if (!existsSync(accepted)) return
+  // The two accepted masters and their selection record live outside the repo,
+  // so the repo stays small and the provenance travels with the handoff. Set
+  // YATRAFLOW_ART_SELECTION to read another copy. With no file, the test is
+  // skipped and its name says why. It never passes without checking anything.
+  const accepted = process.env.YATRAFLOW_ART_SELECTION ?? 'E:/T3/evidence/art-opus-comparison-20261026/SELECTION.json'
+  const present = existsSync(accepted)
+  const title = present
+    ? 'keeps the accepted revisions in the evidence folder, not in the repo'
+    : `keeps the accepted revisions in the evidence folder (skipped: no file at ${accepted}; set YATRAFLOW_ART_SELECTION)`
+
+  it.skipIf(!present)(title, () => {
     const selection = JSON.parse(readFileSync(accepted, 'utf8'))
     expect(JSON.stringify(selection)).toMatch(/bihar-study-v2|odisha-study-v2/)
   })

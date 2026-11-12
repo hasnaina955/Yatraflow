@@ -109,19 +109,13 @@ export function transportPolicy(choice: TransportChoice): TransportPolicy {
   }
 }
 
-/** Convenience for the many call sites that only need the planner's answer.
- *  Reads the same record, so it can never disagree with the full form. */
-export function isDrivingTrip(choice: TransportChoice): boolean {
-  return transportPolicy(choice).driving
-}
-
 /** Convenience for the call sites that render. */
 export function showsDrivingControls(choice: TransportChoice): boolean {
   return transportPolicy(choice).showsDrivingControls
 }
 
 /**
- * The PLANNER boundary. It answers a different question from `isDrivingTrip`:
+ * The PLANNER boundary. It answers a different question from `transportPolicy(...).driving`:
  * "may this plan carry a fuel or charge halt?".
  *
  * A row with no readable mode keeps the caller's own choice. A missing mode

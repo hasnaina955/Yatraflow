@@ -17,6 +17,9 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 ## [Unreleased]
 
 **The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It still reports 562 errors, so `verify` does not run it yet. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.
+### Removed
+
+- **Unused code and tests that checked nothing are removed. The app behaves as before.** The rail ruler module had no caller, so it and its test file are gone. Sixteen unused declarations are removed from ten source files. The `geocode` facade drops six re-exports that no file imported through it. Thirteen test cases are removed. They covered the rail ruler, five constant pins and one redundant inline-style pin. The art evidence test now skips with a named reason when its file is absent. Before, it returned early and reported a pass.
 
 ## [0.84.0] - 2026-11-11
 

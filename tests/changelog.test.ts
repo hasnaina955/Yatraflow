@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { assertInsertionOnly, check, parseFragment, planRelease, releaseAt, renderPatch, splitChangelog } from '../scripts/changelog.mjs'
+import { assertInsertionOnly, check, checkRange, parseFragment, planRelease, releaseAt, renderPatch, splitChangelog } from '../scripts/changelog.mjs'
 
 const script = fileURLToPath(new URL('../scripts/changelog.mjs', import.meta.url))
 const first = 'changelog.d/pending/00000000-0000-4000-8000-000000000001.md'
@@ -222,4 +222,48 @@ describe('PR coverage', () => {
     git(root, 'merge', '--no-edit', 'feature')
     expect(() => check(root, { base, head })).toThrow(/needs a new/)
   }, 20000)
+})
+
+describe('check range', () => {
+  it('names the PR range from the event and checks format only on a push', () => {
+    const { root, base } = fixture()
+    const event = path.join(root, '..', `event-${path.basename(root)}.json`)
+    writeFileSync(event, JSON.stringify({ pull_request: { base: { sha: base }, head: { sha: 'f'.repeat(40) } } }))
+    try {
+      const pr = { CI: 'true', GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: event }
+      expect(checkRange(root, {}, pr)).toEqual({ base, head: 'f'.repeat(40) })
+      expect(checkRange(root, {}, { ...pr, GITHUB_EVENT_NAME: 'push' })).toEqual({})
+      writeFileSync(event, '{}')
+      expect(() => checkRange(root, {}, pr)).toThrow(/base and head/)
+    } finally { rmSync(event, { force: true }) }
+    expect(checkRange(root, { base: 'abc', head: 'def' }, { CI: 'true' })).toEqual({ base: 'abc', head: 'def' })
+  })
+  it('starts a local run at the merge base with origin/test, and skips it with no commit ahead', () => {
+    const { root, base } = fixture()
+    expect(() => checkRange(root, {}, {})).toThrow(/Fetch origin test/)
+    git(root, 'update-ref', 'refs/remotes/origin/test', base)
+    expect(checkRange(root, {}, {})).toEqual({})
+    put(root, 'feature.txt', 'change\n')
+    commit(root)
+    expect(checkRange(root, {}, {})).toEqual({ base })
+    const result = cli(root, 'check')
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/needs a new or substantive pending fragment/)
+    put(root, first, note)
+    commit(root)
+    expect(cli(root, 'check').stdout).toMatch(/coverage passed/)
+  }, 20000)
+})
+
+describe('adoption wiring', () => {
+  const text = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+  it('runs the fragment check inside verify and names it in the CI job', () => {
+    const verify = JSON.parse(text('package.json')).scripts.verify as string
+    expect(verify).toContain('npm run changelog:check')
+    expect(verify.indexOf('lint:ste')).toBeLessThan(verify.indexOf('changelog:check'))
+    expect(text('.github/workflows/ci.yml')).toMatch(/name: Verify \([^)]*changelog[^)]*\)/)
+  })
+  it('pins fragments and receipts to LF', () => {
+    expect(text('.gitattributes')).toMatch(/^changelog\.d\/\*\* text eol=lf$/m)
+  })
 })

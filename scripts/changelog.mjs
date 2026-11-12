@@ -249,6 +249,26 @@ function checkDelta(root, baseRef, headRef) {
   if (!changed) throw new Error('This change needs a new or substantive pending fragment')
 }
 
+// Picks the range that PR coverage is checked over. A pull request run names it
+// with the event SHAs. A push run checks format only, because the PR run is the
+// gate and a push can carry any history. A local run starts at the merge base
+// with origin/test. With no commit ahead of that base there is no range to cover.
+export function checkRange(root, values, env = process.env) {
+  if (values.base) return { base: values.base, head: values.head }
+  if (env.CI) {
+    if (env.GITHUB_EVENT_NAME !== 'pull_request') return {}
+    const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : null
+    const base = event?.pull_request?.base?.sha
+    const head = event?.pull_request?.head?.sha
+    if (!base || !head) throw new Error('CI needs PR base and head SHAs')
+    return { base, head }
+  }
+  let base
+  try { base = git(root, ['merge-base', 'origin/test', 'HEAD']).trim() }
+  catch { throw new Error('Fetch origin test or pass --base <commit>') }
+  return base === git(root, ['rev-parse', 'HEAD']).trim() ? {} : { base }
+}
+
 function command() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
     section: { type: 'string' }, message: { type: 'string' }, base: { type: 'string' }, head: { type: 'string' },
@@ -264,26 +284,9 @@ function command() {
     writeFileSync(path.join(root, file), text, { flag: 'wx' })
     console.log(file)
   } else if (positionals[0] === 'check') {
-    let base = values.base
-    let head = values.head
-    if (!base && process.env.CI) {
-      const event = process.env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')) : null
-      if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
-        base = event?.pull_request?.base?.sha
-        head = event?.pull_request?.head?.sha
-        if (!base || !head) throw new Error('CI needs PR base and head SHAs')
-      } else {
-        base = event?.before
-        head = event?.after
-        if (!base || !head || /^0+$/.test(base)) throw new Error('CI needs push before and after SHAs')
-      }
-    }
-    if (!base) {
-      try { base = git(root, ['merge-base', 'origin/test', 'HEAD']).trim() }
-      catch { throw new Error('Fetch origin test or pass --base <commit>') }
-    }
-    const result = check(root, { base, head })
-    console.log(`Changelog: ${result.fragments} pending fragment(s), ${result.receipts} receipt(s); coverage passed.`)
+    const range = checkRange(root, values)
+    const result = check(root, range)
+    console.log(`Changelog: ${result.fragments} pending fragment(s), ${result.receipts} receipt(s); ${range.base ? 'coverage passed.' : 'format checked, no PR range to cover.'}`)
   } else if (positionals[0] === 'release') {
     if (!values.base || !values.version || !values.date) throw new Error('Use --base <commit> --version X.Y.Z --date YYYY-MM-DD')
     check(root)

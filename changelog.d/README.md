@@ -20,7 +20,8 @@ Edit the pending fragment if later work replaces its claim.
 ```
 
 Run `npm run changelog:check` to check format, STE prose, retired IDs, and change coverage.
-The local base is the merge base with `origin/test`. Fetch that ref if it is absent.
+`npm run verify` runs this check. A pull request run in CI uses the event base and head SHAs. A push run checks format only.
+The local base is the merge base with `origin/test`. Fetch that ref if it is absent. With no commit ahead of that base, the check covers format only.
 Use `--base <commit> --head <commit>` for an explicit PR range.
 The check reads the PR range and the candidate merged tree. Target-only notes do not count.
 Renames, copies, and whitespace changes do not count. Review coverage for each outcome as well.

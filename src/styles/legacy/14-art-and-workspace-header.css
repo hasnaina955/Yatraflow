@@ -138,21 +138,6 @@
 .yf-page[data-compact='true'] .yf-thumb {
   transform: translateY(var(--thumb-y)) scale(var(--thumb-scale));
 }
-.yf-thumb-photo {
-  position: absolute;
-  inset: 0;
-  background-position: center;
-  background-size: cover;
-}
-.yf-thumb-emoji {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  font-size: 42px;
-  line-height: 1;
-}
-
 .yf-head-text { min-width: 0; transition: transform var(--motion-slow) var(--ease-glide); }
 .yf-page[data-compact='true'] .yf-head-text { transform: translateX(var(--title-shift)); }
 .yf-trip-title {

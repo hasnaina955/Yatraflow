@@ -147,12 +147,6 @@
       "inlineStyle": 4,
       "rawH1": 0
     },
-    "src/pages/trip/timeline/DaySpark.tsx": {
-      "EmptyState": 0,
-      "loadingBlock": 0,
-      "inlineStyle": 0,
-      "rawH1": 0
-    },
     "src/pages/trip/timeline/FlightsPanel.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,

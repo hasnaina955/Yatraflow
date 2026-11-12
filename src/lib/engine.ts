@@ -1281,14 +1281,23 @@ export function collectWarnings(trip: Trip, legCorrections?: Record<string, LegE
     }
     const arrivalMin = hmToMinutes(sim.arrivalTimes[atIdx])
     const atName = sim.activeStops[atIdx].title
-    if (arrivalMin > commitMin) {
+    // A boarding clock is the real deadline. A gate that closes at 15:00 for a
+    // 15:30 sailing is shut at 15:05, though the sailing is still ahead, and it
+    // is also shut at 15:30 — the sailing time alone never reads as a buffer.
+    const boardingMin = fc.boardingTime != null && /^\d{1,2}:\d{2}$/.test(fc.boardingTime)
+      ? hmToMinutes(fc.boardingTime)
+      : Number.NaN
+    const hasBoarding = Number.isFinite(boardingMin)
+    const deadlineMin = hasBoarding ? boardingMin : commitMin
+    const deadlineWords = hasBoarding ? `boarding closes at ${fc.boardingTime}` : `the ${fc.time} commitment`
+    if (arrivalMin > deadlineMin) {
       const title = `Conflicts with ${fc.title}`
-      const detail = `You reach ${atName} ~${sim.arrivalTimes[atIdx]}, after the ${fc.time} commitment.`
+      const detail = `You reach ${atName} ~${sim.arrivalTimes[atIdx]}, after ${deadlineWords}.`
       const fix = 'Cut an earlier stop so you arrive with buffer.'
       warnings.push({ code: 'commitment', severity: 'high', dayIndex: fc.dayIndex, title, detail, fix })
-    } else if (commitMin - arrivalMin < 45) {
+    } else if (deadlineMin - arrivalMin < 45) {
       const title = `Thin buffer before ${fc.title}`
-      const detail = `You reach ${atName} ~${sim.arrivalTimes[atIdx]}, under ~45 min before the ${fc.time} commitment.`
+      const detail = `You reach ${atName} ~${sim.arrivalTimes[atIdx]}, under ~45 min before ${deadlineWords}.`
       const fix = 'Drop one optional stop to protect your connection.'
       warnings.push({ code: 'buffer', severity: 'medium', dayIndex: fc.dayIndex, title, detail, fix })
     }

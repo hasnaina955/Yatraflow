@@ -32,6 +32,7 @@ import {
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
+import { stayRingsDependencyKey } from '../lib/map/stayRings'
 import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
 import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
@@ -1135,9 +1136,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     })
     return { spots, boxes }
   }, [])
+  // The ring dependency is CONTENT, not array identity — see lib/map/stayRings.
+  const stayRingsKey = stayRingsDependencyKey(stayRings)
+  const stayRingsRef = useRef(stayRings)
+  // Effects run top to bottom, so the ref is current before the spread effect.
+  useEffect(() => { stayRingsRef.current = stayRings }) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const map = mapRef.current
     if (!workspaceChrome || !map || !mapLoaded) return
+    // The rings arrive as a new array on every render (the page builds them
+    // inline and the default below is a new `[]`). Reading them through a ref
+    // and depending on their key keeps this state-writing effect from running
+    // again after every commit, which was the render loop itself.
+    const rings = stayRingsRef.current
     const spread = () => {
       try {
         setMapZoom(map.getZoom())
@@ -1152,7 +1163,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         // A ring caption stands on the ring's foot point. When that point is off
         // the clear map area, keep the caption at the nearest edge instead.
         const captions: Record<string, { lat: number; lng: number; edge: boolean }> = {}
-        for (const ring of stayRings) {
+        for (const ring of rings) {
           const foot = ringCaptionPoint(ring.ring)
           if (!foot) continue
           const projected = map.project(foot)
@@ -1172,7 +1183,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     map.on('moveend', spread)
     map.on('resize', spread)
     return () => { map.off('moveend', spread); map.off('resize', spread) }
-  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRings])
+  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRingsKey])
 
   useEffect(() => {
     const map = mapRef.current

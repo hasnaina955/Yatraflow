@@ -232,6 +232,11 @@ export type FixVerification =
     kind: 'verified'
     /** True when the target warning is gone in the result. */
     clearsTarget: boolean
+    /** True when the change leaves no NEW warning on the target's own stop.
+     *  A fix that trades the target for a worse conflict on that stop is not
+     *  a clear (the same W15 subject rule the add preview uses). A target
+     *  with no stop (a day-wide warning) is always stop-clear. */
+    stopClear: boolean
     /** Warnings that exist in the result and did not exist before. */
     introduced: readonly FixWarningRef[]
     /** Day total change in minutes. Negative is shorter. Null is unproven. */

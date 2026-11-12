@@ -92,6 +92,11 @@ export interface FixedCommitment {
   type: FixedCommitmentType
   dayIndex: number          // 0-based day of the trip
   time: string              // "HH:MM" 24h
+  /** "HH:MM" 24h — the clock boarding closes, when the booking states one
+   *  (a boat whose gate shuts before it sails). It is the deadline the engine
+   *  checks; `time` is still the departure the ticket names. Absent = `time`.
+   *  The map's Fix line reads it, so the app never invents a boarding clock. */
+  boardingTime?: string
   notes?: string
   /** The day stop this deadline is checked against. Absent = the check
    *  lacks a location and says so (never borrows another stop's clock). */

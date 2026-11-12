@@ -63,7 +63,7 @@ const board = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Kerala loop', startLocation: 'Kochi', startLocationCoords: { lat: 9.9312, lng: 76.2673 }, destinations: ['Kochi'], destinationCoords: [{ lat: 9.9658, lng: 76.2421 }],
   startDate: '2026-11-14', endDate: '2026-11-19', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
   createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }],
-  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', stopId: 'fixture-boat', notes: 'Paid booking. Boarding opens at 15:00. Sample data.' }],
+  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', boardingTime: '15:00', stopId: 'fixture-boat', notes: 'Paid booking. Boat sails at 15:30; boarding closes at 15:00. Sample data.' }],
   days: [
     { id: 'fixture-day-1', index: 0, startTime: '09:00', title: 'Kochi to Munnar', stops: [
       stop('fixture-d1-falls', 'Cheeyappara waterfalls', 'nature', 10.0107, 76.9187, 1, 40),

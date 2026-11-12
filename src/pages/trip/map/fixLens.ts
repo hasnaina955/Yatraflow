@@ -10,12 +10,13 @@
 import {
   collectWarnings, getAssumptions, groupWarnings, hmToMinutes, originOf, simulateDay,
 } from '../../../lib/engine'
-import type { DaySchedule } from '../../../lib/engine'
+import type { DaySchedule, LegEstimate } from '../../../lib/engine'
 import { fixIsOffered, isPlaceFree } from '../../../lib/mapLensContracts'
 import type {
   FixChange, FixChangeSet, FixTarget, FixVerification, FixWarningRef,
 } from '../../../lib/mapLensContracts'
 import type { ItineraryDay, Trip } from '../../../data/types'
+import { warningSubjectStop } from './warningSubject'
 
 /** One row of copy for the Fix panel. The panel renders these strings. */
 export interface FixSummary {
@@ -124,19 +125,22 @@ export function applyFixChangeSet(trip: Trip, set: FixChangeSet): Trip | null {
 }
 
 /**
- * The stop a warning names. ScheduleWarning carries no stop id: an
- * opening-hours warning leads with the stop title ("Periyar boat: closes too
- * soon after arrival"). This matches a unique `<stop title>: ` prefix. It
- * returns null when no stop or more than one stop matches.
+ * The stop a warning names. ScheduleWarning carries no stop id, so the title's
+ * own words decide: "Periyar boat: closes too soon", "Conflicts with Periyar
+ * boat" and "Thin buffer before Periyar boat" all name the same stop (the one
+ * shared subject rule the add preview uses). It returns null when no stop or
+ * more than one stop matches.
  */
-function warningStopId(warning: { title: string }, day: ItineraryDay | undefined): string | null {
+function warningStopId(warning: { title: string; detail?: string | null }, day: ItineraryDay | undefined): string | null {
   if (!day) return null
-  const hits = day.stops.filter(stop => stop.title.length > 0 && warning.title.startsWith(`${stop.title}: `))
+  const subject = warningSubjectStop(warning, day)
+  if (subject == null || subject === '') return null
+  const hits = day.stops.filter(stop => stop.title === subject)
   return hits.length === 1 ? hits[0].id : null
 }
 
 /** The contract ref of one warning. `severity` is the warning's severity field. */
-function toRef(warning: { code: string; severity: string; title: string }, day: ItineraryDay | undefined): FixWarningRef {
+function toRef(warning: { code: string; severity: string; title: string; detail?: string }, day: ItineraryDay | undefined): FixWarningRef {
   return {
     code: warning.code,
     stopId: warningStopId(warning, day),
@@ -146,11 +150,11 @@ function toRef(warning: { code: string; severity: string; title: string }, day: 
 }
 
 /** Every warning of the trip, with its day. Trip-wide warnings use day -1. */
-function warningRefsWithDay(trip: Trip): DayRef[] {
+function warningRefsWithDay(trip: Trip, legCorrections?: Record<string, LegEstimate>): DayRef[] {
   const dayOf = (index: number) => trip.days.find(day => day.index === index)
-  const { byDay, tripWide } = groupWarnings(collectWarnings(trip))
+  const { byDay, tripWide } = groupWarnings(collectWarnings(trip, legCorrections))
   const out: DayRef[] = []
-  const push = (dayIndex: number, warning: { code: string; severity: string; title: string }) => {
+  const push = (dayIndex: number, warning: { code: string; severity: string; title: string; detail?: string }) => {
     const ref = toRef(warning, dayOf(dayIndex))
     // The key names the day too: the same code on two days is two warnings.
     out.push({ dayIndex, key: `${dayIndex}|${ref.code}|${ref.stopId ?? ''}`, ref })
@@ -161,8 +165,12 @@ function warningRefsWithDay(trip: Trip): DayRef[] {
 }
 
 /** The warnings the engine reports for one day, as contract refs, in engine order. */
-export function warningRefs(trip: Trip, dayIndex: number): FixWarningRef[] {
-  return warningRefsWithDay(trip).filter(row => row.dayIndex === dayIndex).map(row => row.ref)
+export function warningRefs(
+  trip: Trip,
+  dayIndex: number,
+  legCorrections?: Record<string, LegEstimate>,
+): FixWarningRef[] {
+  return warningRefsWithDay(trip, legCorrections).filter(row => row.dayIndex === dayIndex).map(row => row.ref)
 }
 
 /** The day's length in minutes, or null when either clock is unknown. */
@@ -190,30 +198,39 @@ function reasonOf(error: unknown): string {
  * A set that cannot apply, or an engine throw, becomes `failed` with a reason.
  * The error is caught and never rethrown.
  */
-export function verifyFixSet(trip: Trip, set: FixChangeSet): FixChangeSet {
+export function verifyFixSet(
+  trip: Trip,
+  set: FixChangeSet,
+  legCorrections?: Record<string, LegEstimate>,
+): FixChangeSet {
   try {
     const next = applyFixChangeSet(trip, set)
     if (!next) return failedSet(set, 'The change set does not apply to this trip.')
-    const before = warningRefsWithDay(trip)
-    const after = warningRefsWithDay(next)
+    const before = warningRefsWithDay(trip, legCorrections)
+    const after = warningRefsWithDay(next, legCorrections)
     const beforeKeys = new Set(before.map(row => row.key))
     const introduced = after.filter(row => !beforeKeys.has(row.key)).map(row => row.ref)
     const clearsTarget = !after.some(row =>
       row.dayIndex === set.dayIndex
       && row.ref.code === set.target.code
       && (set.target.stopId === null || row.ref.stopId === set.target.stopId))
+    // W15's rule, one subject: a Stop is clear only when the change leaves no
+    // new warning on it. A fix that trades the target for a worse conflict on
+    // the same stop never earns a "Clears it" line.
+    const stopClear = set.target.stopId == null
+      || !introduced.some(ref => ref.stopId != null && String(ref.stopId) === String(set.target.stopId))
     const beforeDay = trip.days.find(day => day.index === set.dayIndex)
     const afterDay = next.days.find(day => day.index === set.dayIndex)
     let deltaMin: number | null = null
     if (beforeDay && afterDay) {
       // DaySchedule.endsAt is the end-of-day clock. A day length uses both clocks.
-      const beforeSim = simulateDay(beforeDay, trip, originOf(trip, set.dayIndex), set.dayIndex)
-      const afterSim = simulateDay(afterDay, next, originOf(next, set.dayIndex), set.dayIndex)
+      const beforeSim = simulateDay(beforeDay, trip, originOf(trip, set.dayIndex), set.dayIndex, legCorrections)
+      const afterSim = simulateDay(afterDay, next, originOf(next, set.dayIndex), set.dayIndex, legCorrections)
       const beforeLen = dayLengthMin(beforeSim)
       const afterLen = dayLengthMin(afterSim)
       deltaMin = beforeLen == null || afterLen == null ? null : afterLen - beforeLen
     }
-    const verification: FixVerification = { kind: 'verified', clearsTarget, introduced, deltaMin }
+    const verification: FixVerification = { kind: 'verified', clearsTarget, stopClear, introduced, deltaMin }
     return { ...set, verification }
   } catch (error) {
     return failedSet(set, reasonOf(error))
@@ -242,8 +259,10 @@ export function fixCandidates(trip: Trip, dayIndex: number, target: FixTarget): 
   const stopId = target.stopId
   const at = stopId == null ? -1 : day.stops.findIndex(stop => stop.id === stopId)
   if (stopId != null && at >= 0) {
-    // Move earlier: one set per earlier position, from the nearest, at most two.
-    for (let j = at - 1, made = 0; j >= 0 && made < 2; j--, made++) {
+    // Move earlier: one set per earlier position. The engine can compute any of
+    // them, so all are offered; the panel's own cap ranks them. The board's
+    // "go to the jetty first" is the far end of this list.
+    for (let j = at - 1; j >= 0; j--) {
       add(`move-earlier-${j}`, [{ kind: 'move', stopId, toIndex: j }])
     }
     if (at > 0) {
@@ -296,8 +315,9 @@ export function fixesForWarning(
   dayIndex: number,
   target: FixTarget,
   cap = 3,
+  legCorrections?: Record<string, LegEstimate>,
 ): FixChangeSet[] {
-  const verified = fixCandidates(trip, dayIndex, target).map(set => verifyFixSet(trip, set))
+  const verified = fixCandidates(trip, dayIndex, target).map(set => verifyFixSet(trip, set, legCorrections))
   const order = new Map(verified.map((set, i) => [set.id, i]))
   const offered = verified.filter(set => fixIsOffered(set) && isPlaceFree(set))
   offered.sort((a, b) => {
@@ -365,7 +385,9 @@ export function fixSummary(
     result = `Could not run the check: ${check.reason}`
   } else if (check.kind === 'unverified') {
     result = 'Not checked'
-  } else if (!check.clearsTarget) {
+  } else if (!check.clearsTarget || check.stopClear === false) {
+    // The target left, but the stop still carries a new warning: it is not a
+    // clear (W15's rule, shared through warningSubject).
     result = 'Does not clear it'
   } else {
     result = 'Clears it'

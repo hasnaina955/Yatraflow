@@ -1393,6 +1393,35 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // is ready, so a failed read never shows zero.
   const lensClock = useCallback((min: number) => formatHM(clockHM(min), timeFormat), [timeFormat])
   const lensDayLabel = `Day ${activeDayIndex + 1} · ${activeDayLabel(trip.days, activeDayIndex)}`
+  // The stay lens's free evening waits for the day's fixed booking. These are
+  // the facts stayLens.stayWindows turns into the one window that the rail, the
+  // deck header and each pick's start time read.
+  const stayBaseForEvening = activeDayIndex == null ? null : resolveStayBase(trip, activeDayIndex)
+  const stayBaseStopForEvening = stayBaseForEvening?.kind === 'stop'
+    ? trip.days.flatMap(day => day.stops).find(stop => stop.id === stayBaseForEvening.stopId) ?? null
+    : null
+  const stayBaseAt = stayBaseStopForEvening == null || !journeyDay?.daySchedule
+    ? -1
+    : journeyDay.daySchedule.activeStops.findIndex(entry => entry.id === stayBaseStopForEvening.id)
+  const stayBaseArriveMin = stayBaseAt >= 0 && journeyDay?.daySchedule
+    ? hmToMinutes(journeyDay.daySchedule.arrivalTimes[stayBaseAt])
+    : null
+  const stayCommitment = stayBaseArriveMin == null ? null : trip.fixedCommitments
+    .filter(entry => entry.dayIndex === activeDayIndex && entry.time != null && hmToMinutes(entry.time) > stayBaseArriveMin)
+    .sort((a, b) => hmToMinutes(a.time) - hmToMinutes(b.time))[0] ?? null
+  const commitmentStop = stayCommitment?.stopId == null
+    ? null
+    : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayCommitment.stopId) ?? null
+  const stayTravelMin = stayBaseStopForEvening == null || commitmentStop == null
+    ? null
+    : Math.round(legBetween(stayBaseStopForEvening, commitmentStop, getAssumptions(trip)).durationMinutes)
+  const stayEveningBook = stayCommitment == null
+    ? null
+    : {
+      startMin: hmToMinutes(stayCommitment.time),
+      visitMin: commitmentStop != null && typeof commitmentStop.visitMinutes === 'number' ? commitmentStop.visitMinutes : null,
+      backMin: stayTravelMin,
+    }
   const lenses = useMapLenses({
     trip,
     dayIndex: activeDayIndex,
@@ -1403,6 +1432,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     schedule: journeyDay?.daySchedule ?? null,
     clock: lensClock,
     dayLabel: lensDayLabel,
+    legCorrections,
+    eveningBook: stayEveningBook,
   })
   const activeStayWindowId = stayWindow != null && lenses.stay.windows.some(window => window.id === stayWindow)
     ? stayWindow
@@ -1549,8 +1580,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     }]
   })
   const stayBaseId = lens === 'stay' && activeDayIndex != null ? (() => { const base = resolveStayBase(trip, activeDayIndex); return base.kind === 'stop' ? base.stopId : null })() : null
-  const stayBaseAt = stayBaseId == null || !journeyDay?.daySchedule ? -1 : journeyDay.daySchedule.activeStops.findIndex(entry => entry.id === stayBaseId)
-  const stayBaseArriveMin = stayBaseAt >= 0 && journeyDay?.daySchedule ? hmToMinutes(journeyDay.daySchedule.arrivalTimes[stayBaseAt]) : null
   const stayEvening = lenses.stay.windows.find(window => window.id === 'evening') ?? null
   const stayBaseStop = stayBaseId == null ? null : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayBaseId) ?? null
   // The board names the place, not the stop's action label: a base titled
@@ -1561,21 +1590,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const dayTitle = trip.days.find(day => day.index === activeDayIndex)?.title ?? ''
   const titleTo = /(?:\bto\b|→)\s*([^,·]+)$/i.exec(dayTitle)?.[1]?.trim() ?? null
   const stayTown = trip.destinations[activeDayIndex] ?? (titleTo === '' ? null : titleTo) ?? stayPlace
-  const stayCommitment = stayBaseArriveMin == null ? null : trip.fixedCommitments
-    .filter(entry => entry.dayIndex === activeDayIndex && entry.time != null && hmToMinutes(entry.time) > stayBaseArriveMin)
-    .sort((a, b) => hmToMinutes(a.time) - hmToMinutes(b.time))[0] ?? null
-  // The board's free window starts after the evening commitment. An unknown
-  // commitment keeps the real lens window, so the rail invents no time.
-  const commitmentStop = stayCommitment?.stopId == null
-    ? null
-    : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayCommitment.stopId) ?? null
-  const stayTravelMin = stayBaseStop == null || commitmentStop == null
-    ? null
-    : Math.round(legBetween(stayBaseStop, commitmentStop, getAssumptions(trip)).durationMinutes)
-  const freeEveningStartMin = stayCommitment == null || stayTravelMin == null ? null : hmToMinutes(stayCommitment.time) + stayTravelMin
-  const freeEvening = stayEvening != null && freeEveningStartMin != null && freeEveningStartMin < stayEvening.endMin
-    ? { ...stayEvening, startMin: Math.max(freeEveningStartMin, stayEvening.startMin) }
-    : stayEvening
   const stayRailWindows: ItineraryWindowRow[] = lens === 'stay'
     ? [
       ...lenses.stay.windows.map(window => {
@@ -1583,7 +1597,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         const total = found?.kind === 'ready' ? found.picks.length + found.alsoCount : null
         const text = picksText(total)
         return {
-          label: window.label, startMin: window.id === 'evening' ? freeEvening?.startMin ?? window.startMin : window.startMin, endMin: window.endMin,
+          label: window.label, startMin: window.startMin, endMin: window.endMin,
           active: window.id === activeStayWindowId,
           detail: text == null ? null : window.id === 'evening' ? `${text} nearby` : text,
           nextDayLabel: window.id === 'morning' ? `Day ${activeDayIndex + 2}` : null,
@@ -1594,9 +1608,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ]
     : []
   const railWindows = lens === 'stay' ? stayRailWindows : gapRailWindows
-  const stayFree = freeEvening != null
-    ? windowDurationText(freeEvening.startMin, freeEvening.endMin) != null
-      ? { startMin: freeEvening.startMin, endMin: freeEvening.endMin }
+  const stayFree = stayEvening != null
+    ? windowDurationText(stayEvening.startMin, stayEvening.endMin) != null
+      ? { startMin: stayEvening.startMin, endMin: stayEvening.endMin }
       : null
     : null
   const stayTownSub = stayRailTitle(stayTown, false)
@@ -1669,7 +1683,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   }
   function applyFixAgainst(baseTrip: Trip, set: FixChangeSet) {
     // Check the real plan first. A fix that does not pass its check never writes.
-    const checked = verifyFixSet(baseTrip, set)
+    const checked = verifyFixSet(baseTrip, set, legCorrections)
     if (!fixIsOffered(checked)) {
       toast('This fix did not pass its check. Nothing changed.')
       return

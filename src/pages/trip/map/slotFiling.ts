@@ -73,9 +73,10 @@ export type ManualCandidateInput = {
  * A search pick filed as a candidate for a slot: the shape the rail's cards read,
  * with every field the search genuinely cannot know left null.
  *
- * `budgetSharePct` is the one derived number, and an unknown detour reads as the
- * WHOLE budget (100) rather than a flattering zero — an unmeasured candidate has
- * no evidence that it is cheap.
+ * `budgetSharePct` is the one derived number. An unknown detour or an unknown
+ * budget reads as the WHOLE budget (100) rather than a flattering zero — an
+ * unmeasured candidate has no evidence that it is cheap. A known detour against
+ * a known budget uses the shared share, like every engine suggestion.
  *
  * `score` is `MAX_SAFE_INTEGER` because this candidate was never scored by the
  * engine: it is the user's own pick, and the rail sorts manual picks first on
@@ -87,7 +88,7 @@ export function manualCandidateFor(input: ManualCandidateInput): SlotCandidate {
     hit,
     detourMin,
     detourKm,
-    budgetSharePct: detourMin == null ? 100 : sharePct(detourMin, budgetMin),
+    budgetSharePct: detourMin == null || !(budgetMin > 0) ? 100 : sharePct(detourMin, budgetMin),
     posKm: null,
     arriveMin: null,
     arriveLabel: null,

@@ -7,6 +7,7 @@
 // The writer and the future shared producer both call this same pair, so there
 // is exactly one manual merge and no second placement policy.
 import { buildDayPlan, type DayPlan } from '../../../lib/dayPlan'
+import { budgetSharePct } from '../../../lib/detourBudget'
 import type { DaySlot, SlotCandidate } from '../../../lib/daySlots'
 import type { PlaceHit } from '../../../lib/providers/hits'
 import type { PlaceIdentity } from '../../../lib/placeIdentity'
@@ -28,6 +29,9 @@ export interface ReadManualPicksInput {
   slotManual: Readonly<Record<string, readonly PlaceHit[]>>
   detourMinFor?: (hit: PlaceHit) => number | null
   detourKmFor?: (hit: PlaceHit) => number | null
+  /** The day's own detour budget. Absent = unknown, so a manual pick's share
+   *  keeps the whole-budget placeholder. */
+  budgetMin?: number
 }
 
 /**
@@ -42,7 +46,7 @@ export function readManualPicksForDay(input: ReadManualPicksInput): ManualPicksF
   if (dayId) {
     const fromStore = input.store.candidatesBySlot(
       { tripId: input.tripId, dayId },
-      { detourMin: input.detourMinFor, detourKm: input.detourKmFor },
+      { detourMin: input.detourMinFor, detourKm: input.detourKmFor, budgetMin: input.budgetMin ?? 0 },
     )
     for (const [key, candidates] of Object.entries(fromStore)) stable.set(key, [...candidates])
   }
@@ -55,8 +59,8 @@ export function readManualPicksForDay(input: ReadManualPicksInput): ManualPicksF
       hit,
       detourMin: input.detourMinFor?.(hit) ?? null,
       detourKm: input.detourKmFor?.(hit) ?? null,
-      budgetMin: 1,
-      sharePct: () => 100,
+      budgetMin: input.budgetMin ?? 0,
+      sharePct: budgetSharePct,
     })))
   }
   return { stable: Object.fromEntries(stable), legacy: Object.fromEntries(legacy) }

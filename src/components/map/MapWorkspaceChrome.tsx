@@ -161,9 +161,10 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const fixPoint = fixStopId == null ? null : points.find(point => point.stop.id === fixStopId) ?? null
   const engineFixSubLine = fixPoint == null
     ? null
-    : fixReasonLine(fixPoint.title, formatHM(fixPoint.arrive, timeFormat), fixProblemReason(trip, activeDay))
+    : fixReasonLine(fixPoint.title, formatHM(fixPoint.arrive, timeFormat), fixProblemReason(trip, activeDay, corrections))
   const fixProblem = fixProblemProp ?? null
-  const fixRowLine = fixProblemSubLine(fixProblem) ?? fixSubLine ?? engineFixSubLine
+  // The Fix line renders in the reader's 12 h/24 h clock, like every other row.
+  const fixRowLine = fixProblemSubLine(fixProblem, hm => formatHM(hm, timeFormat)) ?? fixSubLine ?? engineFixSubLine
   const fixRowRef = useRef<HTMLButtonElement | null>(null)
   const stopsRef = useRef<HTMLOListElement | null>(null)
   useEffect(() => {

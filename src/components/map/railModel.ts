@@ -43,25 +43,45 @@ export function railStopNumber(points: ReadonlyArray<{ kind: JourneyPointKind; s
 }
 
 /** Short rail subtitle for a Fix problem, from the engine's real facts.
- *  An unknown fact keeps its part out; a known arrival and a closed boarding
- *  read "Jetty 15:05 · boarding closed". */
-export function fixProblemSubLine(problem: {
-  title: string
-  evidence: readonly string[]
-} | null): string | null {
+ *  An unknown fact keeps its part out. A jetty line names the arrival and the
+ *  deadline in the READER's clock: "Jetty 4:37 PM · boarding closed 3:00 PM"
+ *  when the boat is missed, "Jetty 2:53 PM · before 3:00 PM" when it is not. */
+export function fixProblemSubLine(
+  problem: {
+    title: string
+    evidence: readonly string[]
+  } | null,
+  clock: (hm: string) => string = hm => hm,
+): string | null {
   if (problem == null) return null
   const evidence = problem.evidence.find(line => line.trim() !== '')?.trim() ?? null
   if (evidence == null) return null
-  const arrival = /~(\d{2}:\d{2})/.exec(evidence)?.[1] ?? null
-  const commitment = /(?:after|before) the (\d{2}:\d{2}) commitment/.exec(evidence)?.[1] ?? null
-  // Only an arrival after the commitment means boarding closed. A thin buffer
-  // ("under ~45 min before") is still before the commitment.
-  const closed = /after the \d{2}:\d{2} commitment/i.test(evidence)
+  const arrival = /~(\d{1,2}:\d{2})/.exec(evidence)?.[1] ?? null
+  // The engine names the deadline it checked: a boarding clock when the
+  // booking holds one, else the commitment time.
+  const boarding = /after boarding closes at (\d{1,2}:\d{2})/i.exec(evidence)?.[1]?.trim() ?? null
+  const closedCommitment = /after the (\d{1,2}:\d{2}) commitment/i.exec(evidence)?.[1]?.trim() ?? null
+  const beforeBoarding = /under ~45 min before boarding closes at (\d{1,2}:\d{2})/i.exec(evidence)?.[1]?.trim() ?? null
+  const beforeCommitment = /under ~45 min before the (\d{1,2}:\d{2}) commitment/i.exec(evidence)?.[1]?.trim() ?? null
+  const deadline = boarding ?? closedCommitment ?? beforeBoarding ?? beforeCommitment
   const jetty = /jetty|boat|boarding/i.test(`${problem.title} ${evidence}`)
-  if (arrival != null && commitment != null && jetty) {
-    return `Jetty ${arrival} · ${closed ? 'boarding closed' : `before ${commitment}`}`
+  if (arrival != null && deadline != null && jetty) {
+    // The arrival has reached or passed a "before" clock: that is no longer a
+    // buffer. An equal clock is closed too — the gate is shut at the deadline.
+    const closed = boarding != null || closedCommitment != null
+      || hmMin(arrival) >= hmMin(deadline)
+    return closed
+      ? `Jetty ${clock(arrival)} · boarding closed${boarding != null ? ` ${clock(boarding)}` : ''}`
+      : `Jetty ${clock(arrival)} · before ${clock(deadline)}`
   }
   return evidence
+}
+
+/** "HH:MM" as minutes since midnight. A string that is not a clock reads as 0,
+ *  which can only make a "before" line close, never invent a buffer. */
+function hmMin(hm: string): number {
+  const [hours, minutes] = hm.split(':').map(Number)
+  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : 0
 }
 
 /** The sub line of a stay header. A part with no fact keeps itself out. */

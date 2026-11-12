@@ -1,7 +1,7 @@
 // Presentational stay deck. It draws lens data and calls callbacks.
 // It reads no store, no map and no provider. The caller supplies every value.
 import { useState } from 'react'
-import { STAY_RINGS, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
+import { STAY_RINGS, stayPickStartMin, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
 import type { LensPhase } from '../../../lib/mapLensContracts'
 import type { PlaceHit } from '../../../lib/geocode'
 import { clockHM } from '../../../lib/clockOverlay'
@@ -168,7 +168,10 @@ export function StayDeck(props: StayDeckProps) {
   const readyPicks = result.kind === 'ready' ? stayPicksInRing(result.picks, ringId) : []
   const count = readyPicks.length
   const activeWindow = windows.find(window => window.id === activeWindowId) ?? null
-  const addLabel = stayAddLabel(dayNumber, activeWindow?.startMin ?? null, clock)
+  // Each card offers its own start: the window opens after the fixed booking,
+  // and the walk to the place sets the clock. No start outside the window.
+  const startOf = (pick: StayPick): number | null =>
+    activeWindow == null ? null : stayPickStartMin(activeWindow, pick.reach.walkMin)
   const rest = readyPicks.slice(MAX_CARDS)
   const selectedAt = selectedCardIndex(readyPicks.slice(0, MAX_CARDS).map(pick => String(pick.row.row.hit.id)), chosen)
   const alsoCount = result.kind === 'ready' ? result.alsoCount : 0
@@ -224,7 +227,7 @@ export function StayDeck(props: StayDeckProps) {
               name={hit.name}
               reasons={reasons}
               cells={stayCells(pick, clock)}
-              addLabel={addLabel}
+              addLabel={stayAddLabel(dayNumber, startOf(pick), clock)}
               onOpen={() => onOpenPick(pick)}
               onAdd={() => onAddPick(pick)}
               {...(onShortlist == null ? {} : {

@@ -105,15 +105,15 @@ describe('R1 — tool resolution picks the file the platform actually ships', ()
     // The shape that broke the script: aapt2 exists ONLY as .exe, while
     // apksigner exists only as .bat. Both live in the same directory.
     const { buildTools } = fakeSdk({ '36.0.0': ['aapt2.exe', 'aapt.exe', 'apksigner.bat', 'zipalign.exe'] })
-    expect(resolveTool('aapt2', buildTools, WIN).fileName).toBe('aapt2.exe')
-    expect(resolveTool('apksigner', buildTools, WIN).fileName).toBe('apksigner.bat')
+    expect(resolveTool('aapt2', buildTools, WIN)!.fileName).toBe('aapt2.exe')
+    expect(resolveTool('apksigner', buildTools, WIN)!.fileName).toBe('apksigner.bat')
   })
 
   it('never asks for a .bat when the tool ships as an .exe', () => {
     // The regression in one assertion: the old code appended .bat to EVERY tool.
     const { buildTools } = fakeSdk({ '36.0.0': ['aapt2.exe', 'apksigner.bat'] })
-    const aapt2 = resolveTool('aapt2', buildTools, WIN)
-    const signer = resolveTool('apksigner', buildTools, WIN)
+    const aapt2 = resolveTool('aapt2', buildTools, WIN)!
+    const signer = resolveTool('apksigner', buildTools, WIN)!
     expect(aapt2.file.endsWith('aapt2.exe')).toBe(true)
     expect(signer.file.endsWith('apksigner.bat')).toBe(true)
     // The two tools must not share one suffix rule.
@@ -127,13 +127,13 @@ describe('R1 — tool resolution picks the file the platform actually ships', ()
     const oldStyle = path.join(buildTools, '36.0.0', 'aapt2.bat')
     expect(existsSync(oldStyle)).toBe(false)
     // The repaired resolver finds the tool the old one missed.
-    expect(existsSync(resolveTool('aapt2', buildTools, WIN).file)).toBe(true)
+    expect(existsSync(resolveTool('aapt2', buildTools, WIN)!.file)).toBe(true)
   })
 
   it('resolves the bare name on a POSIX platform', () => {
     const { buildTools } = fakeSdk({ '36.0.0': ['aapt2', 'apksigner'] })
-    expect(resolveTool('aapt2', buildTools, POSIX).fileName).toBe('aapt2')
-    expect(resolveTool('apksigner', buildTools, POSIX).fileName).toBe('apksigner')
+    expect(resolveTool('aapt2', buildTools, POSIX)!.fileName).toBe('aapt2')
+    expect(resolveTool('apksigner', buildTools, POSIX)!.fileName).toBe('apksigner')
   })
 
   it('reports a genuinely missing tool under its real file name', () => {
@@ -155,12 +155,12 @@ describe('R1 — tool resolution picks the file the platform actually ships', ()
     })
     // Lexical sort would put 9.0.0 above 36.0.0.
     expect(buildToolsVersions(buildTools)[0]).toBe('36.0.0')
-    expect(resolveTool('aapt2', buildTools, WIN).version).toBe('36.0.0')
+    expect(resolveTool('aapt2', buildTools, WIN)!.version).toBe('36.0.0')
   })
 
   it('falls back to an older build-tools that does have the tool', () => {
     const { buildTools } = fakeSdk({ '36.0.0': ['apksigner.bat'], '35.0.0': ['aapt2.exe', 'apksigner.bat'] })
-    expect(resolveTool('aapt2', buildTools, WIN).version).toBe('35.0.0')
+    expect(resolveTool('aapt2', buildTools, WIN)!.version).toBe('35.0.0')
   })
 
   it('declares one file name per tool, so no suffix rule can apply to all', () => {
@@ -229,8 +229,8 @@ describe('R3 — the signer is pinned to an expected public fingerprint', () => 
     const spawn = fakeSpawn({ java: { status: 0, stdout: APKSIGNER_OUTPUT } })
     const r = checkSignature('/tmp/x.apk', AUDIT_CERT_SHA256, { buildTools, env: {}, spawnSync: spawn, platform: WIN })
     expect(r.problem).toBeUndefined()
-    expect(r.signer.sha256).toBe(AUDIT_CERT_SHA256)
-    expect(r.signer.dn).toContain('YatraFlow T3 Audit Test')
+    expect(r.signer!.sha256).toBe(AUDIT_CERT_SHA256)
+    expect(r.signer!.dn).toContain('YatraFlow T3 Audit Test')
   })
 
   it('REJECTS an APK signed with a different key even though verify succeeds', () => {
@@ -327,7 +327,7 @@ describe('R3 — the signer is pinned to an expected public fingerprint', () => 
     const spawn = fakeSpawn({ java: { status: 0, stdout: APKSIGNER_OUTPUT } })
     const r = checkSignature('/tmp/x.apk', AUDIT_CERT_SHA256, { buildTools, env: {}, spawnSync: spawn, platform: WIN })
     expect(r.problem).toBeUndefined()
-    expect(r.signer.sha256).toBe(AUDIT_CERT_SHA256)
+    expect(r.signer!.sha256).toBe(AUDIT_CERT_SHA256)
   })
 })
 

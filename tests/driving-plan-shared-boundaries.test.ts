@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { anchorsForCrew, assignSegmentHits, deriveDrivingPlan, drivingPlanFingerprint, effectiveDrivingDays, planRideSegments, type DrivingPlanDay } from '../src/lib/ridePlan'
+import { anchorsForCrew, assignSegmentHits, deriveDrivingPlan, drivingPlanFingerprint, effectiveDrivingDays, planRideSegments, type DrivingPlanDay, type TravelClockVerdict } from '../src/lib/ridePlan'
 import { planInputsHash } from '../src/hooks/useSuggestionCache'
+
+/** The clock's per-day walk lives on the 'ok' verdict the tests pin above it. */
+function okClockDays(clock: TravelClockVerdict) {
+  if (clock.verdict !== 'ok') throw new Error(`expected an ok travel clock, got ${clock.verdict}`)
+  return clock.days
+}
 
 describe('issue 832 F3 shared driving-plan boundaries', () => {
   it.each([1200, 1500])('the corridor overnight targets match the journey clock for %i wheel minutes', (driveMinutes) => {
@@ -97,7 +103,7 @@ describe('issue 832 F3 shared driving-plan boundaries', () => {
     const defaultPlan = deriveDrivingPlan(facts)
     expect(plan.outbound[1].startMin).toBeGreaterThanOrEqual(14 * 60)
     expect(plan.outbound[1].endKm).toBeLessThan(defaultPlan.outbound[1].endKm)
-    expect(plan.clock.days.map(day => day.startMin)).toEqual(plan.outbound.map(day => day.startMin))
+    expect(okClockDays(plan.clock).map(day => day.startMin)).toEqual(plan.outbound.map(day => day.startMin))
     const segments = planRideSegments({ ...facts, dayBoundaries: plan.outbound, dayStartTimes })
     const overnights = segments.filter(segment => segment.dayEnd)
     const targets = overnights.map(segment => segment.targetKm)
@@ -123,7 +129,7 @@ describe('issue 832 F3 shared driving-plan boundaries', () => {
       dayRainPct: [0, 90, 90, 90, 90, 90, 90, 90],
     })
     expect(plan.outbound.length).toBeGreaterThan(4)
-    expect(plan.clock.days.map(day => day.startMin)).toEqual(plan.outbound.map(day => day.startMin))
+    expect(okClockDays(plan.clock).map(day => day.startMin)).toEqual(plan.outbound.map(day => day.startMin))
     for (const day of plan.outbound.slice(1)) expect(day.startMin).toBeGreaterThanOrEqual(14 * 60)
   })
 

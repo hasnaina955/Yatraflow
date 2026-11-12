@@ -54,25 +54,22 @@ interface Harness {
 
 function mountGate(join: (tripId: string) => Promise<gate.JoinResult>, overrides: Record<string, unknown> = {}): Harness {
   const slots: unknown[] = []
-  const deps: unknown[][] = []
+  const deps: Array<unknown[] | undefined> = []
   const listeners: Array<Array<() => void>> = []
   const cleanups: Array<(() => void) | undefined> = []
   const events: unknown[][] = []
-  const effects: Array<{ i: number; fn: () => void }> = []
+  const effects: Array<{ i: number; fn: () => (() => void) | undefined }> = []
   let index = 0
   let dirty = true
   let tree: unknown
 
-  const context: Record<string, unknown> = {
+  const defaults: Record<string, unknown> = {
     React: { createElement: (type: unknown, props: unknown, ...children: unknown[]) => ({ type, props: props ?? {}, children }) },
     StateBlock: 'StateBlock', Link2: 'Link2', Mail: 'Mail', ProfileLookupNotice: 'ProfileLookupNotice',
     useDb: () => ({ sessionUserId: (context.me as { id?: string } | null)?.id ?? null, sliceReads: {} }),
     currentUser: () => context.me,
     profileLookupState: () => null,
     needsProfileLookup: () => false,
-    invitePreview: (t: unknown) => t,
-    inviteLoginNext: () => '/auth',
-    inviteSignupNext: () => '/auth',
     UUID_RE: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     // The real state module: the same gateMachine, joinMachine and owner helpers.
     ...gate,
@@ -110,12 +107,14 @@ function mountGate(join: (tripId: string) => Promise<gate.JoinResult>, overrides
     },
     useCallback(fn: unknown, values: unknown[]) {
       const i = index++
-      if (!deps[i] || values.some((v, k) => !Object.is(v, deps[i][k]))) { slots[i] = fn; deps[i] = values }
+      const previous = deps[i]
+      if (!previous || values.some((v, k) => !Object.is(v, previous[k]))) { slots[i] = fn; deps[i] = values }
       return slots[i]
     },
-    useEffect(fn: () => void, values?: unknown[]) {
+    useEffect(fn: () => (() => void) | undefined, values?: unknown[]) {
       const i = index++
-      if (!values || !deps[i] || values.some((v, k) => !Object.is(v, deps[i][k]))) { deps[i] = values; effects.push({ i, fn }) }
+      const previous = deps[i]
+      if (!values || !previous || values.some((v, k) => !Object.is(v, previous[k]))) { deps[i] = values; effects.push({ i, fn }) }
     },
     useSyncExternalStore(subscribe: (fn: () => void) => () => void, get: () => unknown) {
       const i = index++
@@ -127,6 +126,7 @@ function mountGate(join: (tripId: string) => Promise<gate.JoinResult>, overrides
       return slots[i]
     },
   }
+  const context: Record<string, unknown> = { ...defaults, ...overrides }
   context.me = { id: 'A' }
   context.sessionUserId = 'A'
   const vm = createContext(context)
@@ -152,7 +152,7 @@ function mountGate(join: (tripId: string) => Promise<gate.JoinResult>, overrides
   }
   const stateBlock = () => walk(tree, n => n.type === 'StateBlock')[0] as { props: { title?: string; body?: string } } | undefined
   return {
-    props, events, rerender: () => { dirty = true }, settle, setUser: id => { context.me = id ? { id } : null; context.identityGen += 1; dirty = true },
+    props, events, rerender: () => { dirty = true }, settle, setUser: id => { context.me = id ? { id } : null; context.identityGen = Number(context.identityGen ?? 0) + 1; dirty = true },
     stateBlock,
   }
 }
@@ -176,8 +176,8 @@ describe('B4 — a target change retires the old join before it can finish the n
       ['navigate', `/trip/${TRIP_A}`],
     ])
 
-    const oldJoin = deferred<string>()
-    const newJoin = deferred<string>()
+    const oldJoin = deferred<gate.JoinResult>()
+    const newJoin = deferred<gate.JoinResult>()
     let calls = 0
     const h = mountGate(() => { calls += 1; return calls === 1 ? oldJoin.promise : newJoin.promise })
     await h.settle()
@@ -206,7 +206,7 @@ describe('B4 — a target change retires the old join before it can finish the n
     // the earlier BASE risk: without a retirement the old claim still sits in the
     // machine. The new target must still start its OWN try, and only that try may
     // open the trip.
-    const second = deferred<string>()
+    const second = deferred<gate.JoinResult>()
     let calls = 0
     const h = mountGate(async () => {
       calls += 1

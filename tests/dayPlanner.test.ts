@@ -357,7 +357,7 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
     // day (98 km = 2 h 20 m before each halt), and the per-day-reset fuel
     // cadence (382.5 km) could never land inside a 350 km day — the whole
     // plan grew ZERO meal and ZERO fuel segments.
-    const segs = planRideSegments({
+    const facts = {
       totalKm: 1402,
       driveMinutes: (1402 / 42) * 60,
       includeFuel: true,
@@ -367,7 +367,8 @@ describe('bug-hunt batch (issues #125-#140) — engine invariants', () => {
       travellers: 2,
       dayStartTimes: ['08:30', '08:30', '08:30', '08:30'],
       dayRainPct: [null, null, null, null],
-    })
+    }
+    const segs = planRideSegments(facts)
     expect(segs.filter(s => s.purpose === 'meal').length).toBeGreaterThanOrEqual(3) // one per full driving day
     expect(segs.filter(s => s.purpose === 'fuel').length).toBeGreaterThanOrEqual(2) // 1,402 km / 382.5 km stride
     // refuel opportunities never leave the tank stranded: a refuel happens at

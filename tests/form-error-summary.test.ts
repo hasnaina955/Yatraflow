@@ -11,8 +11,10 @@ import { Field, FormErrorSummary } from '../src/components/ui'
 
 describe('Field error politeness', () => {
   it('renders a field error as polite status, not an assertive alert', () => {
-    const html = renderToString(createElement(Field, { label: 'Starting location', error: 'Where does the journey start?' },
-      createElement('input', { className: 'input' })))
+    const html = renderToString(createElement(Field, {
+      label: 'Starting location', error: 'Where does the journey start?',
+      children: createElement('input', { className: 'input' }),
+    }))
     expect(html).toContain('role="status"')
     expect(html).toContain('aria-live="polite"')
     expect(html).not.toContain('role="alert"')
@@ -22,8 +24,10 @@ describe('Field error politeness', () => {
   })
 
   it('a hint-only field announces nothing', () => {
-    const html = renderToString(createElement(Field, { label: 'Password', hint: 'At least 8 characters' },
-      createElement('input', { className: 'input', type: 'password' })))
+    const html = renderToString(createElement(Field, {
+      label: 'Password', hint: 'At least 8 characters',
+      children: createElement('input', { className: 'input', type: 'password' }),
+    }))
     expect(html).not.toContain('role="alert"')
     expect(html).not.toContain('role="status"')
   })

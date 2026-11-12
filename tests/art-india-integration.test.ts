@@ -13,7 +13,15 @@ import type { ArtManifest } from '../src/lib/regionArt'
 
 const ART_DIR = fileURLToPath(new URL('../src/assets/art/', import.meta.url))
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
-const manifest = JSON.parse(readFileSync(path.join(ART_DIR, 'manifest.json'), 'utf8')) as ArtManifest
+
+/** One entry of the manifest's place tables: a state or a destination that
+ *  names the art ids it owns and the names it answers to. */
+type PlaceEntry = { ids: string[]; aliases: string[]; state?: string; place?: string }
+/** The manifest also carries the place tables the build writes. The app type
+ *  reads only the art ids, so the tables are declared here. */
+type PlaceTables = { places: { state: Record<string, PlaceEntry>; destination: Record<string, PlaceEntry> } }
+
+const manifest = JSON.parse(readFileSync(path.join(ART_DIR, 'manifest.json'), 'utf8')) as ArtManifest & PlaceTables
 
 const files = readdirSync(ART_DIR).filter(name => /\.(avif|webp)$/.test(name))
 const totalBytes = files.reduce((sum, name) => sum + statSync(path.join(ART_DIR, name)).size, 0)
@@ -77,7 +85,7 @@ describe('crop metadata', () => {
   })
 
   it('leaves wide ratios at the default so the panorama stays centred', () => {
-    const focalX = manifest.ids['rishikesh-v1'].focalX ?? {}
+    const focalX: Record<string, number> = manifest.ids['rishikesh-v1'].focalX ?? {}
     for (const ratio of ['default', '16:10', '3:1', '21:9']) {
       expect(focalX[ratio] ?? 50, ratio).toBe(50)
     }

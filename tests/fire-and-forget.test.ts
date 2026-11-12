@@ -103,7 +103,7 @@ beforeEach(() => {
 })
 
 describe('#52 — every optimistic write must actually reach the client', () => {
-  const cases: Array<{ name: string; table: string; method: 'insert' | 'update' | 'delete'; run: (s: any) => void }> = [
+  const cases: Array<{ name: string; table: string; method: 'insert' | 'update' | 'delete' | 'rpc'; run: (s: any) => void }> = [
     { name: 'restoreMember', table: 'trip_members', method: 'insert', run: s => s.restoreMember('trip-1', { userId: 'diego', role: 'editor', joinedAt: 3 }) },
     { name: 'setMemberRole', table: 'trip_members', method: 'update', run: s => s.setMemberRole('trip-1', 'priya', 'viewer') },
     // #804 (B2a) — joinViaInvite now refuses a caller id that is not the

@@ -23,7 +23,7 @@ import {
 import { createManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 import { STALE_SEARCH_REFUSAL, useSlotSearch, type SlotSearchState } from '../src/pages/trip/map/useSlotSearch'
 import type { PlaceHit } from '../src/lib/providers/hits'
-import type { DaySlotKind, SlotState } from '../src/lib/daySlots'
+import type { DaySlotKind, SlotKey, SlotState } from '../src/lib/daySlots'
 
 const toasts = vi.hoisted(() => [] as string[])
 vi.mock('../src/components/ui', () => ({ toast: (message: string) => { toasts.push(message) } }))
@@ -36,8 +36,8 @@ const slotHook = readFileSync(new URL('../src/pages/trip/map/useSlotSearch.ts', 
 const hit = (id: string, over: Partial<PlaceHit> = {}): PlaceHit =>
   ({ id, name: `Place ${id}`, latitude: 10, longitude: 76, kind: 'poi', ...over }) as PlaceHit
 
-type OfferedSlot = { key: string; label: string; kind: DaySlotKind; state: SlotState }
-const slot = (key: string, label: string, kind: DaySlotKind, state: SlotState = 'empty'): OfferedSlot =>
+type OfferedSlot = { key: SlotKey; label: string; kind: DaySlotKind; state: SlotState }
+const slot = (key: SlotKey, label: string, kind: DaySlotKind, state: SlotState = 'empty'): OfferedSlot =>
   ({ key, label, kind, state })
 
 describe('slotKindsForCategory — which kinds can hold a found place', () => {
@@ -68,7 +68,7 @@ describe('filingOptionsFor — the empty slots this hit may be filed into', () =
   it('offers only empty slots of a matching kind, in rail order, with its own copy', () => {
     const opts = filingOptionsFor(hit('a', { category: 'food' }), [
       slot('lunch', 'Lunch', 'meal'),
-      slot('fuel-1', 'Fuel', 'fuel'),
+      slot('fuel', 'Fuel', 'fuel'),
       slot('dinner', 'Dinner', 'meal', 'filled'),
       slot('breakfast', 'Breakfast', 'meal'),
     ])

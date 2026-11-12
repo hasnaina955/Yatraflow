@@ -15,11 +15,12 @@ import type { ItineraryStop, Trip } from '../src/data/types'
 import { MapTab } from '../src/pages/trip/MapTab'
 import { useSuggestionCache } from '../src/hooks/useSuggestionCache'
 import { buildRoadChain, correctionsFromLegs, type TripRoadView } from '../src/lib/tripRoad'
-import { legBetween, getAssumptions } from '../src/lib/engine'
+import { legBetween, getAssumptions, legKey } from '../src/lib/engine'
 import { getSnapshot } from '../src/store/store'
 import { placeIdentity } from '../src/lib/placeIdentity'
 import { buildDnaVectorAcrossTrips, crewSeedEvents, crewSeedsFromSuggestions, loadDnaLog, type CrewSeed } from '../src/lib/tripDna'
 import { useJourneyDays } from '../src/pages/trip/journey/useJourneyDays'
+import { mapManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 import type { CorridorSnapshot } from '../src/pages/trip/map/corridorSnapshot'
 import type { ApplyChange } from '../src/lib/mutationLifecycle'
 import type { PlaceHit } from '../src/lib/providers/hits'
@@ -62,7 +63,7 @@ const board = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Kerala loop', startLocation: 'Kochi', startLocationCoords: { lat: 9.9312, lng: 76.2673 }, destinations: ['Kochi'], destinationCoords: [{ lat: 9.9658, lng: 76.2421 }],
   startDate: '2026-11-14', endDate: '2026-11-19', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
   createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }],
-  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', stopId: 'fixture-boat', notes: 'Paid booking. Boarding closes at 15:00. Sample data.' }],
+  fixedCommitments: [{ id: 'fixture-lock', title: 'Periyar boat', type: 'event', dayIndex: 2, time: '15:30', stopId: 'fixture-boat', notes: 'Paid booking. Boarding opens at 15:00. Sample data.' }],
   days: [
     { id: 'fixture-day-1', index: 0, startTime: '09:00', title: 'Kochi to Munnar', stops: [
       stop('fixture-d1-falls', 'Cheeyappara waterfalls', 'nature', 10.0107, 76.9187, 1, 40),
@@ -79,8 +80,8 @@ const board = (): Trip => ({
         stop('fixture-lunch', 'Lunch · Nalla Ruchi Kitchen', 'food', at('kattappana').lat, at('kattappana').lng, 2, 45),
         stop('fixture-farm', 'Spice farm walk', 'sightseeing', at('anakkara').lat, at('anakkara').lng, 3, 20),
       ] : []),
-      stop('fixture-hotel', 'Check in · Spice Village', 'hotel', at('spiceVillage').lat, at('spiceVillage').lng, fixScenario ? 4 : 2, fixScenario ? 81 : 91),
-      stop('fixture-boat', 'Periyar boat', 'nature', at('jetty').lat, at('jetty').lng, fixScenario ? 5 : 3, 90),
+      stop('fixture-hotel', 'Check in · Spice Village', 'hotel', at('spiceVillage').lat, at('spiceVillage').lng, fixScenario ? 4 : 2, 20),
+      stop('fixture-boat', 'Periyar boat', 'adventure', at('jetty').lat, at('jetty').lng, fixScenario ? 5 : 3, 90),
     ] },
     { id: 'fixture-day-4', index: 3, startTime: '09:00', title: 'Around Thekkady', stops: [
       stop('fixture-d4-walk', 'Forest walk', 'nature', 9.5705, 77.1802, 1, 90),
@@ -96,6 +97,10 @@ const board = (): Trip => ({
 })
 const trip: Trip = boardTrip ? board() : small()
 if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
+// Sample: the hotel is the stay base, not the stay slot's filled pick. The
+// stay lens can then show the sample picks around it. Fixture data only.
+const boardHotel = trip.days[2]?.stops.find(stop => stop.id === 'fixture-hotel')
+if (boardHotel) boardHotel.slotKey = 'dinner'
 
 // The Day 3 legs follow the recorded road. Their kilometres and minutes are the
 // board's sample numbers. Any other leg stays a synthetic straight line.
@@ -119,6 +124,90 @@ const syntheticSeeds: CrewSeed[] = [
   { name: 'Synthetic cardamom walk', category: 'nature', lat: 9.71, lng: 77.14 },
   { name: 'Synthetic tea break', category: 'food', lat: 9.79, lng: 77.09 },
 ]
+
+// Sample place picks for the board trip. The Kitchen, Café and Garden fill the
+// 11:30–14:30 lunch window near km 57. The four stay picks sit inside the
+// 15 min walk / 30 min drive rings around Spice Village. Every row is sample.
+/** Sample place picks for the board's Day 3. The Kitchen, Café and Garden
+ *  fill the 11:30–14:30 lunch window near km 57. The three Kalari, market and
+ *  garden picks sit inside the 15 min walk ring around Spice Village; the boat
+ *  landing viewpoint sits inside the 30 min drive ring. All are sample. */
+const boardRoadPoint = (km: number): [number, number] => {
+  const line = boardRoad.coordinates as [number, number][]
+  const cumulative = [0]
+  for (let index = 1; index < line.length; index += 1) {
+    cumulative.push(cumulative[index - 1] + Math.hypot((line[index][1] - line[index - 1][1]) * 111, (line[index][0] - line[index - 1][0]) * 109))
+  }
+  const scale = cumulative[cumulative.length - 1] / boardRoad.totalKm
+  const at = cumulative.findIndex(value => value >= km * scale)
+  return line[at < 0 ? line.length - 1 : at]
+}
+const boardPoint = (km: number, dLat: number, dLng: number): { lat: number; lng: number } => {
+  const [lng, lat] = boardRoadPoint(km)
+  return { lat: Number((lat + dLat).toFixed(6)), lng: Number((lng + dLng).toFixed(6)) }
+}
+const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+  id: `sample_lunch_${id}`, name, kind: 'poi', source: 'osm', category: 'food',
+  latitude: boardPoint(km, dLat, dLng).lat, longitude: boardPoint(km, dLat, dLng).lng,
+  openTime, closeTime,
+})
+// The lunch picks stand on the recorded road, so the leg they split keeps the
+// board's own kilometres and speed. A pick far off the line would fall back to a
+// faster straight estimate and pull the later stops earlier.
+const SAMPLE_LUNCH: readonly PlaceHit[] = [
+  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.002, 0.003, '11:00', '15:30'),
+  sampleHit(930002, 'Spice Route Café', 57, -0.002, 0.003, '08:00', '15:00'),
+  sampleHit(930003, 'Hill Garden Meals', 57, 0.002, -0.003, '12:00', '16:00'),
+]
+// Sample place picks split one recorded leg of the board road. A split is only
+// honest when its two halves add up to the leg they replace, so each half takes
+// the leg's distance and time in proportion to the road it covers. Sample data.
+const splitRecordedLegs = (hits: readonly { latitude: number; longitude: number }[]): void => {
+  for (const hit of hits) {
+    const point = { lat: hit.latitude, lng: hit.longitude }
+    for (let index = 0; index < legs.length; index += 1) {
+      const from = chain.points[index]
+      const to = chain.points[index + 1]
+      if (!from || !to) continue
+      const inLeg = boardTrip ? boardLegBetween(from, point) : null
+      const outLeg = boardTrip ? boardLegBetween(point, to) : null
+      if (!inLeg || !outLeg) continue
+      const total = inLeg.distanceKm + outLeg.distanceKm
+      if (!(total > 0)) continue
+      const share = inLeg.distanceKm / total
+      corrections[legKey(from, point)] = {
+        distanceKm: legs[index].distanceKm * share,
+        durationMinutes: legs[index].durationMinutes * share,
+      }
+      corrections[legKey(point, to)] = {
+        distanceKm: legs[index].distanceKm * (1 - share),
+        durationMinutes: legs[index].durationMinutes * (1 - share),
+      }
+    }
+  }
+}
+splitRecordedLegs(SAMPLE_LUNCH)
+const sampleStayHit = (id: number, name: string, category: PlaceHit['category'], dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+  // The same id the provider answer carries, so the map draws one pin per place.
+  id, name, kind: 'poi', source: 'osm', category,
+  latitude: Number((boardRoad.stops.spiceVillage.at[1] + dLat).toFixed(6)),
+  longitude: Number((boardRoad.stops.spiceVillage.at[0] + dLng).toFixed(6)),
+  openTime, closeTime,
+})
+// Each stay pick carries the category and the hours its own place has: a market,
+// a kalari show, a spice garden and a boat-landing viewpoint. The offsets keep
+// each pin apart on the map and inside the 15 min walk ring. Sample data.
+const SAMPLE_STAY: readonly PlaceHit[] = [
+  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 'event', 0.0026, 0.0034, '17:00', '19:30'),
+  sampleStayHit(930008, 'Kumily spice market', 'shopping', -0.0028, 0.0036, '08:00', '21:00'),
+  sampleStayHit(930009, 'Periyar spice garden', 'nature', 0.0032, -0.0032, '09:00', '18:00'),
+  sampleStayHit(930010, 'Boat landing viewpoint', 'sightseeing', -0.0115, -0.0082, '06:00', '18:30'),
+]
+splitRecordedLegs(SAMPLE_STAY)
+for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
+  const context = { tripId: trip.id, dayId: 'fixture-day-3', slotKey }
+  for (const hit of hits) mapManualSlotStore.file(context, hit)
+}
 const crewSuggestions = syntheticSeeds.map((seed, index) => ({
   status: 'open', title: seed.name, category: seed.category, lat: seed.lat, lng: seed.lng, id: `fixture-seed-${index}`,
 }))

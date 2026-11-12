@@ -5,7 +5,7 @@
 import type { Trip } from '../../../data/types'
 import type { PlaceHit } from '../../../lib/geocode'
 import type { FixChangeSet } from '../../../lib/mapLensContracts'
-import { previewAdd, type AddPreview, type PreviewUnknownReason, type ReadyAddPreview } from './editing/addPreview'
+import { previewAdd, type AddPreview, type PreviewUnknownReason, type PreviewWarning, type ReadyAddPreview } from './editing/addPreview'
 import { fixesForWarning, warningRefs } from './fixLens'
 import { pickStopFor, roadInsertIndex } from './pickPreview'
 import type { LegCorrections } from '../../../lib/impact'
@@ -45,6 +45,54 @@ const UNKNOWN_REASON: Record<PreviewUnknownReason, string> = {
 const MAX_MOVED = 2
 
 const SLOT_PREFIX = /^(breakfast|lunch|dinner|check[ -]?in)\s*[·:]\s*(.*)$/i
+
+/** The stop a warning names. The engine uses the same title in both wordings. */
+const NAMED_WARNING = /^(?:Conflicts with|Thin buffer before)\s+(.+)$/
+
+/** A warning title's day prefix. Inside one day's preview the prefix is noise. */
+const DAY_PREFIX = /^Day\s+\d+\s*:\s*/i
+
+/** The title a risk line opens with. The day prefix leaves, and a trailing
+ *  colon goes, because the body follows after its own separator. */
+export function warningTitleText(title: string): string {
+  return title.replace(DAY_PREFIX, '').replace(/[\s:·]+$/, '').trim()
+}
+
+/** One sentence from a warning: the title, then the body. No day prefix, and
+ *  no two facts run together without a separator. */
+export function warningSentence(title: string, detail: string): string {
+  const head = warningTitleText(title)
+  const body = detail.trim()
+  if (head === '') return body
+  if (body === '') return head
+  return `${head} · ${body}`
+}
+
+/** The stop a warning is about: its named title, its detail, then the linked
+ *  fixed commitment. A warning that names no stop keeps a null subject. */
+function warningSubject(preview: ReadyAddPreview, warning: PreviewWarning): string | null {
+  const named = warning.title.match(NAMED_WARNING)?.[1]?.trim() ?? null
+  if (named != null) return named
+  const reached = /You reach (.+?) ~\d{1,2}:\d{2}/.exec(warning.detail)?.[1]?.trim() ?? null
+  if (reached != null) return reached
+  const days = preview.proposedTrip.days
+  const day = Array.isArray(days) ? days.find(entry => entry.index === preview.dayIndex) : undefined
+  const titled = day?.stops.find(stop => stop.title.length > 0 && warning.title.startsWith(`${stop.title}: `))?.title ?? null
+  return titled ?? null
+}
+
+/** True when a warning names a stop, so a Clears line may be tied to that
+ *  stop. A day-wide warning keeps its Clears line. */
+function namedStopOf(warning: PreviewWarning): string | null {
+  return warning.title.match(NAMED_WARNING)?.[1]?.trim() ?? null
+}
+
+/** A day's fixed commitments, whose clocks the add cannot move. */
+function fixedStopIds(preview: ReadyAddPreview): Set<string> {
+  return new Set((preview.proposedTrip.fixedCommitments ?? [])
+    .filter(entry => entry.dayIndex === preview.dayIndex && entry.stopId != null)
+    .map(entry => String(entry.stopId)))
+}
 
 /** A stop name as a sentence part. "Lunch · Nalla Ruchi Kitchen" reads "lunch". */
 export function spokenStopName(title: string): string {
@@ -119,13 +167,31 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     return { kind: 'unknown', order: null, lines: [line], summary: line }
   }
   const lines: PreviewLine[] = []
+  const orderChanged = preview.orderChanged === true
   const place = preview.insertion.afterTitle != null
     ? `in road order after ${spokenStopName(preview.insertion.afterTitle)}`
     : 'first on the day'
-  lines.push({ key: 'lands', tone: 'ok', parts: [{ text: `Lands as stop ${preview.insertion.order}, ${place}` }] })
+  // A re-ordered day says so first: a later stop that reads earlier is only
+  // honest when the order moved, and the reader must see that before the clocks.
+  lines.push({
+    key: 'lands',
+    tone: 'ok',
+    parts: [{
+      text: orderChanged
+        ? `Re-ordered: the new stop goes in before ${preview.insertion.beforeTitle != null ? labelStopName(preview.insertion.beforeTitle) : 'the day’s end'}`
+        : `Lands as stop ${preview.insertion.order}, ${place}`,
+    }],
+  })
 
   const moved = preview.clocks.filter(entry => entry.deltaMin != null && entry.deltaMin !== 0)
+  const fixedIds = fixedStopIds(preview)
   for (const entry of moved.slice(0, MAX_MOVED)) {
+    // A fixed booking keeps its own clock. The preview's arrival moves, not
+    // the commitment, so a retime line would say the booking moved.
+    if (fixedIds.has(String(entry.stopId))) continue
+    // A later stop never reads earlier while the order holds. That would be a
+    // contradiction, not a plan change, so it earns no arrow line.
+    if ((entry.deltaMin ?? 0) < 0 && !orderChanged) continue
     lines.push({
       key: `moved-${entry.stopId}`,
       tone: 'clock',
@@ -143,20 +209,34 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   }
 
   for (const warning of preview.warnings.added) {
-    const named = warning.title.match(/^(?:Conflicts with|Thin buffer before)\s+(.+)$/)?.[1] ?? null
+    const named = warning.title.match(NAMED_WARNING)?.[1] ?? null
     const detail = named == null ? warning.detail : warning.detail.replace(`You reach ${named} ~`, 'You reach it ~')
+    // One sentence, with its own separator: the title never runs into the body,
+    // and the day prefix stays out of a preview that is already one day.
+    const sentence = warningSentence(warning.title, detail)
     lines.push({
       key: `risk-${warning.code}-${warning.title}`,
       tone: 'risk',
-      parts: [{ text: named == null ? warning.title : `${named}:` }, ...textParts(` ${detail}`, clock)],
+      parts: textParts(sentence, clock),
     })
   }
   for (const warning of preview.warnings.cleared) {
+    // A worse or new warning on the same stop means the stop is not clear.
+    // Only a stop with no warning after the change earns the Clears line.
+    const named = namedStopOf(warning)
+    if (named == null) {
+      lines.push({ key: `clears-${warning.code}-${warning.title}`, tone: 'ok', parts: [{ text: `Clears: ${warning.title}` }] })
+      continue
+    }
+    const subject = warningSubject(preview, warning)
+    if (subject != null && preview.warnings.added.some(added => warningSubject(preview, added) === subject)) continue
     lines.push({ key: `clears-${warning.code}-${warning.title}`, tone: 'ok', parts: [{ text: `Clears: ${warning.title}` }] })
   }
 
   const end = preview.dayEnd
-  if (end.deltaMin != null && end.deltaMin !== 0) {
+  // The same rule as a stop row: the day cannot end earlier while the order
+  // holds. That reading is a contradiction, not a plan change.
+  if (end.deltaMin != null && end.deltaMin > 0) {
     lines.push({
       key: 'end',
       tone: 'clock',
@@ -231,6 +311,6 @@ export function addFixOffer(preview: AddPreview, trip: Trip): AddFixOffer | null
   // A warning that names its stop in the title (a fixed commitment) has no
   // stopId. Its own words still name the real stop, so the action stays specific.
   const named = ready.warnings.added.find(warning => warning.code === target.code)?.title
-    .match(/^(?:Conflicts with|Thin buffer before)\s+(.+)$/)?.[1] ?? null
+    .match(NAMED_WARNING)?.[1] ?? null
   return { set, stopTitle: stop == null ? named : labelStopName(stop.title) }
 }

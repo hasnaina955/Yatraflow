@@ -83,10 +83,14 @@ export function clearOfMarks(
   hits: readonly PlaceHit[],
   marks: readonly { lat: number; lng: number }[],
   samePlace: (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => boolean,
+  /** Ids that keep their mark even beside a stop. The Stay lens names its
+   *  picks A/B/C around the base, and a hidden pin loses that letter. */
+  keep?: ReadonlySet<string>,
 ): PlaceHit[] {
   if (marks.length === 0) return [...hits]
   return hits.filter(hit => {
     if (!hasCoords(hit)) return true
+    if (keep?.has(String(hit.id))) return true
     const at = { lat: hit.latitude, lng: hit.longitude }
     return !marks.some(mark => samePlace(at, mark))
   })

@@ -3,7 +3,7 @@
 // preview, the actions and the source line. The page supplies every value. The
 // preview lines come from the existing add preview, never from a new formula.
 import { useState } from 'react'
-import { Check, Clock, Diamond, ExternalLink, Heart, Info, Navigation, Plus, Sparkle, Star, X } from 'lucide-react'
+import { Check, Clock, Diamond, ExternalLink, Heart, Info, Plus, Route, Sparkle, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
@@ -128,7 +128,7 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
       {editable && !added && fixOffer != null && onAddAndFix != null && <button type="button" className="mv2-place-secondary" disabled={busy || !canAdd} onClick={onAddAndFix}><Sparkle size={15} aria-hidden />{fixOffer.label}</button>}
       {editable && <div className="mv2-place-pills">
         <button type="button" className="mv2-place-pill" disabled={added || busy || !canShortlist} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={14} fill={shortlisted ? 'currentColor' : 'none'} aria-hidden />{shortlisted ? 'Shortlisted' : 'Shortlist'}</button>
-        <button type="button" className="mv2-place-pill" disabled={!canNavigate} onClick={onDirections}><Navigation size={14} aria-hidden />Go</button>
+        <button type="button" className="mv2-place-pill" disabled={!canNavigate} onClick={onDirections}><Route size={14} aria-hidden />Go</button>
       </div>}
       <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={14} aria-hidden />View place in Google Maps</button>
     </div>

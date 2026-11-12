@@ -112,16 +112,14 @@ export function fixtureNearElements(query: string): {
 
 /** One sample place of the board trip: a spot on the recorded road, and a small offset from it. */
 const BOARD_PLACES: ReadonlyArray<{ id: number; name: string; km: number; dLat: number; dLng: number; tags: Record<string, string> }> = [
-  { id: 930001, name: 'Nalla Ruchi Kitchen', km: 57, dLat: 0.003, dLng: 0.011, tags: { amenity: 'restaurant', cuisine: 'kerala', 'diet:vegetarian': 'yes', opening_hours: 'Mo-Su 11:00-15:30' } },
-  { id: 930002, name: 'Spice Route Café', km: 49, dLat: -0.004, dLng: 0.012, tags: { amenity: 'cafe', cuisine: 'south_indian', opening_hours: 'Mo-Su 08:00-15:00' } },
-  { id: 930003, name: 'Hill Garden Meals', km: 72, dLat: 0.006, dLng: 0.014, tags: { amenity: 'restaurant', cuisine: 'regional', opening_hours: 'Mo-Su 12:00-16:00' } },
+  { id: 930001, name: 'Nalla Ruchi Kitchen', km: 57, dLat: 0.002, dLng: 0.003, tags: { amenity: 'restaurant', cuisine: 'kerala', 'diet:vegetarian': 'yes', opening_hours: 'Mo-Su 11:00-15:30' } },
+  { id: 930002, name: 'Spice Route Café', km: 57, dLat: -0.002, dLng: 0.003, tags: { amenity: 'restaurant', cuisine: 'south_indian', opening_hours: 'Mo-Su 08:00-15:00' } },
+  { id: 930003, name: 'Hill Garden Meals', km: 57, dLat: 0.002, dLng: -0.003, tags: { amenity: 'restaurant', cuisine: 'regional', opening_hours: 'Mo-Su 12:00-16:00' } },
   { id: 930004, name: 'Idukki dam', km: 40, dLat: 0.012, dLng: -0.02, tags: { tourism: 'attraction', man_made: 'dam' } },
   { id: 930005, name: 'Kalvari Mount', km: 36, dLat: -0.01, dLng: 0.025, tags: { tourism: 'viewpoint' } },
   { id: 930006, name: 'Murickassery spice garden', km: 31, dLat: 0.008, dLng: 0.015, tags: { tourism: 'attraction', leisure: 'garden' } },
-  { id: 930007, name: 'Kadathanadan Kalari Centre', km: 87.8, dLat: 0.004, dLng: -0.006, tags: { tourism: 'attraction', amenity: 'theatre', opening_hours: 'Mo-Su 17:00-19:30' } },
-  { id: 930008, name: 'Kumily spice market', km: 88.2, dLat: -0.003, dLng: 0.004, tags: { amenity: 'marketplace', opening_hours: 'Mo-Su 08:00-21:00' } },
-  { id: 930009, name: 'Tiger trail edge walk', km: 89.5, dLat: -0.012, dLng: 0.016, tags: { leisure: 'nature_reserve', opening_hours: 'Mo-Su 07:00-17:30' } },
-  { id: 930010, name: 'Boat landing viewpoint', km: 91, dLat: 0.002, dLng: 0.008, tags: { tourism: 'viewpoint' } },
+  // The four stay picks are filed by the fixture's own stay slot, not by the
+  // corridor scan, so one copy of each place exists on the map.
   { id: 930011, name: 'Bamboo rafting', km: 90.2, dLat: -0.016, dLng: 0.02, tags: { tourism: 'attraction', leisure: 'sports_centre' } },
 ]
 
@@ -152,7 +150,7 @@ export function fixtureBoardElements(): {
         id: place.id,
         lat: Number((line[index][1] + place.dLat).toFixed(6)),
         lon: Number((line[index][0] + place.dLng).toFixed(6)),
-        tags: { name: place.name, sample: 'yes', ...place.tags },
+        tags: { name: place.name, sample: 'yes', 'addr:city': 'Kumily', ...place.tags },
       }
     }),
   }
@@ -188,6 +186,11 @@ function boardStopKey(lat: number, lng: number): string | null {
   return null
 }
 
+// The recorded road's own average speed: the board's 63 km in 155 min. A leg
+// split by a stop on that road must keep the same speed, or the split reads
+// faster than the whole and pulls every later stop earlier.
+const BOARD_AVG_KMH = (63 / 155) * 60
+
 /**
  * One leg of the board road. Two points that stand on the recorded line get the
  * line between them, with the board's sample kilometres and minutes. Any other
@@ -206,7 +209,7 @@ export function boardLegBetween(
   const numbers = fromKey && toKey ? BOARD_LEG_NUMBERS[`${fromKey}>${toKey}`] ?? BOARD_LEG_NUMBERS[`${toKey}>${fromKey}`] : undefined
   let lineKm = 0
   for (let i = 1; i < geometry.length; i += 1) lineKm += Math.hypot((geometry[i][1] - geometry[i - 1][1]) * 111, (geometry[i][0] - geometry[i - 1][0]) * 109)
-  return { distanceKm: numbers?.distanceKm ?? lineKm, durationMinutes: numbers?.durationMinutes ?? Math.round((lineKm / 40) * 60), geometry }
+  return { distanceKm: numbers?.distanceKm ?? lineKm, durationMinutes: numbers?.durationMinutes ?? Math.round((lineKm / BOARD_AVG_KMH) * 60), geometry }
 }
 
 /** The OSRM answer for a route request, from the recorded road. Null when the URL is not a route request. */

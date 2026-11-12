@@ -1011,8 +1011,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [allPoints, dayEndpointMarkers],
   )
   const markPois = useMemo(
-    () => clearOfMarks(visiblePois, markClearPoints, coLocates),
-    [visiblePois, markClearPoints],
+    () => clearOfMarks(visiblePois, markClearPoints, coLocates, new Set(Object.keys(pickLetters ?? {}))),
+    [visiblePois, markClearPoints, pickLetters],
   )
   const clusterPins = useMemo(
     () => clusterCandidates(
@@ -2304,7 +2304,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
         {selectedStop && (onOpenInTimeline || onOpenInBoard || onDeleteStop) && (
           <div className="yf-stop-jump" role="dialog" aria-label={`Selected stop: ${selectedStop.title}`}
-            style={{ position: 'absolute', left: '50%', bottom: 14, transform: 'translateX(-50%)', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-soft)', maxWidth: 'calc(100% - 24px)' }}>
+            style={{ position: 'absolute', left: '50%', bottom: 'calc(var(--mv2-sheet-height, 0px) + 14px)', transform: 'translateX(-50%)', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-soft)', maxWidth: 'calc(100% - 24px)' }}>
             {/* #612: the name gets its own row. It used to share one flex row
                 with every action, so at phone width the buttons kept their
                 minimum widths and squeezed the name to zero. */}

@@ -52,7 +52,8 @@ describe('the place detail preview', () => {
       },
     }), clock)
     const text = view.lines.find(line => line.tone === 'risk')?.parts.map(part => part.text).join('')
-    expect(text).toContain('Periyar boat:')
+    // W16: one sentence, title then body after a separator, with no day prefix.
+    expect(text).toBe('Conflicts with Periyar boat · You reach it ~15:05, after the 15:30 commitment.')
     expect(text).toContain('15:05')
     expect(view.summary?.tone).toBe('risk')
   })
@@ -125,6 +126,83 @@ describe('the place detail preview', () => {
     const view = detailPreviewView({ kind: 'unknown', reason: 'position-unknown' } as AddPreview, clock)
     expect(view.kind).toBe('unknown')
     expect(view.lines[0]?.parts[0]?.text).toContain('road order')
+  })
+
+  it('does not claim Clears when the same stop gets a worse warning', () => {
+    const view = detailPreviewView(ready({
+      warnings: {
+        added: [{ code: 'commitment', title: 'Conflicts with Periyar boat', detail: 'You reach Periyar boat ~15:52, after the 15:30 commitment.', severe: true, dayIndex: 0 }],
+        cleared: [{ code: 'buffer', title: 'Thin buffer before Periyar boat', detail: 'You reach Periyar boat ~15:05, under ~45 min before the 15:30 commitment.', severe: false, dayIndex: 0 }],
+      },
+    }), clock)
+    expect(view.lines.some(line => line.parts.map(part => part.text).join('').startsWith('Clears:'))).toBe(false)
+    expect(view.lines.some(line => line.tone === 'risk')).toBe(true)
+  })
+
+  it('does not claim Clears when the same stop gets a different warning', () => {
+    const view = detailPreviewView(ready({
+      warnings: {
+        added: [{ code: 'hours', title: 'Periyar boat: closes too soon after arrival', detail: 'You reach Periyar boat ~15:52, after the 15:30 commitment.', severe: false, dayIndex: 0 }],
+        cleared: [{ code: 'buffer', title: 'Thin buffer before Periyar boat', detail: 'You reach Periyar boat ~15:05, under ~45 min before the 15:30 commitment.', severe: false, dayIndex: 0 }],
+      },
+    }), clock)
+    expect(view.lines.some(line => line.parts.map(part => part.text).join('').startsWith('Clears:'))).toBe(false)
+  })
+
+  it('claims Clears for a different stop that has no warning after the add', () => {
+    const view = detailPreviewView(ready({
+      warnings: {
+        added: [{ code: 'commitment', title: 'Conflicts with Periyar boat', detail: 'You reach Periyar boat ~15:52, after the 15:30 commitment.', severe: true, dayIndex: 0 }],
+        cleared: [{ code: 'buffer', title: 'Thin buffer before Spice Village', detail: 'You reach Spice Village ~13:40, under ~45 min before the 14:30 commitment.', severe: false, dayIndex: 0 }],
+      },
+    }), clock)
+    expect(view.lines.some(line => line.parts.map(part => part.text).join('') === 'Clears: Thin buffer before Spice Village')).toBe(true)
+  })
+
+  it('claims Clears when the stop has no warning after the add', () => {
+    const view = detailPreviewView(ready({
+      warnings: {
+        added: [],
+        cleared: [{ code: 'buffer', title: 'Thin buffer before Periyar boat', detail: 'You reach Periyar boat ~15:05, under ~45 min before the 15:30 commitment.', severe: false, dayIndex: 0 }],
+      },
+    }), clock)
+    expect(view.lines.some(line => line.parts.map(part => part.text).join('') === 'Clears: Thin buffer before Periyar boat')).toBe(true)
+  })
+
+  it('leaves out the retime line for a fixed booking', () => {
+    const trip = {
+      fixedCommitments: [{ id: 'lock', dayIndex: 0, stopId: 'boat', title: 'Periyar boat', time: '15:30', type: 'event' }],
+      days: [{ index: 0, stops: [{ id: 'boat', title: 'Periyar boat', category: 'nature' }, { id: 'hotel', title: 'Check in · Spice Village', category: 'hotel' }] }],
+    } as unknown as Trip
+    const view = detailPreviewView(ready({
+      proposedTrip: trip,
+      clocks: [
+        { stopId: 'boat', title: 'Periyar boat', from: '15:30', to: '15:52', deltaMin: 22 },
+        { stopId: 'hotel', title: 'Check in · Spice Village', from: '14:00', to: '14:22', deltaMin: 22 },
+      ],
+      warnings: {
+        added: [{ code: 'commitment', title: 'Conflicts with Periyar boat', detail: 'You reach Periyar boat ~15:52, after the 15:30 commitment.', severe: true, dayIndex: 0 }],
+        cleared: [],
+      },
+    }), clock)
+    const retimed = view.lines.filter(line => line.key.startsWith('moved-')).map(line => line.key)
+    expect(retimed).toEqual(['moved-hotel'])
+    expect(view.lines.some(line => line.tone === 'risk')).toBe(true)
+  })
+
+  it('leaves out the retime line for a fixed booking named only in the clocks', () => {
+    const trip = {
+      fixedCommitments: [{ id: 'lock', dayIndex: 0, stopId: 'boat', title: 'Periyar boat', time: '15:30', type: 'event' }],
+      days: [{ index: 0, stops: [{ id: 'boat', title: 'Periyar boat', category: 'adventure' }, { id: 'hotel', title: 'Check in · Spice Village', category: 'hotel' }] }],
+    } as unknown as Trip
+    const view = detailPreviewView(ready({
+      proposedTrip: trip,
+      clocks: [
+        { stopId: 'boat', title: 'Periyar boat', from: '15:30', to: '15:52', deltaMin: 22 },
+        { stopId: 'hotel', title: 'Check in · Spice Village', from: '14:00', to: '14:22', deltaMin: 22 },
+      ],
+    }), clock)
+    expect(view.lines.filter(line => line.key.startsWith('moved-')).map(line => line.key)).toEqual(['moved-hotel'])
   })
 })
 

@@ -105,6 +105,34 @@ export function aroundKmText(targetKm: number | null | undefined): string | null
   return `around km ${Math.round(targetKm)}`
 }
 
+/**
+ * The km a window row names. A synthesized window carries a zero target km, so
+ * it borrows the road position of its own picks. A real slot target wins; an
+ * unknown km stays null and the part leaves the line.
+ */
+export function windowAroundKm(
+  slotKm: number | null | undefined,
+  pickKms: readonly (number | null | undefined)[],
+): number | null {
+  if (slotKm != null && Number.isFinite(slotKm) && slotKm > 0) return slotKm
+  for (const km of pickKms) if (km != null && Number.isFinite(km) && km > 0) return km
+  return null
+}
+
+/**
+ * The clock a fixed booking keeps. A locked stop shows its commitment time, not
+ * the engine's arrival: the booking is the fact, and the arrival only says how
+ * early the traveller reaches the door.
+ */
+export function lockedClockText(
+  commitmentTime: string | null | undefined,
+  arrival: string | null | undefined,
+): string | null {
+  const fixed = commitmentTime?.trim() ?? ''
+  if (/^\d{1,2}:\d{2}$/.test(fixed)) return fixed
+  return arrival == null || arrival.trim() === '' ? null : arrival
+}
+
 /** The time a window row sits at. The engine's arrival counts only inside the window. */
 export function windowAtMin(startMin: number, endMin: number, etaMin: number | null | undefined): number {
   if (etaMin == null || !Number.isFinite(etaMin)) return startMin

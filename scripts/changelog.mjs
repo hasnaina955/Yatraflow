@@ -43,7 +43,7 @@ export function parseFragment(file, text) {
 
 export function splitChangelog(text) {
   if (/^(?:<{7}|={7}|>{7})(?: .*)?$/m.test(text)) throw new Error('CHANGELOG.md contains conflict markers')
-  const anchors = [...text.matchAll(/^## \[Unreleased\]\r?$/gm)]
+  const anchors = [...text.matchAll(/^## \[Unreleased\](?=\r?$)/gm)]
   if (anchors.length !== 1) throw new Error('CHANGELOG.md must have exactly one ## [Unreleased] heading')
   const start = anchors[0].index + anchors[0][0].length
   const tail = text.slice(start)
@@ -97,7 +97,13 @@ function readInputs(root, ref) {
     return receipt
   })
   validateInputs(fragments, receipts)
-  return { fragments, receipts }
+  const transitionFile = 'changelog.d/transition.json'
+  const hasTransition = ref ? filesAt(root, ref, 'changelog.d/').includes(transitionFile) : existsSync(path.join(root, transitionFile))
+  const transitionText = hasTransition ? get(transitionFile) : null
+  const transition = transitionText ? JSON.parse(transitionText) : null
+  if (transition && (Object.keys(transition).length !== 1 || !/^\d+\.\d+\.\d+$/.test(transition.untilRelease))) throw new Error('Malformed transition boundary')
+  if (transition && receipts.length) throw new Error('Remove the transition boundary at the first release')
+  return { fragments, receipts, transition, transitionText }
 }
 
 export function planRelease(text, fragments, receipts, version, date, source) {
@@ -109,7 +115,7 @@ export function planRelease(text, fragments, receipts, version, date, source) {
   if (!fragments.length) throw new Error('No fragments selected')
   const newline = text.includes('\r\n') ? '\r\n' : '\n'
   const insertions = [{ offset: parts.prefix.length, text: `${newline}${newline}## [${version}] - ${date}` }]
-  const headings = [...parts.pending.matchAll(/^### (Added|Changed|Fixed|Removed)\r?$/gm)]
+  const headings = [...parts.pending.matchAll(/^### (Added|Changed|Fixed|Removed)(?=\r?$)/gm)]
   let lastCategory = -1
   for (const heading of headings) {
     const position = categories.indexOf(heading[1])
@@ -144,7 +150,14 @@ export function planRelease(text, fragments, receipts, version, date, source) {
 export function releaseAt(root, source, version, date) {
   const resolved = git(root, ['rev-parse', '--verify', `${source}^{commit}`]).trim()
   const inputs = readInputs(root, resolved)
-  return planRelease(blob(root, resolved, 'CHANGELOG.md'), inputs.fragments, inputs.receipts, version, date, resolved)
+  const text = blob(root, resolved, 'CHANGELOG.md')
+  const parts = splitChangelog(text)
+  const latest = /^## \[([^\]]+)\]/.exec(parts.history)?.[1]
+  if (parts.pending.trim() && latest !== inputs.transition?.untilRelease) throw new Error('Unexplained prose remains under Unreleased')
+  for (const fragment of inputs.fragments) {
+    execFileSync(process.execPath, [fileURLToPath(new URL('./lint-ste.mjs', import.meta.url)), '--stdin'], { cwd: root, input: fragment.text, stdio: 'pipe' })
+  }
+  return { ...planRelease(text, inputs.fragments, inputs.receipts, version, date, resolved), transitionText: inputs.transitionText }
 }
 
 export function renderPatch(plan) {
@@ -158,12 +171,18 @@ export function renderPatch(plan) {
     if (onHeading) inserted.pop()
     else inserted.shift()
     const context = onHeading ? line - 1 : line
-    output.push(`@@ -${context},0 +${context + added + 1},${inserted.length} @@`, ...inserted.map((value) => '+' + value))
+    output.push(`@@ -${context},0 +${context + added + 1},${inserted.length} @@`, ...inserted.map((value) => '+' + value + (newline === '\r\n' ? '\r' : '')))
     added += inserted.length
   }
   for (const fragment of plan.fragments) {
-    const contents = fragment.text.trimEnd().split('\n')
+    const contents = fragment.text.slice(0, -1).split('\n')
     output.push(`diff --git a/${fragment.file} b/${fragment.file}`, 'deleted file mode 100644', `--- a/${fragment.file}`, '+++ /dev/null',
+      `@@ -1,${contents.length} +0,0 @@`, ...contents.map((line) => '-' + line))
+  }
+  if (plan.transitionText) {
+    const file = 'changelog.d/transition.json'
+    const contents = plan.transitionText.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n')
+    output.push(`diff --git a/${file} b/${file}`, 'deleted file mode 100644', `--- a/${file}`, '+++ /dev/null',
       `@@ -1,${contents.length} +0,0 @@`, ...contents.map((line) => '-' + line))
   }
   const file = `${receiptRoot}${plan.receipt.version}.json`
@@ -199,11 +218,13 @@ function checkDelta(root, baseRef, headRef) {
     const receipt = JSON.parse(get(addedReceipts[0]))
     if (git(root, ['merge-base', receipt.source, headRef || 'HEAD']).trim() !== receipt.source) throw new Error('Release source must be an ancestor')
     const plan = releaseAt(root, receipt.source, receipt.version, receipt.date)
-    if (JSON.stringify(receipt) !== JSON.stringify(plan.receipt) || newText !== plan.after || oldText !== plan.before) throw new Error('Release receipt or changelog does not match frozen inputs')
+    const oldParts = splitChangelog(oldText)
+    const sourceParts = splitChangelog(plan.before)
+    if (JSON.stringify(receipt) !== JSON.stringify(plan.receipt) || newText !== plan.after || oldParts.prefix !== sourceParts.prefix || oldParts.history !== sourceParts.history) throw new Error('Release receipt or changelog does not match frozen inputs')
     for (const input of plan.fragments) {
       if (list(pendingRoot).includes(input.file)) throw new Error('Selected fragment was not consumed')
       const previous = beforeInputs.fragments.find((fragment) => fragment.id === input.id)
-      if (!previous || previous.sha256 !== input.sha256) throw new Error('Stale release inputs')
+      if (previous && previous.sha256 !== input.sha256) throw new Error('Stale release inputs')
     }
     for (const previous of beforeInputs.fragments) {
       if (!plan.fragments.some((fragment) => fragment.id === previous.id) && !afterInputs.fragments.some((fragment) => fragment.id === previous.id && fragment.sha256 === previous.sha256)) throw new Error('Unselected fragment changed during release')
@@ -214,9 +235,8 @@ function checkDelta(root, baseRef, headRef) {
   if (oldText !== newText) {
     const oldParts = splitChangelog(oldText)
     const newParts = splitChangelog(newText)
-    const transitionFile = 'changelog.d/transition.json'
-    if (!existsSync(path.join(root, transitionFile))) throw new Error('Direct changelog edit needs a checked release receipt')
-    const transition = JSON.parse(read(root, transitionFile))
+    const transition = afterInputs.transition
+    if (!transition) throw new Error('Direct changelog edit needs a checked release receipt')
     const latest = /^## \[([^\]]+)\]/.exec(newParts.history)?.[1]
     if (latest !== transition.untilRelease || oldParts.prefix !== newParts.prefix || oldParts.history !== newParts.history || normalize(oldParts.pending) === normalize(newParts.pending)) throw new Error('Direct changelog bridge ended or history changed')
     return
@@ -266,8 +286,11 @@ function command() {
     console.log(`Changelog: ${result.fragments} pending fragment(s), ${result.receipts} receipt(s); coverage passed.`)
   } else if (positionals[0] === 'release') {
     if (!values.base || !values.version || !values.date) throw new Error('Use --base <commit> --version X.Y.Z --date YYYY-MM-DD')
+    check(root)
     const plan = releaseAt(root, values.base, values.version, values.date)
     if (read(root, 'CHANGELOG.md') !== plan.before) throw new Error('CHANGELOG.md changed since the frozen input; freeze a new commit')
+    const currentTransition = existsSync(path.join(root, 'changelog.d/transition.json')) ? read(root, 'changelog.d/transition.json') : null
+    if (currentTransition !== plan.transitionText) throw new Error('Transition boundary changed since the frozen input')
     for (const fragment of plan.fragments) if (!existsSync(path.join(root, fragment.file)) || read(root, fragment.file) !== fragment.text) throw new Error('Fragment changed since the frozen input')
     if (values.write) {
       if (values['dry-run']) throw new Error('Choose --write or --dry-run')

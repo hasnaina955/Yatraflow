@@ -38,6 +38,7 @@ This command prints a diff and writes nothing. `--dry-run` has the same effect.
 Use `--write` to save `changelog-release.patch` with exclusive creation.
 The script never writes `CHANGELOG.md`. Review the patch, then apply it with editor primitives.
 The patch inserts release lines, removes consumed fragments, and adds a JSON receipt.
+The first release patch also removes the transition boundary file.
 The receipt records the source commit, input hashes, and output hashes.
 Do not pipe the patch into a writer. Remove the patch file after review.
 The checker reconstructs the release from Git and checks the receipt against the actual result.
@@ -55,10 +56,10 @@ Run `npm run verify` and the release checks. The user reviews the changelog diff
 
 New changes need fragments from the PR that adopts this system.
 Existing Unreleased notes stay in place and ship with the next release. Do not convert them.
-Open PRs #911, #914, and #923 can keep their direct Unreleased edits.
+Open PRs #911 and #914 can keep their direct Unreleased edits.
 The bridge accepts a direct Unreleased edit as PR coverage.
 The exception ends at the next release, after web version 0.84.0.
-The checker uses `transition.json` to detect that boundary. Remove that file in the release cut.
+The checker uses `transition.json` to detect that boundary. The release patch removes that file.
 
 On a changelog conflict, compare both sides with the merge base.
 Keep both sets of pending notes under one Unreleased heading.

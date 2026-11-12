@@ -133,7 +133,7 @@ Keep ROADMAP.md, the change fragment, and the doc index current in the same comm
 - A roadmap row can be wrong. A Sep-6 row was still listed as unbuilt, though the engine had shipped it. Check `src/` first.
 - Fragment bullets open with a bold outcome sentence. Releases retain Added, Changed, Fixed, and Removed sections. Version headings use a hyphen: `## [X.Y.Z] - YYYY-MM-DD`.
 - New changes need fragments from the adoption PR. Existing Unreleased notes stay in place and ship with the next release.
-- PRs #911, #914, and #923 can keep direct Unreleased edits. The coverage check accepts those edits until the next release.
+- PRs #911 and #914 can keep direct Unreleased edits. The coverage check accepts those edits until the next release.
 - The promotion agent owns assembly. The user reviews the CHANGELOG.md diff before any push to `main`.
 - README highlights run newest first. Re-derive evergreen claims from the code.
 - Every new doc gets a row in `docs/README.md`.

@@ -20,7 +20,7 @@ function put(root: string, file: string, text: string) {
 }
 function commit(root: string) {
   git(root, 'add', '.')
-  git(root, 'commit', '-qm', 'fixture')
+  git(root, 'commit', '--allow-empty', '-qm', 'fixture')
   return git(root, 'rev-parse', 'HEAD')
 }
 function fixture(withNote = false) {
@@ -31,6 +31,7 @@ function fixture(withNote = false) {
   git(root, 'config', 'user.name', 'Fixture')
   git(root, 'config', 'core.autocrlf', 'false')
   put(root, 'CHANGELOG.md', original)
+  put(root, 'changelog.d/transition.json', '{"untilRelease":"1.0.0"}\n')
   if (withNote) put(root, first, note)
   return { root, base: commit(root) }
 }
@@ -65,6 +66,63 @@ describe('fragment format', () => {
 })
 
 describe('release safety', () => {
+  it.each(['\n', '\r\n'])('applies the printed insertion patch with raw %j endings', (newline) => {
+    const { root } = fixture(true)
+    const text = original.replaceAll('\n', newline)
+    put(root, 'CHANGELOG.md', text)
+    const source = commit(root)
+    const plan = releaseAt(root, source, '1.1.0', '2026-11-12')
+    applyFixture(root, plan)
+    const actual = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
+    expect(actual).toBe(plan.after)
+    expect(actual).toContain(`## [Unreleased]${newline}${newline}## [1.1.0] - 2026-11-12${newline}`)
+    expect(actual.endsWith(splitChangelog(text).history)).toBe(true)
+    expect(existsSync(path.join(root, 'changelog.d/transition.json'))).toBe(false)
+    expect(check(root, { base: source }).receipts).toBe(1)
+  }, 20000)
+  it('allows patch-file writes only with an explicit flag and exclusive creation', () => {
+    const { root, base } = fixture(true)
+    const args = ['release', '--base', base, '--version', '1.1.0', '--date', '2026-11-12']
+    expect(cli(root, ...args, '--dry-run').status).toBe(0)
+    expect(existsSync(path.join(root, 'changelog-release.patch'))).toBe(false)
+    expect(cli(root, ...args, '--write').status).toBe(0)
+    const patch = readFileSync(path.join(root, 'changelog-release.patch'), 'utf8')
+    expect(cli(root, ...args, '--write').status).toBe(1)
+    expect(readFileSync(path.join(root, 'changelog-release.patch'), 'utf8')).toBe(patch)
+    expect(readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')).toBe(original)
+    expect(readFileSync(path.join(root, first), 'utf8')).toBe(note)
+  }, 20000)
+  it('checks frozen prose and refuses unexplained pending text after the bridge', () => {
+    const { root } = fixture(true)
+    put(root, first, note.replace('The update keeps the saved day.', ['Uti', 'lize the helper.'].join('')))
+    expect(() => releaseAt(root, commit(root), '1.1.0', '2026-11-12')).toThrow()
+    put(root, first, note)
+    rmSync(path.join(root, 'changelog.d/transition.json'))
+    expect(() => releaseAt(root, commit(root), '1.1.0', '2026-11-12')).toThrow(/Unexplained/)
+  }, 20000)
+  it('checks a promotion whose fragments were authored after its PR base', () => {
+    const { root, base } = fixture()
+    put(root, first, note)
+    const source = commit(root)
+    applyFixture(root, releaseAt(root, source, '1.1.0', '2026-11-12'))
+    const head = commit(root)
+    expect(check(root, { base, head }).receipts).toBe(1)
+  }, 20000)
+  it('keeps a later fragment pending and rejects a changed selected input', () => {
+    const { root, base: source } = fixture(true)
+    put(root, second, otherNote)
+    const base = commit(root)
+    applyFixture(root, releaseAt(root, source, '1.1.0', '2026-11-12'))
+    expect(readFileSync(path.join(root, second), 'utf8')).toBe(otherNote)
+    expect(check(root, { base }).fragments).toBe(1)
+    git(root, 'reset', '--hard', base)
+    git(root, 'clean', '-fd')
+    put(root, first, note.replace('saved day', 'same day'))
+    const changedBase = commit(root)
+    put(root, first, note)
+    applyFixture(root, releaseAt(root, source, '1.1.0', '2026-11-12'))
+    expect(() => check(root, { base: changedBase })).toThrow(/Stale/)
+  }, 20000)
   it.each(['\n', '\r\n'])('adds lines and preserves raw history with %j', (newline) => {
     const text = original.replaceAll('\n', newline)
     const plan = planRelease(text, [parseFragment(first, note), parseFragment(second, otherNote)], [], '1.1.0', '2026-11-12', 'a'.repeat(40))
@@ -130,6 +188,28 @@ describe('PR coverage', () => {
     rmSync(path.join(root, first))
     put(root, second, note)
     expect(() => check(root, { base })).toThrow(/Only a checked release/)
+  }, 20000)
+  it('accepts a direct Unreleased edit only while the transition boundary holds', () => {
+    const { root, base } = fixture()
+    const edited = original.replace('- **Old notes stay here.**', '- **Old notes stay here.**\n\n- **A direct note counts as the PR note.**')
+    put(root, 'CHANGELOG.md', edited)
+    expect(check(root, { base }).fragments).toBe(0)
+    for (const bad of [
+      edited.replace('Published text.', 'Rewritten text.'),
+      edited.replace('Keep this preamble.', 'Changed preamble.'),
+      edited.replace('## [1.0.0] - 2026-11-01', '## [1.0.1] - 2026-11-05\n\nNew.\n\n## [1.0.0] - 2026-11-01'),
+    ]) {
+      put(root, 'CHANGELOG.md', bad)
+      expect(() => check(root, { base })).toThrow(/bridge ended or history changed/)
+    }
+    put(root, 'CHANGELOG.md', edited)
+    rmSync(path.join(root, 'changelog.d/transition.json'))
+    expect(() => check(root, { base })).toThrow(/needs a checked release receipt/)
+  }, 20000)
+  it('rejects a direct edit that adds no new Unreleased text', () => {
+    const { root, base } = fixture()
+    put(root, 'CHANGELOG.md', original.replace('- **Old notes stay here.**', '- **Old   notes stay here.**'))
+    expect(() => check(root, { base })).toThrow(/bridge ended or history changed/)
   }, 20000)
   it('checks PR head separately from the merged tree', () => {
     const { root, base } = fixture()

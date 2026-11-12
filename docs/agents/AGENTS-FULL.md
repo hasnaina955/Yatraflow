@@ -109,7 +109,7 @@ that notices the drift.
    Only the release owner applies the checked assembly patch to `CHANGELOG.md`.
 
    New changes need fragments from the adoption PR. Existing Unreleased notes stay in place and ship with the next release.
-   PRs #911, #914, and #923 can keep direct Unreleased edits. The coverage check accepts direct Unreleased edits until the next release.
+   PRs #911 and #914 can keep direct Unreleased edits. The coverage check accepts direct Unreleased edits until the next release.
    The agent that prepares the `test` to `main` promotion owns assembly.
    The user reviews the resulting `CHANGELOG.md` diff before any push to `main`.
    On a changelog conflict, compare both sides with the merge base. Keep both sets of pending notes under one Unreleased heading.

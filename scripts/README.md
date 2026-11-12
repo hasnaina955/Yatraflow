@@ -36,6 +36,7 @@ Add a row here when you add a new script.
 | `scripts/browser-motion-check.mjs` | Serves the production build and samples page blocks once per animation frame. | `npm run check:motion`; `.github/workflows/ci.yml` (motion job) | wired |
 | `scripts/build-art.mjs` | Builds illustration derivatives in `src/assets/art/` from master PNGs. | `npm run art:build` | wired |
 | `scripts/checkMigrations.mjs` | Asks the live project whether every migration artifact is there. | `npm run check:migrations` | wired |
+| `scripts/changelog.mjs` | Creates and checks fragments. Prints a release patch. `--write` saves the patch only. | `npm run changelog:new`; `npm run changelog:check`; `npm run changelog:release` | wired |
 | `scripts/clean-env.mjs` | Clears the `NODE_ENV=production` trap before an npm operation. | `npm run clean:env` | wired |
 | `scripts/css-ownership.mjs` | Checks who may write each rule in the CSS source graph. | `npm run check:css`; `npm run verify` | wired |
 | `scripts/hooks.mjs` | Turns the opt-in pre-push hook on or off for this clone. | `npm run hooks:install`; `npm run hooks:uninstall` | wired |

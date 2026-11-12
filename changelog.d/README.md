@@ -1,0 +1,73 @@
+# Change fragments
+
+Each change has a Markdown file in `changelog.d/pending/`.
+Run this command from the repository root:
+
+```sh
+npm run changelog:new -- --section Changed --message "Release notes use separate change files."
+```
+
+The command creates a UUID file with exclusive creation.
+Edit that file to describe the final outcome. Details follow the bold outcome sentence.
+Use nonempty sections in this order: Added, Changed, Fixed, Removed.
+Use LF line endings and one bullet per line. Commit the fragment with the change.
+Edit the pending fragment if later work replaces its claim.
+
+```markdown
+### Fixed
+
+- **A saved stop stays in its day after reload.** The update keeps the saved day. (#123)
+```
+
+Run `npm run changelog:check` to check format, STE prose, retired IDs, and change coverage.
+The local base is the merge base with `origin/test`. Fetch that ref if it is absent.
+Use `--base <commit> --head <commit>` for an explicit PR range.
+The check reads the PR range and the candidate merged tree. Target-only notes do not count.
+Renames, copies, and whitespace changes do not count. Review coverage for each outcome as well.
+
+## Release procedure
+
+The agent that prepares the `test` to `main` promotion owns assembly.
+Freeze the input in a commit. Select a web version and an ISO date.
+
+```sh
+npm run changelog:release -- --version X.Y.Z --date YYYY-MM-DD --base HEAD
+```
+
+This command prints a diff and writes nothing. `--dry-run` has the same effect.
+Use `--write` to save `changelog-release.patch` with exclusive creation.
+The script never writes `CHANGELOG.md`. Review the patch, then apply it with editor primitives.
+The patch inserts release lines, removes consumed fragments, and adds a JSON receipt.
+The receipt records the source commit, input hashes, and output hashes.
+Do not pipe the patch into a writer. Remove the patch file after review.
+The checker reconstructs the release from Git and checks the receipt against the actual result.
+Keep later fragments pending. Freeze a new input if a selected fragment changes.
+
+Assembly preserves the preamble and every released byte. It adds lines only.
+The line-loss guard rejects a result shorter than the original plus the inserted lines.
+A missing or repeated Unreleased heading stops assembly before any write.
+Malformed notes, reused IDs, duplicate bullets, and conflict markers also stop assembly.
+Review pending claims against the batch commits before release.
+Update package versions, the roadmap snapshot, and README highlights with the release.
+Run `npm run verify` and the release checks. The user reviews the changelog diff before a push to `main`.
+
+## Adoption and bridge
+
+New changes need fragments from the PR that adopts this system.
+Existing Unreleased notes stay in place and ship with the next release. Do not convert them.
+Open PRs #911, #914, and #923 can keep their direct Unreleased edits.
+The bridge accepts a direct Unreleased edit as PR coverage.
+The exception ends at the next release, after web version 0.84.0.
+The checker uses `transition.json` to detect that boundary. Remove that file in the release cut.
+
+On a changelog conflict, compare both sides with the merge base.
+Keep both sets of pending notes under one Unreleased heading.
+Preserve the preamble and released history. Use editor primitives and run the checker.
+Do not restore an older whole file. Do not use a union merge driver after adoption.
+On a fragment conflict, coordinate with its owner and keep one final claim.
+
+## Design sources
+
+The approved proposal compares Towncrier and Changesets under MIT, and Scriv under Apache-2.0.
+This Node CLI uses the fragment workflow without copied source or a new dependency.
+The rollout retains legacy notes and uses a local release rehearsal. It does not cut a release during adoption.

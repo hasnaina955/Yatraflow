@@ -89,4 +89,5 @@ Start here. The codebase is documented across the files below — read the ones 
 - [`diagrams/yatraflow-architecture.json`](diagrams/yatraflow-architecture.json) — hand-authored source of the architecture diagram; the generated `.html` is gitignored (regenerate from the JSON, don't hand-edit).
 
 ## Changelog
+- [`changelog.d/README.md`](../changelog.d/README.md) — fragment format, coverage checks, and release assembly.
 - [`CHANGELOG.md`](../CHANGELOG.md) — every notable change, Keep-a-Changelog style.

@@ -3,6 +3,7 @@
 import type { Trip, ItineraryStop } from '../../../data/types'
 import type { StayBase, StayLensRow, StayLensOutput, LensPhase } from '../../../lib/mapLensContracts'
 import { DEFAULT_SPEED_KMH } from '../../../lib/providers/hits'
+import { intendedVisitMinutes } from '../../../lib/hoursContext'
 import { lensFit, fitCopy, type FitWindow, type LensFit } from './lensFit'
 
 // The two reach rings: 15 min walk and 30 min drive.
@@ -52,6 +53,9 @@ export interface StayPick {
   reach: StayReach
   fit: LensFit | null
   fitText: string | null
+  /** The visit length the pick would carry once added: the row's own, else the
+   *  length the add path already intends for this kind of place. */
+  visitMin?: number | null
 }
 
 export type StayPicksResult =
@@ -134,6 +138,9 @@ export function stayWindows(input: {
   arriveAtBaseMin: number | null
   leaveBaseMin: number | null
   eveningBook?: StayEveningBook | null
+  /** Where an empty dinner window begins. The free evening ends there, so the
+   *  two windows never overlap. Absent keeps the day-end clock. */
+  dinnerStartMin?: number | null
 }): StayWindow[] {
   const windows: StayWindow[] = []
   const { arriveAtBaseMin, leaveBaseMin, eveningBook } = input
@@ -144,10 +151,14 @@ export function stayWindows(input: {
   const eveningStart = arriveAtBaseMin != null && Number.isFinite(arriveAtBaseMin)
     ? bookEnd == null ? arriveAtBaseMin : Math.max(arriveAtBaseMin, bookEnd)
     : bookEnd
+  const dinnerStart = input.dinnerStartMin
+  const eveningEnd = eveningStart !== null && dinnerStart != null && Number.isFinite(dinnerStart) && dinnerStart > eveningStart
+    ? Math.min(STAY_DAY_END_MIN, dinnerStart)
+    : STAY_DAY_END_MIN
   if (eveningStart !== null
     && Number.isFinite(eveningStart)
-    && STAY_DAY_END_MIN - eveningStart >= 30) {
-    windows.push({ id: 'evening', label: 'Free evening', startMin: eveningStart, endMin: STAY_DAY_END_MIN })
+    && eveningEnd - eveningStart >= 30) {
+    windows.push({ id: 'evening', label: 'Free evening', startMin: eveningStart, endMin: eveningEnd })
   }
   if (leaveBaseMin !== null
     && Number.isFinite(leaveBaseMin)
@@ -193,12 +204,12 @@ export function stayPicks(
     const reach = stayReach(base, { lat: hit.latitude, lng: hit.longitude })
     // A walk of 15 min or less uses walk minutes. Longer walks use drive minutes.
     const travel = reach.walkMin <= 15 ? reach.walkMin : reach.driveMin
-    const visit = row.row.visitMin
+    const visit = row.row.visitMin ?? intendedVisitMinutes(hit)
     const fit = lensFit(window, null, travel, visit)
     const fitText = fit !== null && visit !== null
       ? fitCopy(window, fit, travel, visit, clock)
       : null
-    usable.push({ letter: null, row, reach, fit, fitText })
+    usable.push({ letter: null, row, reach, fit, fitText, visitMin: visit })
   }
   // The walk ring ranks first, so its picks keep A/B/C and the wider ring's
   // pick stays unlettered. A row order that puts a drive pick in the walk

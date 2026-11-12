@@ -73,7 +73,10 @@ const board = (): Trip => ({
       stop('fixture-d2-museum', 'Tea museum', 'sightseeing', 10.0865, 77.0647, 1, 60),
       stop('fixture-d2-hotel', 'Check in · Tea Valley', 'hotel', at('munnar').lat, at('munnar').lng, 2, 30, 'Munnar'),
     ] },
-    { id: 'fixture-day-3', index: 2, startTime: fixScenario ? '11:00' : '10:00', title: 'Munnar to Thekkady', stops: [
+    { id: 'fixture-day-3', index: 2, startTime: fixScenario ? '11:00' : '08:20', title: 'Munnar to Thekkady', stops: [
+      // The board opens Day 3 with breakfast at last night's stay, then leaves at
+      // 10:00. The fix scenario starts at 11:00 and has no breakfast row.
+      ...(fixScenario ? [] : [{ ...stop('fixture-breakfast', 'Breakfast at Tea Valley', 'food', at('munnar').lat, at('munnar').lng, 0, 75), slotKey: 'breakfast' }]),
       stop('fixture-attukad', 'Attukad waterfalls', 'nature', at('attukad').lat, at('attukad').lng, 1, 30),
       // The fix scenario fills the meal break, so the boat is the one problem.
       ...(fixScenario ? [
@@ -97,10 +100,11 @@ const board = (): Trip => ({
 })
 const trip: Trip = boardTrip ? board() : small()
 if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
-// Sample: the hotel is the stay base, not the stay slot's filled pick. The
-// stay lens can then show the sample picks around it. Fixture data only.
+// Sample: the hotel is the stay base. It fills no slot (its key names none), so
+// the stay and dinner windows stay open and the stay lens shows the sample picks
+// around it. Fixture data only.
 const boardHotel = trip.days[2]?.stops.find(stop => stop.id === 'fixture-hotel')
-if (boardHotel) boardHotel.slotKey = 'dinner'
+if (boardHotel) boardHotel.slotKey = 'base'
 
 // The Day 3 legs follow the recorded road. Their kilometres and minutes are the
 // board's sample numbers. Any other leg stays a synthetic straight line.
@@ -146,18 +150,20 @@ const boardPoint = (km: number, dLat: number, dLng: number): { lat: number; lng:
   const [lng, lat] = boardRoadPoint(km)
   return { lat: Number((lat + dLat).toFixed(6)), lng: Number((lng + dLng).toFixed(6)) }
 }
-const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+// Each sample lunch pick carries the board's own sample facts: its town, a
+// rating, a kind line, a why line and a food type. A free-stack hit has none.
+const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: number, openTime: string, closeTime: string, extra: Partial<PlaceHit>): PlaceHit => ({
   id: `sample_lunch_${id}`, name, kind: 'poi', source: 'osm', category: 'food',
   latitude: boardPoint(km, dLat, dLng).lat, longitude: boardPoint(km, dLat, dLng).lng,
-  openTime, closeTime,
+  openTime, closeTime, ...extra,
 })
 // The lunch picks stand on the recorded road, so the leg they split keeps the
 // board's own kilometres and speed. A pick far off the line would fall back to a
 // faster straight estimate and pull the later stops earlier.
 const SAMPLE_LUNCH: readonly PlaceHit[] = [
-  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.002, 0.003, '11:00', '15:30'),
-  sampleHit(930002, 'Spice Route Café', 57, -0.002, 0.003, '08:00', '15:00'),
-  sampleHit(930003, 'Hill Garden Meals', 57, 0.002, -0.003, '12:00', '16:00'),
+  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.002, 0.003, '11:00', '15:30', { admin1: 'Kattappana', rating: 4.4, ratingCount: 1200, facts: { kind: 'Kerala meals', why: 'breaks a 2 h ghat stretch', diet: 'veg and non-veg' } }),
+  sampleHit(930002, 'Spice Route Café', 57, -0.002, 0.003, '08:00', '15:00', { admin1: 'Erattayar', rating: 4.2, ratingCount: 640, facts: { kind: 'South Indian', why: 'first good stop after Attukad' } }),
+  sampleHit(930003, 'Hill Garden Meals', 57, 0.002, -0.003, '12:00', '16:00', { admin1: 'Anakkara', rating: 4.5, ratingCount: 310, facts: { kind: 'plantation view', why: 'quiet, 12 tables' } }),
 ]
 // Sample place picks split one recorded leg of the board road. A split is only
 // honest when its two halves add up to the leg they replace, so each half takes
@@ -187,21 +193,21 @@ const splitRecordedLegs = (hits: readonly { latitude: number; longitude: number 
   }
 }
 splitRecordedLegs(SAMPLE_LUNCH)
-const sampleStayHit = (id: number, name: string, category: PlaceHit['category'], dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+const sampleStayHit = (id: number, name: string, category: PlaceHit['category'], dLat: number, dLng: number, openTime: string, closeTime: string, extra: Partial<PlaceHit> = {}): PlaceHit => ({
   // The same id the provider answer carries, so the map draws one pin per place.
   id, name, kind: 'poi', source: 'osm', category,
   latitude: Number((boardRoad.stops.spiceVillage.at[1] + dLat).toFixed(6)),
   longitude: Number((boardRoad.stops.spiceVillage.at[0] + dLng).toFixed(6)),
-  openTime, closeTime,
+  openTime, closeTime, ...extra,
 })
 // Each stay pick carries the category and the hours its own place has: a market,
 // a kalari show, a spice garden and a boat-landing viewpoint. The offsets keep
 // each pin apart on the map and inside the 15 min walk ring. Sample data.
 const SAMPLE_STAY: readonly PlaceHit[] = [
-  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 'event', 0.0026, 0.0034, '17:00', '19:30'),
-  sampleStayHit(930008, 'Kumily spice market', 'shopping', -0.0028, 0.0036, '08:00', '21:00'),
-  sampleStayHit(930009, 'Periyar spice garden', 'nature', 0.0032, -0.0032, '09:00', '18:00'),
-  sampleStayHit(930010, 'Boat landing viewpoint', 'sightseeing', -0.0115, -0.0082, '06:00', '18:30'),
+  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 'event', 0.0026, 0.0034, '17:00', '19:30', { admin1: 'Kumily', rating: 4.5, ratingCount: 2100, facts: { kind: 'Kalaripayattu show', why: 'two shows an evening' } }),
+  sampleStayHit(930008, 'Kumily spice market', 'shopping', -0.0028, 0.0036, '08:00', '21:00', { admin1: 'Kumily', facts: { kind: 'Market' } }),
+  sampleStayHit(930009, 'Periyar spice garden', 'nature', 0.0032, -0.0032, '09:00', '18:00', { admin1: 'Kumily', facts: { kind: 'Spice garden' } }),
+  sampleStayHit(930010, 'Boat landing viewpoint', 'sightseeing', -0.0115, -0.0082, '06:00', '18:30', { admin1: 'Thekkady', facts: { kind: 'Viewpoint' } }),
 ]
 splitRecordedLegs(SAMPLE_STAY)
 for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {

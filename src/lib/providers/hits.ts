@@ -44,6 +44,13 @@ export interface PlacePhotoRef {
   attribution: { text: string; authorUri: string | null }
 }
 
+/** Short card facts for one place. See `PlaceHit.facts`. */
+export interface PlaceFacts {
+  why?: string
+  kind?: string
+  diet?: string
+}
+
 export interface PlaceHit {
   id: number | string
   name: string
@@ -86,6 +93,15 @@ export interface PlaceHit {
    */
   family?: PlaceFamily
   subtype?: string
+  /**
+   * Short card facts a provider or a sample supplies. Each part is optional and
+   * shows only when present: a free-stack hit carries none, and the card then
+   * shows nothing. Never filled by a guess.
+   *  why     — one short line on why the place fits ("breaks a 2 h ghat stretch")
+   *  kind    — the kind line ("Kerala meals", "South Indian", "Kalaripayattu show")
+   *  diet    — the food type ("veg and non-veg")
+   */
+  facts?: PlaceFacts
   /** Google rating 1–5 — present on Google hits when the mask returns it */
   rating?: number
   /** Google review count — gates the rating boost against thin samples */

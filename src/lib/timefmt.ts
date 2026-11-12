@@ -70,6 +70,15 @@ export function formatHM(hm: string, fmt: TimeFormat): string {
 }
 
 /**
+ * Render every stored "HH:MM" clock inside one sentence in the reader's clock.
+ * A clock that already has AM or PM after it stays as it is. Other text is
+ * untouched, so "arrive 14:30 · +5 min" reads "arrive 2:30 PM · +5 min".
+ */
+export function formatClocksInText(text: string, fmt: TimeFormat): string {
+  return text.replace(/\b(\d{1,2}:\d{2})\b(?!\s?[AaPp][Mm])/g, hm => formatHM(hm, fmt))
+}
+
+/**
  * Gate a stored clock string. Returns the value when it is a real wall-clock
  * "HH:MM" (00:00–23:59, zero-padded), else undefined.
  *

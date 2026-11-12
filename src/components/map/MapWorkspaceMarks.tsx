@@ -31,7 +31,7 @@ export function WarningDiamond({ label, severe = false, onOpen }: { label: strin
 
 export function MapStopSymbol({ order, stay = false, fixed = false, warn = false }: { order: number; stay?: boolean; fixed?: boolean; warn?: boolean }) {
   return <span className="mv2-stop-symbol" aria-hidden="true">
-    {stay ? <><House size={18} /><span className="mv2-stay-order">{order}</span></> : <span>{order}</span>}
+    {stay ? <><House size={18} />{order > 0 && <span className="mv2-stay-order">{order}</span>}</> : <span>{order}</span>}
     {fixed && <span className="mv2-stop-lock"><LockKeyhole size={10} /></span>}
     {warn && <span className="mv2-stop-warn"><b>!</b></span>}
   </span>

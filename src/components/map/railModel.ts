@@ -32,11 +32,16 @@ export function railStopPaid(
 
 /** One-based number of a rail row, shared with the map marker for that stop.
  *  The departure anchor and other synthesized endpoints carry no number. */
-export function railStopNumber(points: ReadonlyArray<{ kind: JourneyPointKind; synthesized?: boolean }>, index: number): number {
+export function railStopNumber(
+  points: ReadonlyArray<{ kind: JourneyPointKind; synthesized?: boolean }>,
+  index: number,
+  /** A stop that takes no number, such as a breakfast at last night's stay. */
+  unnumbered: (position: number) => boolean = () => false,
+): number {
   let number = 0
   for (let position = 0; position <= index; position += 1) {
     const point = points[position]
-    if (!point || point.synthesized || point.kind === 'start' || point.kind === 'destination') continue
+    if (!point || point.synthesized || point.kind === 'start' || point.kind === 'destination' || unnumbered(position)) continue
     number += 1
   }
   return number
@@ -191,4 +196,91 @@ export function daysCaptionText(allDays: boolean, contextOpacity: number): strin
   return allDays
     ? `Other days draw thin at ${percent}%. Tap one to move the map there.`
     : 'Only this day draws. Choose All to see the other days thin.'
+}
+
+/**
+ * The town a day ends in. The day title wins ("Munnar to Thekkady" ends in
+ * Thekkady). Else the stay stop's own place counts, but only when it names a
+ * town: a place that still carries the stop's own action title ("Check in · X")
+ * is a property, not a town, and gives null.
+ */
+export function dayEndTown(input: {
+  dayTitle: string | null | undefined
+  hotelPlace: string | null | undefined
+  hotelTitle: string | null | undefined
+}): string | null {
+  const fromTitle = /(?:\bto\b|→)\s*([^,·]+)$/i.exec(input.dayTitle ?? '')?.[1]?.trim() ?? null
+  if (fromTitle != null && fromTitle !== '') return fromTitle
+  const place = input.hotelPlace?.trim() ?? ''
+  if (place === '') return null
+  if (/^(?:check[ -]?in|arrive|stay)\s*[·:]/i.test(place)) return null
+  if (input.hotelTitle != null && place === input.hotelTitle.trim()) return null
+  return place
+}
+
+/**
+ * Whether the leg line shows above a rail row. The first visible row never has
+ * one. A later row shows the leg of the drive into it only when the row above is
+ * the stop that drive started from: the plan neighbour, or the start row when
+ * the stops between sit at the start place (a zero-distance arrival).
+ * `visibleIndexes` are the plan indexes in display order.
+ */
+export function railLegVisible(
+  visibleIndexes: readonly number[],
+  atStartPlace: ReadonlySet<number>,
+  position: number,
+): boolean {
+  if (position <= 0) return false
+  const above = visibleIndexes[position - 1]
+  const here = visibleIndexes[position]
+  if (above == null || here == null || above >= here) return false
+  for (let between = above + 1; between < here; between += 1) {
+    if (!atStartPlace.has(between)) return false
+  }
+  return true
+}
+
+/**
+ * The clock of the "Leave X" row. A stop at the start place (a breakfast at last
+ * night's stay) comes first, so the car leaves when that stop ends. Stops after
+ * the first real drive do not move it.
+ */
+export function railDepartClock(
+  startClock: string,
+  following: readonly { distanceKm: number | null | undefined; depart: string }[],
+): string {
+  let clock = startClock
+  for (const point of following) {
+    if (point.distanceKm == null || !(point.distanceKm < 0.05)) break
+    clock = point.depart
+  }
+  return clock
+}
+
+const SAME_PLACE_KM = 0.3
+
+/**
+ * True for a food stop that stands on last night's stay: the traveller eats where
+ * they slept, before the drive starts. Position decides it, so a breakfast
+ * elsewhere is an ordinary stop.
+ */
+export function standsOnLastNightStay(
+  stop: { category: string; lat: number; lng: number },
+  previousHotel: { lat: number; lng: number } | null,
+): boolean {
+  if (previousHotel == null || stop.category !== 'food') return false
+  const dLat = (stop.lat - previousHotel.lat) * 111
+  const dLng = (stop.lng - previousHotel.lng) * 111 * Math.cos((stop.lat * Math.PI) / 180)
+  return Number.isFinite(dLat) && Number.isFinite(dLng) && Math.hypot(dLat, dLng) <= SAME_PLACE_KM
+}
+
+/** The sub line of such a stop: "Munnar · last night's stay". Null for any other stop. */
+export function lastNightStaySub(
+  stop: { category: string; lat: number; lng: number },
+  previousHotel: { lat: number; lng: number } | null,
+  town: string | null,
+): string | null {
+  if (!standsOnLastNightStay(stop, previousHotel)) return null
+  const name = town?.trim() ?? ''
+  return name === '' ? 'Last night’s stay' : `${name} · last night’s stay`
 }

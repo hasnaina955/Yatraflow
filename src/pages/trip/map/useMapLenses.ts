@@ -233,7 +233,9 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
     const arriveAtBaseMin = stopAt >= 0 ? clockMinOrNull(schedule?.arrivalTimes[stopAt]) : null
     const nextDay = trip.days.find(entry => entry.index === dayIndex + 1)
     const leaveBaseMin = clockMinOrNull(nextDay?.startTime)
-    const windows = stayWindows({ arriveAtBaseMin, leaveBaseMin, ...(eveningBook != null ? { eveningBook } : {}) })
+    // An empty dinner window ends the free evening, as the board draws it.
+    const dinner = slots.find(entry => entry.key === 'dinner' && entry.state === 'empty' && entry.windowMin != null)
+    const windows = stayWindows({ arriveAtBaseMin, leaveBaseMin, dinnerStartMin: dinner?.windowMin?.[0] ?? null, ...(eveningBook != null ? { eveningBook } : {}) })
     const output = stayLensRows({
       status,
       dayIndex,
@@ -284,7 +286,11 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
         const stop = trip.days.find(day => day.stops.some(entry => entry.id === stopId))
           ?.stops.find(entry => entry.id === stopId)
         return stop?.title ?? stopId
-      }, clock, dayStops),
+      }, clock, dayStops, stopId => {
+        // A booked stop shows its booking clock, never the engine arrival.
+        const lock = trip.fixedCommitments?.find(entry => entry.dayIndex === dayIndex && entry.stopId != null && String(entry.stopId) === String(stopId))
+        return lock?.time == null ? null : hmToMinutes(lock.time)
+      }),
     }))
   const fixPhase: LensPhase = dayIndex == null ? 'unscanned' : 'ready'
   const fixView = fixLensRows({

@@ -52,7 +52,7 @@ function tripWithStops(): Trip {
 describe('item 1: the Stay ring camera fits once per lens or base change', () => {
   it('keeps the fit effect dependent on the lens flag and the ring content key', () => {
     const source = read('src/components/TripMap.tsx')
-    expect(source).toMatch(/\[stayRingKey, mapLoaded, frameStayRing, viewTick\]/)
+    expect(source).toMatch(/\[stayRingsKey, mapLoaded, frameStayRing, stayOwnsCamera, frameTick\]/)
     expect(source).not.toMatch(/^\s*setViewTick\(tick => tick \+ 1\)\s*$/m)
   })
 
@@ -146,7 +146,7 @@ describe('item 4: Fix titles name places, not engine positions', () => {
   it('names the spice farm walk when the boat moves before it', () => {
     const trip = tripWithStops()
     const set = setOf([{ kind: 'move', stopId: 'boat', toIndex: 2 }])
-    expect(fixPlaceTitle(set.changes[0], stopsOf(trip), nameOf)).toBe('Go to the boat before the spice farm walk')
+    expect(fixPlaceTitle(set.changes[0], stopsOf(trip), nameOf)).toBe('Go to the boat before spice farm walk')
     expect(fixPlaceTitle(set.changes[0], stopsOf(trip), nameOf)).not.toMatch(/position/i)
   })
 

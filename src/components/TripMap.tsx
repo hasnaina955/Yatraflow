@@ -12,6 +12,7 @@ import { buildRoadChain, measureDayRide, roadChainSig, routeDrawGrade } from '..
 import { dayColor } from '../lib/mapStyles/dayColors'
 import { buildJourney, coLocates, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
 import { buildStopClock } from '../lib/stopClock'
+import type { RouteMark } from '../lib/map/routeMarks'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
@@ -32,7 +33,7 @@ import {
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
 import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
-import { stayRingsDependencyKey } from '../lib/map/stayRings'
+import { stayFrameAction, stayRingsDependencyKey } from '../lib/map/stayRings'
 import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
 import { applyWorkspaceViewMode } from '../lib/mapStyles'
 import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
@@ -55,6 +56,7 @@ import {
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
 import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
+import { standsOnLastNightStay } from './map/railModel'
 import { MapPhoneLocate } from './map/MapWorkspaceChrome'
 import { MapBasemapStatus, useWorkspaceBasemapStatus } from './map/MapBasemapStatus'
 import { DetourSpurOverlay } from './map/DetourSpurOverlay'
@@ -547,7 +549,7 @@ export interface PreviewRoadView {
   legOutMeasured: boolean | null
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickLetters, warningMarks = [], stopWarning = null, corridorDay = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickTags, routeMarks = [], pickLetters, warningMarks = [], stopWarning = null, corridorDay = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -579,6 +581,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   onGapRing?: (key: string) => void
   /** The band of each pick, keyed by the pick id the map already uses. */
   pickBands?: Record<string, 'just-past' | 'over-budget'>
+  /** The words beside a pick that lies past the scope, keyed like `pickBands`. */
+  pickTags?: Record<string, string>
+  /** Clock ticks and the lunch window, drawn on the route. The parent reads the plan. */
+  routeMarks?: RouteMark[]
   /** A rank letter for each pick, keyed by the pick id the map already uses. */
   pickLetters?: Record<string, 'A' | 'B' | 'C'>
   /** Real problems to mark with a diamond. The parent supplies each fact. */
@@ -665,7 +671,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // The settled map zoom. Other days' base tags appear only at zoom 9 or more.
   const [mapZoom, setMapZoom] = useState(5)
   // The map moved. A ring caption reads the camera, so it draws again after every move.
-  const [viewTick, setViewTick] = useState(0)
+  const [, setViewTick] = useState(0)
   // The compass shows the map's own bearing and resets it to north.
   const [bearing, setBearing] = useState(0)
   const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
@@ -928,6 +934,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       ),
     [daysToPlot],
   )
+
+  // A food stop on last night's stay (the breakfast before the drive) draws as a
+  // stay mark and takes no number, as the rail row does.
+  const lastNightStayIds = useMemo(() => {
+    const ids = new Set<string>()
+    const ordered = [...trip.days].sort((a, b) => a.index - b.index)
+    ordered.forEach((day, at) => {
+      const hotel = [...(ordered[at - 1]?.stops ?? [])].reverse().find(stop => stop.category === 'hotel' && stop.status !== 'rejected')
+      if (hotel == null) return
+      for (const stop of day.stops) if (standsOnLastNightStay(stop, hotel)) ids.add(String(stop.id))
+    })
+    return ids
+  }, [trip.days])
 
   // Stops sharing one place (a meal at your night's base, or two stops the user
   // added in the same town) would otherwise draw as a single pin — the second
@@ -1295,11 +1314,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
   }, [mapLoaded])
 
+  // The Stay lens frames its own reach ring. While it does, the route fit below
+  // yields: a later resize would otherwise pull the camera back out to the day.
+  const stayOwnsCamera = frameStayRing && stayRings.length > 0
   // fit the viewport to everything the view draws, whenever the map is ready
   // and that extent changes
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     if (mapTarget) return
+    if (stayOwnsCamera) return
     if (targetCameraActive.current) {
       if (targetCameraDay.current === dayFilter) return
       targetCameraActive.current = false
@@ -1335,7 +1358,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     const frame = requestAnimationFrame(run)
     return () => { cancelAnimationFrame(frame); timers.forEach(window.clearTimeout) }
-  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter, frameTick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter, frameTick, stayOwnsCamera]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // A new container size frames the route again, unless the user moved the map.
   useEffect(() => {
@@ -1358,9 +1381,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // flag comes from the page: only the Stay lens with a stay base frames it.
   // The ring fills a measured fraction of the visible canvas, so the fit is
   // scale-free. Clamping keeps the frame inside the day's route extent.
-  const stayRingKey = stayRings.map(ring => `${ring.id}:${ring.ring.length}`).join('|')
+  const stayFramedKey = useRef<string | null>(null)
   useEffect(() => {
-    if (!frameStayRing || !mapLoaded || !mapRef.current) return
+    if (!stayOwnsCamera) { stayFramedKey.current = null; return }
+    if (!mapLoaded || !mapRef.current) return
+    // One fit per lens open or base move. The key is the ring's content, so a
+    // caption change or a fresh array never frames again.
+    const action = stayFrameAction({
+      framing: frameStayRing, hasRing: stayRings.length > 0, key: stayRingsKey,
+      framedKey: stayFramedKey.current, released: frameReleased.current,
+    })
+    if (action === 'skip') return
+    if (stayFramedKey.current !== stayRingsKey) frameReleased.current = false
+    stayFramedKey.current = stayRingsKey
     const first = stayRings[0]
     if (!first) return
     const framed = stayFrameBounds(first.ring, STAY_RING_CANVAS_FRACTION)
@@ -1373,7 +1406,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const m = mapRef.current
     m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stayRingKey, mapLoaded, frameStayRing, viewTick])
+  }, [stayRingsKey, mapLoaded, frameStayRing, stayOwnsCamera, frameTick])
 
   useEffect(() => {
     if (!mapTarget || !mapLoaded || !mapRef.current) return
@@ -2106,6 +2139,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <MarkerTooltip>{w.label}</MarkerTooltip>
               </MapMarker>
             ))}
+            {routeMarks.filter(mark => validMapCoordinate({ lat: mark.lat, lng: mark.lng })).map(mark => (
+              <MapMarker key={`route-${mark.id}`} longitude={mark.lng} latitude={mark.lat}>
+                <MarkerContent>
+                  {mark.kind === 'tick'
+                    ? <span className="mv2-pin-clock mv2-route-tick" aria-label={`${mark.label}, ${mark.sub ?? ''}`}>{mark.label}{mark.sub != null && <small>{mark.sub}</small>}</span>
+                    : <span className="mv2-route-window">{mark.label}</span>}
+                </MarkerContent>
+              </MapMarker>
+            ))}
             <DetourSpurOverlay activeHitId={activeHitId} nearbyPois={nearbyPois} route={spurRoute} ink={warnInk} />
             {/* The travel clock as road labels: one text pair per planned anchor
                 (meal / overnight / destination) — time + date left of the road,
@@ -2203,7 +2245,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </MapMarker>
                   )
                 }
-                num += 1
+                const onLastNight = workspaceChrome && lastNightStayIds.has(String(p.id))
+                if (!onLastNight) num += 1
                 const c = showClockChips ? stopClock.get(p.id) : undefined
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
@@ -2211,13 +2254,13 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       {anchorWrap(<>
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
-                        className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' ? ' is-stay' : ''}${isBase && frameStayRing ? ' is-stay-hero' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
+                        className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' || onLastNight ? ' is-stay' : ''}${isBase && frameStayRing ? ' is-stay-hero' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
                         style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#FFFFFF' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
                         aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}
                       >
-                        {workspaceChrome ? <MapStopSymbol order={num} stay={p.category === 'hotel'} fixed={trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex)} warn={!!warn} /> : <span className="yf-pin-face">
+                        {workspaceChrome ? <MapStopSymbol order={num} stay={p.category === 'hotel' || onLastNight} fixed={trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex)} warn={!!warn} /> : <span className="yf-pin-face">
                           <span className="yf-pin-ico" aria-hidden><CatIcon category={p.category} size={15} className="yf-pin-svg" /></span>
                           <i className="yf-pin-num">{num}</i>
                         </span>}
@@ -2306,6 +2349,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       >
                         {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
+                      {pickTags?.[String(hit.id)] != null && <span className="mv2-pick-tag" data-band={band}>{pickTags[String(hit.id)]}</span>}
                       {onAddNearby && !workspaceChrome && (
                         <button
                           type="button"

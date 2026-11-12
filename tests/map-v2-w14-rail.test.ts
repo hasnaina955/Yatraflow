@@ -51,7 +51,7 @@ describe('rail stop numbers', () => {
   })
   it('reads the same number source as the map marker', () => {
     const chrome = read('../src/components/map/MapWorkspaceChrome.tsx')
-    expect(chrome).toContain('railStopNumber(points, index)')
+    expect(chrome).toContain('railStopNumber(points, index, ')
   })
 })
 
@@ -144,7 +144,7 @@ describe('rail and strip source rules', () => {
   })
   it('uses the Fix risk wash, a diamond and the window start in the rail', () => {
     expect(css).toContain(':root:where([data-theme=\'dark\']) .mv2-stop.is-fix-problem { background: #3A1C18;')
-    expect(chrome).toContain('railMarkerKind({ kind: point.kind, category: point.stop.category, locked, isFix })')
+    expect(chrome).toContain('railMarkerKind({ kind: point.kind, category: onLastNight ? \'hotel\' : point.stop.category, locked, isFix })')
     expect(chrome).toContain('clock?.(row.startMin)')
   })
   it('gives the fold its own glyph and keeps the user clock setting', () => {
@@ -153,7 +153,8 @@ describe('rail and strip source rules', () => {
     // W16: a fixed booking keeps its commitment clock, so the row reads the
     // lock's time and falls back to the engine arrival.
     expect(chrome).toContain('lockClocks.get(String(point.stop.id))')
-    expect(chrome).toContain('?? point.arrive, timeFormat)')
+    expect(chrome).toContain('?? point.arrive')
+    expect(chrome).toContain('formatHM(rowTime, timeFormat)')
   })
   it('hides the budget block on the Stay lens and takes the Paid chip from expenses', () => {
     expect(mapTab).toContain("hideBudget={lens === 'stay'}")

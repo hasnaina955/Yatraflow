@@ -1,3 +1,4 @@
+import { intendedVisitMinutes } from '../src/lib/hoursContext'
 import { describe, expect, it } from 'vitest'
 import type { LensPhase, StayLensOutput, StayLensRow } from '../src/lib/mapLensContracts'
 import type { Trip } from '../src/data/types'
@@ -229,14 +230,15 @@ describe('rule 7: stayPicks', () => {
     }
   })
 
-  it('gives a null fit and a null fitText for a null visit', () => {
+  it('uses the visit length the add path intends when the row has none', () => {
     const rows = [rowAt(10, 76, null)]
     const result = stayPicks(viewOf('ready', rows), { lat: 10, lng: 76 }, evening, clock)
     expect(result.kind).toBe('ready')
     if (result.kind === 'ready') {
       expect(result.picks).toHaveLength(1)
-      expect(result.picks[0].fit).toBeNull()
-      expect(result.picks[0].fitText).toBeNull()
+      const hit = rows[0].row.hit
+      expect(result.picks[0].visitMin).toBe(intendedVisitMinutes(hit))
+      expect(result.picks[0].fit).not.toBeNull()
     }
   })
 

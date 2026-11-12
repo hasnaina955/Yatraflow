@@ -18,6 +18,10 @@
 import type { DaySlot, DaySlotKind, SlotCandidate } from '../../../lib/daySlots'
 import type { PlaceHit } from '../../../lib/providers/hits'
 
+/** The provenance line of a user's own search pick. It is bookkeeping: a card
+ *  never shows it as a fact chip. */
+export const SLOT_SEARCH_PROVENANCE = 'added from this slot’s search'
+
 export type FilingOption = { key: string; label: string; noun: string }
 
 /**
@@ -94,7 +98,7 @@ export function manualCandidateFor(input: ManualCandidateInput): SlotCandidate {
     arriveLabel: null,
     inWindow: false,
     score: Number.MAX_SAFE_INTEGER,
-    reason: 'added from this slot’s search',
+    reason: SLOT_SEARCH_PROVENANCE,
   }
 }
 

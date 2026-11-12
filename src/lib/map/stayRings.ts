@@ -33,3 +33,21 @@ export function stayRingsDependencyKey(rings: readonly StayRingLike[] | null | u
   if (rings == null || rings.length === 0) return ''
   return rings.map(ring => `${ring.id}:${ring.ring.map(pointKey).join(';')}`).join('|')
 }
+
+/**
+ * What the Stay camera does when its effect runs. A new ring key (the lens
+ * opened, or the stay base moved) always frames the ring, because that is an
+ * explicit new subject. The same key frames again only after a resize, and only
+ * while the reader has not moved the map. A caption change never reaches here.
+ */
+export function stayFrameAction(input: {
+  framing: boolean
+  hasRing: boolean
+  key: string
+  framedKey: string | null
+  released: boolean
+}): 'frame' | 'skip' {
+  if (!input.framing || !input.hasRing) return 'skip'
+  if (input.key !== input.framedKey) return 'frame'
+  return input.released ? 'skip' : 'frame'
+}

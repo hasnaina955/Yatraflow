@@ -9,17 +9,17 @@ import { visitDateForDay } from '../../lib/hoursContext'
 import { titleCase } from '../../lib/labels'
 import { budgetBlockView, budgetValueParts, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
 import { dayColor } from '../../lib/mapStyles/dayColors'
-import { fixProblemSubLine, railClockOrder, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
+import { fixProblemSubLine, lastNightStaySub, railClockOrder, standsOnLastNightStay, railDepartClock, railLegVisible, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
 import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText, ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
 export type { RibbonPreview }
 
-export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange, onBack }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void; onBack?: (() => void) | undefined }) {
+export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange, onBack, endTown }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void; onBack?: (() => void) | undefined; /** The town the day ends in. Absent keeps the last stop's name. */ endTown?: string | null }) {
   const days = [...trip.days].sort((a, b) => a.index - b.index)
   const at = days.findIndex(day => day.index === activeDay)
   const day = days[at]
-  const title = journey ? `${journey.startTitle ?? ''} → ${journey.endTitle ?? ''}` : day?.title || 'Your day on the map'
+  const title = journey ? `${journey.startTitle ?? ''} → ${endTown ?? journey.endTitle ?? ''}` : day?.title || 'Your day on the map'
   // "All days" is a mode, not a day step. The board's slim row carries only the
   // two chevrons, so the mode moves into a small overflow beside them.
   const [menuOpen, setMenuOpen] = useState(false)
@@ -102,7 +102,7 @@ export interface ItineraryStayView {
   baseSub: string | null
 }
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hotelSub, hideBudget }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hotelSub, hideBudget, endTown }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
@@ -133,6 +133,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   hotelSub?: string | null
   /** The Stay board has no budget block. Its rail shows the reach card instead. */
   hideBudget?: boolean
+  /** The town the day ends in. The header reads town to town. Absent keeps the last stop's name. */
+  endTown?: string | null
 }) {
   const timeFormat = useTimeFormat()
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -236,23 +238,33 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   }
   // The number of a used-of line takes the board's bold step.
   const budgetParts = budgetValueParts(budget.value)
+  // The previous day's stay. A breakfast that stands on it is last night's stay.
+  const previousHotel = [...(days[position - 1]?.stops ?? [])].reverse().find(stop => stop.category === 'hotel' && stop.status !== 'rejected') ?? null
   const dayTone = { '--mv2-day-tone': dayColor(activeDay) } as CSSProperties
   const headTitle = stayView?.title != null ? stayView.title : null
   const headSub = stayView?.sub != null ? stayView.sub : null
-  const clockRows = railClockOrder(points.map((point, index) => ({
-    index,
-    clock: (locks.has(point.stop.id) ? lockClocks.get(String(point.stop.id)) : null) ?? point.arrive,
-  })))
+  // The "Leave X" row shows the clock the car leaves: a breakfast at the start
+  // place comes first. Every other row keeps its booking or arrival clock.
+  const rowClock = (point: JourneyPoint, index: number): string => {
+    if (locks.has(point.stop.id)) return lockClocks.get(String(point.stop.id)) ?? point.arrive
+    if (point.kind !== 'start') return point.arrive
+    return railDepartClock(point.arrive, allPoints.slice(index + 1).map(next => ({ distanceKm: next.legIn?.distanceKm, depart: next.depart })))
+  }
+  const clockRows = railClockOrder(points.map((point, index) => ({ index, clock: rowClock(point, index) })))
   const shownPoints = clockRows
-    .map((row, shownIndex) => ({ point: points[row.index], index: row.index, shownIndex }))
+    .map(row => ({ point: points[row.index], index: row.index, clock: rowClock(points[row.index], row.index) }))
     .filter(entry => entry.index >= firstShown)
+  // A stop at the start place has a zero-distance arrival. A leg line above a row
+  // is drawn only when the row above is the stop the drive started from.
+  const atStartPlace = new Set(points.flatMap((point, index) => index > 0 && point.legIn != null && point.legIn.distanceKm < 0.05 ? [index] : []))
+  const shownIndexes = shownPoints.map(entry => entry.index)
   return <aside className="mv2-itinerary" aria-label="Day itinerary" data-clock={timeFormat} data-lens={stayView != null ? 'stay' : undefined} style={dayTone}>
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
         <div className="mv2-day-head">
           <span className="mv2-day-mark"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
-          <h2>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
+          <h2>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
         </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
@@ -263,22 +275,26 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
     <ol className="mv2-stops" ref={stopsRef}>
-      {shownPoints.map(({ point, index, shownIndex }) => {
+      {shownPoints.map(({ point, index, clock: rowTime }, shownIndex) => {
         const locked = locks.has(point.stop.id)
         const isFix = fixStopId === point.stop.id
-        const marker = railMarkerKind({ kind: point.kind, category: point.stop.category, locked, isFix })
+        const onLastNight = point.kind !== 'start' && standsOnLastNightStay(point.stop, previousHotel)
+        const marker = railMarkerKind({ kind: point.kind, category: onLastNight ? 'hotel' : point.stop.category, locked, isFix })
         const paid = railStopPaid(trip.expenses, {
           id: point.stop.id,
           status: point.stop.status,
           notes: trip.fixedCommitments.find(lock => lock.stopId === point.stop.id)?.notes,
         })
         const isBase = stayView != null && point.stop.id === stayView.baseStopId
+        const nightSub = point.kind === 'start' ? null : lastNightStaySub(point.stop, previousHotel, journey?.startTitle ?? null)
         const subLine = isBase
           ? stayView?.baseSub ?? 'Base for tonight'
           : point.stop.category === 'hotel' && point.kind !== 'start' && hotelSub != null
             ? hotelSub
           : locked
             ? 'Fixed time · tickets booked'
+            : nightSub != null
+              ? nightSub
             : point.kind === 'start'
               ? 'Departure'
               : `${titleCase(point.stop.category)}${point.dwellMinutes > 0 ? ` · ${point.dwellMinutes} min` : ''}`
@@ -286,11 +302,11 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
           {windowsAt(index)}
           <li>
             {shownIndex === 0 && previewChipAt(null)}
-            {shownIndex > 0 && point.legIn && <div className="mv2-travel-leg"><span aria-hidden="true" /><span>{Math.round(point.legIn.distanceKm)} km · {fmtDur(point.legIn.durationMinutes)}</span></div>}
+            {point.legIn && railLegVisible(shownIndexes, atStartPlace, shownIndex) && <div className="mv2-travel-leg"><span aria-hidden="true" /><span>{Math.round(point.legIn.distanceKm)} km · {fmtDur(point.legIn.durationMinutes)}</span></div>}
             <button type="button" ref={isFix ? fixRowRef : undefined} className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${isFix ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
-              <time>{formatHM((locked ? lockClocks.get(String(point.stop.id)) : null) ?? point.arrive, timeFormat)}</time>
+              <time>{formatHM(rowTime, timeFormat)}</time>
               <span className={`mv2-stop-mark is-${marker}`}>
-                {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : railStopNumber(points, index)}
+                {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : railStopNumber(points, index, position => position > 0 && standsOnLastNightStay(points[position].stop, previousHotel))}
               </span>
               <span className="mv2-stop-copy"><strong title={point.title}>{point.kind === 'start' ? `Leave ${point.title}` : point.title}</strong>{isFix && fixRowLine != null ? <small className="mv2-lens-fix-reason">{fixRowLine}</small> : <small>{subLine}</small>}{previewChipAt(point.stop.id)}</span>
               {paid && <span className="mv2-stop-chip">Paid</span>}

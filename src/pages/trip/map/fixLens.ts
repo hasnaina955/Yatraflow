@@ -30,19 +30,17 @@ export function formatFixEvidence(text: string, clock: (hm: string) => string): 
   return text.replace(/\b\d{1,2}:\d{2}\b/g, hm => clock(hm))
 }
 
-/** The place word for a stop title. "Check in · Spice Village" reads "check in". */
-function placeWord(title: string, fallback: string): string {
-  if (/check\s*in/i.test(title)) return 'check in'
-  const clean = title.replace(/^Check in\s*·\s*/i, '').trim()
-  const first = clean.split(/\s*·\s*/)[0].trim()
-  return first === '' ? fallback : first.toLowerCase()
+/** The words a traveller uses for a stop. A meal or a check-in is a common
+ *  noun, so it reads in lower case ("lunch", "check-in"). Any other stop keeps
+ *  its own name and case ("Attukad waterfalls"). The place after "·" stays out. */
+export function stopWord(title: string): string {
+  const head = title.split(/\s*·\s*/)[0].trim()
+  if (/^check[\s-]?in\b/i.test(head)) return 'check-in'
+  if (/^(breakfast|lunch|dinner)\b/i.test(head)) return head.toLowerCase()
+  return head === '' ? title.trim() : head
 }
 
-/** The reader-facing name of a stop. A boat keeps its place name in full. */
-function displayName(title: string): string {
-  const clean = title.replace(/^Check in\s*·\s*/i, '').trim()
-  return clean.split(/\s*·\s*/)[0].trim()
-}
+const isBoatName = (name: string): boolean => /boat|jetty/i.test(name)
 
 /**
  * A Fix title in place words, built from the stops on either side of the new
@@ -56,8 +54,8 @@ export function fixPlaceTitle(
   if (change.kind !== 'move' && change.kind !== 'swap') return null
   const at = stops.findIndex(stop => String(stop.id) === String(change.stopId))
   if (at < 0) return null
-  const moving = placeWord(nameOf(String(change.stopId)), 'this stop')
-  const boat = /boat|jetty/i.test(moving)
+  const movingName = nameOf(String(change.stopId))
+  const boat = isBoatName(movingName)
   const neighbourAt = change.kind === 'swap'
     ? (() => {
       const other = stops.findIndex(stop => String(stop.id) === String(change.withStopId))
@@ -69,14 +67,64 @@ export function fixPlaceTitle(
   const neighbour = neighbourAt == null ? null : stops[neighbourAt]
   if (neighbour == null) return null
   const before = change.kind === 'swap' ? (neighbourAt ?? at) > at : change.toIndex < at
-  const neighbourTitle = nameOf(String(neighbour.id))
-  if (boat && /check\s*in/i.test(neighbourTitle)) {
+  const other = stopWord(nameOf(String(neighbour.id)))
+  if (boat && other === 'check-in') {
     return before ? 'Go to the jetty first, check in after' : 'Go to the boat after check-in'
   }
-  const isJettyMove = boat && change.kind === 'move' && change.toIndex === 0
-  const lead = isJettyMove ? 'Go to the jetty' : boat ? 'Go to the boat' : `Go to ${moving}`
-  const otherName = /check\s*in/i.test(neighbourTitle) ? 'check-in' : displayName(neighbourTitle)
-  return before ? `${lead} before the ${otherName}` : `${lead} after the ${otherName}`
+  const jettyMove = boat && change.kind === 'move' && change.toIndex === 0
+  const lead = jettyMove ? 'Go to the jetty' : boat ? 'Go to the boat' : `Move ${stopWord(movingName)}`
+  return `${lead} ${before ? 'before' : 'after'} ${other}`
+}
+
+const upperFirst = (text: string): string => (text === '' ? text : text[0].toUpperCase() + text.slice(1))
+
+/**
+ * The sub line of one change: what changes for the traveller, never an engine
+ * position. A booked stop names its booking clock. `commitmentMin` returns that
+ * clock in minutes, or null when the stop has no booking.
+ */
+export function fixChangeLine(
+  change: FixChange,
+  stops: readonly ItineraryStop[],
+  nameOf: (stopId: string) => string,
+  clock: (min: number) => string,
+  commitmentMin: (stopId: string) => number | null = () => null,
+): string {
+  const day = (index: number) => `Day ${index + 1}`
+  switch (change.kind) {
+    case 'move':
+    case 'swap': {
+      const at = stops.findIndex(stop => String(stop.id) === String(change.stopId))
+      const neighbourAt = change.kind === 'swap'
+        ? stops.findIndex(stop => String(stop.id) === String(change.withStopId))
+        : change.toIndex
+      const neighbour = neighbourAt >= 0 && neighbourAt < stops.length ? stops[neighbourAt] : null
+      const name = nameOf(String(change.stopId))
+      const subject = isBoatName(name) ? 'Boat' : upperFirst(stopWord(name))
+      if (at < 0 || neighbour == null) return `${subject} changes place`
+      const before = change.kind === 'swap' ? neighbourAt > at : change.toIndex < at
+      const other = stopWord(nameOf(String(neighbour.id)))
+      const booked = commitmentMin(String(change.stopId))
+      const lead = booked == null ? `${subject} ${before ? 'first' : 'after'}` : `${subject} at ${clock(booked)}`
+      return `${lead}, ${other} ${before ? 'after' : 'before'}`
+    }
+    case 'remove': return `${upperFirst(stopWord(nameOf(String(change.stopId))))} comes off the day`
+    case 'set-visit': {
+      const stop = stops.find(entry => String(entry.id) === String(change.stopId))
+      const old = stop?.visitMinutes
+      return old != null && Number.isFinite(old) && old > 0
+        ? `Stay ${old} min → ${change.visitMin} min · keeps every stop`
+        : `Stay ${change.visitMin} min · keeps every stop`
+    }
+    case 'move-commitment': {
+      const name = nameOf(String(change.stopId))
+      const subject = isBoatName(name) ? 'Boat sails' : `${upperFirst(stopWord(name))} moves to`
+      const clockMinutes = clockMin(change.time)
+      const at = clockMinutes == null ? '' : ` at ${clock(clockMinutes)}`
+      return `${subject} ${day(change.toDayIndex)}${at}`
+    }
+    case 'shift-start': return `The day starts at ${clock(change.startMin)}`
+  }
 }
 
 /** A warning ref plus the day it belongs to. The day is needed to match a stop. */
@@ -443,54 +491,33 @@ export function fixSummary(
   nameOf: (stopId: string) => string,
   clock: (min: number) => string,
   stops: readonly ItineraryStop[] = [],
+  commitmentMin: (stopId: string) => number | null = () => null,
 ): FixSummary {
-  const day = `Day ${set.dayIndex + 1}`
   const titles: string[] = []
   const changes: string[] = []
   for (const change of set.changes) {
+    changes.push(fixChangeLine(change, stops, nameOf, clock, commitmentMin))
     switch (change.kind) {
-      case 'move': {
-        const name = nameOf(change.stopId)
-        titles.push(fixPlaceTitle(change, stops, nameOf) ?? `Move ${name} to position ${change.toIndex + 1}`)
-        changes.push(`${name} moves to position ${change.toIndex + 1}`)
-        break
-      }
+      case 'move':
       case 'swap': {
         const name = nameOf(change.stopId)
-        const other = nameOf(change.withStopId)
-        titles.push(fixPlaceTitle(change, stops, nameOf) ?? `Swap ${name} with ${other}`)
-        changes.push(`${name} and ${other} trade places`)
+        titles.push(fixPlaceTitle(change, stops, nameOf)
+          ?? (change.kind === 'move' ? `Move ${name} to position ${change.toIndex + 1}` : `Swap ${name} with ${nameOf(change.withStopId)}`))
         break
       }
-      case 'remove': {
-        const name = nameOf(change.stopId)
-        titles.push(`Remove ${name}`)
-        changes.push(`${name} comes off the day`)
-        break
-      }
-      case 'set-visit': {
-        const name = nameOf(change.stopId)
-        titles.push(`Shorten ${name} to ${change.visitMin} min`)
-        changes.push(`${name} stays ${change.visitMin} min`)
-        break
-      }
+      case 'remove': titles.push(`Remove ${nameOf(change.stopId)}`); break
+      case 'set-visit': titles.push(`Shorten ${nameOf(change.stopId)} to ${change.visitMin} min`); break
       case 'move-commitment': {
         const name = nameOf(change.stopId)
-        const word = /boat|jetty/i.test(name) ? 'boat' : name
+        const word = isBoatName(name) ? 'boat' : name
         titles.push(`Move the ${word} to Day ${change.toDayIndex + 1}, ${clock(clockMin(change.time) ?? 0)} sailing`)
-        changes.push(`${name} moves to Day ${change.toDayIndex + 1} at ${clock(clockMin(change.time) ?? 0)}`)
         break
       }
-      case 'shift-start': {
-        const at = clock(change.startMin)
-        titles.push(`Start the day at ${at}`)
-        changes.push(`the day starts at ${at}`)
-        break
-      }
+      case 'shift-start': titles.push(`Start the day at ${clock(change.startMin)}`); break
     }
   }
   const title = titles.length > 0 ? titles.join(' + ') : 'No change'
-  const change = changes.length > 0 ? `${day}: ${changes.join(' · ')}` : `${day}: no change`
+  const change = changes.length > 0 ? changes.join(' · ') : 'No change'
   const check = set.verification
   let result: string
   if (check.kind === 'failed') {

@@ -11,6 +11,7 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`README.md`](../README.md) | Project overview, features, MVP scope, roadmap, quick start. The front door. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the pieces fit: data model, store, engine math, AI, geocoding, routing, maps, theming, extension points, gotchas. Read before changing core logic. |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | Supabase setup, Vercel + other static hosts, env vars, release checklist. |
+| [`supabase-types.md`](supabase-types.md) | How-to: the generated Supabase database types in `src/types/database.generated.ts`, how to regenerate them, and their drift limits. Nothing imports them yet. |
 | [`OFFLINE-REPLAY-783.md`](OFFLINE-REPLAY-783.md) | Offline replay audit, conflict choices, account boundaries, tests, and migration rollout. |
 | [`agents/collab-command-contract.md`](agents/collab-command-contract.md) | Reference: Stage A suggestion and decision RPC commands, receipts, restore rules, and cutover order. |
 | [`APK-UPDATE-FEED.md`](APK-UPDATE-FEED.md) | Reference: the Android update feed — the manifest contract, the proposed endpoint, the version-code rule, and the activation steps that still need approval. |

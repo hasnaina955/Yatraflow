@@ -136,7 +136,7 @@ function mkTrip(): Trip {
     id: 'trip-1', name: 'Kerala, 4 days', startLocation: 'Kochi', destinations: ['Munnar'],
     startDate: '2026-10-01', endDate: '2026-10-04', travellers: 2, transportMode: 'car',
     budgetPerPersonInr: 12000, travelStyle: 'balanced', fixedCommitments: [],
-    days: [{ id: 'day-1', index: 0, title: 'Day 1', stops: [{ id: 'st-1', name: 'Fort Kochi', lat: 9.93, lng: 76.26, arrival: '10:00', departure: '12:00', notes: '', status: 'confirmed', category: 'sightseeing', costInr: 0, travelMinutes: 0, travelKm: 0 }] }],
+    days: [{ id: 'day-1', index: 0, title: 'Day 1', stops: [{ id: 'st-1', title: 'Fort Kochi', locationName: 'Fort Kochi', lat: 9.93, lng: 76.26, visitMinutes: 120, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', category: 'sightseeing', orderInDay: 1 }] }],
     expenses: [{ id: 'ex-1', label: 'Houseboat', category: 'accommodation', amountInr: 4000 }],
     coverEmoji: '🌴', visibility: 'private', createdAt: 1, updatedAt: 2,
     members: [

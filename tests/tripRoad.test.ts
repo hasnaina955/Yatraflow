@@ -55,16 +55,18 @@ describe('roadChainSig (the geometry-only memo key #213)', () => {
     const day = t.days[0]
     day.stops.push({
       id: 's-new',
-      index: day.index,
       orderInDay: day.stops.length,
       locationName: 'New stop',
       title: 'New stop',
       lat: 23.5,
       lng: 78.5,
-      status: 'planned',
-      placeId: null,
+      status: 'suggested',
+      placeId: undefined,
       category: 'food',
-      dwellMinutes: 0,
+      visitMinutes: 0,
+      entryFeeInrPerPerson: 0,
+      transportCostInrTotal: 0,
+      priority: 'must-do',
     })
     expect(roadChainSig(t)).not.toBe(a)
   })
@@ -134,7 +136,7 @@ describe('roadChainSig (the geometry-only memo key #213)', () => {
     day.stops[0].title = 'Renamed'
     day.stops[0].locationName = 'Renamed place'
     day.stops[0].placeId = 'pid:abc'
-    day.stops[0].dwellMinutes = 60
+    day.stops[0].visitMinutes = 60
     expect(roadChainSig(t)).toBe(a)
   })
 })

@@ -5,7 +5,7 @@
 // answer survives every seam it has to cross.
 import { describe, expect, it } from 'vitest'
 import { rowToTrip, tripToRow, drivesPartWriteVerdict, DRIVES_PART_MISSING_REASON, type OptionalColumnsProbe } from '../src/lib/tripRow'
-import { transportPolicy } from '../src/lib/transportPolicy'
+import { transportPolicy, type TransportChoice } from '../src/lib/transportPolicy'
 import { isSelfDrivenMode, wheelCapHoursForParty } from '../src/lib/ridePlan'
 import { seedData } from '../src/data/seed'
 import type { Trip } from '../src/data/types'
@@ -40,7 +40,7 @@ function row(over: Record<string, unknown> = {}) {
 
 /** The same row through the real reader, which is what a reopened form sees. */
 function savedRow(t: Trip) {
-  return rowToTrip(tripToRow(t, 'u_1', ALL_COLS))
+  return rowToTrip({ ...tripToRow(t, 'u_1', ALL_COLS), created_at: t.createdAt, updated_at: t.updatedAt }, [])
 }
 
 describe('the policy and the planner agree on the wheel', () => {
@@ -80,16 +80,16 @@ describe('the policy and the planner agree on the wheel', () => {
 
 describe('the Mixed answer survives the database round trip', () => {
   it('reads a stored Yes and a stored No', () => {
-    expect(rowToTrip(row({ drives_part: true })).drivesPart).toBe(true)
-    expect(rowToTrip(row({ drives_part: false })).drivesPart).toBe(false)
+    expect(rowToTrip(row({ drives_part: true }), []).drivesPart).toBe(true)
+    expect(rowToTrip(row({ drives_part: false }), []).drivesPart).toBe(false)
   })
 
   it('reads an unanswered answer as unanswered, not as No', () => {
     // NULL and "the column does not exist yet" must both mean unanswered. A
     // row that came back as `false` would demote a legacy Mixed trip.
-    expect(rowToTrip(row({ drives_part: null })).drivesPart).toBeUndefined()
-    expect(rowToTrip(row()).drivesPart).toBeUndefined()
-    expect(rowToTrip(row({ drives_part: 'yes' })).drivesPart).toBeUndefined()
+    expect(rowToTrip(row({ drives_part: null }), []).drivesPart).toBeUndefined()
+    expect(rowToTrip(row(), []).drivesPart).toBeUndefined()
+    expect(rowToTrip(row({ drives_part: 'yes' }), []).drivesPart).toBeUndefined()
   })
 
   it('writes an answer, and writes NULL for an unanswered trip', () => {
@@ -205,7 +205,7 @@ describe('the save keeps choices a mode does not currently use', () => {
     expect(run.patch.hasVulnerable).toBe(true)
     expect(run.patch.driveAfterDinnerMin).toBe(60)
     // The passenger plan still ignores them.
-    expect(transportPolicy({ transportMode: 'bus', driverCount: 2 }).driving).toBe(false)
+    expect(transportPolicy({ transportMode: 'bus', driverCount: 2 } as TransportChoice).driving).toBe(false)
   })
 
   it('still clears the allowance when the traveller turns it off in a driving mode', () => {

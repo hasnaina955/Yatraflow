@@ -27,7 +27,7 @@ function pub(overrides: Partial<PublishedItinerary> = {}): PublishedItinerary {
     routeSummary: ['Shimla', 'Kaza', 'Manali'],
     durationDays: 6,
     estimatedBudgetPerPersonInr: 24000,
-    travelStyle: 'roadtrip',
+    travelStyle: 'balanced',
     travelTips: ['Carry cash'],
     warningsAndAssumptions: [],
     freeDayIndexes: [0],
@@ -636,9 +636,9 @@ describe('#407 — a refunded purchase renders as a receipt', () => {
     status: 'paid',
     createdAt: paid,
     paidAt: paid,
+    refundedPaise: 0,
     ...overrides,
   })
-
   it('shows a purchase whose grant is gone as a Refunded row, receipt intact', () => {
     // The entitlement is deleted by the refund, so this row exists ONLY because
     // the order was read. Its amount and date are the order's own figures.
@@ -833,6 +833,7 @@ describe('#589 — a paid order whose grant has not landed is its own row kind',
     status: 'paid',
     createdAt: paid,
     paidAt: paid,
+    refundedPaise: 0,
     ...overrides,
   })
 

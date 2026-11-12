@@ -167,7 +167,7 @@ describe('openTaggedLines / linesTotal', () => {
 })
 
 describe('settleBalances', () => {
-  const row = (id: string, bal: number, name?: string): BalanceRow => ({ id, bal, user: name ? user(id, name) : undefined })
+  const row = (id: string, bal: number, name?: string): BalanceRow => ({ id, bal, paid: 0, user: name ? user(id, name) : undefined })
 
   it('settles a single debtor→creditor pair for the exact amount', () => {
     const transfers = settleBalances([row('a', 500), row('b', -500)])

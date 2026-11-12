@@ -44,7 +44,7 @@ export function railStopNumber(points: ReadonlyArray<{ kind: JourneyPointKind; s
 
 /** Short rail subtitle for a Fix problem, from the engine's real facts.
  *  An unknown fact keeps its part out. A jetty line names the arrival and the
- *  deadline in the READER's clock: "Jetty 4:37 PM · boarding closed 3:00 PM"
+ *  deadline in the READER's clock: "Jetty 4:37 PM · boarding 3:00 PM"
  *  when the boat is missed, "Jetty 2:53 PM · before 3:00 PM" when it is not. */
 export function fixProblemSubLine(
   problem: {
@@ -56,13 +56,14 @@ export function fixProblemSubLine(
   if (problem == null) return null
   const evidence = problem.evidence.find(line => line.trim() !== '')?.trim() ?? null
   if (evidence == null) return null
-  const arrival = /~(\d{1,2}:\d{2})/.exec(evidence)?.[1] ?? null
+  const arrival = /~(\d{1,2}:\d{2}(?:\s?[AP]M)?)/i.exec(evidence)?.[1] ?? null
   // The engine names the deadline it checked: a boarding clock when the
   // booking holds one, else the commitment time.
-  const boarding = /after boarding closes at (\d{1,2}:\d{2})/i.exec(evidence)?.[1]?.trim() ?? null
-  const closedCommitment = /after the (\d{1,2}:\d{2}) commitment/i.exec(evidence)?.[1]?.trim() ?? null
-  const beforeBoarding = /under ~45 min before boarding closes at (\d{1,2}:\d{2})/i.exec(evidence)?.[1]?.trim() ?? null
-  const beforeCommitment = /under ~45 min before the (\d{1,2}:\d{2}) commitment/i.exec(evidence)?.[1]?.trim() ?? null
+  const clockText = String.raw`(\d{1,2}:\d{2}(?:\s?[AP]M)?)`
+  const boarding = new RegExp(`after boarding closes at ${clockText}`, 'i').exec(evidence)?.[1]?.trim() ?? null
+  const closedCommitment = new RegExp(`after the ${clockText} commitment`, 'i').exec(evidence)?.[1]?.trim() ?? null
+  const beforeBoarding = new RegExp(`under ~45 min before boarding closes at ${clockText}`, 'i').exec(evidence)?.[1]?.trim() ?? null
+  const beforeCommitment = new RegExp(`under ~45 min before the ${clockText} commitment`, 'i').exec(evidence)?.[1]?.trim() ?? null
   const deadline = boarding ?? closedCommitment ?? beforeBoarding ?? beforeCommitment
   const jetty = /jetty|boat|boarding/i.test(`${problem.title} ${evidence}`)
   if (arrival != null && deadline != null && jetty) {
@@ -71,16 +72,41 @@ export function fixProblemSubLine(
     const closed = boarding != null || closedCommitment != null
       || hmMin(arrival) >= hmMin(deadline)
     return closed
-      ? `Jetty ${clock(arrival)} · boarding closed${boarding != null ? ` ${clock(boarding)}` : ''}`
+      ? `Jetty ${clock(arrival)} · boarding${boarding != null ? ` ${clock(boarding)}` : ''}`
       : `Jetty ${clock(arrival)} · before ${clock(deadline)}`
   }
   return evidence
 }
 
-/** "HH:MM" as minutes since midnight. A string that is not a clock reads as 0,
- *  which can only make a "before" line close, never invent a buffer. */
+/** The row clock as minutes since midnight. An unreadable clock stays null. */
+function rowClockMin(clock: string | null | undefined): number | null {
+  if (clock == null || !/^\d{1,2}:\d{2}$/.test(clock)) return null
+  const min = hmMin(clock)
+  return min >= 0 && min < 24 * 60 ? min : null
+}
+
+/**
+ * Rail rows in clock order, with the plan order as the tie-break. An unknown
+ * clock keeps its plan position. The board lists check-in 14:41 before the
+ * 15:30 boat, so a late 17:18 check-in follows the boat.
+ */
+export function railClockOrder<T extends { clock: string | null | undefined }>(rows: readonly T[]): T[] {
+  const timed = rows
+    .map((row, index) => ({ row, index, min: rowClockMin(row.clock) }))
+    .filter((entry): entry is { row: T; index: number; min: number } => entry.min != null)
+  const sortedTimed = [...timed].sort((a, b) => a.min - b.min || a.index - b.index)
+  const out = [...rows]
+  timed.forEach((entry, position) => { out[entry.index] = sortedTimed[position].row })
+  return out
+}
+
+/** A clock as minutes since midnight. A 12 h suffix does not change the value.
+ *  A string that is not a clock reads as 0, which can only make a "before"
+ *  line close, never invent a buffer. */
 function hmMin(hm: string): number {
-  const [hours, minutes] = hm.split(':').map(Number)
+  const [hourPart, minutePart] = hm.split(':')
+  const hours = Number(hourPart)
+  const minutes = Number.parseInt(minutePart, 10)
   return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : 0
 }
 

@@ -1,0 +1,6 @@
+/* W19: the Fix row's short line keeps both clocks readable at 1480. */
+.mv2-stop.is-fix-problem > .mv2-stop-copy > .mv2-lens-fix-reason {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}

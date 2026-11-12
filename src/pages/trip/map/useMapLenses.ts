@@ -21,7 +21,7 @@ import {
 import type { JourneyStatus } from '../journey/journeyDays'
 import { driveTabs, type DriveTabsResult } from './driveLens'
 import { gapPicks, gapCount, type GapPicks } from './gapLens'
-import { fixesForWarning, fixSummary, warningRefs, type FixSummary } from './fixLens'
+import { fixesForWarning, fixSummary, formatFixEvidence, warningRefs, type FixSummary } from './fixLens'
 import { resolveStayBase, stayPicks, stayWindows, type StayEveningBook, type StayPicksResult, type StayWindow } from './stayLens'
 
 /** The four lens ids, in board order. */
@@ -173,6 +173,7 @@ export function fixProblemFor(
   trip: Trip,
   dayIndex: number,
   legCorrections?: Record<string, LegEstimate>,
+  clock: (hm: string) => string = hm => hm,
 ): { target: FixTarget; problem: FixProblem } | null {
   const { byDay } = groupWarnings(collectWarnings(trip, legCorrections))
   const warnings = byDay.get(dayIndex) ?? []
@@ -189,7 +190,7 @@ export function fixProblemFor(
     target: chosen.target,
     problem: {
       title: chosen.warning.title,
-      evidence: chosen.warning.detail ? [chosen.warning.detail] : [],
+      evidence: chosen.warning.detail ? [formatFixEvidence(chosen.warning.detail, clock)] : [],
       foundBy: `${chosen.warning.code} check`,
     },
   }
@@ -273,7 +274,8 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
 
   // Fix: the first warning of the day, and the fixes the engine verified.
   // Both run on the caller's measured legs, like the rail's own schedule.
-  const problem = dayIndex == null ? null : fixProblemFor(trip, dayIndex, legCorrections)
+  const problem = dayIndex == null ? null : fixProblemFor(trip, dayIndex, legCorrections, hm => clock(hmToMinutes(hm)))
+  const dayStops = dayIndex == null ? [] : trip.days.find(day => day.index === dayIndex)?.stops ?? []
   const fixes = problem == null || dayIndex == null
     ? []
     : fixesForWarning(trip, dayIndex, problem.target, Number.POSITIVE_INFINITY, legCorrections).map(set => ({
@@ -282,7 +284,7 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
         const stop = trip.days.find(day => day.stops.some(entry => entry.id === stopId))
           ?.stops.find(entry => entry.id === stopId)
         return stop?.title ?? stopId
-      }, clock),
+      }, clock, dayStops),
     }))
   const fixPhase: LensPhase = dayIndex == null ? 'unscanned' : 'ready'
   const fixView = fixLensRows({

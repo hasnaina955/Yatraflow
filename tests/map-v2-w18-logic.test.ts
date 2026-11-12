@@ -245,14 +245,14 @@ describe('item 3: the Fix sub line uses the reader’s clock', () => {
     expect(fixProblemSubLine({
       title: 'Conflicts with Periyar boat',
       evidence: ['You reach Periyar boat ~16:37, after boarding closes at 15:00.'],
-    }, clock12)).toBe('Jetty 4:37 PM · boarding closed 3:00 PM')
+    }, clock12)).toBe('Jetty 4:37 PM · boarding 3:00 PM')
   })
 
   it('says the arrival and the boarding close in 24 h', () => {
     expect(fixProblemSubLine({
       title: 'Conflicts with Periyar boat',
       evidence: ['You reach Periyar boat ~16:37, after boarding closes at 15:00.'],
-    }, clock24)).toBe('Jetty 16:37 · boarding closed 15:00')
+    }, clock24)).toBe('Jetty 16:37 · boarding 15:00')
   })
 
   it('says before the commitment only when the arrival is early, in 12 h', () => {
@@ -266,7 +266,7 @@ describe('item 3: the Fix sub line uses the reader’s clock', () => {
     expect(fixProblemSubLine({
       title: 'Thin buffer before Periyar boat',
       evidence: ['You reach Periyar boat ~15:30, under ~45 min before the 15:30 commitment.'],
-    }, clock12)).toBe('Jetty 3:30 PM · boarding closed')
+    }, clock12)).toBe('Jetty 3:30 PM · boarding')
   })
 
   it('keeps a warning that names no jetty unchanged', () => {

@@ -57,7 +57,7 @@ describe('rail stop numbers', () => {
 
 describe('the Fix problem subtitle', () => {
   it('builds the board line from the engine evidence and keeps unknown facts out', () => {
-    expect(fixProblemSubLine({ title: 'Conflicts with Periyar boat', evidence: ['You reach Periyar boat ~15:05, after the 15:00 commitment.'] })).toBe('Jetty 15:05 · boarding closed')
+    expect(fixProblemSubLine({ title: 'Conflicts with Periyar boat', evidence: ['You reach Periyar boat ~15:05, after the 15:00 commitment.'] })).toBe('Jetty 15:05 · boarding')
     expect(fixProblemSubLine({ title: 'Thin buffer before Periyar boat', evidence: ['You reach Periyar boat ~14:53, under ~45 min before the 15:00 commitment.'] })).toBe('Jetty 14:53 · before 15:00')
     expect(fixProblemSubLine({ title: 'Short rest', evidence: ['Day 1 ends ~23:40 and Day 2 starts 06:00.'] })).toBe('Day 1 ends ~23:40 and Day 2 starts 06:00.')
     expect(fixProblemSubLine(null)).toBeNull()

@@ -15,7 +15,7 @@ import { fixIsOffered, isPlaceFree } from '../../../lib/mapLensContracts'
 import type {
   FixChange, FixChangeSet, FixTarget, FixVerification, FixWarningRef,
 } from '../../../lib/mapLensContracts'
-import type { ItineraryDay, Trip } from '../../../data/types'
+import type { ItineraryDay, ItineraryStop, Trip } from '../../../data/types'
 import { warningSubjectStop } from './warningSubject'
 
 /** One row of copy for the Fix panel. The panel renders these strings. */
@@ -23,6 +23,60 @@ export interface FixSummary {
   title: string
   change: string
   result: string
+}
+
+/** Render each stored "HH:MM" clock in one Fix text through the reader's clock. */
+export function formatFixEvidence(text: string, clock: (hm: string) => string): string {
+  return text.replace(/\b\d{1,2}:\d{2}\b/g, hm => clock(hm))
+}
+
+/** The place word for a stop title. "Check in · Spice Village" reads "check in". */
+function placeWord(title: string, fallback: string): string {
+  if (/check\s*in/i.test(title)) return 'check in'
+  const clean = title.replace(/^Check in\s*·\s*/i, '').trim()
+  const first = clean.split(/\s*·\s*/)[0].trim()
+  return first === '' ? fallback : first.toLowerCase()
+}
+
+/** The reader-facing name of a stop. A boat keeps its place name in full. */
+function displayName(title: string): string {
+  const clean = title.replace(/^Check in\s*·\s*/i, '').trim()
+  return clean.split(/\s*·\s*/)[0].trim()
+}
+
+/**
+ * A Fix title in place words, built from the stops on either side of the new
+ * position. An engine position number says nothing to a traveller.
+ */
+export function fixPlaceTitle(
+  change: FixChange,
+  stops: readonly ItineraryStop[],
+  nameOf: (stopId: string) => string,
+): string | null {
+  if (change.kind !== 'move' && change.kind !== 'swap') return null
+  const at = stops.findIndex(stop => String(stop.id) === String(change.stopId))
+  if (at < 0) return null
+  const moving = placeWord(nameOf(String(change.stopId)), 'this stop')
+  const boat = /boat|jetty/i.test(moving)
+  const neighbourAt = change.kind === 'swap'
+    ? (() => {
+      const other = stops.findIndex(stop => String(stop.id) === String(change.withStopId))
+      return other < 0 ? null : other
+    })()
+    : Number.isInteger(change.toIndex) && change.toIndex >= 0 && change.toIndex < stops.length
+      ? change.toIndex
+      : null
+  const neighbour = neighbourAt == null ? null : stops[neighbourAt]
+  if (neighbour == null) return null
+  const before = change.kind === 'swap' ? (neighbourAt ?? at) > at : change.toIndex < at
+  const neighbourTitle = nameOf(String(neighbour.id))
+  if (boat && /check\s*in/i.test(neighbourTitle)) {
+    return before ? 'Go to the jetty first, check in after' : 'Go to the boat after check-in'
+  }
+  const isJettyMove = boat && change.kind === 'move' && change.toIndex === 0
+  const lead = isJettyMove ? 'Go to the jetty' : boat ? 'Go to the boat' : `Go to ${moving}`
+  const otherName = /check\s*in/i.test(neighbourTitle) ? 'check-in' : displayName(neighbourTitle)
+  return before ? `${lead} before the ${otherName}` : `${lead} after the ${otherName}`
 }
 
 /** A warning ref plus the day it belongs to. The day is needed to match a stop. */
@@ -388,6 +442,7 @@ export function fixSummary(
   set: FixChangeSet,
   nameOf: (stopId: string) => string,
   clock: (min: number) => string,
+  stops: readonly ItineraryStop[] = [],
 ): FixSummary {
   const day = `Day ${set.dayIndex + 1}`
   const titles: string[] = []
@@ -396,14 +451,14 @@ export function fixSummary(
     switch (change.kind) {
       case 'move': {
         const name = nameOf(change.stopId)
-        titles.push(`Move ${name} to position ${change.toIndex + 1}`)
+        titles.push(fixPlaceTitle(change, stops, nameOf) ?? `Move ${name} to position ${change.toIndex + 1}`)
         changes.push(`${name} moves to position ${change.toIndex + 1}`)
         break
       }
       case 'swap': {
         const name = nameOf(change.stopId)
         const other = nameOf(change.withStopId)
-        titles.push(`Swap ${name} with ${other}`)
+        titles.push(fixPlaceTitle(change, stops, nameOf) ?? `Swap ${name} with ${other}`)
         changes.push(`${name} and ${other} trade places`)
         break
       }
@@ -421,7 +476,8 @@ export function fixSummary(
       }
       case 'move-commitment': {
         const name = nameOf(change.stopId)
-        titles.push(`Move ${name} to Day ${change.toDayIndex + 1}, ${clock(clockMin(change.time) ?? 0)} sailing`)
+        const word = /boat|jetty/i.test(name) ? 'boat' : name
+        titles.push(`Move the ${word} to Day ${change.toDayIndex + 1}, ${clock(clockMin(change.time) ?? 0)} sailing`)
         changes.push(`${name} moves to Day ${change.toDayIndex + 1} at ${clock(clockMin(change.time) ?? 0)}`)
         break
       }

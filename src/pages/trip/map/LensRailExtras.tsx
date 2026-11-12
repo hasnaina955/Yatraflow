@@ -110,9 +110,9 @@ export function fixReasonLine(place: string | null, timeText: string | null, rea
 }
 
 /** The Fix row's short line from the engine's own problem facts. */
-export function fixRailLine(problemTitle: string | null): string | null {
+export function fixRailLine(problemTitle: string | null, clock: (hm: string) => string = hm => hm): string | null {
   if (problemTitle == null || problemTitle.trim() === '') return null
-  return problemTitle.trim()
+  return problemTitle.trim().replace(/\b\d{1,2}:\d{2}\b/g, clock)
 }
 
 /** The reason the Fix lens names for one day. It reads the same engine

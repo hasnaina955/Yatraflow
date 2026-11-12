@@ -665,7 +665,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // The settled map zoom. Other days' base tags appear only at zoom 9 or more.
   const [mapZoom, setMapZoom] = useState(5)
   // The map moved. A ring caption reads the camera, so it draws again after every move.
-  const [, setViewTick] = useState(0)
+  const [viewTick, setViewTick] = useState(0)
   // The compass shows the map's own bearing and resets it to north.
   const [bearing, setBearing] = useState(0)
   const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
@@ -1373,7 +1373,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const m = mapRef.current
     m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stayRingKey, mapLoaded, frameStayRing])
+  }, [stayRingKey, mapLoaded, frameStayRing, viewTick])
 
   useEffect(() => {
     if (!mapTarget || !mapLoaded || !mapRef.current) return

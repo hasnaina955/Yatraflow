@@ -1649,7 +1649,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const commitmentClock = fixCommitment?.time == null ? null : lensClock(hmToMinutes(fixCommitment.time))
   const fixMarkText = fixMarkFactsLabel(problemStop?.title ?? null, commitmentClock, problemClock)
   // The rail row names the engine's own problem, not a made-up pair of times.
-  const fixRowLine = fixRailLine(lenses.fix.problem?.title ?? null)
+  const fixRowLine = fixRailLine(lenses.fix.problem?.title ?? null, hm => lensClock(hmToMinutes(hm)))
   const fixProblem = lenses.fix.problem
   const fixStopWarning = lens === 'fix' && problemStop != null && fixMarkText != null
     && Number.isFinite(problemStop.lat) && Number.isFinite(problemStop.lng)

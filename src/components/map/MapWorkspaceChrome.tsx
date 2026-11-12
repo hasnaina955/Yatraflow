@@ -9,7 +9,7 @@ import { visitDateForDay } from '../../lib/hoursContext'
 import { titleCase } from '../../lib/labels'
 import { budgetBlockView, budgetValueParts, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
 import { dayColor } from '../../lib/mapStyles/dayColors'
-import { fixProblemSubLine, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
+import { fixProblemSubLine, railClockOrder, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
 import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText, ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
@@ -159,12 +159,20 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const budget = budgetBlockView(budgetBar ?? null, budgetMin)
   // The Fix problem row's sub line. One fix stop, one set of engine facts.
   const fixPoint = fixStopId == null ? null : points.find(point => point.stop.id === fixStopId) ?? null
+  const reasonClock = (hm: string) => formatHM(hm, timeFormat)
+  const reasonText = fixPoint == null ? null : fixProblemReason(trip, activeDay, corrections)
   const engineFixSubLine = fixPoint == null
     ? null
-    : fixReasonLine(fixPoint.title, formatHM(fixPoint.arrive, timeFormat), fixProblemReason(trip, activeDay, corrections))
+    : fixReasonLine(
+      fixPoint.title,
+      formatHM(fixPoint.arrive, timeFormat),
+      reasonText == null ? null : reasonText.replace(/\b\d{1,2}:\d{2}\b/g, reasonClock),
+    )
   const fixProblem = fixProblemProp ?? null
   // The Fix line renders in the reader's 12 h/24 h clock, like every other row.
-  const fixRowLine = fixProblemSubLine(fixProblem, hm => formatHM(hm, timeFormat)) ?? fixSubLine ?? engineFixSubLine
+  const fixRowLine = fixProblem == null
+    ? fixSubLine ?? engineFixSubLine
+    : fixProblemSubLine(fixProblem) ?? fixSubLine ?? engineFixSubLine
   const fixRowRef = useRef<HTMLButtonElement | null>(null)
   const stopsRef = useRef<HTMLOListElement | null>(null)
   useEffect(() => {
@@ -231,7 +239,13 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const dayTone = { '--mv2-day-tone': dayColor(activeDay) } as CSSProperties
   const headTitle = stayView?.title != null ? stayView.title : null
   const headSub = stayView?.sub != null ? stayView.sub : null
-  const shownPoints = points.map((point, index) => ({ point, index })).filter(entry => entry.index >= firstShown)
+  const clockRows = railClockOrder(points.map((point, index) => ({
+    index,
+    clock: (locks.has(point.stop.id) ? lockClocks.get(String(point.stop.id)) : null) ?? point.arrive,
+  })))
+  const shownPoints = clockRows
+    .map((row, shownIndex) => ({ point: points[row.index], index: row.index, shownIndex }))
+    .filter(entry => entry.index >= firstShown)
   return <aside className="mv2-itinerary" aria-label="Day itinerary" data-clock={timeFormat} data-lens={stayView != null ? 'stay' : undefined} style={dayTone}>
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
@@ -249,7 +263,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
     <ol className="mv2-stops" ref={stopsRef}>
-      {shownPoints.map(({ point, index }, shownIndex) => {
+      {shownPoints.map(({ point, index, shownIndex }) => {
         const locked = locks.has(point.stop.id)
         const isFix = fixStopId === point.stop.id
         const marker = railMarkerKind({ kind: point.kind, category: point.stop.category, locked, isFix })

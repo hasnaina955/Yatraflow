@@ -1059,7 +1059,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         // The base tag sits beside its mark. Its box starts there, so a spread
         // slide stays next to the stop instead of pushing the tag far left.
         const box = baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h, isBase ? BASE_TAG_GAP : NUMBER_TAG_GAP)
-        spreadMarks.push({ id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base })
+        // A name tag belongs to its own pin. A free side of the same mark wins
+        // over a long collision slide that lands the name on another stop.
+        const sideX = (STOP_BOX.drawW + tag.w) / 2 + BASE_TAG_GAP
+        const belowY = (STOP_BOX.drawH + tag.h) / 2 + BASE_TAG_GAP
+        spreadMarks.push({
+          id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base,
+          maxTravel: belowY,
+          alternates: [[sideX, 0], [-sideX, 0], [0, belowY], [0, -belowY]],
+        })
       }
       // The Stay board hides the clock pill while the base tag shows. Hiding it
       // here keeps the two pills from ever colliding on one mark.

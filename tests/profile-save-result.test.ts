@@ -60,7 +60,7 @@ beforeEach(() => {
   getSnapshot().sessionUserId = 'amelia'
   _installUsersForTest([{
     id: 'amelia', kind: 'private', email: 'amelia@example.test', createdAt: 1,
-    profile: { name: 'Amelia', homeCity: 'Kochi', languages: ['en'], travelStyles: [], isCreator: false },
+    profile: { name: 'Amelia', homeCity: 'Kochi', languages: ['en'], travelStyles: [], isCreator: false, creatorAvailable: false },
   }])
   state.updates.length = 0
   state.refuse = null

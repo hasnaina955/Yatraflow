@@ -134,7 +134,7 @@ describe('the entitlement read contract', () => {
     const typeSource = readFileSync(new URL('../src/lib/payments.ts', import.meta.url), 'utf8')
     const camelOf = (col: string) => col.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
     for (const col of columnsFromCreateTable('entitlements')) {
-      expect(typeSource).toMatch(new RegExp(`\\b${camelOf(col)}\\b`), `Entitlement is missing ${col}`)
+      expect(typeSource, `Entitlement is missing ${col}`).toMatch(new RegExp(`\\b${camelOf(col)}\\b`))
     }
     // viaWebhook was a fictional column a real read 400s on — keep it dead.
     expect(typeSource).not.toContain('viaWebhook')

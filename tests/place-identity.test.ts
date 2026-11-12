@@ -215,7 +215,7 @@ describe('reproduced resume defects R1-R4 (issue #839)', () => {
   })
 
   it('R2: a suggestion with OSM metadata does not match a Google stop', () => {
-    const stopRow = { title: 'Fort', locationName: 'Fort', lat: 15, lng: 73, placeSource: 'google', placeId: 'same-raw' }
+    const stopRow: Parameters<typeof isSameEntity>[1] = { title: 'Fort', locationName: 'Fort', lat: 15, lng: 73, placeSource: 'google', placeId: 'same-raw' }
     expect(isSameEntity(
       { title: 'Fort', lat: 15, lng: 73, place: { source: 'osm', placeId: 'same-raw', exposure: 'unknown' } },
       stopRow,

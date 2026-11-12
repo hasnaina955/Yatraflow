@@ -55,7 +55,10 @@ SECURITY DEFINER functions bypass RLS, including restrictive disabled-account po
 Row policies cannot protect authors or ballots inside JSON arrays. Check stored shapes before merging, and reject malformed data.
 
  6a. **Async operations need input guards.** The AI drawer's `ask()` function had no protection against rapid re-submission during its 650ms processing delay — users could trigger duplicate questions. Fix: `disabled={thinking}` on input and button. When adding async paths (API calls, simulated latency, data processing), always disable user inputs to prevent race conditions, duplicate requests, or state inconsistency. The guard should match the visual feedback state (spinner, disabled button, etc.).
- 6b. **A release cut is not done until every change in it has a CHANGELOG entry — check coverage, not just the heading.** The v0.60.0 refinement pass ran 20 commits and only 10 of them touched `CHANGELOG.md`, so the release was about to go out describing the first half of its own work — while the plan document recording that work also stopped mid-way and read as finished. Both artifacts agreed with each other and neither agreed with `git log`. Before cutting a release, diff the two lists — `git log --oneline <base>..HEAD -- CHANGELOG.md` against `git log --oneline <base>..HEAD` — and account for every commit: it has a bullet, or it is genuinely invisible to a user (a doc reconciliation, a de-duplication, a test-only change). The entries are also where a superseded claim gets *edited* rather than appended, so that diff is the audit.
+ 6b. **A release needs change coverage for the whole batch.** Compare `git log --oneline <base>..HEAD -- changelog.d/` with all batch commits.
+ Account for each change in a pending fragment or checked release receipt. This includes documentation and tooling.
+ A v0.60.0 cut almost shipped notes for only half its commits. Compare outcomes as well as file counts.
+ Edit a pending fragment when later work replaces its claim. Review legacy Unreleased notes before the first fragment release.
  **Check what the cut REMOVED as well as what it added.** A cut edits the head of `CHANGELOG.md` — the place the preamble lives — and the v0.70.0 cut (`36b13b7`) deleted that whole block on its way past: `# Changelog`, the Keep-a-Changelog line, and the "Two version lines" note that stops anyone comparing the Android shell's `-native` numbering with web semver. Nothing failed, because no test reads prose; the loss surfaced days later while adding an unrelated bullet. So a cut's own diff deserves a look at the file's head (`git diff <base>..HEAD -- CHANGELOG.md | head -30`), and the preamble is not part of any release — it is never correct for a version heading to replace it. This block has now been repaired twice (`dfdd2d0`, then the restore after `36b13b7`), which is what makes it worth the glance rather than a rule about paranoia.
  6c. **A "missing guard" claim needs the same git check as a "done" claim.** A comment or summary saying something was *absent* ("the one animation with no reduced-motion guard") is also a hypothesis — grep `origin/test` for the guard before "adding" it, or you ship a duplicate rule plus a changelog sentence that isn't true. The map-tab review round did exactly this; found 2026-09-22 while polishing its motion. The mirror case: an absence claim expires at the *next* merge, not at the date on the block — the slots decision record (2026-09-22, 17:27) logged three plan items as still outstanding, and PR #303 landed them 70 minutes later, leaving the sentence false from the moment it merged (fixed 2026-09-23). Check an absence claim against merged-PR timestamps, not the block's date.
  6d. **Wired is not "looks like the approved mockup" — and a RESTYLE folds into the
@@ -745,15 +748,15 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
     `npx vitest run tests/page-consistency.test.ts tests/map-weather-geometry.test.ts`
     the moment you add a page file or touch MapTab — not at the end.
 
-  6am. **`lint:ste`'s 20-word sentence cap applies to `CHANGELOG.md` prose on
-    changed lines, and it is the last gate to fail (learned 2026-10-12).** There
-    is no markdown exemption in `EXCLUDED_PATH_PREFIXES` (only
-    `docs/consistency/` and `docs/agents/AGENTS-FULL.md`), and the diff run measures against the merge base — so
-    pre-existing long entries pass and your new ones do not. Write CHANGELOG
-    bullets as short declarative sentences from the start (a subject, a verb, one
-    fact), because rewriting a 60-word sentence into four after the fact is the
-    same work twice. The same gate demands "must" over the weaker word in any
-    comment on a changed line — including a doc comment above a `const`.
+  6am. **Fragment prose must pass `lint:ste`, and its 20-word sentence cap is the last gate to fail
+    (learned 2026-10-12).** The cap applies to every pending fragment, including untracked files.
+    Legacy `CHANGELOG.md` prose is checked on changed lines against the merge base,
+    so old long entries pass and new ones do not. There is no markdown exemption in
+    `EXCLUDED_PATH_PREFIXES` (only `docs/consistency/` and `docs/agents/AGENTS-FULL.md`).
+    Write short declarative sentences from the start: a subject, a verb, one fact.
+    A 60-word sentence rewritten into four after the fact costs the same work twice.
+    The same gate demands "must" over the weaker word in any comment on a changed
+    line, including a doc comment above a `const`.
 
  6aj. **You must classify a branch by patch ancestry, not by name or age
    (learned 2026-10-04, prune of 80 refs).** A merged pull request leaves its
@@ -1326,7 +1329,7 @@ process.
 
 - **Vendored ripgrep can be missing in the desktop environment — `code_search` fails with ENOENT (`rg.exe` not found).** Don't retry it; fall back to `grep -n` / `awk` in the shell, which answer the same question.
 
-- **The changelog's union driver applies only when both sides already carry it (learned 2026-10-10).** Git provides the `union` driver. You do not need a `merge.union.driver` setting. With the rule in `.gitattributes`, an append conflict keeps both sides without markers. The merge that adds this rule is an exception. The earlier tip had no `CHANGELOG.md merge=union` line, so that merge wrote markers. Incoming release headings also left 29 new entries inside the released `[0.73.0]` section. A later edit moved each entry back to `[Unreleased]`. After a release merge, you must check every new entry's release heading. You must compare each moved block with its earlier copy.
+- **The changelog no longer has a union merge driver (learned 2026-10-10, driver removed 2026-11-12).** The old `CHANGELOG.md merge=union` rule kept both sides of an append conflict, and it had two failures. A merge that added the rule wrote conflict markers, because the earlier tip had no rule. A release merge also left 29 new entries inside the released `[0.73.0]` section. New work uses change fragments, so two PRs no longer share an anchor. A direct `CHANGELOG.md` conflict is rare now. Resolve it by hand with editor primitives. Compare both sides with the merge base, and check every new entry's release heading. Never add a merge driver for `CHANGELOG.md` or a fragment.
 
 - **Release tags are not automatic — they were skipped after v0.44.0.** `git tag` stopped at v0.44.0 while `package.json` climbed to 0.47.0 and nothing in the gate reads tags, so nobody noticed. Verify tag state with `git tag --sort=-creatordate | head` when a release claims to be tagged; backfilling needs an explicit tag push to the remote.
 

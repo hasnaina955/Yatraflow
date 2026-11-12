@@ -1,16 +1,13 @@
 /* ===== Stage A: Profile.tsx — inline styles moved to classes (no visual change) ===== */
-.prof-creator-lede { margin-bottom: 14px; }
 .prof-hint { margin: 0 0 var(--space-5); }
 .prof-hint-tight { margin: 6px 0 10px; }
 .prof-hint-top { margin: 6px 0 0; }
-.prof-hint-mt { margin-top: 6px; }
 .prof-status { margin: 0; }
 .prof-heading-note { font-weight: 400; }
 .prof-btn-block { margin-bottom: 8px; }
 .prof-notif-label { display: flex; align-items: center; gap: 6px; }
 .prof-notif-list { display: flex; flex-direction: column; gap: 8px; }
 .prof-notif-time { flex: 0 0 auto; margin-left: 8px; }
-.prof-notif-title { margin: 0; }
 /* The host class has the same specificity as one new class, so a single
    appended class would win only by source order. The compound selector
    wins in any order. */
@@ -24,7 +21,6 @@
 
 /* ==== Stage A: AdminPage inline styles -> classes (no visual change) ==== */
 
-.adm-page-intro { margin-bottom: 16px; }
 .adm-user-search { max-width: 320px; margin-bottom: 12px; }
 .adm-user-identity { display: inline-flex; align-items: center; gap: 8px; }
 .adm-user-badges,
@@ -55,13 +51,9 @@
 .adm-audit-failure-notice { margin-bottom: 12px; }
 .adm-audit-failure-copy { flex: 1; }
 /* Overview: static presentation extracted from OverviewTab.tsx. */
-.ovw-score-details { flex: 1; min-width: 200px; }
 .stat-grid.ovw-stats { grid-template-columns: repeat(2, 1fr); margin-top: 14px; margin-bottom: 14px; }
-.link-btn.ovw-timeline-action { margin-top: 12px; }
 .ovw-route-empty { margin: 0; }
-.ovw-route-summary { margin: 4px 0 0; font-size: 12.5px; opacity: .85; line-height: 1.6; }
 .ovw-commitments { display: flex; flex-direction: column; gap: 10px; }
-.row-between.ovw-commitment-row { padding: 4px 0; }
 .hint-text.ovw-rain-note { margin-top: 8px; }
 .ovw-matrix-stale { margin: 6px 0 0; }
 .link-btn.ovw-matrix-refresh { margin-top: 8px; }
@@ -1239,7 +1231,6 @@
   /* The answer pill sits under the title instead of squeezing it: at 390px a
      nowrap pill beside an 18px title leaves the title two characters wide. */
   .tsx-head { flex-wrap: wrap; }
-  .tsx-ans { margin-inline-start: 0; order: 3; width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1283,7 +1274,7 @@
 /* A panel is a Surface. It sets its own padding, the same as the card padding. */
 .prof-panel { padding: var(--space-8); }
 /* The gap between two panels, and between the two column groups, is 14px. The card rule that set it does not reach a Surface. */
-.prof-panel + .prof-panel, .prof-col + .prof-col { margin-top: var(--space-6); }
+.prof-panel + .prof-panel { margin-top: var(--space-6); }
 /* The rule under a panel title keeps the 12px card spacing. The card rule for it applies only inside a card. */
 .prof-panel > .prof-panel-title + hr.divider { margin-top: var(--space-5); }
 /* A panel title is a card title, so it takes the adopted title token: Sora 700

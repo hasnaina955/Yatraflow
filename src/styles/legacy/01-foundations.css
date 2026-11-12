@@ -122,7 +122,6 @@ html { overflow-x: clip; }
 .health-bar > i.teal { background: var(--teal); }
 .health-bar > i.saffron { background: var(--saffron); }
 .health-bar > i.danger { background: var(--yf-coral); }
-.health-reasons { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; color: var(--text-2); }
 .health-rec {
   display: block; width: 100%; margin-top: 12px;
   background: var(--yf-amber-100); color: var(--text);
@@ -149,7 +148,6 @@ html { overflow-x: clip; }
 .route-snap > * { position: relative; }
 .route-snap h3 { color: #fff; }
 .route-snap .divider { border-top-color: rgba(255,255,255,.16); }
-.route-snap-meta { font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
 .link-btn { background: none; border: none; padding: 0; color: var(--yf-saffron); font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-body); }
 .link-btn:hover { text-decoration: underline; }
 .link-btn.teal { color: var(--teal-deep); }
@@ -313,7 +311,6 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
 .feature-strip > .card + .card { margin-top: 0; }
 /* Explicit card spacing where the sibling selector can't express the intent
    (Profile stacks its cards with a wider 16px beat — was inline style). */
-.stack-gap { margin-top: 16px; }
 .label { font-size: 13px; font-weight: 600; color: var(--text-2); }
 /* A disabled form control must look disabled — three selects shipped identical
    to enabled ones (Create-Trip Day, TripSettings vehicle rows). Same shape as

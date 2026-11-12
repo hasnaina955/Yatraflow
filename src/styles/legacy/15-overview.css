@@ -414,20 +414,6 @@
   min-width: 0;
 }
 
-.ovw-crew-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-5);
-  min-height: 44px;
-  border-top: 1px solid var(--line);
-}
-
-.ovw-crew-row:first-of-type {
-  border-top: 0;
-}
-
 .ovw-avatars {
   display: flex;
   align-items: center;
@@ -616,44 +602,6 @@
   height: auto;
 }
 
-.tr-sky-top {
-  stop-color: var(--tr-sky-top);
-}
-
-.tr-sky-low {
-  stop-color: var(--tr-sky-low);
-}
-
-.tr-glow-core {
-  stop-color: var(--tr-glow);
-  stop-opacity: .42;
-}
-
-.tr-glow-edge {
-  stop-color: var(--tr-glow);
-  stop-opacity: 0;
-}
-
-.tr-ground-top {
-  stop-color: var(--tr-ground-top);
-}
-
-.tr-ground-low {
-  stop-color: var(--tr-ground-low);
-}
-
-.rm-grad-a {
-  stop-color: var(--rm-a);
-}
-
-.rm-grad-b {
-  stop-color: var(--rm-b);
-}
-
-.rm-grad-c {
-  stop-color: var(--rm-c);
-}
-
 .tr-orb {
   fill: var(--tr-orb);
 }
@@ -663,10 +611,6 @@
   stroke: var(--tr-line);
   stroke-width: 1;
   stroke-linejoin: round;
-}
-
-.tr-contour--soft {
-  opacity: .7;
 }
 
 .tr {
@@ -1684,10 +1628,6 @@ div.mx-crow {
   .ovw-stop-km,
   .ovw-stop-t {
     min-width: 0;
-  }
-
-  .ovw-crew-row {
-    min-height: 40px;
   }
 
   .ovw-feed li {

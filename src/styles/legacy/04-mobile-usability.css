@@ -56,7 +56,6 @@
 @keyframes locspin { to { transform: rotate(360deg) } }
 
 /* destination chips (CreateTrip) */
-.dest-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .dest-chip {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 6px 8px 6px 11px;
@@ -73,14 +72,6 @@
   color: inherit; opacity: .65;
 }
 .dest-chip button:hover { opacity: 1; }
-.dest-order {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: var(--teal-600);
-  color: var(--color-primary-foreground);
-  font-size: 11px; font-weight: 700;
-}
 .loc-empty {
   position: absolute;
   top: calc(100% + 6px); left: 0; right: 0;
@@ -158,22 +149,10 @@ main:focus { outline: none; }
   /* keep the idea-pin visible but static (it already keeps its dashed gold style) */
   .yf-map-pin-idea { animation: none; }
 }
-.poi-thumb {
-  width: 52px; height: 52px; border-radius: 10px; object-fit: cover; flex-shrink: 0;
-  border: 1px solid var(--line);
-}
 .poi-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ---- Weather layer ---- */
-.weather-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.weather-cell {
-  min-width: 86px; text-align: center; padding: 9px 7px;
-  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg);
-}
-.weather-cell.wet { border-color: var(--saffron); background: color-mix(in srgb, var(--saffron) 9%, transparent); }
 .weather-day { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
-.weather-icon { font-size: 24px; margin: 3px 0; }
-.weather-temp { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; }
 .weather-chip {
   display: inline-flex; align-items: center; gap: 5px;
   margin-top: 5px; padding: 2.5px 9px;
@@ -228,8 +207,6 @@ main:focus { outline: none; }
 .poi-plan-gap { border-style: dashed; opacity: .85; }
 .poi-plan-row { cursor: pointer; }
 .poi-plan-row .poi-desc { -webkit-line-clamp: unset; -webkit-box-orient: unset; overflow: visible; }
-.poi-plan-row .poi-thumb { width: 34px; height: 34px; border-radius: 8px; }
-
 /* ---- Day Planner surfaces (PLAN-DAY-PLANNER P1-B..P1-F) ----
    The proposal banners sit above the suggestion strip: the split the route
    demands, the defer/hop verdict for the real start time. Chips on rows read
@@ -241,22 +218,9 @@ main:focus { outline: none; }
   border-radius: var(--radius); padding: 10px 12px; margin-top: 10px;
 }
 .dayplanner-red { color: var(--danger); font-weight: 600; }
-.ride-day-chip {
-  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--teal-deep); background: var(--teal-soft);
-  padding: 1px 8px; border-radius: 999px; margin-right: 6px; white-space: nowrap;
-}
-
 /* ---- Cross-highlight (panel ↔ map): the suggestion hovered or selected on
    one surface lights up on the other, so a card answers "where is this?" and
    a pin answers "which card is this?" ---- */
-.poi-plan-row--active {
-  border-color: var(--teal);
-  background: var(--teal-soft);
-  box-shadow: var(--shadow-glow-teal);
-}
-[data-theme='dark'] .poi-plan-row--active { background: rgba(13, 141, 130, .16); }
-
 /* map idea pin: active state — steady (pulse paused), teal focus ring, lifted */
 .yf-map-pin-idea--active {
   animation: none;
@@ -309,13 +273,6 @@ main:focus { outline: none; }
    see-&-do / detours / scenic stops RIGHT in scenic purple. The tinted
    wash makes each lane read as its own category at a glance while the
    cards inside stay neutral for readable text. */
-.poi-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 12px;
-  align-items: start;
-}
 .poi-col {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -596,8 +553,6 @@ body, .topnav, .glass, .board, .modal, .toast {
 [data-theme='dark'] .editorial-kicker { color: #57c4b8; }
 .editorial-title { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); font-weight: 800; color: var(--text); margin: 6px 0 12px; }
 .editorial-body { font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 560px; }
-.editorial-sub { font-size: 14px; font-weight: 800; color: var(--text); margin: 16px 0 8px; }
-.editorial-list { padding-left: 18px; margin: 0; color: var(--text-2); line-height: 1.85; font-size: 14px; }
 .route-glance { padding: 16px; }
 .route-glance .route-glance-label { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #bbe0d9; }
 .route-glance-list { color: #d5e7e4; font-size: 12.5px; margin-top: 8px; line-height: 1.6; }
@@ -681,24 +636,14 @@ html.vt-active :where(*) {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(52% 90% at 90% 6%, rgba(240, 165, 63, .18), transparent 62%);
 }
-.featured-body { position: relative; z-index: var(--z-content); }
-.featured-kicker { color: #ffd79a; }
 /* One section-title ramp with .editorial-title (the public page's equivalent) —
    they were 2px apart at every width for no stated reason. The title also takes
    the same two-line clamp the grid cards use, so a long name stops crowding the
    tagline beneath it. */
-.featured-body h2 { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); margin: 6px 0 8px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.featured-title-link { color: #fff; text-decoration: none; }
-.featured-title-link:hover { text-decoration: underline; }
-.featured-tagline { color: #d5e7e4; margin: 0 0 8px; max-width: 640px; line-height: 1.6; }
 /* Prose measure: the neighbouring tagline caps at 640px, but this block and
    Explore's fork note run at 13px and 12.5px, where a 640px cap still buys
    78-81 characters a line. `ch` self-adjusts to the font size, so one value
    holds every block inside the 60-75ch band. */
-.featured-credibility { color: #a9d8cf; font-size: 13px; margin: 0 0 12px; max-width: 72ch; }
-.featured-meta { display: flex; gap: 18px; flex-wrap: wrap; color: #e2f1ef; font-size: 13px; margin-bottom: 16px; }
-.featured-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
 /* save heart on grid cards */
 .save-heart {
   position: absolute; top: 12px; right: 12px; z-index: var(--z-raised); cursor: pointer;
@@ -1343,10 +1288,7 @@ html.vt-active :where(*) {
 /* ---------- Hero load choreography: one orchestrated stagger ---------- */
 @keyframes hero-rise { from { opacity: 0; transform: translateY(16px); } }
 .rise-d1 { animation-delay: .07s; } .rise-d2 { animation-delay: .14s; }
-.rise-d3 { animation-delay: .21s; } .rise-d4 { animation-delay: .28s; }
-.rise-d5 { animation-delay: .35s; }
-
-/* ---------- RouteSquiggle: draw → flow → pop → traveller (calm timeline) ---------- */
+.rise-d3 { animation-delay: .21s; } /* ---------- RouteSquiggle: draw → flow → pop → traveller (calm timeline) ---------- */
 /* Smooth programmatic scrolling everywhere (bench CTA, route changes) — reduced
    motion users keep instant jumps. */
 @media (prefers-reduced-motion: no-preference) {
@@ -1671,8 +1613,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 }
 
 /* ---- <=900px ---- */
-@media (max-width: 900px) { .poi-split { grid-template-columns: 1fr; } }
-
 /* ---- <=640px ---- */
 @media (max-width: 640px) {
   /* 89px = the measured 10px time cell (57.4px incl. its 4px padding) + 8px
@@ -1836,8 +1776,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
   /* The Board stacking rules are owned by components/board-04.css. They keep
      this same media wrapper there. */
-  .dec-strip { grid-template-columns: 1fr; gap: 8px; }
-
   /* hero bench CTA */
   .hero-bench-cta { width: 100%; }
   .hbc-label { font-size: 15px; }
@@ -1847,7 +1785,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
   .bench-grid { grid-template-columns: 1fr; }
   .bench-controls { padding: 14px; gap: 12px; }
   .bench-pair { gap: 10px; }
-  .bench-block-big { font-size: 18px; }
   .bench-distance-big { font-size: 26px; }
   .bench-fuel-pair { flex-direction: column; gap: 10px; }
   .bench-crew-btn { min-width:  40px; height:  40px; }
@@ -1884,14 +1821,6 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 
 /* ---- Group input: needs-you emphasis + digest ---- */
 .gi-needs-you { border-left: 4px solid var(--saffron); }
-.gi-flash { animation: gi-flash 1.6s cubic-bezier(0.2, 0, 0, 1); }
-@media (prefers-reduced-motion: reduce) {
-  .gi-flash { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
-}
-@keyframes gi-flash {
-  0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron-500) 50%, transparent); }
-  100% { box-shadow: 0 0 0 3px transparent; }
-}
 .digest-row {
   display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
   background: none; border: none; padding: 9px 2px; border-bottom: 1px dashed var(--line);
@@ -1952,17 +1881,11 @@ body.reveal-armed .reveal-underline.io-inview::after { transform: scaleX(1); }
 .creator-stats .stat-value { display: flex; align-items: center; }
 
 /* ---- Publications manager rows (Profile) ---- */
-.pub-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
-.pub-row:last-child { border-bottom: none; }
-.pub-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.pub-row-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; font-size: 14px; }
-.pub-row-title a { color: var(--text); }
 .pub-row-actions { display: inline-flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 @media (max-width: 720px) {
   .creator-hero-inner { flex-direction: column; }
   .creator-stats { grid-template-columns: 1fr; }
-  .pub-row { flex-direction: column; align-items: flex-start; gap: 8px; }
   .pub-row-actions { justify-content: flex-start; }
 }
 

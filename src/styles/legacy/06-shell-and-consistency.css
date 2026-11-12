@@ -9,7 +9,6 @@
      also how the Plan Bench shows its receipt at this width. */
   .ts-layout { grid-template-columns: 1fr; }
   .span7, .span5 { grid-column: 1 / -1; }
-  .ct-grid { grid-template-columns: 1fr; }
   .trip-starter { padding-bottom: 118px; }
   /* One primary CTA, not two: the fixed dock owns it here, so the ticket's own
      button steps aside rather than duplicating it in the flow. */
@@ -54,12 +53,6 @@
 
 .app-home { max-width: 640px; margin: 0 auto; padding: 20px 16px 32px; }
 
-.app-home-hero {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  margin: 6px 0 18px;
-}
-.app-home-hello h1 { font-size: 24px; margin: 0; letter-spacing: -.01em; }
-.app-home-hello p { margin-top: 4px; }
 .app-home-avatar-row { display: flex; align-items: center; gap: 12px; }
 .app-home-bell {
   position: relative; display: grid; place-items: center;
@@ -77,58 +70,14 @@
 [data-theme='dark'] .app-home-bell-count { color: #2B0D0D; }
 
 /* Quick actions: the primary CTA is unmistakable; Explore is the quiet second. */
-.app-home-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 26px; }
-.app-home-action {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  min-height: 88px; border-radius: var(--radius); border: 1px solid var(--line);
-  background: var(--card); color: var(--text); font-weight: 700; font-size: 14px;
-  box-shadow: var(--shadow-sm);
-}
-.app-home-action:active { transform: scale(.98); }
-.app-home-action--primary { background: var(--teal-deep, var(--teal)); color: #fff; border-color: transparent; }
-[data-theme='dark'] .app-home-action--primary { background: var(--teal); color: #06251f; }
-
 .app-home-section {
   color: var(--text-2); margin: 0 0 10px;
 }
 
 /* Trip rows: 56px-tall list rows with a 44px thumb — Material list grammar. */
-.app-home-trips { display: flex; flex-direction: column; gap: 4px; }
-.app-home-trip {
-  display: flex; align-items: center; gap: 14px; width: 100%;
-  padding: 8px 10px; border-radius: var(--radius-sm);
-  background: none; border: none; text-align: left; color: inherit;
-}
-.app-home-trip:active { background: var(--bg-soft, rgba(0,0,0,.04)); }
-.app-home-trip-thumb {
-  flex: 0 0 44px; height: 44px; border-radius: 12px;
-  display: grid; place-items: center; font-size: 22px;
-  background: var(--teal-soft, #E7F4F1); color: var(--teal-deep, var(--teal));
-}
 /* Semantic pair flips per theme: teal-600 + #FFF (5.19:1) in light,
    teal-500 + #06251F (6.62:1) in dark. */
-.app-home-trip-thumb.is-live { background: var(--color-primary); color: var(--color-primary-foreground); }
-.app-home-trip-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.app-home-trip-name {
-  font-weight: 700; font-size: 15px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.app-home-trip-meta {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums;
-}
 /* The live-now marker: a steady teal dot (no pulse — motion budget). */
-.app-home-live-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--teal); display: inline-block;
-  margin-right: 2px;
-}
-
-.app-home-more {
-  width: 100%; margin-top: 8px; padding: 12px;
-  border-radius: var(--radius-sm); border: 1px dashed var(--line);
-  background: none; color: var(--text-2); font-weight: 700; font-size: 14px;
-}
-
 .app-home-empty {
   display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
   padding: 40px 20px; border-radius: var(--radius); border: 1px dashed var(--line);
@@ -261,20 +210,7 @@ html.native-shell {
 .poi-grp-k { color: var(--text-3); }
 .poi-grp-n { font-size: 10.5px; font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-grp-ln { flex: 1; height: 1px; background: var(--line); }
-.poi-facts {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px;
-  font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); font-variant-numeric: tabular-nums;
-}
-.poi-facts i { font-style: normal; color: var(--line); }
-.poi-fact--fine { color: var(--teal-deep); font-weight: 600; }
-.poi-fact--warn { color: var(--warn); font-weight: 600; }
-.poi-reason { display: flex; gap: 6px; align-items: baseline; margin-top: 6px; font-size: 11.5px; color: var(--text-2); }
 .poi-reason-k { flex: none; color: var(--text-3); }
-.poi-alts { margin-top: 6px; }
-.poi-alts summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--teal-deep); }
-.poi-alts summary::-webkit-details-marker { display: none; }
-.poi-alt-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.poi-alt-list .chip-sm { max-width: 100%; white-space: normal; text-align: left; line-height: 1.35; }
 .poi-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
 .poi-actions .btn-sm { padding: 4px 10px; font-size: 12px; }
 .poi-actions .btn-ghost.btn-sm { border-color: transparent; color: var(--text-3); }
@@ -291,26 +227,12 @@ html.native-shell {
 }
 
 /* ---- Map rail stage two: best-fit badge, reason chips, candidate rows ---- */
-.poi-best {
-  flex: none;
-  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--teal-deep); background: var(--teal-soft); border-radius: 999px; padding: 2px 8px;
-}
-.poi-rchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .poi-rchip {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2);
   background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px;
 }
 .poi-rchip--warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
-.poi-cands { display: grid; gap: 6px; margin-top: 6px; }
-.poi-cand {
-  display: flex; align-items: center; gap: 8px;
-  border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--bg); padding: 6px 9px;
-}
-.poi-cand b { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.poi-cand-f { flex: none; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .poi-cand-add {
   flex: none; width: 24px; height: 24px; border-radius: 50%;
   border: 1px solid var(--line); background: var(--card); color: var(--teal-deep);
@@ -325,18 +247,16 @@ html.native-shell {
 /* #152: same warn-on-light story as the rchip — the fact strip is 11.5px
    semibold (normal text, needs 4.5:1) and --warn on white is 3.92:1. The
    whisk's heavy spur/pin draw the same warn in SVG, so they swap too. */
-:root:not([data-theme='dark']) .poi-fact--warn { color: var(--ink-amber); }
 :root:not([data-theme='dark']) .poi-whisk-spur--heavy { stroke: var(--ink-amber); }
 :root:not([data-theme='dark']) .poi-whisk-pin--heavy { fill: var(--ink-amber); }
 
 /* Rail audit pass: one rhythm (6 inner, 9 list, 12 group), keyboard focus on
    the two expanders and the candidate button, chevron motion that respects
    reduced motion, and no leading separator when the fact strip wraps. */
-.poi-fact { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .poi-chev { flex: none; transition: transform var(--motion-fast) var(--ease-out); }
-.poi-alts[open] .poi-chev, .poi-more[open] .poi-chev { transform: rotate(180deg); }
-.poi-alts summary:hover, .poi-more summary:hover { text-decoration: underline; text-underline-offset: 3px; }
-.poi-alts summary:focus-visible, .poi-more summary:focus-visible, .poi-cand-add:focus-visible {
+.poi-more[open] .poi-chev { transform: rotate(180deg); }
+.poi-more summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+.poi-more summary:focus-visible, .poi-cand-add:focus-visible {
   outline: none; box-shadow: var(--ring); border-radius: 999px;
 }
 .poi-plan-list > div:first-child > .poi-grp { margin-top: 0; }
@@ -411,7 +331,6 @@ html.native-shell {
 .gi-item:focus, .day-header.foreign-over { outline: none; box-shadow: var(--ring); }
 
 /* Stage 2: local workspace refinements; no token or animation-strategy changes. */
-.overview-head { margin-bottom: 16px; }
 .compare-table:focus-visible { outline: none; box-shadow: var(--ring); }
 [data-motion-paused='true'] .yf-map-pin-idea,
 [data-motion-paused='true'] .yf-live-pulse,
@@ -423,11 +342,6 @@ html.native-shell {
 }
 
 /* ---- Rail calm pass: one primary line per card, everything else demoted --- */
-.poi-facts-meta {
-  display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 3px;
-  font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;
-}
-.poi-facts-meta i { font-style: normal; color: var(--line); }
 /* The drift prompt and the rest of the in-card chips stop drawing boxes. */
 .poi-plan-row .poi-desc .chip-sm { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 

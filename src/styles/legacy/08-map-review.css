@@ -406,8 +406,6 @@
    at the file end for the line-keyed ratchet reason as with the blocks above.
    ============================================================ */
 
-.crew-invite { margin-top: 12px; }
-.crew-opt { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text-3); }
 .crew-invite-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .crew-invite-row .input { flex: 1; min-width: 0; }
 .crew-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -422,7 +420,6 @@
    ============================================================ */
 
 .created-page { max-width: 1120px; margin: 0 auto; padding: 24px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.created-head h1 { font-size: 26px; line-height: 1.15; margin: 4px 0 2px; }
 .created-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
 .created-card-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 700; margin: 0 0 12px; }
 .created-role { font-size: 11.5px; font-weight: 600; color: var(--violet-ink); background: var(--violet-soft); border-radius: 999px; padding: 2px 8px; }
@@ -455,13 +452,11 @@
 .created-next .ns-body span { font-size: 11.5px; color: var(--text-3); }
 .created-next .ns-primary { border-color: var(--teal); background: var(--teal-soft); }
 .created-next .ns-quiet { justify-content: center; padding: 10px; color: var(--text-2); }
-.created-invite-preview { margin: 10px 0 0; }
 /* P7 - the rough-take rows and the off-screen receipt the image is captured from */
 .created-bill-rows { display: grid; gap: 2px; margin-bottom: 8px; }
 .created-bill-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .created-bill-row b { color: var(--text); font-weight: 600; }
 .created-bill-formula { font-size: 11px; color: var(--text-3); margin: 0 0 6px; }
-.created-bill-acts { display: flex; gap: 8px; margin-top: 12px; }
 .created-receipt-holder { position: absolute; left: -9999px; top: 0; width: 380px; pointer-events: none; }
 /* ============================================================
    Create Trip - the flow (mockup presentation layer)
@@ -498,11 +493,6 @@
 .ct-pre.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
 
 /* dates: three readout boxes above the picker */
-.ct-daterow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; max-width: 440px; }
-.ct-din { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
-.ct-din .lab { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
-.ct-din b { font-size: 13.5px; font-weight: 600; }
-
 /* party stepper */
 .ct-party { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .ct-step { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
@@ -760,7 +750,6 @@
 .created-cols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 26px; align-items: start; }
 @media (max-width: 980px) { .created-cols { grid-template-columns: minmax(0, 1fr); } }
 .created-celebrate, .created-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.created-name { color: var(--ink-teal); font-weight: 800; }
 .created-item.kind-meal .created-badge { background: var(--warn-soft); color: var(--ink-amber); }
 .created-item.kind-weather .created-badge { background: var(--info-soft); color: var(--text-2); }
 .created-item.kind-fuel .created-badge { background: var(--teal-soft); color: var(--ink-teal); }
@@ -885,9 +874,6 @@
    new section goes last like every section before it. */
 
 .hub-page { padding-top: 24px; padding-bottom: 24px; }
-.hub-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-.hub-head-id h1 { margin: 0; }
-.hub-head-id p { margin: 4px 0 0; }
 .hub-tabs { margin-bottom: 16px; }
 
 /* ONE ruled strip, not four floating cards: the four lifetime figures are read
@@ -911,7 +897,6 @@
 /* Panel furniture. The surface itself is `.card`; only the internal head and
    the figure's own margin are added, so the panel can never drift from the
    cards the rest of the app draws. */
-.hub-panel-title { margin: 0; }
 .hub-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .hub-panel-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
 .hub-subhead { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-2); margin: 20px 0 6px; }
@@ -941,7 +926,6 @@
    16px, a heading quieter than its own children. Kickers keep their job for
    labels (`.stat-label`, column heads); a heading is display-face, sentence
    case, and colour carries the rank. */
-.hub-instrument-col .hub-panel-title { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
 .hub-instrument-col .hub-lead-head span { font-size: 11.5px; color: var(--text-3); }
 /* In the narrower column the trend's key would crowd the window pills, so the
    key rides under the plot with the axis instead of beside the title. */
@@ -997,8 +981,6 @@
 /* The old two-card grid is gone: it is the instrument panel above. The only
    rule that survives is the row-wrap guard its narrow column needed, now
    applied to the rows inside that panel. */
-.hub-instrument-col .pub-row { flex-wrap: wrap; align-items: flex-start; }
-
 /* The counters-vs-log frame, said once for the account rather than once per row. */
 .hub-framing { margin: 0 0 16px; }
 /* The page-level read stamp, sitting between the tab bar and the tab's content.
@@ -1064,7 +1046,6 @@
    treatment as the POI disclosures: token-eased, frozen under reduced motion. */
 .hub-chev { display: inline-flex; margin-inline-start: auto; color: var(--text-3); transition: transform var(--motion-fast) var(--ease-out); }
 .hub-profile[open] .hub-chev { transform: rotate(180deg); }
-.hub-profile-summary:hover .hub-panel-title { text-decoration: underline; text-underline-offset: 3px; }
 /* Same ring as its sibling summaries (`.poi-alts summary`, `.poi-more summary`)
    — a disclosure you cannot see focus on is not keyboard-reachable in practice. */
 .hub-profile-summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius); }
@@ -1143,55 +1124,7 @@
 .tsx-form { display: flex; flex-direction: column; gap: 20px; }
 
 /* ---- the hero: the trip at a glance ---- */
-.tsx-hero {
-  position: relative; overflow: hidden;
-  border-radius: var(--radius);
-  background:
-    radial-gradient(120% 130% at 100% 0%, var(--yf-atmos-peach), transparent 52%),
-    radial-gradient(120% 130% at 0% 100%, var(--yf-atmos-mint), transparent 52%),
-    var(--yf-navy);
-  color: #EAF4F1;
-  padding: 22px 24px 20px;
-  display: flex; flex-direction: column; gap: 14px;
-}
-.tsx-hero-top { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
-.tsx-hero-cover {
-  width: 86px; height: 60px; border-radius: 12px; flex: none;
-  border: 1px solid rgba(255,255,255,.25);
-  background:
-    radial-gradient(80% 90% at 30% 20%, rgba(124,225,207,.4), transparent 60%),
-    radial-gradient(90% 100% at 80% 80%, rgba(255,179,107,.35), transparent 55%),
-    linear-gradient(150deg, #123F49, #0B2545);
-}
-.tsx-hero-id { min-width: 0; }
-.tsx-hero-name {
-  font-family: var(--font-display);
-  font-size: clamp(19px, 2.4vw, 24px); font-weight: 800; letter-spacing: -.015em; line-height: 1.15;
-  margin: 0; color: #fff; overflow-wrap: anywhere;
-}
-.tsx-hero-sub { margin: 4px 0 0; font-size: 12.5px; color: rgba(234,244,241,.75); overflow-wrap: anywhere; }
-.tsx-hero-sub b { color: #fff; font-weight: 700; }
-.tsx-hero-stats {
-  display: flex; flex-wrap: wrap; gap: 10px 26px;
-  padding-top: 14px; border-top: 1px solid rgba(255,255,255,.16);
-}
-.tsx-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.tsx-stat-k {
-  font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
-  color: rgba(234,244,241,.6);
-}
-.tsx-stat-v {
-  font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums;
-  font-size: 17px; font-weight: 700; color: #fff;
-}
-.tsx-stat-v small { font-size: 11.5px; font-weight: 600; color: rgba(234,244,241,.75); margin-left: 4px; }
-[data-theme='dark'] .tsx-hero-cover { border-color: rgba(255,255,255,.18); }
-
 /* ---- the band: cards left, bill + engine read right ---- */
-.tsx-band { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
-.tsx-band-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.tsx-aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-
 /* ---- question cards ---- */
 .tsx-card {
   position: relative;
@@ -1206,27 +1139,11 @@
   align-items: flex-start;
   gap: 12px;
 }
-.tsx-no {
-  grid-row: 1 / span 2;
-  width: 34px; height: 34px; border-radius: 11px;
-  display: grid; place-items: center;
-  background: var(--teal-soft); color: var(--teal-deep);
-  font-family: var(--bench-mono, monospace); font-size: 13px; font-weight: 700;
-}
 .tsx-q {
   margin: 0;
   font-family: var(--font-display);
   font-size: 16.5px; font-weight: 700; letter-spacing: -.012em; line-height: 1.25;
   color: var(--text);
-}
-.tsx-ans {
-  margin-inline-start: auto; align-self: flex-start;
-  display: inline-flex; align-items: baseline; gap: 6px;
-  font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums;
-  font-size: 12.5px; font-weight: 700; color: var(--teal-deep);
-  padding: 4px 11px; border-radius: 999px;
-  background: var(--teal-soft);
-  white-space: nowrap;
 }
 .tsx-a {
   margin: 1px 0 0;
@@ -1236,27 +1153,6 @@
 .tsx-a b { color: var(--text-2); font-weight: 700; }
 
 /* the settled-facts row closes each card with its own answers */
-.tsx-settled {
-  display: flex; flex-wrap: wrap; gap: 8px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--line);
-}
-.tsx-fact {
-  display: inline-flex; align-items: baseline; gap: 7px;
-  border: 1px solid var(--line); border-radius: 999px;
-  background: var(--bg);
-  padding: 5px 12px 5px 11px;
-  font-size: 12px; color: var(--text-2);
-  min-width: 0;
-}
-.tsx-fact-k {
-  font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--text-3); flex: none;
-}
-.tsx-fact b { font-family: var(--bench-mono, monospace); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
-.tsx-fact--warn { border-color: color-mix(in srgb, var(--saffron-600) 40%, var(--line)); background: var(--yf-amber-100); }
-.tsx-fact--warn b { color: var(--ink-amber); }
-
 /* ---- the road ---- */
 .tsx-route {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -1310,69 +1206,14 @@
 
 /* ---- calendar + day meter ---- */
 .tsx-when { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 20px; align-items: start; }
-.tsx-dm-track { height: 8px; border-radius: 99px; background: var(--bg-soft); overflow: hidden; display: block; }
-.tsx-dm-fill { display: block; height: 100%; border-radius: 99px; background: var(--yf-teal-600); }
-.tsx-dm-note { font-size: 12px; color: var(--text-3); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
-.tsx-dm-note b { color: var(--text-2); }
-
 /* ---- the early clamp ---- */
-.tsx-clamp {
-  border: 1px solid color-mix(in srgb, var(--saffron-600) 40%, var(--line));
-  border-radius: var(--radius-sm);
-  background: var(--yf-amber-100);
-  padding: 13px 15px;
-  display: flex; gap: 11px; align-items: flex-start;
-}
-.tsx-clamp-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: rgba(143,91,6,.12); color: var(--ink-amber); }
-.tsx-clamp-body { min-width: 0; }
-.tsx-clamp-t { font-size: 13.5px; font-weight: 800; color: var(--text); margin: 0; }
-.tsx-clamp-d { font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin: 3px 0 0; }
-.tsx-clamp-d b { color: var(--text); }
-
 /* ---- the engine's read (under the bill) ---- */
-.tsx-read {
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 16px 18px 14px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.tsx-read-head { display: flex; align-items: center; gap: 10px; }
-.tsx-read-kicker {
-  font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--text-3);
-}
-.tsx-read-facts { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--line); }
-.tsx-read-note { font-size: 11px; color: var(--text-3); margin: 0; line-height: 1.5; }
-
 /* ---- the save bar's copy block ---- */
-.tsx-rail-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin-right: auto; }
-.tsx-rail-copy b { font-size: 13px; color: var(--text); }
-.tsx-rail-s { font-size: 12px; color: var(--text-3); }
-
 /* ---- narrow widths ---- */
-@media (max-width: 1020px) {
-  .tsx-band { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 760px) {
   .tsx-when { grid-template-columns: minmax(0, 1fr); }
-  .tsx-hero { padding: 18px 16px 16px; }
-  .tsx-hero-stats { gap: 8px 18px; }
   .tsx-card { border-radius: var(--radius-sm); padding: 16px 16px 15px; }
   .tsx-head { grid-template-columns: 30px minmax(0, 1fr); }
-  .tsx-ans { grid-column: 2; grid-row: 2; justify-self: start; margin-top: 6px; }
   .tsx-a { display: none; }
-  .tsx-no { width: 30px; height: 30px; border-radius: 9px; }
   .tsx-q { font-size: 15px; }
 }
-.tsx-hero-edit {
-  display: inline-flex; align-items: center; gap: 6px; flex: none;
-  border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
-  background: rgba(255,255,255,.1); color: #fff;
-  font-size: 12px; font-weight: 700; padding: 7px 13px; cursor: pointer;
-  transition: background var(--t-fast) var(--ease-out);
-}
-.tsx-hero-edit:hover { background: rgba(255,255,255,.18); }
-.tsx-hero-edit:focus-visible { outline: none; box-shadow: var(--ring); }
-.tsx-hero-edit[aria-expanded='true'] { background: rgba(255,255,255,.2); }
-.tsx-card--identity .bench-pair { align-items: start; }
-.tsx-card--identity .cover-picker-preview { height: 72px; }
-

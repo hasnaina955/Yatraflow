@@ -150,7 +150,10 @@ describe('rail and strip source rules', () => {
   it('gives the fold its own glyph and keeps the user clock setting', () => {
     expect(chrome).toContain('<PanelLeftClose size={16} />')
     expect(chrome).toContain('data-clock={timeFormat}')
-    expect(chrome).toContain('formatHM(point.arrive, timeFormat)')
+    // W16: a fixed booking keeps its commitment clock, so the row reads the
+    // lock's time and falls back to the engine arrival.
+    expect(chrome).toContain('lockClocks.get(String(point.stop.id))')
+    expect(chrome).toContain('?? point.arrive, timeFormat)')
   })
   it('hides the budget block on the Stay lens and takes the Paid chip from expenses', () => {
     expect(mapTab).toContain("hideBudget={lens === 'stay'}")

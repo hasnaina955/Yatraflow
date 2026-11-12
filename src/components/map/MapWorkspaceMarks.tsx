@@ -2,7 +2,8 @@ import { Armchair, Binoculars, BedDouble, Building2, Castle, Church, Coffee, Dro
 import { placeSubtype } from '../../lib/mapStyles/placeMarks'
 import './mapMarks.css'
 
-const SUBTYPE_ICON: Record<string, LucideIcon> = {
+/** The subtype glyphs. One rule for the map mark and the deck card tile. */
+export const SUBTYPE_ICON: Record<string, LucideIcon> = {
   waterfall: Waves, backwater: Ship, dam: Droplets, lake: Droplets, river: Waves, beach: Umbrella,
   wildlife: Trees, garden: Flower2, cave: Mountain, trek: Footprints, estate: Leaf, forest: TreeDeciduous,
   sun: Sunrise, viewpoint: Binoculars, peak: MountainSnow, hill: Mountain,

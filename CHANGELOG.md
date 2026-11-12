@@ -18,6 +18,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ### Fixed
 
+- **A fixed booking reads its own clock on every map surface, and the send-back pairs hold.** The rail row, the pin chip and the ribbon state the commitment time. The 15:30 boat no longer reads 14:19. A window row names the road position of its picks. The lunch window reads km 54 and fits one line. The Stay deck ranks the walk ring first and letters three picks A/B/C. Each pick has its own category, glyph and sample hours. The A/B/C pins draw inside the rings. The add preview risk line is one sentence with no day prefix. A later stop never reads earlier while the order holds. The Stay fold button takes its own slot under the sub line. The header names the place ("Thekkady · evening"). A pin popup no longer covers the phone action row. (#911)
 - **The add preview no longer claims a fixed booking moved or a warning cleared.** A "Clears" line appears only when the named stop has no warning after the add. A fixed stop keeps its own clock. The retime line leaves it out. The risk line still states the arrival. The Stay sub line uses the full header width in 12h and 24h. It stays on one line. The phone "Go" pill uses the Route glyph. The map fixture carries the board's sample lunch and stay picks. The boat is a 90-minute adventure. Spice Village is a 20-minute check-in. Every pick has sample hours. (#911)
 
 ### Added

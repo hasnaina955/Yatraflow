@@ -122,12 +122,32 @@ export interface StayDeckProps {
   onRetry?: () => void
 }
 
+/** The minute a place closes, from its own reported hours. Null is unknown. */
+export function closeMinute(hit: { closeTime?: string | null }): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hit.closeTime?.trim() ?? '')
+  if (match == null) return null
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+  return hour * 60 + minute
+}
+
+/** "open till 21:00" in the reader's clock. An unknown close keeps it out. */
+export function stayHoursText(
+  hit: { closeTime?: string | null },
+  clock: (min: number) => string,
+): string | null {
+  const close = closeMinute(hit)
+  return close == null ? null : `open till ${clock(close)}`
+}
+
 /** One row of the list under the cards. */
-function AlsoRow({ pick }: { pick: StayPick }) {
+function AlsoRow({ pick, clock }: { pick: StayPick; clock: (min: number) => string }) {
   const hit = pick.row.row.hit
-  const line = pick.fitText ?? `${pick.reach.walkMin} min walk`
+  const hours = stayHoursText(hit, clock)
+  const line = [pick.fitText ?? `${pick.reach.walkMin} min walk`, hours].filter(part => part != null && part !== '').join(' · ')
   return <div className="mv2-lens-also-row">
-    <span className="mv2-lens-also-letter">{pick.letter}</span>
+    {pick.letter != null && <span className="mv2-lens-also-letter">{pick.letter}</span>}
     <span className="mv2-lens-also-icon"><CatIcon category={hit.category} size={13} /></span>
     <span className="mv2-lens-also-copy">
       <span className="mv2-lens-also-name">{hit.name}</span>
@@ -187,9 +207,11 @@ export function StayDeck(props: StayDeckProps) {
         {readyPicks.slice(0, MAX_CARDS).map((pick, index) => {
           const hit = pick.row.row.hit
           const reason = pick.row.row.reason
+          const hours = stayHoursText(hit, clock)
           const reasons = [
             ...(reason == null || reason.trim() === '' ? [] : [reason]),
             ...(pick.fitText == null ? [] : [pick.fitText]),
+            ...(hours == null ? [] : [hours]),
           ]
           return <li key={pick.letter} className="mv2-lens-card">
             <LensPlaceCard
@@ -214,7 +236,7 @@ export function StayDeck(props: StayDeckProps) {
       </ul>
       {(rest.length > 0 || (alsoCount > 0 && hiddenByRing === 0)) && <div className="mv2-lens-also-block">
         <p className="mv2-section-label mv2-lens-also">Also in this window</p>
-        {rest.map(pick => <AlsoRow key={pick.letter} pick={pick} />)}
+        {rest.map(pick => <AlsoRow key={pick.row.row.hit.id} pick={pick} clock={clock} />)}
         {rest.length === 0 && <p className="mv2-lens-more">{alsoCount} more</p>}
       </div>}
     </>}

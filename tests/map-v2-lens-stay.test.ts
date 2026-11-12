@@ -240,7 +240,7 @@ describe('rule 7: stayPicks', () => {
     }
   })
 
-  it('keeps input order and caps picks at 3', () => {
+  it('ranks the walk ring first and caps picks at 4', () => {
     const rows = [
       rowAt(10.001, 76.001, 30),
       rowAt(10.002, 76.002, 30),
@@ -251,9 +251,11 @@ describe('rule 7: stayPicks', () => {
     const result = stayPicks(viewOf('ready', rows), { lat: 10, lng: 76 }, evening, clock)
     expect(result.kind).toBe('ready')
     if (result.kind === 'ready') {
-      expect(result.picks).toHaveLength(3)
-      expect(result.alsoCount).toBe(2)
-      expect(result.picks.map(p => p.letter)).toEqual(['A', 'B', 'C'])
+      // W16: the walk ring holds A/B/C and the wider ring keeps its 4th pick
+      // unlettered, so a "3 picks" walk deck never hides one of them.
+      expect(result.picks).toHaveLength(4)
+      expect(result.alsoCount).toBe(1)
+      expect(result.picks.map(p => p.letter)).toEqual(['A', 'B', 'C', null])
       expect(result.picks[0].row).toBe(rows[0])
       expect(result.picks[1].row).toBe(rows[1])
       expect(result.picks[2].row).toBe(rows[2])

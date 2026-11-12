@@ -8,6 +8,9 @@ export interface PlaceSubtype { key: string; label: string; family: PlaceFamily 
 // Order matters: the first match wins. Name words come before the broad category.
 const NAME_RULES: [RegExp, PlaceSubtype][] = [
   [/\bwaterfalls?\b|\bfalls\b/i, { key: 'waterfall', label: 'Waterfall', family: 'water' }],
+  // A named viewpoint that stands at a boat landing or jetty is the view, not
+  // the boat. The narrow rule runs before the broad water words.
+  [/\b(?:boat|jetty|ferry)\b.*\bview ?point\b|\bview ?point\b.*\b(?:boat|jetty|ferry)\b/i, { key: 'viewpoint', label: 'Viewpoint', family: 'views' }],
   [/\bbackwaters?\b|\bhouseboat\b|\bboat(ing)?\b/i, { key: 'backwater', label: 'Backwater or boat', family: 'water' }],
   [/\bdam\b|\breservoir\b/i, { key: 'dam', label: 'Dam or reservoir', family: 'water' }],
   [/\blake\b|\btal\b/i, { key: 'lake', label: 'Lake', family: 'water' }],
@@ -17,6 +20,9 @@ const NAME_RULES: [RegExp, PlaceSubtype][] = [
   [/\bgarden\b|\bpark\b/i, { key: 'garden', label: 'Garden or park', family: 'nature' }],
   [/\bcaves?\b/i, { key: 'cave', label: 'Cave', family: 'nature' }],
   [/\btrek\b|\btrail\b/i, { key: 'trek', label: 'Trek', family: 'nature' }],
+  // A market is a market even when its own name also says spice or tea: the
+  // estate words must not steal a shopping street.
+  [/\bmarket\b|\bbazaar\b/i, { key: 'market', label: 'Market or bazaar', family: 'culture' }],
   [/\btea\b|\bspice\b|\bplantation\b|\bestate\b/i, { key: 'estate', label: 'Tea or spice estate', family: 'nature' }],
   [/\bforest\b/i, { key: 'forest', label: 'Forest', family: 'nature' }],
   [/\bsunrise\b|\bsunset\b/i, { key: 'sun', label: 'Sunrise or sunset point', family: 'views' }],
@@ -35,6 +41,8 @@ const NAME_RULES: [RegExp, PlaceSubtype][] = [
   [/\bmuseum\b|\bgallery\b/i, { key: 'museum', label: 'Museum', family: 'heritage' }],
   [/\bmarket\b|\bbazaar\b/i, { key: 'market', label: 'Market or bazaar', family: 'culture' }],
   [/\bamusement\b|water ?park/i, { key: 'amusement', label: 'Amusement or water park', family: 'culture' }],
+  // A kalari or kathakali centre is a performance, not a generic sight.
+  [/\bkalari\b|\bkathakali\b|\bmartial arts?\b/i, { key: 'show', label: 'Show or performance', family: 'culture' }],
   [/\btheatre\b|\btheater\b|\bshow\b|\bperformance\b/i, { key: 'show', label: 'Show or performance', family: 'culture' }],
   [/\bchai\b|\bcafe\b|\bcafé\b|\bcoffee\b/i, { key: 'cafe', label: 'Chai or cafe', family: 'needs' }],
   [/\bfuel\b|\bpetrol\b/i, { key: 'fuel', label: 'Fuel', family: 'needs' }],

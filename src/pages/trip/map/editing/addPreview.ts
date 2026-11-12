@@ -67,6 +67,9 @@ export interface ReadyAddPreview {
     replaced: PreviewLeg | null
   }
   newStop: { arrive: string; depart: string }
+  /** True when the new stop moves an existing stop's place in the day. The
+   *  panel must say so before it lists any moved clock. */
+  orderChanged: boolean
   /** Stops before the insertion. Their clocks do not move, so they never
    *  appear as a change; the calm note may still name one that stays. */
   keptClocks: PreviewClock[]
@@ -188,6 +191,12 @@ export function previewAdd(input: AddPreviewInput): AddPreview {
   })
 
   const impact = computeImpact(trip, proposedTrip, 'add', dayIndex, legCorrections)
+  // The day's own order, with the new stop taken out of both sides. A later
+  // stop that reads earlier because the order moved is not the same fact as a
+  // later stop that reads earlier with the order held.
+  const baseOrder = baseSim.activeStops.map(entry => String(entry.id))
+  const nextOrder = nextSim.activeStops.map(entry => String(entry.id)).filter(id => id !== String(stop.id))
+  const orderChanged = baseOrder.length === nextOrder.length && baseOrder.some((id, i) => id !== nextOrder[i])
   const unknownFacts: UnknownFact[] = []
   if (!stop.openTime || !stop.closeTime) unknownFacts.push('opening-hours')
   if (!input.priceEvidence) unknownFacts.push('admission-price')
@@ -205,6 +214,7 @@ export function previewAdd(input: AddPreviewInput): AddPreview {
     },
     road,
     newStop: { arrive: nextSim.arrivalTimes[at], depart: nextSim.departures[at] },
+    orderChanged,
     keptClocks,
     clocks,
     dayEnd: { from: baseSim.endsAt, to: nextSim.endsAt, deltaMin: clockDelta(baseSim.endsAt, nextSim.endsAt) },

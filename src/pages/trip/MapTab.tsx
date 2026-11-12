@@ -8,7 +8,7 @@ import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
 import type { WriterRoadBinding } from './map/writerRoadBinding'
-import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, legBetween, getAssumptions, type LegEstimate } from '../../lib/engine'
+import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, legBetween, getAssumptions, originOf, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatHM, formatHMRange, validHM } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
 import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
@@ -65,7 +65,7 @@ import { addFixOffer, detailAddPreview, detailPreviewView } from './map/detailPr
 import { kindWordOf } from '../../components/map/placeCardFacts'
 import { MapPickCard } from '../../components/map/MapPickCard'
 import { MapItinerary, MapJourneyRibbon, MapPhoneDay, MapSheetHandle, type ItineraryStayView, type ItineraryWindowRow, type SheetSnap, type SheetSnapSource } from '../../components/map/MapWorkspaceChrome'
-import { aroundKmText, daysCaptionText, picksText, stayRailSub, stayRailTitle, windowAtMin } from '../../components/map/railModel'
+import { aroundKmText, daysCaptionText, picksText, stayRailSub, stayRailTitle, windowAroundKm, windowAtMin } from '../../components/map/railModel'
 import { ROUTE_PAINT } from '../../lib/mapStyles/routeTreatment'
 import { driveRowForHit, mapAllJourneyRowsForDays, mapCardActions, mapRailRowForHit, mapRowForHit, mapRowsForHit, type MapRowBinding } from './map/mapJourneyRows'
 import { hoursCardText, hoursDisplayFor, intendedVisitMinutes, visitDateForDay } from '../../lib/hoursContext'
@@ -1468,7 +1468,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const stayPickLetters: Record<string, 'A' | 'B' | 'C'> = {}
   const activeStayPicks = activeStayWindowId == null ? undefined : lenses.stay.picks[activeStayWindowId]
   if (lens === 'stay' && activeStayPicks?.kind === 'ready') {
-    for (const pick of activeStayPicks.picks) stayPickLetters[String(pick.row.row.hit.id)] = pick.letter
+    for (const pick of activeStayPicks.picks) {
+      if (pick.letter != null) stayPickLetters[String(pick.row.row.hit.id)] = pick.letter
+    }
   }
   const gapPickLetters: Record<string, 'A' | 'B' | 'C'> = {}
   if (lens === 'gap') {
@@ -1481,6 +1483,29 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     : lens === 'stay'
       ? stayPickLetters
       : lens === 'gap' ? gapPickLetters : undefined
+  // The Stay board draws its picks on the map, each with its rank letter. A
+  // pick's pin only exists when the hit is in the map's own list, so the active
+  // window's picks join it once, by id.
+  const stayMapHits = useMemo(() => (lens === 'stay' && activeStayPicks?.kind === 'ready'
+    ? activeStayPicks.picks.flatMap(pick => (pick.row.row.hit ? [pick.row.row.hit] : []))
+    : []), [lens, activeStayPicks])
+  const mapPoisForMap = useMemo(() => {
+    if (stayMapHits.length === 0) return mapPois
+    // One pin per place: an id or the same name already on the map wins, so a
+    // manual slot hit never draws a second pin over its own scan result.
+    const seenIds = new Set(mapPois.map(hit => String(hit.id)))
+    const seenNames = new Set(mapPois.map(hit => hit.name.trim().toLowerCase()))
+    const extra = []
+    for (const hit of stayMapHits) {
+      const id = String(hit.id)
+      const name = hit.name.trim().toLowerCase()
+      if (seenIds.has(id) || seenNames.has(name)) continue
+      seenIds.add(id)
+      seenNames.add(name)
+      extra.push(hit)
+    }
+    return extra.length === 0 ? mapPois : [...mapPois, ...extra]
+  }, [mapPois, stayMapHits])
   const pickBands: Record<string, 'just-past' | 'over-budget'> = {}
   if (lens === 'drive') {
     for (const row of lenses.drive.view.rows) {
@@ -1498,11 +1523,22 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const firstMealGap = lenses.gap.view.rows.findIndex(row => activeDaySlots.find(entry => entry.key === row.slotKey)?.kind === 'meal')
   // A window that closes before the day starts is not on the road.
   const dayStartMin = hmToMinutes(trip.days.find(entry => entry.index === activeDayIndex)?.startTime ?? '')
+  // A window names its km the way the pin chips do: from the day's own start,
+  // not from the trip's first metre. The board's lunch sits at km 57 of Day 3.
+  const dayOrigin = originOf(trip, activeDayIndex)
+  const dayStartKm = dayOrigin == null ? null : routeKmOf(dayOrigin.lat, dayOrigin.lng)
+  const dayKmBase = dayStartKm != null && Number.isFinite(dayStartKm) ? dayStartKm : 0
   const gapRailWindows: ItineraryWindowRow[] = lenses.gap.view.rows.flatMap((row, index) => {
     if (row.windowMin == null || (dayStartMin > 0 && row.windowMin[1] <= dayStartMin)) return []
     const slot = activeDaySlots.find(entry => entry.key === row.slotKey)
     const part = lenses.gap.gaps[index]
-    const detail = [aroundKmText(slot?.segment?.targetKm), picksText(part?.picks.picks.length)].filter((piece): piece is string => piece != null).join(' · ')
+    // A synthesized window has no target km. Its own picks carry the road
+    // position, so the row names where the picks are, never "km 0".
+    const km = windowAroundKm(slot?.segment?.targetKm, (part?.picks.picks ?? []).map(pick => {
+      const hit = pick.candidate.hit
+      return hit.alongRouteKm ?? hit.cumKm ?? routeKmOf(hit.latitude, hit.longitude)
+    }))
+    const detail = [aroundKmText(km == null ? null : km - dayKmBase), picksText(part?.picks.picks.length)].filter((piece): piece is string => piece != null).join(' · ')
     return [{
       label: part?.title ?? slot?.label ?? row.slotKey,
       startMin: row.windowMin[0],
@@ -1517,7 +1553,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const stayBaseArriveMin = stayBaseAt >= 0 && journeyDay?.daySchedule ? hmToMinutes(journeyDay.daySchedule.arrivalTimes[stayBaseAt]) : null
   const stayEvening = lenses.stay.windows.find(window => window.id === 'evening') ?? null
   const stayBaseStop = stayBaseId == null ? null : trip.days.flatMap(day => day.stops).find(stop => stop.id === stayBaseId) ?? null
-  const stayTown = trip.destinations[activeDayIndex] ?? stayBaseStop?.locationName?.split(/[,·]/)[0]?.trim() ?? null
+  // The board names the place, not the stop's action label: a base titled
+  // "Check in · Spice Village" in Thekkady reads "Thekkady · evening". The
+  // trip's own destination for that day wins, then the day title's "to X"
+  // (where the day ends), then the saved place with its action prefix gone.
+  const stayPlace = stayBaseStop?.locationName?.replace(/^(?:check[ -]?in|arrive|stay|dinner|lunch|breakfast)\s*[·:]\s*/i, '').trim() ?? null
+  const dayTitle = trip.days.find(day => day.index === activeDayIndex)?.title ?? ''
+  const titleTo = /(?:\bto\b|→)\s*([^,·]+)$/i.exec(dayTitle)?.[1]?.trim() ?? null
+  const stayTown = trip.destinations[activeDayIndex] ?? (titleTo === '' ? null : titleTo) ?? stayPlace
   const stayCommitment = stayBaseArriveMin == null ? null : trip.fixedCommitments
     .filter(entry => entry.dayIndex === activeDayIndex && entry.time != null && hmToMinutes(entry.time) > stayBaseArriveMin)
     .sort((a, b) => hmToMinutes(a.time) - hmToMinutes(b.time))[0] ?? null
@@ -1800,7 +1843,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ? `Fixed ${commitmentClock}`
     : lens === 'stay' && stayEvening != null ? `Free ${lensClock(stayEvening.startMin)}–${lensClock(stayEvening.endMin)}` : null
   const phoneRibbon = (
-    <MapJourneyRibbon journey={journey} corrections={legCorrections} windows={railWindows.filter(row => row.nextDayLabel == null)} lockedStopIds={ribbonLockedIds} fixStopId={fixStopId} note={ribbonNote} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet && snap !== 'peek'} onScrub={(position, minute) => {
+    <MapJourneyRibbon journey={journey} corrections={legCorrections} windows={railWindows.filter(row => row.nextDayLabel == null)} lockedStopIds={ribbonLockedIds} lockedClockOf={stopId => trip.fixedCommitments?.find(entry => entry.dayIndex === activeDayIndex && entry.stopId != null && String(entry.stopId) === stopId)?.time ?? null} fixStopId={fixStopId} note={ribbonNote} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet && snap !== 'peek'} onScrub={(position, minute) => {
       if (position.grade === 'estimated') { setScrubCursor(null); return }
       setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
       setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
@@ -2391,10 +2434,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <TripMap
               trip={trip}
               dedicated
-              nearbyPois={mapPois}
+              nearbyPois={mapPoisForMap}
               onAddNearby={editable ? (hit) => openAddModal(hit) : undefined}
               activeHitId={activeHitId}
-              onActivateHit={id => { setActiveHitId(id); const hit = mapPois.find(item => item.id === id); if (hit) inspectHit(hit) }}
+              onActivateHit={id => { setActiveHitId(id); const hit = mapPoisForMap.find(item => item.id === id); if (hit) inspectHit(hit) }}
               onOpenInTimeline={onOpenTimeline}
               onOpenInBoard={onOpenBoard ? () => onOpenBoard() : undefined}
               focusDay={mapShowsAll ? 'all' : activeDayIndex}

@@ -52,7 +52,8 @@ describe('the place detail preview', () => {
       },
     }), clock)
     const text = view.lines.find(line => line.tone === 'risk')?.parts.map(part => part.text).join('')
-    expect(text).toContain('Periyar boat:')
+    // W16: one sentence, title then body after a separator, with no day prefix.
+    expect(text).toBe('Conflicts with Periyar boat · You reach it ~15:05, after the 15:30 commitment.')
     expect(text).toContain('15:05')
     expect(view.summary?.tone).toBe('risk')
   })

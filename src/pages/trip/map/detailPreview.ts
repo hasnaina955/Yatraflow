@@ -49,6 +49,25 @@ const SLOT_PREFIX = /^(breakfast|lunch|dinner|check[ -]?in)\s*[·:]\s*(.*)$/i
 /** The stop a warning names. The engine uses the same title in both wordings. */
 const NAMED_WARNING = /^(?:Conflicts with|Thin buffer before)\s+(.+)$/
 
+/** A warning title's day prefix. Inside one day's preview the prefix is noise. */
+const DAY_PREFIX = /^Day\s+\d+\s*:\s*/i
+
+/** The title a risk line opens with. The day prefix leaves, and a trailing
+ *  colon goes, because the body follows after its own separator. */
+export function warningTitleText(title: string): string {
+  return title.replace(DAY_PREFIX, '').replace(/[\s:·]+$/, '').trim()
+}
+
+/** One sentence from a warning: the title, then the body. No day prefix, and
+ *  no two facts run together without a separator. */
+export function warningSentence(title: string, detail: string): string {
+  const head = warningTitleText(title)
+  const body = detail.trim()
+  if (head === '') return body
+  if (body === '') return head
+  return `${head} · ${body}`
+}
+
 /** The stop a warning is about: its named title, its detail, then the linked
  *  fixed commitment. A warning that names no stop keeps a null subject. */
 function warningSubject(preview: ReadyAddPreview, warning: PreviewWarning): string | null {
@@ -148,10 +167,21 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     return { kind: 'unknown', order: null, lines: [line], summary: line }
   }
   const lines: PreviewLine[] = []
+  const orderChanged = preview.orderChanged === true
   const place = preview.insertion.afterTitle != null
     ? `in road order after ${spokenStopName(preview.insertion.afterTitle)}`
     : 'first on the day'
-  lines.push({ key: 'lands', tone: 'ok', parts: [{ text: `Lands as stop ${preview.insertion.order}, ${place}` }] })
+  // A re-ordered day says so first: a later stop that reads earlier is only
+  // honest when the order moved, and the reader must see that before the clocks.
+  lines.push({
+    key: 'lands',
+    tone: 'ok',
+    parts: [{
+      text: orderChanged
+        ? `Re-ordered: the new stop goes in before ${preview.insertion.beforeTitle != null ? labelStopName(preview.insertion.beforeTitle) : 'the day’s end'}`
+        : `Lands as stop ${preview.insertion.order}, ${place}`,
+    }],
+  })
 
   const moved = preview.clocks.filter(entry => entry.deltaMin != null && entry.deltaMin !== 0)
   const fixedIds = fixedStopIds(preview)
@@ -159,6 +189,9 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     // A fixed booking keeps its own clock. The preview's arrival moves, not
     // the commitment, so a retime line would say the booking moved.
     if (fixedIds.has(String(entry.stopId))) continue
+    // A later stop never reads earlier while the order holds. That would be a
+    // contradiction, not a plan change, so it earns no arrow line.
+    if ((entry.deltaMin ?? 0) < 0 && !orderChanged) continue
     lines.push({
       key: `moved-${entry.stopId}`,
       tone: 'clock',
@@ -178,10 +211,13 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   for (const warning of preview.warnings.added) {
     const named = warning.title.match(NAMED_WARNING)?.[1] ?? null
     const detail = named == null ? warning.detail : warning.detail.replace(`You reach ${named} ~`, 'You reach it ~')
+    // One sentence, with its own separator: the title never runs into the body,
+    // and the day prefix stays out of a preview that is already one day.
+    const sentence = warningSentence(warning.title, detail)
     lines.push({
       key: `risk-${warning.code}-${warning.title}`,
       tone: 'risk',
-      parts: [{ text: named == null ? warning.title : `${named}:` }, ...textParts(` ${detail}`, clock)],
+      parts: textParts(sentence, clock),
     })
   }
   for (const warning of preview.warnings.cleared) {
@@ -198,7 +234,9 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   }
 
   const end = preview.dayEnd
-  if (end.deltaMin != null && end.deltaMin !== 0) {
+  // The same rule as a stop row: the day cannot end earlier while the order
+  // holds. That reading is a contradiction, not a plan change.
+  if (end.deltaMin != null && end.deltaMin > 0) {
     lines.push({
       key: 'end',
       tone: 'clock',

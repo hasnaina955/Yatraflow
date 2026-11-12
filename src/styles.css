@@ -1596,7 +1596,20 @@
   text-overflow: ellipsis;
   overflow: hidden;
 }
+/* 911-W16: the fold keeps its own slot under the sub line. It sat on the next
+   day's ">" arrow at the top right. The extra bottom padding is the fold's row,
+   so no width has to share. */
+.mv2-itinerary[data-lens='stay'] .mv2-day-header {
+  padding-bottom: calc(var(--space-5) + 30px);
+}
 .mv2-itinerary[data-lens='stay'] .mv2-fold-day {
-  top: calc(var(--space-7) + 2px);
-  bottom: auto;
+  top: auto;
+  bottom: var(--space-4);
+}
+/* 911-W16: on a phone the sheet is the active surface. A pin popup draws at
+   z-index 5 inside the map, so the sheet takes 6 and its action row stays on
+   top. The popup itself is lifted above the sheet's height in TripMap. */
+@media (max-width: 720px) {
+  .mv2-workspace .map-ideas-grid > .poi-col,
+  .mv2-workspace .mv2-detail { z-index: 6; }
 }

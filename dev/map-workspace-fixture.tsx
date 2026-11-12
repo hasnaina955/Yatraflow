@@ -15,7 +15,7 @@ import type { ItineraryStop, Trip } from '../src/data/types'
 import { MapTab } from '../src/pages/trip/MapTab'
 import { useSuggestionCache } from '../src/hooks/useSuggestionCache'
 import { buildRoadChain, correctionsFromLegs, type TripRoadView } from '../src/lib/tripRoad'
-import { legBetween, getAssumptions } from '../src/lib/engine'
+import { legBetween, getAssumptions, legKey } from '../src/lib/engine'
 import { getSnapshot } from '../src/store/store'
 import { placeIdentity } from '../src/lib/placeIdentity'
 import { buildDnaVectorAcrossTrips, crewSeedEvents, crewSeedsFromSuggestions, loadDnaLog, type CrewSeed } from '../src/lib/tripDna'
@@ -151,23 +151,59 @@ const sampleHit = (id: number, name: string, km: number, dLat: number, dLng: num
   latitude: boardPoint(km, dLat, dLng).lat, longitude: boardPoint(km, dLat, dLng).lng,
   openTime, closeTime,
 })
+// The lunch picks stand on the recorded road, so the leg they split keeps the
+// board's own kilometres and speed. A pick far off the line would fall back to a
+// faster straight estimate and pull the later stops earlier.
 const SAMPLE_LUNCH: readonly PlaceHit[] = [
-  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.003, 0.011, '11:00', '15:30'),
-  sampleHit(930002, 'Spice Route Café', 57, -0.004, 0.012, '08:00', '15:00'),
-  sampleHit(930003, 'Hill Garden Meals', 57, 0.006, 0.014, '12:00', '16:00'),
+  sampleHit(930001, 'Nalla Ruchi Kitchen', 57, 0.002, 0.003, '11:00', '15:30'),
+  sampleHit(930002, 'Spice Route Café', 57, -0.002, 0.003, '08:00', '15:00'),
+  sampleHit(930003, 'Hill Garden Meals', 57, 0.002, -0.003, '12:00', '16:00'),
 ]
-const sampleStayHit = (id: number, name: string, dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
-  id: `sample_stay_${id}`, name, kind: 'poi', source: 'osm', category: 'sightseeing',
+// Sample place picks split one recorded leg of the board road. A split is only
+// honest when its two halves add up to the leg they replace, so each half takes
+// the leg's distance and time in proportion to the road it covers. Sample data.
+const splitRecordedLegs = (hits: readonly { latitude: number; longitude: number }[]): void => {
+  for (const hit of hits) {
+    const point = { lat: hit.latitude, lng: hit.longitude }
+    for (let index = 0; index < legs.length; index += 1) {
+      const from = chain.points[index]
+      const to = chain.points[index + 1]
+      if (!from || !to) continue
+      const inLeg = boardTrip ? boardLegBetween(from, point) : null
+      const outLeg = boardTrip ? boardLegBetween(point, to) : null
+      if (!inLeg || !outLeg) continue
+      const total = inLeg.distanceKm + outLeg.distanceKm
+      if (!(total > 0)) continue
+      const share = inLeg.distanceKm / total
+      corrections[legKey(from, point)] = {
+        distanceKm: legs[index].distanceKm * share,
+        durationMinutes: legs[index].durationMinutes * share,
+      }
+      corrections[legKey(point, to)] = {
+        distanceKm: legs[index].distanceKm * (1 - share),
+        durationMinutes: legs[index].durationMinutes * (1 - share),
+      }
+    }
+  }
+}
+splitRecordedLegs(SAMPLE_LUNCH)
+const sampleStayHit = (id: number, name: string, category: PlaceHit['category'], dLat: number, dLng: number, openTime: string, closeTime: string): PlaceHit => ({
+  // The same id the provider answer carries, so the map draws one pin per place.
+  id, name, kind: 'poi', source: 'osm', category,
   latitude: Number((boardRoad.stops.spiceVillage.at[1] + dLat).toFixed(6)),
   longitude: Number((boardRoad.stops.spiceVillage.at[0] + dLng).toFixed(6)),
   openTime, closeTime,
 })
+// Each stay pick carries the category and the hours its own place has: a market,
+// a kalari show, a spice garden and a boat-landing viewpoint. The offsets keep
+// each pin apart on the map and inside the 15 min walk ring. Sample data.
 const SAMPLE_STAY: readonly PlaceHit[] = [
-  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 0.0004, 0.0006, '17:00', '19:30'),
-  sampleStayHit(930008, 'Kumily spice market', -0.0003, 0.0006, '08:00', '21:00'),
-  sampleStayHit(930009, 'Periyar spice garden', 0.0006, -0.0004, '09:00', '18:00'),
-  sampleStayHit(930010, 'Boat landing viewpoint', 0.008, 0.011, '06:00', '18:30'),
+  sampleStayHit(930007, 'Kadathanadan Kalari Centre', 'event', 0.0026, 0.0034, '17:00', '19:30'),
+  sampleStayHit(930008, 'Kumily spice market', 'shopping', -0.0028, 0.0036, '08:00', '21:00'),
+  sampleStayHit(930009, 'Periyar spice garden', 'nature', 0.0032, -0.0032, '09:00', '18:00'),
+  sampleStayHit(930010, 'Boat landing viewpoint', 'sightseeing', -0.0115, -0.0082, '06:00', '18:30'),
 ]
+splitRecordedLegs(SAMPLE_STAY)
 for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
   const context = { tripId: trip.id, dayId: 'fixture-day-3', slotKey }
   for (const hit of hits) mapManualSlotStore.file(context, hit)

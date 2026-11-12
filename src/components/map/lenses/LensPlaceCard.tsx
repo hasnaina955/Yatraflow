@@ -5,6 +5,7 @@ import { ArrowLeftRight, Heart, Plus, Star } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { cap } from '../../../lib/labels'
 import { placeSubtype } from '../../../lib/mapStyles/placeMarks'
+import { SUBTYPE_ICON } from '../MapWorkspaceMarks'
 import { compactCount } from '../placeCardFacts'
 
 /** One cost strip cell. A null value is unknown, and it is never zero. */
@@ -110,15 +111,19 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
   const showRating = rating != null && rating.count != null
   const subLine = hit ? placeSubLine(hit) : null
   const shownCells = knownCostCells(cells)
-  // The tile takes the category family colour, as the map marks do.
-  const family = placeSubtype({ category: category ?? undefined, name }).family
+  // The tile takes the category family colour, as the map marks do. The glyph
+  // is the place subtype's own, so a market, a kalari show, a garden and a
+  // viewpoint never share one camera icon.
+  const subtype = placeSubtype({ category: category ?? undefined, name })
+  const family = subtype.family
+  const TileIcon = SUBTYPE_ICON[subtype.key]
   const openClass = 'mv2-lens-place-open'
   const actions = placeCardActions({ onShortlist, onSwap })
 
   const headInner = <>
     <span className="mv2-lens-place-tile" data-family={family}>
       {letter != null && <span className="mv2-lens-place-letter" aria-hidden="true">{letter}</span>}
-      <CatIcon category={category ?? undefined} size={20} />
+      {TileIcon ? <TileIcon size={20} /> : <CatIcon category={category ?? undefined} size={20} />}
     </span>
     <span className="mv2-lens-place-copy">
       <span className="mv2-lens-place-name">{name}</span>

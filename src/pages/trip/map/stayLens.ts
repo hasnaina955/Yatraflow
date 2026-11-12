@@ -35,7 +35,9 @@ export interface StayWindow extends FitWindow {
 }
 
 export interface StayPick {
-  letter: 'A' | 'B' | 'C'
+  /** A to C in walk-ring rank order. A fourth pick has no letter, as the board's
+   *  boat landing has none. */
+  letter: 'A' | 'B' | 'C' | null
   row: StayLensRow
   reach: StayReach
   fit: LensFit | null
@@ -135,7 +137,7 @@ export function stayPicks(
   base: { lat: number; lng: number },
   window: FitWindow,
   clock: (min: number) => string,
-  cap = 3,
+  cap = 4,
 ): StayPicksResult {
   if (output.kind === 'needs-base') return { kind: 'needs-base' }
   const view = output.view
@@ -154,8 +156,13 @@ export function stayPicks(
     const fitText = fit !== null && visit !== null
       ? fitCopy(window, fit, travel, visit, clock)
       : null
-    usable.push({ letter: letters[usable.length] ?? 'C', row, reach, fit, fitText })
+    usable.push({ letter: null, row, reach, fit, fitText })
   }
+  // The walk ring ranks first, so its picks keep A/B/C and the wider ring's
+  // pick stays unlettered. A row order that puts a drive pick in the walk
+  // letter slots would show two cards under a "3 picks" walk ring.
+  usable.sort((a, b) => a.reach.walkMin - b.reach.walkMin || a.reach.driveMin - b.reach.driveMin)
+  usable.forEach((pick, index) => { pick.letter = letters[index] ?? null })
   const picks = usable.slice(0, cap)
   return { kind: 'ready', picks, alsoCount: Math.max(0, usable.length - picks.length) }
 }

@@ -137,6 +137,14 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const date = day && visitDateForDay(trip.startDate, day.index)
   const dateLabel = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '') : ''
   const locks = new Set(trip.fixedCommitments?.filter(lock => lock.dayIndex === activeDay).flatMap(lock => lock.stopId ? [lock.stopId] : []))
+  // The booking clock of each locked stop. A fixed stop shows its commitment
+  // time, never the arrival: the two facts disagree, and the booking is the one
+  // the traveller holds.
+  const lockClocks = new Map<string, string>()
+  for (const lock of trip.fixedCommitments ?? []) {
+    if (lock.dayIndex !== activeDay || lock.stopId == null || lock.time == null) continue
+    lockClocks.set(String(lock.stopId), lock.time)
+  }
   const allPoints = journey?.points ?? []
   // The Stay list starts at the base. The leg into the base stays out of it.
   const stayFrom = stayView == null ? -1 : allPoints.findIndex(point => point.stop.id === stayView.baseStopId)
@@ -193,7 +201,13 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     .filter(row => insertAtFor(row) === index)
     .map(row => {
       const duration = windowDurationText(row.startMin, row.endMin)
-      const sub = [`${clock?.(row.startMin)}–${clock?.(row.endMin)}`, duration, row.detail].filter(part => part != null && part !== '').join(' · ')
+      // The board keeps one line. A row with a proven detail drops the duration
+      // (the window's own clocks already state it) so the detail is not cut off.
+      // A stay window keeps the duration: its detail is a count, not a place.
+      const parts = row.detail != null && !row.boxOnly
+        ? [`${clock?.(row.startMin)}–${clock?.(row.endMin)}`, row.detail]
+        : [`${clock?.(row.startMin)}–${clock?.(row.endMin)}`, duration, row.detail]
+      const sub = parts.filter(part => part != null && part !== '').join(' · ')
       return <li key={`window-${row.startMin}-${row.label}`} className={`mv2-window-row${row.active ? ' is-active-window' : ''}`}>
         <time className="mv2-lens-window-time">{row.nextDayLabel ?? clock?.(row.startMin)}</time>
         <span className="mv2-window-ring" aria-hidden="true" />
@@ -253,7 +267,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
             {shownIndex === 0 && previewChipAt(null)}
             {shownIndex > 0 && point.legIn && <div className="mv2-travel-leg"><span aria-hidden="true" /><span>{Math.round(point.legIn.distanceKm)} km · {fmtDur(point.legIn.durationMinutes)}</span></div>}
             <button type="button" ref={isFix ? fixRowRef : undefined} className={`mv2-stop${selectedStop === point.stop.id ? ' is-selected' : ''}${isFix ? ' is-fix-problem' : ''}`} onClick={() => onSelect(point)} aria-pressed={selectedStop === point.stop.id}>
-              <time>{formatHM(point.arrive, timeFormat)}</time>
+              <time>{formatHM((locked ? lockClocks.get(String(point.stop.id)) : null) ?? point.arrive, timeFormat)}</time>
               <span className={`mv2-stop-mark is-${marker}`}>
                 {marker === 'car' ? <CarFront size={13} aria-hidden /> : marker === 'stay' ? <House size={13} strokeWidth={2.3} aria-hidden /> : marker === 'lock' ? <Lock size={12} strokeWidth={2.4} aria-label="Fixed time" /> : marker === 'risk' ? <i className="mv2-stop-diamond" aria-label="Problem" /> : railStopNumber(points, index)}
               </span>
@@ -302,7 +316,7 @@ function ribbonShortTitle(title: string): string {
   return title.split(' · ')[0]
 }
 
-export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub, inSheet = false, windows = [], lockedStopIds = [], fixStopId = null, note = null }: {
+export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub, inSheet = false, windows = [], lockedStopIds = [], lockedClockOf = null, fixStopId = null, note = null }: {
   journey: Journey | null; corrections?: Record<string, LegEstimate>
   onScrub: (position: RibbonPosition, minute: number) => void
   /** The open add preview. Its own schedule re-times the stops shown here. */
@@ -314,6 +328,9 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
   windows?: readonly RibbonWindow[]
   /** Stops with a fixed time. Each draws as a dark bar with a lock. */
   lockedStopIds?: readonly string[]
+  /** The fixed commitment's own clock for a locked stop. Absent falls back to
+   *  the engine's arrival, so an unlinked lock never invents a time. */
+  lockedClockOf?: ((stopId: string) => string | null) | null
   /** The stop the Fix lens names. It draws a diamond. */
   fixStopId?: string | null
   /** A short fact for the third line of the left block, such as "Free 17:00–20:00". */
@@ -340,6 +357,13 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
   const percent = (value: number) => ribbonPercent(axis, value)
   const tone = { '--mv2-day-tone': dayColor(journey?.dayIndex ?? 0) } as CSSProperties
   const locked = new Set(lockedStopIds)
+  // A locked stop draws and labels at its booking clock, the same clock the
+  // rail row and the pin chip show.
+  const lockedMinute = (stopId: string): number | null => {
+    if (!locked.has(stopId) || lockedClockOf == null) return null
+    const hm = lockedClockOf(stopId)
+    return hm == null ? null : ribbonClockMinutes(hm)
+  }
   const drawingRef = useRef<HTMLDivElement | null>(null)
   const [labelLayout, setLabelLayout] = useState<{ hidden: string[]; shift: Record<string, number> }>({ hidden: [], shift: {} })
   // A label that has no room hides, and a label at an edge moves back in. The
@@ -377,7 +401,7 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
   const labels: Array<{ key: string; at: number; text: string; title: string }> = []
   stops.forEach(stop => {
     const point = stop.point
-    labels.push({ key: `stop-${point.stop.id}`, at: percent(stop.arrive), text: ribbonShortTitle(point.title), title: point.title })
+    labels.push({ key: `stop-${point.stop.id}`, at: percent(lockedMinute(String(point.stop.id)) ?? stop.arrive), text: ribbonShortTitle(point.title), title: point.title })
   })
   windows.forEach((window, index) => {
     if (window.boxOnly) return
@@ -401,8 +425,9 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
         {stops.map(stop => {
           const point = stop.point
           const key = point.stop.id
-          const left = `${percent(stop.arrive)}%`
-          const width = `${Math.max(0, percent(stop.depart) - percent(stop.arrive))}%`
+          const booked = lockedMinute(String(key))
+          const left = `${percent(booked ?? stop.arrive)}%`
+          const width = `${Math.max(0, percent(stop.depart) - percent(booked ?? stop.arrive))}%`
           if (key === fixStopId) return <Fragment key={key}>
             {locked.has(key) && <><span className="mv2-clock-fixed" style={{ left, width }} /><Lock className="mv2-clock-fixed-lock" size={12} strokeWidth={2.4} style={{ left }} /></>}
             <span className="mv2-clock-risk" style={{ left }} />

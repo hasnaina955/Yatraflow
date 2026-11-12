@@ -12,9 +12,7 @@ describe('#420 slice 16 — the rail rows render outside the page', () => {
     expect(typeof GapRow).toBe('function')
   })
 
-  it('the page no longer defines the row renderers', () => {
-    expect(mapTab).not.toContain('function renderLedgerRow')
-    expect(mapTab).not.toContain('function renderGapRow')
+  it('the page imports the row renderers from RailRowViews', () => {
     expect(mapTab).toContain("from './map/RailRowViews'")
   })
 

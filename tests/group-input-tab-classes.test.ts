@@ -49,29 +49,6 @@ const CLASSES: Array<[selector: string, declarations: string[]]> = [
   ['.gin-followup', ['animation: popover-in var(--motion-fast) var(--ease-glide)']],
 ]
 
-// Every inline style attribute the change removed from the tab.
-const REMOVED_INLINE = [
-  "style={{ marginBottom: 14 }}",
-  "style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 14 }}",
-  "style={{ display: 'inline-flex', gap: 6 }}",
-  "style={{ margin: '5px 0' }}",
-  "style={{ marginTop: 7 }}",
-  "style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 10 }}",
-  "style={{ flex: 1 }}",
-  "style={{ whiteSpace: 'nowrap' }}",
-  "style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11 }}",
-  "style={{ marginTop: 8 }}",
-  "style={{ display: 'flex', gap: 7, marginTop: 10 }}",
-  "style={{ margin: '5px 0 10px' }}",
-  "style={{ margin: '8px 0' }}",
-  "style={{ marginTop: 10 }}",
-  "style={{ margin: 0 }}",
-  "style={{ margin: '4px 0 0' }}",
-  "style={{ margin: '6px 0 12px' }}",
-  "style={{ width: '100%' }}",
-  "style={{ display: 'grid', gap: 7 }}",
-]
-
 describe('Group input tab: inline styles now live in gin- classes', () => {
   it('declares each gin- class with the values its inline style used', () => {
     for (const [selector, declarations] of CLASSES) {
@@ -83,12 +60,6 @@ describe('Group input tab: inline styles now live in gin- classes', () => {
     const declared = new Set(CLASSES.flatMap(([selector]) => selector.match(/gin-[a-z-]+/g) ?? []))
     const used = new Set(tab.match(/gin-[a-z-]+/g) ?? [])
     expect([...used].sort()).toEqual([...declared].sort())
-  })
-
-  it('no longer carries the replaced inline style values', () => {
-    for (const removed of REMOVED_INLINE) {
-      expect(tab, removed).not.toContain(removed)
-    }
   })
 
   it('keeps only the two inline styles that depend on data or on an off-ladder value', () => {

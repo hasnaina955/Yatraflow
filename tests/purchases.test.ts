@@ -13,7 +13,7 @@ import { buildPurchaseShelf, purchaseShareable, unlockRevealStats, findBuyerCopy
 import { computeTotals } from '../src/lib/engine'
 import { seedData } from '../src/data/seed'
 import type { Entitlement, PurchaseOrder } from '../src/lib/payments'
-import type { PublishedItinerary, Trip, User } from '../src/data/types'
+import type { CachedUser, PublishedItinerary, Trip } from '../src/data/types'
 
 const DAY = 86_400_000
 
@@ -51,12 +51,13 @@ function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
   }
 }
 
-function user(id: string, name: string): User {
+function user(id: string, name: string): CachedUser {
   return {
     id,
+    kind: 'private',
     email: `${id}@example.com`,
     createdAt: 0,
-    profile: { name, languages: ['en'], travelStyles: [], isCreator: true },
+    profile: { name, languages: ['en'], travelStyles: [], isCreator: true, creatorAvailable: false },
   }
 }
 

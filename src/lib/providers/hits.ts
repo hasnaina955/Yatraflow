@@ -136,9 +136,6 @@ export function detourKm(
 /** Fallback door-to-door speed when the trip mode is unknown. Matches the engine default. */
 export const DEFAULT_SPEED_KMH = 40
 
-/** On the route within this perpendicular distance is treated as "on the way" (no detour). */
-export const ON_ROUTE_SPUR_KM = 0.15
-
 /**
  * Perpendicular (spur) distance from a hit to the route polyline, in km.
  * A point on or beside the road reads ~0; a point off it reads the shortest
@@ -535,7 +532,7 @@ export function dedupeCandidates<T extends Pick<PlaceHit, 'latitude' | 'longitud
   return out
 }
 
-export interface PlannedStop {
+interface PlannedStop {
   lat: number
   lng: number
   name?: string

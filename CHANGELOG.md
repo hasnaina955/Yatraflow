@@ -16,6 +16,22 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+**The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It still reports 562 errors, so `verify` does not run it yet. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.
+
+### Added
+
+- **The scripts folder now has an index, and 27 unused CSS-3 tools are gone.** `scripts/README.md` lists every tracked script with its purpose, how it runs, and its status. The APK workflow drops the trigger for `feat/capacitor-android`, a branch that no longer exists. `docs/README.md` links to the index. `control-runs-r13.mjs` and `verify-bound-r13.mjs` stay because `tests/release-tooling.test.ts` names both.
+
+### Changed
+
+- **Agent instruction docs now match the repo.** The corrected rules cover CSS placement, rule ranges, the verify chain, and enforcement notes. They also cover haptics, retired lanes, the migration path, issue closing, baseline keys, and key locations. This change removes stale facts and a fixed defect entry.
+
+- **Two slow test cases have more time, so the full suite passes in one run.** One case in `tests/lint-ste.test.ts` builds two git repositories and now has 40 s. One case in `tests/migration-status.test.ts` reads every migration file and now has 20 s. Each case passed alone and timed out only when the full suite ran.
+
+### Removed
+
+- **Unused code and tests that checked nothing are removed. The app behaves as before.** The rail ruler module had no caller, so it and its test file are gone. Sixteen unused declarations are removed from ten source files. The `geocode` facade drops six re-exports that no file imported through it. Thirteen test cases are removed. They covered the rail ruler, five constant pins and one redundant inline-style pin. The art evidence test now skips with a named reason when its file is absent. Before, it returned early and reported a pass.
+
 ## [0.84.0] - 2026-11-11
 
 **This minor release closes the paid-plan leak and adds fifty destination scenes.** A locked day of a paid plan now stays on the server. The database migration `20261110_paywall_locked_day_boundary.sql` closes the leak. Apply it after this release is live. The release also brings the guided create flow, day-slot voting, and the Settings and Profile polish.

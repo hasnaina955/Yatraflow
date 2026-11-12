@@ -1,6 +1,6 @@
 # YatraFlow consistency work: standing rulings
 
-Owner: Claude (design lead). Updated 2026-10-11. Cline and Codex: **read this file before you ask the user a question.** If a ruling covers your question, follow it. If none does, ask the user and quote the question in full.
+Owner: Claude (design lead). Updated 2026-10-11. Workers: **read this file before you ask the user a question.** If a ruling covers your question, follow it. If none does, ask the user and quote the question in full.
 
 This file grows. Claude adds a ruling each time an agent asks something new. Re-read it at the start of each task.
 
@@ -30,9 +30,9 @@ This file grows. Claude adds a ruling each time an agent asks something new. Re-
 
 ## Working copies
 
-**R9. Cline works only in `C:\Users\hasna\yatraflow-cline`.** Leave `feat/launch-film` and the `launch-film/` files alone. Cut branches from `origin/test`.
+**R9. (Retired: this clone no longer exists.) Cline works only in `C:\Users\hasna\yatraflow-cline`.** Leave `feat/launch-film` and the `launch-film/` files alone. Cut branches from `origin/test`.
 
-**R10. Codex works only in `C:\Users\hasna\yatraflow-codex`, using a git worktree.** Do not stash, reset, discard or commit the discovery work in the main tree. Run `git worktree add -b chore/consistency-<file> .codex-worktrees/<file> origin/test`. Add `.codex-worktrees/` to `.git/info/exclude`.
+**R10. (Retired: this clone no longer exists.) Codex works only in `C:\Users\hasna\yatraflow-codex`, using a git worktree.** Do not stash, reset, discard or commit the discovery work in the main tree. Run `git worktree add -b chore/consistency-<file> .codex-worktrees/<file> origin/test`. Add `.codex-worktrees/` to `.git/info/exclude`.
 
 ## Design rulings (user-approved 2026-10-11, on Opus advice)
 

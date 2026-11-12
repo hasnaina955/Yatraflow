@@ -11,13 +11,13 @@
 import { describe, it, expect } from 'vitest'
 import { computeBalances, settleBalances, fairSharePerHead, linesTotal, openTaggedLines } from '../src/lib/settlement'
 import type { BalanceRow } from '../src/lib/settlement'
-import type { User } from '../src/data/types'
+import type { CachedUser } from '../src/data/types'
 
-const user = (id: string, name: string): User => ({
+const user = (id: string, name: string): CachedUser => ({
   id,
-  email: `${id}@example.com`,
-  profile: { name, avatarEmoji: '🙂' },
-} as unknown as User)
+  kind: 'public',
+  profile: { name, isCreator: false, creatorAvailable: false },
+})
 
 describe('computeBalances', () => {
   const members = [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }]

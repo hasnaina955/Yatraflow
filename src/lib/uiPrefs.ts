@@ -150,31 +150,6 @@ export function saveReviewAll(tripId: string, on: boolean): void {
   }
 }
 
-// Same map-of-booleans pattern, for long-ride hint dismissal (user chose
-// "not needed" for a given day's halt suggestions; restorable).
-const RIDE_HINTS_KEY = 'yatraflow_ride_hints_hidden'
-
-/** True when the user dismissed the long-ride hints for this trip+day. */
-export function loadRideHintsHidden(tripId: string, dayIndex: number): boolean {
-  if (typeof localStorage === 'undefined') return false
-  try {
-    return parseDayCollapseMap(localStorage.getItem(RIDE_HINTS_KEY))[dayCollapseKey(tripId, dayIndex)] ?? false
-  } catch {
-    return false
-  }
-}
-
-export function saveRideHintsHidden(tripId: string, dayIndex: number, hidden: boolean): void {
-  if (typeof localStorage === 'undefined') return
-  try {
-    const map = parseDayCollapseMap(localStorage.getItem(RIDE_HINTS_KEY))
-    map[dayCollapseKey(tripId, dayIndex)] = hidden
-    localStorage.setItem(RIDE_HINTS_KEY, JSON.stringify(map))
-  } catch {
-    // best-effort
-  }
-}
-
 // ---- Saved days and experiences (MR8) ----
 // A heart on a day or an experience marks it saved-for-later. This is UI state,
 // not the plan: it never reaches `trips`, so it is not shared with the crew and
@@ -325,12 +300,6 @@ function writeHaltPins(map: HaltPinMap): void {
 }
 
 const haltPinId = (tripId: string, dayIndex: number): string => `${tripId}:${dayIndex}`
-
-/** The pinned route-km for one accepted night (by ordinal), null when unpinned. */
-export function loadHaltPin(tripId: string, dayIndex: number): number | null {
-  const v = readHaltPins()[haltPinId(tripId, dayIndex)]
-  return typeof v === 'number' && Number.isFinite(v) ? v : null
-}
 
 /** All pins for one trip, keyed by night ordinal — the bag the planner takes
  *  (#143). Returns null when the trip has none, so callers can pass it

@@ -900,11 +900,11 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    Run the test against the pre-fix source. Read the failures.
 
 - **A CSS pin must stop at the end of its own block.** `footer-route-mark.test.ts`
-  read `styles.css` from its marker to the end of the file. The rule is "append
-  CSS at the end". So the next appended section made the pin fail on rules that
+  read `styles.css` from its marker to the end of the file. The rule at that time
+  was "append CSS at the end". So the next appended section made the pin fail on rules that
   were not the footer's. Slice from the marker to the next section comment of
   any style (`/* ----` or `/* ====`). Never slice to the end of the file. Check this when a guard fails after you
-  append a section.
+  add a section to a CSS file.
 
 6ax. **One suffix rule cannot cover the Android SDK tools, and a passing `verify`
    does not identify the signer (learned 2026-10-19, #809 repair).** The manifest

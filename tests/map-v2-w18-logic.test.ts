@@ -13,15 +13,17 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { commitmentStopIndex, legKey } from '../src/lib/engine'
+import { commitmentStopIndex, hmToMinutes, legKey } from '../src/lib/engine'
 import type { LegEstimate } from '../src/lib/engine'
 import { stayRingsDependencyKey } from '../src/lib/map/stayRings'
 import { fixProblemFor } from '../src/pages/trip/map/useMapLenses'
 import {
-  fixCandidates, fixesForWarning, fixSummary, verifyFixSet, warningRefs,
+  applyFixChangeSet, fixCandidates, fixesForWarning, fixSummary, verifyFixSet, warningRefs,
 } from '../src/pages/trip/map/fixLens'
+import { fixIsOffered } from '../src/lib/mapLensContracts'
 import { fixProblemSubLine } from '../src/components/map/railModel'
 import { stayPickStartMin, stayWindows } from '../src/pages/trip/map/stayLens'
+import { pickStopFor } from '../src/pages/trip/map/pickPreview'
 import { readManualPicksForDay } from '../src/pages/trip/map/manualPicks'
 import { createManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 import { formatHM } from '../src/lib/timefmt'
@@ -130,6 +132,13 @@ describe('item 1: the map layout effect depends on ring content', () => {
     expect(source).not.toContain('[workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRings]')
     expect(source).toContain('stayRingsKey')
   })
+
+  it('writes a view tick only when a ring caption actually changes', () => {
+    const source = readFileSync(join(here, '../src/components/TripMap.tsx'), 'utf-8')
+    expect(source).toContain('if (captionsChanged) setViewTick')
+    expect(source).toContain('setMapZoom(prev => prev === zoom ? prev : zoom)')
+    expect(source).not.toMatch(/^\s*setViewTick\(tick => tick \+ 1\)\s*$/m)
+  })
 })
 
 // ---------------------------------------------------------------- item 2
@@ -180,16 +189,17 @@ describe('item 2: the Fix lens reads one schedule', () => {
 
   it('does not say Clears it when another warning remains on the stop', () => {
     const trip = farmBoatTrip()
-    const set = fixesForWarning(trip, 0, { code: 'commitment', stopId: 'boat' }, 99)
+    const set = fixCandidates(trip, 0, { code: 'commitment', stopId: 'boat' })
       .find(entry => entry.id.endsWith('shift-start-60'))
-    if (!set) throw new Error('the earlier-start fix must be offered')
+    if (!set) throw new Error('the earlier-start candidate must exist')
     const check = verifyFixSet(trip, set).verification
     if (check.kind !== 'verified') throw new Error('expected verified')
     // The commitment clears, but the arrival lands 27 min before the boat: a
     // buffer warning now sits on the same stop.
     expect(check.clearsTarget).toBe(true)
     expect(check.stopClear).toBe(false)
-    const copy = fixSummary(set, id => id, minuteClock)
+    expect(fixIsOffered({ ...set, verification: check })).toBe(false)
+    const copy = fixSummary({ ...set, verification: check }, id => id, minuteClock)
     expect(copy.result.startsWith('Clears it')).toBe(false)
     expect(copy.result).toBe('Does not clear it')
   })
@@ -203,6 +213,29 @@ describe('item 2: the Fix lens reads one schedule', () => {
     if (check.kind !== 'verified') throw new Error('expected verified')
     expect(check.stopClear).toBe(true)
     expect(fixSummary(set, id => id, minuteClock).result.startsWith('Clears it')).toBe(true)
+  })
+
+  it('offers a real next-day booking move and never invents one without a next day', () => {
+    const withNextDay = tripOf([
+      day(0, [mealStop(), boatStop({ orderInDay: 2 })], '14:00'),
+      day(1, [stop({ id: 'walk', title: 'Forest walk', orderInDay: 1 })], '09:00'),
+    ], { fixedCommitments: [boatCommitment({ dayIndex: 0 })] })
+    const problem = fixProblemFor(withNextDay, 0)
+    if (!problem) throw new Error('the fixture must hold one problem')
+    const candidates = fixCandidates(withNextDay, 0, problem.target)
+    const move = candidates.find(set => set.id.endsWith('move-commitment-next-day'))
+    expect(move).toBeDefined()
+    const proposed = applyFixChangeSet(withNextDay, move!)
+    expect(proposed?.days[1].stops.map(entry => entry.id)).toContain('boat')
+    expect(proposed?.fixedCommitments[0].dayIndex).toBe(1)
+    expect(proposed?.fixedCommitments[0].time).toBe('09:30')
+    const verified = verifyFixSet(withNextDay, move!)
+    expect(verified.verification.kind).toBe('verified')
+    if (verified.verification.kind === 'verified') expect(verified.verification.clearsTarget).toBe(true)
+    const noNextDay = tripOf([day(0, [mealStop(), boatStop({ orderInDay: 2 })], '14:00')], {
+      fixedCommitments: [boatCommitment({ dayIndex: 0 })],
+    })
+    expect(fixCandidates(noNextDay, 0, problem.target).some(set => set.id.includes('move-commitment'))).toBe(false)
   })
 })
 
@@ -275,6 +308,16 @@ describe('item 4: one free-evening function', () => {
   it('offers no pick start that would fall outside the window', () => {
     expect(stayPickStartMin({ startMin: 20 * 60 + 30, endMin: 21 * 60 }, 40)).toBeNull()
     expect(stayPickStartMin({ startMin: 17 * 60, endMin: 17 * 60 }, 0)).toBeNull()
+  })
+
+  it('stamps the offered start onto the stop the add writes', () => {
+    const window = stayWindows({ arriveAtBaseMin: 13 * 60 + 40, leaveBaseMin: null, eveningBook: book })[0]
+    const start = stayPickStartMin(window, 6)
+    expect(start).toBe(17 * 60 + 6)
+    const hit = { id: 'p1', name: 'Kalari', latitude: 9.6, longitude: 77.15, kind: 'poi', plannedStartMin: start } as unknown as PlaceHit
+    const stop = pickStopFor(hit, 'new-stop')
+    expect(stop.arrivalTime).toBe('17:06')
+    expect(start).toBeGreaterThan(hmToMinutes('15:30') + 90)
   })
 })
 

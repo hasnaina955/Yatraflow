@@ -82,6 +82,11 @@ function applyChange(day: ItineraryDay, change: FixChange): ItineraryDay | null 
       next[at] = { ...stops[at], visitMinutes: change.visitMin }
       return { ...day, stops: next }
     }
+    case 'move-commitment': {
+      const needs = stops.filter(stop => String(stop.id) !== String(change.stopId))
+      if (needs.length === stops.length) return null
+      return { ...day, stops: needs.map((stop, i) => ({ ...stop, orderInDay: i + 1 })) }
+    }
     case 'shift-start': {
       // ItineraryDay.startTime is the day-start field, "HH:MM" (src/data/types.ts:268).
       if (!Number.isInteger(change.startMin) || change.startMin < 0 || change.startMin >= 1440) return null
@@ -104,7 +109,31 @@ export function applyFixChangeSet(trip: Trip, set: FixChangeSet): Trip | null {
   const source = trip.days[at]
   // Clone the target day and each of its stops, so no edit can reach the input.
   let day: ItineraryDay = { ...source, stops: source.stops.map(stop => ({ ...stop })) }
+  let days = trip.days.map((entry, i) => (i === at ? day : entry))
+  let commitments = trip.fixedCommitments.map(entry => ({ ...entry }))
   for (const change of set.changes) {
+    if (change.kind === 'move-commitment') {
+      if (change.fromDayIndex !== set.dayIndex || change.fromDayIndex === change.toDayIndex) return null
+      const to = days.findIndex(entry => entry.index === change.toDayIndex)
+      const from = days.findIndex(entry => entry.index === change.fromDayIndex)
+      const linked = commitments.find(entry => String(entry.id) === String(change.commitmentId))
+      if (to < 0 || from < 0 || !linked || linked.dayIndex !== change.fromDayIndex) return null
+      if (String(linked.stopId ?? '') !== String(change.stopId)) return null
+      if (!/^\d{1,2}:\d{2}$/.test(change.time)) return null
+      const moving = day.stops.find(stop => String(stop.id) === String(change.stopId))
+      if (!moving) return null
+      const shortened = applyChange(day, change)
+      if (!shortened) return null
+      day = shortened
+      const destination = days[to]
+      const moved = { ...moving }
+      moved.orderInDay = destination.stops.length + 1
+      days = days.map((entry, i) => (i === to ? { ...entry, stops: [...entry.stops.map(stop => ({ ...stop })), moved] } : entry))
+      commitments = commitments.map(entry => String(entry.id) === String(change.commitmentId)
+        ? { ...entry, dayIndex: change.toDayIndex, time: change.time }
+        : entry)
+      continue
+    }
     const next = applyChange(day, change)
     if (!next) return null
     day = next
@@ -112,7 +141,7 @@ export function applyFixChangeSet(trip: Trip, set: FixChangeSet): Trip | null {
   // The engine schedules stops by orderInDay, not by array position. A
   // reorder must rewrite it, or the engine still sees the old order.
   const reorders = set.changes.some(change =>
-    change.kind === 'move' || change.kind === 'swap' || change.kind === 'remove')
+    change.kind === 'move' || change.kind === 'swap' || change.kind === 'remove' || change.kind === 'move-commitment')
   if (reorders) {
     day = {
       ...day,
@@ -120,8 +149,8 @@ export function applyFixChangeSet(trip: Trip, set: FixChangeSet): Trip | null {
         stop.orderInDay === i + 1 ? stop : { ...stop, orderInDay: i + 1 }),
     }
   }
-  const days = trip.days.map((entry, i) => (i === at ? day : entry))
-  return { ...trip, days }
+  days = days.map((entry, i) => (i === at ? day : entry))
+  return { ...trip, days, fixedCommitments: commitments }
 }
 
 /**
@@ -210,15 +239,16 @@ export function verifyFixSet(
     const after = warningRefsWithDay(next, legCorrections)
     const beforeKeys = new Set(before.map(row => row.key))
     const introduced = after.filter(row => !beforeKeys.has(row.key)).map(row => row.ref)
-    const clearsTarget = !after.some(row =>
-      row.dayIndex === set.dayIndex
-      && row.ref.code === set.target.code
-      && (set.target.stopId === null || row.ref.stopId === set.target.stopId))
-    // W15's rule, one subject: a Stop is clear only when the change leaves no
-    // new warning on it. A fix that trades the target for a worse conflict on
-    // the same stop never earns a "Clears it" line.
+    const targetRows = (rows: DayRef[]) => rows.filter(row =>
+      row.ref.code === set.target.code
+      && (set.target.stopId == null || String(row.ref.stopId ?? '') === String(set.target.stopId))
+      && (set.target.stopId != null || row.dayIndex === set.dayIndex))
+    const clearsTarget = targetRows(after).length === 0
+    // W15's rule, one subject: a stop is clear only when it carries no
+    // warning after the change. A fix that trades the target for a worse
+    // conflict on the same stop never earns a "Clears it" line.
     const stopClear = set.target.stopId == null
-      || !introduced.some(ref => ref.stopId != null && String(ref.stopId) === String(set.target.stopId))
+      || !after.some(row => String(row.ref.stopId ?? '') === String(set.target.stopId))
     const beforeDay = trip.days.find(day => day.index === set.dayIndex)
     const afterDay = next.days.find(day => day.index === set.dayIndex)
     let deltaMin: number | null = null
@@ -258,6 +288,26 @@ export function fixCandidates(trip: Trip, dayIndex: number, target: FixTarget): 
   }
   const stopId = target.stopId
   const at = stopId == null ? -1 : day.stops.findIndex(stop => stop.id === stopId)
+  const commitment = stopId == null
+    ? null
+    : trip.fixedCommitments.find(entry => entry.dayIndex === dayIndex && String(entry.stopId ?? '') === String(stopId)) ?? null
+  // Move the booking to the next morning. The engine can prove the new day
+  // only when that day exists and has its own start clock; never invent one.
+  const nextDay = trip.days.find(entry => entry.index === dayIndex + 1)
+  if (commitment != null && stopId != null && nextDay != null && nextDay.startTime != null && /^\d{1,2}:\d{2}$/.test(nextDay.startTime)) {
+    const atMin = clockMin(nextDay.startTime)
+    if (atMin != null) {
+      const time = clockOf(Math.min(23 * 60 + 59, atMin + 30))
+      add('move-commitment-next-day', [{
+        kind: 'move-commitment',
+        commitmentId: String(commitment.id),
+        stopId,
+        fromDayIndex: dayIndex,
+        toDayIndex: nextDay.index,
+        time,
+      }])
+    }
+  }
   if (stopId != null && at >= 0) {
     // Move earlier: one set per earlier position. The engine can compute any of
     // them, so all are offered; the panel's own cap ranks them. The board's
@@ -367,6 +417,12 @@ export function fixSummary(
         const name = nameOf(change.stopId)
         titles.push(`Shorten ${name} to ${change.visitMin} min`)
         changes.push(`${name} stays ${change.visitMin} min`)
+        break
+      }
+      case 'move-commitment': {
+        const name = nameOf(change.stopId)
+        titles.push(`Move ${name} to Day ${change.toDayIndex + 1}, ${clock(clockMin(change.time) ?? 0)} sailing`)
+        changes.push(`${name} moves to Day ${change.toDayIndex + 1} at ${clock(clockMin(change.time) ?? 0)}`)
         break
       }
       case 'shift-start': {

@@ -203,6 +203,7 @@ export type FixChange =
   | { kind: 'swap'; stopId: string; withStopId: string }
   | { kind: 'remove'; stopId: string }
   | { kind: 'set-visit'; stopId: string; visitMin: number }
+  | { kind: 'move-commitment'; commitmentId: string; stopId: string; fromDayIndex: number; toDayIndex: number; time: string }
   | { kind: 'shift-start'; startMin: number }
 
 /** The warning a change set tries to clear. */
@@ -232,11 +233,11 @@ export type FixVerification =
     kind: 'verified'
     /** True when the target warning is gone in the result. */
     clearsTarget: boolean
-    /** True when the change leaves no NEW warning on the target's own stop.
+    /** True when the change leaves no warning on the target's own stop.
      *  A fix that trades the target for a worse conflict on that stop is not
      *  a clear (the same W15 subject rule the add preview uses). A target
      *  with no stop (a day-wide warning) is always stop-clear. */
-    stopClear: boolean
+    stopClear?: boolean
     /** Warnings that exist in the result and did not exist before. */
     introduced: readonly FixWarningRef[]
     /** Day total change in minutes. Negative is shorter. Null is unproven. */
@@ -267,6 +268,7 @@ export function fixIsOffered(set: FixChangeSet): boolean {
   const check = set.verification
   return check.kind === 'verified'
     && check.clearsTarget
+    && check.stopClear !== false
     && !check.introduced.some(warning => warning.severe)
 }
 

@@ -164,7 +164,7 @@ const BOARD_LINE = boardRoad.coordinates as LngLat[]
 /** The sample numbers of the board trip's Day 3 legs, keyed by the two road stops. */
 const BOARD_LEG_NUMBERS: Record<string, { distanceKm: number; durationMinutes: number }> = {
   'munnar>attukad': { distanceKm: 8, durationMinutes: 20 },
-  'attukad>spiceVillage': { distanceKm: 63, durationMinutes: 155 },
+  'attukad>spiceVillage': { distanceKm: 63, durationMinutes: 171 },
   'spiceVillage>jetty': { distanceKm: 2.6, durationMinutes: 4 },
 }
 
@@ -186,10 +186,10 @@ function boardStopKey(lat: number, lng: number): string | null {
   return null
 }
 
-// The recorded road's own average speed: the board's 63 km in 155 min. A leg
+// The recorded road's own average speed: the board's 63 km in 171 min. A leg
 // split by a stop on that road must keep the same speed, or the split reads
 // faster than the whole and pulls every later stop earlier.
-const BOARD_AVG_KMH = (63 / 155) * 60
+const BOARD_AVG_KMH = (63 / 171) * 60
 
 /**
  * One leg of the board road. Two points that stand on the recorded line get the

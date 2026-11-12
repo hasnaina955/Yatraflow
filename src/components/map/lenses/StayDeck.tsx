@@ -111,7 +111,8 @@ export interface StayDeckProps {
   ringId: RingId
   onRing(id: RingId): void
   onOpenPick(pick: StayPick): void
-  onAddPick(pick: StayPick): void
+  /** The writer receives the pick's own start inside the free window. */
+  onAddPick(pick: StayPick, startMin: number | null): void
   /** The Keep action. Absent hides the heart. */
   onShortlist?: (hit: PlaceHit) => void
   /** True draws the kept heart. */
@@ -229,7 +230,7 @@ export function StayDeck(props: StayDeckProps) {
               cells={stayCells(pick, clock)}
               addLabel={stayAddLabel(dayNumber, startOf(pick), clock)}
               onOpen={() => onOpenPick(pick)}
-              onAdd={() => onAddPick(pick)}
+              onAdd={() => onAddPick(pick, startOf(pick))}
               {...(onShortlist == null ? {} : {
                 onShortlist: () => onShortlist(hit),
                 shortlisted: shortlistedOf?.(hit) ?? false,

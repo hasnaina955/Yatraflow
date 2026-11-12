@@ -322,7 +322,7 @@ describe('decks draw the shared header', () => {
     const html = stayHtml()
     expect(html).toContain('Around the stay · free 17:00–21:00')
     expect(html).toContain('1 pick near Hotel Ashoka')
-    expect(html).toContain('Add to Day 2 · 17:00')
+    expect(html).toContain('Add to Day 2 · 17:08')
     expect(html).toContain('Walk')
     expect(html).not.toContain('aria-label="unknown"')
   })

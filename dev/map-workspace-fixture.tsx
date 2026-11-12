@@ -73,7 +73,7 @@ const board = (): Trip => ({
       stop('fixture-d2-museum', 'Tea museum', 'sightseeing', 10.0865, 77.0647, 1, 60),
       stop('fixture-d2-hotel', 'Check in · Tea Valley', 'hotel', at('munnar').lat, at('munnar').lng, 2, 30, 'Munnar'),
     ] },
-    { id: 'fixture-day-3', index: 2, startTime: '10:00', title: 'Munnar to Thekkady', stops: [
+    { id: 'fixture-day-3', index: 2, startTime: fixScenario ? '11:00' : '10:00', title: 'Munnar to Thekkady', stops: [
       stop('fixture-attukad', 'Attukad waterfalls', 'nature', at('attukad').lat, at('attukad').lng, 1, 30),
       // The fix scenario fills the meal break, so the boat is the one problem.
       ...(fixScenario ? [

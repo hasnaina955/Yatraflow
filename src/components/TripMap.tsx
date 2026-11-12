@@ -1041,6 +1041,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // camera pass parks the caption at the nearest edge of the clear map area. It is
   // computed here, never read from a ref during render.
   const [ringCaptionSpots, setRingCaptionSpots] = useState<Record<string, { lat: number; lng: number; edge: boolean }>>({})
+  const ringCaptionSpotsRef = useRef<Record<string, { lat: number; lng: number; edge: boolean }>>({})
   // A stop name tag follows the active day. The stay base keeps its tag on every day,
   // so the house mark always says where tonight's base is.
   const activeTagDay = dayFilter === 'all' ? selectedDay ?? null : dayFilter
@@ -1140,7 +1141,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const stayRingsKey = stayRingsDependencyKey(stayRings)
   const stayRingsRef = useRef(stayRings)
   // Effects run top to bottom, so the ref is current before the spread effect.
-  useEffect(() => { stayRingsRef.current = stayRings }) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { stayRingsRef.current = stayRings }, [stayRings])
   useEffect(() => {
     const map = mapRef.current
     if (!workspaceChrome || !map || !mapLoaded) return
@@ -1151,8 +1152,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const rings = stayRingsRef.current
     const spread = () => {
       try {
-        setMapZoom(map.getZoom())
-        setViewTick(tick => tick + 1)
+        // A ring caption reads the camera, but an unchanged camera and an
+        // unchanged mark layout need no new render. A tick on every moveend
+        // makes this effect feed itself when the camera settles.
+        const zoom = Math.round(map.getZoom() * 100) / 100
+        setMapZoom(prev => prev === zoom ? prev : zoom)
         const { size, insets } = measureFrame()
         const safe = safeRect(size, insets)
         const { spots: next } = layoutOnMap(map, safe)
@@ -1176,7 +1180,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             captions[ring.id] = { lat: foot[1], lng: foot[0], edge: false }
           }
         }
-        setRingCaptionSpots(prev => (JSON.stringify(prev) === JSON.stringify(captions) ? prev : captions))
+        const captionsChanged = JSON.stringify(ringCaptionSpotsRef.current) !== JSON.stringify(captions)
+        ringCaptionSpotsRef.current = captions
+        setRingCaptionSpots(captionsChanged ? captions : prevState => prevState)
+        if (captionsChanged) setViewTick(tick => tick + 1)
       } catch { /* the map was removed while measuring */ }
     }
     spread()

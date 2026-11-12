@@ -276,7 +276,7 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
   const problem = dayIndex == null ? null : fixProblemFor(trip, dayIndex, legCorrections)
   const fixes = problem == null || dayIndex == null
     ? []
-    : fixesForWarning(trip, dayIndex, problem.target, 3, legCorrections).map(set => ({
+    : fixesForWarning(trip, dayIndex, problem.target, Number.POSITIVE_INFINITY, legCorrections).map(set => ({
       set,
       summary: fixSummary(set, stopId => {
         const stop = trip.days.find(day => day.stops.some(entry => entry.id === stopId))

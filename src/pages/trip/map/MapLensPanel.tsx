@@ -37,7 +37,7 @@ export interface MapLensPanelProps {
   stayRing: RingId
   onStayRing: (id: RingId) => void
   onOpenStayPick: (pick: StayPick) => void
-  onAddStayPick: (pick: StayPick) => void
+  onAddStayPick: (pick: StayPick, startMin: number | null) => void
   onSetStay: () => void
   onOpenGapPick: (pick: GapPick) => void
   onAddGapPick: (pick: GapPick) => void

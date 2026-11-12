@@ -165,11 +165,11 @@ describe('DriveTabs', () => {
 })
 
 describe('FixDeck', () => {
-  it('shows at most three fixes, each with Apply and Preview on map', () => {
+  it('shows every fix the engine computes, each with Apply and Preview on map', () => {
     const fixes = [1, 2, 3, 4].map(n => ({ set: fixSet(`f${n}`), summary }))
     const markup = renderFix({ fixes })
-    expect(markup.match(/Apply<\/button>/g)).toHaveLength(3)
-    expect(markup.match(/Preview on map<\/button>/g)).toHaveLength(3)
+    expect(markup.match(/Apply<\/button>/g)).toHaveLength(4)
+    expect(markup.match(/Preview on map<\/button>/g)).toHaveLength(4)
     expect(markup).toContain('Go to the jetty first')
     expect(markup).toContain('Clears it · same day length')
   })

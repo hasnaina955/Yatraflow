@@ -68,6 +68,9 @@ export interface PlaceHit {
   /** reported opening hours "HH:MM" — Google hits only, rendered as "reported" */
   openTime?: string
   closeTime?: string
+  /** An explicit start inside a lens's free window, in minutes since local
+   *  midnight. Only a lens writer sets it; the stop it creates keeps the clock. */
+  plannedStartMin?: number
   /**
    * structured opening-hours facts (ticket 02): weekday-attributed intervals
    * (split + overnight), source basis and fetch date. The legacy open/closeTime

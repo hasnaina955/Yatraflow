@@ -1681,6 +1681,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     if (!editable || isAlreadyAdded(hit, identity)) return
     edit.startAdd(hit, dayIndex)
   }
+  function addStayHit(hit: PlaceHit, dayIndex: number, startMin: number | null) {
+    if (!editable || isAlreadyAdded(hit, identity)) return
+    if (startMin == null) {
+      toast('This pick has no start inside the free window. Nothing changed.')
+      return
+    }
+    const stamped: PlaceHit = { ...hit, plannedStartMin: startMin } as PlaceHit
+    edit.startAdd(stamped, dayIndex)
+  }
   function applyFixAgainst(baseTrip: Trip, set: FixChangeSet) {
     // Check the real plan first. A fix that does not pass its check never writes.
     const checked = verifyFixSet(baseTrip, set, legCorrections)
@@ -1689,16 +1698,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       return
     }
     const next = applyFixChangeSet(baseTrip, checked)
-    const day = next?.days.find(entry => entry.index === checked.dayIndex)
-    if (!day) {
+    if (!next) {
       toast('This fix could not apply to this trip. Nothing changed.')
       return
     }
     applyChange(draft => {
-      const target = draft.days.find(entry => entry.index === checked.dayIndex)
-      if (!target) return
-      target.stops = day.stops.map(stop => ({ ...stop }))
-      target.startTime = day.startTime
+      for (const changed of next.days) {
+        const target = draft.days.find(entry => entry.index === changed.index)
+        if (!target) continue
+        target.stops = changed.stops.map(stop => ({ ...stop }))
+        target.startTime = changed.startTime
+      }
+      draft.fixedCommitments = next.fixedCommitments.map(entry => ({ ...entry }))
     }, 'edit', checked.dayIndex)
     toast('Fix applied to this day.')
   }
@@ -2568,7 +2579,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               stayRing={stayRing}
               onStayRing={setStayRing}
               onOpenStayPick={pick => inspectHit(pick.row.row.hit)}
-              onAddStayPick={pick => addLensHit(pick.row.row.hit, activeDayIndex)}
+              onAddStayPick={(pick, startMin) => addStayHit(pick.row.row.hit, activeDayIndex, startMin)}
               onSetStay={() => { setSheetTab('needs'); setDetailId(null); setDeckOpen(true); setSnap('half') }}
               onOpenGapPick={pick => inspectHit(pick.candidate.hit)}
               onAddGapPick={pick => addLensHit(pick.candidate.hit, activeDayIndex)}

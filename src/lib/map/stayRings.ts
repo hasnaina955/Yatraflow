@@ -3,8 +3,8 @@
 // The map's layout effect writes state (the spread positions, the ring captions
 // and a view tick), so it must run only when a ring really changes. The rings
 // arrive as a fresh array on every render: the Map tab builds them inline, and
-// TripMap's own default is a new `[]`. Comparing the array by identity therefore
-// re-ran the effect after every commit, the effect set state, and the render
+// TripMap's own default is a new `[]`. The array identity changed on every
+// commit, so the effect ran again, set state, and left the render
 // never settled ("Maximum update depth exceeded" at TripMap). The key below
 // compares what the effect reads — each ring's id and its drawn shape — so a
 // fresh array with the same rings keeps the same key.
@@ -27,7 +27,7 @@ function pointKey(point: readonly [number, number]): string {
 
 /**
  * One string for the rings. An absent or empty list gives ''. Two arrays with
- * the same ids and outlines give the same string, however fresh the array is.
+ * the same ids and outlines give the same string, but the array can be fresh.
  */
 export function stayRingsDependencyKey(rings: readonly StayRingLike[] | null | undefined): string {
   if (rings == null || rings.length === 0) return ''

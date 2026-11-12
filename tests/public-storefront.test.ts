@@ -8,7 +8,7 @@ import { cap } from '../src/lib/labels'
 import {
   chooseCover, countKinds, describeKinds, flightSignalFor, foldWeeks, hasAirLeg, kindOfCategory, lockedRunLine,
   paceOf, planLede, roadMinutesOf, summariseDay, summariseDayFromLegs, truncatePitch,
-  type DaySummary,
+  type DaySummary, type KindCount,
 } from '../src/lib/publicStorefront'
 import { originOf, simulateDay } from '../src/lib/engine'
 import { lockedDayCounts, numberedSummary, readableDayStart, wireLockedSummary } from '../src/lib/lockedDay'
@@ -32,7 +32,7 @@ function secretStop(category: string, visitMinutes = 60): ItineraryStop {
   } as unknown as ItineraryStop
 }
 
-const KINDS = [
+const KINDS: KindCount[] = [
   { kind: 'nature', count: 4 },
   { kind: 'sight', count: 3 },
   { kind: 'temple', count: 2 },

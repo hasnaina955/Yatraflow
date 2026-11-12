@@ -58,7 +58,6 @@ describe('trip templates - the warm start', () => {
         travellers: t.prefill.travellers,
         mode: t.prefill.transportMode,
         orderedPoints: pts,
-        returnTrip: true,
         returnCount: 0,
         roundTrip: t.prefill.roundTrip,
         stayStyle: t.prefill.stayStyle,

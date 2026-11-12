@@ -45,12 +45,12 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     transportMode: 'car', budgetPerPersonInr: 5000, travelStyle: 'balanced',
     fixedCommitments: [],
     days: [{
-      id: dayId, index: 0, date: '2026-11-01', label: 'Day 1',
+      id: dayId, index: 0, title: 'Day 1',
       stops: [
         { id: 'st-start', title: 'Start', category: 'travel', locationName: 'Start', lat: 10.0, lng: 76.0,
-          visitMinutes: 0, orderInDay: 1, status: 'confirmed' },
+          visitMinutes: 0, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', orderInDay: 1, status: 'confirmed' },
         { id: 'st-stay', title: 'Stay', category: 'hotel', locationName: 'Stay', lat: 10.5, lng: 76.5,
-          visitMinutes: 0, orderInDay: 2, status: 'confirmed' },
+          visitMinutes: 0, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, priority: 'must-do', orderInDay: 2, status: 'confirmed' },
       ],
     }],
     expenses: [], members: [{ userId: owner, role: 'owner', joinedAt: 1 }],

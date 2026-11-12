@@ -288,7 +288,7 @@ function heroTrip(over: Partial<HeroTrip> & { startDate: string; endDate: string
 const goa = heroTrip({ id: 'goa', name: 'Goa break', destinations: ['Goa', 'Panjim'], startDate: '2026-10-20', endDate: '2026-10-23' })
 const kerala = heroTrip({ id: 'kerala', name: 'Backwaters', destinations: ['Kochi'], startDate: '2026-12-01', endDate: '2026-12-05' })
 const pastTrip = heroTrip({ id: 'past', name: 'Old loop', destinations: ['Jaipur'], startDate: '2026-01-02', endDate: '2026-01-05' })
-const draftTrip = heroTrip({ id: 'draft', name: 'Someday', destinations: ['Hampi'], startDate: '', endDate: '', days: [day(['Temple', 'planned']), day(), day()] })
+const draftTrip = heroTrip({ id: 'draft', name: 'Someday', destinations: ['Hampi'], startDate: '', endDate: '', days: [day(['Temple', 'suggested']), day(), day()] })
 
 describe('heroHeadline', () => {
   it('names the place the Up next card ends at, not the first destination', () => {
@@ -469,7 +469,7 @@ describe('heroPostcards', () => {
     }])
   })
   it.each([['Rishikesh', 'dest-rishikesh-v2'], ['Srinagar', 'dest-srinagar-v2']])('keeps %s destinations available for hero art', (place, id) => {
-    const trip = heroTrip({ id: 'art-trip', destinations: [place] })
+    const trip = heroTrip({ id: 'art-trip', destinations: [place], startDate: '2026-10-20', endDate: '2026-10-21' })
     const card = heroPostcards({ trips: [trip], today: TODAY, ready: true })[0]
     expect(card.destinations).toEqual([place])
     expect(coverFor({ region: card.region, seed: card.key, placeCount: card.placeCount, destinations: card.destinations }))

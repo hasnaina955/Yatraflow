@@ -12,6 +12,11 @@
 // passed to vitest, so the tests of a deleted module are not found. tsc still
 // reports a broken import from that module.
 //
+// With `--base <rev>` the changed files are only the commits from <rev> to HEAD.
+// Uncommitted and untracked files are left out. The pre-push hook passes this
+// flag. tsc still reads the whole working tree, so the hook also refuses a dirty
+// tree.
+//
 // It does not replace `npm run verify`, which must pass before any push.
 //
 // It runs node on the tool bins with argument arrays, never through a shell,
@@ -38,12 +43,20 @@ function nulSplit(text) {
   return text.split('\0').filter(Boolean)
 }
 
-function changedFiles(base) {
-  const diff = git(['diff', '--name-only', '-z', base])
-  const untracked = git(['ls-files', '--others', '--exclude-standard', '-z'])
+// Without committedOnly, `git diff <base>` reads the working tree, so it sees
+// uncommitted edits, and the untracked list adds new files.
+function changedFiles(base, { committedOnly = false } = {}) {
+  const diff = git(
+    committedOnly ? ['diff', '--name-only', '-z', base, 'HEAD'] : ['diff', '--name-only', '-z', base],
+  )
   if (!diff.ok) return { error: diff.err || `git diff against ${base} failed` }
-  if (!untracked.ok) return { error: untracked.err || 'git ls-files failed' }
-  const all = new Set([...nulSplit(diff.out), ...nulSplit(untracked.out)].map(p => p.replace(/\\/g, '/')))
+  const names = nulSplit(diff.out)
+  if (!committedOnly) {
+    const untracked = git(['ls-files', '--others', '--exclude-standard', '-z'])
+    if (!untracked.ok) return { error: untracked.err || 'git ls-files failed' }
+    names.push(...nulSplit(untracked.out))
+  }
+  const all = new Set(names.map(p => p.replace(/\\/g, '/')))
   return { files: [...all].sort() }
 }
 
@@ -56,7 +69,29 @@ function runNode(bin, args) {
   return r.status ?? 1
 }
 
-function main() {
+// Reads the one optional flag, --base <rev>. Anything else is an error.
+function parseArgs(argv) {
+  let base = null
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if (arg === '--base') {
+      base = argv[++i] ?? ''
+    } else if (arg.startsWith('--base=')) {
+      base = arg.slice('--base='.length)
+    } else {
+      return { error: `verify:fast: unknown argument "${arg}". Usage: verify:fast [--base <rev>]` }
+    }
+  }
+  if (base !== null && base.trim() === '') return { error: 'verify:fast: --base needs a revision' }
+  return { base }
+}
+
+function main(argv) {
+  const args = parseArgs(argv)
+  if (args.error) {
+    console.error(args.error)
+    return 2
+  }
   for (const bin of [TSC_BIN, VITEST_BIN]) {
     if (!existsSync(bin)) {
       console.error(`verify:fast: ${path.relative(ROOT, bin)} is missing. Install dependencies first.`)
@@ -64,16 +99,28 @@ function main() {
     }
   }
 
-  const mergeBase = git(['merge-base', 'HEAD', BASE_REF])
-  if (!mergeBase.ok) {
-    console.error(`verify:fast: no merge base with ${BASE_REF}. Run: git fetch origin`)
-    if (mergeBase.err) console.error(`  git said: ${mergeBase.err}`)
-    return 1
+  let base
+  let changed
+  if (args.base === null) {
+    const mergeBase = git(['merge-base', 'HEAD', BASE_REF])
+    if (!mergeBase.ok) {
+      console.error(`verify:fast: no merge base with ${BASE_REF}. Run: git fetch origin`)
+      if (mergeBase.err) console.error(`  git said: ${mergeBase.err}`)
+      return 1
+    }
+    base = mergeBase.out.trim()
+    console.log(`base: ${base.slice(0, 12)} (merge base of HEAD and ${BASE_REF})`)
+    changed = changedFiles(base)
+  } else {
+    const resolved = git(['rev-parse', '--verify', '--quiet', `${args.base}^{commit}`])
+    if (!resolved.ok) {
+      console.error(`verify:fast: --base ${args.base} is not a commit in this clone. Run: git fetch origin`)
+      return 1
+    }
+    base = resolved.out.trim()
+    console.log(`base: ${base.slice(0, 12)} (--base ${args.base}, committed changes only)`)
+    changed = changedFiles(base, { committedOnly: true })
   }
-  const base = mergeBase.out.trim()
-  console.log(`base: ${base.slice(0, 12)} (merge base of HEAD and ${BASE_REF})`)
-
-  const changed = changedFiles(base)
   if (changed.error) {
     console.error(`verify:fast: ${changed.error}`)
     return 1
@@ -116,4 +163,4 @@ function main() {
   return failed ? 1 : 0
 }
 
-process.exitCode = main()
+process.exitCode = main(process.argv.slice(2))

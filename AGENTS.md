@@ -89,7 +89,7 @@ A rule with no row here is a judgment call.
 | §2.5 UI-audit ticks | Review |
 | §2.6 done claims | `git status -sb` and `git log` on every resume |
 | §2.7 localhost URL | Judgment; probe commands in the rule |
-| §2.8 build and branch | Judgment (the user confirms) |
+| §2.8 build and branch | Judgment (the user confirms). Opt-in `.githooks/pre-push` runs `verify:fast` before each branch push |
 | §2.9 CHANGELOG edits | Review of the diff stat; `lint:ste` |
 | §2.10 motion | `tests/design-system.test.ts`; `npm run check:ui` (manual: not in `verify` or CI) |
 | §2.11 stays local | Judgment (the user says when to push) |

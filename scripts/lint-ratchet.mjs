@@ -12,6 +12,11 @@
 //   npm run lint:ratchet          check (fails if the count rose)
 //   npm run lint:ratchet -- --update   rewrite the baseline to current counts
 //
+// Test seams, read by tests/lint-ratchet.test.ts. A normal run sets none of them.
+//   LINT_RATCHET_REPORT=<file>       replay a saved `eslint -f json` report, no eslint run
+//   LINT_RATCHET_SAVE_REPORT=<file>  save the raw report that this run produced
+//   LINT_RATCHET_BASELINE=<file>     read or write this baseline, not eslint-baseline.json
+//
 // The baseline is per-rule AND per-file, so a new file with one error is still
 // caught even when the total falls elsewhere.
 
@@ -21,7 +26,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const BASELINE = path.join(ROOT, 'eslint-baseline.json')
+const BASELINE = process.env.LINT_RATCHET_BASELINE || path.join(ROOT, 'eslint-baseline.json')
 
 const update = process.argv.includes('--update')
 
@@ -63,21 +68,34 @@ function totals(counts) {
 }
 
 function main() {
-  // eslint exits 1 when it finds problems, and its JSON report is on stdout.
-  // `execFileSync` throws on that exit and (on Windows) hands back an empty
-  // stdout, so spawnSync is the reliable way to get the report either way.
-  // Resolve eslint's bin directly: going through `npx` with `shell: true` makes
-  // Node warn about unescaped args.
-  const run = spawnSync(process.execPath, [path.join(ROOT, 'node_modules', 'eslint', 'bin', 'eslint.js'), 'src', '-f', 'json'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
+  let raw = ''
+  let stderr = ''
+  if (process.env.LINT_RATCHET_REPORT) {
+    try {
+      raw = readFileSync(process.env.LINT_RATCHET_REPORT, 'utf8')
+    } catch (err) {
+      console.error(`cannot read LINT_RATCHET_REPORT: ${err.message}`)
+      return 2
+    }
+  } else {
+    // eslint exits 1 when it finds problems, and its JSON report is on stdout.
+    // `execFileSync` throws on that exit and (on Windows) hands back an empty
+    // stdout, so spawnSync is the reliable way to get the report either way.
+    // Resolve eslint's bin directly: going through `npx` with `shell: true` makes
+    // Node warn about unescaped args.
+    const run = spawnSync(process.execPath, [path.join(ROOT, 'node_modules', 'eslint', 'bin', 'eslint.js'), 'src', '-f', 'json'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    raw = run.stdout ?? ''
+    stderr = run.stderr ?? ''
+    if (process.env.LINT_RATCHET_SAVE_REPORT) writeFileSync(process.env.LINT_RATCHET_SAVE_REPORT, raw, 'utf8')
+  }
 
-  const raw = run.stdout ?? ''
   if (!raw.trim()) {
     console.error('eslint produced no report.')
-    if (run.stderr) console.error(run.stderr.trim())
+    if (stderr.trim()) console.error(stderr.trim())
     return 2
   }
 

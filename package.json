@@ -23,7 +23,9 @@
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "lint:ste": "node scripts/lint-ste.mjs",
     "verify": "tsc -b --clean && tsc -b && npm run lint:ratchet && npm run lint:ste && npm run check:css && npm test && vite build",
-    "verify:typecheck": "tsc -b --clean && tsc -b"
+    "verify:typecheck": "tsc -b --clean && tsc -b",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "verify:fast": "node scripts/verify-fast.mjs"
   },
   "allowScripts": {
     "esbuild": true
@@ -39,8 +41,6 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
-    "@fontsource/caveat": "^5.3.0",
-    "@fontsource/playfair-display": "^5.3.0",
     "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@fontsource/sora": "^5.3.0",
     "@supabase/supabase-js": "^2.112.4",

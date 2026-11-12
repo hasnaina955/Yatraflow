@@ -744,7 +744,7 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
   6am. **`lint:ste`'s 20-word sentence cap applies to `CHANGELOG.md` prose on
     changed lines, and it is the last gate to fail (learned 2026-10-12).** There
     is no markdown exemption in `EXCLUDED_PATH_PREFIXES` (only
-    `docs/consistency/`), and the diff run measures against the merge base — so
+    `docs/consistency/` and `docs/agents/AGENTS-FULL.md`), and the diff run measures against the merge base — so
     pre-existing long entries pass and your new ones do not. Write CHANGELOG
     bullets as short declarative sentences from the start (a subject, a verb, one
     fact), because rewriting a 60-word sentence into four after the fact is the
@@ -761,23 +761,26 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    this repo tags no release. You must run `git worktree list` before you
    delete a local branch.   `git branch -d` refuses an unmerged branch, so it
    must be the only delete verb you use.
- 6ak. **You must not poll with requestAnimationFrame when a timer can poll
+ 6bh. **You must not poll with requestAnimationFrame when a timer can poll
    (learned 2026-10-05, the featured deep link).** A browser that makes no
    rendering frames never runs a rAF callback. The preview browser did this
    while it read "visible". A rAF loop then does nothing. A smooth scroll
    never moves. You must poll with `setTimeout`. You must land a scroll after
    the layout settles, or the target drifts. You must check a scroll by class
    and probe, not by `scrollY`. Script-driven scroll needs frames too.
- 6al. **A class rename must move the class's whole selector family (learned
+ 6bi. **A class rename must move the class's whole selector family (learned
    2026-10-06, MR9).** The rename from `.day-rail-chip` to `.day-rail-card` left one
    selector behind. The `[aria-current]` rule stayed on the dead name, so the
    current-day marker silently died. The green pins hid it: a sibling rule on
-   the new name already passed. You must grep the old class through
-   `styles.css` before the rename lands. Each selector must take the new
+   the new name already passed. Both class names are retired now, but the lesson holds
+   for any rename. `src/styles.css` is only an import list, so the old class can sit
+   in any module under `src/styles/`. You must run `git grep -n '<old-class>' -- src/styles`
+   before the rename lands. Each selector must take the new
    name or die with the old one.
- 6am. **A CSS gate can fail on how a rule is ADDED, not on what it says
-   (learned 2026-10-06, #645).** Three gates read `styles.css`, and one edit
-   hit all three. `duplicateSelectors` counts TOP-LEVEL rules only, so a new
+ 6bj. **A CSS gate can fail on how a rule is ADDED, not on what it says
+   (learned 2026-10-06, #645).** Three gates read the whole CSS graph, and one edit
+   hit all three. `tests/design-system.test.ts` reads it through
+   `readCssSource('src/styles.css')`. That call joins `src/styles.css` and every module it imports. `duplicateSelectors` counts TOP-LEVEL rules only, so a new
    top-level rule that repeats an existing selector fails: extend the existing
    rule in place. `offLadderSpacing` reads every `NNpx` in a spacing property,
    and the numbers inside `calc()` count too — `padding-left: calc(96px + 14px)`
@@ -788,8 +791,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    declaration's own text, with the old `styles.css:<line>` prefix dropped; the
    test file's header records why that changed. Edit a rule where it sits. Add
    comment lines above it. A shift moves nothing. Only a change to what a rule
-   *declares* trips a gate. So append at EOF when that is where the change
-   belongs — not to protect the baseline.
+   *declares* trips a gate. So put a new rule in the module that owns its
+   selector family (see `docs/css-ownership.json`). Do not append it to
+   `src/styles.css`, which is an import list. Placement never protects the baseline.
    **A migrated legacy value fails the gate until you delete its entry (learned
    2026-10-06).** The change from `.route-panel`'s raw `.55s` to `var(--motion-slow)`
    made the gate report `.route-panel — animation: .55s` under "these no longer
@@ -808,7 +812,7 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    instead of re-declaring its properties, or carry the filter with the
    background.
 
- 6ah. **A fix-ready comment earns its title in stages — verified facts, root cause, patch,
+ 6bg. **A fix-ready comment earns its title in stages — verified facts, root cause, patch,
    delivery (learned 2026-10-05, the review-loop retro).** The day-planner wave (#117–#181)
    ran 53 of these, and every operator correction was a missing stage: a premise taken from
    the issue body without reading the code (#43 — the "lost itinerary" was a
@@ -857,15 +861,15 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    `git log --oneline origin/test..HEAD`: one commit is a feature branch, five commits you did not
    write is a stack. The fix is a fresh branch plus a cherry-pick, never a force-push.
 
-6ar. **A conflict at the end of `src/styles.css` breaks a brace at the seam (learned 2026-10-14).**
+6ar. **A conflict at the end of an owner CSS file breaks a brace at the seam (learned 2026-10-14).**
    Each page PR adds CSS to the owner file under `src/styles/` (see `docs/css-ownership.json`). The next page PR then conflicts with it.
    Merge one PR first. Then rebase the next PR once.
    When you resolve the conflict, keep both blocks.
    Then check the seam. The shared closing brace `}` belongs to the last block only.
    The first block loses its closing brace. The tests do not catch this. `vite build` does.
-   After you resolve it, run this check:
-   `node -e "require('postcss').parse(require('fs').readFileSync('src/styles.css','utf8'))"`
-   The file has mixed CRLF and LF line endings. Do not match `=======\r\n` as a literal. Use a regex with `\r?` instead.
+   After you resolve it, parse each file that had a conflict. `src/styles.css` is only an import list, so parse the owner file:
+   `node -e "require('postcss').parse(require('fs').readFileSync('src/styles/<module>.css','utf8'))"`
+   `.gitattributes` pins `src/styles/**` to LF, so a marker line ends in `\n`. A scripted resolver can still use `\r?` to be safe.
    Regenerate `tests/page-consistency-baseline.json` instead of merging it by hand. Run `UPDATE_PAGE_CONSISTENCY_BASELINE=1 npx vitest run tests/page-consistency.test.ts`.
 
 6as. **Do not name a helper function with a name that ends in `Page` (learned 2026-10-14).**
@@ -879,15 +883,6 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    The fallback root did not carry `page-enter`, so the block appeared between two frames with no entrance.
    Put `page-enter` on the root of any screen that appears after load, and that includes a Suspense fallback.
    Run `npm run check:motion` before you push a change that adds or moves a `StateBlock` outside a page root.
-
-6au. **An inline `style` beats a stylesheet rule, so the Board tab's compact header
-   margins have no effect (learned 2026-10-15).** `TripWorkspace.tsx` sets the trip
-   header's `h1`, `p` and `.member-stack` top margins inline. So
-   `.container--board .trip-head-card h1 { margin-top: 4px }` has been inert since it
-   landed: the inline `12px` wins. A phone rule that compacts those margins must carry
-   `!important`. The Board's `.member-stack { margin-top: 0 !important }` rule already
-   does, and it is the precedent to copy. Check `TripWorkspace.tsx` for an inline value
-   before you write a margin rule for that header.
 
  6av. **A structural cast over a vendor's type hides the real shape (learned 2026-10-18, #806).**
    The SDK types `presenceState()` as a map of session key to a LIST of records.
@@ -1375,7 +1370,7 @@ The editor primitives are the default; a script is the exception.
   half-written. Keep that property: assert every anchor exists and is unique,
   `throw` before any write, then verify by counting the token you inserted.
 
-  6aw. **Never normalize a whole free-form string to find the phone number in
+  6bk. **Never normalize a whole free-form string to find the phone number in
     it (learned 2026-10-24, the create branch review).** `parseCrewEntry` ran
     `normalizeIndianMobile` over the entire entry, which strips every non-digit
     and then tests for exactly ten. A name carrying a digit ("Team 2 98450

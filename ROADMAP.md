@@ -370,6 +370,10 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 - [x] **The Fix deck, Keep and the test fixture ship.** The Fix deck lists verified fixes with Apply and Preview on map. Keep uses the shared writer with one Undo. The fixture answers its own place scan. (#889)
 
+- [x] **The Map tab v2 send-back pairs ship.** The rail, header and Fix titles read as the boards do. The add preview shows the engine's own risk and fix. A fixed booking keeps its own clock. Every clock follows the 12 h or 24 h setting, and one engine schedule feeds every time. The map render loop is fixed. (#911)
+
+- [ ] **Map tab v2 acceptance for #911 stays open.** Browser, phone and signed-in checks against the six boards remain open. (#911)
+
 The implementation boundary and local fixture are recorded in [the Map workspace note](docs/redesign/map-v2/IMPLEMENTATION.md). Existing issue claims are unchanged.
 
 ## Suggestions repair sequence (#832)
@@ -1151,6 +1155,10 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-86 | Per-segment pace control | Timeline | 2 d | Let a planner slow one climb and see the new arrival time. Extends the travel-style caps in `src/lib/ridePlan.ts`. |
 | I-93 | Admin delete must not erase a published trip | security | 2–3 h | `admin_delete_trip` still removes a trip that backs a publication, and the orders and entitlements go with it. #807 closed the direct table DELETE only. Apply the same guard the owner delete now uses. Keep the refusal sentence honest. Pin it beside the owner delete tests. Deferred from #799 and #807. |
 | I-94 | Remove from plan with confirm and Undo | budget | 2–3 h | The optional list is read-only today. Add a reversible removal on an optional line. Keep the staged-change refusal. |
+| I-116 | Phone pick card head | map | 1–2 h | Add the icon tile, kicker and rating row to the phone pick card, as the phone board draws them. |
+| I-117 | Drive deck "Breaks" tab | map | 2–3 h | Add a Breaks tab to the Along the drive deck, with each stretch break and its kilometre. |
+| I-118 | "Leave HH:MM" start pin tag | map | 1 h | Show the start time a stop needs on its pin, for example "Leave 07:45". |
+| I-119 | Stay map pin cluster bubble | map | 2 h | Group nearby stay pins into one bubble with a count. A tap opens the group. |
 
 ### Tier 2 — blocked on a named dependency
 
@@ -1228,6 +1236,7 @@ I-108 and I-113 are complete. Shared status chips keep their colours. Settings c
 | I-91 | Dead-zone note | A coverage data source | Warn when a stretch has no mobile signal. Show the distance to the next coverage. Never guess. |
 | I-92 | Lead-navigator offer | The commercialisation stage | A creator offers a paid lead navigator for a convoy of several vehicles, with a contact button. The user planned this for the commercialisation stage. AGENTS.md §1 sets the product rule on bookings, so that rule must change first. Keep it separate from I-62. |
 | I-115 | Water and views place families | Confirmed visit timing for water and views | Ticket 09 scans nature, faith and culture only. Water and views join the family scan once their visit timing is confirmed. Source: Map V2 ticket 09, decided 2026-11-09. |
+| I-120 | Stay deck photo header | Photo decision for Map V2 | Add a photo header to the Stay deck, as the board draws it. The photo source stays open. |
 
 **Parked, not planned (2026-10-14).** Native satellite diagnostics need a custom plugin and add little. A convoy proximity radar needs consent, extra hardware and safety promises. Shared hazard reports need moderation and carry liability. Reopen one only with a named owner and a pilot. Voice notes need storage and licensing. Live traveller check-ins need consent and an expiry. Certification and rank badges need a real review process. Do not reuse this Stitch copy: "No account needed", "Free forever", or "reserved" for a stay. Do not reuse a hard-coded health score. Do not reuse a time zone other than IST.
 

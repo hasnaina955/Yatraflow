@@ -14,7 +14,7 @@ const { state, toast } = vi.hoisted(() => ({
     profileRows: {} as Record<string, unknown>,
     /** Rows an unfiltered select returns (the admin bulk read). */
     allProfileRows: [] as unknown[],
-    deferred: {} as Record<string, () => void>,
+    deferred: {} as Record<string, Promise<void> | undefined>,
     /** A held SDK signOut: the call BEGINS for the caller, and its completion
      *  only resolves when the test releases it. */
     signOutGate: null as null | Promise<void>,
@@ -122,7 +122,7 @@ vi.mock('../src/lib/supabase', () => {
                   : null
             const settle = () => Promise.resolve({ data, error: failed ? { message: 'PGRST202' } : null })
             const parked = new Map(Object.entries(state.deferred)).get(fn)
-            if (parked) { Reflect.set(state.deferred, fn, () => {}); return parked().then(settle).then(res) }
+            if (parked) { Reflect.set(state.deferred, fn, () => {}); return parked.then(settle).then(res) }
             return settle().then(res)
           },
         }
@@ -414,7 +414,7 @@ describe('the final catalogue is built after the read outcomes', () => {
     expect(users).toHaveLength(2)
     // Every row is private, and the emails are the ones the read returned.
     expect(users.every(u => u.kind === 'private')).toBe(true)
-    expect(users.map(u => u.email).sort()).toEqual(['a@example.invalid', 'b@example.invalid'])
+    expect(users.map(u => (u.kind === 'private' ? u.email : '')).sort()).toEqual(['a@example.invalid', 'b@example.invalid'])
   })
 
   it('a non-admin hydrate keeps the public catalogue plus its own private row', async () => {

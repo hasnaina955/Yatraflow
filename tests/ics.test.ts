@@ -67,7 +67,7 @@ describe('buildIcs', () => {
   it('a 23:30 commitment ends at 00:30 on the NEXT day, never before its start', () => {
     const trip = structuredClone(keralaTrip) as Trip
     trip.fixedCommitments = [
-      { id: 'fc-late', title: 'Late flight', type: 'flight', dayIndex: 0, time: '23:30' },
+      { id: 'fc-late', title: 'Late flight', type: 'flight-departure', dayIndex: 0, time: '23:30' },
     ]
     const ics = buildIcs(trip)
     const start = /DTSTART:(\d{8}T\d{6})/.exec(ics)
@@ -90,7 +90,7 @@ describe('buildIcs', () => {
     const trip = structuredClone(keralaTrip) as Trip
     trip.startDate = '2026-10-31'
     trip.fixedCommitments = [
-      { id: 'fc-year-end', title: 'New Year train', type: 'train', dayIndex: 0, time: '23:00' },
+      { id: 'fc-year-end', title: 'New Year train', type: 'train-departure', dayIndex: 0, time: '23:00' },
     ]
     const ics = buildIcs(trip)
     expect(ics).toContain('DTSTART:20261031T230000')

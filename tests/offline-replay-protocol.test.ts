@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedWrite, WriteQueueStore } from '../src/lib/writeQueue'
 import type { TripRow } from '../src/lib/tripRow'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 type Row = Record<string, unknown>
 type Operation = { table: string; method: string; actor: string | null; filters: Record<string, unknown>; payload?: Row }
+
+type Change = RealtimePostgresChangesPayload<Record<string, unknown>>
+/** A wire payload needs its envelope fields; the dispatcher reads only eventType, new and old. */
+const change = (payload: Omit<Change, 'schema' | 'table' | 'commit_timestamp' | 'errors'>): Change =>
+  ({ schema: 'public', table: 'trips', commit_timestamp: '2026-11-12T00:00:00.000Z', errors: [], ...payload })
 
 const { state } = vi.hoisted(() => ({ state: {
   actor: 'A' as string | null,
@@ -479,9 +485,9 @@ describe('#783 offline replay protocol', () => {
   it.each(['DELETE', 'tombstone'] as const)('a realtime %s keeps the copy with a reason and never resurrects the trip', async removal => {
     const store = await fresh(true)
     await capture(store)
-    store._applyRealtimeEventForTest('trips', removal === 'DELETE'
+    store._applyRealtimeEventForTest('trips', change(removal === 'DELETE'
       ? { eventType: 'DELETE', new: {}, old: { id: 'shared' } }
-      : { eventType: 'UPDATE', new: { ...state.rows.get('shared'), deleted_at: '2026-10-17T00:00:00Z' }, old: {} })
+      : { eventType: 'UPDATE', new: { ...state.rows.get('shared'), deleted_at: '2026-10-17T00:00:00Z' }, old: {} }))
     await flush()
     // The trip is gone from the list. The owner's copy stays with the reason.
     expect(store.getSnapshot().trips).toEqual([])
@@ -558,15 +564,15 @@ describe('#783 offline replay protocol', () => {
   it('starts a fresh trip fetch after revoke and grant without reviving the stale response', async () => {
     const store = await fresh(true)
     const own = { trip_id: 'shared', user_id: 'A', role: 'owner', joined_at: 1 }
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'DELETE', new: {}, old: own })
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'DELETE', new: {}, old: own }))
     const hold = gate()
     state.readGate = hold.promise
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'INSERT', new: own, old: {} })
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'INSERT', new: own, old: {} }))
     await flush()
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'DELETE', new: {}, old: own })
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'DELETE', new: {}, old: own }))
     Object.assign(state.rows.get('shared')!, { name: 'Fresh grant copy', write_version: 2 })
     state.readGate = null
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'INSERT', new: own, old: {} })
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'INSERT', new: own, old: {} }))
     await flush()
     try {
       expect(store.getSnapshot().trips[0]?.name).toBe('Fresh grant copy')
@@ -584,9 +590,9 @@ describe('#783 offline replay protocol', () => {
     const own = { trip_id: 'shared', user_id: 'A', role: 'owner', joined_at: 1 }
     const hold = gate()
     state.queueGate = hold.promise
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'DELETE', new: {}, old: own })
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'DELETE', new: {}, old: own }))
     await flush()
-    store._applyRealtimeEventForTest('trip_members', { eventType: 'INSERT', new: own, old: {} })
+    store._applyRealtimeEventForTest('trip_members', change({ eventType: 'INSERT', new: own, old: {} }))
     await flush()
     store.updateTrip('shared', { name: 'New access edit' })
     await store.tripWriteVerdict('shared')

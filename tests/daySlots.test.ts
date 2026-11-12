@@ -14,7 +14,7 @@ import {
 import { BREAKFAST_WINDOW, DINNER_WINDOW, LUNCH_WINDOW, type RideSegment, type SegmentHit } from '../src/lib/ridePlan'
 import { SLOT_KIND_CATEGORIES } from '../src/lib/haltFit'
 import type { PlaceHit } from '../src/lib/providers/hits'
-import type { ItineraryStop } from '../src/data/types'
+import type { ItineraryStop, TripDecision } from '../src/data/types'
 
 /** A minimal engine segment. eta = minutes since midnight; dayEnd marks the overnight. */
 function seg(purpose: RideSegment['purpose'], over: Partial<RideSegment> = {}): RideSegment {
@@ -515,7 +515,7 @@ describe('readiness (P1.5)', () => {
       sh(seg('overnight', { dayEnd: true }), null),
     ]
     const rows = tripReadiness(haltSegments, [{ index: 0, stops: [stop('s1', 'Lunch place', { openTime: '12:00', closeTime: '14:00' }), stop('s2', 'Night stay', { category: 'hotel' })] }, { index: 1, stops: [] }], {
-      dayStops: [], anchors: ANCHORS,
+      anchors: ANCHORS,
     })
     expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
     expect(rows[0]).toMatchObject({ filled: 2, total: 3, auto: 1 })
@@ -635,7 +635,7 @@ describe('single-blob corridor plans (P2 fix round)', () => {
     const haltSegments = [sh(seg('meal', { etaMinutes: 735 }), null), sh(seg('stretch'), null)]
     expect(daySlots(0, base({ haltSegments, dayStops: [] })).map(s => s.key)).toEqual(['lunch', 'stretch'])
     expect(daySlots(1, base({ haltSegments, dayStops: [] }))).toEqual([])
-    const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }], { dayStops: [], anchors: ANCHORS })
+    const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }], { anchors: ANCHORS })
     expect(rows.map(r => r.dayIndex)).toEqual([0])
   })
 })
@@ -653,7 +653,7 @@ describe('day attribution override (P2 fix round 2)', () => {
   })
   it('tripReadiness covers every attributed day', () => {
     const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }, { index: 1, stops: [] }], {
-      dayStops: [], anchors: ANCHORS, dayOfSegment: (s) => (s.segment.targetKm >= 400 ? 1 : 0),
+      anchors: ANCHORS, dayOfSegment: (s) => (s.segment.targetKm >= 400 ? 1 : 0),
     })
     expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
     expect(rows[1].total).toBe(2)
@@ -918,7 +918,7 @@ describe('the review fixes', () => {
   it('a stretch part claimed by a stop is filled, never also auto (m13)', () => {
     const deps = base({
       haltSegments: [sh(seg('stretch', { targetKm: 128, etaMinutes: 660 }), null)],
-      dayStops: [stop('s-fill', 'Coffee stop', { category: 'cafe', slotKey: 'stretch' })],
+      dayStops: [stop('s-fill', 'Coffee stop', { category: 'food', slotKey: 'stretch' })],
     })
     const stretch = daySlots(0, deps).find(s => s.key === 'stretch')!
     expect(stretch.state).toBe('filled')
@@ -963,7 +963,7 @@ describe('the review fixes', () => {
         { index: 0, stops: [] },
         { index: 1, stops: [stop('s2', 'Beach day', { category: 'sightseeing' })] },
       ],
-      { dayStops: [], anchors: ANCHORS, fillSkeleton: true },
+      { anchors: ANCHORS, fillSkeleton: true },
     )
     expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
     // Day 1 has no halts but does have a stop, so its skeleton gives it parts —

@@ -55,7 +55,7 @@ Browser checks must accept this floor instead of requiring an exact zero.
 The check once read only unstaged edits, so a commit made it inspect zero lines and always pass. If the checked count is zero, read the base named in the verdict before you trust the pass.
 
 Use `npm run verify` — it runs the full gate:
-`tsc -b --clean` → `tsc -b` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run check:css` → `npm test` → `vite build`.
+`tsc -b --clean` → `tsc -b` → `npm run typecheck:tests` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run check:css` → `npm test` → `vite build`.
 
 On a busy machine, set process-only `VITEST_MAX_WORKERS=1` before `npm run verify`.
 Vitest 4.1.12 resolves this value as `maxWorkers`.
@@ -616,6 +616,6 @@ that shape: the check names a file, a human runs it, the next run flips to `ok`
 Use these two commands for fast feedback while you work. They do not replace the gate.
 
 - `npm run verify:fast` runs `tsc -b` for `src/`. It then runs `vitest related --run` on the changed files. The changed files are the files that differ from the merge base with `origin/test`, plus uncommitted and untracked files. The command prints what it runs and what it skips.
-- `npm run typecheck:tests` runs `tsc -p tsconfig.tests.json`. It type-checks `src/` and `tests/`. It is not in `verify` yet, because the test files still have type errors.
+- `npm run typecheck:tests` runs `tsc -p tsconfig.tests.json`. It type-checks `src/` and `tests/`. It is a step of `verify`, so a type error in a test file fails the gate.
 
 `npm run verify` stays the gate before a push. Run it before every push, even after `verify:fast` passes.

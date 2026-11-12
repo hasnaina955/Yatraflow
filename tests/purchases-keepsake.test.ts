@@ -19,7 +19,7 @@ function pub(overrides: Partial<PublishedItinerary> = {}): PublishedItinerary {
   return {
     id: 'pub_a', tripId: 'trip_a', creatorId: 'creator_1', title: 'Spiti Valley Circuit',
     tagline: 'Cold desert, high passes', routeSummary: ['Shimla', 'Kaza'], durationDays: 6,
-    estimatedBudgetPerPersonInr: 24000, travelStyle: 'roadtrip', travelTips: ['Carry cash', 'Acclimatise'],
+    estimatedBudgetPerPersonInr: 24000, travelStyle: 'balanced', travelTips: ['Carry cash', 'Acclimatise'],
     warningsAndAssumptions: [], freeDayIndexes: [0], premiumPriceInr: 500, publishedAt: 1_700_000_000_000,
     views: 1, copies: 1, ...overrides,
   }

@@ -15,14 +15,24 @@ const FIXTURES = fileURLToPath(new URL('./fixtures/css-graph/', import.meta.url)
 const fixture = (path: string) => join(FIXTURES, path)
 const graphOf = (path: string) => loadCssGraph(fixture(path))
 
+/** One record the CSS graph keeps: a rule with its declarations and context. */
+type CssRecord = {
+  kind: string
+  selectorNormalized: string
+  params?: string
+  context: string[]
+  declarations: CssDeclaration[]
+}
+type CssDeclaration = { prop: string; value: string }
+
 const rulesOf = (graph: ReturnType<typeof loadCssGraph>, selector: string) =>
-  graph.records.filter((r) => r.kind === 'rule' && r.selectorNormalized === selector)
+  graph.records.filter((r: CssRecord) => r.kind === 'rule' && r.selectorNormalized === selector)
 
 /** Declaration-keyed identity: what the design-system ratchet actually keys on. */
 const identitiesOf = (graph: ReturnType<typeof loadCssGraph>) =>
   graph.records
-    .filter((r) => r.kind === 'rule')
-    .flatMap((r) => r.declarations.map((d) => `${r.selectorNormalized} :: ${d.prop}: ${d.value}`))
+    .filter((r: CssRecord) => r.kind === 'rule')
+    .flatMap((r: CssRecord) => r.declarations.map((d: CssDeclaration) => `${r.selectorNormalized} :: ${d.prop}: ${d.value}`))
     .sort()
 
 /** Whitespace- and import-insensitive cascade text, for equivalence proofs. */
@@ -120,7 +130,7 @@ describe('conditional context stays visible', () => {
   })
 
   it('records keyframes and their frames', () => {
-    const keyframes = graph.records.find((r) => r.kind === 'keyframes')
+    const keyframes = graph.records.find((r: CssRecord) => r.kind === 'keyframes')
     expect(keyframes?.params).toBe('fixture-pulse')
     expect(rulesOf(graph, '50%')[0].context).toEqual(['@keyframes fixture-pulse'])
   })
@@ -152,7 +162,7 @@ describe('a violation inside an imported module still fails the ui gate', () => 
     expect(located).toEqual({ file: 'tests/fixtures/css-graph/ordered/a.css', line: 2 })
     // The CLI path must name the module, not the flattened entry line.
     const sourced = withSources(check({ 'src/styles.css': bad.text }), bad)
-    expect(sourced.find((f) => f.rule === 'U1')!.source).toBe('tests/fixtures/css-graph/ordered/a.css:2')
+    expect(sourced.find((f: { rule: string }) => f.rule === 'U1')!.source).toBe('tests/fixtures/css-graph/ordered/a.css:2')
     expect(bad.sourceAt(stacking!.line)?.file).toBe('tests/fixtures/css-graph/ordered/nested/conditions.css')
 
     const clean = graphOf('relocate/inline.css')

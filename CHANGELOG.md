@@ -16,7 +16,7 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-**The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It still reports 562 errors, so `verify` does not run it yet. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.
+**The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It is now a step of `verify`. The 562 type errors in 113 test files are corrected, and no test changed what it checks. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.
 
 ### Added
 

@@ -16,6 +16,8 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+**The two enforcement tables in the full agent manual are now one table.** `docs/agents/AGENTS-FULL.md` named each rule's gate in two tables. The merged table has 24 rows and keeps every check from both. It now marks `npm run check:migrations` as manual, because neither `verify` nor CI runs it. Root `AGENTS.md` shows the same status on its §3 row. No code or test changed.
+
 **Unused styles and the unused day route chart are removed.** The cleanup removes the POI ruler, Board container, trip header card, and day chart styles. It also removes the unused DaySpark component, its test, and its baseline entries. The current app and both open design branches have no app importer for this component. The CSS cleanup removes 225 more unused classes after checks on all three branches. It keeps 102 audit candidates with source references, test checks, or shared CSS dependencies.
 
 **The lint ratchet test runs ESLint once, and two quick checks now sit beside the gate.** The ratchet test took about 129 s and ran ESLint three times. It now runs ESLint once and replays saved reports for its other cases. The file takes about 46 s. `npm run verify:fast` runs `tsc -b` and `vitest related` on the changed files. It does not replace `npm run verify`. `npm run typecheck:tests` type-checks the test files. It still reports 562 errors, so `verify` does not run it yet. The unused packages `@fontsource/caveat` and `@fontsource/playfair-display` are removed.

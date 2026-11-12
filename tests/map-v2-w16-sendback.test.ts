@@ -112,12 +112,14 @@ describe('stay picks rank the walk ring first', () => {
 // ---- A pick states its own hours ----
 
 describe('the hours a pick reports', () => {
-  it('reads "open till 21:00" in the reader clock, and hides an unknown close', () => {
-    const clock = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`
+  it('reads the close in the reader clock, and hides an unknown close', () => {
     expect(closeMinute({ closeTime: '21:00' })).toBe(1260)
-    expect(stayHoursText({ closeTime: '21:00' }, clock)).toBe('open till 21:00')
-    expect(stayHoursText({ closeTime: null }, clock)).toBeNull()
-    expect(stayHoursText({}, clock)).toBeNull()
+    expect(stayHoursText({ closeTime: '21:00' }, '12h')).toBe('open till 9:00 PM')
+    expect(stayHoursText({ closeTime: '21:00' }, '24h')).toBe('open till 21:00')
+    expect(stayHoursText({ closeTime: '19:30' }, '12h')).toBe('open till 7:30 PM')
+    expect(stayHoursText({ closeTime: '19:30' }, '24h')).toBe('open till 19:30')
+    expect(stayHoursText({ closeTime: null }, '12h')).toBeNull()
+    expect(stayHoursText({}, '24h')).toBeNull()
   })
 })
 

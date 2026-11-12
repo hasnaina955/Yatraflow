@@ -1587,7 +1587,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           active: window.id === activeStayWindowId,
           detail: text == null ? null : window.id === 'evening' ? `${text} nearby` : text,
           nextDayLabel: window.id === 'morning' ? `Day ${activeDayIndex + 2}` : null,
-          boxOnly: true,
+                    boxOnly: true,
         }
       }),
       ...gapRailWindows.filter(row => stayBaseArriveMin != null && row.startMin >= stayBaseArriveMin).filter(row => row.label !== 'Free evening').map(row => ({ ...row, active: false })),
@@ -1599,9 +1599,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       ? { startMin: freeEvening.startMin, endMin: freeEvening.endMin }
       : null
     : null
+  const stayTownSub = stayRailTitle(stayTown, false)
   const stayView: ItineraryStayView | null = stayBaseId == null ? null : {
     baseStopId: stayBaseId,
-    title: stayRailTitle(stayTown, stayEvening != null),
+    title: stayTownSub,
+    baseSub: stayTownSub,
     sub: stayRailSub({
       arriveText: stayBaseArriveMin == null ? null : lensClock(stayBaseArriveMin),
       commitmentTitle: stayCommitment?.title ?? null,
@@ -2036,7 +2038,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hideBudget={lens === 'stay'} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay'} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
@@ -2631,6 +2633,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               source={selectedRow ? selectedRow.source : selectedProjected ? null : undefined}
               freshness={selectedRow ? selectedRow.freshness : selectedProjected ? 'unknown' : undefined}
               actions={mapCardActions(selectedRow, selectedProjected)}
+              {...(editable && selectedRow?.stopId != null && selectedHit != null ? {
+                onSwap: () => edit.swapPickIntoStop(selectedRow.stopId!, selectedHit),
+              } : {})}
               arriveMin={selectedRow ? selectedRow.arriveMin : selectedProjected ? null : undefined}
               fetchedAt={selectedRow ? scanFetchedAt : undefined} coverage={selectedRow ? scanCoverage : undefined}
               added={isAlreadyAdded(selectedHit, identity)} editable={editable} busy={addingAny || !!previewOpen} shortlisted={isShortlisted(selectedHit)}

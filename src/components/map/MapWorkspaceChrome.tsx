@@ -98,9 +98,11 @@ export interface ItineraryStayView {
   baseStopId: string
   title: string | null
   sub: string | null
+  /** The base row's own sub line. The board names the town for tonight. */
+  baseSub: string | null
 }
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hideBudget }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hotelSub, hideBudget }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
@@ -127,6 +129,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   previewChip?: ItineraryPreviewChip | null
   /** The Stay lens. The list starts at the base and the header names the evening. */
   stayView?: ItineraryStayView | null
+  /** A hotel row's town and night. An absent value keeps the generic base copy. */
+  hotelSub?: string | null
   /** The Stay board has no budget block. Its rail shows the reach card instead. */
   hideBudget?: boolean
 }) {
@@ -255,7 +259,9 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         })
         const isBase = stayView != null && point.stop.id === stayView.baseStopId
         const subLine = isBase
-          ? 'Base for tonight'
+          ? stayView?.baseSub ?? 'Base for tonight'
+          : point.stop.category === 'hotel' && point.kind !== 'start' && hotelSub != null
+            ? hotelSub
           : locked
             ? 'Fixed time · tickets booked'
             : point.kind === 'start'

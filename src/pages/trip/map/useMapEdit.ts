@@ -17,7 +17,7 @@ import { editSessionReducer, IDLE_SESSION, type EditSession } from './editing/ed
 import { outcomeFromKeep, type EditOutcome } from './editing/outcomes'
 import { captureUndo, undoMutator, undoState } from './editing/undoPlan'
 import {
-  moveToDayRequest, proposeEdit, setVisitRequest, stepVisit, swapWithStopRequest,
+  moveToDayRequest, proposeEdit, setVisitRequest, stepVisit, swapWithPickRequest, swapWithStopRequest,
   type EditProposal, type RequestResult,
 } from './editing/stopEdit'
 import { announceReorder, reorderFromKey, reorderRequest } from './editing/reorder'
@@ -235,6 +235,13 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
     run(swapWithStopRequest(tripRef.current, stopId, other.id))
   }, [run])
 
+  /** Replace one planned stop with the open pick. The stop id is the page's
+   *  binding, so an unbound pick never reaches this handler. */
+  const swapPickIntoStop = useCallback((stopId: string, hit: PlaceHit) => {
+    if (!editable) return
+    run(swapWithPickRequest(tripRef.current, stopId, pickStopFor(hit, newStopId())))
+  }, [editable, run])
+
   const removeSelected = useCallback((stopId: string) => {
     const day = tripRef.current.days.find(d => d.stops.some(s => s.id === stopId))
     const stop = day?.stops.find(s => s.id === stopId)
@@ -265,7 +272,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
     session, unknown, visible, previewRoad, announcement, confirm, canUndo,
     undoLeft: undoStartedAt != null ? undoSecondsLeft(undoStartedAt, now) : 0,
     startAdd, addNow, keep, reject, undo,
-    stepStay, moveToDay, swapNeighbour, removeSelected, confirmFixed, cancelFixed, onReorderKey,
+    stepStay, moveToDay, swapNeighbour, swapPickIntoStop, removeSelected, confirmFixed, cancelFixed, onReorderKey,
   }
 }
 

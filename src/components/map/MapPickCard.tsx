@@ -3,7 +3,7 @@
 // preview, the actions and the source line. The page supplies every value. The
 // preview lines come from the existing add preview, never from a new formula.
 import { useState } from 'react'
-import { Check, Clock, Diamond, ExternalLink, Heart, Info, Plus, Route, Sparkle, Star, X } from 'lucide-react'
+import { ArrowLeftRight, Check, Clock, Diamond, ExternalLink, Heart, Info, Plus, Route, Sparkle, Star, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { PlaceHit } from '../../lib/geocode'
 import type { JourneyActions, JourneyFreshness } from '../../lib/journeyProjection'
@@ -31,7 +31,7 @@ function PreviewLineView({ line }: { line: PreviewLine }) {
   </>
 }
 
-export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, budgetText, source, freshness, actions, arriveMin, arriveText, kicker, preview, fixOffer, onAdd, onAddAndFix, onShortlist, onClose, onDirections }: {
+export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMin, reason, added, editable, busy, shortlisted, visitMin, budgetSharePct, budgetText, source, freshness, actions, arriveMin, arriveText, kicker, preview, fixOffer, onSwap, onAdd, onAddAndFix, onShortlist, onClose, onDirections }: {
   hit: PlaceHit; trip: Trip; dayIndex: number | null; detourMin: number | null; reason: string | null; added: boolean; editable: boolean; busy: boolean; shortlisted: boolean
   /** Projected visit length. Undefined = unprojected (existing fallback); null = unknown. */
   visitMin?: number | null
@@ -55,6 +55,8 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
   preview?: DetailPreviewView | null
   /** The secondary action, offered only when the engine has a fix for the risk the add brings. */
   fixOffer?: { label: string } | null
+  /** Swap the planned stop this pick replaces. Absent hides the pill. */
+  onSwap?: () => void
   /** When this row's data was fetched. Null or absent shows no age. */
   fetchedAt?: number | null
   /** What the search covered. Null or absent shows nothing. */
@@ -128,6 +130,7 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
       {editable && !added && fixOffer != null && onAddAndFix != null && <button type="button" className="mv2-place-secondary" disabled={busy || !canAdd} onClick={onAddAndFix}><Sparkle size={15} aria-hidden />{fixOffer.label}</button>}
       {editable && <div className="mv2-place-pills">
         <button type="button" className="mv2-place-pill" disabled={added || busy || !canShortlist} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={14} fill={shortlisted ? 'currentColor' : 'none'} aria-hidden />{shortlisted ? 'Shortlisted' : 'Shortlist'}</button>
+        {onSwap != null && <button type="button" className="mv2-place-pill" disabled={busy} onClick={onSwap}><ArrowLeftRight size={14} aria-hidden />Swap</button>}
         <button type="button" className="mv2-place-pill" disabled={!canNavigate} onClick={onDirections}><Route size={14} aria-hidden />Go</button>
       </div>}
       <button type="button" className="mv2-directions" disabled={!canNavigate} onClick={onDirections}><ExternalLink size={14} aria-hidden />View place in Google Maps</button>

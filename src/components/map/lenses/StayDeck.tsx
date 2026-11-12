@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { STAY_RINGS, type StayPick, type StayPicksResult, type StayWindow } from '../../../pages/trip/map/stayLens'
 import type { LensPhase } from '../../../lib/mapLensContracts'
 import type { PlaceHit } from '../../../lib/geocode'
+import { clockHM } from '../../../lib/clockOverlay'
+import { formatHM, useTimeFormat, type TimeFormat } from '../../../lib/timefmt'
 import { Car, Footprints } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { LensDeckHeader } from './LensDeckHeader'
@@ -132,19 +134,19 @@ export function closeMinute(hit: { closeTime?: string | null }): number | null {
   return hour * 60 + minute
 }
 
-/** "open till 21:00" in the reader's clock. An unknown close keeps it out. */
+/** "open till 9:00 PM" in the reader's clock. An unknown close keeps it out. */
 export function stayHoursText(
   hit: { closeTime?: string | null },
-  clock: (min: number) => string,
+  format: TimeFormat,
 ): string | null {
   const close = closeMinute(hit)
-  return close == null ? null : `open till ${clock(close)}`
+  return close == null ? null : `open till ${formatHM(clockHM(close), format)}`
 }
 
 /** One row of the list under the cards. */
-function AlsoRow({ pick, clock }: { pick: StayPick; clock: (min: number) => string }) {
+function AlsoRow({ pick, timeFormat }: { pick: StayPick; timeFormat: TimeFormat }) {
   const hit = pick.row.row.hit
-  const hours = stayHoursText(hit, clock)
+  const hours = stayHoursText(hit, timeFormat)
   const line = [pick.fitText ?? `${pick.reach.walkMin} min walk`, hours].filter(part => part != null && part !== '').join(' · ')
   return <div className="mv2-lens-also-row">
     {pick.letter != null && <span className="mv2-lens-also-letter">{pick.letter}</span>}
@@ -162,6 +164,7 @@ export function StayDeck(props: StayDeckProps) {
     onRing, onOpenPick, onAddPick, onShortlist, shortlistedOf, onSetStay, clock, onClose,
   } = props
   const [chosen, setChosen] = useState<string | null>(null)
+  const timeFormat = useTimeFormat()
   const readyPicks = result.kind === 'ready' ? stayPicksInRing(result.picks, ringId) : []
   const count = readyPicks.length
   const activeWindow = windows.find(window => window.id === activeWindowId) ?? null
@@ -207,7 +210,7 @@ export function StayDeck(props: StayDeckProps) {
         {readyPicks.slice(0, MAX_CARDS).map((pick, index) => {
           const hit = pick.row.row.hit
           const reason = pick.row.row.reason
-          const hours = stayHoursText(hit, clock)
+          const hours = stayHoursText(hit, timeFormat)
           const reasons = [
             ...(reason == null || reason.trim() === '' ? [] : [reason]),
             ...(pick.fitText == null ? [] : [pick.fitText]),
@@ -236,7 +239,7 @@ export function StayDeck(props: StayDeckProps) {
       </ul>
       {(rest.length > 0 || (alsoCount > 0 && hiddenByRing === 0)) && <div className="mv2-lens-also-block">
         <p className="mv2-section-label mv2-lens-also">Also in this window</p>
-        {rest.map(pick => <AlsoRow key={pick.row.row.hit.id} pick={pick} clock={clock} />)}
+        {rest.map(pick => <AlsoRow key={pick.row.row.hit.id} pick={pick} timeFormat={timeFormat} />)}
         {rest.length === 0 && <p className="mv2-lens-more">{alsoCount} more</p>}
       </div>}
     </>}

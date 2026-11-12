@@ -23,7 +23,7 @@
 //   `trips.cover_image_url` would have blocked every creator the moment the
 //   code went live — and silently, because the client's own degradation probe
 //   (`probeOptionalColumn`) is designed to hide exactly that failure. Run this
-//   before promoting a release; the CHANGELOG entry for a new migration is the
+//   before promoting a release; the change fragment for a new migration is the
 //   reminder to run it.
 //
 // Safety by construction:

@@ -102,7 +102,7 @@ The template names in the images are invented: Kerala Backwaters, Himachal loop,
 
 ## 7. Build order
 
-One commit per step. `npm run verify` before every commit. A CHANGELOG line with every user-visible commit.
+One commit per step. Run `npm run verify` before every commit. Include a change fragment with each change.
 
 | Step | Commit | Done when |
 | --- | --- | --- |

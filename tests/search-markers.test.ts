@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const mapTab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
+const omnibar = readFileSync(new URL('../src/pages/trip/MapOmnibar.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const tripMap = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
 
 describe('in-map search-result markers (wiring)', () => {
@@ -18,10 +19,11 @@ describe('in-map search-result markers (wiring)', () => {
     expect(mapTab).toMatch(/searchHitIds=\{searchHitIds\}/)
   })
 
-  it('MapTab clears searchResults when the search bar is edited (markers vanish with it)', () => {
+  it('MapTab clears omnibar results when its single search is edited', () => {
     // The clearing already existed for #164 (stale rows); the map markers ride
     // the same state, so this single clear is what empties the pins.
-    expect(mapTab).toMatch(/if \(searchResults\.length > 0\) \{ setSearchResults\(\[\]\); setShowAllResults\(false\) \}/)
+    expect(mapTab).toMatch(/setOmniResults\(\[\]\)/)
+    expect(mapTab).toMatch(/setOmniPicked\(null\)/)
   })
 
   it('TripMap renders search hits as a distinct selectable pin class', () => {
@@ -32,7 +34,7 @@ describe('in-map search-result markers (wiring)', () => {
   })
 
   it('the search-result row carries data-hit-id so a pin tap scrolls it into view', () => {
-    expect(mapTab).toMatch(/data-hit-id=\{h\.id as string\}/)
+    expect(omnibar).toMatch(/data-hit-id=\{r\.h\.id\}/)
     // and the scroll effect looks in BOTH lists (rail + search results)
     expect(mapTab).toMatch(/searchListRef\.current\?\.querySelector/)
   })

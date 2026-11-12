@@ -16,14 +16,71 @@ import {
   effectiveDrivingDays, drivingPlanFingerprint,
   type DrivingPlan, type NearbyOpts, type PlaceHit, type SegmentHit,
 } from '../../../lib/geocode'
-import { anchorHash } from '../../../lib/providers/hits'
+import { anchorHash, corridorAnchors, hasCoords, type HaltPurpose, type DiscoveryCoverage } from '../../../lib/providers/hits'
+import { leftoverAsSight } from '../../../lib/ridePlan'
 import { QuotaExhaustedError, googleEnabled } from '../../../lib/providers/google'
+import type { PlaceFamily } from '../../../lib/providers/families'
 import { planInputsHash, isMapCacheFresh, useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { loadHaltPinsForTrip } from '../../../lib/uiPrefs'
 import { buildDnaVectorAcrossTrips, loadDnaLog, crewSeedEvents, type CrewSeed } from '../../../lib/tripDna'
 import type { MapRoadView } from '../../../lib/tripRoad'
+import { retainCorridorRowsOnFailure } from './corridorSnapshot'
+
+/**
+ * Map V2 ticket 09 AC5: the trip/route-scoped scan asks three place families
+ * — one query per family per scan. Water and views stay out until their
+ * timing facts are confirmed. Day scans use the same family limit.
+ */
+const CORRIDOR_FAMILIES: readonly PlaceFamily[] = ['nature', 'faith', 'culture']
+
+export interface DayDiscoveryInput {
+  dayIndex: number
+  /** Only the selected day's road. Null means no measured day road. */
+  routeGeometry: MapRoadView['geometry']
+  stayBase: { lat: number; lng: number } | null
+  purposes: HaltPurpose[]
+  categoryBias?: Record<string, number>
+  scopeMinutes?: 15 | 30 | 45 | 60
+}
+
+/** Builds search and ranking inputs from the same saved day. Titles do not affect discovery. */
+export function dayDiscoveryContext(input: Omit<DayDiscoveryInput, 'dayIndex'> & {
+  day: { id: string; index: number; title?: string; stops: { lat: number; lng: number; name?: string; category?: string }[] } | undefined
+}) {
+  const valid = (p: { lat: number; lng: number }) => hasCoords({ latitude: p.lat, longitude: p.lng, id: '', name: '', kind: 'poi' })
+  const stops = (input.day?.stops ?? []).filter(valid).map(({ lat, lng, name, category }) => ({ lat, lng, name, category }))
+  const road = input.day ? input.routeGeometry?.filter(([lng, lat]) => valid({ lat, lng })) ?? null : null
+  const routeGeometry = road && road.length >= 2 ? road : null
+  const stayBase = input.day && input.stayBase && valid(input.stayBase) ? input.stayBase : null
+  const anchors = [...stops.map(({ lat, lng }) => ({ lat, lng })), ...(stayBase ? [stayBase] : [])]
+  if (anchors.length === 0 && routeGeometry) anchors.push(...routeGeometry.map(([lng, lat]) => ({ lat, lng })))
+  const scopeMinutes = input.scopeMinutes ?? 30
+  const purposes = [...new Set(input.purposes)].sort()
+  return {
+    kind: anchors.length > 0 ? 'ready' as const : 'needs-anchor' as const,
+    anchors, routeGeometry, purposes, scopeMinutes,
+    plannedStops: stops,
+    key: JSON.stringify(['day-discovery', input.day?.id ?? null, input.day?.index ?? null, stops, routeGeometry, stayBase, purposes, scopeMinutes, input.categoryBias ?? null]),
+  }
+}
+
+/**
+ * The day's lodging as a search base: the last hotel stop with coordinates on
+ * that day, else on the day before. Null when the trip holds none. No base
+ * is invented from the start location.
+ */
+export function dayStayBase(trip: Pick<Trip, 'days'>, dayIndex: number): { lat: number; lng: number } | null {
+  const days = [...trip.days].sort((a, b) => b.index - a.index).filter(day => day.index <= dayIndex)
+  for (const day of days.slice(0, 2)) {
+    const hotel = [...day.stops].reverse().find(stop => stop.category === 'hotel' && stop.status !== 'rejected'
+      && hasCoords({ latitude: stop.lat, longitude: stop.lng, id: '', name: '', kind: 'poi' }))
+    if (hotel) return { lat: hotel.lat, lng: hotel.lng }
+  }
+  return null
+}
 
 export type CorridorCacheArgs = {
+  discoveryDay?: DayDiscoveryInput
   trip: Trip
   anchors: { lat: number; lng: number }[]
   routeGeometry: MapRoadView['geometry']
@@ -45,11 +102,30 @@ export type CorridorCacheArgs = {
 }
 
 export function useCorridorCache({
-  trip, anchors, routeGeometry, scopeKm, dayRainPct, dayWeatherCode, crewSeeds,
-  dnaTick, onInputsHash, pois, setPois, nearbyOpts, planKm, wholeTripMin,
-  drivingPlan, refreshTick, suggestionCache,
+  trip, anchors: tripAnchors, routeGeometry: tripRouteGeometry, scopeKm, dayRainPct, dayWeatherCode, crewSeeds,
+  dnaTick, onInputsHash, pois, setPois, nearbyOpts: rawNearbyOpts, planKm, wholeTripMin,
+  drivingPlan, refreshTick, suggestionCache, discoveryDay,
 }: CorridorCacheArgs) {
+  const dayContext = discoveryDay ? dayDiscoveryContext({
+    ...discoveryDay, day: trip.days.find(day => day.index === discoveryDay.dayIndex),
+  }) : null
+  const dayKey = dayContext?.key ?? null
+  const anchorsKey = dayKey ?? anchorHash(tripAnchors)
+  const anchors = useMemo(() => dayContext?.anchors ?? tripAnchors, [anchorsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const optionsKey = JSON.stringify(rawNearbyOpts)
+  const nearbyOpts = useMemo(() => rawNearbyOpts, [optionsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const routeGeometry = dayContext?.routeGeometry ?? (dayContext ? null : tripRouteGeometry)
+  const scanOpts = {
+    ...nearbyOpts,
+    ...(dayContext ? { routeCoords: routeGeometry, homeCenter: null, plannedStops: dayContext.plannedStops, purposes: dayContext.purposes, categoryBias: discoveryDay?.categoryBias } : {}),
+  }
   const [loadingPois, setLoadingPois] = useState(false)
+  /** Which branch produced the current corridor rows: cache, scan, retained or none. */
+  const [corridorSource, setCorridorSource] = useState<'cache' | 'scan' | 'none' | 'retained'>('none')
+  /** The query the CURRENT rows came from. Never relabelled by a newer query. */
+  const [poisMeta, setPoisMeta] = useState<{ hash: string; scopeKm: number; fetchedAt: number | null; coverage: DiscoveryCoverage | null; rows: SegmentHit[]; dayIndex: number | null } | null>(null)
+  const poisMetaRef = useRef<typeof poisMeta>(null)
+  const lastRefreshRef = useRef(refreshTick)
 
   // #331: one hash is shared by the main plan and the light fraction fallback.
   // Missing fields stay optional for older callers/tests; the Map tab passes all
@@ -78,17 +154,21 @@ export function useCorridorCache({
     fuelPricePerL: trip.fuelPricePerL,
     roundTrip: trip.roundTrip,
     vehicleProfile: trip.vehicleProfile,
-    planFingerprint: drivingPlanFingerprint(drivingPlan),
+    planFingerprint: dayContext ? dayKey ?? undefined : `${drivingPlanFingerprint(drivingPlan)}|${planKm}|${wholeTripMin}`,
+    // Ticket 09 AC5: the family set is part of the scan the cache answers,
+    // so a changed set must never serve the previous set's rows.
+    families: CORRIDOR_FAMILIES,
     // #842 F18: the scan reads these ranking inputs — hash them, or a
     // category-only edit re-runs the scan but the fresh-cache check still
     // serves the old ranked pool.
-    purposes: nearbyOpts.purposes,
-    categoryBias: nearbyOpts.categoryBias,
-    plannedStops: nearbyOpts.plannedStops,
+    purposes: scanOpts.purposes,
+    categoryBias: scanOpts.categoryBias,
+    plannedStops: scanOpts.plannedStops,
     providerMode: googleEnabled() ? 'google' : 'free',
+    discoveryContext: JSON.stringify([trip.id, dayKey]),
     // dnaTick re-reads the DNA log after each accept or decline.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [anchors, routeGeometry, trip, scopeKm, dayRainPct, dayWeatherCode, crewSeeds, dnaTick, drivingPlan, nearbyOpts])
+  }), [anchors, routeGeometry, trip, scopeKm, dayRainPct, dayWeatherCode, crewSeeds, dnaTick, drivingPlan, nearbyOpts, dayKey])
 
   // #404: the Overview's slot matrix gates on the SAME freshness this tab's cache
   // was written with — `isMapCacheFresh(cache.map, scopeKm, mapInputsHash)` — and
@@ -113,12 +193,14 @@ export function useCorridorCache({
   // one light corridor fetch feeds the ¼/½/¾ rows.
   const [fractionPois, setFractionPois] = useState<PlaceHit[] | null>(null)
   const [corridorQuotaOut, setCorridorQuotaOut] = useState(false)
+  /** Main-scan quota only. The fraction fallback has its own note. */
+  const [scanQuotaOut, setScanQuotaOut] = useState(false)
   // #704: a failed search is not an empty one. The Map tab shows a note for it.
   const [scanFailed, setScanFailed] = useState(false)
   const [fractionFailed, setFractionFailed] = useState(false)
   const corridorAbort = useRef<AbortController | null>(null)
   useEffect(() => {
-    if (loadingPois || pois.length > 0 || anchors.length < 2) { setFractionPois(null); setFractionFailed(false); return } // eslint-disable-line react-hooks/set-state-in-effect -- the guard clears stale fallback rows before the fetch below runs
+    if (dayKey || loadingPois || pois.length > 0 || anchors.length < 2) { setFractionPois(null); setFractionFailed(false); return } // eslint-disable-line react-hooks/set-state-in-effect -- the guard clears stale fallback rows before the fetch below runs
     const cached = suggestionCache.cache.fraction
     if (cached && isMapCacheFresh(cached, scopeKm, mapInputsHash)) {
       setFractionPois(cached.hits)
@@ -141,10 +223,27 @@ export function useCorridorCache({
         else if (!controller.signal.aborted) { setFractionFailed(true); setFractionPois([]) }
       })
     return () => { cancelled = true; controller.abort() }
-  }, [loadingPois, pois, anchors, nearbyOpts, scopeKm, refreshTick, mapInputsHash, suggestionCache])
+  }, [loadingPois, pois, anchors, nearbyOpts, scopeKm, refreshTick, mapInputsHash, suggestionCache, dayKey])
 
   useEffect(() => {
-    if (anchors.length === 0) { setScanFailed(false); return } // eslint-disable-line react-hooks/set-state-in-effect -- the guard clears a stale failure note, since no stops means no scan
+    if (anchors.length === 0) {
+      // No route means no current corridor. Clear the rows and their query after
+      // the render commits so an old snapshot cannot survive as if it belonged
+      // to this trip state.
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled) return
+        setScanFailed(false)
+        setScanQuotaOut(false)
+        setCorridorQuotaOut(false)
+        setCorridorSource('none')
+        setPois([])
+        poisMetaRef.current = null
+        setPoisMeta(null)
+        setLoadingPois(false)
+      })
+      return () => { cancelled = true }
+    }
     const cached = suggestionCache.cache.map
     // #331: the shared hash covers route shape, weather/time cadence, pinned
     // halts, DNA preferences, speed, crew/fuel/budget and scope. Cache hits
@@ -155,26 +254,66 @@ export function useCorridorCache({
     // the degraded-scan path so a starved pre-geometry plan is replaced by the
     // real road corridor; only ↻ Refresh, a scope change, new anchors, or an
     // empty cache starts another paid scan.
-    if (cached && isMapCacheFresh(cached, scopeKm, inputsHash)) {
-      setCorridorQuotaOut(false); setScanFailed(false) // a fresh cache answers at once: publish it instead of starting a paid scan
-      setPois(cached.segments)
-      return
+    if (cached && isMapCacheFresh(cached, scopeKm, inputsHash) && refreshTick === lastRefreshRef.current) {
+      // A fresh cache answers at once: publish it instead of starting a paid
+      // scan. Deferred one microtask so the effect commits no state inline.
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled) return
+        setCorridorQuotaOut(false); setScanQuotaOut(false); setScanFailed(false)
+        setCorridorSource('cache')
+        setPois(cached.segments)
+        poisMetaRef.current = { hash: inputsHash, scopeKm, fetchedAt: cached.fetchedAt ?? null, coverage: cached.coverage ?? null, rows: cached.segments, dayIndex: discoveryDay?.dayIndex ?? null }
+        setPoisMeta(poisMetaRef.current)
+      })
+      return () => { cancelled = true }
     }
     let cancelled = false
     const controller = new AbortController()
-    setLoadingPois(true)
+    lastRefreshRef.current = refreshTick
+    let coverage: DiscoveryCoverage | null = null
+    const failurePolicy = { rejectOnFailure: true }
+    queueMicrotask(() => {
+      if (cancelled) return
+      setLoadingPois(true)
+      setScanFailed(false)
+      setScanQuotaOut(false)
+      setCorridorSource('scan')
+      if (poisMetaRef.current?.hash !== inputsHash) {
+        setPois([])
+        poisMetaRef.current = null
+        setPoisMeta(null)
+      }
+    })
     // Day Planner arming (P1-B/#121): the ROUTE arms the split — the clock
     // walk when it speaks ('ok' → its day count), the drive-day split when the
     // clock defers, tonight's hop otherwise. NEVER the planned day count: a
     // 700 km 1-day plan still needs its night halt; a 3-day 200 km trip none.
-    planJourneyHalts(anchors, planKm, wholeTripMin, {
-      ...nearbyOpts, plan: drivingPlan, signal: controller.signal, rejectOnFailure: true,
+    const scan = dayContext
+      ? searchNearbyPoisMulti(
+          corridorAnchors(routeGeometry?.map(([lng, lat]) => ({ lat, lng })) ?? anchors, null, scopeKm * 1000),
+          scopeKm * 1000, 16,
+          { ...scanOpts, ...failurePolicy, signal: controller.signal, families: CORRIDOR_FAMILIES, onCoverage: value => { coverage = value } },
+        ).then(hits => leftoverAsSight(hits, [], anchors, { routePolyline: routeGeometry?.map(([lng, lat]) => ({ lat, lng })) }))
+      : planJourneyHalts(anchors, planKm, wholeTripMin, {
+      ...nearbyOpts, plan: drivingPlan, signal: controller.signal,
+      ...failurePolicy,
+      families: CORRIDOR_FAMILIES,
+      // Runtime hours (repair of #887): the corridor scores each halt against
+      // its own trip day date. The trip's own start date, never today's date.
+      tripStartDate: trip.startDate,
+      onCoverage: value => { coverage = value },
     }, scopeKm * 1000)
+    scan
       .then(plan => {
-        if (!cancelled) {
+        if (!cancelled && !controller.signal.aborted) {
           setCorridorQuotaOut(false)
+          setScanQuotaOut(false)
           setScanFailed(false)
           setPois(plan)
+          const fetchedAt = dayContext || coverage ? Date.now() : null
+          poisMetaRef.current = { hash: inputsHash, scopeKm, fetchedAt, coverage, rows: plan, dayIndex: discoveryDay?.dayIndex ?? null }
+          setPoisMeta(poisMetaRef.current)
           // Never cache an empty plan: the first search can run before the
           // route resolves, and a persisted [] would stick until Refresh.
           // #185: also never cache a DEGRADED plan — when the road hasn't
@@ -184,15 +323,34 @@ export function useCorridorCache({
           // (nearbyOpts depends on it), and the fresh plan then caches.
           const degradedScan = routeGeometry == null && anchors.length >= 2
           if (plan.length > 0 && !degradedScan) {
-            suggestionCache.setMapCache(plan, inputsHash, scopeKm, effectiveDrivingDays(drivingPlan, plan))
+            const setMapCache = (rows: SegmentHit[], hash: string, scope: number, days?: ReturnType<typeof effectiveDrivingDays>) => {
+              suggestionCache.setMapCache(rows, hash, scope, days, { fetchedAt, coverage })
+            }
+            if (dayContext) setMapCache(plan, inputsHash, scopeKm)
+            else setMapCache(plan, inputsHash, scopeKm, effectiveDrivingDays(drivingPlan, plan))
           }
         }
       })
       .catch((err: unknown) => {
         if (cancelled || controller.signal.aborted) return
-        if (err instanceof QuotaExhaustedError) { setCorridorQuotaOut(true); setPois([]) }
+        // Approved decision #3: retain valid rows for the SAME query. A changed
+        // route/scope is never relabelled as current.
+        const retain = retainCorridorRowsOnFailure({
+          hasRows: (poisMetaRef.current?.rows.length ?? 0) > 0,
+          meta: poisMetaRef.current,
+          inputsHash,
+          scopeKm,
+        })
+        if (retain) setCorridorSource('retained')
+        else {
+          setPois([])
+          poisMetaRef.current = null
+          setPoisMeta(null)
+          setCorridorSource('scan')
+        }
+        if (err instanceof QuotaExhaustedError) { setCorridorQuotaOut(true); setScanQuotaOut(true) }
         // #704: a failed scan is not an empty one, so the Map tab shows a note for it.
-        else { setScanFailed(true); setPois([]) }
+        else { setScanQuotaOut(false); setScanFailed(true) }
       })
       .finally(() => { if (!cancelled) setLoadingPois(false) })
     return () => {
@@ -207,7 +365,33 @@ export function useCorridorCache({
     }
     // The cache identity and raw geometry stay out; nearbyOpts covers geometry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anchors, nearbyOpts, scopeKm, mapInputsHash, planKm, wholeTripMin, drivingPlan, refreshTick])
+  }, [anchors, nearbyOpts, mapInputsHash, refreshTick])
 
-  return { mapInputsHash, fractionPois, corridorQuotaOut, loadingPois, poisFailed: scanFailed || fractionFailed }
+  return {
+    mapInputsHash,
+    fractionPois,
+    corridorQuotaOut,
+    loadingPois,
+    // The page note keeps the old "any search failed" meaning; the snapshot
+    // status uses `scanFailed` only (P7).
+    poisFailed: scanFailed || fractionFailed,
+    scanFailed,
+    scanQuotaOut,
+    corridorSource,
+    poisInputsHash: poisMeta?.hash ?? null,
+    poisScopeKm: poisMeta?.scopeKm ?? null,
+    fetchedAt: poisMeta?.hash === mapInputsHash ? poisMeta.fetchedAt : null,
+    coverage: poisMeta?.hash === mapInputsHash ? poisMeta.coverage : null,
+    // The day the CURRENT rows were scanned for. A day change keeps the old
+    // rows labelled with their own day until the new scan replaces them.
+    discoveryDayIndex: poisMeta ? poisMeta.dayIndex : discoveryDay?.dayIndex ?? null,
+    discoveryRows: poisMeta?.hash === mapInputsHash ? poisMeta.rows : [],
+    discoveryStatus: anchors.length === 0 ? 'needs-anchor' as const
+      : loadingPois ? 'loading' as const
+      : corridorSource === 'retained' ? 'retained' as const
+      : scanQuotaOut ? 'quota' as const
+      : scanFailed ? 'failed' as const
+      : poisMeta?.hash !== mapInputsHash ? 'unscanned' as const
+      : poisMeta.rows.length === 0 ? 'empty' as const : 'ready' as const,
+  }
 }

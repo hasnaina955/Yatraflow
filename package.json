@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:changed": "node scripts/test-changed.mjs",
     "test:integration": "node scripts/integration/integrationHarness.mjs",
     "check:migrations": "node scripts/checkMigrations.mjs",
     "clean:env": "node scripts/clean-env.mjs",

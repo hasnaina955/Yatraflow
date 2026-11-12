@@ -24,9 +24,8 @@ export const NEED_PURPOSES = new Set(['fuel', 'meal', 'food', 'rest', 'stretch',
 /** See-rail cards shown before the rest fold behind one expander. */
 export const SEE_VISIBLE = 4
 
-/** Detour-scope presets for nearby suggestions (km off the route). */
+/** Old detour-scope presets (km off the route). #898 moved the control to minutes. */
 export const SCOPE_KM_STEPS = [10, 20, 30, 50, 80, 100]
-export const SCOPE_STORAGE_KEY = 'nearby_scope_km'
 
 /** Sensible visit durations per suggestion category (tourist pacing). */
 export const poiVisitMinutes = visitMinutesForCategory

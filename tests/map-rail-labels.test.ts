@@ -3,16 +3,19 @@
  *
  * The corridor rows and the map's empty-part pins assembled the same three bits
  * separately ("arrive 11:24 · +26 min · 58% of the day's detour budget"). These tests
- * pin the shared helper, both callers, and the per-day budget cache that made the
- * corridor version cheap.
+ * pin the shared helper and both callers.
+ *
+ * #08 AC5: the corridor cost is no longer re-derived inside the rail hook. These
+ * tests pin that the sentence is formatted from canonical row facts, and that the
+ * one detour computation now sits with the Map's snapshot producer.
  */
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { detourBits, hitCostLabels, slotPinsFor } from '../src/pages/trip/map/railLabels'
+import { detourBits, journeyCostLabels, slotPinsFor } from '../src/pages/trip/map/railLabels'
 import type { DaySlot } from '../src/lib/daySlots'
 
 const mapTab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
-// #420 slice 13: the cost assembly lives in the rail-content hook.
+// #420 slice 13: the rail content lives in the rail-content hook.
 const contentHook = readFileSync(new URL('../src/pages/trip/map/useRailContent.ts', import.meta.url), 'utf8')
 // #420 slice 14: the slot pins live in the day-slots hook with their input.
 const slotsHook = readFileSync(new URL('../src/pages/trip/map/useDaySlots.ts', import.meta.url), 'utf8')
@@ -42,69 +45,55 @@ describe('#420 — the three bits, in the order every surface prints them', () =
   })
 })
 
-describe('#420 — the corridor cost chip', () => {
-  const dayForKm = () => 0
-
-  it('assembles the sentence from the segment clock and the measured detour', () => {
-    const labels = hitCostLabels({
-      hits: [{ id: 'a', cumKm: 73, detourMin: 26, etaMinutes: 658 }],
-      dayForKm,
-      detourBudgetMin: () => 45,
-    })
-    // 658 + 26 = 684 minutes = 11:24
-    expect(labels.a).toBe("arrive 11:24 · +26 min · 58% of the day's detour budget")
+describe('#08 — the sentence is formatted from canonical row facts', () => {
+  const row = (over: Partial<Parameters<typeof journeyCostLabels>[0][number]> = {}) => ({
+    hit: { id: 'a' },
+    arriveMin: 684,
+    arriveLabel: null,
+    detourMin: 26,
+    budgetSharePct: 58,
+    ...over,
   })
 
-  it('drops the share when the day has no budget to spend', () => {
-    const labels = hitCostLabels({
-      hits: [{ id: 'a', cumKm: 10, detourMin: 20, etaMinutes: 600 }],
-      dayForKm,
-      detourBudgetMin: () => 0,
-    })
-    expect(labels.a).toBe('arrive 10:20 · +20 min')
+  it('uses the row own arrival minute and never recomputes a detour or share', () => {
+    // 684 minutes = 11:24; every other number is the row's own.
+    expect(journeyCostLabels([row()]).a).toBe("arrive 11:24 · +26 min · 58% of the day's detour budget")
   })
 
-  it('reports an unknown position without inventing an arrival', () => {
-    const labels = hitCostLabels({
-      hits: [{ id: 'a', cumKm: null, detourMin: null, etaMinutes: 600 }],
-      dayForKm,
-      detourBudgetMin: () => 45,
-    })
-    expect(labels.a).toBe('position unknown')
+  it('says an unknown position instead of inventing an arrival or a number', () => {
+    expect(journeyCostLabels([row({ arriveMin: null, detourMin: null, budgetSharePct: null })]).a)
+      .toBe('position unknown')
   })
 
-  it('looks a day\'s budget up once, however many hits fall on that day', () => {
-    // The cache that made the chip cheap: the lookup is per DAY, not per hit.
-    let calls = 0
-    const labels = hitCostLabels({
-      hits: [
-        { id: 'a', cumKm: 10, detourMin: 20, etaMinutes: null },
-        { id: 'b', cumKm: 20, detourMin: 20, etaMinutes: null },
-        { id: 'c', cumKm: 30, detourMin: 20, etaMinutes: null },
-        { id: 'd', cumKm: 90, detourMin: 20, etaMinutes: null },
-      ],
-      dayForKm: km => (km != null && km > 50 ? 1 : 0),
-      detourBudgetMin: () => { calls += 1; return 45 },
-    })
-    expect(calls).toBe(2)
-    expect(Object.keys(labels).sort()).toEqual(['a', 'b', 'c', 'd'])
+  it('formats a stored label when the row carries no minute, and shows a known zero honestly', () => {
+    expect(journeyCostLabels([row({ arriveMin: null, arriveLabel: '13:05', detourMin: 0, budgetSharePct: null })]).a)
+      .toBe('arrive 13:05 · on route')
+  })
+
+  it('drops the share when the row has none', () => {
+    expect(journeyCostLabels([row({ arriveMin: 620, detourMin: 20, budgetSharePct: null })]).a)
+      .toBe('arrive 10:20 · +20 min')
+  })
+
+  it('emits no entry for a hit no row covers', () => {
+    expect(journeyCostLabels([])).toEqual({})
   })
 })
 
 describe('#420 — the empty-part pin says the same thing', () => {
   const slot = (over: Omit<Partial<DaySlot>, 'key'> & { key?: string }): DaySlot => ({
-    key: 'day1:lunch', kind: 'meal', label: 'Lunch', state: 'empty',
+    key: 'lunch', kind: 'meal', label: 'Lunch', state: 'empty',
     windowMin: null, windowLabel: null, segment: null, candidates: [],
     ...over,
   } as unknown as DaySlot)
 
   it('pins only the empty slots that have somewhere to stand', () => {
     const pins = slotPinsFor([
-      slot({ key: 'day1:lunch', candidates: [{ hit: { id: 'x', name: 'Cafe' }, arriveLabel: '13:00', detourMin: 12, budgetSharePct: 25 }] as never }),
-      slot({ key: 'day1:dinner', candidates: [] }),
-      slot({ key: 'day1:breakfast', state: 'filled' }),
+      slot({ key: 'lunch', candidates: [{ hit: { id: 'x', name: 'Cafe' }, arriveLabel: '13:00', detourMin: 12, budgetSharePct: 25 }] as never }),
+      slot({ key: 'dinner', candidates: [] }),
+      slot({ key: 'breakfast', state: 'filled' }),
     ])
-    expect(pins.map(p => p.key)).toEqual(['day1:lunch'])
+    expect(pins.map(p => p.key)).toEqual(['lunch'])
     expect(pins[0].name).toBe('Cafe')
     expect(pins[0].meta).toBe("arrive 13:00 · +12 min · 25% of the day's detour budget")
   })
@@ -121,19 +110,31 @@ describe('#420 — the empty-part pin says the same thing', () => {
   })
 })
 
-describe('#420 — slice 4 wiring', () => {
-  it('the shared sentence has one home now, and the page is not it', () => {
-    expect(mapTab).not.toContain("from './map/railLabels'")
-    // The chip and the pin both printed THIS sentence; it now comes from the module.
+describe('#08 AC5 — one cost fact, consumed where covered', () => {
+  it('keeps the sentence module the only home of the wording', () => {
+    // The page consumes the module now; it does not own the sentence.
+    expect(mapTab).toContain("from './map/railLabels'")
     expect(mapTab).not.toContain("of the day's detour budget")
-    expect(contentHook).toMatch(/const hitCosts = useMemo\(\(\) => hitCostLabels\(\{/)
-    expect(slotsHook).toMatch(/const slotPins = useMemo\(\(\) => slotPinsFor\(activeDaySlots\)/)
-    expect(mapTab).toContain('} = useDaySlots(')
+    expect(slotsHook).toMatch(/slotPinsByDay\.set\(day\.index, slotPinsFor\(slots\)\)/)
+    expect(mapTab).toContain('journeyDays.slotPinsByDay.get(activeDayIndex)')
+  })
+
+  it('removes the parallel raw derivation from the rail hook', () => {
+    expect(contentHook).not.toContain('hitCostLabels')
+    expect(contentHook).not.toContain('asymmetricDetourMinutes')
+    expect(contentHook).not.toContain('hitEngine')
+    expect(contentHook).not.toContain('dayDetourBudgetMin')
+  })
+
+  it('formats the canonical drive rows, and owns the one detour computation at the producer', () => {
+    expect(mapTab).toContain('journeyCostLabels(driveRows)')
+    expect(mapTab).toContain('const hitEngine = useMemo')
+    expect(mapTab).not.toMatch(/hitCostLabels/)
   })
 
   it('leaves the two denser variants alone, and pins how many there are', () => {
-    // The page prints detour vocabulary in FOUR places, and only two of them were
-    // the same sentence (the corridor chip and the empty-part pin — now shared here).
+    // The page prints detour vocabulary in FOUR places, and only two of them are
+    // the same sentence (the corridor chip and the empty-part pin — now shared).
     // The other two are deliberately different, and folding them in would change
     // user-visible copy, which a refactor must not do:
     //   · the see-rail row says "+26 min detour" and carries its own chips;
@@ -149,13 +150,5 @@ describe('#420 — slice 4 wiring', () => {
     expect(views).toContain('min detour`')
     expect((mapTab.match(/'position unknown'/g) ?? []).length).toBe(2)
     expect((views.match(/'position unknown'/g) ?? []).length).toBe(1)
-  })
-
-  it('the page still supplies the trip-aware inputs the module must not know', () => {
-    const call = contentHook.slice(contentHook.indexOf('hitCostLabels({'), contentHook.indexOf('}), [pois, hitEngine'))
-    expect(call).toContain('detourMin: hitEngine.get(String(sh.hit.id))?.detourMin ?? null')
-    expect(call).toContain('etaMinutes: sh.segment.etaMinutes')
-    expect(call).toContain('dayForKm,')
-    expect(call).toContain('detourBudgetMin: dayIndex => dayDetourBudgetMin({')
   })
 })

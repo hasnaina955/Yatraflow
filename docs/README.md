@@ -4,6 +4,7 @@ Start here. The codebase is documented across the files below — read the ones 
 
 | Doc | What's in it |
 |---|---|
+| [`redesign/map-v2/IMPLEMENTATION.md`](redesign/map-v2/IMPLEMENTATION.md) | Map workspace UI, synthetic fixture, data boundaries and open acceptance gates. |
 | [`redesign/papercut-warmth/REFERENCES.md`](redesign/papercut-warmth/REFERENCES.md) | Papercut source manifest, authority and conflicts. The execution plan is in ROADMAP. |
 | [`redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md`](redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md) | Trip workspace header and Overview implementation spec. It records the 28 October source direction and the P2 behavior contracts. |
 | [`dev/evidence/README.md`](../dev/evidence/README.md) | Overview fixture evidence and its signed-in verification limits. |

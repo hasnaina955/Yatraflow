@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import {
   ArrowRight, Armchair, BedDouble, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Droplets, ExternalLink, Flag, Fuel, Landmark, Lock, MapPin, Mountain,
@@ -244,6 +245,9 @@ import { fetchDailyWeather, forecastAvailable, isoAddDays, weatherAnchor, wmoInf
 import type { DayWeather } from '../../../lib/weather'
 import { useWeatherRefreshTick } from '../../../hooks/useWeatherRefresh'
 import { TravelPanel } from './TravelPanel'
+import type { TimelineAddAvailability } from './timelineAddAvailability'
+import type { JourneyDay, JourneyStatus } from '../journey/journeyDays'
+import type { JourneyRow } from '../../../lib/journeyProjection'
 
 /** Compact forecast chip for a single trip day (Timeline day headers). */
 function DayWeatherChip({ day, startDate }: { day: Trip['days'][number]; startDate: string }) {
@@ -431,7 +435,7 @@ function useFold(open: boolean): FoldState {
 // (whose travel panel searches against the whole itinerary). A closed card
 // therefore cannot read the trip at all: `trip` is optional, so a `trip.x` on
 // the collapsed path is a compile error rather than a stale render.
-export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals }: {
+export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
   day: Trip['days'][number]
   /** MR8: this trip's saved ids, and the one toggle every heart on the page uses. */
   savedIds: string[]
@@ -489,6 +493,21 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   onLinkCommitment: (commitmentId: string, dayIndex: number, stopId: string | null) => void
   warnings: ScheduleWarning[]
   onStatus: (stop: ItineraryStop, status: ItineraryStop['status']) => void
+  /** S3: the shared day model. Optional until S4 declares the panel props. */
+  journeyDay?: JourneyDay
+  journeyStatus?: JourneyStatus
+  /** S4 repair: forward the real #841 writer hop to the panel. */
+  onAddProjectedRow?: (row: JourneyRow, dayIndex: number) => void
+  projectedAddBusy?: boolean
+  previewOpen?: boolean
+  projectedAddError?: string | null
+  onRetryProjectedRow?: () => void
+  projectedRetryAvailable?: boolean
+  projectedTerminal?: string | null
+  projectedUnresolved?: boolean
+  projectedRetryBlockedReason?: string | null
+  /** S4: typed covered-Add reason from the measured road grade. */
+  projectedAvailability?: TimelineAddAvailability
 }) {
   // One unified journey per day — start → halts/visits → destination with an
   // arrival clock — regardless of distance. This is the single travel system.
@@ -1076,6 +1095,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
       <div className="day-layout">
       <div className="day-main">
       {bodyTrip && <TravelPanel trip={bodyTrip} day={day} editable={editable} journey={journey} suggestionCache={suggestionCache} legCorrections={legCorrections}
+        journeyDay={journeyDay} journeyStatus={journeyStatus}
+        onAddProjectedRow={onAddProjectedRow} projectedAddBusy={projectedAddBusy} previewOpen={previewOpen}
+        projectedAddError={projectedAddError} onRetryProjectedRow={onRetryProjectedRow} projectedRetryAvailable={projectedRetryAvailable} projectedTerminal={projectedTerminal} projectedUnresolved={projectedUnresolved} projectedRetryBlockedReason={projectedRetryBlockedReason} projectedAvailability={projectedAvailability}
         onSetDayStart={onSetDayStart} onAddPlannedHalts={onAddPlannedHalts} />}
 
       {ordered.length === 0 && (<>
@@ -1568,7 +1590,7 @@ function poiQuickStop(h: PlaceHit): Omit<ItineraryStop, 'id' | 'orderInDay'> {
     title: h.name, category: (h.category as ItineraryStop['category']) ?? 'sightseeing', locationName: h.description ?? h.name,
     lat: h.latitude, lng: h.longitude,
     description: h.description ?? '', notes: 'Nearby idea',
-    visitMinutes: h.category === 'food' ? 45 : h.category === 'hotel' ? 0 : 60, openTime: '', closeTime: '',
+    visitMinutes: confirmedVisitMinutes(h) ?? (h.category === 'food' ? 45 : h.category === 'hotel' ? 0 : 60), openTime: '', closeTime: '',
     entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
     priority: 'nice-to-have', sourceUrl: '', status: 'suggested',
   }

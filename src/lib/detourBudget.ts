@@ -3,6 +3,8 @@
 // suggestions spend it visibly ("uses ~30% of today's detour budget") and the
 // planner stops offering beyond it. This turns endless suggestion lists into
 // a finite, honest menu.
+import type { Trip } from '../data/types'
+
 export const BASE_DAY_DETOUR_MIN = 45
 /** Relaxed crews get more slack; packed crews get less. */
 const STYLE_DELTA: Record<string, number> = { relaxed: 15, packed: -15 }
@@ -26,6 +28,18 @@ export function dayDetourBudgetMin(
 export function budgetSharePct(spendMin: number, budgetMin: number): number {
   if (!(budgetMin > 0)) return 0
   return Math.round((Math.max(0, spendMin) / budgetMin) * 100)
+}
+
+/**
+ * One real day's detour budget, from the trip's travel style and its own stop
+ * count. An unknown day reads as zero planned stops, so the base budget still
+ * applies. The manual-pick cards use this: their share must be the same metric
+ * the engine's suggestions show, never a placeholder percentage.
+ */
+export function dayDetourBudgetForDay(trip: Pick<Trip, 'travelStyle' | 'days'>, dayIndex: number): number {
+  const day = trip.days.find(entry => entry.index === dayIndex)
+  const planned = day ? day.stops.filter(stop => stop.status !== 'rejected').length : 0
+  return dayDetourBudgetMin({ travelStyle: trip.travelStyle, plannedStops: planned })
 }
 
 /**

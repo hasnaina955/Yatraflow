@@ -14,6 +14,7 @@ import type { DaySlot } from '../../../lib/daySlots'
 import type { SlotCandidate } from '../../../lib/daySlots'
 import type { PlaceHit } from '../../../lib/providers/hits'
 import { isSameEntity } from '../../../lib/placeIdentity'
+import { budgetSharePct } from '../../../lib/detourBudget'
 import { manualCandidateFor } from './slotFiling'
 
 /** The stable identity of one manual filing target. */
@@ -52,6 +53,9 @@ export interface ManualSlotStore {
   candidatesBySlot: (context: Pick<ManualSlotContext, 'tripId' | 'dayId'>, shapes: {
     detourMin?: (hit: PlaceHit) => number | null
     detourKm?: (hit: PlaceHit) => number | null
+    /** The day's own detour budget in minutes. Absent = unknown, so the share
+     *  stays the whole-budget placeholder rather than a flattering zero. */
+    budgetMin?: number
   }) => Record<string, SlotCandidate[]>
   clear: () => void
   size: () => number
@@ -98,11 +102,11 @@ export function createManualSlotStore(): ManualSlotStore {
           hit,
           detourMin: shapes.detourMin?.(hit) ?? null,
           detourKm: shapes.detourKm?.(hit) ?? null,
-          // A manual row is not a budget spend and has no measured detour here;
-          // the rail keeps its own numbers. 1 / 100 is the explicit "unknown"
-          // pair the manual candidate shape already documents.
-          budgetMin: 1,
-          sharePct: () => 100,
+          // The page's day budget and the shared whole-percent rule. A manual
+          // pick is a real suggestion on this day: its share is its own detour
+          // against that budget, the same metric the engine's rows show.
+          budgetMin: shapes.budgetMin ?? 0,
+          sharePct: budgetSharePct,
         })))
       }
       return Object.fromEntries(out)

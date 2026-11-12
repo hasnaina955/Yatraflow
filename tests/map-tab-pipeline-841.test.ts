@@ -773,7 +773,7 @@ describe('#841 MapTab production wiring (supplement to the behavior above)', () 
   })
 
   it('passes the stable day, presence and the measured road grade to the writers and the shortlist', () => {
-    expect(tab).toContain('dayId: activeDayId ?? null')
+    expect(tab).toContain('dayId: journeyDay?.dayId ?? activeDayId ?? null')
     expect(tab).toContain('presence: identity')
     expect(tab).toContain('roadMeasured: roadGrade.measured')
     expect(tab).toContain('routeKey: roadGrade.routeKey')

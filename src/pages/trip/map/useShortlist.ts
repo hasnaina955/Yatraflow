@@ -26,6 +26,7 @@ import { addDecision, admitTripPreview, tripById } from '../../../store/store'
 import { reportCollabOutcome } from '../../../lib/collabFeedback'
 import { persistedPlaceFromHit } from '../../../lib/placeDraft'
 import { isAirMode } from '../../../lib/engine'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import { roadChainSig } from '../../../lib/tripRoad'
 import type { ApplyChange } from '../../../lib/mutationLifecycle'
 import { orderByRoad } from './roadOrder'
@@ -44,6 +45,8 @@ import {
   type WriterStageResult,
 } from './mapWriterActions'
 import { mapWriterOperationGate, type WriterOperationGate } from './writerOperationGate'
+import type { WriterRoadBinding } from './writerRoadBinding'
+import { writerResumePresentation } from './writerResumeDisposition'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
 export type ShortlistDeps = {
@@ -75,12 +78,16 @@ export type ShortlistDeps = {
   /** #841: explicit measured-route grade. Defaults to "measured when a driving
    *  trip has measured positions", never for an air journey. */
   roadMeasured?: boolean
+  /** Strict measured-road bytes and live accessor. */
+  roadBinding?: WriterRoadBinding | null
+  currentRoad?: () => WriterRoadBinding | null
 }
 
 const REFUSAL_MESSAGE: Record<WriterRefusal, string> = {
   'missing-day': 'A target day has no saved identity yet - reload the trip, then try again.',
   'gate-busy': 'Another change is already using one of those places. Wait for it to finish.',
   'road-evidence-unavailable': 'The road has not been measured yet, so those places cannot be placed. Try again after the route finishes measuring.',
+  'current-trip-unavailable': 'The current saved trip is unavailable, so this retry cannot start.',
   'nothing-pinned': 'Nothing could be pinned from the shortlist - try another place.',
   'no-placements': 'Nothing could be placed from the shortlist. The tray is unchanged.',
 }
@@ -103,6 +110,8 @@ export function useShortlist({
   currentTrip: currentTripProp,
   routeKey: routeKeyProp,
   roadMeasured,
+  roadBinding,
+  currentRoad: currentRoadBindingProp,
 }: ShortlistDeps) {
   const [shortlist, setShortlist] = useState<PlaceHit[]>([])
 
@@ -228,21 +237,14 @@ export function useShortlist({
         currentTrip: currentTripProp ?? (() => tripById(tripId)),
         poiVisitMinutes,
         onCompletion: completion => onCompletion(completion),
+        ...(roadBinding ? { roadBinding } : {}),
+        ...(currentRoadBindingProp ? { currentRoad: currentRoadBindingProp } : {}),
       })
 
       const reportStage = (result: WriterStageResult) => {
         if (result.status === 'refused') {
           if (result.resume) {
-            // F2: a refused retry speaks its precise disposition. A changed
-            // choice is a distinct operation; an unverifiable retry points at
-            // Saved edits recovery.
-            toast(result.resume.disposition === 'payload-changed'
-              ? 'A shortlist choice changed since the last save was not confirmed, so it needs a separate action. The tray is unchanged.'
-              : result.resume.disposition === 'resume-unverifiable'
-                ? 'The earlier save is still unconfirmed and cannot be retried from here. Saved edits can recover the trip.'
-                : result.resume.disposition === 'operation-unknown'
-                  ? 'That earlier shortlist change is no longer known on this page. Check the plan before you retry; Saved edits can still recover the trip.'
-                  : 'That shortlist add already completed - check the plan before you retry.', 'err')
+            toast(writerResumePresentation(result.resume.disposition).text, 'err')
             return
           }
           if (result.skipped.some(item => item.reason === 'already-in-plan')) {
@@ -264,6 +266,11 @@ export function useShortlist({
       }
 
       function handleCompletion(completion: WriterCompletion) {
+        if (completion.phase === 'abandoned') {
+          retryRunners.current.delete(completion.operationId)
+          toast('This saved edit was discarded; choose again.', 'err')
+          return
+        }
         const retry = !completion.acknowledged || completion.placed.length === 0
           ? registerRetry(completion, async ticket => {
               // The production retry admission: the captured operation id and
@@ -348,7 +355,7 @@ export function useShortlist({
             lat: pinned.latitude,
             lng: pinned.longitude,
             description: h.description,
-            visitMinutes: poiVisitMinutes(h.category),
+            visitMinutes: confirmedVisitMinutes(h) ?? poiVisitMinutes(h.category),
             ...(h.openTime ? { openTime: h.openTime } : {}),
             ...(h.closeTime ? { closeTime: h.closeTime } : {}),
             // Unknown route position: leave the day ABSENT (not Day 1 —

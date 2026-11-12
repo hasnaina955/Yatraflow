@@ -173,7 +173,7 @@ describe('one green (#0D8D82)', () => {
   })
 
   it('keeps the map palette, logo mark and favicon on the unified green', () => {
-    expect(source('src/components/TripMap.tsx')).toContain("const DAY_COLORS = ['#0D8D82'")
+    expect(source('src/lib/mapStyles/dayColors.ts')).toContain("export const DAY_COLORS = ['#0D8D82'")
     // The Ribbon Y reads the teal ladder so it follows the theme; its fallbacks
     // and the static favicon stay on the one brand green.
     expect(source('src/components/ui.tsx')).toContain("stroke: 'var(--teal-500, #0D8D82)'")
@@ -1174,7 +1174,7 @@ describe('categorical palettes: hues stay distinguishable', () => {
   }
 
   it('introduces no new hue collision', () => {
-    const daySource = source('src/components/TripMap.tsx').match(/const DAY_COLORS = \[([^\]]+)\]/)?.[1] ?? ''
+    const daySource = source('src/lib/mapStyles/dayColors.ts').match(/export const DAY_COLORS = \[([^\]]+)\]/)?.[1] ?? ''
     const days = [...daySource.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0])
     expect(days.length, 'DAY_COLORS must parse').toBeGreaterThanOrEqual(7)
 

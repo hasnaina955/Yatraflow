@@ -16,6 +16,10 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+
+- **YatraFlow now has a mascot, Chakra the koel.** Chakra is an Asian koel with a red eye, a pale bill and a long tail. The tail turns into a route line that ends in a marigold map dot. The art is papercut SVG in the brand palette, in `public/brand/mascot/`. It has eight scenes: hero, night hero, scouting, on a pin, night halt, chai stop, over budget and flock. It also has an expressions strip and two small marks, a face and a tile. Both marks stay legible at 24 pixels. The art uses four accent colours only in mascot art: blush `#FF8FA6`, clay `#C2703D`, light clay `#E39A64` and nest `#7A4A22`. No screen uses the mascot yet.
+
 ## [0.84.0] - 2026-11-11
 
 **This minor release closes the paid-plan leak and adds fifty destination scenes.** A locked day of a paid plan now stays on the server. The database migration `20261110_paywall_locked_day_boundary.sql` closes the leak. Apply it after this release is live. The release also brings the guided create flow, day-slot voting, and the Settings and Profile polish.

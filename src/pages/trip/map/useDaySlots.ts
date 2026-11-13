@@ -24,6 +24,7 @@ export type DnaSlotHints = {
 }
 
 export type DaySlotDepsArgs = {
+  scheduleOf?: DaySlotsDeps['scheduleOf']
   tripId: string
   pois: readonly SegmentHit[]
   anchors: readonly { lat: number; lng: number }[]
@@ -50,6 +51,7 @@ export type DaySlotDepsArgs = {
  */
 export function buildDaySlotDeps(args: DaySlotDepsArgs): Omit<DaySlotsDeps, 'dayStops'> {
   return {
+    scheduleOf: args.scheduleOf,
     haltSegments: [...args.pois],
     anchors: [...args.anchors],
     routePolyline: args.routePolyline ? [...args.routePolyline] : null,

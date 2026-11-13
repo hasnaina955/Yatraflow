@@ -122,6 +122,8 @@ export function stayRailSub(parts: {
   commitmentText: string | null
   freeStartMin: number | null
   freeEndMin: number | null
+  /** True when the arrival is known and the day leaves no free evening. */
+  noFreeEvening?: boolean
 }): string | null {
   const pieces: string[] = []
   if (parts.arriveText != null && parts.arriveText.trim() !== '') pieces.push(`Arrive ${parts.arriveText}`)
@@ -134,6 +136,8 @@ export function stayRailSub(parts: {
   if (parts.freeStartMin != null && parts.freeEndMin != null) {
     const duration = windowDurationText(parts.freeStartMin, parts.freeEndMin)
     if (duration != null) pieces.push(`${duration} free after it`)
+  } else if (parts.noFreeEvening === true) {
+    pieces.push('no free evening')
   }
   return pieces.length > 0 ? pieces.join(' · ') : null
 }
@@ -241,20 +245,40 @@ export function railLegVisible(
 }
 
 /**
- * The clock of the "Leave X" row. A stop at the start place (a breakfast at last
- * night's stay) comes first, so the car leaves when that stop ends. Stops after
- * the first real drive do not move it.
+ * The clock of the "Leave X" row. A stop at the start place that stands on last
+ * night's stay (a breakfast before the drive) comes first, so the car leaves
+ * when that stop ends. Any other stop at the start place does not move it, and
+ * stops after the first real drive never do. A caller that does not say
+ * (`onLastNightStay` absent) keeps the stop-at-the-start-place rule.
  */
 export function railDepartClock(
   startClock: string,
-  following: readonly { distanceKm: number | null | undefined; depart: string }[],
+  following: readonly { distanceKm: number | null | undefined; depart: string; onLastNightStay?: boolean }[],
 ): string {
   let clock = startClock
   for (const point of following) {
     if (point.distanceKm == null || !(point.distanceKm < 0.05)) break
+    if (point.onLastNightStay === false) break
     clock = point.depart
   }
   return clock
+}
+
+/**
+ * The departure row is the day's first row, unless a stop that stands on last
+ * night's stay comes before the car leaves. Run it on the clock order: a stop
+ * whose clock is earlier than the departure (a stored order or a place that is
+ * wrong in the data) never sits above "Leave X". Rows with no departure flag
+ * keep the clock order.
+ */
+export function railDepartureFirst<T extends { isStart?: boolean; beforeLeave?: boolean }>(rows: readonly T[]): T[] {
+  const out = [...rows]
+  const at = out.findIndex(row => row.isStart === true)
+  if (at <= 0) return out
+  if (out.slice(0, at).every(row => row.beforeLeave === true)) return out
+  const [start] = out.splice(at, 1)
+  out.unshift(start)
+  return out
 }
 
 const SAME_PLACE_KM = 0.3

@@ -1653,6 +1653,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       commitmentText: stayCommitment == null ? null : lensClock(hmToMinutes(stayCommitment.time)),
       freeStartMin: stayFree?.startMin ?? null,
       freeEndMin: stayFree?.endMin ?? null,
+      noFreeEvening: lenses.stay.noFreeTime === true,
     }),
   }
   const fixStopId = lens === 'fix'

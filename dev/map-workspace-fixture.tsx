@@ -30,7 +30,7 @@ import { boardLegBetween, fixtureModeFromSearch, installFixtureTransport } from 
 // The page says the provider transport is controlled. This call keeps that
 // promise on every dev server, so no lens deck waits on a live place scan.
 // The board trip answers its own sample places. A provider query picks another mode.
-installFixtureTransport(undefined, new URLSearchParams(location.search).has('provider') ? fixtureModeFromSearch(location.search) : new URLSearchParams(location.search).get('trip') === 'small' ? 'answer' : 'board')
+installFixtureTransport(undefined, new URLSearchParams(location.search).has('provider') ? fixtureModeFromSearch(location.search) : new URLSearchParams(location.search).get('scenario') === 'goa' ? 'near' : new URLSearchParams(location.search).get('trip') === 'small' ? 'answer' : 'board')
 
 const params = new URLSearchParams(location.search)
 const mode = params.get('state') ?? 'ready'
@@ -45,7 +45,9 @@ const stop = (id: string, title: string, category: ItineraryStop['category'], la
 // road is one recorded OSRM answer (dev/map-board-day3-road.json). Every stop of
 // Day 3 stands on a vertex of that line. All of this is sample data.
 const at = (key: keyof typeof boardRoad.stops) => ({ lat: boardRoad.stops[key].at[1], lng: boardRoad.stops[key].at[0] })
-const boardTrip = params.get('trip') !== 'small'
+// scenario=goa is the F2 real-trip sample: one Day 1 drive with a busy evening.
+const goaScenario = params.get('scenario') === 'goa'
+const boardTrip = !goaScenario && params.get('trip') !== 'small'
 const fixScenario = params.get('scenario') === 'fix'
 // The dense scenario is a 5 day, 34 stop trip along Mumbai, Goa and Karnataka. It shows how the
 // map draws many close stops at low zoom. All of it is sample data.
@@ -117,7 +119,31 @@ const dense = (): Trip => ({
     stops: rows.map(([title, category, lat, lng], order) => stop(`fixture-dense-${dayIndex + 1}-${order + 1}`, title, category, lat, lng, order + 1, 45)),
   })),
 })
-const trip: Trip = denseScenario ? dense() : boardTrip ? board() : small()
+// The Goa sample: a Day 1 drive from South Mumbai to a Candolim stay, with a
+// beach swim and a beach dinner after the check-in. Every name and number is
+// sample data. coordinates=saved keeps the bad start-place coordinates for
+// Lonavala. The default uses the town's sample position and a nonzero first leg.
+const goaStart = { lat: 18.9388, lng: 72.8354 }
+const goaSavedCoordinates = params.get('coordinates') === 'saved'
+const goaBreakfast = goaSavedCoordinates ? goaStart : { lat: 18.7546, lng: 73.4062 }
+const goa = (): Trip => ({
+  id: 'fixture-map-local-only', name: 'Goa North & South', startLocation: 'South Mumbai', startLocationCoords: goaStart, destinations: ['Panjim'], destinationCoords: [{ lat: 15.4909, lng: 73.8278 }],
+  startDate: '2026-09-15', endDate: '2026-09-16', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
+  createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }],
+  fixedCommitments: [],
+  days: [
+    { id: 'fixture-goa-1', index: 0, startTime: '05:00', title: 'South Mumbai → Panjim drive + Candolim beach arrival', stops: [
+      stop('goa-lonavala', 'Lonavala breakfast stop — chai & vada pav', 'food', goaBreakfast.lat, goaBreakfast.lng, 1, 30, 'Lonavala, Maharashtra'),
+      stop('goa-karla', 'Karla caves visit', 'sightseeing', 18.7826, 73.4727, 2, 45, 'Karla, Maharashtra'),
+      stop('goa-thana', 'Thana Ghat lunch — Goan seafood thali', 'food', 15.5993, 74.0113, 3, 60, 'Thana, Goa'),
+      stop('goa-hotel', 'Check in · Agoa Palace hotel', 'hotel', 15.518, 73.7628, 4, 60, 'Candolim, Bardez'),
+      stop('goa-beach', 'Candolim beach swim', 'beach', 15.5155, 73.7615, 5, 120, 'Candolim'),
+      stop('goa-dinner', 'Dinner at Kubyu Beach Club', 'food', 15.5553, 73.7517, 6, 120, 'Baga Beach'),
+    ] },
+    { id: 'fixture-goa-2', index: 1, startTime: '09:00', title: 'North Goa forts', stops: [stop('goa-fort', 'Fort Aguada', 'sightseeing', 15.4925, 73.7737, 1, 90)] },
+  ],
+})
+const trip: Trip = denseScenario ? dense() : goaScenario ? goa() : boardTrip ? board() : small()
 if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
 // Sample: the hotel is the stay base. It fills no slot (its key names none), so
 // the stay and dinner windows stay open and the stay lens shows the sample picks
@@ -140,6 +166,14 @@ const legs = chain.points.slice(1).map((point, index) => {
     geometry: onRoad?.geometry ?? ([[from.lng, from.lat], [point.lng, point.lat]] as [number, number][]),
   }
 })
+// Sample legs in chain order: start, Lonavala, Karla, Thana, hotel, beach,
+// dinner. The corrected first leg is synthetic, not a live road measurement.
+const GOA_LEGS: ReadonlyArray<readonly [number, number]> = [goaSavedCoordinates ? [0, 0] : [80, 90], [46, 38], [167, 189], [321, 286], [5, 10], [7, 12]]
+if (goaScenario) {
+  GOA_LEGS.forEach(([distanceKm, durationMinutes], index) => {
+    if (legs[index]) legs[index] = { ...legs[index], distanceKm, durationMinutes }
+  })
+}
 const road: TripRoadView = { chain, legs, status: 'ok', retry: () => undefined }
 const corrections = correctionsFromLegs(chain, legs)
 
@@ -279,7 +313,7 @@ function Fixture() {
     setMessage('A local preview was requested. No trip or backend was changed.')
   }, [])
   return <div className="container yf-workspace" data-map-active="true" data-map-fullscreen="true">
-    <header className="map-fixture-header"><div><strong>Kerala loop</strong><span>{trip.days.length} days · sample trip · {mode} mode</span></div><nav aria-label="Fixture trip sections"><span>Overview</span><span>Timeline</span><strong aria-current="page">Map</strong><span>Budget</span></nav></header>
+    <header className="map-fixture-header"><div><strong>{trip.name}</strong><span>{trip.days.length} days · sample trip · {mode} mode</span></div><nav aria-label="Fixture trip sections"><span>Overview</span><span>Timeline</span><strong aria-current="page">Map</strong><span>Budget</span></nav></header>
     <p className="map-fixture-status" role="status">{message}</p>
     <Suspense fallback={<p>Loading map workspace…</p>}><MapTab trip={trip} editable={params.get('role') !== 'viewer'} road={road} legCorrections={corrections} suggestionCache={cache} dayFocus={day} onDayFocusChange={setDay}
       onCorridorState={publishCorridor} journeyDays={journeyDays} presence={journeyDays.presence} crewSeeds={crewSeeds}

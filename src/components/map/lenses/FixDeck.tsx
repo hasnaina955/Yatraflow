@@ -3,7 +3,7 @@
 import { Fragment } from 'react'
 import { Check, Route } from 'lucide-react'
 import type { FixSummary } from '../../../pages/trip/map/fixLens'
-import type { FixChangeSet, LensPhase } from '../../../lib/mapLensContracts'
+import { fixProblemCount, type FixChangeSet, type LensPhase } from '../../../lib/mapLensContracts'
 import { LensDeckHeader } from './LensDeckHeader'
 import { LensPhaseNote } from './LensPhaseNote'
 
@@ -54,7 +54,7 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
       <LensPhaseNote phase={phase}>{PHASE_TEXT[phase]}</LensPhaseNote>
     </section>
   }
-  const count = problem ? 1 : 0
+  const count = fixProblemCount(phase, problem) ?? 0
   const shown = problem ? fixes : []
   return <section className="mv2-lens mv2-lens-fix-deck" aria-label="Fix this day">
     <LensDeckHeader

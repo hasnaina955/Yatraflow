@@ -956,7 +956,7 @@ describe('the review fixes', () => {
   it('a fill is remembered as DATA, so tidying its note cannot un-plan it (B3)', () => {
     const at = (over: Partial<ItineraryStop>) => daySlots(0, base({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
-      dayStops: [stop('s1', 'Lunch place', over)],
+      dayStops: [stop('s1', 'Meal place', over)],
     })).find(s => s.key === 'lunch')!
 
     expect(at({ slotKey: 'lunch' }).state).toBe('filled')
@@ -1023,5 +1023,82 @@ describe('the engine’s own category table (haltFit)', () => {
 
   it('the four kinds the day plan names are the four the hint speaks for', () => {
     expect(Object.keys(SLOT_KIND_CATEGORIES).sort()).toEqual(['fuel', 'meal', 'overnight', 'stretch'])
+  })
+})
+
+describe('a stop that names a meal fills that meal (real Goa trip, Day 1)', () => {
+  const hotel = stop('s-hotel', 'Check in · Agoa Palace hotel', { category: 'hotel', orderInDay: 3 })
+  const goaDay = (): DaySlotsDeps => base({
+    fillSkeleton: true,
+    dayStops: [
+      stop('s-breakfast', 'Lonavala breakfast stop — chai & vada pav', { orderInDay: 0, openTime: '06:00', closeTime: '23:00' }),
+      stop('s-lunch', 'Thana Ghat lunch — Goan seafood thali', { orderInDay: 2, openTime: '06:00', closeTime: '23:00' }),
+      hotel,
+      stop('s-dinner', 'Dinner at Kubyu Beach Club', { orderInDay: 5, openTime: '06:00', closeTime: '23:00' }),
+    ],
+  })
+  const filledBy = (slots: ReturnType<typeof daySlots>, key: string) => slots.find(slot => slot.key === key)?.filledStop?.id ?? null
+
+  it('puts breakfast, lunch and dinner stops in their own slots, never swapped', () => {
+    const slots = daySlots(0, goaDay())
+    expect(filledBy(slots, 'breakfast')).toBe('s-breakfast')
+    expect(filledBy(slots, 'lunch')).toBe('s-lunch')
+    expect(filledBy(slots, 'dinner')).toBe('s-dinner')
+  })
+
+  it('keeps the same slots when the stops come in another order', () => {
+    const deps = goaDay()
+    const slots = daySlots(0, { ...deps, dayStops: [...deps.dayStops].reverse() })
+    expect(filledBy(slots, 'breakfast')).toBe('s-breakfast')
+    expect(filledBy(slots, 'lunch')).toBe('s-lunch')
+    expect(filledBy(slots, 'dinner')).toBe('s-dinner')
+  })
+
+  it('leaves a meal slot empty before it takes a stop that names another meal', () => {
+    const slots = daySlots(0, base({
+      fillSkeleton: true,
+      dayStops: [hotel, stop('s-lunch', 'Thana Ghat lunch', { orderInDay: 1, openTime: '06:00', closeTime: '23:00' })],
+    }))
+    expect(filledBy(slots, 'lunch')).toBe('s-lunch')
+    expect(filledBy(slots, 'breakfast')).toBeNull()
+    expect(filledBy(slots, 'dinner')).toBeNull()
+  })
+
+  it('still uses the hours for a stop that names no meal', () => {
+    const slots = daySlots(0, base({
+      fillSkeleton: true,
+      dayStops: [hotel, stop('s-cafe', 'Panjim cafe', { orderInDay: 1, openTime: '12:00', closeTime: '14:00' })],
+    }))
+    expect(filledBy(slots, 'lunch')).toBe('s-cafe')
+  })
+
+  it('uses the engine arrival for an unnamed meal, ahead of venue hours', () => {
+    const cafe = stop('cafe', 'Panjim cafe', { openTime: '06:00', closeTime: '23:00' })
+    const slots = daySlots(0, base({
+      fillSkeleton: true, dayStops: [cafe],
+      scheduleOf: () => ({ activeStops: [cafe], arrivalTimes: ['08:30'] }),
+    }))
+    expect(filledBy(slots, 'breakfast')).toBe('cafe')
+    expect(filledBy(slots, 'lunch')).toBeNull()
+  })
+
+  it('keeps a named lunch out of breakfast despite an early arrival or stale slot key', () => {
+    const lunch = stop('lunch', 'Thana Ghat lunch', { slotKey: 'breakfast' })
+    const slots = daySlots(0, base({
+      fillSkeleton: true, dayStops: [hotel, lunch],
+      scheduleOf: () => ({ activeStops: [lunch], arrivalTimes: ['08:30'] }),
+    }))
+    expect(filledBy(slots, 'lunch')).toBe('lunch')
+    expect(filledBy(slots, 'breakfast')).toBeNull()
+  })
+
+  it('keeps named breakfast and dinner on the first day without a hotel', () => {
+    const slots = daySlots(0, base({
+      fillSkeleton: true,
+      dayStops: [stop('early', 'Breakfast by the road'), stop('late', 'Dinner in Panjim')],
+    }))
+    expect(filledBy(slots, 'breakfast')).toBe('early')
+    expect(filledBy(slots, 'dinner')).toBe('late')
+    expect(filledBy(slots, 'lunch')).toBeNull()
   })
 })

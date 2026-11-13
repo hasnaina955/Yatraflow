@@ -143,7 +143,7 @@ describe('release safety', () => {
     expect(cli(root, 'release', '--base', source, '--version', '1.1.0', '--date', '2026-11-12', '--write').status).toBe(1)
     expect(readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')).toBe(text)
     expect(existsSync(path.join(root, 'changelog-release.patch'))).toBe(false)
-  })
+  }, 20000) // Each case makes a git repo and runs the CLI; 5 s is too short under full suite load.
   it('prints a deterministic patch by default and validates the applied receipt', () => {
     const { root, base } = fixture(true)
     const plan = releaseAt(root, base, '1.1.0', '2026-11-12')

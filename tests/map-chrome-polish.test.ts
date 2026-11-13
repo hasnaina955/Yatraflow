@@ -36,11 +36,21 @@ describe('Suggestion states', () => {
 })
 
 describe('Cluster badge', () => {
-  it('draws the workspace badge as a ringed white chip with a halo', () => {
+  it('draws a group as a pile of pick tiles with its count, not a bare number', () => {
     expect(tripMap).toContain('look={workspaceChrome ? WORKSPACE_CLUSTER_LOOK : undefined}')
-    expect(mapcn).toContain('id: haloLayerId')
-    expect(mapcn).toContain('"circle-stroke-color": look?.ring ?? "#fff"')
-    expect(mapcn).toContain('if (map.getLayer(haloLayerId)) map.removeLayer(haloLayerId);')
+    expect(mapcn).toContain('function drawStack(look: ClusterLook')
+    expect(mapcn).toContain('map.on("styleimagemissing", handleMissingImage)')
+    expect(mapcn).toContain('"icon-image": ["concat", stackPrefix, ["to-string", stackBandStep(clusterThresholds)], "-", ["get", "point_count_abbreviated"]]')
+    expect(mapcn).not.toContain('haloLayerId')
+  })
+  it('names the group on hover and glows it, and keeps it above the route bands', () => {
+    expect(tripMap).toContain('title: count => `${clusterCountLabel(count)} · Click to open`')
+    expect(mapcn).toContain('map.getCanvas().title = look.title(count)')
+    expect(mapcn).toContain('["case", ["boolean", ["feature-state", "hover"], false], STACK_HOVER_OPACITY, 0]')
+    expect(mapcn).toContain('map.on("styledata", raise)')
+  })
+  it('draws the key mark as the same stack', () => {
+    expect(css).toMatch(/\.mv2-key-cluster \{[^}]*box-shadow: 0 -4px 0 -2px #D6EEEA/)
   })
 })
 
@@ -69,7 +79,7 @@ describe('Map interaction round two', () => {
   })
   it('closes open map surfaces on a blank map click, but never on a pin or a cluster badge', () => {
     expect(tripMap).toContain("target.closest('.maplibregl-marker, .maplibregl-popup')) return")
-    expect(tripMap).toContain(".some(f => f.layer.id.startsWith('clusters-'))")
+    expect(tripMap).toContain(".some(f => f.layer.id.startsWith('clusters-') || f.layer.id.startsWith('cluster-count-'))")
     expect(tripMap).toContain('onBlankMapClickRef.current?.()')
     expect(tripMap).toContain("document.addEventListener('pointerdown', onPointerDown, true)")
     expect(tab).toContain('onBlankMapClick={() => { if (detailId != null) setDetailId(null) }}')
@@ -109,5 +119,19 @@ describe('Every tappable map mark answers a hover', () => {
     expect(marks).toContain('button.mv2-warn-diamond:hover {')
     expect(marks).toContain('button.mv2-lens-gap-ring:hover {')
     expect(marks).toContain('.mv2-warn-diamond, button.mv2-lens-gap-ring { transition: none; }')
+  })
+})
+
+describe('Map surfaces round three', () => {
+  it('puts every floating part on the app glass, with one blur', () => {
+    expect(css).toMatch(/\.mv2-workspace \.mv2-map-key, \.mv2-workspace \.map-filters-pop \{\n\s*background: var\(--pw-glass\); -webkit-backdrop-filter: blur\(var\(--yf-blur-panel\)\) saturate\(1\.25\); backdrop-filter: blur\(var\(--yf-blur-panel\)\) saturate\(1\.25\);/)
+  })
+  it('gives the deck an even 16 px side inset, with no scrollbar eating the right side', () => {
+    expect(css).toContain('.mv2-lens { display: flex; flex-direction: column; gap: var(--space-5); padding: 0 var(--space-7) var(--space-7);')
+    expect(css).toMatch(/\.mv2-workspace \.map-ideas-grid > \.poi-col, \.mv2-detail \{[^}]*scrollbar-width: none;/)
+  })
+  it('draws a pick on the map as a solid family tile', () => {
+    const marks = read('../src/components/map/mapMarks.css')
+    expect(marks).toContain('.mv2-workspace .maplibregl-marker .yf-map-pin-idea[data-family] { --mark-tint: var(--mark-family); --mark-edge: var(--mark-family); color: var(--mv2-pick-glyph, #FFFFFF); }')
   })
 })

@@ -2079,17 +2079,25 @@ type MapClusterLayerProps<
    *  Fires on pan/zoom and when the source loads; an unchanged membership is not
    *  reported twice. Pass a stable callback — a new identity re-subscribes. */
   onClustersChange?: (ids: Set<string>) => void;
-  /** An optional badge look: a ring, a soft halo, a count colour and the three
-   *  radii. With no look, the badge keeps the classic filled circle. */
+  /** An optional stack look: each group draws as a pile of pin tiles with
+   *  its count on the front tile. With no look, the badge keeps the classic
+   *  filled circle. */
   look?: ClusterLook;
 };
 
 export type ClusterLook = {
+  /** The tile edge and the hover glow. */
   ring: string;
-  ringWidth: number;
-  halo: string;
+  /** The front tile fill. */
+  fill: string;
+  /** The fill of the two tiles behind it. */
+  back: string;
+  /** The count colour. */
   text: string;
-  radii: [number, number, number];
+  /** The front tile size in px for each size band. */
+  sizes: [number, number, number];
+  /** The hover tooltip for a group of `count` points. */
+  title?: (count: number) => string;
 };
 
 const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
@@ -2098,8 +2106,6 @@ const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
   "#1e3a8a",
 ];
 const DEFAULT_CLUSTER_THRESHOLDS: [number, number] = [100, 750];
-// The halo is a faint ring of the badge colour under the badge.
-const CLUSTER_HALO_OPACITY = 0.22;
 const DEFAULT_CLUSTER_RADII: [number, number, number] = [20, 30, 40];
 
 /** The badge radius for each size band, plus `add` px (the halo uses a wider one). */
@@ -2117,6 +2123,85 @@ function clusterRadiusStep(
     thresholds[1],
     radii[2] + add,
   ];
+}
+
+// The stack geometry, in CSS px. Two tiles peek above the front tile, and a
+// beak under the front tile points at the place, as on a single pick pin.
+const STACK_PEEK = 3;
+const STACK_BEAK = 6;
+const STACK_PAD = 4;
+const STACK_HOVER_OPACITY = 0.28;
+
+/** The band of a count: 0, 1 or 2, by the same thresholds as the badge size. */
+function stackBandStep(thresholds: [number, number]): MapLibreGL.ExpressionSpecification {
+  return ["step", ["get", "point_count"], 0, thresholds[0], 1, thresholds[1], 2];
+}
+
+/** Draw one stack image: two back tiles, the front tile, its beak and the count. */
+function drawStack(look: ClusterLook, band: number, label: string, font: string): { width: number; height: number; data: Uint8ClampedArray; ratio: number } | null {
+  const ratio = 2;
+  const size = look.sizes[band] ?? look.sizes[0];
+  const width = size + STACK_PAD * 2;
+  const height = STACK_PAD + STACK_PEEK * 2 + size + STACK_BEAK + STACK_PAD;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.scale(ratio, ratio);
+  const tile = (x: number, y: number, w: number, radius: number) => {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, size, radius);
+  };
+  // Back tiles: narrower and higher, so the pile reads at a glance.
+  ctx.lineWidth = 1.25;
+  ctx.fillStyle = look.back;
+  ctx.strokeStyle = look.ring;
+  ctx.globalAlpha = 0.55;
+  tile(STACK_PAD + 4, STACK_PAD, size - 8, 7);
+  ctx.fill();
+  ctx.stroke();
+  ctx.globalAlpha = 0.8;
+  tile(STACK_PAD + 2, STACK_PAD + STACK_PEEK, size - 4, 8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  // The front tile carries a soft drop shadow, like a pick pin.
+  const top = STACK_PAD + STACK_PEEK * 2;
+  const cx = STACK_PAD + size / 2;
+  ctx.save();
+  ctx.shadowColor = "rgba(64, 54, 44, 0.38)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = look.fill;
+  tile(STACK_PAD, top, size, 9);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, top + size - 1);
+  ctx.lineTo(cx, top + size + STACK_BEAK);
+  ctx.lineTo(cx + 5, top + size - 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = look.ring;
+  tile(STACK_PAD, top, size, 9);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, top + size);
+  ctx.lineTo(cx, top + size + STACK_BEAK);
+  ctx.lineTo(cx + 5, top + size);
+  ctx.stroke();
+  // Paint over the tile edge inside the beak, so tile and beak are one shape.
+  ctx.fillStyle = look.fill;
+  ctx.fillRect(cx - 4, top + size - 2, 8, 2.5);
+  ctx.fillStyle = look.text;
+  ctx.font = `800 ${Math.round(size * (label.length > 2 ? 0.38 : 0.46))}px ${font}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, cx, top + size / 2 + 1);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  return { width: canvas.width, height: canvas.height, data, ratio };
 }
 
 /** How many members of one cluster are asked for when reporting membership.
@@ -2146,7 +2231,7 @@ function MapClusterLayer<
   const clusterLayerId = `clusters-${id}`;
   const clusterCountLayerId = `cluster-count-${id}`;
   const unclusteredLayerId = `unclustered-point-${id}`;
-  const haloLayerId = `cluster-halo-${id}`;
+  const stackPrefix = `yf-stack-${id}-`;
 
   const stylePropsRef = useRef({
     clusterColors,
@@ -2167,21 +2252,18 @@ function MapClusterLayer<
       clusterRadius,
     });
 
-    // The halo sits under the badge, so the badge reads as raised off the map.
-    if (look) {
-      map.addLayer({
-        id: haloLayerId,
-        type: "circle",
-        source: sourceId,
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": look.halo,
-          "circle-radius": clusterRadiusStep(look.radii, clusterThresholds, 6),
-          "circle-opacity": CLUSTER_HALO_OPACITY,
-          "circle-blur": 0.35,
-        },
-      });
-    }
+    // A stack image is drawn the first time the map asks for it.
+    const drawn = new Set<string>();
+    const handleMissingImage = (event: { id: string }) => {
+      if (!look || !event.id.startsWith(stackPrefix) || map.hasImage(event.id)) return;
+      const [band, ...rest] = event.id.slice(stackPrefix.length).split("-");
+      const font = getComputedStyle(map.getContainer()).fontFamily || "sans-serif";
+      const image = drawStack(look, Number(band), rest.join("-"), font);
+      if (!image) return;
+      map.addImage(event.id, { width: image.width, height: image.height, data: image.data }, { pixelRatio: image.ratio });
+      drawn.add(event.id);
+    };
+    if (look) map.on("styleimagemissing", handleMissingImage);
 
     // Add cluster circles layer
     map.addLayer({
@@ -2199,18 +2281,40 @@ function MapClusterLayer<
           clusterThresholds[1],
           clusterColors[2],
         ],
-        "circle-radius": clusterRadiusStep(look?.radii ?? DEFAULT_CLUSTER_RADII, clusterThresholds, 0),
-        "circle-stroke-width": look?.ringWidth ?? 0.75,
-        "circle-stroke-color": look?.ring ?? "#fff",
+        "circle-radius": clusterRadiusStep(DEFAULT_CLUSTER_RADII, clusterThresholds, 0),
+        "circle-stroke-width": 0.75,
+        "circle-stroke-color": "#fff",
         "circle-opacity": 0.85,
       },
     });
 
-    // A look badge is opaque: its white fill carries the count, not the map below.
-    if (look) map.setPaintProperty(clusterLayerId, "circle-opacity", 1);
+    // With a stack look, the circle is the hit area over the front tile and
+    // the hover glow. It draws nothing until the pointer is on it.
+    if (look) {
+      const middle = look.sizes[1];
+      map.setPaintProperty(clusterLayerId, "circle-color", look.ring);
+      map.setPaintProperty(clusterLayerId, "circle-radius", ["step", ["get", "point_count"], look.sizes[0] / 2 + 8, clusterThresholds[0], look.sizes[1] / 2 + 8, clusterThresholds[1], look.sizes[2] / 2 + 8]);
+      map.setPaintProperty(clusterLayerId, "circle-translate", [0, -(STACK_BEAK + middle / 2)]);
+      map.setPaintProperty(clusterLayerId, "circle-blur", 0.5);
+      map.setPaintProperty(clusterLayerId, "circle-stroke-width", 0);
+      map.setPaintProperty(clusterLayerId, "circle-opacity", ["case", ["boolean", ["feature-state", "hover"], false], STACK_HOVER_OPACITY, 0]);
+    }
 
-    // Add cluster count text layer
-    map.addLayer({
+    // Add cluster count layer: a stack image with a look, else a text count.
+    if (look) map.addLayer({
+      id: clusterCountLayerId,
+      type: "symbol",
+      source: sourceId,
+      filter: ["has", "point_count"],
+      layout: {
+        "icon-image": ["concat", stackPrefix, ["to-string", stackBandStep(clusterThresholds)], "-", ["get", "point_count_abbreviated"]],
+        "icon-anchor": "bottom",
+        "icon-offset": [0, STACK_PAD],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+      },
+    });
+    else map.addLayer({
       id: clusterCountLayerId,
       type: "symbol",
       source: sourceId,
@@ -2223,10 +2327,10 @@ function MapClusterLayer<
         // tiles.openfreemap.org/fonts — "Open Sans Semibold" 404, "Noto Sans
         // Bold" 200. Pinned by tests/map-cluster.test.ts.
         "text-font": ["Noto Sans Bold"],
-        "text-size": look ? 13 : 12,
+        "text-size": 12,
       },
       paint: {
-        "text-color": look?.text ?? "#fff",
+        "text-color": "#fff",
       },
     });
 
@@ -2257,14 +2361,34 @@ function MapClusterLayer<
         if (map.getLayer(unclusteredLayerId))
           map.removeLayer(unclusteredLayerId);
         if (map.getLayer(clusterLayerId)) map.removeLayer(clusterLayerId);
-        if (map.getLayer(haloLayerId)) map.removeLayer(haloLayerId);
         if (map.getSource(sourceId)) map.removeSource(sourceId);
+        map.off("styleimagemissing", handleMissingImage);
+        for (const imageId of drawn) if (map.hasImage(imageId)) map.removeImage(imageId);
       } catch {
         // ignore
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, map, sourceId, unclusteredVisible]);
+
+  // A stack is a mark the user acts on, so it stays above every route and band
+  // layer, including layers added after it. The check stops a move from
+  // firing a second move.
+  useEffect(() => {
+    if (!isLoaded || !map || !look) return;
+    const raise = () => {
+      const order = map.getStyle()?.layers?.map((layer) => layer.id) ?? [];
+      const top = order.slice(-2);
+      if (top[0] === clusterLayerId && top[1] === clusterCountLayerId) return;
+      if (map.getLayer(clusterLayerId)) map.moveLayer(clusterLayerId);
+      if (map.getLayer(clusterCountLayerId)) map.moveLayer(clusterCountLayerId);
+    };
+    raise();
+    map.on("styledata", raise);
+    return () => {
+      map.off("styledata", raise);
+    };
+  }, [isLoaded, map, look, clusterLayerId, clusterCountLayerId]);
 
   // Update source data when data prop changes (only for non-URL data)
   useEffect(() => {
@@ -2360,7 +2484,7 @@ function MapClusterLayer<
       prev.clusterThresholds !== clusterThresholds;
 
     // Update cluster layer colors and sizes
-    if (map.getLayer(clusterLayerId) && colorsChanged) {
+    if (map.getLayer(clusterLayerId) && colorsChanged && !look) {
       map.setPaintProperty(clusterLayerId, "circle-color", [
         "step",
         ["get", "point_count"],
@@ -2370,8 +2494,7 @@ function MapClusterLayer<
         clusterThresholds[1],
         clusterColors[2],
       ]);
-      map.setPaintProperty(clusterLayerId, "circle-radius", clusterRadiusStep(look?.radii ?? DEFAULT_CLUSTER_RADII, clusterThresholds, 0));
-      if (look && map.getLayer(haloLayerId)) map.setPaintProperty(haloLayerId, "circle-radius", clusterRadiusStep(look.radii, clusterThresholds, 6));
+      map.setPaintProperty(clusterLayerId, "circle-radius", clusterRadiusStep(DEFAULT_CLUSTER_RADII, clusterThresholds, 0));
     }
 
     // Update unclustered point layer color
@@ -2385,7 +2508,6 @@ function MapClusterLayer<
     map,
     clusterLayerId,
     unclusteredLayerId,
-    haloLayerId,
     look,
     clusterColors,
     clusterThresholds,
@@ -2452,12 +2574,29 @@ function MapClusterLayer<
       );
     };
 
-    // Cursor style handlers
-    const handleMouseEnterCluster = () => {
+    // Cursor style handlers. A stack look also glows and names the group.
+    let hovered: number | null = null;
+    const setHovered = (next: number | null) => {
+      if (hovered === next) return;
+      if (hovered != null) map.setFeatureState({ source: sourceId, id: hovered }, { hover: false });
+      hovered = next;
+      if (hovered != null) map.setFeatureState({ source: sourceId, id: hovered }, { hover: true });
+    };
+    const handleMouseEnterCluster = (
+      e: MapLibreGL.MapMouseEvent & { features?: MapLibreGL.MapGeoJSONFeature[] },
+    ) => {
       map.getCanvas().style.cursor = "pointer";
+      const feature = e.features?.[0];
+      if (!look || !feature) return;
+      const count = Number(feature.properties?.point_count);
+      if (look.title && Number.isFinite(count)) map.getCanvas().title = look.title(count);
+      setHovered(typeof feature.id === "number" ? feature.id : null);
     };
     const handleMouseLeaveCluster = () => {
       map.getCanvas().style.cursor = "";
+      if (!look) return;
+      map.getCanvas().removeAttribute("title");
+      setHovered(null);
     };
     const handleMouseEnterPoint = () => {
       if (onPointClick) {
@@ -2489,6 +2628,7 @@ function MapClusterLayer<
     clusterLayerId,
     unclusteredLayerId,
     sourceId,
+    look,
     onClusterClick,
     onPointClick,
   ]);

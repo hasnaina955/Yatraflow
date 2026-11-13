@@ -96,6 +96,11 @@ button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-50
 /* A pin beak: a small square turned 45 degrees in the same tint and edge. The
    white outer ring is carried by a 2 px card shadow on the two open sides. */
 .mv2-workspace .yf-map-pin-idea::after { content: ''; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 8px; translate: -50% 0; rotate: 45deg; border-right: 1px solid var(--mark-edge, var(--line)); border-bottom: 1px solid var(--mark-edge, var(--line)); background: var(--mark-tint, var(--card)); box-shadow: 2px 2px 0 0 var(--pw-card); }
+/* On the map a pick is a solid family tile with a light glyph, so it stands out
+   on bright tiles. Cards keep the soft tint. Dark mode keeps a dark glyph on
+   the lighter dark-mode family colours. */
+.mv2-workspace .maplibregl-marker .yf-map-pin-idea[data-family] { --mark-tint: var(--mark-family); --mark-edge: var(--mark-family); color: var(--mv2-pick-glyph, #FFFFFF); }
+:root:where([data-theme='dark']) .mv2-workspace .maplibregl-marker .yf-map-pin-idea[data-family] { --mv2-pick-glyph: #0F1928; }
 /* The selected tile wears the teal ring itself. A beak under it would break the ring. */
 .mv2-workspace .yf-map-pin-idea--active::after { display: none; }
 /* A stop name tag. Board: 12 px at weight 700 on a soft card ground, pill radius. */

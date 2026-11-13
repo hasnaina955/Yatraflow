@@ -71,7 +71,7 @@
 .mv2-workspace .map-toolbar .map-day-chip .inline-icon { margin: 0; }
 /* F1: the filter menu opens to the left of the column, inside the clear map area. It has the deck's solid
    card surface, so no mark shows through it. It scrolls when it is tall. */
-.mv2-workspace .map-filters-pop { left: auto; right: 48px; top: 0; width: 220px; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.mv2-workspace .map-filters-pop { left: auto; right: 48px; top: 0; width: 220px; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; }
 .mv2-workspace .yf-map-ctrls { display: none; }
 .mv2-workspace .mv2-omnibar { position: absolute; top: var(--mv2-inset); left: calc(var(--mv2-day-width) + var(--space-10)); width: min(390px, calc(100% - var(--mv2-day-width) - var(--mv2-deck-width) - 80px)); z-index: 6; margin: 0; padding: var(--space-2) var(--space-5); border: 0; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); background: var(--card); color: var(--text); }
 .mv2-omnibar > form { min-height: 44px; }
@@ -134,13 +134,13 @@
 .mv2-day-strip > button { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 0; height: 30px; padding: 0 10px; gap: var(--space-3); border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-2); font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .mv2-day-strip > button[aria-pressed='true'] { background: var(--pw-card); border-color: var(--pw-line); color: var(--pw-ink); }
 .mv2-day-strip > button > span { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--mv2-day-tone, var(--color-primary)); }
-.mv2-workspace .map-ideas-grid > .poi-col, .mv2-detail { position: absolute; top: 86px; bottom: var(--mv2-inset); right: var(--mv2-inset); width: var(--mv2-deck-width); min-height: 0; max-height: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; z-index: 4; border: 0; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); background: var(--card); color: var(--text); scrollbar-width: thin; }
+.mv2-workspace .map-ideas-grid > .poi-col, .mv2-detail { position: absolute; top: 86px; bottom: var(--mv2-inset); right: var(--mv2-inset); width: var(--mv2-deck-width); min-height: 0; max-height: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; z-index: 4; border: 0; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); color: var(--text); scrollbar-width: none; }
 .mv2-workspace [hidden] { display: none; }
 .mv2-workspace .poi-col.is-sheet-hidden:not([hidden]) { display: block; }
 .mv2-workspace .poi-col--see > .poi-col-head { display: none; }
-.mv2-workspace .poi-col--needs > .poi-col-head { padding: var(--space-7); background: var(--card); color: var(--text); }
+.mv2-workspace .poi-col--needs > .poi-col-head { padding: var(--space-7); background: transparent; color: var(--text); }
 .mv2-workspace .poi-plan-list { padding: var(--space-7); }
-.mv2-workspace .poi-col--needs > :not(.mv2-sheet-handle):not(.poi-col-head) { margin-inline: var(--space-5); }
+.mv2-workspace .poi-col--needs > :not(.mv2-sheet-handle):not(.poi-col-head) { margin-inline: var(--space-7); }
 .mv2-workspace .lrow-new { border-bottom: 1px solid var(--line); }
 .mv2-workspace .lrow-sum { display: grid; grid-template-columns: 12px 1fr 16px; padding: var(--space-7) 0; row-gap: var(--space-2); }
 .mv2-workspace .lr-name { font-size: 13px; font-weight: 700; }
@@ -301,12 +301,14 @@
 .mv2-stay-order { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; min-width: 16px; height: 16px; padding-inline: 2px; border-radius: var(--radius-pill); background: var(--card); color: var(--text); font-size: 11px; box-shadow: var(--shadow-sm); }
 .mv2-stop-lock { position: absolute; right: -5px; bottom: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
 .mv2-workspace .mv2-map-stop.is-tentative, .mv2-map-key .mv2-map-stop.is-tentative { border-style: dashed; opacity: 1; background: var(--card); color: var(--text); border-color: var(--pin-color, var(--color-primary)); }
-.mv2-workspace .yf-map-pin-idea { width: 30px; height: 30px; overflow: visible; border: 1px solid var(--mark-edge, var(--line)); border-radius: var(--radius-xs); background: var(--mark-tint, var(--card)); color: var(--mark-ink, var(--text)); text-shadow: none; box-shadow: 0 0 0 2px var(--card), 0 6px 12px -6px rgba(64, 54, 44, 0.5); animation: none; transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.mv2-workspace .yf-map-pin-idea { width: 30px; height: 30px; overflow: visible; border: 1px solid var(--mark-edge, var(--line)); border-radius: var(--radius-xs); background: var(--mark-tint, var(--card)); color: var(--mark-ink, var(--text)); text-shadow: none; box-shadow: 0 0 0 2px var(--card), 0 6px 12px -6px rgba(64, 54, 44, 0.5); animation: mv2-pick-pop var(--motion-med) var(--ease-paper) backwards; transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+/* A pick that leaves a group, or arrives with a lens, grows out of its place. */
+@keyframes mv2-pick-pop { from { opacity: 0; transform: scale(.55); } }
 .mv2-workspace .yf-map-pin-idea:hover { box-shadow: 0 0 0 2px var(--card), 0 10px 18px -8px rgba(64, 54, 44, 0.55); }
 .mv2-workspace .yf-map-pin-search { color: var(--color-primary-foreground); }
 .mv2-workspace .yf-map-pin-idea--active, .mv2-workspace .yf-map-pin-search--active { width: 40px; height: 40px; border-radius: var(--radius-sm); border-color: var(--pw-lagoon-600); box-shadow: 0 0 0 3px var(--card), 0 0 0 6px var(--pw-lagoon-600), 0 12px 24px -8px rgba(64, 54, 44, 0.55); transform: none; }
 .mv2-workspace .map-legend:has(.mv2-map-key) { z-index: 7; }
-.mv2-workspace .mv2-map-key { position: absolute; right: 0; bottom: calc(100% + var(--space-3)); width: 296px; max-width: calc(100vw - 48px); max-height: min(440px, calc(var(--mv2-canvas-height, 640px) - 140px)); overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--space-7) var(--space-5); border: 0; border-radius: var(--radius); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: none; backdrop-filter: none; scrollbar-width: thin; }
+.mv2-workspace .mv2-map-key { position: absolute; right: 0; bottom: calc(100% + var(--space-3)); width: 296px; max-width: calc(100vw - 48px); max-height: min(440px, calc(var(--mv2-canvas-height, 640px) - 140px)); overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--space-7) var(--space-5); border: 0; border-radius: var(--radius); color: var(--text); scrollbar-width: thin; }
 .mv2-map-key > header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; min-height: 52px; background: var(--card); color: var(--text); }
 .mv2-map-key > header > strong { font-family: var(--font-display); font-size: 15px; }
 .mv2-map-key dl { margin: 0; display: grid; gap: var(--space-5); }
@@ -319,7 +321,8 @@
 .mv2-key-slot { border: 2px solid var(--ink-amber); border-radius: var(--radius-pill); background: var(--card); color: var(--ink-amber); }
 .mv2-key-search, .mv2-key-endpoint { border-radius: var(--radius-xs); background: var(--color-primary); color: var(--color-primary-foreground); }
 .mv2-key-endpoint { border-radius: var(--radius-pill); }
-.mv2-key-cluster { border-radius: var(--radius-pill); background: #0B6E66; color: #FFFFFF; }
+/* The key draws a group the way the map does: a front tile with two tiles peeking above. */
+.mv2-key-cluster { border: 2px solid #0B6B63; border-radius: var(--radius-sm); background: #FFFFFF; color: #0B4F4A; font-weight: 800; box-shadow: 0 -4px 0 -2px #D6EEEA, 0 -4px 0 -1px #0B6B6399, 0 -8px 0 -5px #D6EEEA, 0 -8px 0 -4px #0B6B6366; }
 .mv2-key-route { height: 5px; background: var(--color-primary); border-radius: var(--radius-pill); }
 .mv2-key-route.is-estimated { height: 0; border-top: 3px dashed var(--ink-amber); background: transparent; }
 .mv2-workspace .maplibregl-marker:has(.mv2-map-stop) { z-index: 2; }
@@ -332,6 +335,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .mv2-workspace .mv2-map-stop, .mv2-workspace .yf-map-pin-idea { transition: none; }
+  .mv2-workspace .yf-map-pin-idea { animation: none; }
 }
 .mv2-basemap-status { position: absolute; z-index: 4; left: calc(var(--mv2-day-width) + var(--space-10)); right: calc(var(--mv2-deck-width) + var(--space-10)); bottom: 96px; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-5); border-radius: var(--radius); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); font-size: 12px; }
 .mv2-basemap-status > svg { flex: 0 0 auto; color: var(--ink-amber); }
@@ -508,7 +512,7 @@
 /* Map edit: the Swap with list. Its control keeps a 44px touch target. */
 
 /* ===== Map v2 lens decks (package 911-W2): DriveTabs and FixDeck ===== */
-.mv2-lens { display: flex; flex-direction: column; gap: var(--space-5); padding: 0 var(--space-5) var(--space-5); color: var(--pw-ink); }
+.mv2-lens { display: flex; flex-direction: column; gap: var(--space-5); padding: 0 var(--space-7) var(--space-7); color: var(--pw-ink); }
 .mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
 .mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
 .mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
@@ -641,7 +645,7 @@
 .mv2-lens-deck-close:hover { background: var(--pw-soft); }
 
 /* One place card for every lens: Drive, Stay and Gap. */
-.mv2-lens-place { position: relative; display: flex; flex-direction: column; gap: var(--space-4a); padding: var(--space-5); border: 1px solid var(--pw-line); border-radius: 16px; background: var(--pw-card); transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+.mv2-lens-place { position: relative; display: flex; flex-direction: column; gap: var(--space-4a); padding: var(--space-6); border: 1px solid var(--pw-line); border-radius: 16px; background: var(--pw-card); transition: background var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
 .mv2-lens-place.is-selected { border-width: 1.5px; border-color: var(--pw-time-drive); box-shadow: 0 0 0 4px var(--pw-lagoon-100); }
 .mv2-lens-place.is-just-past { border-style: dashed; border-color: var(--pw-marigold-ink); }
 .mv2-lens-place.is-over-budget { background: var(--pw-soft); opacity: .75; }
@@ -1247,10 +1251,10 @@
 .mv2-workspace .mv2-tool-menu-body .map-filters-pop { position: static; width: auto; max-height: none; box-shadow: none; }
 .mv2-workspace .mv2-lens-scope-band {
   position: static; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4);
-  width: auto; margin: 0; padding: var(--space-5); border-radius: 0; box-shadow: none;
+  width: auto; margin: 0; padding: var(--space-5) var(--space-7); border-radius: 0; box-shadow: none;
   background: transparent; font-size: var(--text-xs);
 }
-.mv2-deck-footer { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-top: 1px solid var(--line); }
+.mv2-deck-footer { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-4) var(--space-7); border-top: 1px solid var(--line); }
 .mv2-deck-footer .mv2-lens-source { flex: 1; }
 .mv2-suggestion-info > summary { list-style: none; }
 .mv2-suggestion-notes { padding-block: var(--space-5); font-size: var(--text-xs); }
@@ -1290,7 +1294,7 @@
 .mv2-lens-drive .mv2-lens-cell-value { white-space: nowrap; }
 
 /* ---- Layers menu: labelled sections, a segmented view switch and real on/off switches ---- */
-.mv2-tool-menu-body.mv2-layers { width: 248px; max-height: min(460px, calc(100vh - 160px)); gap: 0; padding: var(--space-3); overflow-x: hidden; overflow-y: auto; border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg); background: var(--card); color: var(--text); -webkit-backdrop-filter: none; backdrop-filter: none; transform-origin: top right; }
+.mv2-tool-menu-body.mv2-layers { width: 248px; max-height: min(460px, calc(100vh - 160px)); gap: 0; padding: var(--space-3); overflow-x: hidden; overflow-y: auto; border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg); color: var(--text); transform-origin: top right; }
 .mv2-layers-sec { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-2); }
 .mv2-layers-sec + .mv2-layers-sec { border-top: 1px solid var(--pw-line-soft); }
 .mv2-layers-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: 0 0 var(--space-2); padding-inline: var(--space-2); color: var(--pw-ink-3); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -1399,11 +1403,12 @@
 .mv2-workspace .mv2-map-view .mv2-map-tools-btn { font-size: 12px; font-weight: 800; letter-spacing: .02em; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), scale var(--motion-fast) var(--ease-paper); }
 
 /* ---- One surface for everything that floats over the map ----
-   Opaque card, one hairline, one shadow. Glass on some controls and solid on others
-   read as two products, and see-through text lost contrast over busy tiles. */
-.mv2-workspace .mv2-itinerary, .mv2-workspace .mv2-omnibar, .mv2-workspace .mv2-lenses, .mv2-workspace .map-toolbar .mv2-map-tools-card, .mv2-workspace .mv2-tool-menu > summary, .mv2-workspace .mv2-tool-menu-body, .mv2-workspace .mv2-clock-chip, .mv2-workspace .mv2-edge-tab, .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail, .mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact {
-  background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none;
-  border: 1px solid var(--pw-line-soft); box-shadow: var(--shadow-soft);
+   The app's frosted glass: one tint, one blur, one light edge, one shadow. Every
+   floating part uses it, so no control reads as a different product. The tint is
+   78% opaque and the blur flattens the tiles, so text keeps its contrast. */
+.mv2-workspace .mv2-itinerary, .mv2-workspace .mv2-omnibar, .mv2-workspace .mv2-lenses, .mv2-workspace .map-toolbar .mv2-map-tools-card, .mv2-workspace .mv2-tool-menu > summary, .mv2-workspace .mv2-tool-menu-body, .mv2-workspace .mv2-clock-chip, .mv2-workspace .mv2-edge-tab, .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail, .mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact, .mv2-workspace .mv2-map-key, .mv2-workspace .map-filters-pop {
+  background: var(--pw-glass); -webkit-backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.25); backdrop-filter: blur(var(--yf-blur-panel)) saturate(1.25);
+  border: 1px solid var(--pw-glass-edge); box-shadow: var(--shadow-soft);
 }
 /* An edge tab joins its panel, so the side that meets the panel draws no line. */
 .mv2-workspace .mv2-edge-tab--day { border-left: 0; }

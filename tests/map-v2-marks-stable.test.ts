@@ -101,8 +101,8 @@ describe('F1 frame, control column and lens row', () => {
     expect(rail).toContain('.mv2-map-tools-card--zoom { position: sticky; top: 0;')
   })
 
-  it('gives the filter menu the solid card surface', () => {
-    expect(rail).toMatch(/\.map-filters-pop \{[^}]*background: var\(--card\); -webkit-backdrop-filter: none; backdrop-filter: none;/)
+  it('gives the filter menu the shared map glass', () => {
+    expect(rail).toMatch(/\.mv2-workspace \.map-filters-pop \{\n\s*background: var\(--pw-glass\);/)
   })
 
   it('shrinks the search bar before it can cover a lens, then drops the lens names', () => {

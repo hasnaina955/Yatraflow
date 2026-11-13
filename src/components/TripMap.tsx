@@ -19,7 +19,7 @@ import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
-import { clusterCandidates, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
+import { clusterCandidates, clusterCountLabel, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -118,7 +118,8 @@ function closeToolMenus(keep: Element | null): void {
 const TICK_ROOM = 36
 // The workspace badge: a white chip with a sea ring and a soft halo, like the idea pins.
 const WORKSPACE_CLUSTER_COLORS: [string, string, string] = ['#FFFFFF', '#FFFFFF', '#FFFFFF']
-const WORKSPACE_CLUSTER_LOOK: ClusterLook = { ring: '#0B6B63', ringWidth: 2.5, halo: '#0B6B63', text: '#0B4F4A', radii: [15, 18, 22] }
+// A group draws as a pile of pick tiles, so it reads as "several picks here".
+const WORKSPACE_CLUSTER_LOOK: ClusterLook = { ring: '#0B6B63', fill: '#FFFFFF', back: '#D6EEEA', text: '#0B4F4A', sizes: [28, 31, 35], title: count => `${clusterCountLabel(count)} · Click to open` }
 /** The workspace chrome hands the cluster layer no point, so no canvas badge can
  *  stand under a stop pin. One object, so the layer's data effect does not churn. */
 
@@ -1428,7 +1429,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       // here. Only a tap on the bare map is a blank click.
       const target = event.originalEvent?.target
       if (target instanceof Element && target.closest('.maplibregl-marker, .maplibregl-popup')) return
-      const onBadge = map.queryRenderedFeatures([event.point.x, event.point.y]).some(f => f.layer.id.startsWith('clusters-'))
+      const onBadge = map.queryRenderedFeatures([event.point.x, event.point.y]).some(f => f.layer.id.startsWith('clusters-') || f.layer.id.startsWith('cluster-count-'))
       if (onBadge) return
       closeToolMenus(null)
       setSelectedStop(null)

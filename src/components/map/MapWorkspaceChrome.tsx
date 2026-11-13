@@ -142,7 +142,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const timeFormat = useTimeFormat()
   const days = [...trip.days].sort((a, b) => a.index - b.index)
   const position = days.findIndex(day => day.index === activeDay)
-  const day = days[position]
+  // No day matches when the active index is gone, so the lookup can miss.
+  const day = position < 0 ? undefined : days[position]
   const date = day && visitDateForDay(trip.startDate, day.index)
   const dateLabel = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '') : ''
   const locks = new Set(trip.fixedCommitments?.filter(lock => lock.dayIndex === activeDay).flatMap(lock => lock.stopId ? [lock.stopId] : []))
@@ -247,7 +248,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const headTitle = stayView?.title != null ? stayView.title : null
   const headSub = stayView?.sub != null ? stayView.sub : null
   // The title keeps one line. The tooltip carries the full text.
-  const headTitleText = headTitle ?? (journey ? `${journey.startTitle} → ${endTown ?? journey.endTitle}` : day.title || 'Your day on the map')
+  const headTitleText = headTitle ?? (journey ? `${journey.startTitle} → ${endTown ?? journey.endTitle}` : day?.title || 'Your day on the map')
   // The "Leave X" row shows the clock the car leaves: a breakfast at the start
   // place comes first. Every other row keeps its booking or arrival clock.
   const rowClock = (point: JourneyPoint, index: number): string => {
@@ -280,7 +281,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
         <div className="mv2-day-head" key={allDays ? 'all' : activeDay}>
           <span className="mv2-day-mark"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
-          <h2 title={headTitleText}>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day.title || 'Your day on the map')}</h2>
+          <h2 title={headTitleText}>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
         </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>

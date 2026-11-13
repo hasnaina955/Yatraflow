@@ -16,7 +16,6 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
-**The app now has a checked-in Supabase type baseline, and a test checks its table and RPC names.** `src/types/database.generated.ts` holds the types that the Supabase generator made from the live `public` schema on 2026-11-12. Nothing imports the file yet, so the app code and bundle do not change. `tests/database-types.test.ts` fails when the app queries a table or RPC that the file does not declare. `docs/supabase-types.md` explains how to regenerate the file.
 **The two enforcement tables in the full agent manual are now one table.** `docs/agents/AGENTS-FULL.md` named each rule's gate in two tables. The merged table has 24 rows and keeps every check from both. It now marks `npm run check:migrations` as manual, because neither `verify` nor CI runs it. Root `AGENTS.md` shows the same status on its §3 row. No code or test changed.
 
 **Unused styles and the unused day route chart are removed.** The cleanup removes the POI ruler, Board container, trip header card, and day chart styles. It also removes the unused DaySpark component, its test, and its baseline entries. The current app and both open design branches have no app importer for this component. The CSS cleanup removes 225 more unused classes after checks on all three branches. It keeps 102 audit candidates with source references, test checks, or shared CSS dependencies.

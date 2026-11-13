@@ -72,9 +72,8 @@ export interface DriveBudget {
 /** The budget line for the rail box. An unknown number keeps the old lines. */
 export function driveBudgetBarText(budget: DriveBudget | null): string | null {
   if (budget == null || budget.usedMin == null || budget.budgetMin == null || budget.freeStops == null) return null
-  // The used part is the sum of the offered detours. Above the budget it says so.
-  const over = budget.usedMin > budget.budgetMin ? ' · over budget' : ''
-  return `${budget.usedMin} of ${budget.budgetMin} min${over} · ${budget.freeStops} free stops`
+  const difference = budget.usedMin - budget.budgetMin
+  return `All suggestions add ${budget.usedMin} min. ${difference > 0 ? `${difference} min over the ${budget.budgetMin} min limit.` : `The limit is ${budget.budgetMin} min.`} ${budget.freeStops} picks fit on their own.`
 }
 
 /** A five-step fill fraction. Null when the numbers are unknown. */

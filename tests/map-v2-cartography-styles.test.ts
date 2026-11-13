@@ -46,9 +46,9 @@ describe('supplied Linen and Night styles', () => {
     expect(land('dark')).toEqual({ 'background-color': '#0F1928' })
   })
 
-  it('keeps the docs copy byte-identical to the app copy', () => {
+  it('reads both runtime styles from their single home', () => {
     for (const name of ['yatraflow-linen.json', 'yatraflow-night.json']) {
-      expect(read(`../docs/redesign/map-v2/${name}`)).toBe(read(`../src/lib/mapStyles/${name}`))
+      expect(JSON.parse(read(`../src/lib/mapStyles/${name}`)).version).toBe(8)
     }
   })
 })

@@ -1,6 +1,6 @@
 // Fix lens deck. It draws one problem and the fixes another module built.
 // It shows only the fixes it is given. It never builds or ranks a fix.
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Check, Route } from 'lucide-react'
 import type { FixSummary } from '../../../pages/trip/map/fixLens'
 import { fixProblemCount, type FixChangeSet, type LensPhase } from '../../../lib/mapLensContracts'
@@ -38,7 +38,8 @@ function EvidenceLine({ text }: { text: string }) {
     : <Fragment key={index}>{part}</Fragment>)}</>
 }
 
-export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, onClose }: {
+export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, onClose, routeAdvice }: {
+  routeAdvice?: ReactNode
   phase: LensPhase
   dayNumber: number
   problem: { title: string; evidence: string[]; foundBy: string } | null
@@ -74,10 +75,11 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
         {`Found by the ${problem.foundBy} · every fix below was run through the impact preview`}
       </p>
     </div>}
+    {routeAdvice}
     {problem == null
-      ? <p className="mv2-lens-none">No problems on this day.</p>
+      ? (routeAdvice ? null : <p className="mv2-lens-none">No problems on this day.</p>)
       : shown.length === 0
-        ? <p className="mv2-lens-none">No safe fix was found. Every change we tried left the problem or made a new one.</p>
+        ? (routeAdvice ? null : <p className="mv2-lens-none">No safe fix was found. Every change we tried left the problem or made a new one.</p>)
         : <ol className="mv2-lens-fixes">
           {shown.map((fix, index) => <li key={fix.set.id}
             className={`mv2-lens-fix${index === 0 ? ' is-first' : ''}`}>

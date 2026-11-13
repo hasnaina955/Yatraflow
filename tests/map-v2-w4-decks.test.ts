@@ -51,12 +51,12 @@ describe('LensDeckHeader', () => {
   it('draws the kicker, the title and one close button named for screen readers', () => {
     const html = renderToStaticMarkup(createElement(LensDeckHeader, {
       kicker: 'Along the drive · lunch gap',
-      title: '3 places for lunch',
+      title: 'Lunch gap',
       sub: 'You pass at 12:05, inside the 11:30–14:30 window',
       onClose: noop,
     }))
     expect(html).toContain('Along the drive · lunch gap')
-    expect(html).toContain('3 places for lunch')
+    expect(html).toContain('Lunch gap')
     expect(html).toContain('aria-label="Close panel"')
     expect(html).not.toContain('Fold suggestions')
   })
@@ -73,9 +73,9 @@ describe('deck kicker and title per lens', () => {
   it('names the drive slot in the kicker and the places for that slot in the title', () => {
     expect(driveDeckKicker('Lunch gap')).toBe('Along the drive · lunch gap')
     expect(driveDeckTitle({ label: 'Lunch gap', total: 3 } as DriveTabGroup))
-      .toBe('3 places for lunch')
+      .toBe('Lunch gap')
     expect(driveDeckTitle({ label: 'Sights', total: 1 } as DriveTabGroup))
-      .toBe('1 place for sights')
+      .toBe('Sights')
     expect(driveAddLabel(3, 'Lunch gap')).toBe('Add as Day 3 lunch')
   })
 
@@ -296,7 +296,7 @@ describe('decks draw the shared header', () => {
   it('draws the drive kicker, the title and the close button', () => {
     const html = driveHtml()
     expect(html).toContain('Along the drive · lunch gap')
-    expect(html).toContain('3 places for lunch')
+    expect(html).toContain('Lunch gap')
     expect(html).toContain('aria-label="Close panel"')
     expect(html).toContain('Add as Day 3 lunch')
   })

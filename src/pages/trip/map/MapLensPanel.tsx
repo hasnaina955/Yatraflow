@@ -1,6 +1,7 @@
 // One deck for the active Map lens. The panel renders exactly one deck and
 // passes every deck callback through as a prop. It reads no store, no map and
 // no provider.
+import type { ReactNode } from 'react'
 import { DriveTabs } from '../../../components/map/lenses/DriveTabs'
 import { FixDeck } from '../../../components/map/lenses/FixDeck'
 import { GapDeck } from '../../../components/map/lenses/GapDeck'
@@ -16,6 +17,7 @@ import type { MapLensId, MapLenses } from './useMapLenses'
 type DriveRow = DriveLensRow
 
 export interface MapLensPanelProps {
+  routeAdvice?: ReactNode
   lens: MapLensId
   lenses: MapLenses
   dayLabel: string
@@ -72,14 +74,11 @@ export function MapLensPanel(props: MapLensPanelProps) {
     const active = groups.find(group => group.tab === props.activeDriveTab) ?? groups[0]
     const intro = active?.shown[0] ? props.introOf(active.shown[0]) : null
     // A deck with no window has no pass line. It still states the real scope.
-    const scopeLine = active != null && props.scopeMinutes != null
-      ? `Within ${props.scopeMinutes} min there and back · ${active.total} place${active.total === 1 ? '' : 's'}`
-      : null
     return <DriveTabs
       result={lenses.drive.tabs}
       activeTab={props.activeDriveTab}
       onTab={props.onDriveTab}
-      intro={intro ?? scopeLine}
+      intro={intro}
       stripOf={props.stripOf}
       bandOf={props.bandOf}
       nameOf={row => row.row.hit.name}
@@ -159,7 +158,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
       {...(props.onRetry == null ? {} : { onRetry: props.onRetry })}
     />
   }
-  return <FixDeck
+  return <FixDeck routeAdvice={props.routeAdvice}
     phase={lenses.fix.phase}
     dayNumber={props.dayNumber}
     problem={lenses.fix.problem}

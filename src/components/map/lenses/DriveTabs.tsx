@@ -75,9 +75,7 @@ export function driveDeckKicker(label: string | null): string {
 
 /** The deck title, for example "3 places for lunch". */
 export function driveDeckTitle(group: Pick<DriveTabGroup, 'label' | 'total'>): string {
-  const word = driveSlotWord(group.label)
-  const noun = group.total === 1 ? 'place' : 'places'
-  return word === '' ? `${group.total} ${noun}` : `${group.total} ${noun} for ${word}`
+  return group.label
 }
 
 /** Meal slot words. Other tabs name only the day. */

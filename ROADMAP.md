@@ -1488,3 +1488,5 @@ what a picked place IS, how it survives a save, and how it survives a delete and
 - Stage explicit paths — never `git add -A` in a shared working copy.
 - Update this file (and the UI-audit tracker) in the same commit as the work;
   when ticking tracker rows, update progress lines in the same edit.
+
+The Map basemap styles have one home in `src/lib/mapStyles/`.

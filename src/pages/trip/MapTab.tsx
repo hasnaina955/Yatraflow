@@ -38,7 +38,7 @@ import { useMapEdit } from './map/useMapEdit'
 import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPanel'
 import { MapLensPanel } from './map/MapLensPanel'
 import { driveLettersByRoad, useMapLenses, type MapLensId } from './map/useMapLenses'
-import { driveCardStrip, driveDeckIntro, scopeBandOf, type DriveTab } from './map/driveLens'
+import { driveCardStrip, driveDeckIntro, filledStopClock, scopeBandOf, type DriveTab } from './map/driveLens'
 import { STAY_RINGS, ringPolygon, ringRadiusKm, resolveStayBase } from './map/stayLens'
 import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
 import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
@@ -676,7 +676,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const [splitDeclinedAt, setSplitDeclinedAt] = useState<number | null>(null)
   const splitDeclined = splitDeclinedAt === travelDayNeed
   const setSplitDeclined = (declined: boolean) => setSplitDeclinedAt(declined ? travelDayNeed : null)
+  const [splitPreview, setSplitPreview] = useState(false)
   const applySplitDays = () => {
+    setSplitPreview(false)
     if (clockVerdict.verdict !== 'ok') return // defer/hop: nothing honest to stamp
     const add = travelDayNeed - trip.days.length // #123 single source
     if (add <= 0) return
@@ -1965,6 +1967,64 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // one row in the planning sheet. Desktop keeps them where they were.
   // The one scan retry. The Refresh button and the Retry button of a failed deck both call it.
   const retryScan = () => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }
+  const routeAdvice = (<>
+        {/* Day Planner proposals (P1-B/P1-C) — the split the route demands,
+            the defer/hop verdict for the real start time. They sit above the
+            strip because they change WHAT the strip plans. */}
+        {clockVerdict.verdict === 'defer' && (
+          <div className="dayplanner-banner" role="status">
+            <b>Too late to drive honestly today.</b>
+            <span className="small muted">{clockVerdict.reason}</span>
+            {editable && (
+              <button className="btn btn-primary btn-sm" onClick={() => applyChange(draft => { const d0 = draft.days[0]; if (d0) d0.startTime = DEFER_START }, 'edit', 0)}>
+                Set a {DEFER_START} start
+              </button>
+            )}
+          </div>
+        )}
+        {clockVerdict.verdict === 'hop' && (
+          <div className="dayplanner-banner" role="status">
+            <b>Late start - a short hop, then rest.</b>
+            <span className="small muted">{clockVerdict.reason}</span>
+          </div>
+        )}
+        {(routeTotalKm != null || roadNeedsRetry) && splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length && (
+          <div className="dayplanner-banner" role="status">
+            <b>This drive needs {travelDayNeed} travel days{tripIsRoundTrip ? ' - there and back' : ''}.</b>
+            <span className="small muted">
+              {routeFailed && 'Rough estimate - the road measurement did not resolve. '}≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} - the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
+            </span>
+            {roadRetryUnderway && (
+              <span className="small muted">
+                <InlineIcon icon={RefreshCw} size={12} gap={3} />Measuring the road again — the estimates hold until it resolves.
+              </span>
+            )}
+            {!splitDeclined ? (
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={() => setSplitPreview(true)}>Preview added days</button>
+                {splitPreview && <div role="status"><p>{travelDayNeed - trip.days.length} new travel days, each starting at 08:30. Existing stops stay on their days.</p><button type="button" className="btn btn-ghost btn-sm" onClick={() => setSplitPreview(false)}>Cancel</button></div>}
+                <button className="btn btn-primary btn-sm" onClick={applySplitDays}>
+                  Apply - add {travelDayNeed - trip.days.length} day{travelDayNeed - trip.days.length !== 1 ? 's' : ''}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSplitDeclined(true)}>Keep my {trip.days.length}-day plan</button>
+              </div>
+            ) : (
+              <span className="small dayplanner-red">
+                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} behind the wheel in a single stretch is past the honest cap - the fatigue verdict stays red.
+              </span>
+            )}
+            {roadNeedsRetry && road && !roadRetryUnderway && (
+              <button className="btn btn-outline btn-sm" onClick={road.retry}
+                title="Ask the routing provider again — the first tries may have been rate-limited">
+                <InlineIcon icon={RefreshCw} size={12} gap={3} />Retry road measurement
+              </button>
+            )}
+            {drizzleDay >= 0 && dayRainPct && (
+              <span className="small muted">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} - {travelDayNeed !== 1 ? travelDayNeed : 'one'} day{travelDayNeed !== 1 ? 's' : ''} planned stays, but pack a buffer for one more.</span>
+            )}
+          </div>
+        )}
+  </>)
   const settingsTools = (
     <details className="mv2-tools" id="mv2-map-settings">
         <summary><SlidersHorizontal size={15} aria-hidden />Search settings and route advice<ChevronDown size={14} aria-hidden /></summary>
@@ -1999,60 +2059,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             state={scopeState}
           />
         </div>
-        {/* Day Planner proposals (P1-B/P1-C) — the split the route demands,
-            the defer/hop verdict for the real start time. They sit above the
-            strip because they change WHAT the strip plans. */}
-        {clockVerdict.verdict === 'defer' && (
-          <div className="dayplanner-banner" role="status">
-            <b>Too late to drive honestly today.</b>
-            <span className="small muted">{clockVerdict.reason}</span>
-            {editable && (
-              <button className="btn btn-primary btn-sm" onClick={() => applyChange(draft => { const d0 = draft.days[0]; if (d0) d0.startTime = DEFER_START }, 'edit', 0)}>
-                Set a {DEFER_START} start
-              </button>
-            )}
-          </div>
-        )}
-        {clockVerdict.verdict === 'hop' && (
-          <div className="dayplanner-banner" role="status">
-            <b>Late start - a short hop, then rest.</b>
-            <span className="small muted">{clockVerdict.reason}</span>
-          </div>
-        )}
-        {(routeTotalKm != null || roadNeedsRetry) && splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length && (
-          <div className="dayplanner-banner" role="status">
-            <b>This drive needs {travelDayNeed} travel days{tripIsRoundTrip ? ' - there and back' : ''}.</b>
-            <span className="small muted">
-              {routeFailed && 'Rough estimate - the road measurement did not resolve. '}≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} - the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
-            </span>
-            {roadRetryUnderway && (
-              <span className="small muted">
-                <InlineIcon icon={RefreshCw} size={12} gap={3} />Measuring the road again — the estimates hold until it resolves.
-              </span>
-            )}
-            {!splitDeclined ? (
-              <div className="row" style={{ gap: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={applySplitDays}>
-                  Apply - add {travelDayNeed - trip.days.length} day{travelDayNeed - trip.days.length !== 1 ? 's' : ''}
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setSplitDeclined(true)}>Keep my {trip.days.length}-day plan</button>
-              </div>
-            ) : (
-              <span className="small dayplanner-red">
-                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} behind the wheel in a single stretch is past the honest cap - the fatigue verdict stays red.
-              </span>
-            )}
-            {roadNeedsRetry && road && !roadRetryUnderway && (
-              <button className="btn btn-outline btn-sm" onClick={road.retry}
-                title="Ask the routing provider again — the first tries may have been rate-limited">
-                <InlineIcon icon={RefreshCw} size={12} gap={3} />Retry road measurement
-              </button>
-            )}
-            {drizzleDay >= 0 && dayRainPct && (
-              <span className="small muted">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} - {travelDayNeed !== 1 ? travelDayNeed : 'one'} day{travelDayNeed !== 1 ? 's' : ''} planned stays, but pack a buffer for one more.</span>
-            )}
-          </div>
-        )}
+        {routeAdvice}
         {/* #141 standalone: drizzle-grade rain never flips the verdict, so it
             says itself when no split banner is up. */}
         {drizzleDay >= 0 && dayRainPct && !(splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length) && clockVerdict.verdict === 'ok' && (
@@ -2134,7 +2141,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay'} endTown={headerEndTown} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
-          <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span>{lenses.counts.drive != null && <b>{lenses.counts.drive}</b>}</button>
+          <button type="button" aria-label="Along the drive" aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span></button>
           <button type="button" aria-label={phoneLensAriaLabel('Around the stay', lenses.counts.stay)} aria-controls="rail-see" aria-pressed={lens === 'stay' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('stay'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><BedDouble size={16} aria-hidden /><span>Stay</span>{lenses.counts.stay != null && <b>{lenses.counts.stay}</b>}</button>
           <button type="button" aria-label={phoneLensAriaLabel('Gaps in this day', lenses.counts.gap)} aria-controls="rail-see" aria-pressed={lens === 'gap' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('gap'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Sparkles size={16} aria-hidden /><span>Gap</span>{lenses.counts.gap != null && <b>{lenses.counts.gap}</b>}</button>
           <button type="button" aria-label={phoneLensAriaLabel('Fix this day', lenses.counts.fix)} aria-controls="rail-see" aria-pressed={lens === 'fix' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Lightbulb size={16} aria-hidden /><span>Fix</span>{lenses.counts.fix != null && <b>{lenses.counts.fix}</b>}</button>
@@ -2384,7 +2391,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                         <div className="day-slot-top">
                           <span className="day-slot-st" aria-hidden>{slot.state === 'filled' ? '\u2713' : ''}</span>
                           <span className="day-slot-lab"><SlotGlyph kind={slot.kind} label={slot.label} />{slot.label}</span>
-                          <span className="day-slot-win">{slot.windowLabel ?? ''}</span>
+                          <span className="day-slot-win">{slot.state === 'filled' ? formatHM(filledStopClock(journeyDay?.daySchedule ?? null, slot.filledStop?.id ?? '') ?? '', timeFormat) : slot.windowLabel ?? ''}</span>
                           <span className="day-slot-val">
                             {slot.state === 'filled'
                               ? <b>{slot.filledStop?.title ?? slot.segment?.label ?? 'Planned'}</b>
@@ -2622,6 +2629,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             </div>}
             <MapLensPanel
               lens={lens}
+              routeAdvice={routeAdvice}
               onFold={foldDeck}
               onRetry={retryScan}
               lenses={lenses}

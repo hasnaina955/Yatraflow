@@ -92,3 +92,5 @@ Start here. The codebase is documented across the files below — read the ones 
 ## Changelog
 - [`changelog.d/README.md`](../changelog.d/README.md) — fragment format, coverage checks, and release assembly.
 - [`CHANGELOG.md`](../CHANGELOG.md) — every notable change, Keep-a-Changelog style.
+
+The Map basemap styles have one home in `src/lib/mapStyles/`.

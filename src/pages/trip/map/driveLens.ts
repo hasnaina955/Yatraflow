@@ -4,6 +4,13 @@ import type { DaySlot, DaySlotKind } from '../../../lib/daySlots'
 import { scopeCounts } from './minuteScope'
 import { detourDisplayText } from './detourRule'
 import { detourDisplay } from './driveSuggestionView'
+import type { DaySchedule } from '../../../lib/engine'
+
+/** A planned stop reads the same arrival as the day rail. */
+export function filledStopClock(schedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null, stopId: string): string | null {
+  const index = schedule?.activeStops.findIndex(stop => stop.id === stopId) ?? -1
+  return index < 0 ? null : schedule?.arrivalTimes[index] ?? null
+}
 
 /** The three sub-tabs of the Along the drive deck. */
 export type DriveTab = 'meal' | 'sights' | 'breaks'

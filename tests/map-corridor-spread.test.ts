@@ -40,7 +40,7 @@ describe('Corridor picks spread along the road', () => {
     const kept = rankAndCap(pool, ANCHORS, 10_000, 4, { spreadKm: ROUTE_STRETCH_KM })
     // A large count lifts the per-category cap, so every place has a rank.
     const plain = rankAndCap(pool, ANCHORS, 10_000, 30)
-    const rank = (id: string) => plain.findIndex(h => h.id === id)
+    const rank = (id: string | number) => plain.findIndex(h => h.id === id)
     const order = kept.map(h => rank(h.id))
     expect(order).toEqual([...order].sort((a, b) => a - b))
   })

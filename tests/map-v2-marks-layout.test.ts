@@ -20,11 +20,11 @@ const meet = (a: { x: number; y: number; w: number; h: number }, b: { x: number;
   Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2
 
 describe('layoutMarks: hit boxes', () => {
-  it('moves two close stops until their 44px hit boxes stop meeting', () => {
+  it('keeps two close stops on their own coordinates, even when their hit boxes meet', () => {
     const marks = [stop('a', 200, 200), stop('b', 200, 237)]
-    const boxes = placed(marks, layoutMarks(marks))
-    expect(boxes).toHaveLength(2)
-    expect(meet(boxes[0], boxes[1])).toBe(false)
+    const spots = layoutMarks(marks)
+    expect(spots.get('a')).toEqual({ dx: 0, dy: 0, hidden: false })
+    expect(spots.get('b')).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
   it('never moves the higher layer for a lower one', () => {
@@ -75,12 +75,9 @@ describe('layoutMarks: clock pills', () => {
 })
 
 describe('layoutMarks: bounds', () => {
-  it('moves a mark that starts outside the open map area back inside', () => {
+  it('leaves a stop that starts outside the open map area on its coordinate', () => {
     const bounds = { left: 100, top: 100, right: 400, bottom: 400 }
     const marks = [stop('edge', 110, 250)]
-    const spot = layoutMarks(marks, { bounds }).get('edge')!
-    const box = placed(marks, new Map([['edge', spot]]))[0]
-    expect(box.x - box.w / 2).toBeGreaterThanOrEqual(bounds.left)
-    expect(box.x + box.w / 2).toBeLessThanOrEqual(bounds.right)
+    expect(layoutMarks(marks, { bounds }).get('edge')).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 })

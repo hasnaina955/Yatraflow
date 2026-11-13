@@ -47,6 +47,9 @@ const stop = (id: string, title: string, category: ItineraryStop['category'], la
 const at = (key: keyof typeof boardRoad.stops) => ({ lat: boardRoad.stops[key].at[1], lng: boardRoad.stops[key].at[0] })
 const boardTrip = params.get('trip') !== 'small'
 const fixScenario = params.get('scenario') === 'fix'
+// The dense scenario is a 5 day, 34 stop trip along Mumbai, Goa and Karnataka. It shows how the
+// map draws many close stops at low zoom. All of it is sample data.
+const denseScenario = params.get('scenario') === 'dense'
 const small = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Kerala loop', startLocation: 'Munnar', startLocationCoords: { lat: 10.088, lng: 77.059 }, destinations: ['Thekkady'], destinationCoords: [{ lat: 9.604, lng: 77.164 }],
   startDate: '2027-11-14', endDate: '2027-11-16', travellers: 2, budgetPerPersonInr: 12000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
@@ -98,7 +101,23 @@ const board = (): Trip => ({
     ] },
   ],
 })
-const trip: Trip = boardTrip ? board() : small()
+const denseStops: [string, ItineraryStop['category'], number, number][][] = [
+  [['Gateway of India', 'sightseeing', 18.922, 72.8347], ['Marine Drive walk', 'nature', 18.944, 72.823], ['CSMT station', 'sightseeing', 18.9398, 72.8355], ['Colaba Causeway', 'shopping', 18.9154, 72.828], ['Check in · Harbour Hotel', 'hotel', 18.922, 72.833], ['Elephanta Caves', 'sightseeing', 18.9633, 72.9315], ['Alibag beach', 'nature', 18.6414, 72.8722]],
+  [['Ganpatipule temple', 'temple', 17.145, 73.27], ['Ratnagiri fort', 'sightseeing', 16.983, 73.27], ['Tarkarli beach', 'beach', 16.02, 73.47], ['Sindhudurg fort', 'sightseeing', 16.042, 73.46], ['Check in · Tarkarli Homestay', 'hotel', 16.015, 73.465]],
+  [['Fort Aguada', 'sightseeing', 15.4925, 73.7737], ['Baga beach', 'beach', 15.5553, 73.7517], ['Calangute market', 'shopping', 15.544, 73.755], ['Candolim lunch', 'food', 15.518, 73.762], ['Anjuna flea market', 'shopping', 15.5736, 73.7413], ['Vagator cliff', 'nature', 15.6, 73.738], ['Check in · Candolim Resort', 'hotel', 15.519, 73.763], ['Chapora fort', 'sightseeing', 15.606, 73.736], ['Panjim Latin quarter', 'sightseeing', 15.4989, 73.8278]],
+  [['Basilica of Bom Jesus', 'temple', 15.5009, 73.9116], ['Se Cathedral', 'temple', 15.503, 73.912], ['Dudhsagar falls', 'nature', 15.3144, 74.3143], ['Palolem beach', 'beach', 15.01, 74.023], ['Agonda beach', 'beach', 15.045, 73.988], ['Colva beach', 'beach', 15.28, 73.922], ['Check in · Palolem Huts', 'hotel', 15.011, 74.024]],
+  [['Om beach, Gokarna', 'beach', 14.52, 74.317], ['Mahabaleshwar temple', 'temple', 14.54, 74.32], ['Murudeshwar', 'temple', 14.094, 74.485], ['Udupi Krishna temple', 'temple', 13.3409, 74.7421], ['Panambur beach', 'beach', 12.94, 74.812], ['Check in · Mangaluru Hotel', 'hotel', 12.87, 74.842]],
+]
+const dense = (): Trip => ({
+  id: 'fixture-map-local-only', name: 'Mumbai to Mangaluru', startLocation: 'Mumbai', startLocationCoords: { lat: 18.9388, lng: 72.8354 }, destinations: ['Mangaluru'], destinationCoords: [{ lat: 12.87, lng: 74.842 }],
+  startDate: '2026-11-14', endDate: '2026-11-18', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
+  createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }], fixedCommitments: [],
+  days: denseStops.map((rows, dayIndex) => ({
+    id: `fixture-dense-day-${dayIndex + 1}`, index: dayIndex, startTime: '09:00', title: ['Mumbai', 'Konkan coast', 'North Goa', 'South Goa', 'Karnataka coast'][dayIndex],
+    stops: rows.map(([title, category, lat, lng], order) => stop(`fixture-dense-${dayIndex + 1}-${order + 1}`, title, category, lat, lng, order + 1, 45)),
+  })),
+})
+const trip: Trip = denseScenario ? dense() : boardTrip ? board() : small()
 if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
 // Sample: the hotel is the stay base. It fills no slot (its key names none), so
 // the stay and dinner windows stay open and the stay lens shows the sample picks
@@ -113,7 +132,7 @@ const assumptions = getAssumptions(trip)
 const legs = chain.points.slice(1).map((point, index) => {
   const estimate = legBetween(chain.points[index], point, assumptions)
   const from = chain.points[index]
-  const onRoad = boardTrip ? boardLegBetween(from, point) : null
+  const onRoad = boardTrip && !denseScenario ? boardLegBetween(from, point) : null
   return {
     distanceKm: onRoad?.distanceKm ?? estimate.distanceKm,
     durationMinutes: onRoad?.durationMinutes ?? estimate.durationMinutes,
@@ -175,8 +194,8 @@ const splitRecordedLegs = (hits: readonly { latitude: number; longitude: number 
       const from = chain.points[index]
       const to = chain.points[index + 1]
       if (!from || !to) continue
-      const inLeg = boardTrip ? boardLegBetween(from, point) : null
-      const outLeg = boardTrip ? boardLegBetween(point, to) : null
+      const inLeg = boardTrip && !denseScenario ? boardLegBetween(from, point) : null
+      const outLeg = boardTrip && !denseScenario ? boardLegBetween(point, to) : null
       if (!inLeg || !outLeg) continue
       const total = inLeg.distanceKm + outLeg.distanceKm
       if (!(total > 0)) continue
@@ -210,7 +229,7 @@ const SAMPLE_STAY: readonly PlaceHit[] = [
   sampleStayHit(930010, 'Boat landing viewpoint', 'sightseeing', -0.0115, -0.0082, '06:00', '18:30', { admin1: 'Thekkady', facts: { kind: 'Viewpoint' } }),
 ]
 splitRecordedLegs(SAMPLE_STAY)
-for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
+for (const [slotKey, hits] of denseScenario ? [] : [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
   const context = { tripId: trip.id, dayId: 'fixture-day-3', slotKey }
   for (const hit of hits) mapManualSlotStore.file(context, hit)
 }
@@ -220,7 +239,7 @@ const crewSuggestions = syntheticSeeds.map((seed, index) => ({
 
 function Fixture() {
   const cache = useSuggestionCache(trip.id, trip.days.length)
-  const [day, setDay] = useState<number | 'all'>(boardTrip ? 2 : 0)
+  const [day, setDay] = useState<number | 'all'>(denseScenario ? 'all' : boardTrip ? 2 : 0)
   const [message, setMessage] = useState('Synthetic local data. Provider and write transports are controlled. Map tiles are external.')
   const [corridorSnapshot, setCorridorSnapshot] = useState<CorridorSnapshot | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set())

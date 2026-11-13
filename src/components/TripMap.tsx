@@ -318,6 +318,38 @@ type GeoJSONSourceLike = { setData(d: unknown): void }
 
 // ============ Road milestone labels on the map (requested redesign) ============
 
+/** The road labels the layer draws: the outbound half always, the return half with the toggle. */
+function visibleMilestones(overlay: ClockMilestone[], showReturn: boolean): ClockMilestone[] {
+  return overlay.filter(m => m.leg === 'outbound' || showReturn)
+}
+const milestoneMarkId = (index: number) => `ms:${index}`
+// A road label is one pill pair around its point. The time is on the left and the km is on the right.
+// The box is an estimate of the drawn size, so the layout can keep two labels apart.
+function milestoneBox(m: ClockMilestone, timeText: string): { w: number; h: number; x: number } {
+  const whenW = Math.max(timeText.length * 6.4, (m.haltName?.length ?? 0) * 6.8, m.dateLabel.length * 5.6) + 16
+  const kmW = m.kmLabel.length * 5.8 + 16
+  const lines = 1 + (m.haltName ? 1 : 0) + (m.dateLabel ? 1 : 0)
+  return { w: whenW + kmW + 10, h: 6 + lines * 13, x: (kmW - whenW) / 2 }
+}
+/** One distance chip per placed place that has a road km, on the route line. */
+function suggestionDistancePins(places: PlaceHit[], road: [number, number][] | null): Array<{ id: string; name: string; km: number; lat: number; lng: number }> {
+  if (!road || road.length < 2) return []
+  const poly = road.map(c => ({ lat: c[1], lng: c[0] }))
+  const out: Array<{ id: string; name: string; km: number; lat: number; lng: number }> = []
+  for (const p of places) {
+    const km = p.cumKm
+    if (km == null || !(km > 0)) continue
+    const at = pointAtKm(poly, km)
+    if (!at) continue
+    out.push({ id: String(p.id), name: p.name, km, lat: at.lat, lng: at.lng })
+  }
+  return out
+}
+// A pill that yields to the stops: it slides a little, or it hides. The layout owns where it lands.
+type PillSpots = { spots: ReadonlyMap<string, MarkSpot>; moving: boolean }
+const pillStyle = (spot: MarkSpot | undefined): React.CSSProperties | undefined => spot && !spot.hidden && (spot.dx || spot.dy) ? { transform: `translate(${spot.dx}px, ${spot.dy}px)` } : undefined
+const pillHidden = (pills: PillSpots, id: string): 'true' | undefined => pills.moving || pills.spots.get(id)?.hidden ? 'true' : undefined
+
 /**
  * The clock drawn as clean ROAD LABELS — no pins, no dots, no circles. Each
  * planned anchor (meal / overnight / destination) is a zero-size anchor ON the
@@ -330,13 +362,13 @@ type GeoJSONSourceLike = { setData(d: unknown): void }
  * outbound half renders, so the going-home readings never clutter the map the
  * traveller hasn't asked to see.
  */
-function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: ClockMilestone[]; showReturn: boolean; onOpenDay?: (dayIndex: number) => void }) {
+function ClockMilestoneLayer({ overlay, showReturn, onOpenDay, pills }: { overlay: ClockMilestone[]; showReturn: boolean; onOpenDay?: (dayIndex: number) => void; pills: PillSpots }) {
   const { isLoaded } = useMap()
   const timeFormat = useTimeFormat()
   if (!isLoaded || overlay.length === 0) return null
   return (
     <>
-      {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => {
+      {visibleMilestones(overlay, showReturn).map((m, i) => {
         // Phase 3: an overnight halt is a decision ("where do we sleep"), so it
         // is the one label that earns a tap — it opens that day's plan. Every
         // other label stays decorative context. The tap target must carry an
@@ -345,7 +377,7 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
         // would open nothing (or, worse, the wrong day).
         const halts = m.kind === 'overnight' && typeof onOpenDay === 'function' && m.itineraryDay != null
         const chip = (
-          <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
+          <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`} data-collapsed={pillHidden(pills, milestoneMarkId(i))} style={pillStyle(pills.spots.get(milestoneMarkId(i)))}>
             <span className="yf-milestone-when">
               {m.haltName && <b className="yf-milestone-halt">{m.haltName}</b>}
               <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
@@ -385,28 +417,16 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
  * On a round trip the placed stops are all outbound (the drive home plans no
  * sightseeing), so no return gate is needed here.
  */
-function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [number, number][] | null }) {
+function SuggestionDistanceLayer({ places, road, pills }: { places: PlaceHit[]; road: [number, number][] | null; pills: PillSpots }) {
   const { isLoaded } = useMap()
-  const pins = useMemo(() => {
-    if (!road || road.length < 2) return [] as Array<{ id: string; name: string; km: number; lat: number; lng: number }>
-    const poly = road.map(c => ({ lat: c[1], lng: c[0] }))
-    const out: Array<{ id: string; name: string; km: number; lat: number; lng: number }> = []
-    for (const p of places) {
-      const km = p.cumKm
-      if (km == null || !(km > 0)) continue
-      const at = pointAtKm(poly, km)
-      if (!at) continue
-      out.push({ id: String(p.id), name: p.name, km, lat: at.lat, lng: at.lng })
-    }
-    return out
-  }, [places, road])
+  const pins = useMemo(() => suggestionDistancePins(places, road), [places, road])
   if (!isLoaded || pins.length === 0) return null
   return (
     <>
       {pins.map(pin => (
         <MapMarker key={`sd-${pin.id}`} longitude={pin.lng} latitude={pin.lat} anchor="center">
           <MarkerContent className="yf-milestone-anchor">
-            <span className="yf-milestone yf-milestone--place">
+            <span className="yf-milestone yf-milestone--place" data-collapsed={pillHidden(pills, `sd:${pin.id}`)} style={pillStyle(pills.spots.get(`sd:${pin.id}`))}>
               <em className="yf-milestone-km">{`Km ${Math.round(pin.km)}`}</em>
             </span>
           </MarkerContent>
@@ -718,6 +738,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [legendOpen, setLegendOpen] = useState(() => loadFlag('map_legend_open', false))
   const keyId = useId()
   const keyToggle = useRef<HTMLButtonElement>(null)
+  // The control column scrolls when the map is short. A menu that opens in it scrolls itself into view.
+  const revealInColumn = useCallback((el: HTMLElement | null) => { el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }, [])
   function closeWorkspaceKey() {
     setLegendOpen(false)
     saveFlag('map_legend_open', false)
@@ -1056,17 +1078,33 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // The spread only moves how they are drawn, after each camera move.
   // A stop wins over a problem, an empty part, a pick and a clock pill, in that order.
   const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  // While the camera zooms, turns or tilts, the laid-out pills and tags belong to the old view. They
+  // hide until the move ends. A stop never takes part: it stays on its coordinate the whole time.
+  const [camMoving, setCamMoving] = useState(false)
+  // The drawn road per day. The road labels read it, so it is declared before the layout below.
+  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
   // W14: a reach ring wider than the view has its caption point off the map. The
   // camera pass parks the caption at the nearest edge of the clear map area. It is
   // computed here, never read from a ref during render.
   const [ringCaptionSpots, setRingCaptionSpots] = useState<Record<string, { lat: number; lng: number; edge: boolean }>>({})
   const ringCaptionSpotsRef = useRef<Record<string, { lat: number; lng: number; edge: boolean }>>({})
+  // The home leg of a round trip. The road labels read it, so it is declared before the layout.
+  const returnLeg = useMemo(() => {
+    if (!isRoundTrip(trip) || !trip.startLocationCoords) return null
+    const last = allPoints[allPoints.length - 1]
+    if (!last) return null
+    const h = trip.startLocationCoords
+    if (Math.abs(h.lat - last.lat) < 1e-4 && Math.abs(h.lng - last.lng) < 1e-4) return null
+    return { from: { lat: last.lat, lng: last.lng }, home: { lat: h.lat, lng: h.lng } }
+  }, [trip, allPoints])
   // A stop name tag follows the active day. The stay base keeps its tag on every day,
   // so the house mark always says where tonight's base is.
   const activeTagDay = dayFilter === 'all' ? selectedDay ?? null : dayFilter
   const spreadMarks: (LayoutMark & { lat: number; lng: number; ox: number; oy: number })[] = []
   if (workspaceChrome) {
-    for (const p of allPoints) {
+    // A pill of the active day is placed first. It wins a free spot over a pill of another day.
+    const layoutOrder = [...allPoints].sort((a, b) => Number(b.dayIndex === activeTagDay) - Number(a.dayIndex === activeTagDay))
+    for (const p of layoutOrder) {
       const off = pinOffsets.get(p.id)
       const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
       spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, drawW: p.auto ? 30 : STOP_BOX.drawW, drawH: p.auto ? 30 : STOP_BOX.drawH, ...base })
@@ -1131,6 +1169,32 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
     }
   }
+  // The road labels, the route ticks and the pick words are pills too. They yield to the stops,
+  // slide a short way, or hide. They come after the stop pills, so a stop's own pill wins a spot.
+  if (workspaceChrome) {
+    if (clockMilestones && clockOn && dayFilter === 'all') {
+      visibleMilestones(clockMilestones, !returnLeg || showReturn).forEach((m, i) => {
+        if (!validMapCoordinate({ lat: m.lat, lng: m.lng })) return
+        const box = milestoneBox(m, formatHM(clockHM(m.etaMin), timeFormat))
+        spreadMarks.push({ id: milestoneMarkId(i), layer: 'clock', x: box.x, y: 0, w: box.w, h: box.h, lat: m.lat, lng: m.lng, ox: 0, oy: 0 })
+      })
+      for (const pin of suggestionDistancePins(nearbyPois, geom.all ?? null)) {
+        spreadMarks.push({ id: `sd:${pin.id}`, layer: 'clock', x: 30, y: 0, w: `Km ${Math.round(pin.km)}`.length * 5.8 + 16, h: 18, lat: pin.lat, lng: pin.lng, ox: 0, oy: 0 })
+      }
+    }
+    // The lunch window is placed before the time ticks. It may slide further along the road, so a tick never takes its spot.
+    for (const mark of [...routeMarks].sort((a, b) => Number(a.kind === 'tick') - Number(b.kind === 'tick'))) {
+      if (!validMapCoordinate({ lat: mark.lat, lng: mark.lng })) continue
+      const text = mark.label + (mark.sub ?? '')
+      spreadMarks.push({ id: `route:${mark.id}`, layer: 'clock', x: 0, y: 0, w: mark.kind === 'tick' ? CLOCK_BOX.w : text.length * 7.2 + 26, h: CLOCK_BOX.h, lat: mark.lat, lng: mark.lng, ox: 0, oy: 0, ...(mark.kind === 'tick' ? {} : { maxTravel: 160 }) })
+    }
+    for (const hit of markPois) {
+      const tagText = pickTags?.[String(hit.id)]
+      if (tagText == null || slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
+      const w = tagText.length * 7.2 + 26
+      spreadMarks.push({ id: `pick-tag:${hit.id}`, layer: 'clock', follows: `pick:${hit.id}`, x: (PICK_BOX.w + w) / 2 + 4, y: 0, w, h: 24, lat: hit.latitude, lng: hit.longitude, ox: 0, oy: 0 })
+    }
+  }
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
   const spreadMarksRef = useRef(spreadMarks)
   // Effects run top to bottom, so this one feeds the spread and camera effects below it in the same commit.
@@ -1148,7 +1212,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     })
     const spots = layoutMarks(marks, { bounds })
     // Only stops and pills steer the camera. A far pick must not pull the frame out.
-    const boxes: FrameBox[] = marks.filter(m => m.layer === 'stop' || m.layer === 'clock').flatMap(m => {
+    const boxes: FrameBox[] = marks.filter(m => m.layer === 'stop' || (m.layer === 'clock' && m.follows?.startsWith('stop:'))).flatMap(m => {
       const spot = spots.get(m.id)
       if (!spot || spot.hidden) return []
       const anchor = m.follows ? spots.get(m.follows) : undefined
@@ -1176,6 +1240,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         // makes this effect feed itself when the camera settles.
         const zoom = Math.round(map.getZoom() * 100) / 100
         setMapZoom(prev => prev === zoom ? prev : zoom)
+        setCamMoving(false)
         const { size, insets } = measureFrame()
         const safe = safeRect(size, insets)
         const { spots: next } = layoutOnMap(map, safe)
@@ -1205,10 +1270,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         if (captionsChanged) setViewTick(tick => tick + 1)
       } catch { /* the map was removed while measuring */ }
     }
+    // A pan keeps every relative distance, so only a zoom, a turn or a tilt makes the layout stale.
+    const startMove = () => setCamMoving(true)
     spread()
+    map.on('zoomstart', startMove)
+    map.on('rotatestart', startMove)
+    map.on('pitchstart', startMove)
     map.on('moveend', spread)
     map.on('resize', spread)
-    return () => { map.off('moveend', spread); map.off('resize', spread) }
+    return () => { map.off('zoomstart', startMove); map.off('rotatestart', startMove); map.off('pitchstart', startMove); map.off('moveend', spread); map.off('resize', spread) }
   }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRingsKey])
 
   useEffect(() => {
@@ -1262,7 +1332,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Declared HERE, above the fit, because the all-days fit now frames the drawn
   // road itself (#330) — a render-scoped useState has no forward reference, and
   // hoisting the declaration is what makes the line available to the camera.
-  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
 
   // EVERYTHING the current view draws — the fit frames the drawing, not just
   // the stop pins. A day's journey chain carries its synthesized origin (last
@@ -1495,7 +1564,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // A mark moved by the spread keeps its real coordinate. Only the drawing moves.
   function offsetWrap(id: string, node: React.ReactNode): React.ReactNode {
     if (!workspaceChrome) return node
-    const spot = markSpots.get(id)
+    const spot = camMoving ? undefined : markSpots.get(id)
     return <span className="mv2-pin-offset" data-mark={id} style={spot && (spot.dx || spot.dy) ? { transform: `translate(${spot.dx}px, ${spot.dy}px)` } : undefined}>{node}</span>
   }
 
@@ -1566,14 +1635,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Round-trip return drive: last plotted point → trip start (home). Only for
   // self-drive round trips with a geocoded home, and only when home isn't
   // already the last plotted anchor. Toggleable via the map filter chips.
-  const returnLeg = useMemo(() => {
-    if (!isRoundTrip(trip) || !trip.startLocationCoords) return null
-    const last = allPoints[allPoints.length - 1]
-    if (!last) return null
-    const h = trip.startLocationCoords
-    if (Math.abs(h.lat - last.lat) < 1e-4 && Math.abs(h.lng - last.lng) < 1e-4) return null
-    return { from: { lat: last.lat, lng: last.lng }, home: { lat: h.lat, lng: h.lng } }
-  }, [trip, allPoints])
   const returnStraight = useMemo(
     () => (returnLeg ? [[returnLeg.from.lng, returnLeg.from.lat], [returnLeg.home.lng, returnLeg.home.lat]] as [number, number][] : null),
     [returnLeg],
@@ -1744,7 +1805,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     <Layers size={17} aria-hidden />
                   </button>
                   {filtersOpen && (
-                    <div className="map-filters-pop popover" role="group" aria-label="Nearby idea categories">
+                    <div className="map-filters-pop popover" role="group" aria-label="Nearby idea categories" ref={revealInColumn}>
                       {ideaCats.map(([cat, count]) => (
                         <button key={cat} className="map-filters-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
                           <CatIcon category={cat} size={13} aria-hidden />
@@ -2143,8 +2204,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               <MapMarker key={`route-${mark.id}`} longitude={mark.lng} latitude={mark.lat}>
                 <MarkerContent>
                   {mark.kind === 'tick'
-                    ? <span className="mv2-pin-clock mv2-route-tick" aria-label={`${mark.label}, ${mark.sub ?? ''}`}>{mark.label}{mark.sub != null && <small>{mark.sub}</small>}</span>
-                    : <span className="mv2-route-window">{mark.label}</span>}
+                    ? <span className="mv2-pin-clock mv2-route-tick" data-collapsed={camMoving || markSpots.get(`route:${mark.id}`)?.hidden ? 'true' : undefined} style={pillStyle(markSpots.get(`route:${mark.id}`))} aria-label={`${mark.label}, ${mark.sub ?? ''}`}>{mark.label}{mark.sub != null && <small>{mark.sub}</small>}</span>
+                    : <span className="mv2-route-window" data-collapsed={camMoving || markSpots.get(`route:${mark.id}`)?.hidden ? 'true' : undefined} style={pillStyle(markSpots.get(`route:${mark.id}`))}>{mark.label}</span>}
                 </MarkerContent>
               </MapMarker>
             ))}
@@ -2157,8 +2218,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 geometry. */}
             {clockMilestones && clockOn && dayFilter === 'all' && (
               <>
-                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} />
-                <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
+                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} pills={{ spots: markSpots, moving: camMoving }} />
+                <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} pills={{ spots: markSpots, moving: camMoving }} />
               </>
             )}
             {/* #417: the suggestion family the map groups. `unclusteredVisible`
@@ -2257,6 +2318,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' || onLastNight ? ' is-stay' : ''}${isBase && frameStayRing ? ' is-stay-hero' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
                         style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#FFFFFF' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
+                        data-active-day={workspaceChrome && activeTagDay != null && p.dayIndex === activeTagDay ? 'true' : undefined}
                         aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}
                       >
@@ -2266,10 +2328,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         </span>}
                       </button>
                       </span>
-                      {showTag && <span className={`mv2-stop-tag${isBase ? ' mv2-stop-tag--base' : ''}`} data-collapsed={tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{isBase ? baseTagText(p.title) : p.title}</span>}
-                      {warn?.text != null && <span className="mv2-stop-tag mv2-stop-tag--fix" data-collapsed={warnTagSpot?.hidden ? 'true' : undefined} style={warnTagSpot && !warnTagSpot.hidden ? { transform: `translate(${warnTagSpot.dx + dx}px, ${warnTagSpot.dy + dy}px)` } : undefined}>{warn.text}</span>}
+                      {showTag && <span className={`mv2-stop-tag${isBase ? ' mv2-stop-tag--base' : ''}`} data-collapsed={camMoving || tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{isBase ? baseTagText(p.title) : p.title}</span>}
+                      {warn?.text != null && <span className="mv2-stop-tag mv2-stop-tag--fix" data-collapsed={camMoving || warnTagSpot?.hidden ? 'true' : undefined} style={warnTagSpot && !warnTagSpot.hidden ? { transform: `translate(${warnTagSpot.dx + dx}px, ${warnTagSpot.dy + dy}px)` } : undefined}>{warn.text}</span>}
                       {c && !warn && !(showTag && isBase) && (workspaceChrome
-                        ? <span className="mv2-pin-clock" data-collapsed={clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {Math.max(0, c.cumKm - dayKmBase)}</small></span>
+                        ? <span className="mv2-pin-clock" data-collapsed={camMoving || clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {Math.max(0, c.cumKm - dayKmBase)}</small></span>
                         : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
                       </>)}
                     </MarkerContent>
@@ -2349,7 +2411,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                       >
                         {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
-                      {pickTags?.[String(hit.id)] != null && <span className="mv2-pick-tag" data-band={band}>{pickTags[String(hit.id)]}</span>}
+                      {pickTags?.[String(hit.id)] != null && <span className="mv2-pick-tag" data-band={band} data-collapsed={camMoving || markSpots.get(`pick-tag:${hit.id}`)?.hidden ? 'true' : undefined} style={(() => { const t = markSpots.get(`pick-tag:${hit.id}`); return t && !t.hidden && (t.dx || t.dy) ? { translate: `${t.dx}px ${t.dy}px` } : undefined })()}>{pickTags[String(hit.id)]}</span>}
                       {onAddNearby && !workspaceChrome && (
                         <button
                           type="button"

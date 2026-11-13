@@ -18,8 +18,8 @@ export function usePresence(open: boolean): { mounted: boolean; leaving: boolean
   }
   useEffect(() => {
     if (!leaving) return
-    const timer = window.setTimeout(() => setLeaving(false), motionExitTiming('--motion-med').duration)
-    return () => window.clearTimeout(timer)
+    const timer = window.setTimeout(() => { setLeaving(false) }, motionExitTiming('--motion-med').duration)
+    return () => { window.clearTimeout(timer) }
   }, [leaving])
   return { mounted: open || leaving, leaving: !open && leaving }
 }

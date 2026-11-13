@@ -33,14 +33,14 @@ export function applyTravelDays(trip: Trip, plan: DrivingPlan, applyChange: Appl
     draft.endDate = newEnd
   }, 'add', -1, receipt => {
     if (acknowledgedReceiptOf(receipt) == null) return
-    onKept(() => applyChange(draft => {
+    onKept(() => { applyChange(draft => {
       if (draft.endDate !== newEnd || added.some(day => dayShellSignature(draft.days.find(current => current.id === day.id)) !== dayShellSignature(day))) throw new Error('The added days changed. Remove them from the plan to keep later edits.')
       const addedIndexes = new Set(added.map(day => day.index))
       if (draft.flights?.some(flight => addedIndexes.has(flight.dayIndex)) || draft.fixedCommitments.some(item => addedIndexes.has(item.dayIndex))) throw new Error('The added days changed. Remove their flights and commitments before Undo.')
       const addedIds = new Set(added.map(day => day.id))
       draft.days = draft.days.filter(day => !addedIds.has(day.id))
       draft.endDate = oldEnd
-    }, 'edit', -1))
+    }, 'edit', -1) })
   })
   return true
 }

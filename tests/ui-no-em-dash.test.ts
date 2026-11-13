@@ -15,7 +15,12 @@ it('rejects em dashes and their HTML entity in source literals and JSX with file
     'const c = <p aria-label="Trip &#x2014; Goa">x</p>',
     'const d = <p aria-label={"Trip ' + String.fromCodePoint(0x2014) + ' Goa"}>x</p>',
   ].join('\n')
-  expect(emDashLabels('example.tsx', spellings)).toEqual([1, 2, 3, 4].map(line => expect.stringMatching(new RegExp(`^example\\.tsx:${line}:`))))
+  expect(emDashLabels('example.tsx', spellings)).toEqual([
+    expect.stringMatching(/^example\.tsx:1:/),
+    expect.stringMatching(/^example\.tsx:2:/),
+    expect.stringMatching(/^example\.tsx:3:/),
+    expect.stringMatching(/^example\.tsx:4:/),
+  ])
 })
 
 it('keeps every UI source literal and JSX text free of em dashes', () => {

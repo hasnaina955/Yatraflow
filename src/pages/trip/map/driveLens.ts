@@ -9,8 +9,11 @@ import type { DriveBudget } from './LensRailExtras'
 
 /** A planned stop reads the same arrival as the day rail. */
 export function filledStopClock(schedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null, stopId: string): string | null {
+  const times = schedule?.arrivalTimes
   const index = schedule?.activeStops.findIndex(stop => stop.id === stopId) ?? -1
-  return index < 0 ? null : schedule?.arrivalTimes[index] ?? null
+  // The guard proves the index owns a slot before the lookup runs.
+  if (times == null || index < 0 || !Object.prototype.hasOwnProperty.call(times, index)) return null
+  return times[index]
 }
 
 /** The three sub-tabs of the Along the drive deck. */

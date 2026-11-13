@@ -247,7 +247,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const headTitle = stayView?.title != null ? stayView.title : null
   const headSub = stayView?.sub != null ? stayView.sub : null
   // The title keeps one line. The tooltip carries the full text.
-  const headTitleText = headTitle ?? (journey ? `${journey.startTitle} → ${endTown ?? journey.endTitle}` : day?.title || 'Your day on the map')
+  const headTitleText = headTitle ?? (journey ? `${journey.startTitle} → ${endTown ?? journey.endTitle}` : day.title || 'Your day on the map')
   // The "Leave X" row shows the clock the car leaves: a breakfast at the start
   // place comes first. Every other row keeps its booking or arrival clock.
   const rowClock = (point: JourneyPoint, index: number): string => {
@@ -280,7 +280,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
         <div className="mv2-day-head" key={allDays ? 'all' : activeDay}>
           <span className="mv2-day-mark"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
-          <h2 title={headTitleText}>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
+          <h2 title={headTitleText}>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day.title || 'Your day on the map')}</h2>
         </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
@@ -335,8 +335,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     </ol>
     {railExtras}
     <footer className="mv2-day-footer">
-      <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}>{item.index + 1}</button>)}</div>
-      {onOpenDay && <button type="button" className="mv2-timeline-link" aria-label="Open day in Timeline" title="Open day in Timeline" onClick={() => onOpenDay(activeDay)}><CalendarDays size={16} aria-hidden /></button>}
+      <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => { onDayChange(item.index) }}>{item.index + 1}</button>)}</div>
+      {onOpenDay && <button type="button" className="mv2-timeline-link" aria-label="Open day in Timeline" title="Open day in Timeline" onClick={() => { onOpenDay(activeDay) }}><CalendarDays size={16} aria-hidden /></button>}
       {daysCaption && <span className="sr-only" role="status">{daysCaption}</span>}
     </footer>
   </aside>

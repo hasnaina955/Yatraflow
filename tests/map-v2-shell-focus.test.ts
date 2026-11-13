@@ -68,6 +68,6 @@ describe('the selected-detail handle', () => {
     expect(sheetSnapForKey('half', 'Home')).toBe('peek')
     expect(sheetSnapForKey('half', 'End')).toBe('full')
     expect(sheetSnapForKey('half', 'Escape')).toBeNull()
-    expect(mapTab).toMatch(/className="mv2-detail" onKeyDown=\{e => \{ if \(e\.key === 'Escape'/)
+    expect(mapTab).toMatch(/className=\{`mv2-detail\$\{deckPresence\.leaving \? ' is-leaving' : ''\}`\} onKeyDown=\{e => \{ if \(e\.key === 'Escape'/)
   })
 })

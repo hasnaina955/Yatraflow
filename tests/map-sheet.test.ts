@@ -163,13 +163,13 @@ describe('the phone top row (Phone 390 board, one row on top)', () => {
   })
 
   it('puts the map attribution in the bottom-right corner beside the deck, from the end of the sheet', () => {
-    const rule = '.mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-inset) * 2); bottom: var(--mv2-inset); margin: 0; }'
+    const rule = '.mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-deck-gutter, var(--mv2-inset)) + var(--mv2-inset)); bottom: var(--mv2-inset); margin: 0; }'
     expect(css).toContain(rule)
     expect(css.indexOf(rule)).toBeGreaterThan(css.indexOf('/* Map V2 phone: search and the lens pill share one row.'))
-    expect(css).toContain('.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-inset) * 2); bottom: var(--mv2-inset); }')
+    expect(css).toContain('.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-deck-gutter, var(--mv2-inset)) + var(--mv2-inset)); bottom: var(--mv2-inset); }')
   })
 
   it('closes the place card on Escape through the one close path that restores focus', () => {
-    expect(tab).toMatch(/className="mv2-detail" onKeyDown=\{e => \{ if \(e\.key === 'Escape' && !e\.defaultPrevented\) \{ e\.stopPropagation\(\); closeDetails\(\) \} \}\}/)
+    expect(tab).toMatch(/className=\{`mv2-detail\$\{deckPresence\.leaving \? ' is-leaving' : ''\}`\} onKeyDown=\{e => \{ if \(e\.key === 'Escape' && !e\.defaultPrevented\) \{ e\.stopPropagation\(\); closeDetails\(\) \} \}\}/)
   })
 })

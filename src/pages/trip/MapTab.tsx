@@ -2,7 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
-import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, X } from 'lucide-react'
+import { BedDouble, ChevronDown, ChevronLeft, ChevronRight, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
@@ -13,6 +13,7 @@ import type { MapTarget } from '../../lib/mapTarget'
 import { loadFlag, saveFlag, loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { DEBOUNCE_MS } from '../../lib/geocode'
 import { Modal, Field, toast, undoToast, useMedia } from '../../components/ui'
+import { usePresence } from '../../hooks/usePresence'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
@@ -1301,6 +1302,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // open from a lens. The phone sheet keeps its deck, because it peeks below the map.
   const [deckOpen, setDeckOpen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches)
   const [snap, setSnap] = useState<SheetSnap>('peek')
+  // A closing panel stays mounted for its exit, so it slides out in place of a cut.
+  const railPresence = usePresence(itineraryOpen)
+  const deckPresence = usePresence(deckOpen)
   // The one lens pill owns the map marks and the rail deck (W3-W).
   const [lens, setLens] = useState<MapLensId>('drive')
   const [driveTab, setDriveTab] = useState<DriveTab | null>(null)
@@ -1995,7 +1999,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     <button type="button" className="btn btn-ghost btn-sm" onClick={retryScan} disabled={loadingPois} title="Refresh suggestions"><RotateCcw size={14} aria-hidden />Refresh</button>
   </footer>
   return (
-    <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
+    <div className={`mv2-workspace${railPresence.mounted ? '' : ' is-day-folded'}${deckPresence.mounted ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
       {dismissedTrip !== trip.id && !loadFlag(`map_route_dismissed_${trip.id}`, false) && (clockVerdict.verdict !== 'ok' || (splitVerdict && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status mv2-route-banner" role="status">
         <button type="button" className="mv2-route-advice" onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}>
           {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `${travelDayNeed} travel days needed · Review fixes`}
@@ -2012,8 +2016,16 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} endTown={headerEndTown} ribbonOpen={ribbonShown} onToggleRibbon={toggleRibbon} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay' || budgetBar == null} endTown={headerEndTown} /></div>}
+        {railPresence.mounted && <div className={`map-edit-keys${railPresence.leaving ? ' is-leaving' : ''}`} aria-hidden={railPresence.leaving || undefined} onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay' || budgetBar == null} endTown={headerEndTown} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
+        {/* Edge tabs: one handle at the middle of each panel's outer edge opens and closes it,
+            as in most map apps. The corner buttons stay for the phone sheet only. */}
+        <button type="button" className={`mv2-edge-tab mv2-edge-tab--day${itineraryOpen ? ' is-open' : ''}`} aria-expanded={itineraryOpen}
+          aria-label={itineraryOpen ? 'Hide day itinerary' : 'Show day itinerary'} title={itineraryOpen ? 'Hide day itinerary' : 'Show day itinerary'}
+          onClick={() => toggleItinerary(!itineraryOpen)}>{itineraryOpen ? <ChevronLeft size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}</button>
+        <button type="button" className={`mv2-edge-tab mv2-edge-tab--deck${deckOpen ? ' is-open' : ''}`} aria-expanded={deckOpen}
+          aria-label={deckOpen ? 'Hide suggestions' : 'Show suggestions panel'} title={deckOpen ? 'Hide suggestions' : 'Show suggestions'}
+          onClick={() => (deckOpen ? foldDeck() : setDeckOpen(true))}>{deckOpen ? <ChevronRight size={16} aria-hidden /> : <ChevronLeft size={16} aria-hidden />}</button>
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span></button>
           <button type="button" aria-label={phoneLensAriaLabel('Around the stay', lenses.counts.stay)} aria-controls="rail-see" aria-pressed={lens === 'stay' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('stay'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><BedDouble size={16} aria-hidden /><span>Stay</span>{lenses.counts.stay != null && <b>{lenses.counts.stay}</b>}</button>
@@ -2022,7 +2034,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           <button type="button" aria-label={phoneLensAriaLabel('Day plan', activeDaySlots.length)} aria-controls="rail-needs" aria-pressed={sheetTab === 'needs' && deckOpen && !selectedHit} onClick={() => { setSheetTab('needs'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><List size={16} aria-hidden /><span>Plan</span><b>{activeDaySlots.length}</b></button>
           {!deckOpen && <button type="button" aria-label="Show suggestions" onClick={() => setDeckOpen(true)}><PanelRightOpen size={18} /></button>}
         </div>
-        <div tabIndex={-1} className={'poi-col poi-col--needs' + sheetHiddenClass('needs', sheetTab, sheetApplies)} id="rail-needs" hidden={!deckOpen || sheetTab !== 'needs' || !!selectedHit}>
+        <div tabIndex={-1} className={'poi-col poi-col--needs' + sheetHiddenClass('needs', sheetTab, sheetApplies) + (deckPresence.leaving ? ' is-leaving' : '')} id="rail-needs" hidden={!deckPresence.mounted || sheetTab !== 'needs' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-needs')} />
 
 
@@ -2410,6 +2422,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <TripMap
               trip={trip}
               dedicated
+              onBlankMapClick={() => { if (detailId != null) setDetailId(null) }}
               nearbyPois={mapPoisForMap}
               onAddNearby={editable ? (hit) => openAddModal(hit) : undefined}
               activeHitId={activeHitId}
@@ -2479,7 +2492,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             />
 
           </div>
-          <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" data-lens={lens} hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
+          <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies) + (deckPresence.leaving ? ' is-leaving' : '')} id="rail-see" data-lens={lens} hidden={!deckPresence.mounted || sheetTab !== 'see' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
 
             {scopeBand}
@@ -2586,7 +2599,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             </div>}
             {deckFooter}
           </div>
-          {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
+          {selectedHit && deckPresence.mounted && <div className={`mv2-detail${deckPresence.leaving ? ' is-leaving' : ''}`} onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />
 
 

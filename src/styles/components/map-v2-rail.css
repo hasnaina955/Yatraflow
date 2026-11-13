@@ -41,13 +41,13 @@
 
 /* Map workspace. The real map sits behind the itinerary, search and pick deck. */
 .container.yf-workspace.yf-workspace[data-map-active='true'] { width: 100%; max-width: none; }
-.mv2-workspace { --mv2-day-width: 380px; --mv2-deck-width: 372px; --mv2-inset: var(--space-5); --mv2-ribbon-h: 72px; position: relative; min-width: 0; }
+.mv2-workspace { --mv2-day-width: 380px; --mv2-deck-width: 372px; --mv2-inset: var(--space-5); --mv2-ribbon-h: 72px; --mv2-edge-tab-w: 22px; position: relative; min-width: 0; }
 .mv2-workspace .map-ideas-grid { display: block; position: relative; height: var(--mv2-canvas-height, max(640px, calc(100dvh - 200px))); min-height: 320px; margin-top: 0; isolation: isolate; overflow: clip; border-radius: var(--radius-lg); background: var(--bg-soft); transition: none; }
 .mv2-workspace .map-ideas-map { position: absolute; inset: 0; min-width: 0; }
 .mv2-workspace .map-shell--workspace { height: 100%; border-radius: 0; box-shadow: none; border: 0; }
 .mv2-workspace .map-ideas-grid .map-ideas-map .map-shell--workspace:not(.map-shell--expanded) .map-frame { height: 100%; min-height: 0; }
 .mv2-workspace .yf-maplibre { height: 100%; }
-.mv2-workspace .map-shell--workspace .map-toolbar { position: absolute; z-index: 7; top: 86px; right: calc(var(--mv2-deck-width) + var(--space-10)); width: 48px; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: var(--space-4); border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; bottom: auto; overflow: visible; pointer-events: auto; }
+.mv2-workspace .map-shell--workspace .map-toolbar { position: absolute; z-index: 7; top: 86px; right: calc(var(--mv2-deck-width) + var(--mv2-inset) + var(--mv2-edge-tab-w) + var(--space-4)); width: 48px; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: var(--space-4); border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; bottom: auto; overflow: visible; pointer-events: auto; }
 /* F1: the control column stays between the lens toolbar and the journey ribbon at every height.
    It ends above the ribbon. When its cards are taller than that space, the gaps close first and
    the column then scrolls. The 236px of left padding is clear room for the filter popup, which the
@@ -151,7 +151,8 @@
 .mv2-deck-header h2 > span { font-size: var(--text-xs); color: var(--text-2); }
 .mv2-reopen-day { position: absolute; top: var(--mv2-inset); left: var(--mv2-inset); z-index: 5; box-shadow: var(--shadow-soft); }
 .mv2-workspace.is-day-folded { --mv2-day-width: 48px; }
-.mv2-workspace.is-deck-folded { --mv2-deck-width: 0px; }
+/* A folded deck leaves no gutter, so the corner controls keep one even inset. */
+.mv2-workspace.is-deck-folded { --mv2-deck-width: 0px; --mv2-deck-gutter: 0px; }
 .mv2-place-art { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 112px; background: var(--bg-soft); color: var(--ink-teal); }
 .mv2-place-art > span { position: absolute; left: var(--space-5); bottom: var(--space-5); padding: var(--space-1) var(--space-4); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--card) 80%, transparent); font-size: 11px; font-weight: 700; }
 .mv2-place-art > button { position: absolute; top: var(--space-5); right: var(--space-5); width: 32px; height: 32px; padding: 0; background: color-mix(in srgb, var(--card) 90%, transparent); color: var(--text-2); }
@@ -200,7 +201,7 @@
 .mv2-sheet-handle, .mv2-peek, .mv2-phone-day, .mv2-map-tools-toggle { display: none; }
 .mv2-workspace .map-legend { position: absolute; bottom: 108px; right: calc(var(--mv2-deck-width) + var(--space-10)); max-width: min(280px, 80%); z-index: 3; }
 .mv2-workspace .map-legend-toggle { min-height: 44px; }
-.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-inset) * 2); bottom: var(--mv2-inset); }
+.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-deck-gutter, var(--mv2-inset)) + var(--mv2-inset)); bottom: var(--mv2-inset); }
 .mv2-workspace .maplibregl-ctrl-attrib { background: var(--card); color: var(--text-2); }
 .mv2-workspace .maplibregl-ctrl-attrib a { color: var(--text-2); }
 .mv2-workspace .map-shell--workspace > .tm-note { display: none; }
@@ -368,7 +369,7 @@
 /* Map V2 desktop: the attribution sits in the map's own bottom-right corner, beside the deck.
    The Key lives in the More menu now, so no control shares that corner. */
 @media (min-width: 761px) {
-  .mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-inset) * 2); bottom: var(--mv2-inset); margin: 0; }
+  .mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-deck-gutter, var(--mv2-inset)) + var(--mv2-inset)); bottom: var(--mv2-inset); margin: 0; }
 }
 /* Timeline phone: the fixed Add pill lives at the card's bottom-right. Keep the
    day fold control on the leading edge there so the pill cannot cover its
@@ -507,7 +508,7 @@
 /* Map edit: the Swap with list. Its control keeps a 44px touch target. */
 
 /* ===== Map v2 lens decks (package 911-W2): DriveTabs and FixDeck ===== */
-.mv2-lens { display: flex; flex-direction: column; gap: 12px; padding: 0 var(--space-4) var(--space-4); color: var(--pw-ink); }
+.mv2-lens { display: flex; flex-direction: column; gap: var(--space-5); padding: 0 var(--space-5) var(--space-5); color: var(--pw-ink); }
 .mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
 .mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
 .mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
@@ -520,7 +521,7 @@
 .mv2-lens-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .mv2-lens-card { list-style: none; margin: 0; }
 .mv2-lens-tag { flex: none; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--pw-marigold-ink); color: var(--pw-marigold-ink); font: var(--pw-caption); }
-.mv2-lens-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); padding: 9px var(--space-4a); border-radius: 12px; background: var(--pw-soft); }
+.mv2-lens-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); column-gap: var(--space-5); row-gap: var(--space-4); padding: var(--space-4a) var(--space-5); border-radius: 12px; background: var(--pw-soft); }
 .mv2-lens-cell { display: flex; flex-direction: column; gap: 1px; padding: 0; border-radius: 0; background: transparent; }
 .mv2-lens-cell-label { color: var(--pw-ink-3); font: var(--pw-kicker); font-size: 11px; letter-spacing: var(--kicker-tracking); text-transform: uppercase; }
 .mv2-lens-cell-value { color: var(--pw-ink); font: var(--pw-ui); font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -898,6 +899,7 @@
 .mv2-lens-scope-chip:hover:not([aria-pressed='true']) { background: var(--pw-card); }
 .mv2-lens-scope-chip:active { transform: scale(.94); }
 .mv2-lens-scope-chip::before { content: ''; position: absolute; inset: -7px 0; }
+.mv2-lens-scope-band > .mv2-lens-scope-count { margin-left: auto; color: var(--pw-ink-2); font-weight: 600; font-variant-numeric: tabular-nums; }
 .mv2-lens-scope-count b { color: var(--text); font-weight: 700; }
 .mv2-lens-scope-title { min-width: 0; }
 
@@ -1283,8 +1285,9 @@
 .mv2-travel-day-actions { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .mv2-travel-day-actions > p { flex-basis: 100%; margin: 0; }
 
-.mv2-lens-drive .mv2-lens-cell { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
-.mv2-lens-drive .mv2-lens-cell[data-cell="arrive"] { flex-wrap: nowrap; white-space: nowrap; }
+/* Label above value in every lens: a row layout overflowed a 94 px column. */
+.mv2-lens-drive .mv2-lens-cell { min-width: 0; gap: var(--space-1); }
+.mv2-lens-drive .mv2-lens-cell-value { white-space: nowrap; }
 
 /* ---- Layers menu: labelled sections, a segmented view switch and real on/off switches ---- */
 .mv2-tool-menu-body.mv2-layers { width: 248px; max-height: min(460px, calc(100vh - 160px)); gap: 0; padding: var(--space-3); overflow-x: hidden; overflow-y: auto; border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg); background: var(--card); color: var(--text); -webkit-backdrop-filter: none; backdrop-filter: none; transform-origin: top right; }
@@ -1292,9 +1295,6 @@
 .mv2-layers-sec + .mv2-layers-sec { border-top: 1px solid var(--pw-line-soft); }
 .mv2-layers-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: 0 0 var(--space-2); padding-inline: var(--space-2); color: var(--pw-ink-3); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .mv2-layers-count { color: var(--pw-ink-3); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; }
-.mv2-layers-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: var(--radius-pill); background: var(--pw-sunken); }
-.mv2-layers-seg > button { min-height: 32px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-2); font-size: 12px; font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
-.mv2-layers-seg > button.on { background: var(--pw-card); color: var(--pw-sea-700); box-shadow: 0 1px 3px color-mix(in srgb, var(--pw-ink) 16%, transparent); }
 .mv2-layer-row { display: flex; align-items: center; gap: var(--space-4); width: 100%; min-height: 40px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--pw-ink-3); text-align: left; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
 .mv2-layer-row:hover { background: var(--pw-sunken); }
 .mv2-layer-row[aria-pressed='true'] { color: var(--pw-ink); }
@@ -1345,7 +1345,7 @@
 .mv2-workspace .poi-col--see > :nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
 .mv2-workspace .poi-col--see > :nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
 .mv2-workspace .mv2-lenses > button { transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper), scale var(--motion-fast) var(--ease-paper); }
-.mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-layers-seg > button:active { scale: .96; }
+.mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-map-view > button:active { scale: .96; }
 @keyframes mv2-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 @keyframes mv2-dot-in { from { transform: scale(0); } }
 @keyframes mv2-rail-in { from { opacity: 0; transform: translateX(-12px); } }
@@ -1357,5 +1357,54 @@
 @keyframes mv2-rise-fix { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) {
   .mv2-workspace .mv2-itinerary, .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail, .mv2-workspace .poi-col--see > *, .mv2-tool-menu-body, .mv2-layers-dot { animation: none; }
-  .mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-layers-seg > button:active { scale: none; }
+  .mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-map-view > button:active { scale: none; }
 }
+
+/* ---- Edge tabs: one handle at the middle of each panel's outer edge ---- */
+.mv2-edge-tab { position: absolute; z-index: 6; top: 50%; display: grid; place-items: center; width: var(--mv2-edge-tab-w); height: 56px; padding: 0; border: 1px solid var(--pw-line-soft); background: var(--card); color: var(--pw-ink-2); box-shadow: var(--shadow-soft); cursor: pointer; translate: 0 -50%; transition: left var(--motion-slow) var(--ease-paper), right var(--motion-slow) var(--ease-paper), top var(--motion-slow) var(--ease-paper), width var(--motion-fast) var(--ease-paper), background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.mv2-edge-tab::before { content: ''; position: absolute; inset: -6px -12px; }
+.mv2-edge-tab:hover { width: 26px; background: var(--pw-sunken); color: var(--pw-ink); }
+.mv2-edge-tab:focus-visible { outline: 2px solid var(--pw-sea-700); outline-offset: 2px; }
+.mv2-edge-tab--day { left: 0; border-left: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.mv2-edge-tab--day.is-open { left: calc(var(--mv2-inset) + var(--mv2-day-width)); }
+.mv2-edge-tab--deck { right: 0; border-right: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+/* The deck starts 86px down, so its middle sits half that lower than the map's middle. */
+.mv2-edge-tab--deck.is-open { right: calc(var(--mv2-inset) + var(--mv2-deck-width)); top: calc(50% + 43px - var(--mv2-inset) / 2); }
+@media (min-width: 761px) {
+  .mv2-workspace .mv2-fold-day, .mv2-workspace .mv2-reopen-day, .mv2-workspace .mv2-lenses > button[aria-label='Show suggestions'], .mv2-workspace .mv2-deck-header > .mv2-icon-btn[aria-label='Fold suggestions'] { display: none; }
+  .mv2-workspace.is-day-folded { --mv2-day-width: 0px; }
+}
+@media (max-width: 760px) {
+  .mv2-edge-tab { display: none; }
+}
+
+/* ---- Day change: the head and the rows rise in a short cascade ---- */
+.mv2-workspace .mv2-day-head, .mv2-workspace .mv2-stops > li { animation: mv2-day-swap var(--motion-slow) var(--ease-paper) backwards; }
+.mv2-workspace .mv2-stops > li:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.mv2-workspace .mv2-stops > li:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.mv2-workspace .mv2-stops > li:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.mv2-workspace .mv2-stops > li:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.mv2-workspace .mv2-stops > li:nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+@keyframes mv2-day-swap { from { opacity: 0; transform: translateY(6px); } }
+/* ---- A closing panel slides out before it goes ---- */
+.mv2-workspace .map-edit-keys.is-leaving .mv2-itinerary { animation: mv2-rail-out var(--motion-med) var(--ease-exit) forwards; pointer-events: none; }
+.mv2-workspace .map-ideas-grid > .poi-col.is-leaving, .mv2-workspace .mv2-detail.is-leaving { animation: mv2-deck-out var(--motion-med) var(--ease-exit) forwards; pointer-events: none; }
+@keyframes mv2-rail-out { to { opacity: 0; transform: translateX(-16px); } }
+@keyframes mv2-deck-out { to { opacity: 0; transform: translateX(16px); } }
+@media (prefers-reduced-motion: reduce) {
+  .mv2-workspace .mv2-day-head, .mv2-workspace .mv2-stops > li, .mv2-workspace .map-edit-keys.is-leaving .mv2-itinerary, .mv2-workspace .map-ideas-grid > .poi-col.is-leaving, .mv2-workspace .mv2-detail.is-leaving { animation: none; }
+}
+
+/* ---- View switch in the tools column: 2D, relief and 3D, one tap each ---- */
+.mv2-workspace .mv2-map-view .mv2-map-tools-btn { font-size: 12px; font-weight: 800; letter-spacing: .02em; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), scale var(--motion-fast) var(--ease-paper); }
+
+/* ---- One surface for everything that floats over the map ----
+   Opaque card, one hairline, one shadow. Glass on some controls and solid on others
+   read as two products, and see-through text lost contrast over busy tiles. */
+.mv2-workspace .mv2-itinerary, .mv2-workspace .mv2-omnibar, .mv2-workspace .mv2-lenses, .mv2-workspace .map-toolbar .mv2-map-tools-card, .mv2-workspace .mv2-tool-menu > summary, .mv2-workspace .mv2-tool-menu-body, .mv2-workspace .mv2-clock-chip, .mv2-workspace .mv2-edge-tab, .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail, .mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none;
+  border: 1px solid var(--pw-line-soft); box-shadow: var(--shadow-soft);
+}
+/* An edge tab joins its panel, so the side that meets the panel draws no line. */
+.mv2-workspace .mv2-edge-tab--day { border-left: 0; }
+.mv2-workspace .mv2-edge-tab--deck { border-right: 0; }

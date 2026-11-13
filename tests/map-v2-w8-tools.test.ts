@@ -16,7 +16,7 @@ describe('W8 tools map controls', () => {
     const b = workspaceBranch()
     expect(b.length).toBeGreaterThan(0)
     expect(b).toContain('aria-label="Zoom and recentre"')
-    expect(b).toContain('mv2-layers-seg')
+    expect(b).toContain('mv2-map-view')
     expect(b).toContain('aria-label="More map tools"')
     expect(b).toContain('aria-label="Layers"')
   })
@@ -27,10 +27,10 @@ describe('W8 tools map controls', () => {
     expect(b).toContain('aria-label="Zoom out"')
   })
 
-  it('names each map view in a word', () => {
+  it('keeps the view switch in the tools column, out of the Layers menu', () => {
     const b = workspaceBranch()
-    expect(b).toContain("'Relief'")
-    expect(b).toContain("'Flat'")
+    expect(b).toContain('className="mv2-map-tools-card mv2-map-view" role="group" aria-label="Map view mode"')
+    expect(b.indexOf('mv2-map-view')).toBeLessThan(b.indexOf('aria-label="Layers"'))
     expect(b).not.toContain("'TER'")
   })
 

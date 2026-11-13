@@ -42,7 +42,7 @@ describe('supplied Linen and Night styles', () => {
 
   it('uses the Linen and Night land colours', () => {
     const land = (theme: 'light' | 'dark') => WORKSPACE_MAP_STYLES[theme].layers.find(layer => layer.type === 'background')?.paint
-    expect(land('light')).toEqual({ 'background-color': '#EFE9DF' })
+    expect(land('light')).toEqual({ 'background-color': '#F4F2EC' })
     expect(land('dark')).toEqual({ 'background-color': '#0F1928' })
   })
 

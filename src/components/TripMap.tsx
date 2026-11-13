@@ -106,6 +106,16 @@ const ROUGH_DASH: [number, number] = [2, 2]
 // 4.69 / 6.51 / 7.44:1 there, pinned by tests/map-cluster.test.ts.
 const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#123F49']
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
+/** A soft start and a soft end for a long camera glide. */
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+/** Close every open map tool menu that does not hold `keep`. */
+function closeToolMenus(keep: Element | null): void {
+  document.querySelectorAll<HTMLDetailsElement>('.mv2-tool-menu[open]').forEach(menu => { if (!keep || !menu.contains(keep)) menu.open = false })
+}
+// The clear room a road tick keeps around itself, in px, so two shown ticks never touch.
+const TICK_ROOM = 36
 // The workspace badge: a white chip with a sea ring and a soft halo, like the idea pins.
 const WORKSPACE_CLUSTER_COLORS: [string, string, string] = ['#FFFFFF', '#FFFFFF', '#FFFFFF']
 const WORKSPACE_CLUSTER_LOOK: ClusterLook = { ring: '#0B6B63', ringWidth: 2.5, halo: '#0B6B63', text: '#0B4F4A', radii: [15, 18, 22] }
@@ -571,7 +581,7 @@ export interface PreviewRoadView {
   legOutMeasured: boolean | null
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickTags, routeMarks = [], pickLetters, warningMarks = [], stopWarning = null, corridorDay = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickTags, routeMarks = [], pickLetters, warningMarks = [], stopWarning = null, corridorDay = null, onBlankMapClick }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -585,6 +595,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   selectedDay?: number | null
   /** The one day that draws the Drive corridor wash. Null draws no corridor. */
   corridorDay?: number | null
+  /** A tap on bare map, after the map closed its own floating parts. */
+  onBlankMapClick?: () => void
   /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
   ghostRoad?: GhostRoad | null
   /** The add preview's proposed road. It draws dashed in the day colour, under
@@ -1201,7 +1213,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     for (const mark of [...routeMarks].sort((a, b) => Number(a.kind === 'tick') - Number(b.kind === 'tick'))) {
       if (!validMapCoordinate({ lat: mark.lat, lng: mark.lng })) continue
       const text = mark.label + (mark.sub ?? '')
-      spreadMarks.push({ id: `route:${mark.id}`, layer: 'clock', x: 0, y: 0, w: mark.kind === 'tick' ? CLOCK_BOX.w : text.length * 7.2 + 26, h: CLOCK_BOX.h, lat: mark.lat, lng: mark.lng, ox: 0, oy: 0, ...(mark.kind === 'tick' ? {} : { maxTravel: 160 }) })
+      // A road tick never slides: a slid tick reads as a wrong place, and a crowd of them stacked
+      // into a column. It hides when its own spot is taken, and it claims extra room, so the
+      // ticks that stay are spaced out. The density follows the zoom with no extra rule.
+      spreadMarks.push({ id: `route:${mark.id}`, layer: 'clock', x: 0, y: 0, w: mark.kind === 'tick' ? CLOCK_BOX.w + TICK_ROOM : text.length * 7.2 + 26, h: mark.kind === 'tick' ? CLOCK_BOX.h + TICK_ROOM : CLOCK_BOX.h, lat: mark.lat, lng: mark.lng, ox: 0, oy: 0, maxTravel: mark.kind === 'tick' ? 0 : 160 })
     }
     for (const hit of markPois) {
       const tagText = pickTags?.[String(hit.id)]
@@ -1211,7 +1226,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
   }
   // The Layers button shows a dot while a layer differs from its default. A hidden layer is never a secret.
-  const layersChanged = viewMode !== '2d' || (!!clockMilestones && !clockOn) || (!!returnLeg && !showReturn) || shownIdeaCats < ideaCats.length
+  const layersChanged = (!!clockMilestones && !clockOn) || (!!returnLeg && !showReturn) || shownIdeaCats < ideaCats.length
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
   const spreadMarksRef = useRef(spreadMarks)
   // Effects run top to bottom, so this one feeds the spread and camera effects below it in the same commit.
@@ -1400,6 +1415,38 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
   }, [mapLoaded])
 
+  // Light dismiss. A tap on bare map closes what floats over it: the open tool menu, the stop
+  // card, the map key, the credit line, and the caller's place card. MapLibre fires no click
+  // after a drag, so a pan never closes anything. A tap on a group badge zooms in and keeps them.
+  const onBlankMapClickRef = useRef(onBlankMapClick)
+  useEffect(() => { onBlankMapClickRef.current = onBlankMapClick })
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !workspaceChrome) return
+    const map = mapRef.current
+    const onClick = (event: { point: { x: number; y: number }; originalEvent?: Event }) => {
+      // Markers sit inside the map container, so a tap on a pin also reaches
+      // here. Only a tap on the bare map is a blank click.
+      const target = event.originalEvent?.target
+      if (target instanceof Element && target.closest('.maplibregl-marker, .maplibregl-popup')) return
+      const onBadge = map.queryRenderedFeatures([event.point.x, event.point.y]).some(f => f.layer.id.startsWith('clusters-'))
+      if (onBadge) return
+      closeToolMenus(null)
+      setSelectedStop(null)
+      setLegendOpen(open => { if (open) saveFlag('map_legend_open', false); return false })
+      map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact-show')?.classList.remove('maplibregl-compact-show')
+      onBlankMapClickRef.current?.()
+    }
+    map.on('click', onClick)
+    return () => { map.off('click', onClick) }
+  }, [mapLoaded, workspaceChrome])
+  // A press outside an open tool menu closes it, so opening one menu closes the other.
+  useEffect(() => {
+    if (!workspaceChrome) return
+    const onPointerDown = (event: PointerEvent) => closeToolMenus(event.target instanceof Element ? event.target : null)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [workspaceChrome])
+
   // The Stay lens frames its own reach ring. While it does, the route fit below
   // yields: a later resize would otherwise pull the camera back out to the day.
   const stayOwnsCamera = frameStayRing && stayRings.length > 0
@@ -1429,13 +1476,17 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const overflow = frameOverflow(layoutOnMap(m).boxes, safeRect(size, insets))
       if (!hasOverflow(overflow) || attempt >= 3) return
       const grown = addInsets(extra, overflow)
-      m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: 0 })
-      settle(attempt + 1, grown)
+      // The correction glides too. A snap at the end of the day glide read as a jerk.
+      const nudge = prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration
+      m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: nudge, easing: easeInOutCubic })
+      if (nudge === 0) settle(attempt + 1, grown)
+      else m.once('moveend', () => settle(attempt + 1, grown))
     }
     const run = () => {
       m.resize()
-      const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration
-      m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration })
+      // A new day is a long move across the map. It takes the slower glide, with a soft start and end.
+      const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slower').duration
+      m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration, easing: easeInOutCubic })
       if (!workspaceChrome) return
       if (duration === 0) settle(0, { top: 0, bottom: 0, left: 0, right: 0 })
       else m.once('moveend', () => settle(0, { top: 0, bottom: 0, left: 0, right: 0 }))
@@ -1773,29 +1824,26 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
             {bearing !== 0 && <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing} onClick={() => mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration })} aria-label="Turn the map back to north" title="Turn the map back to north"><Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} /></button>}
           </div>
-          <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
-            <summary className="mv2-icon-btn" aria-label="Layers" title="Layers"><Layers size={18} aria-hidden />{layersChanged && <span className="mv2-layers-dot" aria-hidden="true" />}</summary>
-            <div className="mv2-tool-menu-body popover mv2-layers" aria-label="Map layers">
           {enableMapViewModes && (
-          <section className="mv2-layers-sec">
-            <h4 className="mv2-layers-title">Map view</h4>
-            <div className="mv2-layers-seg" role="group" aria-label="Map view mode">
+          <div className="mv2-map-tools-card mv2-map-view" role="group" aria-label="Map view mode">
             {MAP_VIEW_MODES.map(m => (
               <button
                 key={m}
                 type="button"
-                className={viewMode === m ? 'on' : undefined}
+                className={`mv2-map-tools-btn${viewMode === m ? ' on' : ''}`}
                 aria-pressed={viewMode === m}
                 aria-label={MAP_VIEW_MODE_META[m].aria}
                 title={MAP_VIEW_MODE_META[m].aria}
                 onClick={() => { haptic('select'); setViewMode(m) }}
               >
-                {m === 'terrain' ? 'Relief' : m === '2d' ? 'Flat' : MAP_VIEW_MODE_META[m].label}
+                {m === 'terrain' ? <Mountain size={16} aria-hidden /> : m === '2d' ? '2D' : MAP_VIEW_MODE_META[m].label}
               </button>
             ))}
-            </div>
-          </section>
+          </div>
           )}
+          <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
+            <summary className="mv2-icon-btn" aria-label="Layers" title="Layers"><Layers size={18} aria-hidden />{layersChanged && <span className="mv2-layers-dot" aria-hidden="true" />}</summary>
+            <div className="mv2-tool-menu-body popover mv2-layers" aria-label="Map layers">
             {(clockMilestones || returnLeg) && (
               <section className="mv2-layers-sec">
                 <h4 className="mv2-layers-title">On the map</h4>

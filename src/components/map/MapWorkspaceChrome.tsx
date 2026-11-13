@@ -274,7 +274,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     <header className="mv2-day-header">
       <div className="mv2-day-arrows">
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
-        <div className="mv2-day-head">
+        <div className="mv2-day-head" key={allDays ? 'all' : activeDay}>
           <span className="mv2-day-mark"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
           <h2>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
         </div>
@@ -286,7 +286,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     {hideBudget !== true && <div className="mv2-budget mv2-lens-budget" title={budgetBar?.detail ?? undefined}><span className="mv2-lens-budget-label sr-only">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar?.step != null
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Planned detour used" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
-    <ol className="mv2-stops" ref={stopsRef}>
+    {/* Keyed by day: a new day mounts a new list, so its rows rise in place of a hard swap. */}
+    <ol className="mv2-stops" ref={stopsRef} key={allDays ? 'all' : activeDay}>
       {shownPoints.map(({ point, index, clock: rowTime }, shownIndex) => {
         const locked = locks.has(point.stop.id)
         const isFix = fixStopId === point.stop.id

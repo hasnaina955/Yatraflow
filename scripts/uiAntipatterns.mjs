@@ -5,7 +5,7 @@
 //          npm run check:ui -- --json
 //
 // What this is:
-//   Three checks over `src/styles.css` and `index.html`, each of which is
+//   Four checks over `src/styles.css` and `index.html`, each of which is
 //   mechanically decidable with NO false positives against this repo today.
 //   They exist because a UI review re-derives "does `transition: all` exist
 //   here?" every single time, and because a rule nobody can run is a rule
@@ -42,6 +42,9 @@
 //     The repo floors at 40px on purpose (WCAG 2.5.8 AA), reached on coarse
 //     pointers through a `::after { inset: -6px }` hit-area extension. 44px is
 //     2.5.5 AAA. Changing this is a product decision, not a lint.
+//     One surface is floored higher by product decision: the Map V2 workspace
+//     (ticket 06 approval) floors its controls at 44px. That floor is rule U4
+//     below, on the named Map control classes only.
 //
 //   EXCLUDED — contrast ratios
 //     Already owned by `tests/design-system.test.ts`'s baseline ratchet, which
@@ -52,7 +55,49 @@
 // ============================================================================
 
 import { readFileSync } from 'node:fs'
+import postcss from 'postcss'
 import { CssGraphError, loadCssGraph } from './css-source-graph.mjs'
+
+// The Map V2 target floor (44px, ticket 06 product decision). These are the
+// Map control classes the floor covers. A px size below 44 on a selector that
+// names one of them is a U4 finding. Keep the list small and named: it is the
+// contract, not a heuristic.
+export const MAP_TARGET_FLOOR_CLASSES = [
+  'mv2-icon-btn',
+  'poi-fold',
+  'ledger-shelf',
+]
+
+/** The size declarations the floor governs. */
+const SIZE_PROPS = new Set(['width', 'height', 'min-width', 'min-height'])
+
+/**
+ * Does one COMPOUND selector target a Map floor control?
+ * The class token must equal the floor class exactly, so `.other-mv2-icon-btn`
+ * never matches. The floor class must sit on the subject compound (`.poi-fold`,
+ * `.a > .mv2-icon-btn`) or directly parent the subject through a child
+ * combinator (`.ledger-shelf > button`) — a descendant subject like
+ * `.mv2-icon-btn svg` styles the control's child, which the floor does not
+ * govern. mv2-icon-btn is Map V2 only and matches anywhere; poi-fold and
+ * ledger-shelf also style legacy surfaces, so they count only when the same
+ * selector scopes them under `.mv2-workspace`.
+ */
+export function isFloorSelector(selector) {
+  const sel = String(selector)
+  const classesOf = (compound) => (compound.match(/\.[A-Za-z0-9_-]+/g) ?? []).map(t => t.slice(1))
+  const floorIn = (classes) => classes.some(c =>
+    c === 'mv2-icon-btn' || (MAP_TARGET_FLOOR_CLASSES.includes(c) && sel.includes('mv2-workspace')),
+  )
+  // The subject is the last compound before a structural end (element, class,
+  // pseudo). Splitting on combinators keeps the subject and its parent.
+  const childJoin = /(^|[\s])(.+?)\s*>\s*([^>+~\s]+)\s*$/.exec(sel)
+  if (childJoin) {
+    // `.x > subject`: the floor class may parent the subject directly.
+    if (floorIn(classesOf(childJoin[2].split(/[\s>+~]+/).pop() ?? ''))) return true
+  }
+  const subject = sel.split(/[\s>+~]+/).pop() ?? ''
+  return floorIn(classesOf(subject))
+}
 
 export const RULES = [
   {
@@ -76,6 +121,46 @@ export const RULES = [
     file: 'index.html',
     find: s => [...s.matchAll(/user-scalable\s*=\s*no|maximum-scale\s*=\s*1/g)],
   },
+  {
+    id: 'U4',
+    title: 'Map V2 control below the 44px floor',
+    why: 'The Map V2 controls floor at 44px by product decision (ticket 06) after two shipped misses: a 32px fold button and 25-26px shelf buttons. Give the shared Map control its 44px floor — size it on the shared class, or extend that class to the control. Any exception needs human approval on the ticket.',
+    file: 'src/styles.css',
+    // Record-level, not text-level: a real PostCSS parse of the flattened
+    // cascade, each rule's actual declarations against its actual selector
+    // list. Multiline rules, comments and child selectors fall out of the AST
+    // for free. `records: true` tells check() to supply parsed records.
+    records: true,
+    find: (s, ctx) => {
+      const records = ctx?.records
+      if (!records) {
+        throw new Error('U4 needs the CSS graph records; run it through check() with a graph context')
+      }
+      const out = []
+      for (const record of records) {
+        if (record.kind !== 'rule') continue
+        // Exact control selectors only. mv2-icon-btn exists only in the Map V2
+        // workspace; poi-fold and ledger-shelf also style legacy surfaces, so
+        // those count only under .mv2-workspace. A partial class name or a
+        // different class must not match.
+        const hit = record.selectors.some(sel => isFloorSelector(sel))
+        if (!hit) continue
+        for (const decl of record.declarations) {
+          if (!SIZE_PROPS.has(decl.prop)) continue
+          const px = /^(\d+(?:\.\d+)?)px$/.exec(decl.value)
+          if (!px || Number(px[1]) >= 44) continue
+          out.push({
+            index: 0,
+            line: decl.line || record.line,
+            text: `${record.selector} { ${decl.prop}: ${decl.value} }`.slice(0, 100),
+            // The record knows its own file and line — exact, no translation.
+            source: `${record.file}:${decl.line || record.line}`,
+          })
+        }
+      }
+      return out
+    },
+  },
 ]
 
 /** Line-number helper: report where a match landed, not just that it did. */
@@ -86,14 +171,22 @@ function lineOf(source, index) {
 /**
  * Run every rule over a { filename: source } map.
  * Returns findings sorted by file then line. Pure — no fs, no process.
+ * The record-level rules need parsed CSS: `ctx.records` supplies it (the CLI
+ * passes the source graph's records, file/line intact); without it, the
+ * records are derived here with the same installed PostCSS (synthetic
+ * file/line), so `check()` stays usable over plain fixture text.
  */
-export function check(files) {
+export function check(files, ctx = {}) {
   const findings = []
   for (const rule of RULES) {
     const source = files[rule.file]
     if (source == null) continue
-    for (const m of rule.find(source)) {
-      const line = lineOf(source, m.index)
+    let ruleCtx = ctx
+    if (rule.records && !ruleCtx.records) ruleCtx = { ...ctx, records: parseRecords(source) }
+    for (const m of rule.find(source, ruleCtx)) {
+      // Text rules report their own match index; record rules carry the
+      // declaration's real line. Both collapse to one finding per line.
+      const line = m.line ?? lineOf(source, m.index)
       // One finding per rule per line: U3 matches `user-scalable=no` and
       // `maximum-scale=1` independently, and a viewport line carrying both is
       // one defect to fix, not two.
@@ -103,12 +196,45 @@ export function check(files) {
         title: rule.title,
         file: rule.file,
         line,
-        text: (source.split('\n')[line - 1] || '').trim().slice(0, 100),
+        text: m.text ?? (source.split('\n')[line - 1] || '').trim().slice(0, 100),
         why: rule.why,
+        ...(m.source ? { source: m.source } : {}),
       })
     }
   }
   return findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
+}
+
+/**
+ * Parse CSS source into the same record shape the source graph emits, for
+ * callers that hand `check()` fixture text instead of a graph. Lines are the
+ * fixture's own; `file` is a placeholder, since no graph resolved imports.
+ */
+function parseRecords(source) {
+  const records = []
+  let order = 0
+  postcss.parse(source, { from: 'check-fixtures.css' }).walk(node => {
+    if (node.type !== 'rule') return
+    const declarations = (node.nodes ?? [])
+      .filter(child => child.type === 'decl')
+      .map(child => ({
+        prop: String(child.prop).toLowerCase(),
+        value: String(child.value).trim(),
+        important: Boolean(child.important),
+        line: child.source?.start?.line ?? 0,
+      }))
+    const selector = String(node.selector)
+    records.push({
+      kind: 'rule',
+      selector: selector.trim(),
+      selectors: selector.split(',').map(s => s.trim()).filter(Boolean),
+      file: 'src/styles.css',
+      line: node.source?.start?.line ?? 0,
+      declarations,
+      order: order++,
+    })
+  })
+  return records
 }
 
 /**
@@ -119,6 +245,10 @@ export function check(files) {
  */
 export function withSources(findings, graph) {
   for (const finding of findings) {
+    // A record-level finding already carries its exact origin (it read the
+    // declaration's real module line). Only text-level findings need the
+    // flattened-line translation.
+    if (finding.source) continue
     if (finding.file !== 'src/styles.css' || !graph) continue
     const origin = graph.sourceAt(finding.line)
     if (origin) finding.source = `${origin.file}:${origin.line}`
@@ -156,7 +286,7 @@ function main() {
     process.exit(2)
   }
 
-  const findings = withSources(check(files), cssGraph)
+  const findings = withSources(check(files, { records: cssGraph.records }), cssGraph)
 
   if (json) {
     console.log(JSON.stringify({ ok: findings.length === 0, findings }, null, 2))

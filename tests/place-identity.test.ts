@@ -281,8 +281,11 @@ describe('the release effect publishes every preview close (#839 review P2)', ()
     expect(bail).toBeGreaterThan(bump)
   })
   it('the identity memo re-reads the staged map when it is published', () => {
-    expect(mapTab).toMatch(/tripPresenceIds, addedIds, dismissedIds, stagedSnapshot\]/)
-    // Render reads the published snapshot, never the ref the handlers mutate.
-    expect(mapTab).toContain('staged: stagedSnapshot,')
+    const workspace = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8')
+    expect(workspace).toMatch(/placeIdentity\(effectiveTrip, addedIds, dismissedIds, stagedSnapshot\)/)
+    expect(workspace).toMatch(/\[effectiveTrip, addedIds, dismissedIds, stagedSnapshot\]/)
+    expect(workspace).toContain('presence={journeyDays.presence}')
+    // Render reads the published state, never the ref the handlers mutate.
+    expect(workspace).not.toMatch(/placeIdentity\(effectiveTrip, addedIds, dismissedIds, stagedIdsRef\.current\)/)
   })
 })

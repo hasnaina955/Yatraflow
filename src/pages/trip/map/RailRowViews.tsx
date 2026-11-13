@@ -7,11 +7,29 @@
 // stay out of the page for the rails slice; the rail panels stay with the
 // page until a later slice moves them.
 import { ChevronDown, CircleCheck, Star } from 'lucide-react'
-import { InlineIcon } from '../../../components/icons'
+import { CatIcon, InlineIcon } from '../../../components/icons'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
 import type { RailChip } from '../../../lib/railReasons'
-import { alternativesFor, chipsFor, type ChipFacts } from './railRows'
+import { alternativesFor } from './railRows'
 import type { AltPool } from './sightRows'
+import { ON_ROUTE_SPUR_KM } from '../../../lib/providers/hits'
+import { detourDisplay } from './driveSuggestionView'
+
+/** The km copy for an alternative. A null km is unknown evidence, so it reads
+ *  "km unknown", never "on route". "On route" needs a finite km at or under
+ *  ON_ROUTE_SPUR_KM (hits.ts), the perpendicular distance from the route within
+ *  which a place counts as on it. altKmLabel is the only src reader of it. */
+export function altKmLabel(dKm: number | null): string {
+  if (dKm == null || !Number.isFinite(dKm)) return 'km unknown'
+  return dKm <= ON_ROUTE_SPUR_KM ? 'on route' : `${dKm.toFixed(1)} km off`
+}
+
+/** The row's detour phrase, from the one shared display rule. */
+function detourMeta(detourMin: number | null | undefined): string {
+  const display = detourDisplay(detourMin)
+  if (display.kind === 'unknown') return 'position unknown'
+  return display.kind === 'on-route' ? 'on route' : `+${display.minutes} min detour`
+}
 
 /** A corridor halt the engine found no place for. The action raises the
  *  corridor's detour scope - the honest lever the engine actually has. */
@@ -60,7 +78,7 @@ export function LedgerRow({
   added,
   detourMin,
   hitDay,
-  chipFacts,
+  chips,
   altPool,
   chipFilter,
   editable,
@@ -71,13 +89,16 @@ export function LedgerRow({
   onToggleShortlist,
   onOpenAlt,
   onWiden,
+  onInspect,
+  presentation = 'boxed',
 }: {
   sh: SegmentHit
   dismissed: boolean
   added: boolean
   detourMin: number | null | undefined
   hitDay: number | null
-  chipFacts: ChipFacts
+  /** the presentation adapter's chips for this row (ticket 03 repair) */
+  chips: RailChip[]
   altPool: AltPool
   chipFilter: string | null
   editable: boolean
@@ -88,11 +109,15 @@ export function LedgerRow({
   onToggleShortlist: () => void
   onOpenAlt: (h: PlaceHit) => void
   onWiden: () => void
+  onInspect?: () => void
+  /** Row visual world. 'deck' is the Map V2 flat rail: a category tile,
+   *  a wrapping name and a 12px meta line on a hairline separator. The
+   *  default keeps the pre-existing boxed markup unchanged. */
+  presentation?: 'boxed' | 'deck'
 }) {
   const hit = sh.hit
   if (dismissed) return null
   if (!hit) return <GapRow sh={sh} dismissed={false} onWiden={onWiden} /> // gaps keep their honest row
-  const chips: RailChip[] = chipsFor(sh, hit, chipFacts)
   const alts = alternativesFor(sh, hit, altPool).filter(e => e.h.id !== hit.id)
   const shelf = (
     <div className="ledger-shelf">
@@ -138,19 +163,24 @@ export function LedgerRow({
           onClick={() => onOpenAlt(h)}
         >
           <span className="shelf-alt-nm">{h.name}</span>
-          <span className="shelf-alt-km">{dKm != null ? `${dKm.toFixed(1)} km off` : 'on route'}</span>
+          <span className="shelf-alt-km">{altKmLabel(dKm)}</span>
         </button>
       ))}
     </div>
   )
   const meta = [
-    detourMin == null ? 'position unknown' : detourMin > 0 ? `+${Math.round(detourMin)} min detour` : 'on route',
+    detourMeta(detourMin),
     hitDay != null ? `Day ${hitDay + 1}` : null,
   ].filter(Boolean).join(' \u00b7 ')
+  const deck = presentation === 'deck'
   return (
-    <details key={hit.id as string} className="lrow-new" onToggle={undefined}>
-      <summary className="lrow-sum" title={hit.name}>
-        <span className="xdot" aria-hidden />
+    <details key={hit.id as string} className={deck ? 'lrow-new lrow-deck' : 'lrow-new'} onToggle={undefined}>
+      <summary className="lrow-sum" title={hit.name} onClick={onInspect}>
+        {deck ? (
+          <span className="lrow-tile" aria-hidden="true"><CatIcon category={hit.category} size={18} /></span>
+        ) : (
+          <span className="xdot" aria-hidden />
+        )}
         <span className="lr-name">{hit.name}</span>
         <span className="lr-meta">{meta}</span>
         <ChevronDown className="lr-go" size={12} aria-hidden />

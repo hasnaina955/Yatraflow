@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
+  clearOfMarks,
   clusterCandidates,
   clusterCountLabel,
   clusterFeatureCollection,
@@ -101,8 +102,35 @@ describe('splitByCluster', () => {
   })
 })
 
-describe('clusterSummary', () => {
-  it('says nothing when nothing is grouped', () => {
+describe('clearOfMarks', () => {
+  const same = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+    Math.hypot((a.lat - b.lat) * 111, (a.lng - b.lng) * 109) < 1
+
+  it('drops a suggestion that stands on a numbered stop or a start flag', () => {
+    const hits = [
+      hit({ id: 'on-stop', latitude: 10.0885, longitude: 77.0595 }),
+      hit({ id: 'on-flag', latitude: 9.6042, longitude: 77.1641 }),
+      hit({ id: 'clear', latitude: 9.7, longitude: 77.1 }),
+    ]
+    const out = clearOfMarks(hits, [
+      { lat: 10.0889, lng: 77.0596 },
+      { lat: 9.604, lng: 77.164 },
+    ], same)
+    expect(out.map(h => h.id)).toEqual(['clear'])
+  })
+
+  it('keeps every suggestion when the map draws no stop mark', () => {
+    const hits = [hit({ id: 'a' }), hit({ id: 'b' })]
+    expect(clearOfMarks(hits, [], same)).toEqual(hits)
+  })
+
+  it('keeps a suggestion the map cannot place: no coordinates, no mark either', () => {
+    const hits = [hit({ id: 'nowhere', latitude: Number.NaN, longitude: Number.NaN })]
+    expect(clearOfMarks(hits, [{ lat: 10, lng: 77 }], same)).toHaveLength(1)
+  })
+})
+
+describe('clusterSummary', () => {  it('says nothing when nothing is grouped', () => {
     expect(clusterSummary(0)).toBeNull()
     expect(clusterSummary(-3)).toBeNull()
     expect(clusterSummary(Number.NaN)).toBeNull()
@@ -123,9 +151,14 @@ describe('clusterSummary', () => {
 })
 
 describe('#417 wiring — the Map tab groups its suggestion pins', () => {
+  it('draws no canvas cluster badge in the workspace chrome', () => {
+    // A GL badge cannot yield to a DOM stop pin: one that landed on a stop drew
+    // as a stray dark crescent behind it. The workspace draws its picks alone.
+    expect(tripMap).toMatch(/data=\{workspaceChrome \? NO_CLUSTER_DATA : clusterData\}/)
+  })
   it('renders the suggestion family through the one cluster implementation', () => {
     expect(tripMap).toContain("from '../lib/mapCluster'")
-    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{clusterData\}/)
+    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{workspaceChrome \? NO_CLUSTER_DATA : clusterData\}/)
     expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?onClustersChange=\{onClustersChange\}/)
   })
 
@@ -134,7 +167,7 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
   })
 
   it('filters only the idea pins by the cluster report — confirmed stops keep their markers', () => {
-    const ideaLoop = tripMap.slice(tripMap.indexOf('{visiblePois.map(hit => {'), tripMap.indexOf('</MapLibreMap>'))
+    const ideaLoop = tripMap.slice(tripMap.indexOf('{markPois.map(hit => {'), tripMap.indexOf('</MapLibreMap>'))
     expect(ideaLoop.length, 'the idea-pin loop moved — re-anchor this guard').toBeGreaterThan(0)
     expect(ideaLoop).toContain('individualPinIds')
 

@@ -8,6 +8,8 @@
 
 import type { FuelType } from '../data/types'
 import type { HaltPurpose } from './providers/hits'
+import type { PlaceFamily } from './providers/families'
+import { FAMILY_CATEGORY } from './providers/families'
 
 export interface PurposeQuerySet {
   /** Google Places textSearch queries (e.g. "highway dhabas"). */
@@ -98,4 +100,60 @@ export function queriesForPurpose(
     case 'sight': return SIGHT_QUERIES
     default: return STRETCH_QUERIES
   }
+}
+
+// ---- family query sets (ticket 09 / #894) ----
+// One Text Search event per family query, for the day the family is needed
+// (ticket 10 builds the day-context selection on top; family SELECTION and
+// operating limits need coordinator agreement before any live expansion).
+// Deliberately NO includedType: the audit's flaw 5 showed a strict
+// tourist_attraction gate discards lakes, waterfalls, dams and viewpoints —
+// the family classification (providers/families.ts) refines results instead.
+// Overpass selectors carry ONLY the tag cells that survive in the source;
+// heritage's OSM list is truncated there, so its selectors stay limited to
+// the recoverable prefix (fort/castle/palace) rather than reconstructed.
+export const FAMILY_QUERY_SETS: Record<PlaceFamily, PurposeQuerySet> = {
+  water: {
+    googleQueries: ['waterfalls', 'lakes and dams', 'beaches'],
+    overpassSelectors: ['natural=water', 'waterway=waterfall', 'waterway=dam', 'natural=beach'],
+    categoryBias: ['nature', 'beach'],
+  },
+  nature: {
+    googleQueries: ['national parks and wildlife sanctuaries', 'forests and caves'],
+    overpassSelectors: ['landuse=forest', 'leisure=nature_reserve', 'boundary=national_park', 'natural=cave_entrance'],
+    categoryBias: ['nature'],
+  },
+  views: {
+    googleQueries: ['viewpoints and sunset points', 'peaks and hills'],
+    overpassSelectors: ['tourism=viewpoint', 'natural=peak', 'natural=hill'],
+    categoryBias: ['nature'],
+  },
+  faith: {
+    googleQueries: ['temples', 'mosques dargahs churches gurudwaras'],
+    overpassSelectors: ['amenity=place_of_worship'],
+    categoryBias: ['temple'],
+  },
+  heritage: {
+    googleQueries: ['forts and palaces', 'monuments and heritage sites'],
+    overpassSelectors: ['historic=fort', 'historic=castle', 'historic=palace'],
+    categoryBias: ['museum'],
+  },
+  culture: {
+    googleQueries: ['markets and bazaars', 'adventure activities', 'amusement and water parks'],
+    overpassSelectors: ['amenity=marketplace'],
+    categoryBias: ['sightseeing'],
+  },
+}
+
+/** The query set for a place family; results carry the family's category. */
+export function queriesForFamily(family: PlaceFamily): PurposeQuerySet {
+  return FAMILY_QUERY_SETS[family]
+}
+
+/** Text-search entries for the given families, in the shape the provider scans consume. */
+export function familyQueryEntries(families: readonly PlaceFamily[]): { textQuery: string; cat: string; includedType?: string }[] {
+  return families.flatMap(f => {
+    const cat = FAMILY_CATEGORY[f]
+    return queriesForFamily(f).googleQueries.map(textQuery => ({ textQuery, cat }))
+  })
 }

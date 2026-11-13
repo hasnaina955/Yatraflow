@@ -355,6 +355,29 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ---
 
+## Map V2 local UI work
+
+- [x] Correct the real-trip lens checks. Stay excludes scheduled evening stops. Meal names and shared schedule times set meal slots. Fix counts the panel's problems. Departure stays before stops with bad saved positions. A valid Lonavala sample keeps its nonzero road distance. Browser proof uses sample data only; saved trip coordinates need a separate data correction.
+
+- [ ] Complete Map V2 acceptance against the six supplied boards. The local UI branch contains the map canvas layout, timed day list, place details, journey clock and phone sheet. The map adds numbered stop discs, stay marks, fixed-time badges and a visual key. These use the existing engine and write paths. The phone search row and the place card Escape key are checked in the browser. Browser checks use a synthetic trip. Signed-in, native and phone-lane acceptance remain open.
+- [ ] Agree and verify the custom basemap styles, day colours and 2D elevation rules. Local Linen and Night styles use the source palette. Current elevation modes remain in use. Full visual and palette acceptance remain open. **Local progress (2026-11-07):** The user approved the revised day palette. Six of the seven day tones use the approved contrast adjustments. Teal stays as day one. All seven workspace discs use one dark ink. Linen and Night world colours stay unchanged. The 2D rule stays in place. A focused test reads the selected-day route and the real style layers. It checks raw land contrast on both basemaps. It checks the line and casing pair on seven surfaces in both themes, and the disc ink. An app-level browser check is still pending. The style-load error that blocked it is repaired in source. Browser confirmation is pending, so no app browser proof exists. Whole ticket 04 stays open.
+- [ ] Add the shared suggestion projection after the issue #841 and #842 owner handoffs. Stay, Gap, Fix and map editing remain in the approved dependency order. Photo and live-position decisions remain open. **Local progress:** Map-published corridor snapshots feed a per-day producer shared by the Map and Timeline. Covered suggestion rows carry the same identity, cost and time. Manual picks use one shared manual-pick read adapter and one pure builder. Current schedules supply arrivals, and unknown facts stay null. One drive assembly and one upstream detour feed the rail, card, marker and Timeline, so AC5 is met locally. A place's confirmed visit length now drives fit, card, add, vote draft and slack. Tickets 08 and 09 are code-complete under the local bar, decided 2026-11-09. The bar needs source behavior that the real path reaches, a passing test and a direct review. Browser, native, live SQL and provider acceptance stay separate. Neither ticket has app browser proof yet. Ticket 08 computes net added minutes in the shared projection. No view displays them yet. Ticket 09 scans nature, faith and culture only; water and views wait for confirmed timing (Idea bank I-115). Ticket 23 is code-complete under the same bar. Its privacy approval, an operator launch gate, and a real-device geolocation check are not done. Full npm run verify passed at b6f584d2 with 8,447 tests passed and one skipped. Freshness stays unknown until #842. A local lifecycle checkpoint binds measured road bytes and keeps one unresolved operation with captured-config recovery. One shared retry-disposition line covers Map, arc, shortlist and Timeline, and the Workspace-owned captured operation survives a Timeline remount. Final review remains open.
+- [ ] Add the gated road-measurement plan caller. The local module turns ranked candidates into bounded, labelled rows and stays off by default. Duplicate ids stay unmeasured with a reason. AC 6 routing rights and operating limits remain unapproved, so no Map or provider, cache or quota wiring exists.
+
+**Local checkpoint (2026-11-07):** The ribbon scrubs absolute journey minutes across midnight. A new trip or day resets the clock cursor. Arrow keys move five minutes and Home and End jump to the bounds. Only measured road or stop facts move the camera. The phone sheet handle uses one gesture module. A keyboard snap moves focus to the visible sheet panel, and a pointer snap keeps focus on the handle. A batched browser pass drove seven viewports, ribbon drag, keyboard scrubbing, sheet focus and the 44px shelf controls. Ticket 06 is code-complete under the local bar, decided 2026-11-09, and its AC4 keyboard select has browser evidence. Ticket 07 stays partial. The next-day clock, day-change reset, offscreen reveal, estimate copy, native touch and live backend remain unrun. The Map tab v2 lens rows below are ticked (#889). The four acceptance rows stay open. Browser, signed-in, native and provider acceptance remain unrun.
+
+- [x] **Four Map tab v2 lenses and one four-entry switch ship.** The lenses are Along the drive, Around the stay, Gaps and Fix. The switch shows honest counts. An empty lens counts 0. An unscanned or failed lens shows no count. (#889)
+
+- [x] **Lens decks, map marks and the left rail ship.** Each lens has one deck header and one place card. The map shows reach rings, gap rings, pick letters and scope bands. The left rail follows the lens. (#889)
+
+- [x] **The Fix deck, Keep and the test fixture ship.** The Fix deck lists verified fixes with Apply and Preview on map. Keep uses the shared writer with one Undo. The fixture answers its own place scan. (#889)
+
+- [x] **The Map tab v2 send-back pairs ship.** The rail, header and Fix titles read as the boards do. The add preview shows the engine's own risk and fix. A fixed booking keeps its own clock. Every clock follows the 12 h or 24 h setting, and one engine schedule feeds every time. The map render loop is fixed. (#911)
+
+- [ ] **Map tab v2 acceptance for #911 stays open.** Browser, phone and signed-in checks against the six boards remain open. (#911)
+
+The implementation boundary and local fixture are recorded in [the Map workspace note](docs/redesign/map-v2/IMPLEMENTATION.md). Existing issue claims are unchanged.
+
 ## Suggestions repair sequence (#832)
 
 The [full issue specification](https://github.com/hasnaina955/Yatraflow/issues/832) owns the contracts and all five checks per stage.
@@ -1134,6 +1157,10 @@ unbuilt). **Before picking up a row, and before quoting one in a plan, confirm i
 | I-86 | Per-segment pace control | Timeline | 2 d | Let a planner slow one climb and see the new arrival time. Extends the travel-style caps in `src/lib/ridePlan.ts`. |
 | I-93 | Admin delete must not erase a published trip | security | 2–3 h | `admin_delete_trip` still removes a trip that backs a publication, and the orders and entitlements go with it. #807 closed the direct table DELETE only. Apply the same guard the owner delete now uses. Keep the refusal sentence honest. Pin it beside the owner delete tests. Deferred from #799 and #807. |
 | I-94 | Remove from plan with confirm and Undo | budget | 2–3 h | The optional list is read-only today. Add a reversible removal on an optional line. Keep the staged-change refusal. |
+| I-116 | Phone pick card head | map | 1–2 h | Add the icon tile, kicker and rating row to the phone pick card, as the phone board draws them. |
+| I-117 | Drive deck "Breaks" tab | map | 2–3 h | Add a Breaks tab to the Along the drive deck, with each stretch break and its kilometre. |
+| I-118 | "Leave HH:MM" start pin tag | map | 1 h | Show the start time a stop needs on its pin, for example "Leave 07:45". |
+| I-119 | Stay map pin cluster bubble | map | 2 h | Group nearby stay pins into one bubble with a count. A tap opens the group. |
 
 ### Tier 2 — blocked on a named dependency
 
@@ -1210,6 +1237,8 @@ I-108 and I-113 are complete. Shared status chips keep their colours. Settings c
 | I-90 | Route cost landing pages | An SEO plan and route data | Add a public page per route family, for example the cost of a Ladakh road trip. Build it from the cost engine. Never publish an invented price. |
 | I-91 | Dead-zone note | A coverage data source | Warn when a stretch has no mobile signal. Show the distance to the next coverage. Never guess. |
 | I-92 | Lead-navigator offer | The commercialisation stage | A creator offers a paid lead navigator for a convoy of several vehicles, with a contact button. The user planned this for the commercialisation stage. AGENTS.md §1 sets the product rule on bookings, so that rule must change first. Keep it separate from I-62. |
+| I-115 | Water and views place families | Confirmed visit timing for water and views | Ticket 09 scans nature, faith and culture only. Water and views join the family scan once their visit timing is confirmed. Source: Map V2 ticket 09, decided 2026-11-09. |
+| I-120 | Stay deck photo header | Photo decision for Map V2 | Add a photo header to the Stay deck, as the board draws it. The photo source stays open. |
 
 **Parked, not planned (2026-10-14).** Native satellite diagnostics need a custom plugin and add little. A convoy proximity radar needs consent, extra hardware and safety promises. Shared hazard reports need moderation and carry liability. Reopen one only with a named owner and a pilot. Voice notes need storage and licensing. Live traveller check-ins need consent and an expiry. Certification and rank badges need a real review process. Do not reuse this Stitch copy: "No account needed", "Free forever", or "reserved" for a stay. Do not reuse a hard-coded health score. Do not reuse a time zone other than IST.
 

@@ -393,6 +393,34 @@ that notices the drift.
     owner. When two lanes own the same files, the later claim waits. Record the
     outcome in the issue, not in chat.
 
+20. **Map V2 controls carry a 44px target floor (product decision,
+    ticket 06, 2026-11-07).** The Map V2 workspace sets 44px as the smallest
+    touch target for its interactive controls. Two shipped misses forced the
+    rule: a 32×32 fold button in the deck header, and 25–26px buttons in the
+    pick-deck shelf. Do not repair one instance with a local px override —
+    that is how the misses shipped. The base `.mv2-icon-btn` rule carries the
+    fold-button size, and the deck-scoped shelf rules carry the shelf sizes.
+    The floor covers the shared Map classes `.mv2-icon-btn`, `.poi-fold` and
+    `.ledger-shelf`; the last two also style legacy surfaces, so the gate
+    reads them only inside `.mv2-workspace`. 32px stop marks, map tiles and
+    stop discs keep their own sizes: they are markers, not controls, and the
+    floor does not apply to them.
+
+21. **Derive a focused test list with `npm run test:changed`; never hand-write
+    it (2026-11-07).** Two focused runs omitted tests the change had touched:
+    a report omitted `tests/production-road-binding.test.ts` after a builder
+    move, and the full gate went red on a green local run. A second run missed
+    changed prose. Memory is the failure mode; git is not. The script unions
+    the branch diff vs the batch base with the staged, unstaged and untracked
+    files, plus every `--extra` path. The batch base defaults to the merge
+    base with `origin/test`. Pass `--base <ref>` for a batch off the
+    integration branch. The script runs vitest on the union and passes the
+    child's exit code through. A source change that selects no test fails the
+    run — add or name a test with `--extra`, or run the full gate. The script
+    does not replace the full suite: `verify` and CI still run everything.
+    Types and lint cannot see a missed test file, so this gate has no
+    higher-level substitute.
+
 ### What enforces each rule
 
 A rule nobody checks fails silently. This table pairs each rule with the gate that fails when you break it. "Judgment" means no gate exists. Only a human, or an agent that reads the rule, can catch a breach. Treat those rows as the ones most easily skipped.

@@ -72,6 +72,31 @@ export function clusterCandidates(
 }
 
 /**
+ * Drop a suggestion that stands where a numbered stop or a start/end flag
+ * already stands. MapLibre draws a cluster badge on the canvas, under every DOM
+ * mark: a badge at a stop's place left a dark teal crescent behind the pin (the
+ * "stray cluster" at the route start) and hid its own count. The stop owns that
+ * place, on the map and for the tap, so the suggestion keeps its rail card and no
+ * map mark. `samePlace` is the engine's under-1-km rule.
+ */
+export function clearOfMarks(
+  hits: readonly PlaceHit[],
+  marks: readonly { lat: number; lng: number }[],
+  samePlace: (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => boolean,
+  /** Ids that keep their mark even beside a stop. The Stay lens names its
+   *  picks A/B/C around the base, and a hidden pin loses that letter. */
+  keep?: ReadonlySet<string>,
+): PlaceHit[] {
+  if (marks.length === 0) return [...hits]
+  return hits.filter(hit => {
+    if (!hasCoords(hit)) return true
+    if (keep?.has(String(hit.id))) return true
+    const at = { lat: hit.latitude, lng: hit.longitude }
+    return !marks.some(mark => samePlace(at, mark))
+  })
+}
+
+/**
  * The GeoJSON the cluster layer may group. Exempt pins are left out entirely —
  * MapLibre clusters every point it is given, so "keep this one out of the pile"
  * can only be said by not handing it over.

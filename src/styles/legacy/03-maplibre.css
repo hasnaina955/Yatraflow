@@ -134,7 +134,11 @@
   width: 0; height: 0;
   pointer-events: none;
   white-space: nowrap;
+  transition: opacity var(--motion-fast) var(--ease-out);
 }
+/* F1: a road label that has no room beside the stops hides, and comes back when the camera stops. */
+.yf-milestone[data-collapsed='true'] { opacity: 0; }
+.yf-milestone-hit:has(.yf-milestone[data-collapsed='true']) { pointer-events: none; }
 /* Time + date chip, parked to the LEFT of the route point. */
 .yf-milestone-when {
   position: absolute; right: 5px; top: 0;
@@ -200,6 +204,7 @@
 }
 .yf-milestone--today .yf-milestone-when { animation: yf-today-pulse 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
+  .yf-milestone { transition: none; }
   .yf-milestone--today .yf-milestone-when { animation: none; }
 }
 /* Planned arrival chip under a stop pin — only present while the clock

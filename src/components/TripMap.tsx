@@ -2,29 +2,46 @@
 // Real slippy-map rendering via mapcn (MapLibre GL): OpenFreeMap basemaps that follow
 // light/dark theme, numbered stop markers in timeline order, and a polyline
 // connecting each day's stops. Distances/durations still come from the engine.
-import { useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps } from 'react'
+import { useId, useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps } from 'react'
 import { useInView, usePageVisible } from './ui'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
-import { hasCoords, mappablePois, projectOntoPolyline } from '../lib/providers/hits'
+import { hasCoords, mappablePois } from '../lib/providers/hits'
 import { buildRoadChain, measureDayRide, roadChainSig, routeDrawGrade } from '../lib/tripRoad'
-import { buildJourney, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
+import { dayColor } from '../lib/mapStyles/dayColors'
+import { buildJourney, coLocates, getAssumptions, isRoundTrip, isAirMode, type LegEstimate } from '../lib/engine'
 import { buildStopClock } from '../lib/stopClock'
+import type { RouteMark } from '../lib/map/routeMarks'
 import { clockHM, type ClockMilestone } from '../lib/clockOverlay'
 import { pointAtKm } from '../lib/geo'
 import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
-import { clusterCandidates, clusterFeatureCollection, clusterSummary, splitByCluster } from '../lib/mapCluster'
+import { clusterCandidates, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
 import { haptic } from '../lib/haptics'
-import { nativeWatch } from '../lib/native'
+import { isNative, nativeWatch } from '../lib/native'
+import {
+  deriveLiveLocationState, drawsLiveDot, livePositionAllowed, resolveLiveCamera,
+  liveErrorSignal, type LiveErrorSignal,
+  LIVE_FIX_STALE_MS, LIVE_LOCATION_COPY, toISODate,
+} from '../lib/liveLocation'
 import { loadFlag, saveFlag } from '../lib/uiPrefs'
 import { normalizeMapTarget, validMapCoordinate, type MapTarget } from '../lib/mapTarget'
+import { visibleMapPadding, type MapInsets } from '../lib/mapVisiblePadding'
+import { stayFrameAction, stayRingsDependencyKey } from '../lib/map/stayRings'
+import { WORKSPACE_MAP_STYLES } from '../lib/workspaceMapStyles'
+import { applyWorkspaceViewMode } from '../lib/mapStyles'
+import { dayRoadSlices, ROUTE_PAINT } from '../lib/mapStyles/routeTreatment'
+import { DayRouteLayers } from './map/DayRouteLayers'
+import { PlaceSubtypeMark, WarningDiamond } from './map/MapWorkspaceMarks'
+import { ghostInk, ghostLegPaint, layoutMarks, pickLetter, placeSubtype, type GhostLeg, type GhostRoad, type LayoutMark, type MarkBounds, type MarkSpot } from '../lib/mapStyles/placeMarks'
+import { BASE_TAG_GAP, CORRIDOR_PAINT, STAY_RING_CANVAS_FRACTION, NUMBER_TAG_GAP, baseTagBox, baseTagText, clampBoundsWithin, corridorEdgeGeoJson, drawsCorridor, smoothCorridorLine, thinCorridorLine, pickBandClass, ringCaptionMode, ringCaptionPoint, showsHotelTag, showsStopTag, stayFrameBounds, stayRingsFillGeoJson, stayRingsGeoJson, stopTagBox } from '../lib/mapStyles/lensMarks'
+import { MARK_FRAME_MARGIN, addInsets, clampInsets, coverInsets, frameOverflow, hasOverflow, mergeInsets, safeRect, type FrameBox, type FrameInsets } from '../lib/mapStyles/cameraFrame'
 import {
   applyViewModeOnMap, HERO_3D_CAMERA, MAP_VIEW_MODES, MAP_VIEW_MODE_META,
   heroBearingForRoute, heroCameraMove,
@@ -33,17 +50,24 @@ import {
 import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, CircleDot, Clock, Flag, Home, Info, Lightbulb, LocateFixed, Map as MapIcon, Mountain, Navigation, PlaneTakeoff,
+  Box, Car, CircleDot, Clock, Compass, Crosshair, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
+import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
+import { standsOnLastNightStay } from './map/railModel'
+import { MapPhoneLocate } from './map/MapWorkspaceChrome'
+import { MapBasemapStatus, useWorkspaceBasemapStatus } from './map/MapBasemapStatus'
+import { DetourSpurOverlay } from './map/DetourSpurOverlay'
 import {
   Map as MapLibreMap,
   MapMarker,
   MarkerContent,
   MarkerTooltip,
   MapRoute,
+  MapGeoJSON,
+  type MapGeoJSONData,
   MapClusterLayer,
   MapControls,
   prefersCooperativeGestures,
@@ -60,7 +84,6 @@ function VisiblePulse({ children, ...props }: ComponentProps<'span'>) {
   return <span {...props} ref={ref} data-motion-paused={!inView || !visible}>{children}</span>
 }
 
-const DAY_COLORS = ['#0D8D82', '#F59E2D', '#7C5CFC', '#E2557B', '#2D9CDB', '#6BBF59', '#B03A2E'] // #B7791F sat 1.6° from #F59E2D (two orange days); brick clears it by 28°
 
 // #370: a line that is NOT a measured road is drawn dashed and in the --warn
 // ink the detour spur already uses (read at paint time, with this file's hex
@@ -83,6 +106,9 @@ const ROUGH_DASH: [number, number] = [2, 2]
 // 4.69 / 6.51 / 7.44:1 there, pinned by tests/map-cluster.test.ts.
 const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#123F49']
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
+/** The workspace chrome hands the cluster layer no point, so no canvas badge can
+ *  stand under a stop pin. One object, so the layer's data effect does not churn. */
+const NO_CLUSTER_DATA = { type: 'FeatureCollection' as const, features: [] }
 
 // How long the map's ready gate waits for the style's 'load' event before
 // opening anyway (see the mapLoaded effect). The fit behind that gate is a
@@ -90,6 +116,18 @@ const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
 // not a resolved style — so a stalled style must never leave it permanently
 // dead. The stall is real: a hidden webview can hold a style mid-load forever.
 const STYLE_LOAD_WATCHDOG_MS = 4000
+// Overlays that cover the map in the workspace. The camera keeps marks clear of them.
+const WORKSPACE_COVER_SELECTOR = '.mv2-itinerary, .poi-col, .mv2-detail, .mv2-ribbon, .mv2-omnibar, .mv2-lenses, .mv2-phone-day, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left'
+// Drawn size of the marks the camera must keep inside the open map area.
+// Every box is a hit box: an interactive mark owns at least 44 by 44 px (see mapMarks.css).
+const STOP_BOX = { w: 44, h: 44, drawW: 36, drawH: 36 }
+const CLOCK_BOX = { w: 96, h: 26, dy: 33 }
+const WARN_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
+const SLOT_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
+const PICK_BOX = { w: 44, h: 44 }
+// A pick with its add button is a column. The pick pad reaches 14px above it and the add pad 26px below.
+const PICK_ADD_BOX = { w: 44, h: 91 }
+const PICK_ADD_SHIFT = 6
 
 // Basemaps come from the mapcn <Map> default (OpenFreeMap — see mapcn/map.tsx).
 // The old CARTO Voyager / dark-matter and Esri World Imagery style URLs that
@@ -97,61 +135,101 @@ const STYLE_LOAD_WATCHDOG_MS = 4000
 // exposure, so they are gone as of issue #23 — there is no satellite layer.
 
 /**
- * Live location: "show me on the map" as a persistent, toggleable layer —
- * the standard Android maps pattern. While on, the user renders as a
- * pulsing blue dot and the camera follows the latest fix (until the user
- * pans away themselves). The watch is driven by the native plugin inside
- * the app (system permission dialog + fused provider) or the browser watch
- * on the web. Toggling off stops the watch entirely — no idle GPS burn.
+ * Map V2 ticket 23. The dot is opt-in and draws on an actual trip day only.
+ * The fix stays in this component. No code writes it to a store, a network,
+ * a log or a URL. Each state gets its own status line.
  */
-function LiveLocationLayer({ active }: { active: boolean }) {
+function LiveLocationLayer({
+  active, startDate, endDate, today, focusDay, recenterSignal,
+}: {
+  active: boolean
+  startDate: string
+  endDate: string
+  today: string
+  focusDay: number | 'all' | undefined
+  recenterSignal: number
+}) {
   const { map, isLoaded } = useMap()
   const [fix, setFix] = useState<GeolocationPosition | null>(null)
-  const [denied, setDenied] = useState(false)
-  // Camera follow is released the first time the user pans/pinches the map
-  // themselves; our own easeTo (below) flips this true around its call so
-  // the movestart it triggers isn't misread as a user pan.
+  const [error, setError] = useState<LiveErrorSignal>(null)
+  const [now, setNow] = useState(() => Date.now())
   const userPanned = useRef(false)
   const selfMove = useRef(false)
+  const lastRecenter = useRef(recenterSignal)
+
+  const supported = isNative || (typeof navigator !== 'undefined' && 'geolocation' in navigator)
+  const dayAllowed = livePositionAllowed({ optedIn: active, startDate, endDate, today, focusDay })
+  const fixAgeMs = fix ? Math.max(0, now - fix.timestamp) : null
+  const state = deriveLiveLocationState({
+    optedIn: active,
+    dayAllowed,
+    supported,
+    hasFix: fix != null,
+    fixAgeMs,
+    staleAfterMs: LIVE_FIX_STALE_MS,
+    error,
+  })
 
   useEffect(() => {
-    if (!active) { setFix(null); setDenied(false); return }
+    if (!active || !dayAllowed || !supported) {
+      setFix(null)
+      setError(null)
+      return
+    }
     userPanned.current = false
-    const handle = nativeWatch(pos => {
-      if (!pos) { setDenied(true); return }
-      setDenied(false)
-      setFix(pos)
-    })
+    const handle = nativeWatch(
+      pos => {
+        setError(null)
+        setFix(pos)
+        setNow(Date.now())
+      },
+      code => setError(liveErrorSignal(code)),
+    )
     const onMoveStart = () => { if (!selfMove.current) userPanned.current = true }
     map?.on('movestart', onMoveStart)
     return () => {
       handle.stop()
       map?.off('movestart', onMoveStart)
     }
-  }, [active, map])
+  }, [active, dayAllowed, supported, map])
+
+  // A clock tick only re-labels an ageing fix. It reads no location.
+  useEffect(() => {
+    if (!active || !dayAllowed || !fix) return
+    const id = setInterval(() => setNow(Date.now()), LIVE_FIX_STALE_MS)
+    return () => clearInterval(id)
+  }, [active, dayAllowed, fix])
 
   useEffect(() => {
-    if (!isLoaded || !map || !fix) return
+    const recentered = lastRecenter.current !== recenterSignal
+    lastRecenter.current = recenterSignal
+    const camera = resolveLiveCamera({ hasFix: fix != null, userPanned: userPanned.current, recentered })
+    if (camera.clearPan) userPanned.current = false
+    if (!isLoaded || !map || !fix || !camera.follow) return
     const center: [number, number] = [fix.coords.longitude, fix.coords.latitude]
-    if (!userPanned.current) {
-      selfMove.current = true
-      map.easeTo({ center, zoom: Math.max(map.getZoom(), 14), duration: 600 })
-      // movestart fires synchronously-ish inside easeTo setup; release on
-      // the next frame so subsequent user pans still count.
-      requestAnimationFrame(() => { selfMove.current = false })
-    }
-  }, [isLoaded, map, fix])
+    selfMove.current = true
+    map.easeTo({ center, zoom: Math.max(map.getZoom(), 14), duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration })
+    requestAnimationFrame(() => { selfMove.current = false })
+  }, [isLoaded, map, fix, recenterSignal])
 
-  if (!active || !fix) return null
+  if (state === 'off') return null
+  const showDot = drawsLiveDot(state) && fix != null
   return (
-    <MapMarker longitude={fix.coords.longitude} latitude={fix.coords.latitude}>
-      <MarkerContent>
-        <VisiblePulse className={`yf-live-dot${denied ? ' yf-live-dot--denied' : ''}`} aria-label="Your live location" role="img">
-          <span className="yf-live-pulse" aria-hidden />
-          <span className="yf-live-core" aria-hidden />
-        </VisiblePulse>
-      </MarkerContent>
-    </MapMarker>
+    <>
+      {showDot && (
+        <MapMarker longitude={fix.coords.longitude} latitude={fix.coords.latitude}>
+          <MarkerContent>
+            <VisiblePulse className={`yf-live-dot yf-live-dot--${state}`} aria-label={LIVE_LOCATION_COPY[state]} role="img">
+              <span className="yf-live-pulse" aria-hidden />
+              <span className="yf-live-core" aria-hidden />
+            </VisiblePulse>
+          </MarkerContent>
+        </MapMarker>
+      )}
+      <div className="yf-live-status" data-state={state} role="status">
+        {LIVE_LOCATION_COPY[state]}
+      </div>
+    </>
   )
 }
 
@@ -240,6 +318,38 @@ type GeoJSONSourceLike = { setData(d: unknown): void }
 
 // ============ Road milestone labels on the map (requested redesign) ============
 
+/** The road labels the layer draws: the outbound half always, the return half with the toggle. */
+function visibleMilestones(overlay: ClockMilestone[], showReturn: boolean): ClockMilestone[] {
+  return overlay.filter(m => m.leg === 'outbound' || showReturn)
+}
+const milestoneMarkId = (index: number) => `ms:${index}`
+// A road label is one pill pair around its point. The time is on the left and the km is on the right.
+// The box is an estimate of the drawn size, so the layout can keep two labels apart.
+function milestoneBox(m: ClockMilestone, timeText: string): { w: number; h: number; x: number } {
+  const whenW = Math.max(timeText.length * 6.4, (m.haltName?.length ?? 0) * 6.8, m.dateLabel.length * 5.6) + 16
+  const kmW = m.kmLabel.length * 5.8 + 16
+  const lines = 1 + (m.haltName ? 1 : 0) + (m.dateLabel ? 1 : 0)
+  return { w: whenW + kmW + 10, h: 6 + lines * 13, x: (kmW - whenW) / 2 }
+}
+/** One distance chip per placed place that has a road km, on the route line. */
+function suggestionDistancePins(places: PlaceHit[], road: [number, number][] | null): Array<{ id: string; name: string; km: number; lat: number; lng: number }> {
+  if (!road || road.length < 2) return []
+  const poly = road.map(c => ({ lat: c[1], lng: c[0] }))
+  const out: Array<{ id: string; name: string; km: number; lat: number; lng: number }> = []
+  for (const p of places) {
+    const km = p.cumKm
+    if (km == null || !(km > 0)) continue
+    const at = pointAtKm(poly, km)
+    if (!at) continue
+    out.push({ id: String(p.id), name: p.name, km, lat: at.lat, lng: at.lng })
+  }
+  return out
+}
+// A pill that yields to the stops: it slides a little, or it hides. The layout owns where it lands.
+type PillSpots = { spots: ReadonlyMap<string, MarkSpot>; moving: boolean }
+const pillStyle = (spot: MarkSpot | undefined): React.CSSProperties | undefined => spot && !spot.hidden && (spot.dx || spot.dy) ? { transform: `translate(${spot.dx}px, ${spot.dy}px)` } : undefined
+const pillHidden = (pills: PillSpots, id: string): 'true' | undefined => pills.moving || pills.spots.get(id)?.hidden ? 'true' : undefined
+
 /**
  * The clock drawn as clean ROAD LABELS — no pins, no dots, no circles. Each
  * planned anchor (meal / overnight / destination) is a zero-size anchor ON the
@@ -252,13 +362,13 @@ type GeoJSONSourceLike = { setData(d: unknown): void }
  * outbound half renders, so the going-home readings never clutter the map the
  * traveller hasn't asked to see.
  */
-function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: ClockMilestone[]; showReturn: boolean; onOpenDay?: (dayIndex: number) => void }) {
+function ClockMilestoneLayer({ overlay, showReturn, onOpenDay, pills }: { overlay: ClockMilestone[]; showReturn: boolean; onOpenDay?: (dayIndex: number) => void; pills: PillSpots }) {
   const { isLoaded } = useMap()
   const timeFormat = useTimeFormat()
   if (!isLoaded || overlay.length === 0) return null
   return (
     <>
-      {overlay.filter(m => m.leg === 'outbound' || showReturn).map((m, i) => {
+      {visibleMilestones(overlay, showReturn).map((m, i) => {
         // Phase 3: an overnight halt is a decision ("where do we sleep"), so it
         // is the one label that earns a tap — it opens that day's plan. Every
         // other label stays decorative context. The tap target must carry an
@@ -267,7 +377,7 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
         // would open nothing (or, worse, the wrong day).
         const halts = m.kind === 'overnight' && typeof onOpenDay === 'function' && m.itineraryDay != null
         const chip = (
-          <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`}>
+          <span className={`yf-milestone yf-milestone--${m.kind}${m.leg === 'return' ? ' yf-milestone--return' : ''} yf-milestone--${m.dayState}`} data-collapsed={pillHidden(pills, milestoneMarkId(i))} style={pillStyle(pills.spots.get(milestoneMarkId(i)))}>
             <span className="yf-milestone-when">
               {m.haltName && <b className="yf-milestone-halt">{m.haltName}</b>}
               <b className="yf-milestone-time">{formatHM(clockHM(m.etaMin), timeFormat)}</b>
@@ -307,28 +417,16 @@ function ClockMilestoneLayer({ overlay, showReturn, onOpenDay }: { overlay: Cloc
  * On a round trip the placed stops are all outbound (the drive home plans no
  * sightseeing), so no return gate is needed here.
  */
-function SuggestionDistanceLayer({ places, road }: { places: PlaceHit[]; road: [number, number][] | null }) {
+function SuggestionDistanceLayer({ places, road, pills }: { places: PlaceHit[]; road: [number, number][] | null; pills: PillSpots }) {
   const { isLoaded } = useMap()
-  const pins = useMemo(() => {
-    if (!road || road.length < 2) return [] as Array<{ id: string; name: string; km: number; lat: number; lng: number }>
-    const poly = road.map(c => ({ lat: c[1], lng: c[0] }))
-    const out: Array<{ id: string; name: string; km: number; lat: number; lng: number }> = []
-    for (const p of places) {
-      const km = p.cumKm
-      if (km == null || !(km > 0)) continue
-      const at = pointAtKm(poly, km)
-      if (!at) continue
-      out.push({ id: String(p.id), name: p.name, km, lat: at.lat, lng: at.lng })
-    }
-    return out
-  }, [places, road])
+  const pins = useMemo(() => suggestionDistancePins(places, road), [places, road])
   if (!isLoaded || pins.length === 0) return null
   return (
     <>
       {pins.map(pin => (
         <MapMarker key={`sd-${pin.id}`} longitude={pin.lng} latitude={pin.lat} anchor="center">
           <MarkerContent className="yf-milestone-anchor">
-            <span className="yf-milestone yf-milestone--place">
+            <span className="yf-milestone yf-milestone--place" data-collapsed={pillHidden(pills, `sd:${pin.id}`)} style={pillStyle(pills.spots.get(`sd:${pin.id}`))}>
               <em className="yf-milestone-km">{`Km ${Math.round(pin.km)}`}</em>
             </span>
           </MarkerContent>
@@ -378,14 +476,18 @@ function CooperativeGestures({ enabled }: { enabled: boolean }) {
  * effect: setStyle preserves the camera, and the pitch/bearing ride belongs
  * to mode transitions only.
  */
-function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?: number | null }) {
-  const { map, isLoaded } = useMap()
+const WORKSPACE_3D_PITCH = 40 // The boards show 3D at pitch 30 to 40.
+function MapViewModeController({ mode, bearing, workspace = false }: { mode: MapViewMode; bearing?: number | null; workspace?: boolean }) {
+  const { map, isLoaded, resolvedTheme } = useMap()
   useEffect(() => {
     if (!map || !isLoaded) return
     try {
-      applyViewModeOnMap(map, mode)
+      // The supplied styles carry their own DEM and hillshade, so the Map tab
+      // changes their paint instead of adding a second source.
+      if (workspace) applyWorkspaceViewMode(map, mode, resolvedTheme)
+      else applyViewModeOnMap(map, mode)
     } catch { /* style swapped mid-flight — the next isLoaded edge re-applies */ }
-  }, [map, isLoaded, mode])
+  }, [map, isLoaded, mode, workspace, resolvedTheme])
   const prevMode = useRef<MapViewMode>('2d')
   const prevBearing = useRef<number | null>(null)
   useEffect(() => {
@@ -397,7 +499,7 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     if (move === 'enter') {
       // Dynamic hero cam: look along THIS trip's road (initial route bearing);
       // the prototype's fixed bearing stays only as a geometry-less fallback.
-      map.easeTo({ pitch: HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
+      map.easeTo({ pitch: workspace ? WORKSPACE_3D_PITCH : HERO_3D_CAMERA.pitch, bearing: heroBearing, duration })
     } else if (move === 're-aim') {
       // The road resolved AFTER 3D opened: the fallback bearing was eased, and
       // the edge trigger alone would leave the camera stuck on it forever.
@@ -410,8 +512,27 @@ function MapViewModeController({ mode, bearing }: { mode: MapViewMode; bearing?:
     }
     prevMode.current = mode
     prevBearing.current = heroBearing
-  }, [map, isLoaded, mode, bearing])
+  }, [map, isLoaded, mode, bearing, workspace])
   return null
+}
+
+/** One road of an edit preview. A replaced road dims. An estimate is thin and dotted. */
+function GhostLegRoute({ id, leg, role }: { id: string; leg: GhostLeg; role: 'new' | 'replaced' }) {
+  const paint = ghostLegPaint(leg, role)
+  if (leg.coordinates.length < 2) return null
+  return <MapRoute id={id} coordinates={leg.coordinates} color={role === 'replaced' ? '#64748B' : '#7D5EFC'} width={paint.width} opacity={paint.opacity} dashArray={role === 'replaced' ? undefined : paint.dash} interactive={false} />
+}
+
+/**
+ * The add preview's road: one dashed line in the board's ghost ink. A proven
+ * unmeasured leg draws dotted, so an estimate cannot read as a road.
+ */
+function PreviewRoadRoute({ road, dark }: { road: PreviewRoadView; dark: boolean }) {
+  const coordinates = road.path.filter(validMapCoordinate).map(point => [point.lng, point.lat] as [number, number])
+  if (coordinates.length < 2) return null
+  const measured = (road.legInMeasured ?? true) && (road.legOutMeasured ?? true)
+  const paint = ghostLegPaint({ measured }, 'new')
+  return <MapRoute id="yf-preview-road" coordinates={coordinates} color={ghostInk(dark)} width={paint.width} opacity={paint.opacity} dashArray={paint.dash} interactive={false} />
 }
 
 /** Drop consecutive duplicate points (shared endpoints between legs). */
@@ -433,7 +554,22 @@ const SLOT_PIN_GLYPH: Record<string, string> = {
   breakfast: 'B', lunch: 'L', fuel: 'F', stretch: 'S', dinner: 'D', stay: 'N',
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed }: {
+/** The lagoon ink of a stay reach ring. A map paint cannot read a CSS token. */
+const STAY_RING_INK = '#0D8D82'
+
+/**
+ * The edit preview's proposed road, as the map layer reads it. `path` runs
+ * through the new stop. A null leg flag means the day has no such leg, so only
+ * a proven unmeasured leg draws as an estimate.
+ */
+export interface PreviewRoadView {
+  dayIndex: number
+  path: Array<{ lat: number; lng: number }>
+  legInMeasured: boolean | null
+  legOutMeasured: boolean | null
+}
+
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickTags, routeMarks = [], pickLetters, warningMarks = [], stopWarning = null, corridorDay = null }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -443,6 +579,38 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   /** external day-focus driver (Board column select): a day index shows just that
       day's route, 'all' resets to the whole trip. Undefined = map owns its filter. */
   focusDay?: number | 'all'
+  /** The day the all-days view stresses. Other days draw behind it at 2px and 40%. */
+  selectedDay?: number | null
+  /** The one day that draws the Drive corridor wash. Null draws no corridor. */
+  corridorDay?: number | null
+  /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
+  ghostRoad?: GhostRoad | null
+  /** The add preview's proposed road. It draws dashed in the day colour, under
+   *  the real route, so the plan the traveller owns stays the top line. */
+  previewRoad?: PreviewRoadView | null
+  /** The stay lens's reach rings. Absent or empty draws nothing. */
+  stayRings?: Array<{ id: string; label: string; ring: [number, number][]; active?: boolean }>
+  /** True only when the Stay lens is active and the day has a stay base. The
+   *  ring camera framing never runs for another lens or a missing base. */
+  frameStayRing?: boolean
+  /** The parts of the day that are still open, as hollow rings on the road point.
+   *  Absent or empty draws nothing. */
+  gapRings?: Array<{ key: string; lat: number; lng: number; windowText: string | null }>
+  /** A tap on an open-part ring opens that part in the plan rail. Without it
+   *  the ring is a mark, not a button. */
+  onGapRing?: (key: string) => void
+  /** The band of each pick, keyed by the pick id the map already uses. */
+  pickBands?: Record<string, 'just-past' | 'over-budget'>
+  /** The words beside a pick that lies past the scope, keyed like `pickBands`. */
+  pickTags?: Record<string, string>
+  /** Clock ticks and the lunch window, drawn on the route. The parent reads the plan. */
+  routeMarks?: RouteMark[]
+  /** A rank letter for each pick, keyed by the pick id the map already uses. */
+  pickLetters?: Record<string, 'A' | 'B' | 'C'>
+  /** Real problems to mark with a diamond. The parent supplies each fact. */
+  warningMarks?: { id: string; lat: number; lng: number; label: string; severe?: boolean; onOpen?: () => void }[]
+  /** One problem that belongs to a plotted stop. The badge sits on that stop. */
+  stopWarning?: { stopId: string; label: string; text: string | null; severe?: boolean } | null
   /** the map's own day chips report the day they just filtered to, so a host
       whose plan rail carries the same choice can follow it. A host that cannot
       represent 'all' (the slots rail always plans one day) simply ignores it. */
@@ -514,8 +682,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   mapTarget?: MapTarget | null
   /** Clears the one-shot request after the camera and selection settle. */
   onMapTargetConsumed?: () => void
+  workspaceChrome?: boolean
+  overlayInsets?: MapInsets
+  instantTarget?: boolean
+  journeyCursor?: { coordinate: { lat: number; lng: number }; label: string } | null
 }) {
   const [dayFilter, setDayFilter] = useState<number | 'all'>('all')
+  // The settled map zoom. Other days' base tags appear only at zoom 9 or more.
+  const [mapZoom, setMapZoom] = useState(5)
+  // The map moved. A ring caption reads the camera, so it draws again after every move.
+  const [, setViewTick] = useState(0)
+  // The compass shows the map's own bearing and resets it to north.
+  const [bearing, setBearing] = useState(0)
+  const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
+  const toolbarId = useId()
   // A host drives the day filter through the prop (Board columns, the slots
   // rail's day strip); the map's own chips report their choice back through
   // `onDayFilterChange`, so the two selectors agree whichever one was touched.
@@ -548,6 +728,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Live location ("show me on the map") — off by default so GPS stays cold
   // until the user asks for it; the toggle chip sits by the map key.
   const [liveOn, setLiveOn] = useState(false)
+  const [liveRecenterNonce, setLiveRecenterNonce] = useState(0)
   const toggleLive = () => {
     haptic(liveOn ? 'toggle' : 'select')
     setLiveOn(v => !v)
@@ -555,6 +736,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Map key (legend) visibility — hidden by default so it stops covering the
   // bottom-right of the map; the choice persists per browser via uiPrefs.
   const [legendOpen, setLegendOpen] = useState(() => loadFlag('map_legend_open', false))
+  const keyId = useId()
+  const keyToggle = useRef<HTMLButtonElement>(null)
+  // The control column scrolls when the map is short. A menu that opens in it scrolls itself into view.
+  const revealInColumn = useCallback((el: HTMLElement | null) => { el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }, [])
+  function closeWorkspaceKey() {
+    setLegendOpen(false)
+    saveFlag('map_legend_open', false)
+    keyToggle.current?.focus()
+  }
   function toggleLegend() {
     setLegendOpen(open => {
       saveFlag('map_legend_open', !open)
@@ -680,23 +870,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Stable identity matters: a new callback re-subscribes the layer's reporting
   // effect and re-reports on every render.
   const onClustersChange = useCallback((ids: Set<string>) => { setClusteredIds(ids) }, [])
-  const clusterPins = useMemo(
-    () => clusterCandidates(
-      visiblePois.filter(h => !slotPinIds.has(String(h.id))),
-      { activeId: activeHitId, searchIds: searchHitIds },
-    ),
-    [visiblePois, slotPinIds, activeHitId, searchHitIds],
-  )
-  const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
-  const { individual: individualClusterPins } = useMemo(
-    () => splitByCluster(clusterPins, clusteredIds),
-    [clusterPins, clusteredIds],
-  )
-  const individualPinIds = useMemo(
-    () => new Set(individualClusterPins.map(c => c.id)),
-    [individualClusterPins],
-  )
-  const clusterNote = clusterSummary(clusterPins.length - individualClusterPins.length)
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -708,12 +881,60 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [theme, setTheme] = useState<'light' | 'dark'>(
     () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'),
   )
+  const basemapStatus = useWorkspaceBasemapStatus(theme)
   const mapRef = useRef<MapRef | null>(null)
+  const { top = 70, bottom = 70, left = 70, right = 70 } = overlayInsets ?? {}
+  // The workspace panels, the journey bar and the attribution sit over the map.
+  // The camera reads their live size, so a late layout change cannot hide a mark.
+  const measureFrame = useCallback((): { size: { width: number; height: number }; insets: FrameInsets } => {
+    const container = mapRef.current?.getContainer()
+    const size = { width: container?.clientWidth ?? 800, height: container?.clientHeight ?? 600 }
+    let insets: FrameInsets = { top, bottom, left, right }
+    if (workspaceChrome && container) {
+      const root = container.closest('.mv2-workspace') ?? document
+      const covers = Array.from(root.querySelectorAll(WORKSPACE_COVER_SELECTOR)).map(el => el.getBoundingClientRect())
+      insets = mergeInsets(insets, coverInsets(container.getBoundingClientRect(), covers))
+      // F1: a narrow bar still hides a stop that sits under it. The search bar and the lens switch
+      // reserve the map above their lower edge, and the control column reserves the map beside it.
+      const canvasBox = container.getBoundingClientRect()
+      const bars = Array.from(root.querySelectorAll('.mv2-omnibar, .mv2-lenses, .mv2-phone-day')).map(el => el.getBoundingClientRect())
+        .filter(r => r.width > 0 && r.height > 0 && r.bottom > canvasBox.top && r.top < canvasBox.top + canvasBox.height / 3)
+      const column = Array.from(root.querySelectorAll('.mv2-map-tools-card')).map(el => el.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0)
+      const reserved: FrameInsets = { top: 0, bottom: 0, left: 0, right: 0 }
+      for (const r of bars) reserved.top = Math.max(reserved.top, r.bottom - canvasBox.top)
+      if (column.length) {
+        const colLeft = Math.min(...column.map(r => r.left))
+        const colRight = Math.max(...column.map(r => r.right))
+        if ((colLeft + colRight) / 2 > canvasBox.left + canvasBox.width / 2) reserved.right = Math.max(0, canvasBox.right - colLeft)
+        else reserved.left = Math.max(0, colRight - canvasBox.left)
+      }
+      insets = mergeInsets(insets, reserved)
+      // W14: the scope band sits in one corner, so the generic rule ignores it. A
+      // mark or a clock pill under it would be cut. Reserve the map above its top edge.
+      const band = root.querySelector('.mv2-lens-scope-band')
+      if (band) {
+        const bandRect = band.getBoundingClientRect()
+        const canvasRect = container.getBoundingClientRect()
+        if (bandRect.height > 0 && bandRect.top > canvasRect.top && bandRect.top < canvasRect.bottom) {
+          insets = mergeInsets(insets, { top: 0, left: 0, right: 0, bottom: Math.max(0, canvasRect.bottom - bandRect.top) })
+        }
+      }
+    }
+    return { size, insets }
+  }, [top, bottom, left, right, workspaceChrome])
+  const cameraPadding = useCallback(() => {
+    const { size, insets } = measureFrame()
+    return workspaceChrome ? clampInsets(size, addInsets(insets, MARK_FRAME_MARGIN)) : visibleMapPadding(size, insets)
+  }, [measureFrame, workspaceChrome])
   const [mapLoaded, setMapLoaded] = useState(false)
   // A target camera stays authoritative for its day until the user moves the
   // map or chooses another day. Late road geometry must not steal the camera.
   const targetCameraActive = useRef(false)
   const targetCameraDay = useRef<number | 'all' | null>(null)
+  // The route frame is automatic until the user moves the map. A new day frames again.
+  const frameReleased = useRef(false)
+  const frameKey = useRef('')
+  const [frameTick, setFrameTick] = useState(0)
 
   // follow the app's theme toggle
   useEffect(() => {
@@ -751,12 +972,24 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [daysToPlot],
   )
 
+  // A food stop on last night's stay (the breakfast before the drive) draws as a
+  // stay mark and takes no number, as the rail row does.
+  const lastNightStayIds = useMemo(() => {
+    const ids = new Set<string>()
+    const ordered = [...trip.days].sort((a, b) => a.index - b.index)
+    ordered.forEach((day, at) => {
+      const hotel = [...(ordered[at - 1]?.stops ?? [])].reverse().find(stop => stop.category === 'hotel' && stop.status !== 'rejected')
+      if (hotel == null) return
+      for (const stop of day.stops) if (standsOnLastNightStay(stop, hotel)) ids.add(String(stop.id))
+    })
+    return ids
+  }, [trip.days])
+
   // Stops sharing one place (a meal at your night's base, or two stops the user
   // added in the same town) would otherwise draw as a single pin — the second
   // stop invisible and unclickable. Nudge each one apart for drawing only; the
   // markers keep their real coordinates. See lib/pinOffsets.ts.
   const pinOffsets = useMemo(() => coincidentPinOffsets(allPoints), [allPoints])
-
   // A day's ride as the ENGINE plans it: origin → stops → synthesized
   // destination (an outbound continuation, or the final day's ride home).
   // Day routes must follow this, not raw stored stops — an anchor-only day's
@@ -779,6 +1012,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     return { dayRoutePoints: out, stopClock: buildStopClock(trip, legCorrections) }
   }, [trip, legCorrections])
+  // W14: a single day reads its own kilometres, as the board's clock pills do.
+  // The trip total stays in the tooltip. The day starts where the day before ended.
+  const dayKmBase = useMemo(() => {
+    if (dayFilter === 'all') return 0
+    let base = 0
+    for (const d of [...trip.days].sort((x, y) => x.index - y.index)) {
+      if (d.index >= dayFilter) break
+      for (const st of [...d.stops].sort((x, y) => x.orderInDay - y.orderInDay)) {
+        const entry = stopClock.get(st.id)
+        if (entry) base = entry.cumKm
+      }
+    }
+    return base
+  }, [dayFilter, stopClock, trip.days])
   // #613: whether the map has anything to draw. A day can carry a real derived
   // journey without stored stops, so the single-day gate reads the journey —
   // the pins alone would hide a driving day behind the no-stops message. The
@@ -807,6 +1054,256 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const plotted = daysToPlot.find(d => d.index === dayFilter)?.stops ?? []
     return extraJourneyMarkers(j.points, plotted, j.direction)
   }, [trip, dayFilter, daysToPlot, legCorrections])
+
+  // A stop mark or a start/end flag owns its place on the map. A suggestion at
+  // that same place gets no map mark: it would either cluster into a canvas
+  // badge under the pin (the stray dark circle at the route start) or stack a
+  // second pin on the first. Its rail card stays. The engine's under-1-km rule
+  // decides "same place".
+  const markClearPoints = useMemo(
+    () => [
+      ...allPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+      ...dayEndpointMarkers.map(m => m.position),
+    ],
+    [allPoints, dayEndpointMarkers],
+  )
+  const markPois = useMemo(
+    () => clearOfMarks(visiblePois, markClearPoints, coLocates, new Set(Object.keys(pickLetters ?? {}))),
+    [visiblePois, markClearPoints, pickLetters],
+  )
+  const clusterPins = useMemo(
+    () => clusterCandidates(
+      markPois.filter(h => !slotPinIds.has(String(h.id))),
+      { activeId: activeHitId, searchIds: searchHitIds },
+    ),
+    [markPois, slotPinIds, activeHitId, searchHitIds],
+  )
+  const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
+  const { individual: individualClusterPins } = useMemo(
+    () => splitByCluster(clusterPins, clusteredIds),
+    [clusterPins, clusteredIds],
+  )
+  const individualPinIds = useMemo(
+    () => new Set(individualClusterPins.map(c => c.id)),
+    [individualClusterPins],
+  )
+  const clusterNote = clusterSummary(clusterPins.length - individualClusterPins.length)
+
+  // Close marks must not overlap on screen. Marks keep their real coordinates.
+  // The spread only moves how they are drawn, after each camera move.
+  // A stop wins over a problem, an empty part, a pick and a clock pill, in that order.
+  const [markSpots, setMarkSpots] = useState<Map<string, MarkSpot>>(new Map())
+  // While the camera zooms, turns or tilts, the laid-out pills and tags belong to the old view. They
+  // hide until the move ends. A stop never takes part: it stays on its coordinate the whole time.
+  const [camMoving, setCamMoving] = useState(false)
+  // The drawn road per day. The road labels read it, so it is declared before the layout below.
+  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
+  // W14: a reach ring wider than the view has its caption point off the map. The
+  // camera pass parks the caption at the nearest edge of the clear map area. It is
+  // computed here, never read from a ref during render.
+  const [ringCaptionSpots, setRingCaptionSpots] = useState<Record<string, { lat: number; lng: number; edge: boolean }>>({})
+  const ringCaptionSpotsRef = useRef<Record<string, { lat: number; lng: number; edge: boolean }>>({})
+  // The home leg of a round trip. The road labels read it, so it is declared before the layout.
+  const returnLeg = useMemo(() => {
+    if (!isRoundTrip(trip) || !trip.startLocationCoords) return null
+    const last = allPoints[allPoints.length - 1]
+    if (!last) return null
+    const h = trip.startLocationCoords
+    if (Math.abs(h.lat - last.lat) < 1e-4 && Math.abs(h.lng - last.lng) < 1e-4) return null
+    return { from: { lat: last.lat, lng: last.lng }, home: { lat: h.lat, lng: h.lng } }
+  }, [trip, allPoints])
+  // A stop name tag follows the active day. The stay base keeps its tag on every day,
+  // so the house mark always says where tonight's base is.
+  const activeTagDay = dayFilter === 'all' ? selectedDay ?? null : dayFilter
+  const spreadMarks: (LayoutMark & { lat: number; lng: number; ox: number; oy: number })[] = []
+  if (workspaceChrome) {
+    // A pill of the active day is placed first. It wins a free spot over a pill of another day.
+    const layoutOrder = [...allPoints].sort((a, b) => Number(b.dayIndex === activeTagDay) - Number(a.dayIndex === activeTagDay))
+    for (const p of layoutOrder) {
+      const off = pinOffsets.get(p.id)
+      const base = { lat: p.lat, lng: p.lng, ox: off?.dx ?? 0, oy: off?.dy ?? 0 }
+      spreadMarks.push({ id: `stop:${p.id}`, layer: 'stop', x: 0, y: 0, w: p.auto ? 30 : STOP_BOX.w, h: p.auto ? 30 : STOP_BOX.h, drawW: p.auto ? 30 : STOP_BOX.drawW, drawH: p.auto ? 30 : STOP_BOX.drawH, ...base })
+      const isBase = p.category === 'hotel'
+      const warned = stopWarning?.stopId === p.id
+      const showTag = !warned && (isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay))
+      // A tag is a pill: it never takes a tap and it yields to every badge. The
+      // clock pill already gives way first, so the tag keeps its place.
+      if (showTag) {
+        const tag = stopTagBox(isBase ? baseTagText(p.title) : p.title)
+        // The base tag sits beside its mark. Its box starts there, so a spread
+        // slide stays next to the stop instead of pushing the tag far left.
+        const box = baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h, isBase ? BASE_TAG_GAP : NUMBER_TAG_GAP)
+        // A name tag belongs to its own pin. A free side of the same mark wins
+        // over a long collision slide that lands the name on another stop.
+        const sideX = (STOP_BOX.drawW + tag.w) / 2 + BASE_TAG_GAP
+        const belowY = (STOP_BOX.drawH + tag.h) / 2 + BASE_TAG_GAP
+        spreadMarks.push({
+          id: `tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base,
+          maxTravel: belowY,
+          alternates: [[sideX, 0], [-sideX, 0], [0, belowY], [0, -belowY]],
+        })
+      }
+      // The Stay board hides the clock pill while the base tag shows. Hiding it
+      // here keeps the two pills from ever colliding on one mark.
+      if (!p.auto && !warned && !(showTag && isBase) && clockMilestones && clockOn && stopClock.has(p.id)) spreadMarks.push({ id: `clock:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: 0, y: CLOCK_BOX.dy, w: CLOCK_BOX.w, h: CLOCK_BOX.h, ...base })
+      if (stopWarning?.stopId === p.id && stopWarning.text != null && stopWarning.text.trim() !== '') {
+        const tag = stopTagBox(stopWarning.text, 260)
+        // The board puts the tag beside the badge, on its left, like the base tag.
+        // The box starts there. Below and above come next, then the right side,
+        // so the map controls on the right never cover it.
+        const box = baseTagBox({ x: 0, y: 0, w: STOP_BOX.drawW, h: STOP_BOX.drawH }, tag.w, tag.h)
+        const rightDx = STOP_BOX.drawW + BASE_TAG_GAP * 2 + tag.w
+        spreadMarks.push({
+          id: `fix-tag:${p.id}`, layer: 'clock', follows: `stop:${p.id}`, x: box.x, y: box.y, w: tag.w, h: tag.h, ...base,
+          maxTravel: 500,
+          alternates: [
+            [0, (STOP_BOX.drawH + tag.h) / 2 + 2],
+            [0, -((STOP_BOX.drawH + tag.h) / 2 + 2)],
+            [rightDx, 0],
+          ],
+        })
+      }
+    }
+    for (const m of dayEndpointMarkers) spreadMarks.push({ id: `endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, layer: 'stop', x: 0, y: 0, w: 30, h: 30, lat: m.position.lat, lng: m.position.lng, ox: 0, oy: 0 })
+    for (const w of warningMarks) if (validMapCoordinate({ lat: w.lat, lng: w.lng })) spreadMarks.push({ id: `warn:${w.id}`, layer: 'warn', x: 0, y: 0, ...WARN_BOX, lat: w.lat, lng: w.lng, ox: 0, oy: 0 })
+    for (const pin of slotPins) {
+      const fix = coordFixes[pin.hit.id as string]
+      const lat = fix ? fix.lat : pin.hit.latitude
+      const lng = fix ? fix.lng : pin.hit.longitude
+      if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) spreadMarks.push({ id: `slot:${pin.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat, lng, ox: 0, oy: 0 })
+    }
+    // Lens: an open part of the day joins the layout as a slot mark, so its ring
+    // keeps the same 44px hit box the empty-part pins use.
+    for (const ring of gapRings) {
+      if (!Number.isFinite(ring.lat) || !Number.isFinite(ring.lng) || (ring.lat === 0 && ring.lng === 0)) continue
+      spreadMarks.push({ id: `gap:${ring.key}`, layer: 'slot', x: 0, y: 0, ...SLOT_BOX, lat: ring.lat, lng: ring.lng, ox: 0, oy: 0 })
+    }
+    for (const hit of markPois) {
+      if (slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
+      const hasAdd = !!onAddNearby && !workspaceChrome
+      spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
+    }
+  }
+  // The road labels, the route ticks and the pick words are pills too. They yield to the stops,
+  // slide a short way, or hide. They come after the stop pills, so a stop's own pill wins a spot.
+  if (workspaceChrome) {
+    if (clockMilestones && clockOn && dayFilter === 'all') {
+      visibleMilestones(clockMilestones, !returnLeg || showReturn).forEach((m, i) => {
+        if (!validMapCoordinate({ lat: m.lat, lng: m.lng })) return
+        const box = milestoneBox(m, formatHM(clockHM(m.etaMin), timeFormat))
+        spreadMarks.push({ id: milestoneMarkId(i), layer: 'clock', x: box.x, y: 0, w: box.w, h: box.h, lat: m.lat, lng: m.lng, ox: 0, oy: 0 })
+      })
+      for (const pin of suggestionDistancePins(nearbyPois, geom.all ?? null)) {
+        spreadMarks.push({ id: `sd:${pin.id}`, layer: 'clock', x: 30, y: 0, w: `Km ${Math.round(pin.km)}`.length * 5.8 + 16, h: 18, lat: pin.lat, lng: pin.lng, ox: 0, oy: 0 })
+      }
+    }
+    // The lunch window is placed before the time ticks. It may slide further along the road, so a tick never takes its spot.
+    for (const mark of [...routeMarks].sort((a, b) => Number(a.kind === 'tick') - Number(b.kind === 'tick'))) {
+      if (!validMapCoordinate({ lat: mark.lat, lng: mark.lng })) continue
+      const text = mark.label + (mark.sub ?? '')
+      spreadMarks.push({ id: `route:${mark.id}`, layer: 'clock', x: 0, y: 0, w: mark.kind === 'tick' ? CLOCK_BOX.w : text.length * 7.2 + 26, h: CLOCK_BOX.h, lat: mark.lat, lng: mark.lng, ox: 0, oy: 0, ...(mark.kind === 'tick' ? {} : { maxTravel: 160 }) })
+    }
+    for (const hit of markPois) {
+      const tagText = pickTags?.[String(hit.id)]
+      if (tagText == null || slotPinIds.has(String(hit.id)) || !individualPinIds.has(String(hit.id))) continue
+      const w = tagText.length * 7.2 + 26
+      spreadMarks.push({ id: `pick-tag:${hit.id}`, layer: 'clock', follows: `pick:${hit.id}`, x: (PICK_BOX.w + w) / 2 + 4, y: 0, w, h: 24, lat: hit.latitude, lng: hit.longitude, ox: 0, oy: 0 })
+    }
+  }
+  const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
+  const spreadMarksRef = useRef(spreadMarks)
+  // Effects run top to bottom, so this one feeds the spread and camera effects below it in the same commit.
+  useEffect(() => { spreadMarksRef.current = spreadMarks })
+  // Lay out the marks for the camera as it is now. The boxes are where stops and pills end up.
+  const layoutOnMap = useCallback((map: MapRef, bounds?: MarkBounds) => {
+    const marks: LayoutMark[] = spreadMarksRef.current.map(m => {
+      const { x, y } = map.project([m.lng, m.lat])
+      return {
+        id: m.id, layer: m.layer, follows: m.follows, w: m.w, h: m.h, drawW: m.drawW, drawH: m.drawH,
+        x: x + m.ox + (m.layer === 'clock' ? m.x : 0), y: y + m.oy + (m.layer === 'clock' ? m.y : 0),
+        ...(m.alternates ? { alternates: m.alternates } : {}),
+        ...(m.maxTravel != null ? { maxTravel: m.maxTravel } : {}),
+      }
+    })
+    const spots = layoutMarks(marks, { bounds })
+    // Only stops and pills steer the camera. A far pick must not pull the frame out.
+    const boxes: FrameBox[] = marks.filter(m => m.layer === 'stop' || (m.layer === 'clock' && m.follows?.startsWith('stop:'))).flatMap(m => {
+      const spot = spots.get(m.id)
+      if (!spot || spot.hidden) return []
+      const anchor = m.follows ? spots.get(m.follows) : undefined
+      return [{ x: m.x + spot.dx + (anchor?.dx ?? 0), y: m.y + spot.dy + (anchor?.dy ?? 0), w: m.w, h: m.h }]
+    })
+    return { spots, boxes }
+  }, [])
+  // The ring dependency is CONTENT, not array identity — see lib/map/stayRings.
+  const stayRingsKey = stayRingsDependencyKey(stayRings)
+  const stayRingsRef = useRef(stayRings)
+  // Effects run top to bottom, so the ref is current before the spread effect.
+  useEffect(() => { stayRingsRef.current = stayRings }, [stayRings])
+  useEffect(() => {
+    const map = mapRef.current
+    if (!workspaceChrome || !map || !mapLoaded) return
+    // The rings arrive as a new array on every render (the page builds them
+    // inline and the default below is a new `[]`). Reading them through a ref
+    // and depending on their key keeps this state-writing effect from running
+    // again after every commit, which was the render loop itself.
+    const rings = stayRingsRef.current
+    const spread = () => {
+      try {
+        // A ring caption reads the camera, but an unchanged camera and an
+        // unchanged mark layout need no new render. A tick on every moveend
+        // makes this effect feed itself when the camera settles.
+        const zoom = Math.round(map.getZoom() * 100) / 100
+        setMapZoom(prev => prev === zoom ? prev : zoom)
+        setCamMoving(false)
+        const { size, insets } = measureFrame()
+        const safe = safeRect(size, insets)
+        const { spots: next } = layoutOnMap(map, safe)
+        setMarkSpots(prev => {
+          const same = prev.size === next.size && [...next].every(([id, spot]) => { const old = prev.get(id); return old && Math.round(old.dx) === Math.round(spot.dx) && Math.round(old.dy) === Math.round(spot.dy) && old.hidden === spot.hidden })
+          return same ? prev : next
+        })
+        // A ring caption stands on the ring's foot point. When that point is off
+        // the clear map area, keep the caption at the nearest edge instead.
+        const captions: Record<string, { lat: number; lng: number; edge: boolean }> = {}
+        for (const ring of rings) {
+          const foot = ringCaptionPoint(ring.ring)
+          if (!foot) continue
+          const projected = map.project(foot)
+          const x = Math.min(Math.max(projected.x, safe.left + 80), safe.right - 80)
+          const y = Math.min(Math.max(projected.y, safe.top + 16), safe.bottom - 40)
+          if (x !== projected.x || y !== projected.y) {
+            const moved = map.unproject([x, y])
+            captions[ring.id] = { lat: moved.lat, lng: moved.lng, edge: true }
+          } else {
+            captions[ring.id] = { lat: foot[1], lng: foot[0], edge: false }
+          }
+        }
+        const captionsChanged = JSON.stringify(ringCaptionSpotsRef.current) !== JSON.stringify(captions)
+        ringCaptionSpotsRef.current = captions
+        setRingCaptionSpots(captionsChanged ? captions : prevState => prevState)
+        if (captionsChanged) setViewTick(tick => tick + 1)
+      } catch { /* the map was removed while measuring */ }
+    }
+    // A pan keeps every relative distance, so only a zoom, a turn or a tilt makes the layout stale.
+    const startMove = () => setCamMoving(true)
+    spread()
+    map.on('zoomstart', startMove)
+    map.on('rotatestart', startMove)
+    map.on('pitchstart', startMove)
+    map.on('moveend', spread)
+    map.on('resize', spread)
+    return () => { map.off('zoomstart', startMove); map.off('rotatestart', startMove); map.off('pitchstart', startMove); map.off('moveend', spread); map.off('resize', spread) }
+  }, [workspaceChrome, mapLoaded, spreadKey, measureFrame, layoutOnMap, stayRingsKey])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!workspaceChrome || !map || !mapLoaded) return
+    const read = () => setBearing(Math.round(map.getBearing()))
+    read()
+    map.on('rotate', read)
+    return () => { map.off('rotate', read) }
+  }, [workspaceChrome, mapLoaded])
 
   // The map mounts lazily inside a Suspense boundary, so mapRef may be null on
   // the first render(s). Poll until the instance exists, then attach to its real
@@ -850,7 +1347,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Declared HERE, above the fit, because the all-days fit now frames the drawn
   // road itself (#330) — a render-scoped useState has no forward reference, and
   // hoisting the declaration is what makes the line available to the camera.
-  const [geom, setGeom] = useState<Record<string, [number, number][]>>({})
 
   // EVERYTHING the current view draws — the fit frames the drawing, not just
   // the stop pins. A day's journey chain carries its synthesized origin (last
@@ -893,7 +1389,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     const canvas = mapRef.current.getCanvas()
-    const releaseTargetCamera = () => { targetCameraActive.current = false }
+    const releaseTargetCamera = () => { targetCameraActive.current = false; frameReleased.current = true }
     canvas.addEventListener('pointerdown', releaseTargetCamera)
     canvas.addEventListener('wheel', releaseTargetCamera, { passive: true })
     return () => {
@@ -902,27 +1398,99 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
   }, [mapLoaded])
 
+  // The Stay lens frames its own reach ring. While it does, the route fit below
+  // yields: a later resize would otherwise pull the camera back out to the day.
+  const stayOwnsCamera = frameStayRing && stayRings.length > 0
   // fit the viewport to everything the view draws, whenever the map is ready
   // and that extent changes
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     if (mapTarget) return
+    if (stayOwnsCamera) return
     if (targetCameraActive.current) {
       if (targetCameraDay.current === dayFilter) return
       targetCameraActive.current = false
     }
+    // The route extent is the widest camera fit this view allows. A scope chip
+    // click or a lens change never adds a wider extent, so the camera stays here.
     const bounds = boundsOf(fitPoints)
     if (!bounds) return
     const m = mapRef.current
+    // A new day or a new route frames again. A resize keeps a user's own camera.
+    if (frameKey.current !== `${dayFilter}|${fitPointsKey}`) { frameKey.current = `${dayFilter}|${fitPointsKey}`; frameReleased.current = false }
+    else if (frameReleased.current) return
+    const timers: number[] = []
+    // Frame, then check the marks as drawn. A mark in the covered strip adds padding and frames again.
+    const settle = (attempt: number, extra: FrameInsets) => {
+      if (frameReleased.current || targetCameraActive.current) return
+      const { size, insets } = measureFrame()
+      const overflow = frameOverflow(layoutOnMap(m).boxes, safeRect(size, insets))
+      if (!hasOverflow(overflow) || attempt >= 3) return
+      const grown = addInsets(extra, overflow)
+      m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: 0 })
+      settle(attempt + 1, grown)
+    }
     const run = () => {
       m.resize()
-      m.fitBounds(
-        bounds,
-        { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 },
-      )
+      const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration
+      m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration })
+      if (!workspaceChrome) return
+      if (duration === 0) settle(0, { top: 0, bottom: 0, left: 0, right: 0 })
+      else m.once('moveend', () => settle(0, { top: 0, bottom: 0, left: 0, right: 0 }))
+      // The journey bar and the panels can mount after the first fit. Check again.
+      timers.push(window.setTimeout(() => settle(0, { top: 0, bottom: 0, left: 0, right: 0 }), 1500))
     }
-    requestAnimationFrame(run)
-  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+    const frame = requestAnimationFrame(run)
+    return () => { cancelAnimationFrame(frame); timers.forEach(window.clearTimeout) }
+  }, [fitPointsKey, mapLoaded, mapTarget, dayFilter, frameTick, stayOwnsCamera]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new container size frames the route again, unless the user moved the map.
+  useEffect(() => {
+    const container = mapRef.current?.getContainer()
+    if (!workspaceChrome || !mapLoaded || !container) return
+    let last = { w: container.clientWidth, h: container.clientHeight }
+    let timer = 0
+    const observer = new ResizeObserver(() => {
+      const next = { w: container.clientWidth, h: container.clientHeight }
+      if (Math.abs(next.w - last.w) < 2 && Math.abs(next.h - last.h) < 2) return
+      last = next
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => setFrameTick(n => n + 1), 200)
+    })
+    observer.observe(container)
+    return () => { observer.disconnect(); window.clearTimeout(timer) }
+  }, [workspaceChrome, mapLoaded])
+
+  // W9c: frame the active stay reach ring when the Stay lens opens one. The
+  // flag comes from the page: only the Stay lens with a stay base frames it.
+  // The ring fills a measured fraction of the visible canvas, so the fit is
+  // scale-free. Clamping keeps the frame inside the day's route extent.
+  const stayFramedKey = useRef<string | null>(null)
+  useEffect(() => {
+    if (!stayOwnsCamera) { stayFramedKey.current = null; return }
+    if (!mapLoaded || !mapRef.current) return
+    // One fit per lens open or base move. The key is the ring's content, so a
+    // caption change or a fresh array never frames again.
+    const action = stayFrameAction({
+      framing: frameStayRing, hasRing: stayRings.length > 0, key: stayRingsKey,
+      framedKey: stayFramedKey.current, released: frameReleased.current,
+    })
+    if (action === 'skip') return
+    if (stayFramedKey.current !== stayRingsKey) frameReleased.current = false
+    stayFramedKey.current = stayRingsKey
+    const first = stayRings[0]
+    if (!first) return
+    const framed = stayFrameBounds(first.ring, STAY_RING_CANVAS_FRACTION)
+    if (!framed) return
+    // A base at the end of the route would slide the ring into a corner of the
+    // route extent. The clamp holds only when it keeps most of the ring's frame.
+    const clamped = clampBoundsWithin(framed, boundsOf(fitPoints)) ?? framed
+    const area = (b: [[number, number], [number, number]]) => (b[1][0] - b[0][0]) * (b[1][1] - b[0][1])
+    const bounds = area(clamped) >= area(framed) * 0.8 ? clamped : framed
+    const m = mapRef.current
+    m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 15, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stayRingsKey, mapLoaded, frameStayRing, stayOwnsCamera, frameTick])
 
   useEffect(() => {
     if (!mapTarget || !mapLoaded || !mapRef.current) return
@@ -949,14 +1517,16 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       setSelectedStop({ id: stop.id, title: stop.title, dayIndex: stop.dayIndex })
       m.easeTo({
         center: [stop.lng, stop.lat],
+        padding: cameraPadding(),
         zoom: Math.max(m.getZoom(), 14),
         duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
       })
     } else if (normalized.kind === 'coordinate') {
       m.easeTo({
         center: [normalized.coordinate.lng, normalized.coordinate.lat],
+        padding: cameraPadding(),
         zoom: Math.max(m.getZoom(), 12),
-        duration: prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
+        duration: instantTarget || prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration,
       })
     } else {
       const bounds = boundsOf(normalized.points)
@@ -966,7 +1536,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       }
       m.resize()
       m.fitBounds(bounds, {
-        padding: 70,
+        padding: cameraPadding(),
         maxZoom: 12,
         duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration,
       })
@@ -974,7 +1544,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     targetCameraActive.current = true
     targetCameraDay.current = dayFilter
     onMapTargetConsumed?.()
-  }, [mapTarget, mapLoaded, allPoints, trip.days, dayFilter, onMapTargetConsumed])
+  }, [mapTarget, mapLoaded, allPoints, trip.days, dayFilter, onMapTargetConsumed, cameraPadding, instantTarget])
 
   // Panel → map highlight: when a suggestion card is hovered/selected in the
   // side panels, glide the camera to its pin so the user sees where it is.
@@ -983,63 +1553,46 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const hit = nearbyPois.find(h => h.id === activeHitId)
     if (!hit || !hasCoords(hit)) return
     const m = mapRef.current
+    const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration
+    // F1: while the camera still frames the route, a selected pick joins that frame. Every stop of the
+    // view stays in the clear map area. A user who moved the map keeps the old glide to the pick.
+    const framed = frameReleased.current ? null : boundsOf([...fitPoints, { lat: hit.latitude, lng: hit.longitude }])
+    if (workspaceChrome && framed) {
+      m.fitBounds(framed, { padding: cameraPadding(), maxZoom: 12, duration })
+      return
+    }
     m.easeTo({
       center: [hit.longitude, hit.latitude],
+      padding: cameraPadding(),
       zoom: Math.max(m.getZoom(), 7),
-      duration: prefersReducedMotion() ? 0 : 500,
+      duration,
     })
   }, [activeHitId, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Panel to map detour, drawn: the active suggestion gets a dashed spur from the
-  // nearest point on the route to its pin, so "how far off is this?" is answered
-  // on the map itself and not only by the number on the card.
-  useEffect(() => {
-    const m = mapRef.current
-    if (!m || !mapLoaded) return
-    const SRC = 'yf-spur-src'
-    const LAYER = 'yf-spur'
-    if (!m.getSource(SRC)) {
-      m.addSource(SRC, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      })
-      m.addLayer({
-        id: LAYER,
-        type: 'line',
-        source: SRC,
-        // #153: paint from the --warn token (resolved once — MapLibre can't
-        // read CSS vars) instead of a hardcoded hex that silently drifts.
-        paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() || '#B47207', 'line-width': 2, 'line-dasharray': [2, 2] },
-        layout: { 'line-cap': 'round' },
-      })
-    }
-    const hit = activeHitId == null ? null : nearbyPois.find(h => h.id === activeHitId)
-    const route: [number, number][] = (geom.all?.length ? geom.all : allStraight) ?? []
-    const features: Array<{ type: 'Feature'; properties: Record<string, never>; geometry: { type: 'LineString'; coordinates: [number, number][] } }> = []
-    if (hit && hasCoords(hit) && route.length > 1) {
-      const pin: [number, number] = [hit.longitude, hit.latitude]
-      // #158: snap with the SAME segment projection the card's detour minutes
-      // use (projectOntoPolyline), not a raw nearest-vertex walk in degree
-      // space — the spur now lands where the card's math says it should.
-      const poly = route.map(([lng, lat]) => ({ lat, lng }))
-      const snap = projectOntoPolyline({ latitude: pin[1], longitude: pin[0] }, poly)
-      const anchor: [number, number] = snap ? snap.lngLat : route[0]
-      features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [anchor, pin] } })
-    }
-    const src = m.getSource(SRC) as { setData?: (d: unknown) => void } | undefined
-    src?.setData?.({ type: 'FeatureCollection', features })
-  }, [activeHitId, mapLoaded, nearbyPois]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Panel to map detour, drawn: the spur is a map CHILD (DetourSpurOverlay), not
+  // an effect here. Its readiness signal is mapcn's `isLoaded`, which closes for
+  // a theme swap. This component's `mapLoaded` is a camera latch: the watchdog
+  // opens it on a stalled style, where a style write throws.
 
   function fitToTrip() {
+    // With live on, recenter arms the camera follow again.
+    if (liveOn) { setLiveRecenterNonce(n => n + 1); return }
     const m = mapRef.current
     const bounds = boundsOf(fitPoints)
     if (!m || !bounds) return
     m.resize()
-    m.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: prefersReducedMotion() ? 0 : 400 })
+    m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration })
+  }
+
+  // A mark moved by the spread keeps its real coordinate. Only the drawing moves.
+  function offsetWrap(id: string, node: React.ReactNode): React.ReactNode {
+    if (!workspaceChrome) return node
+    const spot = camMoving ? undefined : markSpots.get(id)
+    return <span className="mv2-pin-offset" data-mark={id} style={spot && (spot.dx || spot.dy) ? { transform: `translate(${spot.dx}px, ${spot.dy}px)` } : undefined}>{node}</span>
   }
 
   function colorForDay(i: number): string {
-    return DAY_COLORS[i % DAY_COLORS.length]
+    return dayColor(i)
   }
 
   // Category-coloured idea pins: each suggestion type gets its own hue so the
@@ -1087,6 +1640,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     () => allPoints.map(p => [p.lng, p.lat] as [number, number]),
     [allPoints],
   )
+  // The route the spur snaps to: the measured road when it resolved, the stop
+  // chain when it did not. Memoised so a re-render alone never re-writes it.
+  const spurRoute = useMemo(
+    () => (geom.all?.length ? geom.all : allStraight) ?? [],
+    [geom.all, allStraight],
+  )
 
   // The 3D hero frames THIS trip's road: initial bearing of the main route
   // (GeoJSON [lng,lat] → lat/lng for the pure helper). Geometry-less trips
@@ -1099,14 +1658,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Round-trip return drive: last plotted point → trip start (home). Only for
   // self-drive round trips with a geocoded home, and only when home isn't
   // already the last plotted anchor. Toggleable via the map filter chips.
-  const returnLeg = useMemo(() => {
-    if (!isRoundTrip(trip) || !trip.startLocationCoords) return null
-    const last = allPoints[allPoints.length - 1]
-    if (!last) return null
-    const h = trip.startLocationCoords
-    if (Math.abs(h.lat - last.lat) < 1e-4 && Math.abs(h.lng - last.lng) < 1e-4) return null
-    return { from: { lat: last.lat, lng: last.lng }, home: { lat: h.lat, lng: h.lng } }
-  }, [trip, allPoints])
   const returnStraight = useMemo(
     () => (returnLeg ? [[returnLeg.from.lng, returnLeg.from.lat], [returnLeg.home.lng, returnLeg.home.lat]] as [number, number][] : null),
     [returnLeg],
@@ -1209,9 +1760,117 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   )
 
   return (
-    <div className={`map-shell${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`}>
+    <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open={workspaceToolsOpen ? 'true' : 'false'}>
+      {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><Layers size={18} aria-hidden /></button>}
+      {workspaceChrome && showToolbar && <MapPhoneLocate onLocate={fitToTrip} />}
       {showToolbar && (
-      <div className="map-toolbar">
+      <div className="map-toolbar" id={toolbarId}>
+        {workspaceChrome ? (
+        <div className="mv2-map-tools" role="group" aria-label="Map tools">
+          {/* W8-tools card 1: zoom. The board keeps + and - apart with a hairline. */}
+          <div className="mv2-map-tools-card mv2-map-tools-card--zoom" role="group" aria-label="Zoom">
+            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom in" title="Zoom in"
+              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + 1, { duration: motionTiming('--motion-med').duration }) }}>
+              <Plus size={17} aria-hidden />
+            </button>
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom out" title="Zoom out"
+              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - 1, { duration: motionTiming('--motion-med').duration }) }}>
+              <Minus size={17} aria-hidden />
+            </button>
+          </div>
+          {/* W8-tools card 2: view modes as text. Only the active mode wears the wash. */}
+          {enableMapViewModes && (
+          <div className="mv2-map-tools-card mv2-map-tools-card--mode" role="group" aria-label="Map view mode">
+            {MAP_VIEW_MODES.map(m => (
+              <button
+                key={m}
+                type="button"
+                className={`mv2-map-tools-btn${viewMode === m ? ' on' : ''}`}
+                aria-pressed={viewMode === m}
+                aria-label={MAP_VIEW_MODE_META[m].aria}
+                title={MAP_VIEW_MODE_META[m].aria}
+                onClick={() => { haptic('select'); setViewMode(m) }}
+              >
+                {m === 'terrain' ? 'TER' : MAP_VIEW_MODE_META[m].label}
+              </button>
+            ))}
+          </div>
+          )}
+          {/* W8-tools card 3: compass, locate, clock, layers, directions and expand. */}
+          <div className="mv2-map-tools-card mv2-map-tools-card--tools" role="group" aria-label="Map layers and day actions">
+            <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing}
+              onClick={() => { mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration }) }}
+              aria-label={bearing === 0 ? 'The map points north' : `Turn the map back to north. It is turned ${Math.abs(bearing)} degrees`}
+              title={bearing === 0 ? 'The map points north' : 'Turn the map back to north'}>
+              <Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} />
+            </button>
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
+            {clockMilestones && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
+                  aria-label="Show or hide the road milestones" title="Show or hide the road milestones - each planned stop's time and distance on the road"><Clock size={17} aria-hidden /></button></>
+            )}
+            {returnLeg && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <button type="button" className={`mv2-map-tools-btn${showReturn ? ' on' : ''}`} aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
+                  aria-label="Show or hide the return leg" title={showReturn
+                    ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                    : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}><RotateCcw size={17} aria-hidden /></button></>
+            )}
+            {ideaCats.length > 0 && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <div className="map-filters">
+                  <button type="button" className="mv2-map-tools-btn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}
+                    aria-label="Filter nearby ideas by type"
+                    title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
+                    <Layers size={17} aria-hidden />
+                  </button>
+                  {filtersOpen && (
+                    <div className="map-filters-pop popover" role="group" aria-label="Nearby idea categories" ref={revealInColumn}>
+                      {ideaCats.map(([cat, count]) => (
+                        <button key={cat} className="map-filters-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
+                          <CatIcon category={cat} size={13} aria-hidden />
+                          {titleCase(cat)}
+                          <span className="n">{count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div></>
+            )}
+            {dayDirectionsUrl && (
+              <><span className="mv2-map-tools-divider" aria-hidden="true" />
+                <button type="button" className="mv2-map-tools-btn" onClick={() => openExternal(dayDirectionsUrl)}
+                  aria-label="Directions for this day in Google Maps" title="Open this day's ride with turn-by-turn directions in Google Maps"><Navigation size={17} aria-hidden /></button></>
+            )}
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" className={`mv2-map-tools-btn map-expand-chip${expanded ? ' on' : ''}`} aria-pressed={expanded}
+              onClick={() => (expanded ? collapseExpanded() : setExpanded(true))}
+              title={expanded ? 'Shrink the map back into the page (Esc)' : 'Expand the map to fill the screen'}
+              aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}>
+              {expanded ? <X size={17} aria-hidden /> : <Maximize2 size={17} aria-hidden />}
+            </button>
+          </div>
+          <div className="mv2-map-tools-card mv2-map-tools-card--extras" role="group" aria-label="Live location and map key">
+            <button type="button" className={`mv2-map-tools-btn${liveOn ? ' on' : ''}`}
+              onClick={toggleLive} aria-pressed={liveOn}
+              aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
+              title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}>
+              <LocateFixed size={17} aria-hidden />
+            </button>
+            <span className="mv2-map-tools-divider" aria-hidden="true" />
+            <button type="button" ref={keyToggle} className="mv2-map-tools-btn"
+              onClick={toggleLegend} aria-expanded={legendOpen} aria-controls={keyId}
+              aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
+              title={legendOpen ? 'Hide the map key' : 'Show the map key'}>
+              {legendOpen ? <X size={17} aria-hidden /> : <Info size={17} aria-hidden />}
+            </button>
+          </div>
+        </div>
+        ) : (
+        <>
         <div className="map-day-filter" role="group" aria-label="Which day the map draws">
           <span className="map-scope-lbl">Show on map</span>
           <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
@@ -1332,6 +1991,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {expanded ? '⤡ Collapse' : '⤢ Expand'}
           </button>
         </div>
+        </>
+        )}
         </div>
       )}
 
@@ -1345,6 +2006,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           <MapLibreMap
             ref={mapRef}
             theme={theme}
+            styles={workspaceChrome ? WORKSPACE_MAP_STYLES : undefined}
+            onMapError={workspaceChrome ? basemapStatus.onMapError : undefined}
             className="yf-maplibre"
             center={[76.5, 10.5]}
             zoom={5}
@@ -1354,12 +2017,25 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             <MapControls position="top-right" className="yf-map-ctrls" />
             {/* Terrain stack reconcile (2D · Terrain · 3D hero) — no-op on a
                 hard-2D surface like the Board. */}
-            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} />}
+            {enableMapViewModes && <MapViewModeController mode={viewMode} bearing={heroBearing} workspace={workspaceChrome} />}
             {/* Inline on a coarse pointer: one finger scrolls the page.
                 Expanded (or a mouse): normal gestures. */}
             <CooperativeGestures enabled={wantsCooperativeGestures({ dedicated, expanded })} />
-            {/* Live location layer — mounted always, self-gating on `liveOn`. */}
-            <LiveLocationLayer active={liveOn} />
+            <LiveLocationLayer
+              active={liveOn}
+              startDate={trip.startDate}
+              endDate={trip.endDate}
+              today={toISODate(new Date())}
+              focusDay={focusDay}
+              recenterSignal={liveRecenterNonce}
+            />
+            {workspaceChrome && <MapBasemapStatus failure={basemapStatus.failure} onRetry={basemapStatus.onRetry} onSourceReady={basemapStatus.onSourceReady} />}
+            {journeyCursor && validMapCoordinate(journeyCursor.coordinate) && <MapMarker longitude={journeyCursor.coordinate.lng} latitude={journeyCursor.coordinate.lat}>
+              <MarkerContent><span className="mv2-map-clock" aria-hidden="true"><Clock size={13} />{journeyCursor.label}</span></MarkerContent>
+            </MapMarker>}
+            {/* The add preview's road is the lower line: the plan the traveller
+                owns must stay above a road that is only proposed. */}
+            {previewRoad && <PreviewRoadRoute road={previewRoad} dark={theme === 'dark'} />}
             {/* In All-days view a single connected main line from the trip start
                 through every stop to the end; in single-day view, coloured lines.
                 Both get a contrasting casing underneath (road-map halo) and
@@ -1371,18 +2047,29 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // paint and loses its chevrons, so "no road resolved" cannot read
               // as a road while the numbers beside it are haversine estimates.
               const rough = routeDrawGrade(geom.all) === 'rough'
+              // A selected day stands out only on a measured road. A chord
+              // fallback keeps the single rough line, so nothing is invented.
+              const focused = selectedDay != null && !rough ? dayRoadSlices(geom.all, dayRoutePoints, selectedDay) : []
               return (
                 <>
-                  <MapRoute
-                    id="yf-main-casing"
-                    coordinates={coords}
-                    color={dark ? '#0B2545' : '#FFFFFF'}
-                    width={9}
-                    opacity={dark ? 0.6 : 0.75}
-                    interactive={false}
-                  />
-                  <MapRoute coordinates={coords} color={rough ? warnInk : dark ? '#2A6FDB' : '#0B2545'} width={rough ? 3.5 : 4.5} opacity={rough ? 0.9 : 0.95} dashArray={rough ? ROUGH_DASH : undefined} />
-                  {!rough && <RouteArrows coordinates={coords} dark={dark} />}
+                  {focused.length > 0 ? <>
+                    {corridorDay != null && focused.filter(slice => slice.selected && slice.dayIndex === corridorDay).map(slice => (
+                      <MapRoute key={`yf-all-corridor-${slice.dayIndex}`} id={`yf-all-corridor-${slice.dayIndex}`} coordinates={slice.coordinates} color={colorForDay(slice.dayIndex)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />
+                    ))}
+                    <DayRouteLayers slices={focused} dark={dark} colorFor={colorForDay} />
+                    {focused.filter(slice => slice.selected).map(slice => <RouteArrows key={slice.dayIndex} coordinates={slice.coordinates} dark={dark} />)}
+                  </> : <>
+                    <MapRoute
+                      id="yf-main-casing"
+                      coordinates={coords}
+                      color={dark ? '#0B2545' : '#FFFFFF'}
+                      width={ROUTE_PAINT.selectedCasingWidth}
+                      opacity={dark ? 0.6 : 0.75}
+                      interactive={false}
+                    />
+                    <MapRoute coordinates={coords} color={rough ? warnInk : dark ? '#2A6FDB' : '#0B2545'} width={rough ? 3.5 : ROUTE_PAINT.selectedWidth} opacity={rough ? 0.9 : 0.95} dashArray={rough ? ROUGH_DASH : undefined} />
+                    {!rough && <RouteArrows coordinates={coords} dark={dark} />}
+                  </>}
                 </>
               )
             })() : (
@@ -1404,18 +2091,45 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 const rough = routeDrawGrade(geom[String(d.index)]) === 'rough'
                 return (
                   <Fragment key={`day-${d.index}`}>
+                    {/* The Drive corridor wash: a wide band of the day colour. It
+                        sits over the white casing and under the route line, so the
+                        day reads as a corridor, as the Drive board shows. */}
                     <MapRoute
                       id={`yf-day-casing-${d.index}`}
                       coordinates={coords}
                       color={theme === 'dark' ? '#0B2545' : '#FFFFFF'}
-                      width={8}
+                      width={ROUTE_PAINT.selectedCasingWidth}
                       opacity={theme === 'dark' ? 0.6 : 0.75}
                       interactive={false}
                     />
+                    {!rough && drawsCorridor(corridorDay, d.index) && (() => {
+                      // The Drive board: a 46 px day-colour wash at 0.15, with a
+                      // 1 px dashed edge at 0.5 on each side of the band.
+                      const wash = smoothCorridorLine(thinCorridorLine(coords), 3)
+                      const edges = corridorEdgeGeoJson(wash)
+                      return <>
+                        <MapRoute id={`yf-day-corridor-${d.index}`} coordinates={wash} color={colorForDay(d.index)} width={CORRIDOR_PAINT.width} opacity={CORRIDOR_PAINT.opacity} interactive={false} />
+                        {([-1, 1] as const).map(side => (
+                          <MapGeoJSON
+                            key={`yf-day-edge-${d.index}-${side}`}
+                            id={`yf-day-edge-${d.index}-${side}`}
+                            data={edges}
+                            fillPaint={false}
+                            linePaint={{
+                              'line-color': colorForDay(d.index),
+                              'line-width': CORRIDOR_PAINT.edgeWidth,
+                              'line-opacity': CORRIDOR_PAINT.edgeOpacity,
+                              'line-dasharray': CORRIDOR_PAINT.edgeDash,
+                              'line-offset': side * (CORRIDOR_PAINT.width / 2),
+                            }}
+                          />
+                        ))}
+                      </>
+                    })()}
                     <MapRoute
                       coordinates={coords}
                       color={rough ? warnInk : colorForDay(d.index)}
-                      width={rough ? 3.5 : 4}
+                      width={rough ? 3.5 : ROUTE_PAINT.selectedWidth}
                       opacity={rough ? 0.9 : 0.95}
                       dashArray={rough ? ROUGH_DASH : undefined}
                     />
@@ -1452,6 +2166,73 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 </>
               )
             })()}
+            {/* The panel → map detour spur. It sits INSIDE the provider so it
+                reads mapcn's `isLoaded` (loaded AND style loaded), and a theme
+                swap re-adds it on the incoming style. TripMap's own gate is a
+                camera latch and cannot say when a style write is safe. */}
+            {/* Lens: the stay reach rings sit under the stop marks - a dashed
+                lagoon line, with the walk or drive label chipped at the ring's
+                top point. */}
+            {stayRings.length > 0 && <MapGeoJSON
+              id="yf-stay-rings-fill"
+              data={stayRingsFillGeoJson(stayRings.filter(ring => ring.active !== false)) as unknown as MapGeoJSONData}
+              fillPaint={{ 'fill-color': STAY_RING_INK, 'fill-opacity': 0.16 }}
+              linePaint={false}
+              interactive={false}
+            />}
+            {stayRings.length > 0 && stayRingsGeoJson(stayRings).features.map(ring => ring.geometry.coordinates.length > 1 && (
+              <MapRoute key={`yf-stay-ring-${ring.properties.id}`} id={`yf-stay-ring-${ring.properties.id}`} coordinates={ring.geometry.coordinates} color={STAY_RING_INK} width={2} opacity={0.95} dashArray={[2, 1.5]} interactive={false} />
+            ))}
+            {stayRings.map(ring => {
+              const foot = ringCaptionPoint(ring.ring)
+              if (!foot) return null
+              const Icon = ringCaptionMode(ring.id) === 'drive' ? Car : PersonStanding
+              // A ring wider than the view has its caption off the map edge. The
+              // camera pass parks it at the nearest edge of the clear area.
+              const spot = ringCaptionSpots[ring.id]
+              const at: [number, number] = spot ? [spot.lng, spot.lat] : foot
+              return (
+                <MapMarker key={`yf-stay-ring-label-${ring.id}`} longitude={at[0]} latitude={at[1]} anchor="top">
+                  <MarkerContent><span className={`mv2-lens-ring-label${spot?.edge ? ' is-edge' : ''}`} data-ring={ring.id}><Icon size={13} aria-hidden />{ring.label}</span></MarkerContent>
+                </MapMarker>
+              )
+            })}
+            {/* Lens: an open part of the day is a hollow marigold ring on its road
+                point. It is a button only when the host can open the part. */}
+            {gapRings.map(ring => {
+              if (!Number.isFinite(ring.lat) || !Number.isFinite(ring.lng) || (ring.lat === 0 && ring.lng === 0)) return null
+              const note = ring.windowText
+              const name = note ? `Open part of the day, ${note}` : 'Open part of the day'
+              const mark = onGapRing
+                ? <button type="button" className="mv2-lens-gap-ring" aria-label={name} title={note ?? undefined} onClick={() => onGapRing(ring.key)} />
+                : <span className="mv2-lens-gap-ring" role="img" aria-label={name} title={note ?? undefined} />
+              return (
+                <MapMarker key={`yf-gap-ring-${ring.key}`} longitude={ring.lng} latitude={ring.lat} anchor="center">
+                  <MarkerContent>{offsetWrap(`gap:${ring.key}`, mark)}</MarkerContent>
+                </MapMarker>
+              )
+            })}
+            {ghostRoad && <>
+              {ghostRoad.replaced && <GhostLegRoute id="yf-ghost-replaced" leg={ghostRoad.replaced} role="replaced" />}
+              {ghostRoad.legIn && <GhostLegRoute id="yf-ghost-in" leg={ghostRoad.legIn} role="new" />}
+              {ghostRoad.legOut && <GhostLegRoute id="yf-ghost-out" leg={ghostRoad.legOut} role="new" />}
+            </>}
+            {warningMarks.filter(w => validMapCoordinate({ lat: w.lat, lng: w.lng })).map(w => (
+              <MapMarker key={`warn-${w.id}`} longitude={w.lng} latitude={w.lat}>
+                <MarkerContent>{offsetWrap(`warn:${w.id}`, <WarningDiamond label={w.label} severe={w.severe} onOpen={w.onOpen} />)}</MarkerContent>
+                <MarkerTooltip>{w.label}</MarkerTooltip>
+              </MapMarker>
+            ))}
+            {routeMarks.filter(mark => validMapCoordinate({ lat: mark.lat, lng: mark.lng })).map(mark => (
+              <MapMarker key={`route-${mark.id}`} longitude={mark.lng} latitude={mark.lat}>
+                <MarkerContent>
+                  {mark.kind === 'tick'
+                    ? <span className="mv2-pin-clock mv2-route-tick" data-collapsed={camMoving || markSpots.get(`route:${mark.id}`)?.hidden ? 'true' : undefined} style={pillStyle(markSpots.get(`route:${mark.id}`))} aria-label={`${mark.label}, ${mark.sub ?? ''}`}>{mark.label}{mark.sub != null && <small>{mark.sub}</small>}</span>
+                    : <span className="mv2-route-window" data-collapsed={camMoving || markSpots.get(`route:${mark.id}`)?.hidden ? 'true' : undefined} style={pillStyle(markSpots.get(`route:${mark.id}`))}>{mark.label}</span>}
+                </MarkerContent>
+              </MapMarker>
+            ))}
+            <DetourSpurOverlay activeHitId={activeHitId} nearbyPois={nearbyPois} route={spurRoute} ink={warnInk} />
             {/* The travel clock as road labels: one text pair per planned anchor
                 (meal / overnight / destination) — time + date left of the road,
                 km right — plus the suggestion engine's placed stops as distance
@@ -1460,16 +2241,22 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 geometry. */}
             {clockMilestones && clockOn && dayFilter === 'all' && (
               <>
-                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} />
-                <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} />
+                <ClockMilestoneLayer overlay={clockMilestones} showReturn={!returnLeg || showReturn} onOpenDay={onOpenHaltDay} pills={{ spots: markSpots, moving: camMoving }} />
+                <SuggestionDistanceLayer places={nearbyPois} road={geom.all ?? null} pills={{ spots: markSpots, moving: camMoving }} />
               </>
             )}
             {/* #417: the suggestion family the map groups. `unclusteredVisible`
                 false because every pin the map did NOT group keeps its own DOM
                 marker below — tooltip, role, keyboard activation and all — so a
-                GL circle for it would be a second, dead copy. */}
+                GL circle for it would be a second, dead copy.
+                W14: the workspace chrome draws no canvas badge. A badge sits
+                under every DOM mark, so one that landed on a stop or a start
+                flag showed as a stray dark crescent behind the pin and hid its
+                own count. The board draws its picks individually with letters,
+                so the workspace hands the clusterer nothing; the classic map
+                keeps the grouping. */}
             <MapClusterLayer
-              data={clusterData}
+              data={workspaceChrome ? NO_CLUSTER_DATA : clusterData}
               clusterColors={IDEA_CLUSTER_COLORS}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}
@@ -1490,14 +2277,15 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               return (
                 <MapMarker key={`slot-${pin.key}`} longitude={lng} latitude={lat} anchor="center">
                   <MarkerContent>
-                    <button
+                    {offsetWrap(`slot:${pin.key}`, <button
                       type="button"
                       className="yf-map-pin yf-map-pin--slot"
                       aria-label={label}
                       onClick={() => onOpenSlot?.(pin.key)}
                     >
                       {SLOT_PIN_GLYPH[pin.key] ?? pin.label.slice(0, 1)}
-                    </button>
+                      {workspaceChrome && (() => { const letter = pickLetter(slotPins.filter(other => other.key === pin.key).indexOf(pin)); return letter ? <span className="mv2-pick-letter" aria-hidden="true">{letter}</span> : null })()}
+                    </button>)}
                   </MarkerContent>
                   <MarkerTooltip>{label}</MarkerTooltip>
                 </MapMarker>
@@ -1506,12 +2294,23 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {(() => {
               let num = 0
               const showClockChips = !!(clockMilestones && clockOn)
+              // The pill hangs from the badge, so the badge stays on its coordinate.
+              const anchorWrap = (kids: React.ReactNode) => workspaceChrome ? <span className="mv2-pin-anchor">{kids}</span> : kids
               return allPoints.map((p, idx) => {
                 // Auto anchor stops (trip start / final destination) render as
                 // distinct start/end badges instead of numbered pins.
                 const isLast = idx === allPoints.length - 1
                 const off = pinOffsets.get(p.id)
-                const offsetStyle = off ? { transform: `translate(${off.dx}px, ${off.dy}px)` } : undefined
+                const spot = workspaceChrome ? markSpots.get(`stop:${p.id}`) : undefined
+                const clockSpot = workspaceChrome ? markSpots.get(`clock:${p.id}`) : undefined
+                const tagSpot = workspaceChrome ? markSpots.get(`tag:${p.id}`) : undefined
+                const warn = workspaceChrome && stopWarning?.stopId === p.id ? stopWarning : null
+                const warnTagSpot = workspaceChrome ? markSpots.get(`fix-tag:${p.id}`) : undefined
+                const isBase = p.category === 'hotel'
+                const showTag = !warn && workspaceChrome && (isBase ? showsHotelTag(p, activeTagDay, mapZoom) : showsStopTag(p, activeTagDay))
+                const dx = (off?.dx ?? 0) + (spot?.dx ?? 0)
+                const dy = (off?.dy ?? 0) + (spot?.dy ?? 0)
+                const offsetStyle = dx || dy ? { transform: `translate(${dx}px, ${dy}px)` } : undefined
                 if (p.auto) {
                   const label = isLast ? <Flag size={13} aria-hidden />
                     : trip.transportMode === 'flight'
@@ -1530,26 +2329,34 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                     </MapMarker>
                   )
                 }
-                num += 1
+                const onLastNight = workspaceChrome && lastNightStayIds.has(String(p.id))
+                if (!onLastNight) num += 1
                 const c = showClockChips ? stopClock.get(p.id) : undefined
                 return (
                   <MapMarker key={p.id} longitude={p.lng} latitude={p.lat}>
                     <MarkerContent>
+                      {anchorWrap(<>
                       <span className="yf-pin-cluster" style={offsetStyle}>
                       <button
-                        className={`yf-map-pin yf-map-tear${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
-                        style={{ '--pin-color': colorForDay(p.dayIndex) } as React.CSSProperties}
+                        className={`yf-map-pin ${workspaceChrome ? `mv2-map-stop${p.category === 'hotel' || onLastNight ? ' is-stay' : ''}${isBase && frameStayRing ? ' is-stay-hero' : ''}${p.status === 'maybe' ? ' is-tentative' : ''}` : 'yf-map-tear'}${p.status === 'maybe' ? ' yf-map-maybe' : ''}`}
+                        style={{ '--pin-color': colorForDay(p.dayIndex), ...(workspaceChrome ? { '--mv2-marker-ink': '#FFFFFF' } : {}) } as React.CSSProperties}
                         onClick={() => { onOpenStop?.(p.id); if (onOpenInTimeline || onOpenInBoard || onDeleteStop) setSelectedStop({ id: p.id, title: p.title, dayIndex: p.dayIndex }) }}
-                        aria-label={`Stop ${num}: ${p.title}`}
+                        data-active-day={workspaceChrome && activeTagDay != null && p.dayIndex === activeTagDay ? 'true' : undefined}
+                        aria-label={`Stop ${num}: ${p.title}${workspaceChrome && trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex) ? ', fixed time' : ''}`}
                         title={p.title}
                       >
-                        <span className="yf-pin-face">
+                        {workspaceChrome ? <MapStopSymbol order={num} stay={p.category === 'hotel' || onLastNight} fixed={trip.fixedCommitments?.some(lock => lock.stopId === p.id && lock.dayIndex === p.dayIndex)} warn={!!warn} /> : <span className="yf-pin-face">
                           <span className="yf-pin-ico" aria-hidden><CatIcon category={p.category} size={15} className="yf-pin-svg" /></span>
                           <i className="yf-pin-num">{num}</i>
-                        </span>
+                        </span>}
                       </button>
                       </span>
-                      {c && <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>}
+                      {showTag && <span className={`mv2-stop-tag${isBase ? ' mv2-stop-tag--base' : ''}`} data-collapsed={camMoving || tagSpot?.hidden ? 'true' : undefined} style={tagSpot && !tagSpot.hidden ? { transform: `translate(${tagSpot.dx + dx}px, ${tagSpot.dy + dy}px)` } : undefined}>{isBase ? baseTagText(p.title) : p.title}</span>}
+                      {warn?.text != null && <span className="mv2-stop-tag mv2-stop-tag--fix" data-collapsed={camMoving || warnTagSpot?.hidden ? 'true' : undefined} style={warnTagSpot && !warnTagSpot.hidden ? { transform: `translate(${warnTagSpot.dx + dx}px, ${warnTagSpot.dy + dy}px)` } : undefined}>{warn.text}</span>}
+                      {c && !warn && !(showTag && isBase) && (workspaceChrome
+                        ? <span className="mv2-pin-clock" data-collapsed={camMoving || clockSpot?.hidden ? 'true' : undefined} style={clockSpot && !clockSpot.hidden ? { transform: `translate(${clockSpot.dx + dx}px, ${clockSpot.dy + dy}px)` } : undefined}>{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''} <small>km {Math.max(0, c.cumKm - dayKmBase)}</small></span>
+                        : <span className="yf-pin-time">{formatHM(c.arrive, timeFormat)}{c.estimated ? ' (est.)' : ''}</span>)}
+                      </>)}
                     </MarkerContent>
                     <MarkerTooltip>{p.title}{c ? `, arrives ${formatHM(c.arrive, timeFormat)}, ~${c.cumKm} km into the trip${c.estimated ? ' (estimate)' : ''}` : ''}</MarkerTooltip>
                   </MapMarker>
@@ -1563,7 +2370,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {dayEndpointMarkers.map(m => (
               <MapMarker key={`yf-endpoint-${m.kind}-${m.position.lat}-${m.position.lng}`} longitude={m.position.lng} latitude={m.position.lat}>
                 <MarkerContent>
-                  <span
+                  {offsetWrap(`endpoint:${m.kind}:${m.position.lat}:${m.position.lng}`, <span
                     className="yf-map-pin yf-map-flag"
                     title={m.label}
                   >
@@ -1572,7 +2379,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         ? <PlaneTakeoff size={13} aria-hidden />
                         : <CircleDot size={13} aria-hidden />)
                       : <Flag size={13} aria-hidden />}
-                  </span>
+                  </span>)}
                 </MarkerContent>
                 <MarkerTooltip>{m.label}</MarkerTooltip>
               </MapMarker>
@@ -1590,7 +2397,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {/* nearby idea markers — category-coloured, dashed, with quick-add.
                 Pin click/hover = select: the panel row highlights and scrolls
                 into view; adding moved to the explicit + chip beside the pin. */}
-            {visiblePois.map(hit => {
+            {markPois.map(hit => {
               // S4: an empty-part pin already stands here for this exact hit —
               // it carries more (the part it would fill, plus the cost line) and
               // its tap opens the plan, so it is the one that stays.
@@ -1606,31 +2413,38 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               // solid teal, no attention pulse, "Search result" affordance. Its
               // tap selects it (glow + row highlight) instead of only locating.
               const isSearchHit = searchHitIds?.has(hit.id as string | number) ?? false
+              // Lens bands: a pick past today's scope or budget says so on its face.
+              const band = pickBands?.[String(hit.id)]
+              const bandClass = pickBandClass(band)
               return (
                 <MapMarker key={`nearby_${hit.id}`} longitude={hit.longitude} latitude={hit.latitude}>
                   <MarkerContent>
-                    <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
+                    {offsetWrap(`pick:${hit.id}`, <VisiblePulse className="yf-map-idea" title={isSearchHit ? `${hit.name} - click to select this search result` : `${hit.name} - click to locate in the suggestions panel`}>
                       <span
-                        className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}`}
-                        style={isSearchHit ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
+                        className={`yf-map-pin yf-map-pin-idea${isSearchHit ? ' yf-map-pin-search' : ''}${active ? (isSearchHit ? ' yf-map-pin-search--active' : ' yf-map-pin-idea--active') : ''}${bandClass ? ` ${bandClass}` : ''}`}
+                        style={isSearchHit || workspaceChrome ? undefined : { background: ideaPinColor(hit.category) } as React.CSSProperties}
+                        data-family={workspaceChrome && !isSearchHit ? placeSubtype({ category: hit.category, name: hit.name }).family : undefined}
                         role="button"
                         tabIndex={0}
                         aria-pressed={isSearchHit ? active : undefined}
+                        aria-description={band === 'over-budget' ? "Over today's budget" : undefined}
                         aria-label={isSearchHit ? `Select ${hit.name}` : `Locate ${hit.name} in the suggestions panel`}
                         onClick={() => onActivateHit?.(hit.id as string | number)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivateHit?.(hit.id as string | number) } }}
                       >
-                        {isSearchHit ? <Search size={14} aria-hidden /> : <CatIcon category={hit.category} size={14} />}
+                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
-                      {onAddNearby && (
+                      {pickTags?.[String(hit.id)] != null && <span className="mv2-pick-tag" data-band={band} data-collapsed={camMoving || markSpots.get(`pick-tag:${hit.id}`)?.hidden ? 'true' : undefined} style={(() => { const t = markSpots.get(`pick-tag:${hit.id}`); return t && !t.hidden && (t.dx || t.dy) ? { translate: `${t.dx}px ${t.dy}px` } : undefined })()}>{pickTags[String(hit.id)]}</span>}
+                      {onAddNearby && !workspaceChrome && (
                         <button
+                          type="button"
                           className="yf-map-idea-add"
                           onClick={e => { e.stopPropagation(); onAddNearby(hit) }}
                           aria-label={`Add ${hit.name} to the trip`}
                           title={`Add ${hit.name} to the trip`}
                         >+</button>
                       )}
-                    </VisiblePulse>
+                    </VisiblePulse>)}
                   </MarkerContent>
                   <MarkerTooltip>
                     {isSearchHit && <><InlineIcon icon={Search} size={12} gap={3} vAlign="-1px" />Search result: </>}
@@ -1645,7 +2459,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
 
         {selectedStop && (onOpenInTimeline || onOpenInBoard || onDeleteStop) && (
           <div className="yf-stop-jump" role="dialog" aria-label={`Selected stop: ${selectedStop.title}`}
-            style={{ position: 'absolute', left: '50%', bottom: 14, transform: 'translateX(-50%)', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-soft)', maxWidth: 'calc(100% - 24px)' }}>
+            style={{ position: 'absolute', left: '50%', bottom: 'calc(var(--mv2-sheet-height, 0px) + 14px)', transform: 'translateX(-50%)', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-soft)', maxWidth: 'calc(100% - 24px)' }}>
             {/* #612: the name gets its own row. It used to share one flex row
                 with every action, so at phone width the buttons kept their
                 minimum widths and squeezed the name to zero. */}
@@ -1669,32 +2483,35 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         )}
 
         <div className="map-legend">
-          <button
-            className={`map-legend-toggle${liveOn ? ' map-live-on' : ''}`}
-            onClick={toggleLive}
-            aria-pressed={liveOn}
-            title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
-            aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
-          >
-            <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
-          </button>
-          <button
-            className="map-legend-toggle"
-            onClick={toggleLegend}
-            aria-expanded={legendOpen}
-            title={legendOpen ? 'Hide the map key' : 'Show the map key'}
-            aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
-          >
-            {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
-          </button>
-          {legendOpen && (
+          {!workspaceChrome && <>
+            <button
+              className={`map-legend-toggle${liveOn ? ' map-live-on' : ''}`}
+              onClick={toggleLive}
+              aria-pressed={liveOn}
+              title={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
+              aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
+            >
+              <InlineIcon icon={LocateFixed} size={12} gap={3} />{liveOn ? 'Live on' : 'Locate me'}
+            </button>
+            <button
+              ref={keyToggle}
+              className="map-legend-toggle"
+              onClick={toggleLegend}
+              aria-expanded={legendOpen}
+              title={legendOpen ? 'Hide the map key' : 'Show the map key'}
+              aria-label={legendOpen ? 'Hide the map key' : 'Show the map key'}
+            >
+              {legendOpen ? <><InlineIcon icon={X} size={12} gap={3} />Hide key</> : <><InlineIcon icon={Info} size={12} gap={3} />Key</>}
+            </button>
+          </>}
+          {legendOpen && (workspaceChrome ? <MapWorkspaceKey id={keyId} onClose={closeWorkspaceKey} /> : (
             <div className="map-legend-body">
               {dayFilter === 'all'
                 ? <>main line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
                 : <>colours = day · </>}
               pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · a teal count badge groups nearby ideas — zoom in to open one · click a pin for details · hollow amber pin = an unplanned part · tap to open it
             </div>
-          )}
+          ))}
         </div>
       </div>
       {/* #417: the badges are drawn on the canvas, which the accessibility tree

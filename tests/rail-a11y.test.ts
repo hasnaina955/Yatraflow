@@ -90,8 +90,9 @@ describe('scopeValueText (A8) and voteStatusId (A6)', () => {
 })
 
 describe('MapTab wires those sentences into the DOM', () => {
-  it('A5: both result lists announce their arrival through a live region', () => {
-    expect(mapTabSrc).toMatch(/searchAnnouncement\(/)
+  it('A5: the search and the open slot announce their results through a live region', () => {
+    // The omnibar owns the search announcement in the Map V2 workspace.
+    expect(omniSrc).toMatch(/searchAnnouncement\(/)
     // The open part speaks the effective plan's row count (#841), through
     // candidatesAnnouncement; the page no longer counts a private list.
     expect(mapTabSrc).toMatch(/openSlotAnnouncement\(dayPlan, openSlotKey\)/)
@@ -108,11 +109,11 @@ describe('MapTab wires those sentences into the DOM', () => {
     expect(mapTabSrc).toMatch(/role="status"[^>]*aria-live="polite"|aria-live="polite"[^>]*role="status"/)
   })
 
-  it('#545: both search regions call unguarded — the helper owns the idle rule', () => {
+  it('#545: the single search announces zero results and leaves idle wording to the helper', () => {
     // A results-length ternary at the call site suppressed the failed-search
     // sentence on one surface while the other announced at idle. Unguarded
     // calls mean a genuine zero-result search now speaks on both.
-    expect(mapTabSrc).toMatch(/aria-live="polite">\{searchAnnouncement\(searchQ/)
+    expect(mapTabSrc.match(/<MapOmnibar\b/g)).toHaveLength(1)
     expect(omniSrc).toMatch(/aria-live="polite">\s*\{searchAnnouncement\(query/)
     expect(mapTabCode).not.toMatch(/length > 0 \? searchAnnouncement/)
     expect(omniCode).not.toMatch(/length > 0 \? searchAnnouncement/)
@@ -122,14 +123,12 @@ describe('MapTab wires those sentences into the DOM', () => {
     expect(mapTabSrc).toMatch(/aria-label=\{fillLabel\(/)
   })
 
-  it('A8: the slider states its own value and its steps', () => {
-    const slider = /<input[\s\S]{0,600}?type="range"[\s\S]{0,900}?\/>/.exec(mapTabSrc)
-    expect(slider, 'the scope slider is missing or reshaped').not.toBeNull()
-    expect(slider![0]).toContain('aria-valuetext={scopeValueText(')
-    // The step list is a plain string reference to the datalist; the association
-    // is by id, so the datalist's position in the tree does not matter.
-    expect(slider![0]).toMatch(/list="scope-km-ticks"/)
-    expect(mapTabSrc).toMatch(/<datalist id="scope-km-ticks">\{SCOPE_KM_STEPS\.map/)
+  it('A8: the minute scope is a radio group that states each step in words', () => {
+    // #898 replaced the km slider. The control file owns the radio semantics.
+    expect(mapTabSrc).toMatch(/<MinuteScopeControl/)
+    const control = readFileSync('src/pages/trip/map/MinuteScopeControl.tsx', 'utf8')
+    expect(control).toContain('role="radiogroup"')
+    expect(control).toContain('aria-label={scopeValueMinutesText(minutes)}')
   })
 
   it('A6: the toggle points at the vote status element', () => {

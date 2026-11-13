@@ -75,14 +75,19 @@ describe('the sheet tab model (A415)', () => {
 })
 
 describe('MapTab renders the sheet (A415)', () => {
-  it('renders the switcher only while the band is measured', () => {
-    expect(tab).toMatch(/\{sheetApplies && \(\s*<div className="map-ideas-sheet-tabs"/)
+  it('renders one planning-panel switcher across viewport widths', () => {
+    // W10: the one switcher is the lens pill, and it carries the panel group name.
+    expect(tab).toMatch(/className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels"/)
     expect(hook).toMatch(/setSheetApplies\(sheetAppliesAt\(/)
   })
 
   it('is a pressed-state switcher, not inert tabs', () => {
-    expect(tab).toMatch(/aria-pressed=\{sheetTab === t\.key\}/)
-    expect(tab).toMatch(/aria-controls=\{t\.panelId\}/)
+    // Each option still reports its own pressed state: the See rail is pressed
+    // when its lens, that rail and the open deck all hold; Plan when its tab does.
+    expect(tab).toMatch(/aria-pressed=\{lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit\}/)
+    expect(tab).toMatch(/aria-pressed=\{sheetTab === 'needs' && deckOpen && !selectedHit\}/)
+    expect(tab).toContain('aria-controls="rail-see"')
+    expect(tab).toContain('aria-controls="rail-needs"')
   })
 
   it('hides the inactive rail through the model, passing the band flag', () => {
@@ -91,7 +96,7 @@ describe('MapTab renders the sheet (A415)', () => {
   })
 
   it('starts on a real tab', () => {
-    expect(hook).toMatch(/useState<SheetTabKey>\('needs'\)/)
+    expect(hook).toMatch(/useState<SheetTabKey>\('see'\)/)
   })
 })
 
@@ -130,7 +135,41 @@ describe('the wiring is declared exactly once (A415)', () => {
     expect(tab).toContain('} = useRailView(')
   })
 
-  it('opens and closes the switcher conditional exactly once', () => {
-    expect(tab.match(/\{sheetApplies && \(/g)).toHaveLength(1)
+  it('declares the planning-panel switcher exactly once', () => {
+    expect(tab.match(/className="mv2-lenses(?: |")/g)).toHaveLength(1)
   })
-})
+})
+
+describe('the phone top row (Phone 390 board, one row on top)', () => {
+  const phone = css.slice(css.lastIndexOf('/* Map V2 phone: search and the lens pill share one row'))
+
+  it('puts the omnibar and the lens pill on the same top offset', () => {
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses \{ top: 60px;/)
+    expect(css).toMatch(/\.mv2-workspace \.mv2-omnibar \{ top: 60px;/)
+  })
+
+  it('keeps each lens a 44-pixel target and its name readable to assistive tech', () => {
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button \{[^}]*min-width: 44px;/)
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button > span \{ position: absolute;[^}]*clip-path: inset\(50%\);/)
+    // W10 hides only the visible label text on the narrow pill. The pill itself
+    // is never hidden, and every lens button keeps its own name for assistive tech.
+    expect(phone).not.toMatch(/\.mv2-lenses\s*\{[^}]*display:\s*none/)
+    expect(phone).toMatch(/\.mv2-workspace \.mv2-lenses > button > span \{ display: none; \}/)
+    expect(tab.match(/<button type="button" aria-label=\{phoneLensAriaLabel\(/g)).toHaveLength(5)
+  })
+
+  it('lets Find yield only while the query is empty and the field is usable', () => {
+    expect(phone).toContain(".mv2-omnibar .input:placeholder-shown:not(:disabled) ~ button[type='submit'] { display: none; }")
+  })
+
+  it('keeps the map attribution clear of the Key control on desktop, from the end of the sheet', () => {
+    const rule = '.mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10) + 116px); }'
+    expect(css).toContain(rule)
+    expect(css.indexOf(rule)).toBeGreaterThan(css.indexOf('/* Map V2 phone: search and the lens pill share one row.'))
+    expect(css).toContain('.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10)); bottom: 94px; }')
+  })
+
+  it('closes the place card on Escape through the one close path that restores focus', () => {
+    expect(tab).toMatch(/className="mv2-detail" onKeyDown=\{e => \{ if \(e\.key === 'Escape' && !e\.defaultPrevented\) \{ e\.stopPropagation\(\); closeDetails\(\) \} \}\}/)
+  })
+})

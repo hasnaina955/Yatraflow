@@ -20,6 +20,7 @@ const mapTab = read('../src/pages/trip/MapTab.tsx')
 const writersSrc = read('../src/pages/trip/map/useMapWriters.ts')
 // #420 slice 14: the deps memo lives in the day-slots hook; the pins follow it.
 const hook = read('../src/pages/trip/map/useDaySlots.ts')
+const workspace = read('../src/pages/TripWorkspace.tsx')
 const daySlotsSrc = read('../src/lib/daySlots.ts')
 const cacheSrc = read('../src/hooks/useSuggestionCache.ts')
 
@@ -57,11 +58,11 @@ describe('#344 — slot and rail budget from the same base', () => {
     expect(dayDetourBudgetMin({ travelStyle: 'balanced', plannedStops: 4, })).toBe(35)
   })
 
-  it('MapTab does not pass a single shared plannedStops into daySlotDeps (per-day derivation instead)', () => {
+  it('the shared deps do not pass a single shared plannedStops (per-day derivation instead)', () => {
     // A single shared count would charge every day of tripReadiness' matrix
     // the ACTIVE day's density; the per-day derivation in candidatesFor is
     // the fix, so the deps must not carry the prop at all.
-    expect(hook).toMatch(/const daySlotDeps = useMemo<Omit<DaySlotsDeps, 'dayStops'>/)
+    expect(hook).toMatch(/const daySlotDeps = buildDaySlotDeps\(args\)/)
     expect(mapTab).not.toMatch(/plannedStops: /)
   })
 
@@ -146,9 +147,9 @@ describe('#344 — the pool is re-scored with the inputs the corridor used', () 
     expect(daySlotsSrc).toMatch(/deps\.homeCenter \? \{ homeCenter: deps\.homeCenter \}/)
   })
 
-  it('MapTab passes the corridor DNA and home centre into daySlotDeps', () => {
-    expect(hook).toMatch(/dnaVector: buildDnaVectorAcrossTrips\(loadDnaLog\(\), crewSeedEvents\(tripId, crewSeeds\)\),/)
-    expect(hook).toMatch(/homeCenter: startLocationCoords \?\? null,\n\s*addedIds,/)
+  it('the workspace passes the corridor DNA and the shared deps keep the home centre', () => {
+    expect(workspace).toMatch(/buildDnaVectorAcrossTrips\(loadDnaLog\(\), crewSeedEvents\(trip\.id, crewSeeds\)\)/)
+    expect(hook).toMatch(/homeCenter: args\.startLocationCoords \?\? null,\n\s*addedIds:/)
   })
 })
 
@@ -237,7 +238,9 @@ describe('#346 — fills and deletes filter locally', () => {
     // Refresh button + endpoint-change are input changes, not local filters.
     const clears = [...mapTab.matchAll(/suggestionCache\.clearMap\(\)/g)].length
     expect(clears).toBe(2)
-    expect(mapTab).toMatch(/onClick=\{\(\) => \{ suggestionCache\.clearMap\(\); setRefreshTick\(t => t \+ 1\) \}\}/)
+    // The Refresh button and the failed-note Retry share one handler with the same two calls.
+    expect(mapTab).toMatch(/const retryScan = \(\) => \{ suggestionCache\.clearMap\(\); setRefreshTick\(t => t \+ 1\) \}/)
+    expect(mapTab).toMatch(/onClick=\{retryScan\}/)
   })
 
   it('dismiss relies on the same render filtering it always did — no refreshTick', () => {

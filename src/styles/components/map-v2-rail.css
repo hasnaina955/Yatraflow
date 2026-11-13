@@ -200,7 +200,7 @@
 .mv2-sheet-handle, .mv2-peek, .mv2-phone-day, .mv2-map-tools-toggle { display: none; }
 .mv2-workspace .map-legend { position: absolute; bottom: 108px; right: calc(var(--mv2-deck-width) + var(--space-10)); max-width: min(280px, 80%); z-index: 3; }
 .mv2-workspace .map-legend-toggle { min-height: 44px; }
-.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10)); bottom: 94px; }
+.mv2-workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-inset) * 2); bottom: var(--mv2-inset); }
 .mv2-workspace .maplibregl-ctrl-attrib { background: var(--card); color: var(--text-2); }
 .mv2-workspace .maplibregl-ctrl-attrib a { color: var(--text-2); }
 .mv2-workspace .map-shell--workspace > .tm-note { display: none; }
@@ -365,9 +365,10 @@
   .mv2-workspace:has(.mv2-lenses > button:nth-child(3)) .mv2-lenses { top: 120px; left: var(--space-4); right: auto; z-index: 7; }
   .mv2-workspace:has(.mv2-lenses > button:nth-child(3)) .mv2-map-tools-toggle { top: 124px; z-index: 7; }
 }
-/* Map V2 desktop: keep the map attribution clear of the Key control. */
+/* Map V2 desktop: the attribution sits in the map's own bottom-right corner, beside the deck.
+   The Key lives in the More menu now, so no control shares that corner. */
 @media (min-width: 761px) {
-  .mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--space-10) + 116px); }
+  .mv2-workspace .map-shell--workspace .maplibregl-ctrl-bottom-right { right: calc(var(--mv2-deck-width) + var(--mv2-inset) * 2); bottom: var(--mv2-inset); margin: 0; }
 }
 /* Timeline phone: the fixed Add pill lives at the card's bottom-right. Keep the
    day fold control on the leading edge there so the pill cannot cover its
@@ -1227,7 +1228,7 @@
 .mv2-workspace .map-toolbar .mv2-map-tools { gap: var(--space-2); pointer-events: auto; }
 
 .mv2-tool-menu { position: relative; }
-.mv2-tool-menu > summary { list-style: none; box-shadow: var(--shadow-soft); }
+.mv2-tool-menu > summary { position: relative; list-style: none; box-shadow: var(--shadow-soft); }
 .mv2-tool-menu > summary::-webkit-details-marker, .mv2-suggestion-info > summary::-webkit-details-marker { display: none; }
 .mv2-tool-menu-body {
   --popover-bg: color-mix(in srgb, var(--card) 94%, transparent);
@@ -1235,7 +1236,7 @@
   align-items: stretch; gap: var(--space-2); width: 200px; max-height: 290px;
   overflow: auto; padding: var(--space-4);
   box-shadow: var(--shadow-soft); border-radius: var(--radius-sm);
-  animation: popover-in var(--motion-med) var(--ease-paper);
+  animation: mv2-menu-in var(--motion-med) var(--ease-paper) backwards;
 }
 .mv2-tool-menu-body .mv2-map-tools-card { flex-direction: row; width: auto; flex-wrap: wrap; background: transparent; box-shadow: none; border: 0; }
 .mv2-tool-menu-body > button { display: flex; align-items: center; gap: var(--space-4); min-height: 44px; width: 100%; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); text-align: left; }
@@ -1284,3 +1285,77 @@
 
 .mv2-lens-drive .mv2-lens-cell { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
 .mv2-lens-drive .mv2-lens-cell[data-cell="arrive"] { flex-wrap: nowrap; white-space: nowrap; }
+
+/* ---- Layers menu: labelled sections, a segmented view switch and real on/off switches ---- */
+.mv2-tool-menu-body.mv2-layers { width: 248px; max-height: min(460px, calc(100vh - 160px)); gap: 0; padding: var(--space-3); overflow-x: hidden; overflow-y: auto; border: 1px solid var(--pw-line-soft); border-radius: var(--radius-lg); background: var(--card); color: var(--text); -webkit-backdrop-filter: none; backdrop-filter: none; transform-origin: top right; }
+.mv2-layers-sec { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-2); }
+.mv2-layers-sec + .mv2-layers-sec { border-top: 1px solid var(--pw-line-soft); }
+.mv2-layers-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: 0 0 var(--space-2); padding-inline: var(--space-2); color: var(--pw-ink-3); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.mv2-layers-count { color: var(--pw-ink-3); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.mv2-layers-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: var(--radius-pill); background: var(--pw-sunken); }
+.mv2-layers-seg > button { min-height: 32px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-2); font-size: 12px; font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+.mv2-layers-seg > button.on { background: var(--pw-card); color: var(--pw-sea-700); box-shadow: 0 1px 3px color-mix(in srgb, var(--pw-ink) 16%, transparent); }
+.mv2-layer-row { display: flex; align-items: center; gap: var(--space-4); width: 100%; min-height: 40px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--pw-ink-3); text-align: left; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.mv2-layer-row:hover { background: var(--pw-sunken); }
+.mv2-layer-row[aria-pressed='true'] { color: var(--pw-ink); }
+.mv2-layer-row > svg { flex: 0 0 auto; color: var(--pw-ink-3); transition: color var(--motion-fast) var(--ease-paper); }
+.mv2-layer-row[aria-pressed='true'] > svg { color: var(--pw-sea-700); }
+.mv2-layer-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
+.mv2-layer-n { color: var(--pw-ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* The switch: an empty grey track when off, a sea track with the knob on the right when on. */
+.mv2-switch { position: relative; flex: 0 0 auto; width: 30px; height: 18px; border-radius: var(--radius-pill); background: var(--pw-line); transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: var(--radius-pill); background: var(--pw-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--pw-ink) 30%, transparent); transition: translate var(--motion-fast) var(--ease-paper); }
+.mv2-layer-row[aria-pressed='true'] .mv2-switch { background: var(--pw-sea-700); }
+.mv2-layer-row[aria-pressed='true'] .mv2-switch::after { translate: 12px 0; }
+.mv2-layer-row:focus-visible { outline: 2px solid var(--pw-sea-700); outline-offset: -2px; }
+/* A dot on the Layers button while a layer differs from its default. */
+.mv2-layers-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--pw-marigold-500); box-shadow: 0 0 0 2px var(--pw-card); animation: mv2-dot-in var(--motion-med) var(--ease-paper) backwards; }
+.mv2-tool-menu[open] > summary { background: var(--pw-lagoon-100); color: var(--pw-sea-700); }
+
+/* ---- Days on the map: one coloured pill per day, no scroll ---- */
+.mv2-workspace .mv2-day-strip { flex-wrap: wrap; overflow: visible; }
+.mv2-day-strip > .mv2-day-pill { min-width: 36px; background: color-mix(in srgb, var(--mv2-day-tone) 14%, var(--pw-card)); color: color-mix(in srgb, var(--mv2-day-tone) 70%, var(--pw-ink)); transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+.mv2-day-strip > .mv2-day-pill:hover { background: color-mix(in srgb, var(--mv2-day-tone) 24%, var(--pw-card)); }
+.mv2-day-strip > .mv2-day-pill[aria-pressed='true'] { border-color: transparent; background: var(--mv2-day-tone); color: #fff; box-shadow: 0 1px 4px color-mix(in srgb, var(--mv2-day-tone) 45%, transparent); }
+.mv2-day-strip > button:first-child { transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+
+/* ---- Attribution: a small round chip in the map corner ---- */
+.mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 28px; margin: 0; border-radius: var(--radius-pill); box-shadow: var(--shadow-soft); transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) { width: 28px; padding: 0; }
+.mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) .maplibregl-ctrl-attrib-button { top: 2px; right: 2px; }
+.mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact-show { padding: var(--space-2) var(--space-11) var(--space-2) var(--space-5); border-radius: var(--radius-sm); }
+
+/* ---- Live suggestion states on top of the deck ---- */
+.mv2-workspace .mv2-suggestion-notes:empty { display: none; }
+.mv2-workspace .mv2-suggestion-notes { padding: var(--space-3) var(--space-5) 0; }
+.mv2-workspace .mv2-suggestion-notes > p { margin: 0 0 var(--space-2); }
+
+/* ---- Motion: panels slide in, the deck content rises on each lens change ---- */
+.mv2-workspace .mv2-itinerary { animation: mv2-rail-in var(--motion-slow) var(--ease-paper) backwards; }
+.mv2-workspace .map-ideas-grid > .poi-col:not([hidden]), .mv2-workspace .mv2-detail { animation: mv2-deck-in var(--motion-slow) var(--ease-paper) backwards; }
+.mv2-workspace .mv2-reopen-day, .mv2-workspace .mv2-lenses > button[aria-label='Show suggestions'] { animation: mv2-fade-in var(--motion-med) var(--ease-paper) backwards; }
+/* Each lens names its own keyframes, so a lens change restarts the rise. */
+.mv2-workspace .poi-col--see > * { animation: var(--mv2-lens-rise, mv2-rise-drive) var(--motion-slow) var(--ease-paper) backwards; }
+.mv2-workspace .poi-col--see[data-lens='stay'] { --mv2-lens-rise: mv2-rise-stay; }
+.mv2-workspace .poi-col--see[data-lens='gap'] { --mv2-lens-rise: mv2-rise-gap; }
+.mv2-workspace .poi-col--see[data-lens='fix'] { --mv2-lens-rise: mv2-rise-fix; }
+.mv2-workspace .poi-col--see > :nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.mv2-workspace .poi-col--see > :nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.mv2-workspace .poi-col--see > :nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.mv2-workspace .poi-col--see > :nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.mv2-workspace .poi-col--see > :nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+.mv2-workspace .mv2-lenses > button { transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper), scale var(--motion-fast) var(--ease-paper); }
+.mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-layers-seg > button:active { scale: .96; }
+@keyframes mv2-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes mv2-dot-in { from { transform: scale(0); } }
+@keyframes mv2-rail-in { from { opacity: 0; transform: translateX(-12px); } }
+@keyframes mv2-deck-in { from { opacity: 0; transform: translateX(12px); } }
+@keyframes mv2-fade-in { from { opacity: 0; } }
+@keyframes mv2-rise-drive { from { opacity: 0; transform: translateY(8px); } }
+@keyframes mv2-rise-stay { from { opacity: 0; transform: translateY(8px); } }
+@keyframes mv2-rise-gap { from { opacity: 0; transform: translateY(8px); } }
+@keyframes mv2-rise-fix { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) {
+  .mv2-workspace .mv2-itinerary, .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail, .mv2-workspace .poi-col--see > *, .mv2-tool-menu-body, .mv2-layers-dot { animation: none; }
+  .mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-layers-seg > button:active { scale: none; }
+}

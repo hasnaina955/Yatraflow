@@ -16,7 +16,7 @@ describe('W8 tools map controls', () => {
     const b = workspaceBranch()
     expect(b.length).toBeGreaterThan(0)
     expect(b).toContain('aria-label="Zoom and recentre"')
-    expect(b).toContain('mv2-map-tools-card--mode')
+    expect(b).toContain('mv2-layers-seg')
     expect(b).toContain('aria-label="More map tools"')
     expect(b).toContain('aria-label="Layers"')
   })
@@ -27,19 +27,30 @@ describe('W8 tools map controls', () => {
     expect(b).toContain('aria-label="Zoom out"')
   })
 
-  it('shows short mode text', () => {
-    expect(workspaceBranch()).toContain("'TER'")
+  it('names each map view in a word', () => {
+    const b = workspaceBranch()
+    expect(b).toContain("'Relief'")
+    expect(b).toContain("'Flat'")
+    expect(b).not.toContain("'TER'")
   })
 
   it('drops the Filters text label', () => {
     expect(workspaceBranch()).not.toContain('>Filters')
   })
 
-  it('keeps the filters menu behind the layers button', () => {
+  it('lists the idea filters inside the layers menu, each with a visible switch', () => {
     const b = workspaceBranch()
-    expect(b).toContain('aria-expanded={filtersOpen}')
-    expect(b).toContain('map-filters-pop')
-    expect(b).toContain('aria-label="Filter nearby ideas by type"')
+    // One menu, no second pop-out: every category row says on or off with a switch.
+    expect(b).not.toContain('map-filters-pop')
+    expect(b).toContain('aria-label="Nearby idea categories"')
+    expect(b).toMatch(/className="mv2-layer-row" aria-pressed=\{!hiddenIdeaCats\.has\(cat\)\}/)
+    expect(b).toContain('<span className="mv2-switch" aria-hidden="true" />')
+    expect(b).toContain('{shownIdeaCats} / {ideaCats.length} shown')
+    expect(css).toMatch(/\.mv2-layer-row\[aria-pressed='true'\] \.mv2-switch \{ background: var\(--pw-sea-700\); \}/)
+  })
+
+  it('marks the Layers button while a layer differs from its default', () => {
+    expect(workspaceBranch()).toContain('{layersChanged && <span className="mv2-layers-dot" aria-hidden="true" />}')
   })
 
   it('keeps each map action labelled', () => {

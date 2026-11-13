@@ -332,7 +332,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     <footer className="mv2-day-footer">
       {onOpenDay && <button type="button" className="mv2-timeline-link" onClick={() => onOpenDay(activeDay)}>Open day in Timeline<ArrowRight size={15} aria-hidden /></button>}
       <span className="mv2-section-label">Days on the map</span>
-      <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}><span aria-hidden="true" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} />{item.index + 1}</button>)}</div>
+      <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}>{item.index + 1}</button>)}</div>
       {daysCaption && <span className="sr-only">{daysCaption}</span>}
     </footer>
   </aside>

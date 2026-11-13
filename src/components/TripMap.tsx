@@ -68,6 +68,7 @@ import {
   MapGeoJSON,
   type MapGeoJSONData,
   MapClusterLayer,
+  type ClusterLook,
   MapControls,
   prefersCooperativeGestures,
   wantsCooperativeGestures,
@@ -105,6 +106,9 @@ const ROUGH_DASH: [number, number] = [2, 2]
 // 4.69 / 6.51 / 7.44:1 there, pinned by tests/map-cluster.test.ts.
 const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#123F49']
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
+// The workspace badge: a white chip with a sea ring and a soft halo, like the idea pins.
+const WORKSPACE_CLUSTER_COLORS: [string, string, string] = ['#FFFFFF', '#FFFFFF', '#FFFFFF']
+const WORKSPACE_CLUSTER_LOOK: ClusterLook = { ring: '#0B6B63', ringWidth: 2.5, halo: '#0B6B63', text: '#0B4F4A', radii: [15, 18, 22] }
 /** The workspace chrome hands the cluster layer no point, so no canvas badge can
  *  stand under a stop pin. One object, so the layer's data effect does not churn. */
 
@@ -735,8 +739,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [legendOpen, setLegendOpen] = useState(() => loadFlag('map_legend_open', false))
   const keyId = useId()
   const keyToggle = useRef<HTMLButtonElement>(null)
-  // The control column scrolls when the map is short. A menu that opens in it scrolls itself into view.
-  const revealInColumn = useCallback((el: HTMLElement | null) => { el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }, [])
   function closeWorkspaceKey() {
     setLegendOpen(false)
     saveFlag('map_legend_open', false)
@@ -797,6 +799,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1])
   }, [nearbyPois])
+  const shownIdeaCats = ideaCats.filter(([cat]) => !hiddenIdeaCats.has(cat)).length
   // Coord-less ideas (Mappls eLoc hits arrive as 0,0) resolve in the
   // background — Google Place Details when a placeId exists, Nominatim
   // otherwise (1 req/s). Markers pop in as coords land; failures stay
@@ -1207,6 +1210,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       spreadMarks.push({ id: `pick-tag:${hit.id}`, layer: 'clock', follows: `pick:${hit.id}`, x: (PICK_BOX.w + w) / 2 + 4, y: 0, w, h: 24, lat: hit.latitude, lng: hit.longitude, ox: 0, oy: 0 })
     }
   }
+  // The Layers button shows a dot while a layer differs from its default. A hidden layer is never a secret.
+  const layersChanged = viewMode !== '2d' || (!!clockMilestones && !clockOn) || (!!returnLeg && !showReturn) || shownIdeaCats < ideaCats.length
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
   const spreadMarksRef = useRef(spreadMarks)
   // Effects run top to bottom, so this one feeds the spread and camera effects below it in the same commit.
@@ -1769,57 +1774,59 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {bearing !== 0 && <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing} onClick={() => mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration })} aria-label="Turn the map back to north" title="Turn the map back to north"><Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} /></button>}
           </div>
           <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
-            <summary className="mv2-icon-btn" aria-label="Layers" title="Layers"><Layers size={18} aria-hidden /></summary>
-            <div className="mv2-tool-menu-body popover" aria-label="Map layers">
+            <summary className="mv2-icon-btn" aria-label="Layers" title="Layers"><Layers size={18} aria-hidden />{layersChanged && <span className="mv2-layers-dot" aria-hidden="true" />}</summary>
+            <div className="mv2-tool-menu-body popover mv2-layers" aria-label="Map layers">
           {enableMapViewModes && (
-          <div className="mv2-map-tools-card mv2-map-tools-card--mode" role="group" aria-label="Map view mode">
+          <section className="mv2-layers-sec">
+            <h4 className="mv2-layers-title">Map view</h4>
+            <div className="mv2-layers-seg" role="group" aria-label="Map view mode">
             {MAP_VIEW_MODES.map(m => (
               <button
                 key={m}
                 type="button"
-                className={`mv2-map-tools-btn${viewMode === m ? ' on' : ''}`}
+                className={viewMode === m ? 'on' : undefined}
                 aria-pressed={viewMode === m}
                 aria-label={MAP_VIEW_MODE_META[m].aria}
                 title={MAP_VIEW_MODE_META[m].aria}
                 onClick={() => { haptic('select'); setViewMode(m) }}
               >
-                {m === 'terrain' ? 'TER' : MAP_VIEW_MODE_META[m].label}
+                {m === 'terrain' ? 'Relief' : m === '2d' ? 'Flat' : MAP_VIEW_MODE_META[m].label}
               </button>
             ))}
-          </div>
+            </div>
+          </section>
           )}
-            {clockMilestones && (
-              <><span className="mv2-map-tools-divider" aria-hidden="true" />
-                <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
-                  aria-label="Road milestones" title="Show or hide the road milestones - each planned stop's time and distance on the road"><Clock size={17} aria-hidden /></button></>
-            )}
-            {returnLeg && (
-              <><span className="mv2-map-tools-divider" aria-hidden="true" />
-                <button type="button" className={`mv2-map-tools-btn${showReturn ? ' on' : ''}`} aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
-                  aria-label="Return leg" title={showReturn
-                    ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
-                    : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}><RotateCcw size={17} aria-hidden /></button></>
+            {(clockMilestones || returnLeg) && (
+              <section className="mv2-layers-sec">
+                <h4 className="mv2-layers-title">On the map</h4>
+                {clockMilestones && (
+                  <button type="button" className="mv2-layer-row" aria-pressed={clockOn} onClick={toggleClock}
+                    aria-label="Road milestones" title="Show or hide each planned stop's time and distance on the road">
+                    <Clock size={15} aria-hidden /><span className="mv2-layer-name">Road milestones</span><span className="mv2-switch" aria-hidden="true" />
+                  </button>
+                )}
+                {returnLeg && (
+                  <button type="button" className="mv2-layer-row" aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
+                    aria-label="Return leg" title={showReturn
+                      ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                      : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}>
+                    <RotateCcw size={15} aria-hidden /><span className="mv2-layer-name">Return leg</span><span className="mv2-switch" aria-hidden="true" />
+                  </button>
+                )}
+              </section>
             )}
             {ideaCats.length > 0 && (
-              <><span className="mv2-map-tools-divider" aria-hidden="true" />
-                <div className="map-filters">
-                  <button type="button" className="mv2-map-tools-btn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}
-                    aria-label="Filter nearby ideas by type"
-                    title={hiddenIdeaCats.size > 0 ? `Idea filters: ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
-                    <Layers size={17} aria-hidden />
+              <section className="mv2-layers-sec" role="group" aria-label="Nearby idea categories">
+                <h4 className="mv2-layers-title">Ideas<span className="mv2-layers-count">{shownIdeaCats} / {ideaCats.length} shown</span></h4>
+                {ideaCats.map(([cat, count]) => (
+                  <button key={cat} type="button" className="mv2-layer-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
+                    <CatIcon category={cat} size={15} aria-hidden />
+                    <span className="mv2-layer-name">{titleCase(cat)}</span>
+                    <span className="mv2-layer-n">{count}</span>
+                    <span className="mv2-switch" aria-hidden="true" />
                   </button>
-                  {filtersOpen && (
-                    <div className="map-filters-pop popover" role="group" aria-label="Nearby idea categories" ref={revealInColumn}>
-                      {ideaCats.map(([cat, count]) => (
-                        <button key={cat} className="map-filters-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
-                          <CatIcon category={cat} size={13} aria-hidden />
-                          {titleCase(cat)}
-                          <span className="n">{count}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div></>
+                ))}
+              </section>
             )}
             </div>
           </details>
@@ -2240,7 +2247,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 badge lands under a stop pin. Lettered picks stay single. */}
             <MapClusterLayer
               data={clusterData}
-              clusterColors={IDEA_CLUSTER_COLORS}
+              clusterColors={workspaceChrome ? WORKSPACE_CLUSTER_COLORS : IDEA_CLUSTER_COLORS}
+              look={workspaceChrome ? WORKSPACE_CLUSTER_LOOK : undefined}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}
               onClustersChange={onClustersChange}

@@ -2,7 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
-import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, Info, X } from 'lucide-react'
+import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, X } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
@@ -12,7 +12,7 @@ import { useTimeFormat, formatClocksInText, formatHM, formatHMRange, validHM } f
 import type { MapTarget } from '../../lib/mapTarget'
 import { loadFlag, saveFlag, loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { DEBOUNCE_MS } from '../../lib/geocode'
-import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
+import { Modal, Field, toast, undoToast, useMedia } from '../../components/ui'
 import { Select } from '../../components/Select'
 import { DetourWhisk } from '../../components/DetourWhisk'
 import { useSuggestionCache } from '../../hooks/useSuggestionCache'
@@ -117,59 +117,6 @@ const TripMap = React.lazy(() => import('../../components/TripMap').then(m => ({
 
 // ---- Engine guide: a subtle rotating roll-out of what the suggestion engine ----
 // ---- does, so its intelligence is discoverable without a docs trip.          ----
-const ENGINE_TIPS = [
-  'Breaks are spaced for fatigue. Stretch rides your wheel time, lunch holds the 11:30–14:30 window, tuned to your crew size and travel style.',
-  'Lunch slides itself into the 11:30–14:30 window based on when each driving day starts.',
-  'Self-drive trips get fuel halts on your tank’s rhythm. No “next pump in 300 km” surprises.',
-  'Cross-day drives end at a real city. The overnight lands where your honest wheel cap says the day ends.',
-  'Every idea is checked against your detour budget. Packed days see fewer, closer options.',
-  'The engine learns: accepting or declining an idea nudges what future trips suggest (Trip DNA).',
-  'Rainy day ahead? Exposed sights step aside for museums, cafes and other sheltered picks.',
-  'Ghat sections and slow city crawls are detected from the real road shape and get a warning.',
-  'Story arcs bundle nearby sights into one-tap themed detours: temples, waterfalls, viewpoints.',
-  'Hover a card to spot it on the map; hover a pin to find its card. Adds always insert in road order.',
-]
-
-function EngineTips() {
-  const [tip, setTip] = useState(0)
-  const tipsRef = useRef<HTMLDivElement>(null)
-  const reduced = useMedia('(prefers-reduced-motion: reduce)')
-  const inView = useInView(tipsRef)
-  const visible = usePageVisible()
-  const running = inView && visible && !reduced
-  useEffect(() => {
-    if (!running) return
-    const t = setInterval(() => setTip(i => (i + 1) % ENGINE_TIPS.length), 7000)
-    return () => clearInterval(t)
-  }, [running])
-  return (
-    <div className="engine-tips" ref={tipsRef}>
-      <span className="engine-tips-ico"><Sparkles size={12} aria-hidden /></span>
-      {/* #168: role="status" on rotating text re-announces every 7s — a live
-          region that never shuts up. The rotation is decorative; SR users get
-          one static summary instead. */}
-      <span key={tip} className="engine-tips-text" aria-hidden="true">{ENGINE_TIPS[tip]}</span>
-      <span className="sr-only" role="status">Suggestions are spaced for fatigue and checked against your detour budget.</span>
-      {/* #333 A4: these were buttons with onClick and a -1 tabIndex INSIDE an
-          aria-hidden container — clickable, unreachable by keyboard, and 8px wide.
-          (Spelled without the JSX braces on purpose: the suite greps this file for
-          that literal, and a comment carrying it would trip its own guard.)
-          The strip is ambient decoration: it rotates on its own every 7s, it is
-          display:none below 720px, and screen readers already get the static
-          summary above instead (#168). So the dots are indicators now, not
-          controls: nothing focusable sits inside aria-hidden (that pairing is the
-          violation the issue named), and no target below the repo's 40px floor
-          remains. If picking a tip is ever wanted back, the shape is ONE
-          "next tip" button on the strip — not six 8px dots. */}
-      <span className="engine-tips-dots" aria-hidden="true">
-        {ENGINE_TIPS.map((_, i) => (
-          <span key={i} className={`engine-tips-dot${i === tip ? ' on' : ''}`} />
-        ))}
-      </span>
-    </div>
-  )
-}
-
 // ================= Map tab =================
 
 // MapTabSkeleton moved to ./MapTabSkeleton (#332 R4) — it is this module's
@@ -1350,7 +1297,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   }, [])
   const compactMap = useMedia('(max-width: 1180px)')
   const [itineraryOpen, setItineraryOpen] = useState(true)
-  const [deckOpen, setDeckOpen] = useState(true)
+  // One panel at a time on a wide screen: the day rail shows, and the suggestions
+  // open from a lens. The phone sheet keeps its deck, because it peeks below the map.
+  const [deckOpen, setDeckOpen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches)
   const [snap, setSnap] = useState<SheetSnap>('peek')
   // The one lens pill owns the map marks and the rail deck (W3-W).
   const [lens, setLens] = useState<MapLensId>('drive')
@@ -1975,18 +1924,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </div>
         )}
   </>) : null
-  const deckFooter = <footer className="mv2-deck-footer">
-    <LensDeckSource
-      sources={deckHits(lens, lenses, { driveTab, stayWindow: activeStayWindowId }).map(hit => hit.source)}
-      fetchedAt={scanFetchedAt} coverage={scanCoverage}
-      fixed={lens === 'fix' ? (lenses.fix.phase === 'ready' && lenses.fix.problem != null ? FIX_SOURCE_LINE : '') : null} />
-    <button type="button" className="btn btn-ghost btn-sm" onClick={retryScan} disabled={loadingPois} title="Refresh suggestions"><RotateCcw size={14} aria-hidden />Refresh</button>
-    <details className="mv2-suggestion-info">
-      <summary className="mv2-icon-btn" aria-label="How suggestions work" title="How suggestions work"><Info size={16} aria-hidden /></summary>
-      <div className="mv2-suggestion-notes"><EngineTips />
+  // The live suggestion states sit on top of the deck, never behind a button:
+  // the over-limit count, the rain note and the empty, failed or limit states.
+  const deckStatus = <div className="mv2-suggestion-notes">
         {budgetHeldCount > 0 && <p>Over detour limit: {budgetHeldCount}</p>}
-        <p>Meals, meal windows, breaks, driving time, fuel and tank range</p>
-        <p>Picks within detour limit</p>
         {/* #141 standalone: drizzle-grade rain never flips the verdict, so it
             says itself when no split banner is up. */}
         {drizzleDay >= 0 && dayRainPct && !(splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length) && clockVerdict.verdict === 'ok' && (
@@ -2045,8 +1986,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <p className="muted small">Short drive · Explore Around the stay</p>
           )
         )}
-      </div>
-    </details>
+  </div>
+  const deckFooter = <footer className="mv2-deck-footer">
+    <LensDeckSource
+      sources={deckHits(lens, lenses, { driveTab, stayWindow: activeStayWindowId }).map(hit => hit.source)}
+      fetchedAt={scanFetchedAt} coverage={scanCoverage}
+      fixed={lens === 'fix' ? (lenses.fix.phase === 'ready' && lenses.fix.problem != null ? FIX_SOURCE_LINE : '') : null} />
+    <button type="button" className="btn btn-ghost btn-sm" onClick={retryScan} disabled={loadingPois} title="Refresh suggestions"><RotateCcw size={14} aria-hidden />Refresh</button>
   </footer>
   return (
     <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
@@ -2533,10 +2479,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             />
 
           </div>
-          <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
+          <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" data-lens={lens} hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
 
             {scopeBand}
+            {deckStatus}
 
             {lens === 'drive' && <div className="mv2-peek">
               {peekHit ? <>

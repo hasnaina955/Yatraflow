@@ -2079,6 +2079,17 @@ type MapClusterLayerProps<
    *  Fires on pan/zoom and when the source loads; an unchanged membership is not
    *  reported twice. Pass a stable callback — a new identity re-subscribes. */
   onClustersChange?: (ids: Set<string>) => void;
+  /** An optional badge look: a ring, a soft halo, a count colour and the three
+   *  radii. With no look, the badge keeps the classic filled circle. */
+  look?: ClusterLook;
+};
+
+export type ClusterLook = {
+  ring: string;
+  ringWidth: number;
+  halo: string;
+  text: string;
+  radii: [number, number, number];
 };
 
 const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
@@ -2087,6 +2098,26 @@ const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
   "#1e3a8a",
 ];
 const DEFAULT_CLUSTER_THRESHOLDS: [number, number] = [100, 750];
+// The halo is a faint ring of the badge colour under the badge.
+const CLUSTER_HALO_OPACITY = 0.22;
+const DEFAULT_CLUSTER_RADII: [number, number, number] = [20, 30, 40];
+
+/** The badge radius for each size band, plus `add` px (the halo uses a wider one). */
+function clusterRadiusStep(
+  radii: [number, number, number],
+  thresholds: [number, number],
+  add: number,
+): MapLibreGL.ExpressionSpecification {
+  return [
+    "step",
+    ["get", "point_count"],
+    radii[0] + add,
+    thresholds[0],
+    radii[1] + add,
+    thresholds[1],
+    radii[2] + add,
+  ];
+}
 
 /** How many members of one cluster are asked for when reporting membership.
  *  Supercluster reads a falsy limit as 10, so this must be a real number; it is
@@ -2107,6 +2138,7 @@ function MapClusterLayer<
   onClusterClick,
   unclusteredVisible = true,
   onClustersChange,
+  look,
 }: MapClusterLayerProps<P>) {
   const { map, isLoaded } = useMap();
   const id = useId();
@@ -2114,6 +2146,7 @@ function MapClusterLayer<
   const clusterLayerId = `clusters-${id}`;
   const clusterCountLayerId = `cluster-count-${id}`;
   const unclusteredLayerId = `unclustered-point-${id}`;
+  const haloLayerId = `cluster-halo-${id}`;
 
   const stylePropsRef = useRef({
     clusterColors,
@@ -2134,6 +2167,22 @@ function MapClusterLayer<
       clusterRadius,
     });
 
+    // The halo sits under the badge, so the badge reads as raised off the map.
+    if (look) {
+      map.addLayer({
+        id: haloLayerId,
+        type: "circle",
+        source: sourceId,
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": look.halo,
+          "circle-radius": clusterRadiusStep(look.radii, clusterThresholds, 6),
+          "circle-opacity": CLUSTER_HALO_OPACITY,
+          "circle-blur": 0.35,
+        },
+      });
+    }
+
     // Add cluster circles layer
     map.addLayer({
       id: clusterLayerId,
@@ -2150,20 +2199,15 @@ function MapClusterLayer<
           clusterThresholds[1],
           clusterColors[2],
         ],
-        "circle-radius": [
-          "step",
-          ["get", "point_count"],
-          20,
-          clusterThresholds[0],
-          30,
-          clusterThresholds[1],
-          40,
-        ],
-        "circle-stroke-width": 0.75,
-        "circle-stroke-color": "#fff",
+        "circle-radius": clusterRadiusStep(look?.radii ?? DEFAULT_CLUSTER_RADII, clusterThresholds, 0),
+        "circle-stroke-width": look?.ringWidth ?? 0.75,
+        "circle-stroke-color": look?.ring ?? "#fff",
         "circle-opacity": 0.85,
       },
     });
+
+    // A look badge is opaque: its white fill carries the count, not the map below.
+    if (look) map.setPaintProperty(clusterLayerId, "circle-opacity", 1);
 
     // Add cluster count text layer
     map.addLayer({
@@ -2179,10 +2223,10 @@ function MapClusterLayer<
         // tiles.openfreemap.org/fonts — "Open Sans Semibold" 404, "Noto Sans
         // Bold" 200. Pinned by tests/map-cluster.test.ts.
         "text-font": ["Noto Sans Bold"],
-        "text-size": 12,
+        "text-size": look ? 13 : 12,
       },
       paint: {
-        "text-color": "#fff",
+        "text-color": look?.text ?? "#fff",
       },
     });
 
@@ -2213,6 +2257,7 @@ function MapClusterLayer<
         if (map.getLayer(unclusteredLayerId))
           map.removeLayer(unclusteredLayerId);
         if (map.getLayer(clusterLayerId)) map.removeLayer(clusterLayerId);
+        if (map.getLayer(haloLayerId)) map.removeLayer(haloLayerId);
         if (map.getSource(sourceId)) map.removeSource(sourceId);
       } catch {
         // ignore
@@ -2325,15 +2370,8 @@ function MapClusterLayer<
         clusterThresholds[1],
         clusterColors[2],
       ]);
-      map.setPaintProperty(clusterLayerId, "circle-radius", [
-        "step",
-        ["get", "point_count"],
-        20,
-        clusterThresholds[0],
-        30,
-        clusterThresholds[1],
-        40,
-      ]);
+      map.setPaintProperty(clusterLayerId, "circle-radius", clusterRadiusStep(look?.radii ?? DEFAULT_CLUSTER_RADII, clusterThresholds, 0));
+      if (look && map.getLayer(haloLayerId)) map.setPaintProperty(haloLayerId, "circle-radius", clusterRadiusStep(look.radii, clusterThresholds, 6));
     }
 
     // Update unclustered point layer color
@@ -2347,6 +2385,8 @@ function MapClusterLayer<
     map,
     clusterLayerId,
     unclusteredLayerId,
+    haloLayerId,
+    look,
     clusterColors,
     clusterThresholds,
     pointColor,

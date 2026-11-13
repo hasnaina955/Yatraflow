@@ -1230,6 +1230,7 @@
 .mv2-tool-menu > summary { list-style: none; box-shadow: var(--shadow-soft); }
 .mv2-tool-menu > summary::-webkit-details-marker, .mv2-suggestion-info > summary::-webkit-details-marker { display: none; }
 .mv2-tool-menu-body {
+  --popover-bg: color-mix(in srgb, var(--card) 94%, transparent);
   position: absolute; right: 56px; top: 0; display: flex; flex-direction: column;
   align-items: stretch; gap: var(--space-2); width: 200px; max-height: 290px;
   overflow: auto; padding: var(--space-4);
@@ -1273,7 +1274,12 @@
 
 .mv2-route-banner .mv2-route-dismiss { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 14px; flex: 0 0 auto; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-2); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
 .mv2-route-dismiss:hover { background: var(--bg-soft); }
-.mv2-lens-drive .mv2-lens-cell-label, .mv2-lens-drive .mv2-lens-deck-kicker { display: none; }
+.mv2-lens-drive .mv2-lens-deck-kicker { display: none; }
 .mv2-lens-budget-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 .mv2-route-arcs[open] { animation: popover-in var(--motion-med) var(--ease-paper); }
+
+.mv2-travel-day-actions { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.mv2-travel-day-actions > p { flex-basis: 100%; margin: 0; }
+
+.mv2-lens-drive .mv2-lens-cell { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }

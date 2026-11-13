@@ -58,7 +58,7 @@ describe('911-W9-phone sheet structure', () => {
   })
 
   it('offers the ribbon in the phone day menu and auto-shows previews', () => {
-    expect(tab).toContain('ribbonOpen || openPreview != null || activeFixPreview != null || splitPreview')
+    expect(tab).toContain('ribbonOpen || openPreview != null || activeFixPreview != null')
     expect(tab).not.toContain('ribbonSheet')
     const chrome = readFileSync(new URL('../src/components/map/MapWorkspaceChrome.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     expect(chrome).toContain('onToggleRibbon(); setMenuOpen(false)')

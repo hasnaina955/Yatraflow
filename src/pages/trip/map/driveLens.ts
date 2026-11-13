@@ -154,3 +154,8 @@ export function driveDeckIntro(
   const at = typeof km === 'number' && Number.isFinite(km) && km >= 0 ? `km ${Math.round(km)} at ` : ''
   return `You pass ${at}${clock(r.arriveMin)}, ${word} the ${clock(w[0])}–${clock(w[1])} window`
 }
+
+/** Alternatives are independent choices. Their order cannot spend the budget. */
+export function overBudgetAlternativeIds(rows: readonly { id: string; detourMin: number | null }[], budgetMin: number): Set<string> {
+  return new Set(rows.filter(row => row.detourMin == null || !Number.isFinite(row.detourMin) || row.detourMin < 0 || row.detourMin > budgetMin).map(row => row.id))
+}

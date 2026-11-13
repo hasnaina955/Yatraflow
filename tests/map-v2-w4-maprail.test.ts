@@ -73,16 +73,16 @@ describe('W4-B map and rail', () => {
     expect(fixTargetStopId(null, commitments, 0)).toBe('fixture-boat')
   })
 
-  it('shows the budget bar only when all three numbers are known', () => {
+  it('shows the planned budget only when its total and limit are known', () => {
     expect(driveBudgetStep(9, 45)).toBe(1)
     expect(driveBudgetStep(null, 45)).toBeNull()
-    expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45, freeStops: 2 }))
-      .toBe('33 min left of the 45 min limit')
-    expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45, freeStops: null })).toBeNull()
-    // The sum of the offered detours is above the day budget (real Goa trip, Day 1).
-    expect(driveBudgetBarText({ usedMin: 78, budgetMin: 25, freeStops: 4 }))
-      .toBe('53 min over the 25 min limit')
-    expect(driveBudgetBarText({ usedMin: 25, budgetMin: 25, freeStops: 4 })).toBe('0 min left of the 25 min limit')
+    expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45 }))
+      .toBe('12 of 45 min detour used')
+    expect(driveBudgetBarText({ usedMin: null, budgetMin: 45 })).toBeNull()
+    // A planned total can exceed its limit.
+    expect(driveBudgetBarText({ usedMin: 78, budgetMin: 25 }))
+      .toBe('78 of 25 min detour used')
+    expect(driveBudgetBarText({ usedMin: 25, budgetMin: 25 })).toBe('25 of 25 min detour used')
     expect(driveBudgetBarText(null)).toBeNull()
   })
 

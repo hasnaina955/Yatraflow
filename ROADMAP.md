@@ -357,7 +357,7 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ## Map V2 local UI work
 
-- [x] Map truth and control pass, steps 1 and 2. The ribbon opens on request. Drive owns scope. Fix owns route advice.
+- [x] Map truth and control pass, steps 1 and 2. The ribbon opens on request. Drive owns scope. Fix owns route advice. The rail shows known planned spend. Added days use Apply.
 
 - [x] Correct the real-trip lens checks. Stay excludes scheduled evening stops. Meal names and shared schedule times set meal slots. Fix counts the panel's problems. Departure stays before stops with bad saved positions. A valid Lonavala sample keeps its nonzero road distance. Browser proof uses sample data only; saved trip coordinates need a separate data correction.
 

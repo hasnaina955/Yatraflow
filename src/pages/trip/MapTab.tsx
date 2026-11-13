@@ -36,16 +36,17 @@ import { dayStayBase, useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
 import { useMapEdit } from './map/useMapEdit'
 import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPanel'
+import { TravelDayAdvice } from '../../components/map/lenses/TravelDayAdvice'
 import { MapLensPanel } from './map/MapLensPanel'
 import { driveLettersByRoad, useMapLenses, type MapLensId } from './map/useMapLenses'
-import { driveCardStrip, driveDeckIntro, filledStopClock, scopeBandOf, type DriveTab } from './map/driveLens'
+import { driveCardStrip, driveDeckIntro, filledStopClock, scopeBandOf, overBudgetAlternativeIds, type DriveTab } from './map/driveLens'
 import { STAY_RINGS, ringPolygon, ringRadiusKm, resolveStayBase } from './map/stayLens'
 import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
 import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
 import type { RingId } from '../../components/map/lenses/StayDeck'
 import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
-import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetDetailText, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
+import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, plannedDriveBudget, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
 import { baseTagText, fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
   readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, dayPurposesFor, type ScopeMinutes,
@@ -97,7 +98,7 @@ import { dayShape, tripDayAttribution, SLOT_URGENCY_MIN, type DaySlot, type DayS
 import { corridorSnapshotKey, corridorStatusFor, dayAttributionKeyFor, type CorridorSnapshot } from './map/corridorSnapshot'
 import { discardedStagedIds, isAlreadyAdded, normalizePlaceName, type PlaceIdentity } from '../../lib/placeIdentity'
 
-import { dayDetourBudgetMin, splitByDetourBudget } from '../../lib/detourBudget'
+import { dayDetourBudgetMin } from '../../lib/detourBudget'
 import type { WorkspaceJourneyDays } from './journey/journeyDays'
 import { anyQuotaExhausted } from '../../lib/providers/quota'
 import { recordDnaEvent, dnaNoteForHit, crewSeedsToPlannedStops, crewNoteForHit, type CrewSeed, type DnaVector } from '../../lib/tripDna'
@@ -675,7 +676,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const [splitDeclinedAt, setSplitDeclinedAt] = useState<number | null>(null)
   const splitDeclined = splitDeclinedAt === travelDayNeed
   const setSplitDeclined = (declined: boolean) => setSplitDeclinedAt(declined ? travelDayNeed : null)
-  const [splitPreview, setSplitPreview] = useState(false)
   const [ribbonOpen, setRibbonOpen] = useState(() => loadFlag('map_ribbon', false))
   const [dismissedTrip, setDismissedTrip] = useState(() => loadFlag(`map_route_dismissed_${trip.id}`, false) ? trip.id : null)
   const [fixPreview, setFixPreview] = useState<FixChangeSet | null>(null)
@@ -685,7 +685,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     saveFlag('map_ribbon', next)
   }
   const applySplitDays = () => {
-    setSplitPreview(false)
     if (clockVerdict.verdict !== 'ok') return // defer/hop: nothing honest to stamp
     const add = travelDayNeed - trip.days.length // #123 single source
     if (add <= 0) return
@@ -1117,12 +1116,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
   // see-&-do list is the endless one — need halts are finite by construction,
   // so the budget gates only sights. Per day: walk the journey-ordered sight
-  // hits, spend each one's detour minutes against that day's budget, and mark
-  // whatever no longer fits as HELD BACK — counted and shown as a line, never
-  // offered as an addable card.
+  // Alternatives do not spend one another's budget. Each pick is checked alone.
   const { budgetHeldIds, budgetHeldCount } = useMemo(() => {
     const heldIds = new Set<string>()
-    let heldCount = 0
     const byDay = new Map<number, SegmentHit[]>()
     for (const sh of seeAndDoLive) {
       if (!sh.hit) continue
@@ -1136,16 +1132,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         travelStyle: trip.travelStyle,
         plannedStops: (trip.days.find(x => x.index === d)?.stops ?? []).filter(s => s.status !== 'rejected').length,
       })
-      const { deferred } = splitByDetourBudget(
-        rows.map(sh => ({ sh, detourMin: detourMinFor(sh.hit!) })),
-        budget,
-      )
-      for (const { sh } of deferred) {
-        heldIds.add(sh.hit!.id as string)
-        heldCount += 1
-      }
+      const deferred = overBudgetAlternativeIds(rows.flatMap(sh => sh.hit ? [{ id: String(sh.hit.id), detourMin: detourMinFor(sh.hit) ?? null }] : []), budget)
+      for (const id of deferred) heldIds.add(id)
+
     }
-    return { budgetHeldIds: heldIds, budgetHeldCount: heldCount }
+    return { budgetHeldIds: heldIds, budgetHeldCount: heldIds.size }
   }, [seeAndDoLive, dayForKm, detourMinFor, trip.travelStyle, trip.days])
   // S2: publish the corridor facts the future workspace producer reads. The
   // callback is read through a ref, so a parent re-render cannot republish.
@@ -1689,21 +1680,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       severe: true,
     }
     : null
-  const driveBudget = (lens === 'drive' || lens === 'fix') && lenses.drive.phase === 'ready'
-    ? {
-      usedMin: Math.round(lenses.drive.view.rows.reduce((sum, row) => {
-        const detour = row.detourMin
-        return sum + (detour != null && Number.isFinite(detour) && detour > 0 ? detour : 0)
-      }, 0)),
-      budgetMin: mapBudget,
-      freeStops: lenses.drive.view.rows.filter(row => scopeBandOf(row, scopeMinutes, budgetHeldIds) === 'inside').length,
-    }
-    : null
-  // The bar reads only known facts. Unknown facts keep the rail's two old lines.
+  const driveBudget = plannedDriveBudget(activeDayStops, journeyDay?.projection.rows ?? [], mapBudget)
+  // Unknown planned costs keep the budget block out of the rail.
   const budgetBarText = driveBudgetBarText(driveBudget)
   const budgetBar = budgetBarText == null ? null : {
     text: budgetBarText,
-    detail: driveBudgetDetailText(driveBudget),
     step: driveBudgetStep(driveBudget?.usedMin ?? null, driveBudget?.budgetMin ?? null) ?? 0,
   }
   function addLensHit(hit: PlaceHit, dayIndex: number) {
@@ -1867,7 +1848,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const detailDetourMin = selectedHit ? (selectedRow ? selectedRow.detourMin : selectedProjected ? null : detourMinFor(selectedHit) ?? null) : null
   // The detail's budget cell reads the day after the add: its current spend
   // plus this pick. Unknown parts keep the whole used-of line out.
-  const detailBudgetUsed = detailDetourMin != null && Number.isFinite(detailDetourMin) && driveBudget != null
+  const detailBudgetUsed = detailDetourMin != null && Number.isFinite(detailDetourMin) && driveBudget?.usedMin != null
     ? Math.max(0, Math.round(driveBudget.usedMin + Math.max(0, detailDetourMin)))
     : null
   const detailArriveMin = selectedHit
@@ -1928,14 +1909,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   }
   /** P5.3: the selected day's empty parts as hollow amber pins - their top
    *  candidate's real position, with P5.2's cost line in the tooltip. */
-  // W9-phone: on a phone the journey ribbon and the Drive scope band are
-  // in-flow children of the open sheet. They cannot overlap the map or the
-  // top row at any snap. A folded deck keeps the ribbon docked on the map.
+  // The clock choice and real add/fix previews control the map ribbon.
   const activeFixPreview = fixPreview?.dayIndex === activeDayIndex ? fixPreview : null
   const fixPreviewTrip = activeFixPreview ? applyFixChangeSet(trip, activeFixPreview) : null
   const fixPreviewDay = fixPreviewTrip?.days.find(day => day.index === activeDayIndex)
   const ribbonJourney = fixPreviewTrip && fixPreviewDay ? buildJourney(fixPreviewTrip, fixPreviewDay, legCorrections) : journey
-  const ribbonShown = ribbonOpen || openPreview != null || activeFixPreview != null || splitPreview
+  const ribbonShown = ribbonOpen || openPreview != null || activeFixPreview != null
   const ribbonLockedIds = trip.fixedCommitments.filter(entry => entry.dayIndex === activeDayIndex && entry.stopId != null).map(entry => String(entry.stopId))
   const ribbonNote = lens === 'fix' && commitmentClock != null
     ? `Fixed ${commitmentClock}`
@@ -2001,14 +1980,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               </span>
             )}
             {!splitDeclined ? (
-              <div className="row" style={{ gap: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={() => setSplitPreview(true)}>Preview added days</button>
-                {splitPreview && <div role="status"><p>{travelDayNeed - trip.days.length} new travel days, each starting at 08:30. Existing stops stay on their days.</p><button type="button" className="btn btn-ghost btn-sm" onClick={() => setSplitPreview(false)}>Cancel</button></div>}
-                <button className="btn btn-primary btn-sm" onClick={applySplitDays}>
-                  Apply - add {travelDayNeed - trip.days.length} day{travelDayNeed - trip.days.length !== 1 ? 's' : ''}
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => { setSplitPreview(false); setSplitDeclined(true) }}>Keep my {trip.days.length}-day plan</button>
-              </div>
+              <TravelDayAdvice currentDays={trip.days.length} neededDays={travelDayNeed}
+                onApply={applySplitDays} onKeep={() => setSplitDeclined(true)} />
             ) : (
               <span className="small dayplanner-red">
                 Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} behind the wheel in a single stretch is past the honest cap - the fatigue verdict stays red.
@@ -2117,7 +2090,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
         <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} endTown={headerEndTown} ribbonOpen={ribbonShown} onToggleRibbon={toggleRibbon} />
-        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay'} endTown={headerEndTown} /></div>}
+        {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay' || budgetBar == null} endTown={headerEndTown} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span></button>

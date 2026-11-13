@@ -157,7 +157,7 @@ describe('rail and strip source rules', () => {
     expect(chrome).toContain('formatHM(rowTime, timeFormat)')
   })
   it('hides the budget block on the Stay lens and takes the Paid chip from expenses', () => {
-    expect(mapTab).toContain("hideBudget={lens === 'stay'}")
+    expect(mapTab).toContain("hideBudget={lens === 'stay' || budgetBar == null}")
     expect(chrome).toContain('railStopPaid')
   })
   it('drops the plan clock block from the strip', () => {

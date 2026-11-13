@@ -226,7 +226,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
           const over = band === 'over-budget'
           const hit = row.row.hit
           const reason = reasonOf?.(row) ?? null
-          return <li key={index}>
+          return <li key={index} data-scope-band={band} data-place-id={String(hit.id)}>
             <LensPlaceCard
               hit={hit}
               category={hit.category}

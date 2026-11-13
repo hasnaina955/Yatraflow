@@ -1,7 +1,8 @@
 // W4-B: left-rail extras that change with the active lens.
 // Only known facts render. A missing value keeps its part out.
 import { collectWarnings, groupWarnings, type LegEstimate } from '../../../lib/engine'
-import type { Trip } from '../../../data/types'
+import type { JourneyRow } from '../../../lib/journeyProjection'
+import type { ItineraryStop, Trip } from '../../../data/types'
 import { warningRefs } from './fixLens'
 import { stayRingOptions, type RingId } from '../../../components/map/lenses/StayDeck'
 import { CarFront, PersonStanding } from 'lucide-react'
@@ -66,21 +67,29 @@ export function windowDurationText(startMin: number, endMin: number): string | n
 export interface DriveBudget {
   usedMin: number | null
   budgetMin: number | null
-  freeStops: number | null
 }
 
-/** The budget line for the rail box. An unknown number keeps the old lines. */
-export function driveBudgetDetailText(budget: DriveBudget | null): string | null {
-  if (budget == null || budget.usedMin == null || budget.budgetMin == null || budget.freeStops == null) return null
-  const difference = budget.usedMin - budget.budgetMin
-  return `All suggestions add ${budget.usedMin} min. ${difference > 0 ? `${difference} min over the ${budget.budgetMin} min limit.` : `The limit is ${budget.budgetMin} min.`} ${budget.freeStops} picks fit on their own.`
+/** Every active planned stop needs its own known cost. Alternatives never spend. */
+export function plannedDriveBudget(
+  stops: readonly Pick<ItineraryStop, 'id' | 'status'>[],
+  rows: readonly Pick<JourneyRow, 'stopId' | 'detourMin'>[],
+  budgetMin: number,
+): DriveBudget | null {
+  const costs = new Map<string, number>()
+  for (const stop of stops) {
+    if (stop.status === 'rejected') continue
+    const facts = rows.filter(row => row.stopId === String(stop.id))
+    const cost = facts[0]?.detourMin
+    if (cost == null || !Number.isFinite(cost) || cost < 0 || facts.some(row => row.detourMin !== cost)) return null
+    costs.set(String(stop.id), cost)
+  }
+  return { usedMin: Math.round([...costs.values()].reduce((sum, cost) => sum + cost, 0)), budgetMin }
 }
 
-/** The short budget line; its tooltip carries the alternatives total. */
+/** Only the chosen day's planned stops can spend the rail budget. */
 export function driveBudgetBarText(budget: DriveBudget | null): string | null {
-  if (budget == null || budget.usedMin == null || budget.budgetMin == null || budget.freeStops == null) return null
-  const difference = budget.usedMin - budget.budgetMin
-  return difference > 0 ? `${difference} min over the ${budget.budgetMin} min limit` : `${budget.budgetMin - budget.usedMin} min left of the ${budget.budgetMin} min limit`
+  if (budget == null || budget.usedMin == null || budget.budgetMin == null) return null
+  return `${budget.usedMin} of ${budget.budgetMin} min detour used`
 }
 
 /** A five-step fill fraction. Null when the numbers are unknown. */

@@ -172,7 +172,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
     </div>}
     {shownCells.length > 0 && <div className="mv2-lens-strip">
       {shownCells.map(cell => <span className="mv2-lens-cell" key={cell.key} role="group" aria-label={`${cell.label}: ${cell.value}`} title={cell.label}>
-        <span className="mv2-lens-cell-label">{cell.label}</span>
+        <span className="mv2-lens-cell-label">{cell.key === 'budget' ? 'Of budget' : cell.label}</span>
         <span className="mv2-lens-cell-value">{cell.value}</span>
       </span>)}
     </div>}

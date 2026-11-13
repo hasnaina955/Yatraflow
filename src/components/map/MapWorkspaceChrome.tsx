@@ -284,7 +284,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><PanelLeftClose size={16} /></button>
     </header>
     {hideBudget !== true && <div className="mv2-budget mv2-lens-budget" title={budgetBar?.detail ?? undefined}><span className="mv2-lens-budget-label sr-only">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
-      ? <div className="mv2-budget-progress" role="progressbar" aria-label="All suggestions compared with the detour limit" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
+      ? <div className="mv2-budget-progress" role="progressbar" aria-label="Planned detour used" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
     <ol className="mv2-stops" ref={stopsRef}>
       {shownPoints.map(({ point, index, clock: rowTime }, shownIndex) => {

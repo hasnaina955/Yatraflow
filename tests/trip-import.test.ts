@@ -355,7 +355,7 @@ describe('parseTripImport — the repair pass', () => {
     expect(r.trip.days[0].index).toBe(0)
     expect(r.trip.days[1].index).toBe(1)
     expect(r.trip.days[1].stops[0].title).toBe('Beach')
-    expect(r.report.warnings.join(' ')).toMatch(/the day imports empty/)
+    expect(r.report.warnings.join(' ')).toMatch(/The day imports empty/)
   })
 
   it('names the mixed-placeholder case (lat 0 with a real lng)', () => {

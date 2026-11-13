@@ -135,7 +135,7 @@ export type WriterResumeDisposition =
  *  the server write; it is not proof that THIS operation's stops landed. The
  *  hooks share this one line so no caller can re-invent a landed claim. */
 export const ZERO_VERIFIED_SAVE_MESSAGE =
-  'The write was received, but none of these stops could be verified in the saved day. Check Saved edits before you retry.'
+  'Save · Stops unverified · Check Saved edits'
 
 /** Why the ACTUAL draft refused the planned inserts. These are placement
  *  mechanics, not slot reasons, so they stay out of `SlotPlacementReason`. */

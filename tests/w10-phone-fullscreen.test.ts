@@ -86,15 +86,14 @@ describe('W10 phone full screen', () => {
     expect(css).toMatch(/\.yf-workspace\[data-map-fullscreen='true'\] \.mv2-workspace \{ height: 100dvh;/)
   })
 
-  it('keeps the settings in the top flow on desktop and after the deck on a phone', () => {
+  it('puts source and Refresh after the deck and route advice in Fix', () => {
     const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')
-    expect(mapTab).toContain('{!phoneSheet && settingsTools}')
+    expect(mapTab).not.toContain('settingsTools')
     const see = mapTab.indexOf('id="rail-see"')
-    const deck = mapTab.indexOf('<MapLensPanel', see)
-    const settings = mapTab.indexOf('{phoneSheet && <div className="mv2-sheet-settings">', see)
-    expect(settings).toBeGreaterThan(deck)
-    const css = read('src', 'styles', 'components', 'map-v2-rail.css')
-    expect(css).toMatch(/\.mv2-sheet-settings \.mv2-tools > summary \{[^}]*border: 0;[^}]*background: transparent;/)
+    expect(mapTab.indexOf('{deckFooter}', see)).toBeGreaterThan(mapTab.indexOf('<MapLensPanel', see))
+    expect(mapTab).toContain('routeAdvice={routeAdvice}')
+    expect(mapTab).toContain('const deckFooter = <footer')
+    expect(mapTab).toContain('title="Refresh suggestions"')
   })
 
   it('frames the stay ring above the phone sheet at every snap', () => {
@@ -104,20 +103,18 @@ describe('W10 phone full screen', () => {
     expect(mapTab).toContain('bottom: phoneSheet ? phoneSheetHeight : 90')
     expect(mapTab).toContain("frameStayRing={lens === 'stay' && lenses.stay.base != null && !phoneSheet}")
     expect(mapTab).toContain('mapTarget={localTarget ?? mapTarget ?? phoneStayTarget}')
-    expect(mapTab).toContain("inSheet={phoneSheet && snap !== 'peek'}")
+    expect(mapTab).toContain('inSheet={false}')
     expect(read('src', 'components', 'map', 'MapWorkspaceChrome.tsx'))
       .toContain("const rootClass = inSheet ? 'mv2-ribbon-sheet' : 'mv2-ribbon'")
   })
 
-  it('makes the phone ribbon an inset card and the peek a titled row', () => {
+  it('floats the requested phone ribbon above the sheet and keeps the peek row', () => {
     const css = read('src', 'styles', 'components', 'map-v2-rail.css')
-    expect(css).toMatch(/\.mv2-workspace \.poi-col > \.mv2-ribbon[^{]*\{[^}]*border-radius: var\(--radius-sm\)/)
-    expect(css).toContain('.mv2-workspace .mv2-detail > .mv2-ribbon-sheet')
-    expect(css).toContain('.mv2-peek-eyebrow')
-    expect(css).toContain('.mv2-peek-count')
+    expect(css).toMatch(/\.mv2-workspace \.mv2-ribbon \{[^}]*bottom: calc\(var\(--mv2-sheet-height\)/)
     const mapTab = read('src', 'pages', 'trip', 'MapTab.tsx')
     expect(mapTab).toContain('mv2-peek-eyebrow')
     expect(mapTab).toContain('mv2-peek-count')
+    expect(mapTab).not.toContain('ribbonSheet')
   })
 
   it('hides the fixture host header on a phone and keeps it on desktop', () => {

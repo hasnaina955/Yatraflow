@@ -114,10 +114,10 @@ describe('stay picks rank the walk ring first', () => {
 describe('the hours a pick reports', () => {
   it('reads the close in the reader clock, and hides an unknown close', () => {
     expect(closeMinute({ closeTime: '21:00' })).toBe(1260)
-    expect(stayHoursText({ closeTime: '21:00' }, '12h')).toBe('open till 9:00 PM')
-    expect(stayHoursText({ closeTime: '21:00' }, '24h')).toBe('open till 21:00')
-    expect(stayHoursText({ closeTime: '19:30' }, '12h')).toBe('open till 7:30 PM')
-    expect(stayHoursText({ closeTime: '19:30' }, '24h')).toBe('open till 19:30')
+    expect(stayHoursText({ closeTime: '21:00' }, '12h')).toBe('Open till 9:00 PM')
+    expect(stayHoursText({ closeTime: '21:00' }, '24h')).toBe('Open till 21:00')
+    expect(stayHoursText({ closeTime: '19:30' }, '12h')).toBe('Open till 7:30 PM')
+    expect(stayHoursText({ closeTime: '19:30' }, '24h')).toBe('Open till 19:30')
     expect(stayHoursText({ closeTime: null }, '12h')).toBeNull()
     expect(stayHoursText({}, '24h')).toBeNull()
   })
@@ -159,13 +159,13 @@ describe('the add preview lines', () => {
   it('never says a later stop moved earlier while the order held', () => {
     const view = detailPreviewView(readyPreview(), clock12)
     expect(view.kind).toBe('ready')
-    expect(view.lines[0]?.parts.map(part => part.text).join('')).toBe('Lands as stop 2, in road order after Attukad waterfalls')
+    expect(view.lines[0]?.parts.map(part => part.text).join('')).toBe('Stop 2 · After Attukad waterfalls')
     expect(view.lines.some(line => line.key.startsWith('moved-'))).toBe(false)
   })
 
   it('says the order changed first, then shows the moved clock', () => {
     const view = detailPreviewView(readyPreview({ orderChanged: true }), clock12)
-    expect(view.lines[0]?.parts.map(part => part.text).join('')).toBe('Re-ordered: the new stop goes in before Spice Village')
+    expect(view.lines[0]?.parts.map(part => part.text).join('')).toBe('Order changed · Before Spice Village')
     expect(view.lines.some(line => line.key === 'moved-hotel')).toBe(true)
   })
 

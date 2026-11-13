@@ -34,14 +34,14 @@ describe('AddPreviewCard', () => {
     expect(html).toContain('Card pick')
     expect(html).toContain('estimate')
     expect(html).toContain('<s>')
-    expect(html).toContain('Opening hours are not known.')
-    expect(html).toContain('Admission price is not known.')
+    expect(html).toContain('Opening hours · Unknown')
+    expect(html).toContain('Admission · Unknown')
   })
   it('says why a preview is unknown and offers no Add button', () => {
     const html = renderToStaticMarkup(createElement(AddPreviewCard, {
       preview: previewAdd({ trip, dayIndex: 0, stop: { ...a, id: 'z' }, insertAt: null }), onKeep: noop, onReject: noop,
     }))
-    expect(html).toContain('road order for this place is not known')
+    expect(html).toContain('Road order · Not measured')
     expect(html).not.toContain('map-edit-keep')
   })
   it('disables both buttons while saving', () => {
@@ -130,7 +130,7 @@ describe('StopEditorCard and FixedTimeConfirm', () => {
   })
   it('explains a fixed-time stop and asks before it moves', () => {
     const fixed = editor({ fixed: true })
-    expect(fixed).toContain('Lunch is a fixed time: it cannot be dragged, and editing its time asks first.')
+    expect(fixed).toContain('Lunch · Fixed time · Changes need confirmation')
     const none = renderToStaticMarkup(createElement(FixedTimeConfirm, { guard: { fixedStopIds: [], touched: [], needsConfirm: false }, onConfirm: noop, onCancel: noop }))
     expect(none).toBe('')
     const html = renderToStaticMarkup(createElement(FixedTimeConfirm, {

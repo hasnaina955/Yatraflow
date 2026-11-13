@@ -84,12 +84,12 @@ export type ShortlistDeps = {
 }
 
 const REFUSAL_MESSAGE: Record<WriterRefusal, string> = {
-  'missing-day': 'A target day has no saved identity yet - reload the trip, then try again.',
-  'gate-busy': 'Another change is already using one of those places. Wait for it to finish.',
-  'road-evidence-unavailable': 'The road has not been measured yet, so those places cannot be placed. Try again after the route finishes measuring.',
-  'current-trip-unavailable': 'The current saved trip is unavailable, so this retry cannot start.',
-  'nothing-pinned': 'Nothing could be pinned from the shortlist - try another place.',
-  'no-placements': 'Nothing could be placed from the shortlist. The tray is unchanged.',
+  'missing-day': 'Target day · Not ready · Reload trip',
+  'gate-busy': 'Places · Change in progress',
+  'road-evidence-unavailable': 'Road · Not measured · Retry after measurement',
+  'current-trip-unavailable': 'Retry · Saved trip unavailable',
+  'nothing-pinned': 'Shortlist · Position unavailable · Try another place',
+  'no-placements': 'Nothing could be placed from the shortlist. Shortlist · Unchanged',
 }
 
 export function useShortlist({
@@ -185,12 +185,12 @@ export function useShortlist({
         ).then((outcome: GuardedUndoOutcome) => {
           if (outcome.status === 'undone') { toast('The shortlist stops were pulled back'); return }
           if (outcome.status === 'refused') {
-            toast('Undo stopped: a saved stop changed or moved, so it was left alone.', 'err')
+            toast('Undo · Stop changed · No change', 'err')
             return
           }
           // The inverse may already be in this device's cache. The copy must not
           // claim the plan is unchanged; Saved edits stays the recovery path.
-          toast('Undo was not confirmed. Check the day before you retry - Saved edits can still recover this trip.', 'err')
+          toast('Undo · Unconfirmed · Check day or Saved edits', 'err')
         })
       },
     )
@@ -199,7 +199,7 @@ export function useShortlist({
   async function addShortlisted() {
     if (busy || trayShortlist.length === 0) return
     const trip = currentTripProp?.() ?? tripById(tripId)
-    if (!trip) { toast('This trip is not loaded - the shortlist was not added.', 'err'); return }
+    if (!trip) { toast('Shortlist · Trip unavailable · None added', 'err'); return }
     setBusy(true)
     try {
       // #420 slice 1: the ordering rule lives in map/roadOrder.ts, with its own
@@ -209,7 +209,7 @@ export function useShortlist({
       const usable = resolved.filter((x): x is { hit: PlaceHit; pinned: PlaceHit } => !!x.pinned)
       const unpinned = resolved.filter(x => !x.pinned).map(x => x.hit)
       if (usable.length === 0) {
-        toast('Nothing could be pinned from the shortlist - try another place.')
+        toast('Shortlist · Position unavailable · Try another place')
         return
       }
       // A place the route cannot position keeps its tray entry with a reason.
@@ -223,7 +223,7 @@ export function useShortlist({
         targets.push({ hit: item.hit, dayIndex, dayId })
       }
       if (targets.length === 0) {
-        toast('No shortlisted place has a known day yet. They stay in the tray.', 'err')
+        toast('Shortlist · Days unknown · Picks preserved', 'err')
         return
       }
       const depsFor = (onCompletion: (completion: WriterCompletion) => void): WriterActionDeps => ({
@@ -248,12 +248,12 @@ export function useShortlist({
             return
           }
           if (result.skipped.some(item => item.reason === 'already-in-plan')) {
-            toast('Those places are already in the plan - nothing was added.')
+            toast('Places · Already planned · None added')
             return
           }
           toast(
             result.apply
-              ? 'The saved day order no longer accepts those stops, so the plan was not changed. Check the day and try again.'
+              ? 'Add · Saved day order changed · Check day and retry'
               : REFUSAL_MESSAGE[result.reason],
             'err',
           )
@@ -261,14 +261,14 @@ export function useShortlist({
         }
         if (result.unresolved.length > 0 || unresolvedTargets.length > 0) {
           const stayed = result.unresolved.length + unresolvedTargets.length
-          toast(`${stayed} place${stayed === 1 ? '' : 's'} stayed in the tray with a reason.`)
+          toast(`Shortlist · Picks retained: ${stayed}`)
         }
       }
 
       function handleCompletion(completion: WriterCompletion) {
         if (completion.phase === 'abandoned') {
           retryRunners.current.delete(completion.operationId)
-          toast('This saved edit was discarded; choose again.', 'err')
+          toast('Saved edit · Discarded · Choose again', 'err')
           return
         }
         const retry = !completion.acknowledged || completion.placed.length === 0
@@ -281,18 +281,18 @@ export function useShortlist({
                 reportStage(retried)
               } catch (err) {
                 console.error('[yatraflow] shortlist retry threw', err)
-                toast('The retry could not start. Check the plan before you try again; Saved edits can still recover the trip.', 'err')
+                toast('Retry · Unavailable · Check plan or Saved edits', 'err')
               }
             })
           : undefined
         const retryAction = retry ? { label: 'Retry', run: () => { void retry() } } : undefined
         if (!completion.acknowledged) {
-          toast('The save was not confirmed, so no shortlist place was removed. Retry it, or open Saved edits.', 'err', retryAction)
+          toast('Save · Unconfirmed · Shortlist unchanged · Check Saved edits', 'err', retryAction)
           return
         }
         const placed = completion.placed
         if (placed.length === 0) {
-          toast(`${ZERO_VERIFIED_SAVE_MESSAGE} The tray is unchanged.`, 'err', retryAction)
+          toast(`${ZERO_VERIFIED_SAVE_MESSAGE} Shortlist · Unchanged`, 'err', retryAction)
           return
         }
         setAddedIds(prev => {
@@ -307,7 +307,7 @@ export function useShortlist({
         offerUndo(completion)
         // The Undo toast carries the success line; a skipped or unverified
         // place adds one honest sentence so it is not mistaken for placed.
-        if (left > 0) toast(`${left} shortlist place${left === 1 ? '' : 's'} stayed in the tray with a reason.`)
+        if (left > 0) toast(`Shortlist · Picks retained: ${left}`)
       }
 
       const result = await stageWriterPicks(depsFor(handleCompletion), {
@@ -337,7 +337,7 @@ export function useShortlist({
     try {
       const resolved = await Promise.all(trayShortlist.map(async h => ({ h, pinned: await resolvePick(h) })))
       const usable = resolved.filter((x): x is { h: PlaceHit; pinned: PlaceHit } => !!x.pinned)
-      if (usable.length === 0) { toast('Those places could not be pinned on the map - the vote was not created.'); return }
+      if (usable.length === 0) { toast('Vote · Position unavailable · Not created'); return }
       const taken = new Set<string>()
       const options = usable.map(({ h, pinned }) => {
         const optionPlace = persistedPlaceFromHit(h)
@@ -373,16 +373,16 @@ export function useShortlist({
         return { ...option, id: legacyId }
       })
       const request = createSlotVoteRequest({
-        question: usable.length === 1 ? `Should we add "${usable[0].h.name}"?` : 'Which of these should we add?',
+        question: usable.length === 1 ? `Add "${usable[0].h.name}"?` : 'Choose a place',
         context: 'Shortlisted from the Map rail',
         options,
       })
       if (!request.ok) {
-        toast('Those places are the same place - the vote needs two different choices. It was not created.')
+        toast('Vote · Two different places needed · Not created')
         return
       }
       const outcome = await addDecision(tripId, request.request)
-      reportCollabOutcome(outcome, 'Decision posted for the group - resolving it adds the winner to the plan')
+      reportCollabOutcome(outcome, 'Decision posted for the group. Resolve it to add the winner to the plan.')
       // The tray empties on the RECEIPT: a refused poll must not throw away
       // the shortlist the user collected one place at a time.
       if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') setShortlist([])

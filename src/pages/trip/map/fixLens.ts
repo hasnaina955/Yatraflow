@@ -27,7 +27,8 @@ export interface FixSummary {
 
 /** Render each stored "HH:MM" clock in one Fix text through the reader's clock. */
 export function formatFixEvidence(text: string, clock: (hm: string) => string): string {
-  return text.replace(/\b\d{1,2}:\d{2}\b/g, hm => clock(hm))
+  const compact = text.replace(/^About (.+) of driving\/transit across ([\d.]+) km\.$/, 'Travel $1 · Distance $2 km')
+  return compact.replace(/\b\d{1,2}:\d{2}\b/g, hm => clock(hm))
 }
 
 /** The words a traveller uses for a stop. A meal or a check-in is a common
@@ -108,13 +109,13 @@ export function fixChangeLine(
       const lead = booked == null ? `${subject} ${before ? 'first' : 'after'}` : `${subject} at ${clock(booked)}`
       return `${lead}, ${other} ${before ? 'after' : 'before'}`
     }
-    case 'remove': return `${upperFirst(stopWord(nameOf(String(change.stopId))))} comes off the day`
+    case 'remove': return `${upperFirst(stopWord(nameOf(String(change.stopId))))} · Removed from day`
     case 'set-visit': {
       const stop = stops.find(entry => String(entry.id) === String(change.stopId))
       const old = stop?.visitMinutes
       return old != null && Number.isFinite(old) && old > 0
-        ? `Stay ${old} min → ${change.visitMin} min · keeps every stop`
-        : `Stay ${change.visitMin} min · keeps every stop`
+        ? `Stay ${old} min → ${change.visitMin} min · All stops kept`
+        : `Stay ${change.visitMin} min · All stops kept`
     }
     case 'move-commitment': {
       const name = nameOf(String(change.stopId))
@@ -123,7 +124,7 @@ export function fixChangeLine(
       const at = clockMinutes == null ? '' : ` at ${clock(clockMinutes)}`
       return `${subject} ${day(change.toDayIndex)}${at}`
     }
-    case 'shift-start': return `The day starts at ${clock(change.startMin)}`
+    case 'shift-start': return `Day start · ${clock(change.startMin)}`
   }
 }
 
@@ -321,7 +322,7 @@ function failedSet(set: FixChangeSet, reason: string): FixChangeSet {
 
 function reasonOf(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
-  return text.length > 0 ? text : 'The engine failed without a message.'
+  return text.length > 0 ? text : 'Engine · Failed · No detail'
 }
 
 /**
@@ -336,7 +337,7 @@ export function verifyFixSet(
 ): FixChangeSet {
   try {
     const next = applyFixChangeSet(trip, set)
-    if (!next) return failedSet(set, 'The change set does not apply to this trip.')
+    if (!next) return failedSet(set, 'Change · Unavailable for this trip')
     const before = warningRefsWithDay(trip, legCorrections)
     const after = warningRefsWithDay(next, legCorrections)
     const beforeKeys = new Set(before.map(row => row.key))

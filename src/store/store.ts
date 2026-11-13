@@ -2203,7 +2203,7 @@ export function addDemoTrips(): void {
   // failed exactly when the trip count is untrustworthy, so this is the same
   // condition under a different name.
   if (cache.sliceReads['trips'] === 'failed') {
-    toast('Your trips could not be loaded — try again once they are back.', 'err')
+    toast('Your trips could not be loaded. Try again once they are back.', 'err')
     return
   }
   // Dedupe: a library already holding the seed's names was seeded before.
@@ -2706,7 +2706,7 @@ export function reconcileDays(
       const blocked = next.slice(target).filter(loadBearing)
       return {
         days,
-        error: `Day ${(blocked[0]?.index ?? target) + 1} still has stops or a fixed commitment or a flight — move or delete them before shortening the trip.`,
+        error: `Day ${(blocked[0]?.index ?? target) + 1} still has stops or a fixed commitment or a flight. Move or delete them before shortening the trip.`,
         blocked: blocked.map(d => d.index),
       }
     }
@@ -2921,7 +2921,7 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
   ])
   if (!economy || !price || !roundTrip) {
     if (!optionalColumnsWarned) {
-      console.warn('[yatraflow] trips optional columns missing — run supabase/schema.sql; fuel/round-trip inputs stay session-only until then.')
+      console.warn('[yatraflow] trips optional columns missing: run supabase/schema.sql; fuel/round-trip inputs stay session-only until then.')
       optionalColumnsWarned = true
     }
   }
@@ -3327,7 +3327,7 @@ export async function importTripPersisted(source: Trip, ownerId: ID): Promise<{ 
 
 function requireAdmin(): boolean {
   if (!isAdminCached()) {
-    toast('Admin only — this action needs a masteradmin session.', 'err')
+    toast('Admin only. This action needs a masteradmin session.', 'err')
     return false
   }
   return true
@@ -3592,7 +3592,7 @@ export async function adminDeleteUser(userId: ID, force = false): Promise<boolea
     return false
   }
   finishOperation(removed)
-  toast('User deleted — their data is gone (see the audit log).')
+  toast('User deleted. Their data is gone (see the audit log).')
   void refreshAdminAudit()
   return true
 }
@@ -3669,7 +3669,7 @@ export function deleteTrip(id: ID): void {
   // (nothing calls it since the trash landed; kept for the undo suite) refuses
   // too rather than being the one back door around the guard.
   if (cache.published.some(p => p.tripId === id)) {
-    toast('A published trip cannot be deleted — its publication and its buyers’ records stay with it. Move it to trash instead.', 'err')
+    toast('A published trip cannot be deleted. Its publication and its buyers’ records stay with it. Move it to trash instead.', 'err')
     return
   }
   const removed = cache.trips[idx]
@@ -3901,7 +3901,7 @@ export function trashTrip(trip: Trip): void {
   if (onSale.length) {
     const me = cache.sessionUserId
     if (!me || onSale.some(p => p.creatorId !== me)) {
-      toast('Only the trip owner can trash a published trip — its public page has to stop selling with it.', 'err')
+      toast('Only the trip owner can trash a published trip. Its public page has to stop selling with it.', 'err')
       return
     }
   }
@@ -3930,7 +3930,7 @@ export function trashTrip(trip: Trip): void {
       if (pubs.length) {
         cache.trips = [...cache.trips, trip]
         commit()
-        toast('This database has no trash column — a published trip cannot be deleted here without destroying its buyers’ records.', 'err')
+        toast('This database has no trash column. A published trip cannot be deleted here without destroying its buyers’ records.', 'err')
         return
       }
       await supabase.from('trips').delete().eq('id', trip.id)
@@ -3968,7 +3968,7 @@ export function trashTrip(trip: Trip): void {
         cache.published = prevPubs
         cache.trips = [...cache.trips, trip]
         commit()
-        toast('Could not stop the plan from selling — the trip was not moved to trash.', 'err')
+        toast('Could not stop the plan from selling. The trip was not moved to trash.', 'err')
         return
       }
       for (const p of onSale) markLocalWrite('published_itineraries', p.id)
@@ -5783,7 +5783,7 @@ export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']):
         if (dm) dm.role = previousRole
       }, { touch: false })
       commit()
-      toast(`Couldn't change that role — it has been put back. (${res.error.message ?? 'write refused'})`, 'err')
+      toast(`Couldn't change that role. It has been put back. (${res.error.message ?? 'write refused'})`, 'err')
     },
     err => {
       console.error('[yatraflow] trip_members write rejected', err)
@@ -5792,7 +5792,7 @@ export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']):
         if (dm) dm.role = previousRole
       }, { touch: false })
       commit()
-      toast('Couldn’t change that role — check your connection.', 'err')
+      toast('Couldn’t change that role. Check your connection.', 'err')
     },
   )
 }
@@ -6208,12 +6208,12 @@ export function removeMember(tripId: ID, userId: ID): void {
       if (!res?.error) return
       console.error('[yatraflow] trip_members write failed', res.error)
       restore()
-      toast(`Couldn't remove that traveller — they're still on the trip. (${res.error.message ?? 'write refused'})`, 'err')
+      toast(`Couldn't remove that traveller. They're still on the trip. (${res.error.message ?? 'write refused'})`, 'err')
     },
     err => {
       console.error('[yatraflow] trip_members write rejected', err)
       restore()
-      toast('Couldn’t remove that traveller — check your connection.', 'err')
+      toast('Couldn’t remove that traveller. Check your connection.', 'err')
     },
   )
 }
@@ -7770,7 +7770,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     if (ownedUrl && tripCoverBefore !== ownedUrl) {
       updateTrip(p.tripId, { coverImageUrl: tripCoverBefore })
     }
-    return { ok: false, error: 'Could not save the publication — nothing was published. Try again.' }
+    return { ok: false, error: 'Could not save the publication. Nothing was published. Try again.' }
   } else {
     markLocalWrite('published_itineraries', p.id)
     // A published itinerary is a public page: flip the trip to visibility
@@ -7941,8 +7941,8 @@ export function unpublishItinerary(tripId: ID): void {
     // refuse and say why. (Checked BEFORE the optimistic stamp, so a refusal
     // changes nothing at all — not even for one frame.)
     if (!(await publishedHaveUnpublishedAt())) {
-      console.warn('[yatraflow] published_itineraries.unpublished_at missing — run supabase/migrations/20260925_publication_soft_unpublish.sql; unpublish is unavailable until then (the row must survive for its buyers).')
-      toast('Unpublish needs the soft-unpublish migration (20260925_publication_soft_unpublish.sql) — it is not applied yet.', 'err')
+      console.warn('[yatraflow] published_itineraries.unpublished_at missing: run supabase/migrations/20260925_publication_soft_unpublish.sql; unpublish is unavailable until then (the row must survive for its buyers).')
+      toast('Unpublish needs the soft-unpublish migration (20260925_publication_soft_unpublish.sql). It is not applied yet.', 'err')
       return
     }
     const stamp = Date.now()
@@ -7963,7 +7963,7 @@ export function unpublishItinerary(tripId: ID): void {
     }
     if (failed) {
       console.error('[yatraflow] unpublish persist failed', failed)
-      toast('Could not unpublish — the plan is still live on Explore. (' + (failed.message ?? 'unknown error') + ')')
+      toast('Could not unpublish. The plan is still live on Explore. (' + (failed.message ?? 'unknown error') + ')')
       // Roll the marker back off; the next refresh would drop it anyway, and
       // until then the UI must not disagree with the server.
       cache.published = cache.published.map(p => (p.id === pub.id ? previous : p))

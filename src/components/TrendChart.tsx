@@ -175,7 +175,7 @@ export function TrendChart({ points, label, unlockRead = 'ready' }: { points: Fu
    *  way rather than written as a sentence. The sentence form reads "1 forks" for a
    *  single fork — the small wrongness the hub's own `unit` helper exists to stop —
    *  and the labels keep the two readings identical besides. */
-  const activeSpoken = active === null ? '' : `${axisDay(active.day)} — Visits: ${active.views.toLocaleString('en-IN')}, Forks: ${active.forks.toLocaleString('en-IN')}, Unlocks: ${unlockRead === 'ready' ? active.unlocks.toLocaleString('en-IN') : unlockRead === 'reading' ? 'reading' : 'not read'}.`
+  const activeSpoken = active === null ? '' : `${axisDay(active.day)} · Visits: ${active.views.toLocaleString('en-IN')}, Forks: ${active.forks.toLocaleString('en-IN')}, Unlocks: ${unlockRead === 'ready' ? active.unlocks.toLocaleString('en-IN') : unlockRead === 'reading' ? 'reading' : 'not read'}.`
 
   /** Nearest day index to the pointer, or null when there is nothing to track.
    *  The SVG scales to its container, so the mouse position is converted through

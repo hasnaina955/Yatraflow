@@ -19,7 +19,7 @@ import { useTimeFormat, formatHM } from '../lib/timefmt'
 import { extraJourneyMarkers } from '../lib/journeyMarkers'
 import { allViewFitPoints, boundsOf, type LatLng } from '../lib/mapFit'
 import { coincidentPinOffsets } from '../lib/pinOffsets'
-import { clusterCandidates, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
+import { clusterCandidates, clusterCountLabel, clusterFeatureCollection, clusterSummary, clearOfMarks, splitByCluster } from '../lib/mapCluster'
 import { googleMapsDirectionsUrl } from '../lib/externalMaps'
 import { openExternal } from '../lib/native'
 import { titleCase } from '../lib/labels'
@@ -50,14 +50,13 @@ import {
 import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, Car, CircleDot, Clock, Compass, Crosshair, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
+  Box, Car, CircleDot, Clock, Compass, Crosshair, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, MoreHorizontal, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
 import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
 import { standsOnLastNightStay } from './map/railModel'
-import { MapPhoneLocate } from './map/MapWorkspaceChrome'
 import { MapBasemapStatus, useWorkspaceBasemapStatus } from './map/MapBasemapStatus'
 import { DetourSpurOverlay } from './map/DetourSpurOverlay'
 import {
@@ -69,6 +68,7 @@ import {
   MapGeoJSON,
   type MapGeoJSONData,
   MapClusterLayer,
+  type ClusterBadge,
   MapControls,
   prefersCooperativeGestures,
   wantsCooperativeGestures,
@@ -106,9 +106,28 @@ const ROUGH_DASH: [number, number] = [2, 2]
 // 4.69 / 6.51 / 7.44:1 there, pinned by tests/map-cluster.test.ts.
 const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#123F49']
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
+/** A soft start and a soft end for a long camera glide. */
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+/** Close every open map tool menu that does not hold `keep`. */
+function closeToolMenus(keep: Element | null): void {
+  document.querySelectorAll<HTMLDetailsElement>('.mv2-tool-menu[open]').forEach(menu => { if (!keep || !menu.contains(keep)) menu.open = false })
+}
+// The clear room a road tick keeps around itself, in px, so two shown ticks never touch.
+const TICK_ROOM = 36
+// The workspace badge: a white chip with a sea ring and a soft halo, like the idea pins.
+const WORKSPACE_CLUSTER_COLORS: [string, string, string] = ['#FFFFFF', '#FFFFFF', '#FFFFFF']
+// A group draws as a DOM pin: a pile of pick tiles with its count. It is a mark
+// like any other, so it slides off a stop instead of hiding under it.
+const GROUP_BOX = { w: 42, h: 46 }
+const GROUP_MAX_TRAVEL = 64
+/** The size band of a group, by the same thresholds as the clusterer. */
+function groupSize(count: number): 's' | 'm' | 'l' {
+  return count >= IDEA_CLUSTER_THRESHOLDS[1] ? 'l' : count >= IDEA_CLUSTER_THRESHOLDS[0] ? 'm' : 's'
+}
 /** The workspace chrome hands the cluster layer no point, so no canvas badge can
  *  stand under a stop pin. One object, so the layer's data effect does not churn. */
-const NO_CLUSTER_DATA = { type: 'FeatureCollection' as const, features: [] }
 
 // How long the map's ready gate waits for the style's 'load' event before
 // opening anyway (see the mapLoaded effect). The fit behind that gate is a
@@ -125,6 +144,9 @@ const CLOCK_BOX = { w: 96, h: 26, dy: 33 }
 const WARN_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
 const SLOT_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
 const PICK_BOX = { w: 44, h: 44 }
+// The glyph fills two thirds of the 30 px pick tile, with a heavier line, so the
+// umbrella or the waterfall reads at a glance and not only the coloured tile.
+const MAP_PICK_GLYPH = { size: 20, stroke: 2.4 }
 // A pick with its add button is a column. The pick pad reaches 14px above it and the add pad 26px below.
 const PICK_ADD_BOX = { w: 44, h: 91 }
 const PICK_ADD_SHIFT = 6
@@ -569,7 +591,7 @@ export interface PreviewRoadView {
   legOutMeasured: boolean | null
 }
 
-export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickTags, routeMarks = [], pickLetters, warningMarks = [], stopWarning = null, corridorDay = null }: {
+export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusDay, onDayFilterChange, tripReadinessRows = [], showToolbar = true, enableMapViewModes = false, dedicated = false, activeHitId = null, onActivateHit, onOpenInTimeline, onOpenInBoard, onDeleteStop, mainRouteGeometry = null, returnRouteGeometry = null, allowSelfMeasurement = true, clockMilestones = null, onOpenHaltDay, onShowReturnChange, slotPins = [], onOpenSlot, hitCosts, searchHitIds, legCorrections, mapTarget = null, onMapTargetConsumed, workspaceChrome = false, overlayInsets, instantTarget = false, journeyCursor = null, selectedDay = null, ghostRoad = null, previewRoad = null, stayRings = [], frameStayRing = false, gapRings = [], onGapRing, pickBands, pickTags, routeMarks = [], pickLetters, warningMarks = [], stopWarning = null, corridorDay = null, onBlankMapClick }: {
   trip: Trip
   onOpenStop?: (stopId: string) => void
   /** potential POIs to show as gold "idea" markers */
@@ -583,6 +605,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   selectedDay?: number | null
   /** The one day that draws the Drive corridor wash. Null draws no corridor. */
   corridorDay?: number | null
+  /** A tap on bare map, after the map closed its own floating parts. */
+  onBlankMapClick?: () => void
   /** An edit preview's roads. New roads draw dashed, the replaced road draws dim. */
   ghostRoad?: GhostRoad | null
   /** The add preview's proposed road. It draws dashed in the day colour, under
@@ -694,7 +718,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [, setViewTick] = useState(0)
   // The compass shows the map's own bearing and resets it to north.
   const [bearing, setBearing] = useState(0)
-  const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
   const toolbarId = useId()
   // A host drives the day filter through the prop (Board columns, the slots
   // rail's day strip); the map's own chips report their choice back through
@@ -738,8 +761,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [legendOpen, setLegendOpen] = useState(() => loadFlag('map_legend_open', false))
   const keyId = useId()
   const keyToggle = useRef<HTMLButtonElement>(null)
-  // The control column scrolls when the map is short. A menu that opens in it scrolls itself into view.
-  const revealInColumn = useCallback((el: HTMLElement | null) => { el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }, [])
   function closeWorkspaceKey() {
     setLegendOpen(false)
     saveFlag('map_legend_open', false)
@@ -800,6 +821,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1])
   }, [nearbyPois])
+  const shownIdeaCats = ideaCats.filter(([cat]) => !hiddenIdeaCats.has(cat)).length
   // Coord-less ideas (Mappls eLoc hits arrive as 0,0) resolve in the
   // background — Google Place Details when a placeId exists, Nominatim
   // otherwise (1 req/s). Markers pop in as coords land; failures stay
@@ -870,6 +892,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Stable identity matters: a new callback re-subscribes the layer's reporting
   // effect and re-reports on every render.
   const onClustersChange = useCallback((ids: Set<string>) => { setClusteredIds(ids) }, [])
+  // The workspace draws each group as its own pin, from the place and count the layer reports.
+  const [clusterBadges, setClusterBadges] = useState<ClusterBadge[]>([])
+  const onClusterBadges = useCallback((badges: ClusterBadge[]) => { setClusterBadges(badges) }, [])
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -1074,9 +1099,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const clusterPins = useMemo(
     () => clusterCandidates(
       markPois.filter(h => !slotPinIds.has(String(h.id))),
-      { activeId: activeHitId, searchIds: searchHitIds },
+      { activeId: activeHitId, searchIds: searchHitIds, keepIds: pickLetters ? new Set(Object.keys(pickLetters)) : null },
     ),
-    [markPois, slotPinIds, activeHitId, searchHitIds],
+    [markPois, slotPinIds, activeHitId, searchHitIds, pickLetters],
   )
   const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
   const { individual: individualClusterPins } = useMemo(
@@ -1183,6 +1208,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const hasAdd = !!onAddNearby && !workspaceChrome
       spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
     }
+    if (workspaceChrome) for (const badge of clusterBadges) spreadMarks.push({ id: `group:${badge.id}`, layer: 'group', x: 0, y: 0, ...GROUP_BOX, lat: badge.lat, lng: badge.lng, ox: 0, oy: 0, maxTravel: GROUP_MAX_TRAVEL })
   }
   // The road labels, the route ticks and the pick words are pills too. They yield to the stops,
   // slide a short way, or hide. They come after the stop pills, so a stop's own pill wins a spot.
@@ -1201,7 +1227,10 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     for (const mark of [...routeMarks].sort((a, b) => Number(a.kind === 'tick') - Number(b.kind === 'tick'))) {
       if (!validMapCoordinate({ lat: mark.lat, lng: mark.lng })) continue
       const text = mark.label + (mark.sub ?? '')
-      spreadMarks.push({ id: `route:${mark.id}`, layer: 'clock', x: 0, y: 0, w: mark.kind === 'tick' ? CLOCK_BOX.w : text.length * 7.2 + 26, h: CLOCK_BOX.h, lat: mark.lat, lng: mark.lng, ox: 0, oy: 0, ...(mark.kind === 'tick' ? {} : { maxTravel: 160 }) })
+      // A road tick never slides: a slid tick reads as a wrong place, and a crowd of them stacked
+      // into a column. It hides when its own spot is taken, and it claims extra room, so the
+      // ticks that stay are spaced out. The density follows the zoom with no extra rule.
+      spreadMarks.push({ id: `route:${mark.id}`, layer: 'clock', x: 0, y: 0, w: mark.kind === 'tick' ? CLOCK_BOX.w + TICK_ROOM : text.length * 7.2 + 26, h: mark.kind === 'tick' ? CLOCK_BOX.h + TICK_ROOM : CLOCK_BOX.h, lat: mark.lat, lng: mark.lng, ox: 0, oy: 0, maxTravel: mark.kind === 'tick' ? 0 : 160 })
     }
     for (const hit of markPois) {
       const tagText = pickTags?.[String(hit.id)]
@@ -1210,6 +1239,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       spreadMarks.push({ id: `pick-tag:${hit.id}`, layer: 'clock', follows: `pick:${hit.id}`, x: (PICK_BOX.w + w) / 2 + 4, y: 0, w, h: 24, lat: hit.latitude, lng: hit.longitude, ox: 0, oy: 0 })
     }
   }
+  // The Layers button shows a dot while a layer differs from its default. A hidden layer is never a secret.
+  const layersChanged = (!!clockMilestones && !clockOn) || (!!returnLeg && !showReturn) || shownIdeaCats < ideaCats.length
   const spreadKey = spreadMarks.map(m => `${m.id}@${m.lat.toFixed(5)},${m.lng.toFixed(5)}`).join('|')
   const spreadMarksRef = useRef(spreadMarks)
   // Effects run top to bottom, so this one feeds the spread and camera effects below it in the same commit.
@@ -1398,6 +1429,38 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
   }, [mapLoaded])
 
+  // Light dismiss. A tap on bare map closes what floats over it: the open tool menu, the stop
+  // card, the map key, the credit line, and the caller's place card. MapLibre fires no click
+  // after a drag, so a pan never closes anything. A tap on a group badge zooms in and keeps them.
+  const onBlankMapClickRef = useRef(onBlankMapClick)
+  useEffect(() => { onBlankMapClickRef.current = onBlankMapClick })
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !workspaceChrome) return
+    const map = mapRef.current
+    const onClick = (event: { point: { x: number; y: number }; originalEvent?: Event }) => {
+      // Markers sit inside the map container, so a tap on a pin also reaches
+      // here. Only a tap on the bare map is a blank click.
+      const target = event.originalEvent?.target
+      if (target instanceof Element && target.closest('.maplibregl-marker, .maplibregl-popup')) return
+      const onBadge = map.queryRenderedFeatures([event.point.x, event.point.y]).some(f => f.layer.id.startsWith('clusters-') || f.layer.id.startsWith('cluster-count-'))
+      if (onBadge) return
+      closeToolMenus(null)
+      setSelectedStop(null)
+      setLegendOpen(open => { if (open) saveFlag('map_legend_open', false); return false })
+      map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact-show')?.classList.remove('maplibregl-compact-show')
+      onBlankMapClickRef.current?.()
+    }
+    map.on('click', onClick)
+    return () => { map.off('click', onClick) }
+  }, [mapLoaded, workspaceChrome])
+  // A press outside an open tool menu closes it, so opening one menu closes the other.
+  useEffect(() => {
+    if (!workspaceChrome) return
+    const onPointerDown = (event: PointerEvent) => closeToolMenus(event.target instanceof Element ? event.target : null)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [workspaceChrome])
+
   // The Stay lens frames its own reach ring. While it does, the route fit below
   // yields: a later resize would otherwise pull the camera back out to the day.
   const stayOwnsCamera = frameStayRing && stayRings.length > 0
@@ -1427,13 +1490,17 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const overflow = frameOverflow(layoutOnMap(m).boxes, safeRect(size, insets))
       if (!hasOverflow(overflow) || attempt >= 3) return
       const grown = addInsets(extra, overflow)
-      m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: 0 })
-      settle(attempt + 1, grown)
+      // The correction glides too. A snap at the end of the day glide read as a jerk.
+      const nudge = prefersReducedMotion() ? 0 : motionTiming('--motion-med').duration
+      m.fitBounds(bounds, { padding: clampInsets(size, addInsets(addInsets(insets, MARK_FRAME_MARGIN), grown)), maxZoom: 12, duration: nudge, easing: easeInOutCubic })
+      if (nudge === 0) settle(attempt + 1, grown)
+      else m.once('moveend', () => settle(attempt + 1, grown))
     }
     const run = () => {
       m.resize()
-      const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration
-      m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration })
+      // A new day is a long move across the map. It takes the slower glide, with a soft start and end.
+      const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slower').duration
+      m.fitBounds(bounds, { padding: cameraPadding(), maxZoom: 12, duration, easing: easeInOutCubic })
       if (!workspaceChrome) return
       if (duration === 0) settle(0, { top: 0, bottom: 0, left: 0, right: 0 })
       else m.once('moveend', () => settle(0, { top: 0, bottom: 0, left: 0, right: 0 }))
@@ -1759,87 +1826,82 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [dayFilter, dayRoutePoints],
   )
 
+  const nextViewMode = MAP_VIEW_MODES[(MAP_VIEW_MODES.indexOf(viewMode) + 1) % MAP_VIEW_MODES.length]
+  function cycleViewMode() { haptic('select'); setViewMode(nextViewMode) }
+  function viewModeGlyph(mode: typeof viewMode): React.ReactNode {
+    return mode === 'terrain' ? <Mountain size={16} aria-hidden /> : MAP_VIEW_MODE_META[mode].label
+  }
+
   return (
-    <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open={workspaceToolsOpen ? 'true' : 'false'}>
-      {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><Layers size={18} aria-hidden /></button>}
-      {workspaceChrome && showToolbar && <MapPhoneLocate onLocate={fitToTrip} />}
+    <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open="true">
       {showToolbar && (
       <div className="map-toolbar" id={toolbarId}>
         {workspaceChrome ? (
         <div className="mv2-map-tools" role="group" aria-label="Map tools">
-          {/* W8-tools card 1: zoom. The board keeps + and - apart with a hairline. */}
-          <div className="mv2-map-tools-card mv2-map-tools-card--zoom" role="group" aria-label="Zoom">
-            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom in" title="Zoom in"
-              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + 1, { duration: motionTiming('--motion-med').duration }) }}>
-              <Plus size={17} aria-hidden />
-            </button>
-            <span className="mv2-map-tools-divider" aria-hidden="true" />
-            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom out" title="Zoom out"
-              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - 1, { duration: motionTiming('--motion-med').duration }) }}>
-              <Minus size={17} aria-hidden />
-            </button>
+          <div className="mv2-map-tools-card mv2-map-tools-card--zoom" role="group" aria-label="Zoom and recentre">
+            <button type="button" className="mv2-map-tools-btn mv2-zoom" aria-label="Zoom in" title="Zoom in" onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + 1, { duration: motionTiming('--motion-med').duration }) }}><Plus size={17} aria-hidden /></button>
+            <button type="button" className="mv2-map-tools-btn mv2-zoom" aria-label="Zoom out" title="Zoom out" onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - 1, { duration: motionTiming('--motion-med').duration }) }}><Minus size={17} aria-hidden /></button>
+            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
+            {bearing !== 0 && <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing} onClick={() => mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration })} aria-label="Turn the map back to north" title="Turn the map back to north"><Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} /></button>}
           </div>
-          {/* W8-tools card 2: view modes as text. Only the active mode wears the wash. */}
           {enableMapViewModes && (
-          <div className="mv2-map-tools-card mv2-map-tools-card--mode" role="group" aria-label="Map view mode">
-            {MAP_VIEW_MODES.map(m => (
-              <button
-                key={m}
-                type="button"
-                className={`mv2-map-tools-btn${viewMode === m ? ' on' : ''}`}
-                aria-pressed={viewMode === m}
-                aria-label={MAP_VIEW_MODE_META[m].aria}
-                title={MAP_VIEW_MODE_META[m].aria}
-                onClick={() => { haptic('select'); setViewMode(m) }}
-              >
-                {m === 'terrain' ? 'TER' : MAP_VIEW_MODE_META[m].label}
-              </button>
-            ))}
+          // One button cycles flat, relief and 3D. It shows the view that is on now.
+          <div className="mv2-map-tools-card mv2-map-view" role="group" aria-label="Map view mode">
+            <button
+              type="button"
+              className="mv2-map-tools-btn mv2-map-view-cycle"
+              data-mode={viewMode}
+              aria-label={`Map view: ${MAP_VIEW_MODE_META[viewMode].aria}. Switch to ${MAP_VIEW_MODE_META[nextViewMode].aria}`}
+              title={`${MAP_VIEW_MODE_META[viewMode].aria} · Click for ${MAP_VIEW_MODE_META[nextViewMode].aria}`}
+              onClick={cycleViewMode}
+            >
+              <span key={viewMode} className="mv2-map-view-glyph">{viewModeGlyph(viewMode)}</span>
+            </button>
           </div>
           )}
-          {/* W8-tools card 3: compass, locate, clock, layers, directions and expand. */}
-          <div className="mv2-map-tools-card mv2-map-tools-card--tools" role="group" aria-label="Map layers and day actions">
-            <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing}
-              onClick={() => { mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration }) }}
-              aria-label={bearing === 0 ? 'The map points north' : `Turn the map back to north. It is turned ${Math.abs(bearing)} degrees`}
-              title={bearing === 0 ? 'The map points north' : 'Turn the map back to north'}>
-              <Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} />
-            </button>
-            <span className="mv2-map-tools-divider" aria-hidden="true" />
-            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
-            {clockMilestones && (
-              <><span className="mv2-map-tools-divider" aria-hidden="true" />
-                <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
-                  aria-label="Show or hide the road milestones" title="Show or hide the road milestones - each planned stop's time and distance on the road"><Clock size={17} aria-hidden /></button></>
-            )}
-            {returnLeg && (
-              <><span className="mv2-map-tools-divider" aria-hidden="true" />
-                <button type="button" className={`mv2-map-tools-btn${showReturn ? ' on' : ''}`} aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
-                  aria-label="Show or hide the return leg" title={showReturn
-                    ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
-                    : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}><RotateCcw size={17} aria-hidden /></button></>
+          <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
+            <summary className="mv2-icon-btn" aria-label="Layers" title="Layers"><Layers size={18} aria-hidden />{layersChanged && <span className="mv2-layers-dot" aria-hidden="true" />}</summary>
+            <div className="mv2-tool-menu-body popover mv2-layers" aria-label="Map layers">
+            {(clockMilestones || returnLeg) && (
+              <section className="mv2-layers-sec">
+                <h4 className="mv2-layers-title">On the map</h4>
+                {clockMilestones && (
+                  <button type="button" className="mv2-layer-row" aria-pressed={clockOn} onClick={toggleClock}
+                    aria-label="Road milestones" title="Show or hide each planned stop's time and distance on the road">
+                    <Clock size={15} aria-hidden /><span className="mv2-layer-name">Road milestones</span><span className="mv2-switch" aria-hidden="true" />
+                  </button>
+                )}
+                {returnLeg && (
+                  <button type="button" className="mv2-layer-row" aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
+                    aria-label="Return leg" title={showReturn
+                      ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
+                      : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}>
+                    <RotateCcw size={15} aria-hidden /><span className="mv2-layer-name">Return leg</span><span className="mv2-switch" aria-hidden="true" />
+                  </button>
+                )}
+              </section>
             )}
             {ideaCats.length > 0 && (
-              <><span className="mv2-map-tools-divider" aria-hidden="true" />
-                <div className="map-filters">
-                  <button type="button" className="mv2-map-tools-btn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}
-                    aria-label="Filter nearby ideas by type"
-                    title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
-                    <Layers size={17} aria-hidden />
+              <section className="mv2-layers-sec" role="group" aria-label="Nearby idea categories">
+                <h4 className="mv2-layers-title">Ideas<span className="mv2-layers-count">{shownIdeaCats} / {ideaCats.length} shown</span></h4>
+                {ideaCats.map(([cat, count]) => (
+                  <button key={cat} type="button" className="mv2-layer-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
+                    <CatIcon category={cat} size={15} aria-hidden />
+                    <span className="mv2-layer-name">{titleCase(cat)}</span>
+                    <span className="mv2-layer-n">{count}</span>
+                    <span className="mv2-switch" aria-hidden="true" />
                   </button>
-                  {filtersOpen && (
-                    <div className="map-filters-pop popover" role="group" aria-label="Nearby idea categories" ref={revealInColumn}>
-                      {ideaCats.map(([cat, count]) => (
-                        <button key={cat} className="map-filters-row" aria-pressed={!hiddenIdeaCats.has(cat)} onClick={() => toggleIdeaCat(cat)}>
-                          <CatIcon category={cat} size={13} aria-hidden />
-                          {titleCase(cat)}
-                          <span className="n">{count}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div></>
+                ))}
+              </section>
             )}
+            </div>
+          </details>
+          <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
+            <summary className="mv2-icon-btn" aria-label="More map tools" title="More map tools"><MoreHorizontal size={18} aria-hidden /></summary>
+            <div className="mv2-tool-menu-body popover" aria-label="More map tools">
+            {/* The phone keeps the view switch in this menu, so the tools column stays short. */}
+            {enableMapViewModes && <button type="button" className="mv2-map-tools-btn mv2-map-view-menu" data-mode={viewMode}
+              aria-label={`Map view: ${MAP_VIEW_MODE_META[viewMode].aria}`} title={`Click for ${MAP_VIEW_MODE_META[nextViewMode].aria}`} onClick={cycleViewMode}>{viewModeGlyph(viewMode)}</button>}
             {dayDirectionsUrl && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className="mv2-map-tools-btn" onClick={() => openExternal(dayDirectionsUrl)}
@@ -1852,8 +1914,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}>
               {expanded ? <X size={17} aria-hidden /> : <Maximize2 size={17} aria-hidden />}
             </button>
-          </div>
-          <div className="mv2-map-tools-card mv2-map-tools-card--extras" role="group" aria-label="Live location and map key">
             <button type="button" className={`mv2-map-tools-btn${liveOn ? ' on' : ''}`}
               onClick={toggleLive} aria-pressed={liveOn}
               aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
@@ -1867,7 +1927,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               title={legendOpen ? 'Hide the map key' : 'Show the map key'}>
               {legendOpen ? <X size={17} aria-hidden /> : <Info size={17} aria-hidden />}
             </button>
-          </div>
+            </div>
+          </details>
         </div>
         ) : (
         <>
@@ -1944,7 +2005,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 className="map-day-chip map-day-chip--util"
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(o => !o)}
-                title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
+                title={hiddenIdeaCats.size > 0 ? `Idea filters: ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
               >
                 Filters{hiddenIdeaCats.size > 0 ? ` (${hiddenIdeaCats.size})` : ''}
               </button>
@@ -2249,19 +2310,39 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 false because every pin the map did NOT group keeps its own DOM
                 marker below — tooltip, role, keyboard activation and all — so a
                 GL circle for it would be a second, dead copy.
-                W14: the workspace chrome draws no canvas badge. A badge sits
-                under every DOM mark, so one that landed on a stop or a start
-                flag showed as a stray dark crescent behind the pin and hid its
-                own count. The board draws its picks individually with letters,
-                so the workspace hands the clusterer nothing; the classic map
-                keeps the grouping. */}
+                The workspace groups its picks too. A pick never slides off its
+                place, so a crowd shows as one count bubble that splits on zoom.
+                The workspace draws each group as a DOM pin (below), so the
+                pin slides off a stop like any mark. Lettered picks stay single. */}
             <MapClusterLayer
-              data={workspaceChrome ? NO_CLUSTER_DATA : clusterData}
-              clusterColors={IDEA_CLUSTER_COLORS}
+              data={clusterData}
+              clusterColors={workspaceChrome ? WORKSPACE_CLUSTER_COLORS : IDEA_CLUSTER_COLORS}
+              drawBadges={!workspaceChrome}
+              onClusterBadges={workspaceChrome ? onClusterBadges : undefined}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}
               onClustersChange={onClustersChange}
             />
+            {workspaceChrome && clusterBadges.map(badge => {
+              const label = clusterCountLabel(badge.count)
+              return (
+                <MapMarker key={`group_${badge.id}`} longitude={badge.lng} latitude={badge.lat}>
+                  <MarkerContent>
+                    {offsetWrap(`group:${badge.id}`, <button
+                      type="button"
+                      className="mv2-stack"
+                      data-size={groupSize(badge.count)}
+                      aria-label={`${label}. Zoom in to open`}
+                      title={`${label} · Click to open`}
+                      onClick={e => {
+                        e.stopPropagation()
+                        mapRef.current?.easeTo({ center: [badge.lng, badge.lat], zoom: Math.max(badge.expandZoom, (mapRef.current?.getZoom() ?? 0) + 1), duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration, easing: easeInOutCubic })
+                      }}
+                    >{badge.count}</button>)}
+                  </MarkerContent>
+                </MapMarker>
+              )
+            })}
             {/* P5.3: the day's empty parts stand on the map - hollow amber pins at
                 their top candidate's real position (placeholder hits resolve via
                 the same coord-fix pass as the ideas), the cost line in the tooltip. */}
@@ -2432,7 +2513,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         onClick={() => onActivateHit?.(hit.id as string | number)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivateHit?.(hit.id as string | number) } }}
                       >
-                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
+                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={MAP_PICK_GLYPH.size} strokeWidth={MAP_PICK_GLYPH.stroke} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
                       {pickTags?.[String(hit.id)] != null && <span className="mv2-pick-tag" data-band={band} data-collapsed={camMoving || markSpots.get(`pick-tag:${hit.id}`)?.hidden ? 'true' : undefined} style={(() => { const t = markSpots.get(`pick-tag:${hit.id}`); return t && !t.hidden && (t.dx || t.dy) ? { translate: `${t.dx}px ${t.dy}px` } : undefined })()}>{pickTags[String(hit.id)]}</span>}
                       {onAddNearby && !workspaceChrome && (
@@ -2449,7 +2530,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                   <MarkerTooltip>
                     {isSearchHit && <><InlineIcon icon={Search} size={12} gap={3} vAlign="-1px" />Search result: </>}
                     {!isSearchHit && <InlineIcon icon={Lightbulb} size={12} gap={3} vAlign="-1px" />}
-                    {hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
+                    {hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'Overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )
@@ -2507,9 +2588,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           {legendOpen && (workspaceChrome ? <MapWorkspaceKey id={keyId} onClose={closeWorkspaceKey} /> : (
             <div className="map-legend-body">
               {dayFilter === 'all'
-                ? <>main line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
-                : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · a teal count badge groups nearby ideas — zoom in to open one · click a pin for details · hollow amber pin = an unplanned part · tap to open it
+                ? <>Main line · Whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
+                : <>Colours · Day · </>}
+              Pin · Stop type · Number · Timeline order · Dashed pin · Tentative · Flag · Endpoint · Gold bulb · Nearby picks{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · Teal count · Nearby picks · Pin · Place details · Hollow amber pin · Unplanned part
             </div>
           ))}
         </div>
@@ -2523,7 +2604,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         </p>
       )}
       <p className="hint-text tm-note">
-        <InlineIcon icon={TriangleAlert} size={12} gap={3} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes - no live traffic data.
+        <InlineIcon icon={TriangleAlert} size={12} gap={3} />Roads · OSRM/OpenStreetMap · Offline routes · Estimated · Traffic · Unavailable
       </p>
     </div>
   )

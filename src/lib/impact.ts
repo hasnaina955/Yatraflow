@@ -122,7 +122,7 @@ function assumptionsText(trip: Trip): string {
     `Buffer ${A.bufferMinutesPerStop} min per stop`,
     `Time includes driving + stop time`,
     `Road distance ≈ straight-line × 1.25`,
-    `Demo coordinates — not live traffic`,
+    `Demo coordinates. Not live traffic`,
   ].join(' · ')
 }
 
@@ -157,7 +157,7 @@ export function computeImpact(trip: Trip, proposed: Trip, kind: ImpactResult['ki
       sim.activeStops.forEach((s, i) => {
         const key = String(s.id)
         if (m.has(key)) return // a corrupt duplicate id must not clobber the first
-        m.set(key, { title: s.title, at: sim.arrivalTimes[i] ?? '—' })
+        m.set(key, { title: s.title, at: sim.arrivalTimes[i] ?? 'Not available' })
       })
       return m
     }
@@ -165,11 +165,11 @@ export function computeImpact(trip: Trip, proposed: Trip, kind: ImpactResult['ki
     const after = byId(simP)
     for (const [id, stop] of after) {
       const was = before.get(id)
-      if (!was) arrivalChanges.push({ stopTitle: stop.title, from: '—', to: stop.at })
+      if (!was) arrivalChanges.push({ stopTitle: stop.title, from: 'Not available', to: stop.at })
       else if (was.at !== stop.at) arrivalChanges.push({ stopTitle: stop.title, from: was.at, to: stop.at })
     }
     for (const [id, stop] of before) {
-      if (!after.has(id)) arrivalChanges.push({ stopTitle: stop.title, from: stop.at, to: '—' })
+      if (!after.has(id)) arrivalChanges.push({ stopTitle: stop.title, from: stop.at, to: 'Not available' })
     }
   }
 

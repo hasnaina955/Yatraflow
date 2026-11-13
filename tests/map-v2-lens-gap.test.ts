@@ -140,11 +140,11 @@ describe('GAP_NO_FIT_TEXT', () => {
     expect(reasons).toHaveLength(3)
     for (const reason of reasons) {
       expect(GAP_NO_FIT_TEXT[reason].length).toBeGreaterThan(0)
-      expect(GAP_NO_FIT_TEXT[reason].endsWith('.')).toBe(true)
+      expect(GAP_NO_FIT_TEXT[reason].endsWith('.')).toBe(false)
     }
-    expect(GAP_NO_FIT_TEXT['no-candidates']).toBe('No open place of this kind was found near the road for this window.')
-    expect(GAP_NO_FIT_TEXT['outside-window']).toBe('The places found are open, but none can be reached inside this window.')
-    expect(GAP_NO_FIT_TEXT['window-unproven']).toBe('This part of the day has no proven time window yet.')
+    expect(GAP_NO_FIT_TEXT['no-candidates']).toBe('Places · None open in this window')
+    expect(GAP_NO_FIT_TEXT['outside-window']).toBe('Places · None reachable in this window')
+    expect(GAP_NO_FIT_TEXT['window-unproven']).toBe('Time window · Not measured')
   })
 })
 

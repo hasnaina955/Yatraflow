@@ -47,8 +47,12 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 4 // 4 hours
  * category-only edit used to hit the same hash and serve the old ranked
  * pool (F18); v8 entries cannot say what ranking they were built for, so
  * they evict with the bump.
+ *
+ * Bumped to 10 on 2026-11-13: the Drive corridor keeps picks stretch by
+ * stretch along the road, and a long drive keeps more of them. A v9 pool was
+ * ranked for one town to fill every slot, so it evicts with the bump.
  */
-const CACHE_VERSION = 9
+const CACHE_VERSION = 10
 
 /**
  * Build the cache key from every input the corridor search reads. Kept here

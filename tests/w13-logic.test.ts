@@ -116,13 +116,13 @@ describe('stay ring', () => {
 
   it('draws the widen button in the empty walk body', () => {
     const html = stayHtml([pick('A', 20, 6)], 'walk-15')
-    expect(html).toContain('Nothing open around the stay in this window.')
+    expect(html).toContain('Stay · No open places in this window')
     expect(html).toContain('Try ≤30 min drive')
   })
 
   it('draws no button when the drive ring is empty too', () => {
     const html = stayHtml([pick('A', 20, 40)], 'walk-15')
-    expect(html).toContain('Nothing open around the stay in this window.')
+    expect(html).toContain('Stay · No open places in this window')
     expect(html).not.toContain('Try ≤30 min drive')
   })
 })

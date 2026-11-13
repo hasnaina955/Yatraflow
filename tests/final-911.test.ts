@@ -35,7 +35,7 @@ describe('LensPhaseNote', () => {
 
   it('names this day in the gap texts, never the stay', () => {
     for (const text of Object.values(GAP_PHASE_TEXT)) expect(text).not.toMatch(/the stay/)
-    expect(GAP_PHASE_TEXT.failed).toBe('The search for this day failed. Try again.')
+    expect(GAP_PHASE_TEXT.failed).toBe('Gap search · Failed')
   })
 })
 

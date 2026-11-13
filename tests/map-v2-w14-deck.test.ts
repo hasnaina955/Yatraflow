@@ -40,9 +40,9 @@ function ready(over: Partial<ReadyAddPreview> = {}): ReadyAddPreview {
 describe('the place detail preview', () => {
   it('writes the stop order, the moved clock and the calm last line', () => {
     const view = detailPreviewView(ready(), clock)
-    expect(view.lines[0]?.parts.map(part => part.text).join('')).toBe('Lands as stop 3, in road order after lunch')
+    expect(view.lines[0]?.parts.map(part => part.text).join('')).toBe('Stop 3 · After Lunch')
     expect(view.lines[1]?.parts.map(part => part.text).join('')).toBe('Spice Village 13:40 → 14:41')
-    expect(view.lines.at(-1)?.parts.map(part => part.text).join('')).toBe('Dinner and the day’s end do not move')
+    expect(view.lines.at(-1)?.parts.map(part => part.text).join('')).toBe('Dinner · Day end unchanged')
   })
 
   it('keeps the engine risk and its real times', () => {
@@ -74,7 +74,7 @@ describe('the place detail preview', () => {
       proposedTrip: trip,
       clocks: [{ stopId: 'hotel', title: 'Check in · Spice Village', from: '13:40', to: '13:40', deltaMin: 0 }],
     }), clock)
-    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village stays at 13:40; lunch time was already held for you')
+    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village · 13:40 unchanged · Lunch · Time held')
     expect(view.lines.some(line => line.key === 'fit')).toBe(false)
   })
 
@@ -98,7 +98,7 @@ describe('the place detail preview', () => {
       dayEnd: { from: '20:00', to: '20:20', deltaMin: 20 },
     }), clock)
     expect(view.summary?.key).toBe('fit')
-    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village stays at 13:40; lunch time was already held for you')
+    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village · 13:40 unchanged · Lunch · Time held')
     expect(view.lines.some(line => line.key === 'moved-dinner')).toBe(true)
   })
 
@@ -120,13 +120,13 @@ describe('the place detail preview', () => {
       dayEnd: { from: '20:00', to: '20:20', deltaMin: 20 },
     }), clock)
     expect(view.summary?.key).toBe('fit')
-    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village stays at 13:40; lunch time was already held for you')
+    expect(view.summary?.parts.map(part => part.text).join('')).toBe('Spice Village · 13:40 unchanged · Lunch · Time held')
   })
 
   it('names an unknown preview reason instead of inventing a line', () => {
     const view = detailPreviewView({ kind: 'unknown', reason: 'position-unknown' } as AddPreview, clock)
     expect(view.kind).toBe('unknown')
-    expect(view.lines[0]?.parts[0]?.text).toContain('road order')
+    expect(view.lines[0]?.parts[0]?.text).toContain('Road order')
   })
 
   it('does not claim Clears when the same stop gets a worse warning', () => {

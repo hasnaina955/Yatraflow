@@ -278,7 +278,7 @@ describe('the real workspace tells the real writer that an admitted save is unce
     expect(ticket?.picks[0]?.hit).toEqual(PICK)
     const offered = retryToasts()
     expect(offered).toHaveLength(1)
-    expect(offered[0].message).toMatch(/not confirmed/i)
+    expect(offered[0].message).toMatch(/Unconfirmed/i)
     expect(toasts.map(entry => entry.message)).toContain(KEEP_UNCERTAIN)
 
     // A repeated Keep does not admit again and does not duplicate anything.

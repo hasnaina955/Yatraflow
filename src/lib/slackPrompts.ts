@@ -75,5 +75,5 @@ export function slackPrompt(slackMin: number, dayLabel: string, candidates: Slac
   if (!(slackMin >= MIN_SLACK_MIN)) return null
   const pick = pickSlackHit(slackMin, candidates)
   if (!pick) return null
-  return `you have ~${round5(slackMin)} min slack in ${dayLabel} — ${pick.name} costs ~${round5(pick.detourMin)} min there and back`
+  return `you have ~${round5(slackMin)} min slack in ${dayLabel}. ${pick.name} costs ~${round5(pick.detourMin)} min there and back`
 }

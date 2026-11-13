@@ -83,7 +83,7 @@ describe('the surfaces that must not race a preview (#334)', () => {
     expect(src).toMatch(/applyChange\(draft => \{/)                                     // Move goes through the chain
     expect(src).toMatch(/'move-day', dayIndex\)/)
     expect(src).toMatch(/previewOpen=\{!!pending\}/)                                    // timeline is told
-    expect(src).toMatch(/Staged change discarded — you switched trips/)
+    expect(src).toMatch(/Staged change discarded. You switched trips/)
   })
 
   it('the map popup delete and every expense write refuse while a preview is open', () => {

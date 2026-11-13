@@ -119,7 +119,7 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
       </span>)}</div>}
       {editable && !added && preview != null && <>
         <section className="mv2-detail-preview" aria-label="If you add it, preview">
-          <span className="mv2-detail-preview-kicker">If you add it · preview</span>
+          <span className="mv2-detail-preview-kicker">If you add it · Preview</span>
           {preview.lines.map(line => <div className="mv2-detail-preview-line" key={line.key}><PreviewLineView line={line} /></div>)}
         </section>
         {preview.summary != null && <p className="mv2-detail-fit"><PreviewLineView line={preview.summary} /></p>}
@@ -129,7 +129,7 @@ export function MapPickCard({ fetchedAt, coverage, hit, trip, dayIndex, detourMi
           <span className="mv2-place-cta"><button type="button" className="btn btn-primary" disabled={added || busy || !canAdd} onClick={onAdd}>{added ? <Check size={15} /> : <Plus size={15} />}{addLabel}</button></span>
           <button className="mv2-icon-btn mv2-place-heart" type="button" disabled={added || busy || !canShortlist} aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={15} fill={shortlisted ? 'currentColor' : 'none'} /></button>
         </div>
-        : <p className="mv2-viewer-note">You can explore this trip. Editing is available to its planners.</p>}
+        : <p className="mv2-viewer-note">Trip · View only</p>}
       {editable && !added && fixOffer != null && onAddAndFix != null && <button type="button" className="mv2-place-secondary" disabled={busy || !canAdd} onClick={onAddAndFix}><Sparkle size={15} aria-hidden />{fixOffer.label}</button>}
       {editable && <div className="mv2-place-pills">
         <button type="button" className="mv2-place-pill" disabled={added || busy || !canShortlist} aria-pressed={shortlisted} onClick={onShortlist}><Heart size={14} fill={shortlisted ? 'currentColor' : 'none'} aria-hidden />{shortlisted ? 'Shortlisted' : 'Shortlist'}</button>

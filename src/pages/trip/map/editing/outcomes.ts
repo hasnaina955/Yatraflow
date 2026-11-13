@@ -39,16 +39,16 @@ export function outcomeFromKeep(result: unknown): EditOutcome {
 export function outcomeMessage(outcome: EditOutcome): string {
   switch (outcome.kind) {
     case 'kept':
-      return 'Saved. The plan now holds this change.'
+      return 'Change · Saved'
     case 'rejected':
-      return 'Preview closed. Nothing was changed.'
+      return 'Preview · Closed · No change'
     case 'forbidden':
-      return 'You cannot change this trip. Ask an owner for edit access.'
+      return 'Edit access · Owner approval needed'
     case 'conflict':
-      return 'The plan changed while you looked. Review the new plan, then try again.'
+      return 'Plan · Changed · Review before retry'
     case 'failed':
       return outcome.uncertain
-        ? 'The save was not confirmed and may be on this device. Check Saved edits.'
-        : 'The save did not go through. Your preview is still open.'
+        ? 'Save · Unconfirmed · Check Saved edits'
+        : 'Save · Failed · Preview open'
   }
 }

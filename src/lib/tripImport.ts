@@ -65,8 +65,8 @@ export function parseTripImport(text: string, patches: DroppedStopPatch[] = []):
     const first = report.droppedStops[0]
     throw new TripImportError(
       first
-        ? `None of that file's stops could be placed on the map — starting with “${first.title}” (${first.reason}). Re-add the places from the map instead.`
-        : 'That export has no itinerary days — it is not a trip.',
+        ? `None of that file's stops could be placed on the map. Starting with “${first.title}” (${first.reason}). Re-add the places from the map instead.`
+        : 'That export has no itinerary days. It is not a trip.',
     )
   }
 

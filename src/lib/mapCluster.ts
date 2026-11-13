@@ -33,6 +33,8 @@ export type ClusterExemptions = {
   activeId?: string | number | null
   /** the ids of the current text search's hits */
   searchIds?: ReadonlySet<string | number> | null
+  /** ids that must keep their own pin, such as the Stay lens letters */
+  keepIds?: ReadonlySet<string | number> | null
 }
 
 export type ClusterSplit = {
@@ -53,10 +55,11 @@ export type ClusterPointProperties = { id: string }
  */
 export function clusterCandidates(
   hits: readonly PlaceHit[],
-  { activeId = null, searchIds = null }: ClusterExemptions = {},
+  { activeId = null, searchIds = null, keepIds = null }: ClusterExemptions = {},
 ): ClusterCandidate[] {
   const active = activeId == null ? null : String(activeId)
   const search = searchIds ? new Set([...searchIds].map(String)) : null
+  const keep = keepIds ? new Set([...keepIds].map(String)) : null
   const out: ClusterCandidate[] = []
   for (const h of hits) {
     if (!hasCoords(h)) continue
@@ -65,7 +68,7 @@ export function clusterCandidates(
       id,
       lng: h.longitude,
       lat: h.latitude,
-      exempt: search?.has(id) === true || (active != null && active === id),
+      exempt: search?.has(id) === true || keep?.has(id) === true || (active != null && active === id),
     })
   }
   return out
@@ -144,5 +147,5 @@ export function clusterCountLabel(count: number): string {
  */
 export function clusterSummary(groupedCount: number): string | null {
   if (!Number.isFinite(groupedCount) || groupedCount <= 0) return null
-  return `${clusterCountLabel(groupedCount)} grouped into map clusters at this zoom — zoom in to open them one by one.`
+  return `${clusterCountLabel(groupedCount)} grouped into map clusters at this zoom. Zoom in to open them one by one.`
 }

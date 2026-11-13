@@ -411,7 +411,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     // the source first and, when the target day no longer existed, dropped the
     // stop on the floor — a silent delete with no recovery. Abort instead.
     if (!trip.days.some(d => d.index === toDayIndex)) {
-      toast(`Day ${toDayIndex + 1} is no longer on this trip — the stop stayed on its day.`, 'err')
+      toast(`Day ${toDayIndex + 1} is no longer on this trip. The stop stayed on its day.`, 'err')
       return
     }
     applyChange(draft => {
@@ -818,7 +818,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
             <PillNav className="view-pillbar" role="group" aria-label="Days shown" activeKey={reviewAll ? 'all' : 'one'}>
               <button type="button" data-pill-key="one" className={`tab-btn${reviewAll ? '' : ' active'}`}
                 onClick={() => setReview(false)} aria-pressed={!reviewAll}
-                title="One day at a time — the accordion, and the day you were last in">
+                title="One day at a time. The accordion, and the day you were last in">
                 <Rows3 size={15} aria-hidden />Day by day</button>
               <button type="button" data-pill-key="all" className={`tab-btn${reviewAll ? ' active' : ''}`}
                 onClick={() => setReview(true)} aria-pressed={reviewAll}
@@ -1016,7 +1016,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
           // The modal's chips come from the live trip, but a day deleted in
           // another tab can still be clicked — abort rather than lose the stop.
           if (!trip.days.some(d => d.index === toDay)) {
-            toast(`Day ${toDay + 1} is no longer on this trip — the stop stayed on its day.`, 'err')
+            toast(`Day ${toDay + 1} is no longer on this trip. The stop stayed on its day.`, 'err')
             setMoveModalStop(null)
             return
           }

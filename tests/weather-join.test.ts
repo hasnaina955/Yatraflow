@@ -62,7 +62,7 @@ describe('rainy reason strings', () => {
       { segment: segAt(300, true), hit: { ...hit('museum', 'museum'), nearestCity: 'Kochi' }, score: 0 },
       2,
     )
-    expect(r).toContain('indoor pick — 90% rain')
+    expect(r).toContain('indoor pick: 90% rain')
   })
 
   it('skips the fatigue slot for synthetic sight segments', () => {

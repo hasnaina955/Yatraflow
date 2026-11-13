@@ -135,7 +135,7 @@ describe('distanceStatLabel', () => {
     const label = distanceStatLabel(chordDay, 'not-measured')
     expect(label).toContain('~83 km')
     expect(label).toContain('straight-line estimate')
-    expect(label).toContain('road not measured yet')
+    expect(label).toContain('Road not measured yet')
   })
 
   it('the measured path never says estimate, for any distance', () => {

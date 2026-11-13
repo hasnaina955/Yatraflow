@@ -48,7 +48,7 @@ export async function sharePublicationOnWhatsApp(pub: { id: string; title: strin
   openExternal(whatsAppSendUrl(text))
   const copied = await nativeCopyText(url)
   toast(copied
-    ? 'Opening WhatsApp — the link is copied too, in case the chat does not open'
-    : 'Opening WhatsApp — if nothing opened, copy the link from this page.')
+    ? 'Opening WhatsApp. The link is copied too, in case the chat does not open'
+    : 'Opening WhatsApp. If nothing opened, copy the link from this page.')
   return copied
 }

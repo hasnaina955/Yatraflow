@@ -67,11 +67,11 @@ export type UseSlotSearchDeps = {
 
 /** The refusal a filing speaks when its search belongs to another day or part. */
 export const STALE_SEARCH_REFUSAL =
-  'That search belongs to another day or part. Search again in this part before you file a place.'
+  'Search · Different day · Search this part again'
 
 /** The refusal a slot without a stable day speaks. Never a guessed day. */
 export const MANUAL_SLOT_REFUSAL =
-  'This part has no stable day yet - reload the trip before filing a place into it.'
+  'Day · Not ready · Reload trip'
 
 export function useSlotSearch({
   setSlotManual,
@@ -115,7 +115,7 @@ export function useSlotSearch({
     // Render notification only: the pick itself lives in the stable store.
     setSlotManual(prev => ({ ...prev }))
     setSlotSearch(s => (s && s.key === slot.key ? { ...s, q: '', hits: [], err: null } : s))
-    toast(`"${h.name}" added as a candidate for the ${slot.label.toLowerCase()} slot.`)
+    toast(`"${h.name}" · ${slot.label} candidate added`)
   }
 
   function searchContext(slot: DaySlot): SlotSearchContext | null {

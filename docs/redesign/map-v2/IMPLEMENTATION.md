@@ -41,3 +41,5 @@ These checks do not prove provider performance, hosted persistence, server ackno
 The shared Map and Timeline suggestion model is locally integrated. The Around Stay, Gap and Fix lenses retain their approved dependencies and policy gates. Provider photos, live-position changes and advanced map edits also retain their gates. The two current planning controls do not add those four future lenses. The combined gate and live acceptance remain parent-owned.
 
 Coordinate the final phone acceptance with the phone lane before integration. The root phone checkout and its shared files were not edited by this UI pass.
+
+The Map basemap styles have one home in `src/lib/mapStyles/`.

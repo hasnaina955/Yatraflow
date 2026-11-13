@@ -82,19 +82,19 @@ export function chipsFor(sh: SegmentHit, hit: PlaceHit, facts: ChipFacts, cost?:
 /** The rail's meter copy: the mockup's wording, honest per day. The count is
  *  over `required` (engine-managed parts excluded) — the work the crew owns. */
 export function activeReadinessLabel(r: { total: number; filled: number; required: number; auto: number }): string {
-  if (r.total === 0) return 'nothing scheduled for this day yet'
-  return `${r.filled} of ${r.required} planned${r.auto > 0 ? ` · ${r.auto} auto` : ''}`
+  if (r.total === 0) return 'Schedule · No stops'
+  return `Planned: ${r.filled} / ${r.required}${r.auto > 0 ? ` · Auto: ${r.auto}` : ''}`
 }
 
 /** The header's day identity: the day's own title, else its first-to-last
  *  stops - the mockup reads 'Day 2 - Kochi to Alleppey' where it can. */
 export function activeDayLabel(days: ItineraryDay[], activeDayIndex: number): string {
   const d = days.find(x => x.index === activeDayIndex)
-  if (!d) return 'your drive'
+  if (!d) return 'Your drive'
   if (d.title && d.title.trim()) return d.title.trim()
   const stops = d.stops.filter(s => s.status !== 'rejected')
   const first = stops[0]?.locationName ?? stops[0]?.title
   const last = stops[stops.length - 1]?.locationName ?? stops[stops.length - 1]?.title
   if (first && last && first !== last) return `${first} to ${last}`
-  return first ?? 'your drive'
+  return first ?? 'Your drive'
 }

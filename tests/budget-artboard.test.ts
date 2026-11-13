@@ -98,7 +98,7 @@ describe('PW-13 — balances stay per line, and the optional list stays read-onl
   })
 
   it('keeps the optional watch as a tip with a spoken status', () => {
-    expect(code).toContain('A soft line at {OPTIONAL_WATCH_PCT}% of the estimate — tips only, nothing changes.')
+    expect(code).toContain('A soft line at {OPTIONAL_WATCH_PCT}% of the estimate. Tips only, nothing changes.')
     expect(code).toContain('role="status"')
   })
 })

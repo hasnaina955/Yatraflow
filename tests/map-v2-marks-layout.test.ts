@@ -36,8 +36,17 @@ describe('layoutMarks: hit boxes', () => {
     const spots = layoutMarks(marks)
     expect(spots.get('stop')).toEqual({ dx: 0, dy: 0, hidden: false })
     expect(spots.get('warn')!.dx || spots.get('warn')!.dy).toBeTruthy()
-    const boxes = placed(marks, spots)
+    // A pick is fixed too. clearOfMarks keeps a pick off a stop before the layout runs.
+    expect(spots.get('pick')).toEqual({ dx: 0, dy: 0, hidden: false })
+    const boxes = placed(marks.filter(m => m.id !== 'pick'), spots)
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(meet(boxes[i], boxes[j])).toBe(false)
+  })
+
+  it('never draws a pick away from its place, even in a crowd', () => {
+    // A slide of up to 92px put pins on the sea at low zoom. A crowd merges into a count bubble instead.
+    const marks: LayoutMark[] = [0, 4, 8].map(i => ({ id: `p${i}`, layer: 'pick', x: 300 + i, y: 300, w: 44, h: 44 }))
+    const spots = layoutMarks(marks)
+    for (const m of marks) expect(spots.get(m.id)).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
   it('leaves marks that already clear each other where they are', () => {
@@ -79,5 +88,24 @@ describe('layoutMarks: bounds', () => {
     const bounds = { left: 100, top: 100, right: 400, bottom: 400 }
     const marks = [stop('edge', 110, 250)]
     expect(layoutMarks(marks, { bounds }).get('edge')).toEqual({ dx: 0, dy: 0, hidden: false })
+  })
+})
+
+describe('layoutMarks: group pins', () => {
+  it('slides a group pin off a stop instead of hiding under it, within its travel', () => {
+    const marks: LayoutMark[] = [
+      { id: 'stop', layer: 'stop', x: 200, y: 200, w: 40, h: 40 },
+      { id: 'group', layer: 'group', x: 204, y: 202, w: 42, h: 46, maxTravel: 64 },
+    ]
+    const spots = layoutMarks(marks)
+    expect(spots.get('stop')).toEqual({ dx: 0, dy: 0, hidden: false })
+    const g = spots.get('group')!
+    expect(g.hidden).toBe(false)
+    expect(Math.hypot(g.dx, g.dy)).toBeGreaterThan(0)
+    expect(Math.hypot(g.dx, g.dy)).toBeLessThanOrEqual(64)
+  })
+  it('keeps a group pin where it is when nothing covers it', () => {
+    const spots = layoutMarks([{ id: 'group', layer: 'group', x: 50, y: 50, w: 42, h: 46, maxTravel: 64 }])
+    expect(spots.get('group')).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 })

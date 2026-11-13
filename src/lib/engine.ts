@@ -195,7 +195,7 @@ export function getAssumptions(trip: Pick<Trip, 'transportMode' | 'fuelEconomyKm
 export function minutesToHM(mins: number): string {
   // Last-resort display guard: a non-finite input (broken upstream number)
   // would render as "NaNh NaNm" — show an em dash instead of nonsense.
-  if (!Number.isFinite(mins)) return '—'
+  if (!Number.isFinite(mins)) return 'Not available'
   const m = Math.max(0, Math.round(mins))
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
 }
@@ -204,7 +204,7 @@ export function minutesToHM(mins: number): string {
  *  under an hour (minutesToHM's "0h 45m" reads wrong there), minutesToHM
  *  above. #171 — three duration formats used to share one screen. */
 export function fmtDur(mins: number): string {
-  if (!Number.isFinite(mins)) return '—'
+  if (!Number.isFinite(mins)) return 'Not available'
   const m = Math.max(0, Math.round(mins))
   if (m < 60) return `${m} min`
   return minutesToHM(m)
@@ -1205,7 +1205,7 @@ export function collectWarnings(trip: Trip, legCorrections?: Record<string, LegE
     if (isFuelEconomyMode(trip.transportMode)) {
       const hasHalt = sim.activeStops.some(s => (s.category === 'food' || s.category === 'rest') && !s.auto && s.visitMinutes > 0)
       if (travelMinutes > FATIGUE_DRIVE_MINUTES && !hasHalt) {
-        warnings.push({ code: 'fatigue', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1}: fatigue risk on a long drive`, detail: `About ${minutesToHM(travelMinutes)} of wheel time with no meal or rest halt.`, fix: 'Use the long-ride planner on this day to add a halt — or split the drive across two days.' })
+        warnings.push({ code: 'fatigue', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1}: fatigue risk on a long drive`, detail: `About ${minutesToHM(travelMinutes)} of wheel time with no meal or rest halt.`, fix: 'Use the long-ride planner on this day to add a halt. Or split the drive across two days.' })
       }
     }
 
@@ -1323,9 +1323,9 @@ export function collectWarnings(trip: Trip, legCorrections?: Record<string, LegE
     warnings.push({
       code: 'short-rest', severity, dayIndex: next.index,
       title: `Day ${next.index + 1}: short night after Day ${prev.index + 1}`,
-      detail: `Day ${prev.index + 1} ends ~${a.endsAt} and Day ${next.index + 1} starts ${b.startsAt} — about ${minutesToHM(rest)} of rest between them.`,
+      detail: `Day ${prev.index + 1} ends ~${a.endsAt} and Day ${next.index + 1} starts ${b.startsAt}. About ${minutesToHM(rest)} of rest between them.`,
       fix: severity === 'high'
-        ? 'Trim the late stop or start the next day later — under 5 h of rest is not a plan.'
+        ? 'Trim the late stop or start the next day later. Under 5 h of rest is not a plan.'
         : 'Consider starting the next day a little later, or move one stop off it.',
     })
   }
@@ -1985,7 +1985,7 @@ export function computeTotals(trip: Trip, legCorrections?: Record<string, LegEst
  *  same family as the totals' `num0` coercion (#343), fixed at the formatter so
  *  no caller has to remember. A missing value reads “—”, never “₹0”. */
 export function formatInr(n: number): string {
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return 'Not available'
   return '₹' + Math.round(n).toLocaleString('en-IN')
 }
 
@@ -1994,7 +1994,7 @@ export function formatInr(n: number): string {
  *  guard is formatInr's own (#369): a NaN falls through every comparison here
  *  and would print as a compact "₹NaN". */
 export function formatInrShort(n: number): string {
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return 'Not available'
   if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`
   if (n >= 1000) return `₹${Math.round(n / 1000)}k`
   return `₹${Math.round(n)}`

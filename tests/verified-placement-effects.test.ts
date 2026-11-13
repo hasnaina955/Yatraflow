@@ -40,7 +40,7 @@ describe('applyVerifiedPlacement', () => {
   it('maps Undo outcomes to truthful refusal copy', () => {
     expect(undoRefusalMessage({ status: 'undone' })).toBeNull()
     expect(undoRefusalMessage({ status: 'refused' })).toMatch(/changed/)
-    expect(undoRefusalMessage({ status: 'not-admitted' })).toMatch(/not admitted/)
-    expect(undoRefusalMessage({ status: 'other' })).toMatch(/did not complete/)
+    expect(undoRefusalMessage({ status: 'not-admitted' })).toMatch(/Unavailable/)
+    expect(undoRefusalMessage({ status: 'other' })).toMatch(/Incomplete/)
   })
 })

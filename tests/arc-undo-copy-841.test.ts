@@ -41,9 +41,9 @@ describe('#841 arc Undo copy over every outcome', () => {
     expect(arcUndoLine('Fort trail', undone)).toEqual({ text: '“Fort trail” was pulled back', tone: 'ok' })
     const changed = arcUndoLine('Fort trail', { status: 'refused', reason: 'changed-target', changedStopIds: ['s1'] })
     expect(changed.tone).toBe('err')
-    expect(changed.text).toContain('left alone')
+    expect(changed.text).toContain('No change')
     const missing = arcUndoLine('Fort trail', { status: 'refused', reason: 'missing-day', changedStopIds: [] })
-    expect(missing.text).toContain('no longer exists')
+    expect(missing.text).toContain('Day unavailable')
   })
 
   it('the real guardedUndo reports not-admitted for every unconfirmed admission, and the line stays truthful', async () => {

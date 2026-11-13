@@ -124,7 +124,7 @@ describe('the Stay lens on the real Goa Day 1', () => {
       onOpenGapPick: () => undefined, onAddGapPick: () => undefined, onApplyFix: () => undefined, onPreviewFix: () => undefined,
     }
     const markup = renderToStaticMarkup(createElement(MapLensPanel, props))
-    expect(markup).toContain('No free time is left around this stay today.')
+    expect(markup).toContain('Stay · No free time')
     expect(markup).not.toMatch(/FREE|Free evening/)
   })
 })
@@ -132,9 +132,9 @@ describe('the Stay lens on the real Goa Day 1', () => {
 describe('the stay header on a day with no free evening', () => {
   it('says so after the arrival, and never claims a free window', () => {
     expect(stayRailSub({ arriveText: '4:33 PM', commitmentTitle: null, commitmentText: null, freeStartMin: null, freeEndMin: null, noFreeEvening: true }))
-      .toBe('Arrive 4:33 PM · no free evening')
+      .toBe('Arrive 4:33 PM · Free evening · None')
     expect(stayRailSub({ arriveText: '4:33 PM', commitmentTitle: null, commitmentText: null, freeStartMin: hm(17), freeEndMin: hm(21), noFreeEvening: false }))
-      .toBe('Arrive 4:33 PM · 4 h free after it')
+      .toBe('Arrive 4:33 PM · Free time · 4 h')
     expect(stayRailSub({ arriveText: null, commitmentTitle: null, commitmentText: null, freeStartMin: null, freeEndMin: null }))
       .toBeNull()
   })

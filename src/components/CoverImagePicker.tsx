@@ -64,7 +64,7 @@ export function coverUrlError(raw: string | null | undefined): string | null {
   const v = (raw ?? '').trim()
   if (!v) return null // empty is "no value typed", not a bad value
   if (!COVER_URL_PATTERN.test(v)) {
-    return 'That doesn’t look like an https image URL — it must start with https:// and contain no spaces.'
+    return 'That doesn’t look like an https image URL. It must start with https:// and contain no spaces.'
   }
   return null
 }
@@ -125,10 +125,10 @@ export function CoverImagePicker({ trip, editable, error: externalError }: {
       // cover that had quietly gone away. Say it through the same polite
       // channel as every other picker message.
       if (u) { setCover(u); return }
-      setError('No suggested photo found for these places — paste a URL or upload an image instead.')
+      setError('No suggested photo found for these places. Paste a URL or upload an image instead.')
     } catch (e) {
       console.error('[yatraflow] destination cover lookup failed', e)
-      setError('Couldn’t look up a destination photo just now — check your connection.')
+      setError('Couldn’t look up a destination photo just now. Check your connection.')
     } finally { setBusy(null) }
   }
   function onCustom() {
@@ -167,8 +167,8 @@ export function CoverImagePicker({ trip, editable, error: externalError }: {
         // the cause is still diagnosable — the creator gets a way forward
         // instead of a storage-layer term.
         if (isBucketMissing(uploadError)) {
-          console.error('[yatraflow] cover upload failed — storage bucket missing', uploadError)
-          setError('Cover uploads aren’t set up on this project yet — an emoji or a pasted image URL still works.')
+          console.error('[yatraflow] cover upload failed: storage bucket missing', uploadError)
+          setError('Cover uploads aren’t set up on this project yet. An emoji or a pasted image URL still works.')
           return
         }
         setError(uploadError ?? 'Upload failed.')

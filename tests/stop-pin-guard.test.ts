@@ -47,7 +47,7 @@ describe('the stop editor pin guard (#424)', () => {
     const src = readFileSync(new URL('../src/components/StopEditor.tsx', import.meta.url), 'utf8')
     expect(src).toMatch(/if \(!v\.geocoded && !initial\?\.title\) \{/)              // the gate: NEW stops only
     expect(src).toMatch(/resolvePick\(unnamedPick\('stop-editor'/)                   // the shared guard
-    expect(src).toMatch(/a stop cannot go on the map without a position/)            // the refusal
+    expect(src).toMatch(/A stop cannot go on the map without a position/)            // the refusal
     expect(src).toMatch(/lat: picked\.latitude, lng: picked\.longitude/)             // manual answer saves
     expect(src).toMatch(/\{resolvePickDialog\}/)                                     // prompt is mounted
   })

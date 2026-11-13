@@ -341,7 +341,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
           actions={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-secondary" onClick={() => onNavigate('/new')}>Plan your first trip</button>
-              <button className="btn btn-secondary" onClick={addDemoTrips} title="Adds 3 sample trips — Kerala, Goa & Rajasthan — to your account"><InlineIcon icon={Rocket} size={15} gap={5} />Load demo trips</button>
+              <button className="btn btn-secondary" onClick={addDemoTrips} title="Adds 3 sample trips: Kerala, Goa & Rajasthan, to your account"><InlineIcon icon={Rocket} size={15} gap={5} />Load demo trips</button>
               <button className="btn btn-secondary" onClick={() => onNavigate('/explore')}>Explore itineraries</button>
             </div>
           }
@@ -494,7 +494,7 @@ export function TripsListPage({ onNavigate }: { onNavigate: (r: string) => void 
       <ConfirmDialog
         open={!!pendingPurge}
         title={`Delete “${pendingPurge?.name ?? ''}” forever?`}
-        body="This is permanent: the trip, its votes, decisions and history are destroyed and cannot be recovered or undone. A trip that was ever published is never destroyed here — its publication and its buyers’ records stay with it, and the public page keeps working for everyone who unlocked it."
+        body="This is permanent: the trip, its votes, decisions and history are destroyed and cannot be recovered or undone. A trip that was ever published is never destroyed here. Its publication and its buyers’ records stay with it, and the public page keeps working for everyone who unlocked it."
         confirmLabel="Delete forever"
         danger
         onConfirm={() => {

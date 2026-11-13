@@ -23,7 +23,7 @@ describe('W4-B map and rail', () => {
   it('omits unknown count parts', () => {
     expect(scopeBandCountsText(null)).toBeNull()
     expect(scopeBandCountsText({ inside: 9, justPast: null, worthDetour: 1 }))
-      .toBe('9 inside 1 worth the detour')
+      .toBe('9 Inside 1 Worth the detour')
   })
 
   it('renders no counts line when counts are unknown', () => {
@@ -38,9 +38,9 @@ describe('W4-B map and rail', () => {
       minutes: 30, onMinutes: noop,
       counts: { inside: 9, justPast: 2, worthDetour: 1 },
     }))
-    expect(html).toContain('<b>9</b>')
-    expect(html).toContain('<b>2</b>')
-    expect(html).toContain('<b>1</b>')
+    expect(html).toContain('Fits: 9')
+    expect(html).not.toContain('2 just past')
+    expect(html).not.toContain('1 Worth the detour')
     expect(html).not.toContain('·')
   })
 
@@ -73,16 +73,16 @@ describe('W4-B map and rail', () => {
     expect(fixTargetStopId(null, commitments, 0)).toBe('fixture-boat')
   })
 
-  it('shows the budget bar only when all three numbers are known', () => {
+  it('shows the planned budget only when its total and limit are known', () => {
     expect(driveBudgetStep(9, 45)).toBe(1)
     expect(driveBudgetStep(null, 45)).toBeNull()
-    expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45, freeStops: 2 }))
-      .toBe('12 of 45 min · 2 free stops')
-    expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45, freeStops: null })).toBeNull()
-    // The sum of the offered detours is above the day budget (real Goa trip, Day 1).
-    expect(driveBudgetBarText({ usedMin: 78, budgetMin: 25, freeStops: 4 }))
-      .toBe('78 of 25 min · over budget · 4 free stops')
-    expect(driveBudgetBarText({ usedMin: 25, budgetMin: 25, freeStops: 4 })).toBe('25 of 25 min · 4 free stops')
+    expect(driveBudgetBarText({ kind: 'known', usedMin: 12, budgetMin: 45 }))
+      .toBe('Detour 12 / 45 min')
+    expect(driveBudgetBarText({ kind: 'unknown', usedMin: null, budgetMin: 45 })).toBe('Detour · Not measured')
+    // A planned total can exceed its limit.
+    expect(driveBudgetBarText({ kind: 'known', usedMin: 78, budgetMin: 25 }))
+      .toBe('Detour 78 / 25 min · 53 min over')
+    expect(driveBudgetBarText({ kind: 'known', usedMin: 25, budgetMin: 25 })).toBe('Detour 25 / 25 min')
     expect(driveBudgetBarText(null)).toBeNull()
   })
 

@@ -233,7 +233,7 @@ describe('MapLensPanel', () => {
       lenses,
       activeStayWindow: null,
     }))
-    expect(markup).toContain('The free time around this stay is unknown for this day.')
+    expect(markup).toContain('Stay free time · Not measured')
     expect(markup).toContain('aria-label="Around the stay"')
   })
 })
@@ -258,6 +258,6 @@ describe('MapTab source guard', () => {
   it('drops the old 90 km sentence and points a short route at the stay lens', () => {
     expect(source).not.toContain('(90+ km)')
     expect(source).not.toContain('Not enough driving distance yet for a fatigue plan')
-    expect(source).toContain('try Around the stay')
+    expect(source).toContain('Short drive · Explore Around the stay')
   })
 })

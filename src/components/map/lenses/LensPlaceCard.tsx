@@ -1,7 +1,7 @@
 // One place card, shared by the Drive, Stay and Gap decks. The deck supplies
 // every value. A missing fact shows a dash with an "unknown" label. This file
 // reads no store, no map and no provider.
-import { ArrowLeftRight, Check, Heart, Plus, Star } from 'lucide-react'
+import { ArrowLeftRight, Check, Clock3, CornerUpRight, Footprints, Heart, Hourglass, PieChart, Plus, Star, Undo2, type LucideIcon } from 'lucide-react'
 import { CatIcon } from '../../icons'
 import { cap } from '../../../lib/labels'
 import { placeSubtype } from '../../../lib/mapStyles/placeMarks'
@@ -24,6 +24,17 @@ export interface LensCostCell {
  *  with no known fact draws no strip. */
 export function knownCostCells(cells: readonly LensCostCell[]): LensCostCell[] {
   return cells.filter(cell => cell.value != null && cell.value.trim() !== '')
+}
+
+/** The icon of each strip fact. The card shows icon and value on one line; the
+ *  label stays for screen readers and the tooltip. A key with no icon shows its label. */
+export const CELL_ICON: Readonly<Partial<Record<string, LucideIcon>>> = {
+  arrive: Clock3,
+  detour: CornerUpRight,
+  budget: PieChart,
+  walk: Footprints,
+  visit: Hourglass,
+  back: Undo2,
 }
 
 /** "{area} · {kind}" from the hit. Null hides the line. The lead word is
@@ -63,7 +74,7 @@ export interface LensPlaceCardProps {
   reasons?: readonly string[]
   /** The cost strip cells, in board order. */
   cells: readonly LensCostCell[]
-  /** One scope tag, such as "just past your scope". */
+  /** One scope tag, such as "Just past scope". */
   tag?: string | null
   /** A band name, such as "just-past" or "over-budget". */
   band?: string | null
@@ -165,16 +176,29 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
         <span>{rating.rating}</span>
         {rating.count != null && <span className="mv2-lens-place-count">· {rating.count}</span>}
       </span>}
+      {/* A card that is not selected keeps a small add button, so a pick is one tap from the plan. */}
+      {!selected && <button
+        type="button"
+        className="mv2-lens-quick-add"
+        disabled={addDisabled}
+        aria-label={addLabel}
+        title={addTitle ?? addLabel}
+        onClick={event => { event.stopPropagation(); onAdd() }}><Plus size={16} aria-hidden /></button>}
     </div>
     {tag != null && <span className="mv2-lens-tag">{tag}</span>}
     {reasons.length > 0 && <div className="mv2-lens-reasons">
       {reasons.map(reason => <span className="mv2-lens-reason" key={reason}>{reason}</span>)}
     </div>}
     {shownCells.length > 0 && <div className="mv2-lens-strip">
-      {shownCells.map(cell => <span className="mv2-lens-cell" key={cell.key}>
-        <span className="mv2-lens-cell-label">{cell.label}</span>
+      {shownCells.map(cell => {
+        const CellIcon = CELL_ICON[cell.key]
+        const label = cell.key === 'budget' ? 'Of budget' : cell.label
+        return <span className="mv2-lens-cell" data-cell={cell.key} data-icon={CellIcon ? 'true' : undefined} key={cell.key} role="group" aria-label={`${cell.label}: ${cell.value}`} title={label}>
+        {CellIcon && <CellIcon className="mv2-lens-cell-icon" size={14} aria-hidden />}
+        <span className="mv2-lens-cell-label">{label}</span>
         <span className="mv2-lens-cell-value">{cell.value}</span>
-      </span>)}
+      </span>
+      })}
     </div>}
     {open && fitLine != null && fitLine.trim() !== '' && <p className="mv2-lens-open-fit"><Check size={14} aria-hidden /><span>{fitLine}</span></p>}
     {selected && <div className="mv2-lens-place-actions">

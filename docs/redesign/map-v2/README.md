@@ -4,8 +4,8 @@ The visual target for the Map tab v2 build. The spec is the Claude doc "Map tab 
 
 | File | What it is |
 |---|---|
-| `yatraflow-linen.json` | MapLibre style for the Linen (day) basemap |
-| `yatraflow-night.json` | MapLibre style for the Night sky basemap |
+| [`yatraflow-linen.json`](../../../src/lib/mapStyles/yatraflow-linen.json) | MapLibre style for the Linen (day) basemap |
+| [`yatraflow-night.json`](../../../src/lib/mapStyles/yatraflow-night.json) | MapLibre style for the Night sky basemap |
 | `boards/MapV2Drive.png` | Desktop · Along the drive lens, lunch gap open, pick deck |
 | `boards/MapV2Night.png` | Desktop · Fix lens in Night sky, with three previewed fixes |
 | `boards/MapV2Stay.png` | Desktop · Around the stay lens, walk and drive rings, place card |
@@ -47,7 +47,7 @@ The trip and places are sample data. The day colour is Day 3's `#7C5CFC` from `T
 
 ## Build notes (branch copy)
 
-This branch carries its own copy of the target. `src/lib/mapStyles/` holds byte-identical copies of the two JSON styles. A test (`tests/map-v2-cartography-styles.test.ts`) fails when the copies drift.
+`src/lib/mapStyles/` holds the two JSON styles. Tests validate these runtime files.
 
 - **Source of the styles:** the supplied JSON files are the target. The earlier note that the JSON was absent no longer applies. The app no longer builds a short original style.
 - **2D (default):** the supplied style as drawn, flat, with the `hillshade` layer at exaggeration 0.45.

@@ -23,10 +23,19 @@
 :root:where([data-theme='dark']) .mv2-subtype-mark[data-family='needs'], :root:where([data-theme='dark']) .mv2-workspace .yf-map-pin-idea[data-family='needs'], :root:where([data-theme='dark']) .mv2-place-art[data-family='needs'], :root:where([data-theme='dark']) .mv2-lens-place-tile[data-family='needs'], :root:where([data-theme='dark']) .mv2-lens-open-art[data-family='needs'] { --mark-family: #F08B81; --mark-tint: #1B2A3D; --mark-edge: #3A4C63; --mark-ink: #E8EFF5; }
 /* The board's letter badge: 18 px, ink ground, a 2 px card ring. */
 .mv2-pick-letter { position: absolute; top: -6px; left: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-pill); background: var(--pw-ink); color: var(--pw-paper); box-shadow: 0 0 0 2px var(--pw-card); font-size: var(--text-xs); font-weight: 800; line-height: 1; pointer-events: none; }
-.mv2-warn-diamond { position: relative; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 2px solid var(--card); border-radius: var(--radius-xs); background: #CE5245; color: #FFFFFF; transform: rotate(45deg); box-shadow: var(--shadow-sm); }
+.mv2-warn-diamond { position: relative; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 2px solid var(--card); border-radius: var(--radius-xs); background: #CE5245; color: #FFFFFF; transform: rotate(45deg); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+/* Every tappable mark answers a hover: the diamond lifts like a stop pin. */
+button.mv2-warn-diamond:hover { transform: rotate(45deg) scale(1.12); box-shadow: 0 0 0 2px var(--card), 0 10px 18px -8px rgba(64, 54, 44, 0.55); }
 .mv2-warn-diamond > b { transform: rotate(-45deg); font-size: 13px; font-weight: 800; line-height: 1; }
 .mv2-warn-diamond.is-severe { background: #A6342A; }
 .mv2-pin-offset { display: inline-flex; flex-direction: column; align-items: center; transition: transform var(--motion-fast) var(--ease-out); }
+/* A group pin: a pile of pick tiles with its count, drawn like the key mark. It is a DOM mark, so it slides off a stop. */
+.mv2-stack { --stack-size: 30px; position: relative; display: grid; place-items: center; min-width: var(--stack-size); height: var(--stack-size); margin-top: 8px; padding: 0 var(--space-2); border: 2px solid #0B6B63; border-radius: var(--radius-sm); background: #FFFFFF; color: #0B4F4A; font: inherit; font-size: 13px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; cursor: pointer; box-shadow: 0 -4px 0 -2px #D6EEEA, 0 -4px 0 -1px #0B6B6399, 0 -8px 0 -5px #D6EEEA, 0 -8px 0 -4px #0B6B6366, 0 6px 12px -6px rgba(64, 54, 44, 0.5); animation: mv2-pick-pop var(--motion-med) var(--ease-paper) backwards; transition: transform var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+.mv2-stack[data-size='m'] { --stack-size: 34px; }
+.mv2-stack[data-size='l'] { --stack-size: 38px; font-size: 14px; }
+/* Every tappable mark answers a hover: the pile fans out and lifts. */
+button.mv2-stack:hover, button.mv2-stack:focus-visible { transform: translateY(-2px); box-shadow: 0 -6px 0 -2px #D6EEEA, 0 -6px 0 -1px #0B6B63AA, 0 -12px 0 -5px #D6EEEA, 0 -12px 0 -4px #0B6B6380, 0 10px 18px -8px rgba(64, 54, 44, 0.55); }
+button.mv2-stack:focus-visible { outline: 2px solid var(--pw-ink); outline-offset: 3px; }
 @media (pointer: coarse) {
   .mv2-workspace .yf-map-pin--slot::before, .mv2-workspace .mv2-warn-diamond::before, .mv2-workspace .yf-map-idea-add::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
   .mv2-workspace .yf-map-ctrls button, .mv2-workspace .map-legend-toggle { min-width: 44px; min-height: 44px; }
@@ -35,6 +44,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .mv2-pin-clock, .mv2-pin-offset, .mv2-route-window, .mv2-pick-tag { transition: none; }
+  .mv2-stack { animation: none; transition: none; }
 }
 @media (max-width: 760px) {
   .mv2-workspace .maplibregl-ctrl-attrib-inner { font-size: 10px; line-height: 1.3; }
@@ -79,7 +89,8 @@
 /* A 30px hollow marigold ring. The hit area reaches 44px, so a thumb can find it. */
 .mv2-lens-gap-ring { position: relative; display: block; box-sizing: border-box; width: 30px; height: 30px; padding: 0; border: 3px solid var(--pw-marigold-500); border-radius: 50%; background: transparent; }
 .mv2-lens-gap-ring::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
-button.mv2-lens-gap-ring { cursor: pointer; }
+button.mv2-lens-gap-ring { cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper); }
+button.mv2-lens-gap-ring:hover { background: color-mix(in srgb, var(--pw-marigold-500) 22%, transparent); transform: scale(1.08); }
 button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-500); outline-offset: 3px; }
 /* A pick just past the day's scope: a dashed edge and a light fade. It stays readable. */
 .mv2-workspace .yf-map-pin-idea.is-just-past { border: 2px dashed var(--pw-marigold-500); opacity: .85; }
@@ -93,6 +104,13 @@ button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-50
 /* A pin beak: a small square turned 45 degrees in the same tint and edge. The
    white outer ring is carried by a 2 px card shadow on the two open sides. */
 .mv2-workspace .yf-map-pin-idea::after { content: ''; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 8px; translate: -50% 0; rotate: 45deg; border-right: 1px solid var(--mark-edge, var(--line)); border-bottom: 1px solid var(--mark-edge, var(--line)); background: var(--mark-tint, var(--card)); box-shadow: 2px 2px 0 0 var(--pw-card); }
+/* On the map a pick is a solid family tile with a light glyph, so it stands out
+   on bright tiles. Cards keep the soft tint. Dark mode keeps a dark glyph on
+   the lighter dark-mode family colours. */
+.mv2-workspace .maplibregl-marker .yf-map-pin-idea[data-family] { --mark-tint: var(--mark-family); --mark-edge: var(--mark-family); color: var(--mv2-pick-glyph, #FFFFFF); }
+/* The open pick is 40 px, so its glyph grows with it. */
+.mv2-workspace .maplibregl-marker .yf-map-pin-idea--active .mv2-subtype-mark > svg { width: 24px; height: 24px; }
+:root:where([data-theme='dark']) .mv2-workspace .maplibregl-marker .yf-map-pin-idea[data-family] { --mv2-pick-glyph: #0F1928; }
 /* The selected tile wears the teal ring itself. A beak under it would break the ring. */
 .mv2-workspace .yf-map-pin-idea--active::after { display: none; }
 /* A stop name tag. Board: 12 px at weight 700 on a soft card ground, pill radius. */
@@ -108,6 +126,7 @@ button.mv2-lens-gap-ring:focus-visible { outline: 2px solid var(--pw-marigold-50
 /* Reduced motion keeps the tag fade still. */
 @media (prefers-reduced-motion: reduce) {
   .mv2-stop-tag { transition: none; }
+  .mv2-warn-diamond, button.mv2-lens-gap-ring { transition: none; }
 }
 
 /* W20: marks the Drive map draws on the route from the plan's own schedule. A

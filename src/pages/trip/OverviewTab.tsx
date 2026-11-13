@@ -826,7 +826,7 @@ function WeatherCard({
       {readPending && <StateBlock kind="loading" size="compact" title="Updating forecasts…" />}
       {wetDays > 0 && (
         <p className="hint-text ovw-rain-note">
-          <InlineIcon icon={TriangleAlert} size={12} gap={3} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''} — consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
+          <InlineIcon icon={TriangleAlert} size={12} gap={3} />High rain chance on {wetDays} day{wetDays > 1 ? 's' : ''}. Consider indoor alternatives for weather-sensitive stops (beaches, viewpoints, treks).
         </p>
       )}
       {weatherNotice === 'partial-retained' && partialNow && (

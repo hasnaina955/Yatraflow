@@ -76,23 +76,22 @@ describe('W8-card place card', () => {
 describe('W8-card scope band', () => {
   it('writes counts with no separators', () => {
     expect(scopeBandCountsText({ inside: 9, justPast: 2, worthDetour: 1 }))
-      .toBe('9 inside 2 just past it 1 worth the detour')
+      .toBe('9 Inside 2 Just past it 1 Worth the detour')
     expect(scopeBandCountParts(null)).toBeNull()
   })
 
-  it('renders bold numerals and no dot', () => {
+  it('shows only the eligible count with a full accessible name', () => {
     const html = band()
-    expect(html).toContain('<b>9</b>')
-    expect(html).toContain('<b>2</b>')
-    expect(html).toContain('<b>1</b>')
-    expect(html).not.toContain('·')
-    expect(band({ counts: null })).not.toContain('mv2-lens-scope-counts')
+    expect(html).toContain('Fits: 9')
+    expect(html).toContain('aria-label="9 picks fit scope and budget"')
+    expect(html).not.toContain('2 Just past it')
+    expect(band({ counts: null })).toContain('Count unavailable')
   })
 
-  it('puts the minutes in the teal bold element', () => {
-    expect(band()).toContain('<b>30 min</b>')
-    // No drag handle exists, so the band never offers one.
-    expect(band()).not.toContain('drag the band')
+  it('uses the shared select for the current minute scope', () => {
+    expect(band()).toContain('role="combobox"')
+    expect(band()).toContain('Within 30 min')
+    expect(band()).not.toContain('<select')
   })
 })
 

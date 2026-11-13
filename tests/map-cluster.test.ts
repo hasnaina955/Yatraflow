@@ -138,9 +138,9 @@ describe('clusterSummary', () => {  it('says nothing when nothing is grouped', (
   })
 
   it('names the count and what to do about it', () => {
-    expect(clusterSummary(1)).toBe('1 suggestion grouped into map clusters at this zoom — zoom in to open them one by one.')
+    expect(clusterSummary(1)).toBe('1 suggestion grouped into map clusters at this zoom. Zoom in to open them one by one.')
     expect(clusterSummary(9)).toContain('9 suggestions')
-    expect(clusterSummary(9)).toContain('zoom in')
+    expect(clusterSummary(9)).toContain('Zoom in')
   })
 
   it('uses one noun for the badge language and the sentence', () => {
@@ -151,14 +151,21 @@ describe('clusterSummary', () => {  it('says nothing when nothing is grouped', (
 })
 
 describe('#417 wiring — the Map tab groups its suggestion pins', () => {
-  it('draws no canvas cluster badge in the workspace chrome', () => {
-    // A GL badge cannot yield to a DOM stop pin: one that landed on a stop drew
-    // as a stray dark crescent behind it. The workspace draws its picks alone.
-    expect(tripMap).toMatch(/data=\{workspaceChrome \? NO_CLUSTER_DATA : clusterData\}/)
+  it('groups crowded picks in the workspace too, and keeps lettered picks single', () => {
+    // A pick no longer slides off its place, so a crowd must merge into a count.
+    // clearOfMarks already drops a pick at a stop, so no badge lands under a stop pin.
+    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,200}?data=\{clusterData\}/)
+    expect(tripMap).not.toContain('NO_CLUSTER_DATA')
+    expect(tripMap).toMatch(/keepIds: pickLetters \? new Set\(Object\.keys\(pickLetters\)\) : null/)
+  })
+  it('exempts a kept id from grouping', () => {
+    const hit = (id: string) => ({ id, name: id, latitude: 18.75, longitude: 73.4 }) as unknown as PlaceHit
+    const out = clusterCandidates([hit('a'), hit('b')], { keepIds: new Set(['b']) })
+    expect(out.map(c => [c.id, c.exempt])).toEqual([['a', false], ['b', true]])
   })
   it('renders the suggestion family through the one cluster implementation', () => {
     expect(tripMap).toContain("from '../lib/mapCluster'")
-    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{workspaceChrome \? NO_CLUSTER_DATA : clusterData\}/)
+    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{clusterData\}/)
     expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?onClustersChange=\{onClustersChange\}/)
   })
 
@@ -168,14 +175,14 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
 
   it('filters only the idea pins by the cluster report — confirmed stops keep their markers', () => {
     const ideaLoop = tripMap.slice(tripMap.indexOf('{markPois.map(hit => {'), tripMap.indexOf('</MapLibreMap>'))
-    expect(ideaLoop.length, 'the idea-pin loop moved — re-anchor this guard').toBeGreaterThan(0)
+    expect(ideaLoop.length, 'the idea-pin loop moved · re-anchor this guard').toBeGreaterThan(0)
     expect(ideaLoop).toContain('individualPinIds')
 
     const stopLoop = tripMap.slice(
       tripMap.indexOf('return allPoints.map((p, idx) => {'),
       tripMap.indexOf('{dayEndpointMarkers.map'),
     )
-    expect(stopLoop.length, 'the confirmed-stop loop moved — re-anchor this guard').toBeGreaterThan(0)
+    expect(stopLoop.length, 'the confirmed-stop loop moved · re-anchor this guard').toBeGreaterThan(0)
     // the pitfall: a confirmed stop must never become an anonymous count
     expect(stopLoop).not.toContain('individualPinIds')
     expect(stopLoop).toContain('yf-pin-cluster')
@@ -188,7 +195,7 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
 
   it('the map key names the badge', () => {
     const legend = tripMap.slice(tripMap.indexOf('map-legend-body'), tripMap.indexOf('hint-text', tripMap.indexOf('map-legend-body')))
-    expect(legend).toMatch(/count badge/i)
+    expect(legend).toMatch(/Teal count/i)
   })
 
   it('keeps the count legible where the badge is not opaque', () => {
@@ -204,8 +211,8 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
       mapcn.indexOf('// Update source data'),
     )
     const opacity = Number(clusterSource.match(/"circle-opacity":\s*([\d.]+)/)?.[1] ?? Number.NaN)
-    expect(colors.length, 'the cluster palette moved — re-anchor this guard').toBe(3)
-    expect(Number.isFinite(opacity), 'the cluster circle opacity moved — re-anchor this guard').toBe(true)
+    expect(colors.length, 'the cluster palette moved · re-anchor this guard').toBe(3)
+    expect(Number.isFinite(opacity), 'the cluster circle opacity moved · re-anchor this guard').toBe(true)
 
     const srgb = (c: number) => {
       const v = c / 255
@@ -245,7 +252,7 @@ describe('#417 wiring — MapClusterLayer gains only what the caller needs', () 
     // OpenFreeMap glyph endpoint on 2026-09-27 — "Open Sans Semibold" answered
     // 404, "Noto Sans Bold" and "Noto Sans Regular" answered 200.
     const fontStack = mapcn.match(/"text-font":\s*\[([^\]]+)\]/)?.[1] ?? ''
-    expect(fontStack, 'the cluster count layer moved — re-anchor this guard').not.toBe('')
+    expect(fontStack, 'the cluster count layer moved · re-anchor this guard').not.toBe('')
     expect(fontStack).toContain('Noto Sans')
     expect(fontStack).not.toContain('Open Sans')
   })

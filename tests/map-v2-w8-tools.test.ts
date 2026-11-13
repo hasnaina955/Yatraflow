@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-const tsx = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
-const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8')
+const tsx = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 // The workspace branch runs from the ternary to the legacy branch.
 function workspaceBranch(): string {
@@ -12,12 +12,13 @@ function workspaceBranch(): string {
 }
 
 describe('W8 tools map controls', () => {
-  it('renders three stacked cards', () => {
+  it('keeps primary tools in a column and secondary tools in menus', () => {
     const b = workspaceBranch()
     expect(b.length).toBeGreaterThan(0)
-    expect(b).toContain('mv2-map-tools-card--zoom')
-    expect(b).toContain('mv2-map-tools-card--mode')
-    expect(b).toContain('mv2-map-tools-card--tools')
+    expect(b).toContain('aria-label="Zoom and recentre"')
+    expect(b).toContain('mv2-map-view')
+    expect(b).toContain('aria-label="More map tools"')
+    expect(b).toContain('aria-label="Layers"')
   })
 
   it('keeps the zoom buttons and their labels', () => {
@@ -26,26 +27,37 @@ describe('W8 tools map controls', () => {
     expect(b).toContain('aria-label="Zoom out"')
   })
 
-  it('shows short mode text', () => {
-    expect(workspaceBranch()).toContain("'TER'")
+  it('keeps the view switch in the tools column, out of the Layers menu', () => {
+    const b = workspaceBranch()
+    expect(b).toContain('className="mv2-map-tools-card mv2-map-view" role="group" aria-label="Map view mode"')
+    expect(b.indexOf('mv2-map-view')).toBeLessThan(b.indexOf('aria-label="Layers"'))
+    expect(b).not.toContain("'TER'")
   })
 
   it('drops the Filters text label', () => {
     expect(workspaceBranch()).not.toContain('>Filters')
   })
 
-  it('keeps the filters menu behind the layers button', () => {
+  it('lists the idea filters inside the layers menu, each with a visible switch', () => {
     const b = workspaceBranch()
-    expect(b).toContain('aria-expanded={filtersOpen}')
-    expect(b).toContain('map-filters-pop')
-    expect(b).toContain('aria-label="Filter nearby ideas by type"')
+    // One menu, no second pop-out: every category row says on or off with a switch.
+    expect(b).not.toContain('map-filters-pop')
+    expect(b).toContain('aria-label="Nearby idea categories"')
+    expect(b).toMatch(/className="mv2-layer-row" aria-pressed=\{!hiddenIdeaCats\.has\(cat\)\}/)
+    expect(b).toContain('<span className="mv2-switch" aria-hidden="true" />')
+    expect(b).toContain('{shownIdeaCats} / {ideaCats.length} shown')
+    expect(css).toMatch(/\.mv2-layer-row\[aria-pressed='true'\] \.mv2-switch \{ background: var\(--pw-sea-700\); \}/)
   })
 
-  it('keeps every old aria-label', () => {
+  it('marks the Layers button while a layer differs from its default', () => {
+    expect(workspaceBranch()).toContain('{layersChanged && <span className="mv2-layers-dot" aria-hidden="true" />}')
+  })
+
+  it('keeps each map action labelled', () => {
     const b = workspaceBranch()
     for (const label of [
       'Recentre the map on the trip route',
-      'Show or hide the road milestones',
+      'Road milestones',
       'Directions for this day in Google Maps',
       'Expand the map to fill the screen',
     ]) expect(b).toContain(label)

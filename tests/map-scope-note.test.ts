@@ -53,4 +53,4 @@ describe('MapTab wires the scope note honestly (A416)', () => {
     expect(tab).toMatch(/mapScopeNote\(mapFilter, activeDayIndex\)/)
     expect(tab).toMatch(/role="status"/)
   })
-})
+})

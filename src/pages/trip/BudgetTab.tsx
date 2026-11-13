@@ -181,7 +181,7 @@ function ExpenseFormFields({ trip, members, form, setForm }: {
       <div className="form-row">
         <Field label="Attach to stop (optional)">
           <select className="select" value={form.attachStop} onChange={e => setForm(f => ({ ...f, attachStop: e.target.value }))}>
-            <option value="">— whole trip —</option>
+            <option value="">Whole trip</option>
             {trip.days.flatMap(d => d.stops.map(s => <option key={s.id} value={s.id}>{`Day ${d.index + 1}: ${s.title}`}</option>))}
           </select>
         </Field>
@@ -531,7 +531,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
       {expensesRead === 'failed' && trip.expenses.length > 0 && (
         <div className="bud-read">
           <StateBlock kind="kept" size="compact" title="Couldn’t refresh expense lines"
-            body="These figures are the last read. Nothing is missing from your account — try again."
+            body="These figures are the last read. Nothing is missing from your account. Try again."
             actions={<button className="btn btn-primary btn-sm" onClick={retryExpenses}>Try again</button>} />
         </div>
       )}
@@ -611,9 +611,9 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               )
             ) : (
               <span>
-                <b>Budget headroom / day</b> — {Number.isFinite(totals.totalCostInr)
+                <b>Budget headroom / day</b>: {Number.isFinite(totals.totalCostInr)
                   ? 'Set a per-person target to start pacing'
-                  : 'Pacing needs a readable spend figure — fix or remove the line that broke it'}
+                  : 'Pacing needs a readable spend figure. Fix or remove the line that broke it'}
               </span>
             )}
           </div>
@@ -621,7 +621,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
 
         <article className="card bud-glance-tile">
           <span className="bud-kicker">Settled so far</span>
-          <span className="bud-glance-num sm">{ledgerUnread ? '—' : formatInr(settledTotal)}</span>
+          <span className="bud-glance-num sm">{ledgerUnread ? 'Not available' : formatInr(settledTotal)}</span>
           {ledgerUnread ? (
             <span className="bud-mini-track is-unread" aria-hidden="true" />
           ) : (
@@ -633,14 +633,14 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           )}
           <span className="bud-glance-sub">
             {ledgerUnread
-              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines. This is not a zero')
               : trip.expenses.length === 0
                 ? 'No expense lines yet'
                 : <>{settledPct}% of recorded spend · {settledExpenses.length} of {trip.expenses.length} line{trip.expenses.length === 1 ? '' : 's'} marked settled</>}
           </span>
           <span className="bud-glance-foot strong">
             {ledgerUnread
-              ? '—'
+              ? 'Not available'
               : trip.expenses.length === 0
                 ? 'Nothing on the ledger'
                 : <>{formatInr(openLedgerTotal)} still open across {openLedgerExpenses.length} line{openLedgerExpenses.length === 1 ? '' : 's'}</>}
@@ -649,7 +649,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
 
         <article className="card bud-glance-tile bud-glance-kitty">
           <span className="bud-kicker">Shared kitty spend</span>
-          <span className="bud-glance-num sm">{ledgerUnread ? '—' : formatInr(kittyTotal)}</span>
+          <span className="bud-glance-num sm">{ledgerUnread ? 'Not available' : formatInr(kittyTotal)}</span>
           {ledgerUnread ? (
             <span className="bud-mini-track is-unread" aria-hidden="true" />
           ) : (
@@ -661,19 +661,19 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           )}
           <span className="bud-glance-sub">
             {ledgerUnread
-              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines — this is not a zero')
+              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines. This is not a zero')
               : kittyLines.length === 0
                 ? 'No untagged lines.'
                 : <>{kittyLines.length} untagged line{kittyLines.length === 1 ? '' : 's'} · no one is owed</>}
           </span>
           <span className="bud-glance-foot strong">
-            {ledgerUnread ? '—' : ledgerTotal > 0 ? <>{kittyPct}% of recorded spend</> : 'Nothing on the ledger'}
+            {ledgerUnread ? 'Not available' : ledgerTotal > 0 ? <>{kittyPct}% of recorded spend</> : 'Nothing on the ledger'}
           </span>
         </article>
 
         <article className="card bud-glance-tile">
           <span className="bud-kicker">Biggest line</span>
-          <span className="bud-glance-num sm">{ledgerUnread || !biggestLine ? '—' : formatInr(biggestLine.total)}</span>
+          <span className="bud-glance-num sm">{ledgerUnread || !biggestLine ? 'Not available' : formatInr(biggestLine.total)}</span>
           <span className="bud-glance-sub">
             {ledgerUnread
               ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines')
@@ -681,7 +681,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 ? <>{biggestLine.expense.label} · {expenseDayLabel(trip, biggestLine.expense)}</>
                 : 'No expense lines yet'}
           </span>
-          <span className="bud-glance-foot strong">{ledgerUnread || !biggestLine ? '—' : <>{biggestShare}% of the trip</>}</span>
+          <span className="bud-glance-foot strong">{ledgerUnread || !biggestLine ? 'Not available' : <>{biggestShare}% of the trip</>}</span>
         </article>
       </section>
 
@@ -779,7 +779,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               </div>
               {overDay && (
                 <p className="bud-note">
-                  {overDay.label} runs {Math.round(((overDay.totalInr - dayTarget) / Math.max(1, dayTarget)) * 100)}% over the {chartTargetLabel} — trim an optional line or shorten the drive.
+                  {overDay.label} runs {Math.round(((overDay.totalInr - dayTarget) / Math.max(1, dayTarget)) * 100)}% over the {chartTargetLabel}. Trim an optional line or shorten the drive.
                 </p>
               )}
               <details className="bud-table-view">
@@ -810,7 +810,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
               </details>
             </>
           ) : (
-            <p className="hint-text bud-empty-line">No days to chart yet — add a day to the plan.</p>
+            <p className="hint-text bud-empty-line">No days to chart yet. Add a day to the plan.</p>
           )}
         </Surface>
 
@@ -880,10 +880,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 <summary>How these estimates are made</summary>
                 <p className="bud-card-note">
                   {A.kmPerLiter
-                    ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price — actual consumption varies'}).</>
+                    ? <>All figures are estimates in INR. Transport is fuel-based: route distance{isRoundTrip(trip) ? ' (incl. return drive)' : ''} ≈{Math.round(totals.totalDistanceKm)} km ÷ {A.kmPerLiter} km/L ≈ <b>{Math.round(totals.totalDistanceKm / A.kmPerLiter)} L</b> of fuel × ₹{A.fuelPricePerL}/L ({A.fuelPriceIsUserSet ? 'your local pump price' : 'indicative petrol price. Actual consumption varies'}).</>
                     : <>All figures are estimates in INR. Transport is derived from route distance × ₹{A.inrPerKm}/km for {trip.transportMode}.</>}
                   {totals.lodgingNights > 0 && (
-                    <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} — the drive needs a stay — × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
+                    <> Stay is priced from your hotel stops: {totals.lodgingNights} overnight base{totals.lodgingNights !== 1 ? 's' : ''} · the drive needs a stay · × {totals.lodgingRooms} room{totals.lodgingRooms !== 1 ? 's' : ''} × ₹{totals.lodgingRatePerNight.toLocaleString('en-IN')}/night.</>
                   )}
                 </p>
               </details>
@@ -919,7 +919,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
             )
           )}
           {expensesRead === 'ready' && (members.length < 2
-            ? <p className="hint-text bud-crew-invite">{tagged && <>Fair share is {formatInr(fairShare)} {sharePer}. </>}Invite your crew from the Share tab, then tag who paid on expense lines — who owes whom shows up here.</p>
+            ? <p className="hint-text bud-crew-invite">{tagged && <>Fair share is {formatInr(fairShare)} {sharePer}. </>}Invite your crew from the Share tab, then tag who paid on expense lines. Who owes whom shows up here.</p>
             : <>
                 <p className="hint-text bud-crew-status">
                   {tagged
@@ -927,8 +927,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                       {splitNote}
                     </>
                     : settledExpenses.length > 0
-                      ? <>Every tagged line is squared up — nothing left to split.</>
-                      : <>Nothing to split yet — tag who paid on expense lines and balances appear here. The estimates above are your planning figure, not a debt.</>}
+                      ? <>Every tagged line is squared up. Nothing left to split.</>
+                      : <>Nothing to split yet. Tag who paid on expense lines and balances appear here. The estimates above are your planning figure, not a debt.</>}
                 </p>
                 {tagged && (
                   <>
@@ -983,13 +983,13 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                     )}
                     {openPayable.length > 0 && (
                       <p className="hint-text bud-hint-note">
-                        <b>{formatInr(openPayableTotal)}</b> across {openPayable.length} tagged line{openPayable.length !== 1 ? 's' : ''} still to square up — mark each settled as the money moves.
+                        <b>{formatInr(openPayableTotal)}</b> across {openPayable.length} tagged line{openPayable.length !== 1 ? 's' : ''} still to square up. Mark each settled as the money moves.
                       </p>
                     )}
                     {canSettle && openExpenses.length > 0 && (
                       <div className="settled-strip bud-settle-strip">
                         <span className="hint-text bud-settle-lead">
-                          <b>Settle up:</b> mark a line squared up — it leaves the balances and moves to the settled history below.
+                          <b>Settle up:</b> mark a line squared up. It leaves the balances and moves to the settled history below.
                         </span>
                         <div className="settled-list">
                           {openExpenses.map(e => (
@@ -1098,7 +1098,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                 <Check size={20} aria-hidden="true" />
                 <span>
                   Without {optionalLines.length === 1 ? 'that line' : `those ${optionalLines.length}`}: <b>{formatInr(withoutOptional)}</b>
-                  {hasTarget && <> — {withoutOptionalRoom >= 0
+                  {hasTarget && <> · {withoutOptionalRoom >= 0
                     ? <>{formatInr(withoutOptionalRoom)} under target</>
                     : <>{formatInr(-withoutOptionalRoom)} over target</>}</>}
                 </span>
@@ -1108,7 +1108,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
             <p className="hint-text bud-empty-line">No optional lines. Mark a line optional in its editor to test what the plan costs without it.</p>
           )}
           <div className="row-between bud-watch-row">
-            <span className="small muted">A soft line at {OPTIONAL_WATCH_PCT}% of the estimate — tips only, nothing changes.</span>
+            <span className="small muted">A soft line at {OPTIONAL_WATCH_PCT}% of the estimate. Tips only, nothing changes.</span>
             <button
               className={`btn btn-sm ${watchOptional ? 'btn-primary' : 'btn-outline'}`}
               onClick={() => { const next = !watchOptional; setWatchOptional(next); saveFlag('optional_watch', next) }}
@@ -1121,7 +1121,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
             const pct = (totals.optionalInr / totals.totalCostInr) * 100
             return (
               <p className={`small bud-watch-status ${pct > OPTIONAL_WATCH_PCT ? 'dayplanner-red' : 'muted'}`} role="status">
-                Optional watch: {formatInr(totals.optionalInr)} — {Math.round(pct)}% of the estimate,{' '}
+                Optional watch: {formatInr(totals.optionalInr)} · {Math.round(pct)}% of the estimate,{' '}
                 {pct > OPTIONAL_WATCH_PCT ? `over the ${OPTIONAL_WATCH_PCT}% soft line. Trimming one optional line brings it back under.` : `inside the ${OPTIONAL_WATCH_PCT}% soft line.`}
               </p>
             )
@@ -1258,7 +1258,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
                               if (outcome === 'applied') toast(`Restored “${e.label}”`)
                               else if (outcome === 'duplicate') toast(`“${e.label}” is already back on the trip.`)
                               else if (outcome === 'invalid') return
-                              else toast(`“${e.label}” was not restored — you can no longer edit this trip.`, 'err')
+                              else toast(`“${e.label}” was not restored. You can no longer edit this trip.`, 'err')
                             })
                           }}><Trash2 size={14} /></button>
                         </span>
@@ -1318,7 +1318,7 @@ function QuickAdd({ trip, members, meId, canWrite, previewOpen }: { trip: Trip; 
   return (
     <form className="quick-add" onSubmit={submit}>
       <div className="quick-add-row">
-        <input className="input" placeholder="What was it — e.g. Houseboat boarding" aria-label="Expense name" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
+        <input className="input" placeholder="What was it: e.g. Houseboat boarding" aria-label="Expense name" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
         <input className="input qa-amount" type="number" min={0} placeholder="₹" aria-label="Amount in rupees" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
         <button type="submit" className="btn btn-primary btn-sm">Add</button>
         <button type="button" className="icon-btn" aria-expanded={more} aria-label={more ? 'Hide expense options' : 'Show expense options'} onClick={() => setMore(m => !m)}>
@@ -1366,7 +1366,7 @@ function ExpenseEditor({ trip, members, expense, onDone, meId, canWrite, preview
     // two branches above do, because the typed values are the retry.
     const outcome = updateExpense(trip.id, expense.id, changedFields(form, openedWith.current), meId ?? null)
     if (outcome === 'no-such-line') {
-      toast('That expense is no longer on this trip — it was not saved.', 'err')
+      toast('That expense is no longer on this trip. It was not saved.', 'err')
       return
     }
     if (outcome === 'refused') return

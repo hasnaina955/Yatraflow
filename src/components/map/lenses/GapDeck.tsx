@@ -14,11 +14,11 @@ import { useTimeFormat } from '../../../lib/timefmt'
 import { pickFactChips } from '../placeCardFacts'
 
 export const GAP_PHASE_TEXT: Record<LensPhase, string> = {
-  unscanned: 'Pick a day to see its open parts.',
-  scanning: 'Looking for places for this day…',
-  failed: 'The search for this day failed. Try again.',
+  unscanned: 'Gaps · Choose a day',
+  scanning: 'Gaps · Searching…',
+  failed: 'Gap search · Failed',
   quota: STAY_PHASE_TEXT.quota,
-  empty: 'Nothing open for this day in this window.',
+  empty: 'Gap · No open places',
   ready: '',
 }
 
@@ -30,7 +30,7 @@ export function gapNoteKicker(dayNumber: number): string {
   return Number.isFinite(dayNumber) ? `Gap · Day ${dayNumber}` : 'Gap'
 }
 
-export const GAP_EMPTY_TEXT = 'No open part of this day needs a stop.'
+export const GAP_EMPTY_TEXT = 'Gaps · No stops needed'
 
 /** The kicker of the deck header, for example "Gap · 11:30–14:30". */
 export function gapDeckKicker(title: string | null, windowText: string | null): string {
@@ -140,7 +140,7 @@ export function GapDeck(props: GapDeckProps) {
         {picks.length === 0 && gap.picks.noFitText != null &&
           <LensPhaseNote phase="empty">{gap.picks.noFitText}</LensPhaseNote>}
         {gap.picks.moreCount > 0 &&
-          <p className="mv2-section-label mv2-lens-more">{gap.picks.moreCount} more</p>}
+          <p className="mv2-section-label mv2-lens-more">More: {gap.picks.moreCount}</p>}
       </div>
     })}
   </section>

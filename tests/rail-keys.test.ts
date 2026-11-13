@@ -178,19 +178,14 @@ describe('A4 guard reads the TSX AST, not a raw source regex', () => {
 })
 
 describe('the rail states scope in words, and keeps nothing unreachable (#333 A4, A7)', () => {
-  it('A4: the rotating tip dots are indicators, not unreachable buttons', () => {
-    // They were <button onClick tabIndex={-1}> inside an aria-hidden container:
-    // clickable, unreachable by keyboard, 8px wide, and hidden below 720px. The
-    // strip rotates on its own and screen readers get a static summary instead
-    // (#168), so the dots carry no control at all now.
-    expect(mapTabSrc).toMatch(/engine-tips-dots" aria-hidden="true"/)
-    expect(mapTabSrc).toMatch(/<span key=\{i\} className=\{`engine-tips-dot/)
-    // No keyboard-reachable control may opt itself out of the tab order. That
-    // is the shape of "focusable things a keyboard cannot reach". A sheet panel
-    // region is not a control, so it may carry a negative tabIndex as a
-    // programmatic focus target for a keyboard snap.
+  it('A4: the Map tab keeps no rotating tip strip and no unreachable control', () => {
+    // The tip strip hid behind an info button and served no purpose, so it is gone.
+    // The live suggestion states (over limit, rain, empty, failed) sit on the deck top.
+    expect(mapTabSrc).not.toContain('engine-tips')
+    expect(mapTabSrc).toContain('{deckStatus}')
+    // No keyboard-reachable control may opt itself out of the tab order. A sheet
+    // panel region is not a control, so it may carry a negative tabIndex.
     expect(unreachableControls(mapTabSrc)).toEqual([])
-    expect(mapTabSrc).not.toMatch(/engine-tips-dot[^>]*onClick/)
   })
 
   it('A7: an out-of-scope row is never dimmed, and says why in words', () => {

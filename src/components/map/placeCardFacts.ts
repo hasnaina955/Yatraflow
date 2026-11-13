@@ -105,14 +105,16 @@ export function pickFactChips(args: {
 }): string[] {
   const chips: string[] = []
   const add = (text: string | null | undefined) => {
-    const clean = text?.trim() ?? ''
-    if (clean === '' || clean === SLOT_SEARCH_PROVENANCE || chips.includes(clean)) return
+    const trimmed = text?.trim() ?? ''
+    if (trimmed === '' || trimmed === SLOT_SEARCH_PROVENANCE) return
+    const clean = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+    if (chips.includes(clean)) return
     chips.push(clean)
   }
   add(args.reason)
   add(args.hit.facts?.why)
   const close = /^(\d{1,2}):(\d{2})$/.exec(args.hit.closeTime?.trim() ?? '')
-  if (close != null && Number(close[1]) < 24 && Number(close[2]) < 60) add(`open till ${formatHM(`${close[1]}:${close[2]}`, args.format)}`)
+  if (close != null && Number(close[1]) < 24 && Number(close[2]) < 60) add(`Open till ${formatHM(`${close[1]}:${close[2]}`, args.format)}`)
   add(args.hit.facts?.diet)
   return chips
 }

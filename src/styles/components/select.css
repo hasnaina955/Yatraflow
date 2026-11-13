@@ -54,3 +54,6 @@
 @media (max-width: 720px) {
   .select { padding: 10px 32px 10px 13px; min-height: 44px; font-size: 16px; }
 }
+
+/* The Map scope follows the workspace target floor. */
+.mv2-lens-scope-band .cselect-trigger { min-height: 44px; }

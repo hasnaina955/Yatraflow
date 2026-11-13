@@ -187,7 +187,7 @@ describe('#346 — the halt plan persists its pins', () => {
     // stamp a cached plan is checked against — so the version moved to 7, then to 8 for #832, and
     // un-stamped payloads evict rather than hydrating as "always fresh". #842
     // moved it to 9: the hash now covers the ranking inputs (F18).
-    expect(cacheSrc).toMatch(/const CACHE_VERSION = 9/)
+    expect(cacheSrc).toMatch(/const CACHE_VERSION = 10/)
     expect(cacheSrc).toMatch(/#346/)
     expect(cacheSrc).toMatch(/#414/)
   })
@@ -214,7 +214,7 @@ describe('#346 — ONE canonical plan order, both sides', () => {
 
 describe('#346 — a superseded search says so', () => {
   it('commitPlan toasts when it cancels an in-flight search, and the search write is exempt', () => {
-    expect(travelPanel).toMatch(/Plan changed — the spot search was restarted/)
+    expect(travelPanel).toMatch(/Plan changed. The spot search was restarted/)
     expect(travelPanel).toMatch(/searchCommitting/)
   })
 })

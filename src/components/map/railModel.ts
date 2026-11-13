@@ -130,14 +130,14 @@ export function stayRailSub(parts: {
   if (parts.commitmentText != null && parts.commitmentText.trim() !== '') {
     const title = parts.commitmentTitle?.trim()
     const comparisonTitle = title?.toLowerCase()
-    if (comparisonTitle === 'boat') pieces.push(`boat at ${parts.commitmentText}`)
-    else pieces.push(title ? `${title} at ${parts.commitmentText}` : `fixed at ${parts.commitmentText}`)
+    if (comparisonTitle === 'boat') pieces.push(`Boat · ${parts.commitmentText}`)
+    else pieces.push(title ? `${title} at ${parts.commitmentText}` : `Fixed · ${parts.commitmentText}`)
   }
   if (parts.freeStartMin != null && parts.freeEndMin != null) {
     const duration = windowDurationText(parts.freeStartMin, parts.freeEndMin)
-    if (duration != null) pieces.push(`${duration} free after it`)
+    if (duration != null) pieces.push(`Free time · ${duration}`)
   } else if (parts.noFreeEvening === true) {
-    pieces.push('no free evening')
+    pieces.push('Free evening · None')
   }
   return pieces.length > 0 ? pieces.join(' · ') : null
 }
@@ -145,7 +145,7 @@ export function stayRailSub(parts: {
 /** The stay header title. The board names the base town, not the hotel. */
 export function stayRailTitle(town: string | null, hasEvening: boolean): string | null {
   if (town == null || town.trim() === '') return null
-  return `${town.trim()} · ${hasEvening ? 'evening' : 'tonight'}`
+  return `${town.trim()} · ${hasEvening ? 'Evening' : 'Tonight'}`
 }
 
 /** "7 picks" or "1 pick". Zero and unknown show nothing. */
@@ -157,7 +157,7 @@ export function picksText(count: number | null | undefined): string | null {
 /** The where-on-the-road part of a window row. An unknown km shows nothing. */
 export function aroundKmText(targetKm: number | null | undefined): string | null {
   if (targetKm == null || !Number.isFinite(targetKm) || targetKm < 0) return null
-  return `around km ${Math.round(targetKm)}`
+  return `Road km · ${Math.round(targetKm)}`
 }
 
 /**

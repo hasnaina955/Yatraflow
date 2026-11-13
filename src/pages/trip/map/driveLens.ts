@@ -4,6 +4,17 @@ import type { DaySlot, DaySlotKind } from '../../../lib/daySlots'
 import { scopeCounts } from './minuteScope'
 import { detourDisplayText } from './detourRule'
 import { detourDisplay } from './driveSuggestionView'
+import type { DaySchedule } from '../../../lib/engine'
+import type { DriveBudget } from './LensRailExtras'
+
+/** A planned stop reads the same arrival as the day rail. */
+export function filledStopClock(schedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null, stopId: string): string | null {
+  const times = schedule?.arrivalTimes
+  const index = schedule?.activeStops.findIndex(stop => stop.id === stopId) ?? -1
+  // The guard proves the index owns a slot before the lookup runs.
+  if (times == null || index < 0 || !Object.prototype.hasOwnProperty.call(times, index)) return null
+  return times[index]
+}
 
 /** The three sub-tabs of the Along the drive deck. */
 export type DriveTab = 'meal' | 'sights' | 'breaks'
@@ -96,18 +107,18 @@ export function driveTabs(
 
 export type ScopeBand = 'inside' | 'just-past' | 'outside' | 'over-budget' | 'unknown'
 
-/** Band of one row. Held-back ids and a spent budget come first. */
+/** Unknown cost stays separate from scope and budget decisions. */
 export function scopeBandOf(
   row: DriveLensRow,
   scopeMinutes: number,
   heldBackIds: ReadonlySet<string>,
 ): ScopeBand {
+  const counts = scopeCounts([{ detourMin: row.detourMin }], scopeMinutes)
+  if (counts.unknown === 1) return 'unknown'
   const placeId = String(row.row.hit.id)
   if (heldBackIds.has(placeId) || (row.budgetSharePct != null && row.budgetSharePct > 100)) {
     return 'over-budget'
   }
-  const counts = scopeCounts([{ detourMin: row.detourMin }], scopeMinutes)
-  if (counts.unknown === 1) return 'unknown'
   if (counts.inside === 1) return 'inside'
   if (counts.justPast === 1) return 'just-past'
   return 'outside'
@@ -128,7 +139,7 @@ export function driveCardStrip(
   const arrive = r.arriveLabel ?? (typeof r.arriveMin === 'number' ? clock(r.arriveMin) : null)
   const display = detourDisplay(row.detourMin)
   const detour = display.kind === 'unknown' ? null : detourDisplayText(row.detourMin)
-  const budget = row.budgetSharePct == null ? null : `${Math.round(row.budgetSharePct)}%`
+  const budget = display.kind === 'unknown' || row.budgetSharePct == null ? null : `${Math.round(row.budgetSharePct)}%`
   return { arrive, detour, budget }
 }
 
@@ -141,9 +152,41 @@ export function driveDeckIntro(
   const r = row.row
   const w = r.windowMin
   if (typeof r.arriveMin !== 'number' || w == null || r.inWindow == null) return null
-  const word = r.inWindow === false ? 'outside' : 'inside'
+  const word = r.inWindow === false ? 'Outside' : 'Inside'
   // The km shows when the pick's road position is known: "You pass km 57 at 12:05".
   const km = roadKm ?? r.hit.alongRouteKm ?? r.hit.cumKm
   const at = typeof km === 'number' && Number.isFinite(km) && km >= 0 ? `km ${Math.round(km)} at ` : ''
-  return `You pass ${at}${clock(r.arriveMin)}, ${word} the ${clock(w[0])}–${clock(w[1])} window`
+  return `Pass ${at}${clock(r.arriveMin)} · ${word} ${clock(w[0])}–${clock(w[1])}`
+}
+
+/** Alternatives are independent choices. Their order cannot spend the budget. */
+export function overBudgetAlternativeIds(rows: readonly { id: string; detourMin: number | null }[], budgetMin: number, plannedMin: number | null = null): Set<string> {
+  const remaining = budgetMin - (plannedMin ?? 0)
+  return new Set(rows.filter(row => row.detourMin != null && Number.isFinite(row.detourMin) && row.detourMin >= 0 && row.detourMin > remaining).map(row => row.id))
+}
+
+/** One day's alternatives with the day's budget and its planned detour spend. */
+export interface DayBudgetWalk {
+  budgetMin: number
+  planned: DriveBudget
+  rows: readonly { id: string; detourMin: number | null }[]
+}
+
+/** The ids of alternatives that the budget left after planned detours cannot
+ *  hold. When a day's planned spend is unknown, the day makes no budget claim
+ *  and holds nothing back: the count then states the scope only. */
+export function budgetHeldAlternativeIds(days: readonly DayBudgetWalk[]): Set<string> {
+  const held = new Set<string>()
+  for (const day of days) {
+    if (day.planned.kind === 'unknown') continue
+    for (const id of overBudgetAlternativeIds(day.rows, day.budgetMin, day.planned.usedMin ?? 0)) held.add(id)
+  }
+  return held
+}
+
+/** Scope counts by place: one place listed under several tabs counts once. */
+export function distinctPlaceBands<T>(rows: readonly { id: string; band: T }[]): T[] {
+  const byPlace = new Map<string, T>()
+  for (const row of rows) if (!byPlace.has(row.id)) byPlace.set(row.id, row.band)
+  return [...byPlace.values()]
 }

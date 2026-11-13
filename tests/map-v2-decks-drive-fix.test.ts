@@ -109,7 +109,7 @@ describe('DriveTabs', () => {
 
   it('hides a cell with no known strip value', () => {
     const markup = renderDrive({ stripOf: () => ({ arrive: null, detour: '+6 min', budget: '4%' }) })
-    expect(markup).not.toContain('—')
+    expect(markup).not.toContain('Not available')
     expect(markup).not.toContain('aria-label="unknown"')
     expect(markup).not.toContain('mv2-lens-cell-label">Arrive')
     // The strip labels sit in sentence case in the source. CSS sets the capitals.
@@ -126,14 +126,14 @@ describe('DriveTabs', () => {
 
   it('tags a just-past card with the scope text', () => {
     const markup = renderDrive({ bandOf: () => 'just-past' })
-    expect(markup).toContain('just past your scope')
+    expect(markup).toContain('Just past scope')
     expect(markup).toContain('is-just-past')
   })
 
-  it('shows no tag for the other bands', () => {
+  it('labels unknown cost and keeps known in-scope bands without a tag', () => {
     expect(renderDrive({ bandOf: () => 'inside' })).not.toContain('mv2-lens-tag')
     expect(renderDrive({ bandOf: () => 'outside' })).not.toContain('mv2-lens-tag')
-    expect(renderDrive({ bandOf: () => 'unknown' })).not.toContain('mv2-lens-tag')
+    expect(renderDrive({ bandOf: () => 'unknown' })).toContain('Detour · Not measured')
   })
 
   it('shows the intro line and no duplicate count', () => {
@@ -156,11 +156,11 @@ describe('DriveTabs', () => {
   it('keeps the exact phase copy', () => {
     const text = (phase: Exclude<LensPhase, 'ready'>) =>
       phaseText(renderDrive({ result: { phase, tabs: [] } }))
-    expect(text('unscanned')).toBe('Pick a day to see what is along the drive.')
-    expect(text('scanning')).toBe('Looking along the drive…')
-    expect(text('failed')).toBe('The search along the drive failed. Try again.')
-    expect(text('quota')).toBe('The place search is over its limit for now.')
-    expect(text('empty')).toBe('Nothing along this drive fits your scope.')
+    expect(text('unscanned')).toBe('Drive · Choose a day')
+    expect(text('scanning')).toBe('Drive · Searching…')
+    expect(text('failed')).toBe('Drive search · Failed')
+    expect(text('quota')).toBe('Place search · Limit reached')
+    expect(text('empty')).toBe('Drive · No picks in scope')
   })
 })
 
@@ -179,26 +179,27 @@ describe('FixDeck', () => {
     expect(renderFix({ problem: null })).toContain('Fix · 0 problems on Day 3')
   })
 
-  it('shows the evidence lines and the found-by footer', () => {
+  it('shows evidence and keeps its source in the tooltip', () => {
     const markup = renderFix()
     const text = markup.replace(/<[^>]+>/g, '')
     expect(text).toContain('Boarding closes at 15:00.')
     expect(text).toContain('You reach the jetty at 15:05.')
     // The board sets each clock in bold.
     expect(markup).toContain('Boarding closes at <b>15:00</b>.')
-    expect(markup).toContain('Found by the opening-hours check · every fix below was run through the impact preview')
+    expect(markup).toContain('title="Found by the opening-hours check"')
+    expect(markup).not.toContain('mv2-lens-found-by')
     expect(markup).toContain('You reach the boat after boarding closes')
   })
 
   it('says no safe fix was found when the fix list is empty', () => {
     const markup = renderFix({ fixes: [] })
-    expect(markup).toContain('No safe fix was found. Every change we tried left the problem or made a new one.')
+    expect(markup).toContain('Fix · No safe change')
     expect(markup).not.toContain('Preview on map')
   })
 
   it('says there are no problems when the problem is null', () => {
     const markup = renderFix({ problem: null, fixes: [{ set: fixSet('a'), summary }] })
-    expect(markup).toContain('No problems on this day.')
+    expect(markup).toContain('Day · No problems')
     expect(markup).not.toContain('Preview on map')
   })
 
@@ -212,11 +213,11 @@ describe('FixDeck', () => {
     })
     expect(new Set(texts).size).toBe(PHASES.length)
     expect(texts).toEqual([
-      'Pick a day to see what is for this day.',
-      'Looking for this day…',
-      'The search for this day failed. Try again.',
-      'The place search is over its limit for now.',
-      'Nothing for this day fits your scope.',
+      'Fix · Choose a day',
+      'Fix · Searching…',
+      'Fix search · Failed',
+      'Place search · Limit reached',
+      'Fix · No picks in scope',
     ])
   })
 })

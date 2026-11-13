@@ -36,11 +36,12 @@ describe('F1 stops stay on their coordinate', () => {
     for (const m of marks) expect(spots.get(m.id)).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
-  it('moves a pick off a stop and leaves the stop', () => {
+  it('leaves both a stop and a pick on their own coordinates', () => {
+    // clearOfMarks drops a pick at a stop before the layout. A pick never slides.
     const marks: LayoutMark[] = [stop('s', 100, 100), { id: 'pick', layer: 'pick', x: 100, y: 100, w: 44, h: 44 }]
     const spots = layoutMarks(marks)
     expect(spots.get('s')).toEqual({ dx: 0, dy: 0, hidden: false })
-    expect(spots.get('pick')!.dx || spots.get('pick')!.dy).toBeTruthy()
+    expect(spots.get('pick')).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
   it('hides a pill that no longer fits among dense stops', () => {
@@ -100,8 +101,8 @@ describe('F1 frame, control column and lens row', () => {
     expect(rail).toContain('.mv2-map-tools-card--zoom { position: sticky; top: 0;')
   })
 
-  it('gives the filter menu the solid card surface', () => {
-    expect(rail).toMatch(/\.map-filters-pop \{[^}]*background: var\(--card\); -webkit-backdrop-filter: none; backdrop-filter: none;/)
+  it('gives the filter menu the shared map glass', () => {
+    expect(rail).toMatch(/\.mv2-workspace \.map-filters-pop \{\n\s*background: var\(--pw-glass\);/)
   })
 
   it('shrinks the search bar before it can cover a lens, then drops the lens names', () => {

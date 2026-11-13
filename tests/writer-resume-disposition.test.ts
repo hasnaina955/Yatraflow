@@ -24,8 +24,8 @@ describe('writerResumePresentation', () => {
     expect(texts.size).toBe(ALL.length)
     expect(writerResumePresentation('road-changed').text).toMatch(/road/i)
     expect(writerResumePresentation('trip-changed').text).toMatch(/trip/i)
-    expect(writerResumePresentation('operation-settled').text).toMatch(/settled/i)
-    expect(writerResumePresentation('operation-unknown').text).toMatch(/no longer available/i)
+    expect(writerResumePresentation('operation-settled').text).toMatch(/complete/i)
+    expect(writerResumePresentation('operation-unknown').text).toMatch(/Save unavailable/i)
   })
 
   it('is the one presentation used by Map, shortlist, arc and Timeline', () => {

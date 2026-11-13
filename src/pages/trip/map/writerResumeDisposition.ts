@@ -13,27 +13,27 @@ export interface WriterResumePresentation {
 
 const COPY: Record<WriterResumeDisposition, WriterResumePresentation> = {
   'payload-changed': {
-    text: 'A different choice replaced this save, so the old retry cannot replay. Check Saved edits.',
+    text: 'Retry · Save replaced · Check Saved edits',
     terminal: true,
   },
   'resume-unverifiable': {
-    text: 'The earlier save is still unconfirmed and cannot be retried here. Check Saved edits.',
+    text: 'Retry · Save unconfirmed · Check Saved edits',
     terminal: true,
   },
   'operation-settled': {
-    text: 'This save already has a settled outcome. Check Saved edits.',
+    text: 'Save · Complete · Check Saved edits',
     terminal: true,
   },
   'operation-unknown': {
-    text: 'This save is no longer available to retry. Check Saved edits.',
+    text: 'Retry · Save unavailable · Check Saved edits',
     terminal: true,
   },
   'road-changed': {
-    text: 'The measured road changed after this save; the retry cannot replay. Check Saved edits.',
+    text: 'Retry · Road changed · Check Saved edits',
     terminal: true,
   },
   'trip-changed': {
-    text: 'The saved trip changed after Keep; the retry cannot replay. Check Saved edits.',
+    text: 'Retry · Trip changed · Check Saved edits',
     terminal: true,
   },
 }
@@ -43,4 +43,4 @@ export function writerResumePresentation(disposition: WriterResumeDisposition): 
 }
 
 export const CURRENT_TRIP_UNAVAILABLE_COPY =
-  'The current saved trip is unavailable, so this retry cannot start.'
+  'Retry · Saved trip unavailable'

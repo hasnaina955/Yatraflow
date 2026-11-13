@@ -1,5 +1,6 @@
 // W4-B: the Drive scope band on the map. Pure counts and one card.
 // It reads no store and invents no value. An unknown count leaves its part out.
+import { Select } from '../../../components/Select'
 import { MINUTE_SCOPE_STEPS, type ScopeMinutes } from './minuteScope'
 import type { ScopeBand } from './driveLens'
 
@@ -27,9 +28,9 @@ export function bandCounts(bands: readonly ScopeBand[]): ScopeBandCounts {
 export function scopeBandCountParts(counts: ScopeBandCounts | null): { value: number; label: string }[] | null {
   if (counts == null) return null
   const parts: { value: number; label: string }[] = []
-  if (counts.inside != null) parts.push({ value: counts.inside, label: 'inside' })
-  if (counts.justPast != null) parts.push({ value: counts.justPast, label: 'just past it' })
-  if (counts.worthDetour != null) parts.push({ value: counts.worthDetour, label: 'worth the detour' })
+  if (counts.inside != null) parts.push({ value: counts.inside, label: 'Inside' })
+  if (counts.justPast != null) parts.push({ value: counts.justPast, label: 'Just past it' })
+  if (counts.worthDetour != null) parts.push({ value: counts.worthDetour, label: 'Worth the detour' })
   return parts.length > 0 ? parts : null
 }
 
@@ -45,16 +46,6 @@ export function phoneLensAriaLabel(name: string, count: number | null): string {
   return count == null ? `${name}, count unknown` : `${name}, ${count}`
 }
 
-/** Where the phone scope band sits. Peek hides it. Half and full put it in the
- *  sheet above the Drive cards, so it cannot cover the top row. A desktop band
- *  stays on the map. */
-export function scopeBandPlacement(snap: string, phone: boolean): 'hidden' | 'in-sheet' | 'map' {
-  if (!phone) return 'map'
-  if (snap === 'peek') return 'hidden'
-  if (snap === 'half' || snap === 'full') return 'in-sheet'
-  return 'map'
-}
-
 /** The counts line as one spoken sentence. The parts join with ", " so a
  *  screen reader pauses between them. The visual line keeps no separator. */
 export function scopeBandCountsSpoken(counts: ScopeBandCounts | null): string | null {
@@ -62,32 +53,32 @@ export function scopeBandCountsSpoken(counts: ScopeBandCounts | null): string | 
   return parts == null ? null : parts.map(part => `${part.value} ${part.label}`).join(', ')
 }
 
-export function MapScopeBand({ minutes, onMinutes, counts, snap = '', phone = false }: {
+/** The visible count. With a known budget it says what fits; with an unknown
+ *  planned spend it states the scope only and makes no budget claim. */
+export function scopeCountText(counts: ScopeBandCounts | null, minutes: ScopeMinutes, budgetKnown: boolean): string {
+  if (counts?.inside == null) return 'Count unavailable'
+  return budgetKnown ? `Fits: ${counts.inside}` : `Within ${minutes} min: ${counts.inside}`
+}
+
+export function MapScopeBand({ minutes, onMinutes, counts, disabled = false, status = null, budgetKnown = true }: {
   minutes: ScopeMinutes
   onMinutes: (next: ScopeMinutes) => void
   counts: ScopeBandCounts | null
+  disabled?: boolean
+  status?: string | null
+  /** False when the day's planned detour spend is not measured. */
+  budgetKnown?: boolean
   snap?: string
   phone?: boolean
 }) {
-  const parts = scopeBandCountParts(counts)
-  const spoken = scopeBandCountsSpoken(counts)
-  const placement = scopeBandPlacement(snap, phone)
-  return (
-    <section className="mv2-lens-scope-band" data-placement={placement} hidden={placement === 'hidden'} aria-label="Drive scope">
-      <p className="mv2-lens-scope-head">
-        <span className="mv2-lens-scope-title">Look within <b>{minutes} min</b> there and back</span>
-      </p>
-      <div className="mv2-lens-scope-chips" role="group" aria-label="Extra driving in minutes">
-        {MINUTE_SCOPE_STEPS.map(step => (
-          <button key={step} type="button" className="mv2-lens-scope-chip"
-            aria-pressed={step === minutes} onClick={() => onMinutes(step)}>{step}</button>
-        ))}
-      </div>
-      {parts != null && <p className="mv2-lens-scope-counts" role="status" aria-label={spoken ?? undefined}>
-        {parts.map(part => <span className="mv2-lens-scope-count" key={part.label}>
-          <b>{part.value}</b> {part.label}
-        </span>)}
-      </p>}
-    </section>
-  )
+  const countLabel = counts?.inside == null ? 'Count unavailable' : budgetKnown ? `${counts.inside} picks fit scope and budget` : `${counts.inside} picks within ${minutes} min. Budget not measured.`
+  return <section className="mv2-lens-scope-band" data-placement="deck" aria-label="Drive scope">
+    <Select aria-label="Extra driving there and back" value={String(minutes)} disabled={disabled}
+      options={MINUTE_SCOPE_STEPS.map(step => ({ value: String(step), label: `Within ${step} min` }))}
+      onChange={value => {
+        const next = MINUTE_SCOPE_STEPS.find(step => String(step) === value)
+        if (next != null) onMinutes(next)
+      }} />
+    <span className="mv2-lens-scope-count" role="status" aria-label={status ?? countLabel} title={countLabel}>{status ?? scopeCountText(counts, minutes, budgetKnown)}</span>
+  </section>
 }

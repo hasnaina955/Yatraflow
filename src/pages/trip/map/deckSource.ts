@@ -28,4 +28,4 @@ export function deckHits(
 }
 
 /** The Fix deck reads the plan, so its source line names the plan. */
-export const FIX_SOURCE_LINE = "Times from this trip's plan and its fixed bookings"
+export const FIX_SOURCE_LINE = "Source · Trip plan + Fixed bookings"

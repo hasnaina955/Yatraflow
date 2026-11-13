@@ -2079,6 +2079,24 @@ type MapClusterLayerProps<
    *  Fires on pan/zoom and when the source loads; an unchanged membership is not
    *  reported twice. Pass a stable callback — a new identity re-subscribes. */
   onClustersChange?: (ids: Set<string>) => void;
+  /** Draw the group badges as GL circles with a count (default: true). Set
+   *  false when the caller draws its own DOM pin for each group from
+   *  `onClusterBadges`. The circle layer stays, unseen, so the source keeps
+   *  its tiles and a click on the true spot still opens the group. */
+  drawBadges?: boolean;
+  /** Report each group on screen: its id, place, count and the zoom that opens
+   *  it. An unchanged list is not reported twice. Pass a stable callback. */
+  onClusterBadges?: (badges: ClusterBadge[]) => void;
+};
+
+/** One group of points that the map draws as a single badge. */
+export type ClusterBadge = {
+  id: number;
+  lng: number;
+  lat: number;
+  count: number;
+  /** The zoom at which the group splits into its members. */
+  expandZoom: number;
 };
 
 const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
@@ -2087,6 +2105,24 @@ const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
   "#1e3a8a",
 ];
 const DEFAULT_CLUSTER_THRESHOLDS: [number, number] = [100, 750];
+const DEFAULT_CLUSTER_RADII: [number, number, number] = [20, 30, 40];
+
+/** The badge radius for each size band, plus `add` px (the halo uses a wider one). */
+function clusterRadiusStep(
+  radii: [number, number, number],
+  thresholds: [number, number],
+  add: number,
+): MapLibreGL.ExpressionSpecification {
+  return [
+    "step",
+    ["get", "point_count"],
+    radii[0] + add,
+    thresholds[0],
+    radii[1] + add,
+    thresholds[1],
+    radii[2] + add,
+  ];
+}
 
 /** How many members of one cluster are asked for when reporting membership.
  *  Supercluster reads a falsy limit as 10, so this must be a real number; it is
@@ -2107,6 +2143,8 @@ function MapClusterLayer<
   onClusterClick,
   unclusteredVisible = true,
   onClustersChange,
+  drawBadges = true,
+  onClusterBadges,
 }: MapClusterLayerProps<P>) {
   const { map, isLoaded } = useMap();
   const id = useId();
@@ -2150,23 +2188,22 @@ function MapClusterLayer<
           clusterThresholds[1],
           clusterColors[2],
         ],
-        "circle-radius": [
-          "step",
-          ["get", "point_count"],
-          20,
-          clusterThresholds[0],
-          30,
-          clusterThresholds[1],
-          40,
-        ],
+        "circle-radius": clusterRadiusStep(DEFAULT_CLUSTER_RADII, clusterThresholds, 0),
         "circle-stroke-width": 0.75,
         "circle-stroke-color": "#fff",
         "circle-opacity": 0.85,
       },
     });
 
-    // Add cluster count text layer
-    map.addLayer({
+    // A caller with its own group pins keeps the circle as an unseen layer: the
+    // source then keeps its tiles, so the group report still has data.
+    if (!drawBadges) {
+      map.setPaintProperty(clusterLayerId, "circle-opacity", 0);
+      map.setPaintProperty(clusterLayerId, "circle-stroke-width", 0);
+    }
+
+    // Add cluster count layer
+    if (drawBadges) map.addLayer({
       id: clusterCountLayerId,
       type: "symbol",
       source: sourceId,
@@ -2219,7 +2256,7 @@ function MapClusterLayer<
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, map, sourceId, unclusteredVisible]);
+  }, [isLoaded, map, sourceId, unclusteredVisible, drawBadges]);
 
   // Update source data when data prop changes (only for non-URL data)
   useEffect(() => {
@@ -2240,9 +2277,12 @@ function MapClusterLayer<
   // a repeat of the same membership suppressed, so a caller may `setState` from
   // it without a render loop.
   useEffect(() => {
-    if (!isLoaded || !map || !onClustersChange) return;
+    if (!isLoaded || !map || (!onClustersChange && !onClusterBadges)) return;
     let last = "";
+    let lastBadges = "";
     let cancelled = false;
+    // Only the latest report may set the badges. An older answer that comes back late is dropped.
+    let reportSeq = 0;
 
     const report = () => {
       const source = map.getSource(sourceId) as
@@ -2250,14 +2290,45 @@ function MapClusterLayer<
         | undefined;
       if (!source) return;
 
+      // A group can sit in more than one tile, so it is kept once by its id.
       const clusterIds = new Set<number>();
+      const places = new globalThis.Map<number, { lng: number; lat: number; count: number }>();
       for (const feature of map.querySourceFeatures(sourceId)) {
         const properties = feature.properties as {
           cluster_id?: unknown;
+          point_count?: unknown;
         } | null;
         const clusterId = properties?.cluster_id;
-        if (typeof clusterId === "number") clusterIds.add(clusterId);
+        if (typeof clusterId !== "number") continue;
+        clusterIds.add(clusterId);
+        const count = Number(properties?.point_count);
+        if (!places.has(clusterId) && feature.geometry.type === "Point" && count > 0) {
+          const [lng, lat] = feature.geometry.coordinates;
+          places.set(clusterId, { lng, lat, count });
+        }
       }
+
+      if (onClusterBadges) {
+        const seq = ++reportSeq;
+        void Promise.all(
+          [...places].map(([clusterId, place]) =>
+            source
+              .getClusterExpansionZoom(clusterId)
+              .then((expandZoom): ClusterBadge | null => ({ id: clusterId, ...place, expandZoom }))
+              // A failed lookup draws no pin. It never guesses a zoom.
+              .catch(() => null),
+          ),
+        ).then((found) => {
+          if (cancelled || seq !== reportSeq) return;
+          const badges = found.filter((b): b is ClusterBadge => b != null);
+          badges.sort((a, b) => a.id - b.id);
+          const signature = badges.map((b) => `${b.id}:${b.count}:${b.lng.toFixed(6)},${b.lat.toFixed(6)}`).join("|");
+          if (signature === lastBadges) return;
+          lastBadges = signature;
+          onClusterBadges(badges);
+        });
+      }
+      if (!onClustersChange) return;
 
       if (clusterIds.size === 0) {
         if (last !== "") {
@@ -2303,7 +2374,7 @@ function MapClusterLayer<
       map.off("idle", report);
       map.off("sourcedata", handleSourceData);
     };
-  }, [isLoaded, map, sourceId, onClustersChange]);
+  }, [isLoaded, map, sourceId, onClustersChange, onClusterBadges]);
 
   // Update layer styles when props change
   useEffect(() => {
@@ -2315,7 +2386,7 @@ function MapClusterLayer<
       prev.clusterThresholds !== clusterThresholds;
 
     // Update cluster layer colors and sizes
-    if (map.getLayer(clusterLayerId) && colorsChanged) {
+    if (map.getLayer(clusterLayerId) && colorsChanged && drawBadges) {
       map.setPaintProperty(clusterLayerId, "circle-color", [
         "step",
         ["get", "point_count"],
@@ -2325,15 +2396,7 @@ function MapClusterLayer<
         clusterThresholds[1],
         clusterColors[2],
       ]);
-      map.setPaintProperty(clusterLayerId, "circle-radius", [
-        "step",
-        ["get", "point_count"],
-        20,
-        clusterThresholds[0],
-        30,
-        clusterThresholds[1],
-        40,
-      ]);
+      map.setPaintProperty(clusterLayerId, "circle-radius", clusterRadiusStep(DEFAULT_CLUSTER_RADII, clusterThresholds, 0));
     }
 
     // Update unclustered point layer color
@@ -2347,6 +2410,7 @@ function MapClusterLayer<
     map,
     clusterLayerId,
     unclusteredLayerId,
+    drawBadges,
     clusterColors,
     clusterThresholds,
     pointColor,
@@ -2362,6 +2426,9 @@ function MapClusterLayer<
         features?: MapLibreGL.MapGeoJSONFeature[];
       },
     ) => {
+      // Without badges, the DOM group pin owns the click. The hidden circle
+      // must not start a second camera move.
+      if (!drawBadges) return;
       const features = map.queryRenderedFeatures(e.point, {
         layers: [clusterLayerId],
       });
@@ -2414,7 +2481,7 @@ function MapClusterLayer<
 
     // Cursor style handlers
     const handleMouseEnterCluster = () => {
-      map.getCanvas().style.cursor = "pointer";
+      if (drawBadges) map.getCanvas().style.cursor = "pointer";
     };
     const handleMouseLeaveCluster = () => {
       map.getCanvas().style.cursor = "";
@@ -2449,6 +2516,7 @@ function MapClusterLayer<
     clusterLayerId,
     unclusteredLayerId,
     sourceId,
+    drawBadges,
     onClusterClick,
     onPointClick,
   ]);

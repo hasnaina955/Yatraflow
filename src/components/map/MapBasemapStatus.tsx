@@ -38,7 +38,7 @@ export function MapBasemapStatus({ failure, onRetry, onSourceReady }: Pick<Retur
   const retrying = failure.phase === 'retrying'
   return <div className="mv2-basemap-status" role="status">
     <MapIcon size={18} aria-hidden="true" />
-    <span>{retrying ? 'Loading the map again…' : 'Map tiles are unavailable. Your stops and route estimates are still shown.'}</span>
+    <span>{retrying ? 'Loading the map again…' : 'Map tiles · Unavailable · Stops and route visible'}</span>
     <button type="button" className="btn btn-sm btn-outline" disabled={retrying} onClick={() => {
       const source = map?.getSource('openmaptiles')
       if (source?.type !== 'vector' || !('setUrl' in source) || typeof source.setUrl !== 'function') return

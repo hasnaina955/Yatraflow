@@ -69,7 +69,7 @@ describe('writer branch', () => {
   })
   it('closes the preview even when the writer fails', () => {
     expect(branch).toContain('finally')
-    expect(branch).toContain("setAnnouncement('The add could not start. Try again.')")
+    expect(branch).toContain("setAnnouncement('Add · Unavailable · Retry')")
   })
   it('starts no second Undo and calls no taste log', () => {
     expect(branch).not.toContain('setUndoStartedAt')

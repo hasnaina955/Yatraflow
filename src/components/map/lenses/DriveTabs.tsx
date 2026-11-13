@@ -1,7 +1,7 @@
 // Drive lens deck. It draws one DriveTabsResult and calls the caller back.
 // It reads no store, no map and no provider. The caller supplies every value.
 import { useId, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import type {
   DriveCardStrip, DriveTab, DriveTabGroup, DriveTabsResult, ScopeBand,
 } from '../../../pages/trip/map/driveLens'
@@ -18,11 +18,11 @@ type DriveRow = DriveTabGroup['shown'][number]
 
 /** The phase text of each phase that has no cards. */
 const PHASE_TEXT = {
-  unscanned: 'Pick a day to see what is along the drive.',
-  scanning: 'Looking along the drive…',
-  failed: 'The search along the drive failed. Try again.',
-  quota: 'The place search is over its limit for now.',
-  empty: 'Nothing along this drive fits your scope.',
+  unscanned: 'Drive · Choose a day',
+  scanning: 'Drive · Searching…',
+  failed: 'Drive search · Failed',
+  quota: 'Place search · Limit reached',
+  empty: 'Drive · No picks in scope',
 } as const
 
 /** A deck with no cards still shows its title, so every phase keeps one header. */
@@ -35,8 +35,9 @@ export function driveNoteKicker(dayNumber: number): string {
 
 /** The tag of each band that shows one. The other bands show no tag. */
 const BAND_TAG: Partial<Record<ScopeBand, string>> = {
-  'just-past': 'just past your scope',
-  'over-budget': "over today's budget",
+  unknown: 'Detour · Not measured',
+  'just-past': 'Just past scope',
+  'over-budget': "Over budget",
 }
 
 /**
@@ -75,9 +76,7 @@ export function driveDeckKicker(label: string | null): string {
 
 /** The deck title, for example "3 places for lunch". */
 export function driveDeckTitle(group: Pick<DriveTabGroup, 'label' | 'total'>): string {
-  const word = driveSlotWord(group.label)
-  const noun = group.total === 1 ? 'place' : 'places'
-  return word === '' ? `${group.total} ${noun}` : `${group.total} ${noun} for ${word}`
+  return group.label
 }
 
 /** Meal slot words. Other tabs name only the day. */
@@ -122,7 +121,7 @@ export function driveCells(strip: DriveCardStrip): LensCostCell[] {
   ]
 }
 
-export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, swapOf, onClose, onRetry }: {
+export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, nameOf, onOpen, onAdd, dayNumber, reasonOf, letters: lettersProp, onShortlist, shortlistedOf, swapOf, onClose, onRetry, scopeSlot }: {
   result: DriveTabsResult
   activeTab: DriveTab | null
   onTab: (tab: DriveTab) => void
@@ -148,6 +147,8 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   onClose?: () => void
   /** The search retry. Absent draws a failed note with no Retry button. */
   onRetry?: () => void
+  /** The scope picker and its count. It shares the title row. */
+  scopeSlot?: ReactNode
 }) {
   const uid = useId()
   const timeFormat = useTimeFormat()
@@ -155,14 +156,14 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
   const [chosen, setChosen] = useState<string | null>(null)
   if (result.phase !== 'ready') {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
-      <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} />
+      <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} aside={scopeSlot} />
       <LensPhaseNote phase={result.phase} {...(onRetry == null ? {} : { onRetry })}>{PHASE_TEXT[result.phase]}</LensPhaseNote>
     </section>
   }
   const groups = result.tabs
   if (groups.length === 0) {
     return <section className="mv2-lens mv2-lens-drive" aria-label="Along the drive">
-      <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} />
+      <LensDeckHeader kicker={driveNoteKicker(dayNumber)} title={DRIVE_NOTE_TITLE} onClose={onClose} aside={scopeSlot} />
       <LensPhaseNote phase="empty">{PHASE_TEXT.empty}</LensPhaseNote>
     </section>
   }
@@ -193,6 +194,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
       title={driveDeckTitle(active)}
       sub={intro}
       onClose={onClose}
+      aside={scopeSlot}
     />
     {driveTabMode(groups.length) === 'none'
       ? null
@@ -228,7 +230,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
           const over = band === 'over-budget'
           const hit = row.row.hit
           const reason = reasonOf?.(row) ?? null
-          return <li key={index}>
+          return <li key={index} data-scope-band={band} data-place-id={String(hit.id)}>
             <LensPlaceCard
               hit={hit}
               category={hit.category}

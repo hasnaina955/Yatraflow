@@ -23,7 +23,7 @@ const FAMILY_HEXES = [
 describe('baseTagText', () => {
   it('drops the check in lead and keeps the place name', () => {
     expect(baseTagText('Check in · Spice Village')).toBe('Spice Village')
-    expect(baseTagText('Check-in — Munnar hill resort')).toBe('Munnar hill resort')
+    expect(baseTagText('Check-in · Munnar hill resort')).toBe('Munnar hill resort')
     expect(baseTagText('Spice Village')).toBe('Spice Village')
     expect(baseTagText(null)).toBe('')
   })

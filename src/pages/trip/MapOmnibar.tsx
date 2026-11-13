@@ -122,7 +122,7 @@ export function MapOmnibar({
 
       {quotaOut && (
         <p className="muted small" role="status" style={{ margin: '8px 0 0' }}>
-          Search is paused by the provider’s own quota guard — suggestions and the rails keep working.
+          Search is paused by the provider’s own quota guard. Suggestions and the rails keep working.
         </p>
       )}
       {short && (

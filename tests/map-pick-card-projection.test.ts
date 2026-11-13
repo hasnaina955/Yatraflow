@@ -124,7 +124,7 @@ describe('the unprojected search pin keeps its prior path', () => {
 
   it('keeps the viewer note for a non-editable pin', () => {
     const html = render({ editable: false })
-    expect(html).toContain('Editing is available to its planners.')
+    expect(html).toContain('Trip · View only')
     expect(html).not.toContain('Add to a day')
   })
 })

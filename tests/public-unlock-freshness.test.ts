@@ -25,7 +25,8 @@ import { tripToRow } from '../src/lib/tripRow'
 /** The notice `get_public_trip` stamps on every stop of a withheld day. Written
  *  out here rather than imported: this is the wire's string, and a test that
  *  agrees with the code by construction cannot notice the code drifting. */
-const LOCKED = 'Locked — the full plan is on the original itinerary.'
+// The server's exact notice (get_public_trip). A test that copies the client constant would hide drift.
+const LOCKED = 'Locked \u2014 the full plan is on the original itinerary.'
 
 const { state, toast } = vi.hoisted(() => ({
   state: {
@@ -345,4 +346,11 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     expect(fn).toContain('restubLockedDays(src, pub.freeDayIndexes,')
     expect(fn).toMatch(/duplicateTripPublicPersisted\(safe, meId, pub\.freeDayIndexes, source, origin\)/)
   })
+})
+
+it('#349 — the client notice matches every migration that writes it, byte for byte', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const dir = new URL('../supabase/migrations/', import.meta.url)
+  const notices = new Set(readdirSync(dir).flatMap(name => [...readFileSync(new URL(name, dir), 'utf8').matchAll(/to_jsonb\('(Locked[^']*)'::text\)/g)].map(m => m[1])))
+  expect([...notices]).toEqual([LOCKED])
 })

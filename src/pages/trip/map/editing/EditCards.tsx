@@ -10,16 +10,16 @@ import type { AddPreview, PreviewLeg, PreviewUnknownReason, UnknownFact } from '
 import { outcomeMessage, type EditOutcome } from './outcomes'
 
 const UNKNOWN_REASON: Record<PreviewUnknownReason, string> = {
-  'day-missing': 'The day is not on this trip, so there is nothing to preview.',
-  'position-unknown': 'The road order for this place is not known, so the new times are not known.',
-  'coordinates-unknown': 'This place has no usable position, so the new road is not known.',
-  'visit-unknown': 'The visit length is not known, so the new times are not known.',
-  'not-active': 'This stop would not be on the plan, so there is nothing to preview.',
+  'day-missing': 'Preview · Day unavailable',
+  'position-unknown': 'Road order · Not measured · New times unavailable',
+  'coordinates-unknown': 'Place position · Unknown · New road unavailable',
+  'visit-unknown': 'Visit length · Unknown · New times unavailable',
+  'not-active': 'Preview · Stop outside plan',
 }
 
 const UNKNOWN_FACT: Record<UnknownFact, string> = {
-  'opening-hours': 'Opening hours are not known.',
-  'admission-price': 'Admission price is not known.',
+  'opening-hours': 'Opening hours · Unknown',
+  'admission-price': 'Admission · Unknown',
 }
 
 function legLine(leg: PreviewLeg): string {
@@ -56,19 +56,19 @@ export function AddPreviewCard({ preview, busy = false, outcome = null, canUndo 
     )
   }
   const kept = outcome?.kind === 'kept'
-  const place = preview.insertion.afterTitle ? `after ${preview.insertion.afterTitle}` : 'first on the day'
+  const place = preview.insertion.afterTitle ? `After ${preview.insertion.afterTitle}` : 'First in day'
   return (
     <section className="map-edit-card map-edit-preview" aria-label="Preview before you add" aria-busy={busy}>
       <h3 className="map-edit-kicker">If you add it · Preview</h3>
       <ul className="map-edit-list">
-        <li>{`Lands as stop ${preview.insertion.order} of ${preview.insertion.total}, ${place}.`}</li>
+        <li>{`Stop ${preview.insertion.order} / ${preview.insertion.total} · ${place}`}</li>
         {preview.road.legIn && <li>{legLine(preview.road.legIn)}</li>}
         {preview.road.legOut && <li>{legLine(preview.road.legOut)}</li>}
         {preview.road.replaced && <li className="map-edit-replaced">{`Replaces ${legLine(preview.road.replaced)}`}</li>}
         {preview.clocks.map(clock => (
           <li key={clock.stopId}>
             {clock.deltaMin === 0
-              ? `${clock.title} does not move (${clock.to}).`
+              ? `${clock.title} · ${clock.to} unchanged`
               : <>{clock.title} <s>{clock.from}</s> → <b>{clock.to}</b></>}
           </li>
         ))}
@@ -111,10 +111,10 @@ export function FixedTimeConfirm({ guard, onConfirm, onCancel }: {
         {guard.touched.map(t => (
           <li key={t.stopId}>
             {t.change === 'unlinked'
-              ? `${t.commitTitle} (${t.commitTime}) would lose its stop, ${t.title}.`
+              ? `${t.commitTitle} · ${t.commitTime} · Stop unlinked: ${t.title}`
               : t.change === 'late'
-                ? `${t.title} would arrive ${t.to}, after the ${t.commitTime} time for ${t.commitTitle}.`
-                : `${t.title} would move from ${t.from ?? 'an unknown time'} to ${t.to ?? 'an unknown time'}. ${t.commitTitle} is fixed at ${t.commitTime}.`}
+                ? `${t.title} · Arrival ${t.to} · Late for ${t.commitTitle} at ${t.commitTime}`
+                : `${t.title} · ${t.from ?? 'Unknown'} → ${t.to ?? 'Unknown'} · ${t.commitTitle} · Fixed ${t.commitTime}`}
           </li>
         ))}
       </ul>
@@ -356,7 +356,7 @@ export function StopEditorCard({ title, clockLabel, placeLabel = null, order = n
         <button type="button" className="map-edit-remove" disabled={busy} onClick={onRemove}>Remove</button>
       </div>
       {fixed && (
-        <p className="map-edit-fixed"><LockKeyhole size={14} aria-hidden />{`${title} is a fixed time: it cannot be dragged, and editing its time asks first.`}</p>
+        <p className="map-edit-fixed"><LockKeyhole size={14} aria-hidden />{`${title} · Fixed time · Changes need confirmation`}</p>
       )}
     </section>
   )

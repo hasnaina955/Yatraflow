@@ -132,14 +132,14 @@ describe('StayDeck', () => {
     expect((html.match(/<article/g) ?? []).length).toBe(1)
     const also = [...html.matchAll(/mv2-lens-also-letter">([A-C])<\/span>/g)].map(m => m[1])
     expect(also).toEqual(['B', 'C', 'A'])
-    expect(html).toContain('Also in this window')
+    expect(html).toContain('Also in this')
   })
 
   it('shows alsoCount only when greater than 0', () => {
-    expect(stayHtml({ result: readyStay([stayPick('A')], 0) })).not.toContain('Also in this window')
+    expect(stayHtml({ result: readyStay([stayPick('A')], 0) })).not.toContain('Also in this')
     const also = stayHtml({ result: readyStay([stayPick('A')], 2) })
-    expect(also).toContain('Also in this window')
-    expect(also).toContain('2 more')
+    expect(also).toContain('Also in this')
+    expect(also).toContain('More: 2')
   })
 
   it('has a radiogroup with two radios', () => {
@@ -192,7 +192,7 @@ describe('GapDeck', () => {
     const zero = gapHtml({ gaps: [gapEntry(gapPicks([gapPick('A')], { moreCount: 0 }))] })
     expect(zero).not.toContain('mv2-lens-more')
     const three = gapHtml({ gaps: [gapEntry(gapPicks([gapPick('A')], { moreCount: 3 }))] })
-    expect(three).toContain('3 more')
+    expect(three).toContain('More: 3')
   })
 
   it('shows the no-fit sentence when there are no picks', () => {

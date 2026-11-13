@@ -1,6 +1,6 @@
 // Fix lens deck. It draws one problem and the fixes another module built.
 // It shows only the fixes it is given. It never builds or ranks a fix.
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Check, Route } from 'lucide-react'
 import type { FixSummary } from '../../../pages/trip/map/fixLens'
 import { fixProblemCount, type FixChangeSet, type LensPhase } from '../../../lib/mapLensContracts'
@@ -9,11 +9,11 @@ import { LensPhaseNote } from './LensPhaseNote'
 
 /** The phase text of each phase that has no deck. */
 const PHASE_TEXT = {
-  unscanned: 'Pick a day to see what is for this day.',
-  scanning: 'Looking for this day…',
-  failed: 'The search for this day failed. Try again.',
-  quota: 'The place search is over its limit for now.',
-  empty: 'Nothing for this day fits your scope.',
+  unscanned: 'Fix · Choose a day',
+  scanning: 'Fix · Searching…',
+  failed: 'Fix search · Failed',
+  quota: 'Place search · Limit reached',
+  empty: 'Fix · No picks in scope',
 } as const
 
 /** The kicker of the deck header, for example "Fix · 1 problem on Day 3". */
@@ -38,7 +38,8 @@ function EvidenceLine({ text }: { text: string }) {
     : <Fragment key={index}>{part}</Fragment>)}</>
 }
 
-export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, onClose }: {
+export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, onClose, routeAdvice }: {
+  routeAdvice?: ReactNode
   phase: LensPhase
   dayNumber: number
   problem: { title: string; evidence: string[]; foundBy: string } | null
@@ -63,21 +64,20 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
       tone="risk"
       onClose={onClose}
     />
-    {problem && <div className="mv2-lens-evidence">
+    {problem && <div className="mv2-lens-evidence" title={`Found by the ${problem.foundBy}`}>
       {/* One reason is a plain line. Two or more are a list, so each stays a unit. */}
       {problem.evidence.length === 1
         ? <p className="mv2-lens-evidence-line"><EvidenceLine text={problem.evidence[0]} /></p>
         : <ul className="mv2-lens-evidence-lines">
           {problem.evidence.map((line, index) => <li key={index}><EvidenceLine text={line} /></li>)}
         </ul>}
-      <p className="mv2-lens-found-by">
-        {`Found by the ${problem.foundBy} · every fix below was run through the impact preview`}
-      </p>
+
     </div>}
+    {routeAdvice}
     {problem == null
-      ? <p className="mv2-lens-none">No problems on this day.</p>
+      ? (routeAdvice ? null : <p className="mv2-lens-none">Day · No problems</p>)
       : shown.length === 0
-        ? <p className="mv2-lens-none">No safe fix was found. Every change we tried left the problem or made a new one.</p>
+        ? (routeAdvice ? null : <p className="mv2-lens-none">Fix · No safe change</p>)
         : <ol className="mv2-lens-fixes">
           {shown.map((fix, index) => <li key={fix.set.id}
             className={`mv2-lens-fix${index === 0 ? ' is-first' : ''}`}>

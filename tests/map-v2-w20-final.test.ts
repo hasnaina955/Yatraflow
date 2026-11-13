@@ -118,7 +118,7 @@ describe('A4: the Fix sub line says what changes for the traveller', () => {
   it('names the old and new stay length for a shortened visit', () => {
     const summary = fixSummary(setOf([{ kind: 'set-visit', stopId: 'farm', visitMin: 25 }]), titleOf, clock, dayStops, () => null)
     expect(summary.title).toBe('Shorten Spice farm walk to 25 min')
-    expect(summary.change).toBe('Stay 45 min → 25 min · keeps every stop')
+    expect(summary.change).toBe('Stay 45 min → 25 min · All stops kept')
   })
 
   it('names the day and the sailing clock for a moved booking', () => {
@@ -164,10 +164,10 @@ describe('B7: no leg line above the first visible row, and none between rows tha
 
 describe('B8: the stay lens title says evening; the base row says tonight', () => {
   it('uses evening in the rail title', () => {
-    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · evening')
+    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · Evening')
   })
   it('uses tonight for the base row', () => {
-    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · tonight')
+    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · Tonight')
   })
 })
 
@@ -207,7 +207,7 @@ describe('A3: clocks inside map text follow the 12 h / 24 h setting', () => {
 describe('C10: the slot-search provenance never shows as a pick chip', () => {
   it('drops the provenance reason and keeps a real one', () => {
     expect(pickFactChips({ reason: SLOT_SEARCH_PROVENANCE, hit: {}, format: '12h' })).toEqual([])
-    expect(pickFactChips({ reason: 'breaks a 2 h ghat stretch', hit: {}, format: '12h' })).toEqual(['breaks a 2 h ghat stretch'])
+    expect(pickFactChips({ reason: 'breaks a 2 h ghat stretch', hit: {}, format: '12h' })).toEqual(['Breaks a 2 h ghat stretch'])
   })
 
   it('keeps the filing contract that carries the provenance in the candidate', () => {
@@ -223,11 +223,11 @@ describe('C11: fact chips come only from data the hit carries', () => {
       hit: { closeTime: '15:30', facts: { why: 'first good stop after Attukad', diet: 'veg and non-veg' } },
       format: '12h',
     })
-    expect(chips).toEqual(['first good stop after Attukad', 'open till 3:30 PM', 'veg and non-veg'])
+    expect(chips).toEqual(['First good stop after Attukad', 'Open till 3:30 PM', 'Veg and non-veg'])
   })
 
   it('reads the hours in the 24 h clock when set', () => {
-    expect(pickFactChips({ reason: null, hit: { closeTime: '15:30' }, format: '24h' })).toEqual(['open till 15:30'])
+    expect(pickFactChips({ reason: null, hit: { closeTime: '15:30' }, format: '24h' })).toEqual(['Open till 15:30'])
   })
 
   it('shows nothing for a hit with no data, and never invents', () => {
@@ -236,7 +236,7 @@ describe('C11: fact chips come only from data the hit carries', () => {
   })
 
   it('keeps one copy of a repeated fact', () => {
-    expect(pickFactChips({ reason: 'quiet, 12 tables', hit: { facts: { why: 'quiet, 12 tables' } }, format: '12h' })).toEqual(['quiet, 12 tables'])
+    expect(pickFactChips({ reason: 'Quiet, 12 tables', hit: { facts: { why: 'Quiet, 12 tables' } }, format: '12h' })).toEqual(['Quiet, 12 tables'])
   })
 })
 

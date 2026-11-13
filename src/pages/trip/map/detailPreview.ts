@@ -35,11 +35,11 @@ export interface DetailPreviewView {
 }
 
 const UNKNOWN_REASON: Record<PreviewUnknownReason, string> = {
-  'day-missing': 'The day is not on this trip, so there is nothing to preview.',
-  'position-unknown': 'The road order for this place is not known, so the new times are not known.',
-  'coordinates-unknown': 'This place has no usable position, so the new road is not known.',
-  'visit-unknown': 'The visit length is not known, so the new times are not known.',
-  'not-active': 'This stop would not be on the plan, so there is nothing to preview.',
+  'day-missing': 'Preview · Day unavailable',
+  'position-unknown': 'Road order · Not measured · New times unavailable',
+  'coordinates-unknown': 'Place position · Unknown · New road unavailable',
+  'visit-unknown': 'Visit length · Unknown · New times unavailable',
+  'not-active': 'Preview · Stop outside plan',
 }
 
 /** The most moved stops the panel lists. The rest become one count line. */
@@ -53,7 +53,8 @@ const DAY_PREFIX = /^Day\s+\d+\s*:\s*/i
 /** The title a risk line opens with. The day prefix leaves, and a trailing
  *  colon goes, because the body follows after its own separator. */
 export function warningTitleText(title: string): string {
-  return title.replace(DAY_PREFIX, '').replace(/[\s:·]+$/, '').trim()
+  const label = title.replace(DAY_PREFIX, '').replace(/[\s:·]+$/, '').trim()
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 /** One sentence from a warning: the title, then the body. No day prefix, and
@@ -100,7 +101,7 @@ export function labelStopName(title: string): string {
   return match != null && match[2].trim() !== '' ? match[2].trim() : title.trim()
 }
 
-/** The slot word of a stop title: "Dinner · around the stay" reads "Dinner". */
+/** The slot word of a stop title: "Dinner · Around the stay" reads "Dinner". */
 export function slotWord(title: string): string {
   const match = SLOT_PREFIX.exec(title.trim())
   const word = match != null ? match[1].toLowerCase().replace(/[ -]/g, ' ') : title.trim()
@@ -140,11 +141,11 @@ function fitLine(preview: ReadyAddPreview, clock: (hm: string) => string): Previ
   const meal = day.stops.find(stop => stop.id !== preview.stopId && !movedIds.has(stop.id)
     && (/^(lunch|dinner)\b/i.test(stop.title) || stop.slotKey === 'lunch' || stop.slotKey === 'dinner'))
   const parts: PreviewPart[] = []
-  if (stay != null) parts.push({ text: `${labelStopName(stay.title)} stays at ${clock(stay.from)}` })
+  if (stay != null) parts.push({ text: `${labelStopName(stay.title)} · ${clock(stay.from)} unchanged` })
   if (meal != null) {
-    const name = slotWord(meal.title).toLowerCase()
-    if (parts.length > 0) parts.push({ text: '; ' })
-    parts.push({ text: `${name} time was already held for you` })
+    const name = slotWord(meal.title)
+    if (parts.length > 0) parts.push({ text: ' · ' })
+    parts.push({ text: `${name} · Time held` })
   }
   if (parts.length === 0) return null
   return { key: 'fit', tone: 'ok', parts }
@@ -162,8 +163,8 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   const lines: PreviewLine[] = []
   const orderChanged = preview.orderChanged === true
   const place = preview.insertion.afterTitle != null
-    ? `in road order after ${spokenStopName(preview.insertion.afterTitle)}`
-    : 'first on the day'
+    ? `After ${slotWord(preview.insertion.afterTitle)}`
+    : 'First in day'
   // A re-ordered day says so first: a later stop that reads earlier is only
   // honest when the order moved, and the reader must see that before the clocks.
   lines.push({
@@ -171,8 +172,8 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     tone: 'ok',
     parts: [{
       text: orderChanged
-        ? `Re-ordered: the new stop goes in before ${preview.insertion.beforeTitle != null ? labelStopName(preview.insertion.beforeTitle) : 'the day’s end'}`
-        : `Lands as stop ${preview.insertion.order}, ${place}`,
+        ? `Order changed · Before ${preview.insertion.beforeTitle != null ? labelStopName(preview.insertion.beforeTitle) : 'Day end'}`
+        : `Stop ${preview.insertion.order} · ${place}`,
     }],
   })
 
@@ -198,7 +199,7 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
   }
   if (moved.length > MAX_MOVED) {
     const more = moved.length - MAX_MOVED
-    lines.push({ key: 'moved-more', tone: 'clock', parts: [{ text: `${more} more ${more === 1 ? 'stop moves' : 'stops move'} later` }] })
+    lines.push({ key: 'moved-more', tone: 'clock', parts: [{ text: `Later stops moved: ${more}` }] })
   }
 
   for (const warning of preview.warnings.added) {
@@ -233,15 +234,15 @@ export function detailPreviewView(preview: AddPreview, clock: (hm: string) => st
     lines.push({
       key: 'end',
       tone: 'clock',
-      parts: [{ text: "The day's end " }, { text: clock(end.from), struck: true }, { text: ' → ' }, { text: clock(end.to), bold: true }],
+      parts: [{ text: 'Day end ' }, { text: clock(end.from), struck: true }, { text: ' → ' }, { text: clock(end.to), bold: true }],
     })
   } else if (end.deltaMin === 0) {
     // Name the last stop when it also stays. The reader then knows exactly
     // which part of the evening is safe, not only that some later part is.
     const last = [...preview.clocks].reverse().find(entry => entry.deltaMin === 0)
     const calm = last == null
-      ? 'The day’s end does not move'
-      : `${slotWord(last.title)} and the day’s end do not move`
+      ? 'Day end · Unchanged'
+      : `${slotWord(last.title)} · Day end unchanged`
     lines.push({ key: 'still', tone: 'ok', parts: [{ text: calm }] })
   }
 

@@ -256,7 +256,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
           body="Creator mode is a branding badge. Your bio and social links appear on the itineraries you publish. You get a public creator page others can follow."
           actions={<button className="btn btn-saffron" onClick={async () => {
             const r = await updateProfile({ isCreator: true })
-            if (r.ok) toast('Creator mode enabled — your bio and links now show on published itineraries.')
+            if (r.ok) toast('Creator mode enabled. Your bio and links now show on published itineraries.')
             else toast(r.error ?? PROFILE_NOT_SAVED, 'err')
           }}>
             Enable creator mode
@@ -328,7 +328,7 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
             </summary>
             {/* Off-ladder 10px: stays inline until the page redesign (R13). */}
             <p className="hint-text" style={{ margin: '10px 0 12px' }}>
-              Publishing to Explore is open to everyone — do it from any trip&apos;s Share tab.
+              Publishing to Explore is open to everyone. Do it from any trip&apos;s Share tab.
               Creator mode is a branding badge: your bio and social links appear
               on the itineraries you publish.
             </p>
@@ -367,13 +367,13 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
       <ConfirmDialog
         open={confirmDisable}
         title="Disable creator mode?"
-        body="Your bio and social links stop showing on your published itineraries and the creator badge is removed. Your publications stay live — you can re-enable the badge anytime."
+        body="Your bio and social links stop showing on your published itineraries and the creator badge is removed. Your publications stay live. You can re-enable the badge anytime."
         confirmLabel="Disable"
         danger
         onConfirm={async () => {
           setConfirmDisable(false)
           const r = await updateProfile({ isCreator: false })
-          if (r.ok) toast('Creator mode disabled — your publications stay live.')
+          if (r.ok) toast('Creator mode disabled. Your publications stay live.')
           else toast(r.error ?? PROFILE_NOT_SAVED, 'err')
         }}
         onClose={() => { setConfirmDisable(false) }}
@@ -381,14 +381,14 @@ export function CreatorHubPage({ onNavigate }: { onNavigate: (r: string) => void
       <ConfirmDialog
         open={!!unpubTarget}
         title={`Unpublish “${unpubTarget?.title ?? ''}”?`}
-        body="It leaves Explore immediately and stops selling. The trip itself is not touched, and anyone who already unlocked it keeps access — you can publish it again from its Share tab. Its views, forks and sales stay on this page."
+        body="It leaves Explore immediately and stops selling. The trip itself is not touched, and anyone who already unlocked it keeps access. You can publish it again from its Share tab. Its views, forks and sales stay on this page."
         confirmLabel="Unpublish"
         danger
         onConfirm={() => {
           if (!unpubTarget) return
           unpublishItinerary(unpubTarget.tripId)
           setUnpubTarget(null)
-          toast('Unpublished — removed from Explore')
+          toast('Unpublished. Removed from Explore')
         }}
         onClose={() => { setUnpubTarget(null) }}
       />
@@ -451,7 +451,7 @@ function FunnelLine({ f, funnelRead, unlockRead = 'ready', windowLabel }: { f: P
   if (f.unreported) {
     return (
       <>
-        <span className="muted">No recorded traffic yet — nothing to measure for this plan.</span>
+        <span className="muted">No recorded traffic yet. Nothing to measure for this plan.</span>
         {lifetime}
       </>
     )
@@ -476,7 +476,7 @@ function FunnelLine({ f, funnelRead, unlockRead = 'ready', windowLabel }: { f: P
           ? <span className="hub-lead-step hub-lead-unlocks"><b className="hub-lead-n">{f.unlocks}</b> {unit(f.unlocks, 'unlock')} <span className="hub-lead-rate">{f.forks ? `${formatPct(f.unlockRatePct)} unlock/fork ratio` : 'no forks to compare'}</span></span>
           : <span className="hub-lead-step muted">{unlockRead === 'reading' ? 'unlocks still being read' : 'unlocks could not be read'}</span>}
         {f.forksExceedViews && (
-          <span className="muted">· more forks than visits — Explore&apos;s card forks a plan without opening it</span>
+          <span className="muted">· more forks than visits. Explore&apos;s card forks a plan without opening it</span>
         )}
       </span>
       <span className="muted">Separate activity counts. These ratios do not measure visitor conversion.</span>
@@ -671,7 +671,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, dailyAt, s
           above are unknown, and only a failed read offers the way back. */}
       {tripsView === 'failed' && (
         <StateBlock kind="failed" size="compact" title="Couldn’t load your trips."
-          body="Nothing has been lost — the Live and Behind counts need them."
+          body="Nothing has been lost. The Live and Behind counts need them."
           actions={<button className="btn btn-outline btn-sm" onClick={onRetryTrips} disabled={tripsRetrying}>
             {tripsRetrying ? 'Trying…' : 'Try again'}
           </button>} />
@@ -699,11 +699,11 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, dailyAt, s
           {salesAt ? (
             <>
               <b>Couldn’t refresh your sales ledger.</b> The figures on this tab are the ones that loaded at{' '}
-              {formatHM(readAtHM(salesAt), timeFmt)} — nothing has been lost, they are simply older than now.
+              {formatHM(readAtHM(salesAt), timeFmt)}. Nothing has been lost, they are simply older than now.
             </>
           ) : (
             <>
-              <b>Couldn’t read your sales ledger.</b> Every unlock figure on this tab is unknown until it loads —
+              <b>Couldn’t read your sales ledger.</b> Every unlock figure on this tab is unknown until it loads. 
               nothing has been lost, it just could not be read.
             </>
           )}
@@ -752,16 +752,16 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, dailyAt, s
                   ? 'Reading recorded traffic…'
                   : funnelError
                     ? daily !== null && dailyAt !== null
-                      ? `Couldn’t refresh — showing the log read at ${formatHM(readAtHM(dailyAt), timeFmt)}.`
-                      : 'Recorded traffic could not be read just now — the trend is unchanged on the server.'
+                      ? `Couldn’t refresh. Showing the log read at ${formatHM(readAtHM(dailyAt), timeFmt)}.`
+                      : 'Recorded traffic could not be read just now. The trend is unchanged on the server.'
                     : recordingSince
                       // #358 — QUALIFIED. This is the GLOBAL earliest day across
                       // every publication, while each row's own pre-log line
                       // dates ITS plan — and the two sat side by side looking
                       // like a contradiction. Naming the scope is enough; the
                       // dates themselves are both true.
-                      ? `Chart shows recorded days only; your log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} — the earliest of your plans.`
-                      : 'Nothing recorded yet — the trend starts with the first visit.'}
+                      ? `Chart shows recorded days only; your log begins ${new Date(`${recordingSince}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}. The earliest of your plans.`
+                      : 'Nothing recorded yet. The trend starts with the first visit.'}
               </span>
               {funnelError && <button className="btn btn-outline btn-sm" onClick={handleRetryFunnel} disabled={funnelReading}>{funnelReading ? 'Trying…' : 'Try again'}</button>}
             </div>
@@ -788,7 +788,7 @@ export function HubOverview({ myPubs, onUnpublish, onNavigate, daily, dailyAt, s
               <PubsUnread view={publishedView} retrying={publishedRetrying} onRetry={onRetryPublished} />
             ) : pubsBody === 'empty' ? (
               <p className="hint-text hub-pubs-empty">
-                Nothing published yet — list a trip on Explore from its Share tab.
+                Nothing published yet. List a trip on Explore from its Share tab.
               </p>
             ) : (
               <div>
@@ -1001,10 +1001,10 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
               </>
             ) : (
               <>
-                <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : '—'}</span>
+                <span className="stat-value hub-cell-value">{payout.clearsInr > 0 ? shortDate(payout.dueAt) : 'Not available'}</span>
                 {payout.clearsInr === 0 && (
                   <span className="hub-cell-hint muted">
-                    {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)} — rolls over` : 'nothing to pay out yet'}
+                    {payout.belowMinimum ? `under ${formatInr(payout.minimumInr)}: rolls over` : 'nothing to pay out yet'}
                   </span>
                 )}
               </>
@@ -1047,11 +1047,11 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
           {ledgerRead === 'ready' ? (
             <p className="hint-text hub-payout-note">
               {payout.clearsInr > 0 ? (
-                <>The next run is <b>{longDate(payout.dueAt)}</b> — it would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
+                <>The next run is <b>{longDate(payout.dueAt)}</b>. It would clear <b>{formatInr(payout.clearsInr)}</b>, your net balance after the platform fee.</>
               ) : payout.belowMinimum ? (
-                <>Runs happen weekly on Fridays. Your balance is under the <b>{formatInr(payout.minimumInr)}</b> minimum, so it stays on the books until it clears it — nothing is lost.</>
+                <>Runs happen weekly on Fridays. Your balance is under the <b>{formatInr(payout.minimumInr)}</b> minimum, so it stays on the books until it clears it. Nothing is lost.</>
               ) : (
-                <>Runs happen weekly on Fridays. There is nothing to pay out yet — your balance is <b>{formatInr(0)}</b> until a priced itinerary sells.</>
+                <>Runs happen weekly on Fridays. There is nothing to pay out yet. Your balance is <b>{formatInr(0)}</b> until a priced itinerary sells.</>
               )}
             </p>
           ) : (
@@ -1085,7 +1085,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
 
       {ledgerKeptAt !== null && (actual?.rows.length ?? 0) > 0 && (
         <StateBlock kind="kept" size="compact"
-          title={`Couldn’t refresh — showing what loaded at ${formatHM(readAtHM(ledgerKeptAt), timeFmt)}.`}
+          title={`Couldn’t refresh. Showing what loaded at ${formatHM(readAtHM(ledgerKeptAt), timeFmt)}.`}
           body="The ledger below is real; it may simply be older than now." />
       )}
 
@@ -1097,7 +1097,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
           <StateBlock kind="loading" size="compact" icon={<span className="spinner" aria-hidden="true" />} title="Loading sales…" />
         ) : ledgerView === 'failed' ? (
           <StateBlock kind="failed" size="compact" title="Couldn’t load your sales."
-            body="The ledger read failed or timed out — your recorded sales are safe and will appear once the connection works. Check your connection and try again."
+            body="The ledger read failed or timed out. Your recorded sales are safe and will appear once the connection works. Check your connection and try again."
             actions={<button className="btn btn-outline btn-sm" onClick={handleRetry}>Try again</button>} />
         ) : ledgerView === 'empty' ? (
           <>
@@ -1134,7 +1134,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
           </>
         ) : ledgerView === 'kept' && ledgerKeptAt !== null ? (
           <StateBlock kind="kept" size="compact"
-            title={`Couldn’t refresh — showing what loaded at ${formatHM(readAtHM(ledgerKeptAt), timeFmt)}.`}
+            title={`Couldn’t refresh. Showing what loaded at ${formatHM(readAtHM(ledgerKeptAt), timeFmt)}.`}
             body="No sales had landed yet, as of that read." />
         ) : actual ? (
           <>
@@ -1159,7 +1159,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
               </tbody>
             </table>
             <p className="hint-text hub-ledger-note">
-              Fee is the platform's cut — {PLATFORM_FEE_SUMMARY}, charged across your sales in the order they
+              Fee is the platform's cut. {PLATFORM_FEE_SUMMARY}, charged across your sales in the order they
               happened, so a row's fee depends on where it fell on your lifetime gross and not on the order this
               table is read in. Amounts are what buyers actually paid at purchase time, not your publication's
               current price.
@@ -1184,8 +1184,8 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
                         <td className="num col-opt">{formatInr(p.grossInr)}</td>
                         <td className="num col-opt">{formatInr(p.feeInr)}</td>
                         <td className="num">{formatInr(p.netInr)}</td>
-                        <td className="num col-opt">{p.carriedInInr > 0 ? formatInr(p.carriedInInr) : '—'}</td>
-                        <td className="num">{p.clearsInr > 0 ? formatInr(p.clearsInr) : '—'}</td>
+                        <td className="num col-opt">{p.carriedInInr > 0 ? formatInr(p.carriedInInr) : 'Not available'}</td>
+                        <td className="num">{p.clearsInr > 0 ? formatInr(p.clearsInr) : 'Not available'}</td>
                         <td>{payoutPeriodStatus(p)}</td>
                       </tr>
                     ))}
@@ -1195,7 +1195,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
                   Each run covers the sales made since the previous one, and a sale lands on the Friday after it
                   was bought. A run under {formatInr(PAYOUT_MINIMUM_INR)} does not clear: it rolls into the next
                   one and is shown there as <b>Rolled in</b>, so a run's <b>Clears</b> is that run's own net plus
-                  everything it took with it. Nothing here has been disbursed — a past run is money owed rather
+                  everything it took with it. Nothing here has been disbursed. A past run is money owed rather
                   than money sent.
                 </p>
               </>
@@ -1206,7 +1206,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
         <PubsUnread view={publishedView} retrying={publishedRetrying} onRetry={onRetryPublished} need="The projection needs them." />
       ) : projection.rows.length === 0 ? (
         <div className="hub-note">
-          <b>Nothing to project yet.</b> Projections need a priced publication — set a premium price on one from its
+          <b>Nothing to project yet.</b> Projections need a priced publication. Set a premium price on one from its
           Share tab, and its earning potential (clearly marked as not-money) shows up here.
         </div>
       ) : (
@@ -1255,7 +1255,7 @@ export function EarningsTab({ myPubs, sales, salesError, salesAt, salesReading, 
           {projection.unpricedCount > 0 && (
             <div className="hub-note">
               <b>{projection.unpricedCount} free publication{projection.unpricedCount === 1 ? '' : 's'} not shown.</b>{' '}
-              Fully free itineraries don’t project — set a premium price on their Share tab to see them here.
+              Fully free itineraries don’t project. Set a premium price on their Share tab to see them here.
             </div>
           )}
         </>

@@ -189,7 +189,7 @@ export function digestImportReport(report: NormalizeReport): ImportReportDigest 
     )
   }
   if (warnings.length) parts.push(warnings[0])
-  return { kind: droppedStops.length ? 'err' : 'ok', message: `Import notes — ${parts.join(' · ')}` }
+  return { kind: droppedStops.length ? 'err' : 'ok', message: `Import notes: ${parts.join(' · ')}` }
 }
 
 // ---------------- primitives ----------------
@@ -319,7 +319,7 @@ export function readExport(raw: string): ReadExportResult {
   if (!text) throw new TripImportError('That file is empty.')
   if (text.startsWith('yf1_')) {
     throw new TripImportError(
-      'That is a snapshot-link payload, not a file export — open it as a link instead.',
+      'That is a snapshot-link payload, not a file export. Open it as a link instead.',
     )
   }
 
@@ -367,12 +367,12 @@ export function readExport(raw: string): ReadExportResult {
     trip = stripFileKeys(data)
   } else if (looksLikePublicationRow(data)) {
     throw new TripImportError(
-      'That is a published-itinerary row, not a trip export — it carries no itinerary days.',
+      'That is a published-itinerary row, not a trip export. It carries no itinerary days.',
     )
   } else if (isObject(data.publication)) {
-    throw new TripImportError('That file has publish details but no `trip` block — it looks incomplete.')
+    throw new TripImportError('That file has publish details but no `trip` block. It looks incomplete.')
   } else {
-    throw new TripImportError('That export has no itinerary days — it is not a trip.')
+    throw new TripImportError('That export has no itinerary days. It is not a trip.')
   }
 
   const checked = migratePublication(publication, Array.isArray(trip.days) ? trip.days.length : 0)
@@ -533,7 +533,7 @@ function safeSourceUrl(v: unknown, where: string, report: NormalizeReport): stri
   const url = typeof v === 'string' ? v.trim() : ''
   if (!url) return undefined
   if (!/^https?:\/\//i.test(url) || url.length > 500) {
-    report.repairs.push(`${where}: sourceUrl was not an http(s) link — dropped it.`)
+    report.repairs.push(`${where}: sourceUrl was not an http(s) link. Dropped it.`)
     return undefined
   }
   return url
@@ -558,11 +558,11 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
 
   const rawDays = source.days
   if (!Array.isArray(rawDays) || rawDays.length === 0) {
-    throw new TripImportError('That export has no itinerary days — it is not a trip.')
+    throw new TripImportError('That export has no itinerary days. It is not a trip.')
   }
   const badDay = rawDays.findIndex(d => !isObject(d) || !Array.isArray((d as Record<string, unknown>).stops))
   if (badDay >= 0) {
-    throw new TripImportError(`Day ${badDay + 1} of that export has no stops list — the file looks truncated.`)
+    throw new TripImportError(`Day ${badDay + 1} of that export has no stops list. The file looks truncated.`)
   }
 
   const days: ItineraryDay[] = []
@@ -585,7 +585,7 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
 
       const title = str(s.title) || str(s.locationName) || `Stop ${si + 1}`
       const locationName = str(s.locationName) || title
-      if (!str(s.title)) report.repairs.push(`${stopWhere}: had no title — used "${locationName}".`)
+      if (!str(s.title)) report.repairs.push(`${stopWhere}: had no title. Used "${locationName}".`)
 
       // The one refusal: a stop that cannot be placed is not pinned anywhere.
       // A hand-entered patch (the resolve-or-prompt guard's answer, keyed to
@@ -609,15 +609,15 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
 
       if (s.orderInDay !== si + 1) renumberedStops++
       if (s.departTime !== undefined || s.arrivalTime !== undefined || s.legDistanceKm !== undefined || s.legTravelMinutes !== undefined) {
-        report.repairs.push(`${stopWhere}: dropped hand-written leg fields — the engine measures the road itself.`)
+        report.repairs.push(`${stopWhere}: dropped hand-written leg fields. The engine measures the road itself.`)
       }
 
       const category = validEnum<StopCategory>(s.category, STOP_CATEGORIES)
-      if (!category) report.repairs.push(`${stopWhere}: category "${String(s.category ?? '')}" is not a stop category — used "sightseeing".`)
+      if (!category) report.repairs.push(`${stopWhere}: category "${String(s.category ?? '')}" is not a stop category. Used "sightseeing".`)
       const priority = validEnum(s.priority, ['must-do', 'nice-to-have', 'optional'] as const)
-      if (!priority) report.repairs.push(`${stopWhere}: priority "${String(s.priority ?? '')}" is not valid — used "must-do".`)
+      if (!priority) report.repairs.push(`${stopWhere}: priority "${String(s.priority ?? '')}" is not valid. Used "must-do".`)
       const status = validEnum<StopStatus>(s.status, STOP_STATUSES)
-      if (!status) report.repairs.push(`${stopWhere}: status "${String(s.status ?? '')}" is not valid — used "confirmed".`)
+      if (!status) report.repairs.push(`${stopWhere}: status "${String(s.status ?? '')}" is not valid. Used "confirmed".`)
 
       const placeSource = validEnum<PlaceProvider>(s.placeSource, PLACE_SOURCES)
       if (s.placeSource !== undefined && !placeSource) report.repairs.push(`${stopWhere}: placeSource "${String(s.placeSource)}" is not valid - dropped it.`)
@@ -631,20 +631,20 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
           openTime = s.openTime
           closeTime = s.closeTime
         } else {
-          report.repairs.push(`${stopWhere}: opening hours were incomplete or out of order — dropped both.`)
+          report.repairs.push(`${stopWhere}: opening hours were incomplete or out of order. Dropped both.`)
         }
       }
 
       let id = str(s.id)
       if (!id || stopIds.has(id)) {
-        if (id) report.repairs.push(`${stopWhere}: stop id "${id}" was already used — re-issued it.`)
+        if (id) report.repairs.push(`${stopWhere}: stop id "${id}" was already used. Re-issued it.`)
         id = freshId('st')
       }
       stopIds.add(id)
 
       for (const [field, value] of [['visitMinutes', s.visitMinutes], ['entryFeeInrPerPerson', s.entryFeeInrPerPerson], ['transportCostInrTotal', s.transportCostInrTotal]] as const) {
         if (num(value, NaN) !== num(value, 0) || !Number.isFinite(num(value, NaN))) {
-          report.repairs.push(`${stopWhere}: ${field} was missing or not a number — set to 0.`)
+          report.repairs.push(`${stopWhere}: ${field} was missing or not a number. Set to 0.`)
         }
       }
 
@@ -682,13 +682,13 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
     // far more damage than an empty day, which the app already renders. Say so
     // instead, and let the user fill it in.
     if (stops.length === 0 && rawStops.length > 0) {
-      report.warnings.push(`${where}: none of its stops could be placed — the day imports empty.`)
+      report.warnings.push(`${where}: none of its stops could be placed. The day imports empty.`)
     } else if (rawStops.length === 0) {
-      report.warnings.push(`${where} has no stops — it will import as a free day.`)
+      report.warnings.push(`${where} has no stops. It will import as a free day.`)
     }
 
     const startTime = isHHMM(d.startTime) ? d.startTime : undefined
-    if (d.startTime !== undefined && !startTime) report.repairs.push(`${where}: start time "${String(d.startTime)}" is not "HH:MM" — dropped it.`)
+    if (d.startTime !== undefined && !startTime) report.repairs.push(`${where}: start time "${String(d.startTime)}" is not "HH:MM". Dropped it.`)
 
     days.push({
       id: str(d.id) || `d${di + 1}`,
@@ -710,13 +710,13 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
     })) : [])
     .filter(f => f.dayIndex < days.length)
   if (Array.isArray(source.flights) && flights.length !== source.flights.length) {
-    report.warnings.push('Some flights had no usable airports or itinerary day — dropped.')
+    report.warnings.push('Some flights had no usable airports or itinerary day. Dropped.')
   }
 
   // A recorded flight can be the only activity on an itinerary.
   if (days.every(d => d.stops.length === 0) && flights.length === 0) return null
   if (renumberedDays > 0) report.repairs.push(`Rebuilt day numbering (${renumberedDays} day${renumberedDays > 1 ? 's' : ''} did not match their position in the list).`)
-  if (renumberedStops > 0) report.repairs.push(`Rebuilt the per-day stop order (${renumberedStops} stop${renumberedStops > 1 ? 's' : ''} were numbered from 0 or out of sequence — this app numbers from 1).`)
+  if (renumberedStops > 0) report.repairs.push(`Rebuilt the per-day stop order (${renumberedStops} stop${renumberedStops > 1 ? 's' : ''} were numbered from 0 or out of sequence. This app numbers from 1).`)
   warnSharedPins(days, report)
 
   // ---- dates vs day count ----
@@ -726,15 +726,15 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
   let endDate = isIsoDate(source.endDate) ? source.endDate : ''
   if (!startDate) {
     startDate = todayIso()
-    report.repairs.push('startDate was missing or not a date — dated the trip from today.')
+    report.repairs.push('startDate was missing or not a date. Dated the trip from today.')
   }
   const span = spanDays(startDate, endDate)
   if (span === null || span < 1 || span !== days.length) {
     endDate = shiftIsoDate(startDate, days.length - 1)
     report.repairs.push(
       span === null
-        ? `endDate was missing or not a date — set it to ${endDate} for a ${days.length}-day plan.`
-        : `dates covered ${span} day${span === 1 ? '' : 's'} but the plan has ${days.length} — set the range to ${startDate} → ${endDate}.`,
+        ? `endDate was missing or not a date. Set it to ${endDate} for a ${days.length}-day plan.`
+        : `dates covered ${span} day${span === 1 ? '' : 's'} but the plan has ${days.length}. Set the range to ${startDate} → ${endDate}.`,
     )
   }
 
@@ -749,14 +749,14 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
     return usableCoords(c.lat, c.lng)
   })
   if (rawDestCoords.length !== destinations.length && rawDestCoords.length > 0) {
-    report.warnings.push('destinationCoords did not line up with destinations — the trip start will anchor the map instead.')
+    report.warnings.push('destinationCoords did not line up with destinations. The trip start will anchor the map instead.')
   }
 
   const startLocationCoords = isObject(source.startLocationCoords)
     ? usableCoords(source.startLocationCoords.lat, source.startLocationCoords.lng) ?? undefined
     : undefined
   if (!startLocationCoords && source.startLocationCoords !== undefined) {
-    report.repairs.push('trip.startLocationCoords could not be used — the trip start has no map anchor.')
+    report.repairs.push('trip.startLocationCoords could not be used. The trip start has no map anchor.')
   }
 
   const commitments: FixedCommitment[] = []
@@ -768,12 +768,12 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
     const time = str(raw.time)
     const title = str(raw.title)
     if (!title || dayIndex < 0 || dayIndex >= days.length || !isHHMM(time)) {
-      report.warnings.push(`fixedCommitments[${i}] "${title || 'untitled'}" did not fit the plan (bad day or time) — dropped.`)
+      report.warnings.push(`fixedCommitments[${i}] "${title || 'untitled'}" did not fit the plan (bad day or time). Dropped.`)
       return
     }
     let stopId = str(raw.stopId) || undefined
     if (stopId && !days[dayIndex].stops.some(s => s.id === stopId)) {
-      report.repairs.push(`fixedCommitments[${i}] "${title}" pointed at no stop of Day ${dayIndex + 1} — kept the deadline, dropped the link.`)
+      report.repairs.push(`fixedCommitments[${i}] "${title}" pointed at no stop of Day ${dayIndex + 1}. Kept the deadline, dropped the link.`)
       stopId = undefined
     }
     commitments.push({
@@ -797,12 +797,12 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
     const amountInr = num(raw.amountInr, NaN)
     const dayIndex = raw.dayIndex === undefined ? undefined : num(raw.dayIndex, -1)
     if (!label || !Number.isFinite(amountInr) || amountInr <= 0 || (dayIndex !== undefined && (dayIndex < 0 || dayIndex >= days.length))) {
-      report.warnings.push(`expenses[${i}] "${label || 'untitled'}" had no usable amount or day — dropped.`)
+      report.warnings.push(`expenses[${i}] "${label || 'untitled'}" had no usable amount or day. Dropped.`)
       return
     }
     let stopId = str(raw.stopId) || undefined
     if (stopId && !stopIds.has(stopId)) {
-      report.repairs.push(`expenses[${i}]: stopId "${stopId}" pointed at no stop — kept the expense, dropped the link.`)
+      report.repairs.push(`expenses[${i}]: stopId "${stopId}" pointed at no stop. Kept the expense, dropped the link.`)
       stopId = undefined
     }
     // M6 B4: the settled record round-trips when well-formed; anything else
@@ -813,7 +813,7 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
       const by = s ? str(s.by) : ''
       const at = s ? num(s.at, NaN) : NaN
       if (by && Number.isFinite(at)) settled = { by, at }
-      else report.repairs.push(`expenses[${i}]: "settled" was malformed — imported the line as open.`)
+      else report.repairs.push(`expenses[${i}]: "settled" was malformed. Imported the line as open.`)
     }
     expenses.push({
       id: freshId('ex'),
@@ -829,14 +829,14 @@ export function normalizeTrip(source: Record<string, unknown>, report: Normalize
   })
 
   const travellers = Math.max(1, Math.round(num(source.travellers, 2)))
-  if (num(source.travellers, NaN) !== travellers) report.repairs.push(`travellers was not a whole number ≥ 1 — used ${travellers}.`)
+  if (num(source.travellers, NaN) !== travellers) report.repairs.push(`travellers was not a whole number ≥ 1. Used ${travellers}.`)
 
   const transportMode = validEnum<TransportMode>(source.transportMode, TRANSPORT_MODES)
-  if (!transportMode) report.repairs.push(`transportMode "${String(source.transportMode ?? '')}" is not a mode — used "car".`)
+  if (!transportMode) report.repairs.push(`transportMode "${String(source.transportMode ?? '')}" is not a mode. Used "car".`)
   const travelStyle = validEnum<TravelStyle>(source.travelStyle, TRAVEL_STYLES)
-  if (!travelStyle) report.repairs.push(`travelStyle "${String(source.travelStyle ?? '')}" is not a style — used "balanced".`)
+  if (!travelStyle) report.repairs.push(`travelStyle "${String(source.travelStyle ?? '')}" is not a style. Used "balanced".`)
   const stayStyle = validEnum(source.stayStyle, STAY_STYLES)
-  if (source.stayStyle !== undefined && !stayStyle) report.repairs.push(`stayStyle "${String(source.stayStyle)}" is not a stay tier — left unset.`)
+  if (source.stayStyle !== undefined && !stayStyle) report.repairs.push(`stayStyle "${String(source.stayStyle)}" is not a stay tier. Left unset.`)
 
   const trip = {
     // Placeholders: the store assigns real ids and re-ids every day, stop and
@@ -894,7 +894,7 @@ function coordsReason(lat: unknown, lng: unknown): string {
   const la = num(lat, NaN)
   const ln = num(lng, NaN)
   if (!Number.isFinite(la) || !Number.isFinite(ln)) return 'the file has no usable coordinates'
-  if (la === 0 && ln === 0) return 'coordinates were (0,0) — the Null-Island placeholder'
+  if (la === 0 && ln === 0) return 'coordinates were (0,0). The Null-Island placeholder'
   if (la === 0 || ln === 0) return 'only one coordinate was real (the mixed-placeholder case)'
   return 'coordinates were outside the globe'
 }
@@ -921,7 +921,7 @@ function warnSharedPins(days: ItineraryDay[], report: NormalizeReport): void {
       const isBaseOverlap = shared.length === 2 && shared.some(s => s.category === 'food' || s.category === 'hotel' || s.category === 'rest')
       if (isBaseOverlap) continue
       report.warnings.push(
-        `Day ${di + 1}: ${shared.length} stops share one coordinate (${key}) — ${shared.map(s => `“${s.title}”`).join(', ')} will draw as one pin. Give each stop its own place.`,
+        `Day ${di + 1}: ${shared.length} stops share one coordinate (${key}). ${shared.map(s => `“${s.title}”`).join(', ')} will draw as one pin. Give each stop its own place.`,
       )
     }
   })

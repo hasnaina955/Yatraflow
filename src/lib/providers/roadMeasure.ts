@@ -103,7 +103,7 @@ export function roadDetourFromLegs(args: {
   }
   const delta = viaTotalMin - baselineMin
   if (!Number.isFinite(delta) || delta < 0) {
-    return { invalid: true, reason: 'negative detour delta — engine noise, stays unknown' }
+    return { invalid: true, reason: 'negative detour delta. Engine noise, stays unknown' }
   }
   const rounded = Math.round(delta * 100) / 100
   return {

@@ -9,17 +9,17 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 
 describe('W17 opening hours', () => {
   it('keeps AM/PM in 12 h and the padded clock in 24 h', () => {
-    expect(stayHoursText({ closeTime: '19:30' }, '12h')).toBe('open till 7:30 PM')
-    expect(stayHoursText({ closeTime: '19:30' }, '24h')).toBe('open till 19:30')
-    expect(stayHoursText({ closeTime: '21:00' }, '12h')).toBe('open till 9:00 PM')
-    expect(stayHoursText({ closeTime: '21:00' }, '24h')).toBe('open till 21:00')
+    expect(stayHoursText({ closeTime: '19:30' }, '12h')).toBe('Open till 7:30 PM')
+    expect(stayHoursText({ closeTime: '19:30' }, '24h')).toBe('Open till 19:30')
+    expect(stayHoursText({ closeTime: '21:00' }, '12h')).toBe('Open till 9:00 PM')
+    expect(stayHoursText({ closeTime: '21:00' }, '24h')).toBe('Open till 21:00')
   })
 })
 
 describe('W17 stay rail row', () => {
   it('names the town and tonight', () => {
-    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · tonight')
-    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · evening')
+    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · Tonight')
+    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · Evening')
   })
 
   it('feeds the same text to the base row', () => {

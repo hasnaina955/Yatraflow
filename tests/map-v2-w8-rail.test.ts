@@ -105,19 +105,19 @@ describe('W8 rail top and stay rail', () => {
     const head = html.indexOf('class="mv2-day-head"')
     expect(head).toBeGreaterThan(html.indexOf('mv2-day-arrows'))
     expect(html.indexOf('class="mv2-day-mark"')).toBeGreaterThan(head)
-    expect(html.indexOf('<h2>')).toBeGreaterThan(head)
-    expect(html.indexOf('<h2>')).toBeLessThan(html.indexOf('aria-label="Next day"'))
+    expect(html.indexOf('<h2 ')).toBeGreaterThan(head)
+    expect(html.indexOf('<h2 ')).toBeLessThan(html.indexOf('aria-label="Next day"'))
   })
 
   it('names the day line a drive, as the board does', () => {
     const html = rail()
-    expect(html).toContain('83 km · 2h 25m drive · planned')
+    expect(html).toContain('83 km · 2h 25m drive · Planned')
     expect(html).not.toContain(' travel · ')
   })
 
   it('keeps the budget label, the bold number and the bar in one card', () => {
     const html = rail({ budgetBar: { text: '12 of 45 min · 2 free stops', step: 1 } })
-    expect(html).toContain('class="mv2-lens-budget-label">Detour budget</span>')
+    expect(html).toContain('class="mv2-lens-budget-label sr-only">Detour budget</span>')
     expect(html).toContain('<b class="mv2-lens-budget-number">12</b> of 45 min · 2 free stops')
     expect(html).toContain('role="progressbar"')
     expect(html.indexOf('mv2-lens-budget-label')).toBeLessThan(html.indexOf('mv2-lens-budget-value'))
@@ -157,7 +157,7 @@ describe('W8 rail top and stay rail', () => {
     expect(html).toContain('How far from the base')
     expect(html).toContain('aria-label="Reach from the base"')
     expect(html.match(/mv2-lens-rail-ring-btn/g)).toHaveLength(2)
-    expect(html).toContain('The crew&#x27;s mode sets the default; the walk ring and the 30 min drive ring draw on the map.')
+    expect(html).toContain('Range · Walk or 30 min drive')
   })
 
   it('renders no rail card outside the stay lens', () => {

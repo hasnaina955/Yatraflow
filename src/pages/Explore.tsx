@@ -297,7 +297,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
             <p className="ex-fork-note">
               <Lock size={15} aria-hidden />
               <span>
-                Fork any itinerary to copy it into your own trips — then change whatever you like.
+                Fork any itinerary to copy it into your own trips. Then change whatever you like.
                 {/* Signed out, that button navigates to /auth — say so before the click,
                     not in a toast that the redirect swallows. */}
                 {!me && <> You’ll need a free account to fork trips.</>}
@@ -357,7 +357,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               {gridPubs.length > visibleCount && (
                 <div className="ex-more ex-enter">
                   <button className="btn btn-secondary" type="button" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                    aria-label={`Load more itineraries — ${gridPubs.length - visibleCount} remaining`}>
+                    aria-label={`Load more itineraries: ${gridPubs.length - visibleCount} remaining`}>
                     Load more · {gridPubs.length - visibleCount} more
                   </button>
                 </div>

@@ -260,12 +260,13 @@ describe('approved map day palette', () => {
   })
 
   // The gate must be able to fail. These are the two RED values that the
-  // original amber #F59E2D recorded, so a broken read cannot pass silently.
+  // original amber #F59E2D records on the current Linen land (re-pinned when
+  // the land turned brighter), so a broken read cannot pass silently.
   it('fails the known-bad original amber on the same numbers as the RED run', () => {
-    expect(contrast(rgb('#F59E2D'), land('light'))).toBeCloseTo(1.7726, 3)
+    expect(contrast(rgb('#F59E2D'), land('light'))).toBeCloseTo(1.9120, 3)
     const casing = composite(rgb(casingColor.light), casingOpacity.light, land('light'))
     const line = composite(rgb('#F59E2D'), lineOpacity, casing)
-    expect(contrast(line, casing)).toBeCloseTo(1.9746, 3)
+    expect(contrast(line, casing)).toBeCloseTo(2.0087, 3)
   })
 
   it('keeps every day at least 3:1 against Linen and Night land', () => {

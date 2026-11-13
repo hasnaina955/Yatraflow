@@ -357,6 +357,8 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ## Map V2 local UI work
 
+- [x] Map truth and control pass, steps 1 and 2. The ribbon opens on request. Drive owns scope. Fix owns route advice. The rail names planned spend, unknown costs, and empty plans. Picks use the remaining budget. Added days use Apply and Undo.
+
 - [x] Correct the real-trip lens checks. Stay excludes scheduled evening stops. Meal names and shared schedule times set meal slots. Fix counts the panel's problems. Departure stays before stops with bad saved positions. A valid Lonavala sample keeps its nonzero road distance. Browser proof uses sample data only; saved trip coordinates need a separate data correction.
 
 - [ ] Complete Map V2 acceptance against the six supplied boards. The local UI branch contains the map canvas layout, timed day list, place details, journey clock and phone sheet. The map adds numbered stop discs, stay marks, fixed-time badges and a visual key. These use the existing engine and write paths. The phone search row and the place card Escape key are checked in the browser. Browser checks use a synthetic trip. Signed-in, native and phone-lane acceptance remain open.
@@ -1488,3 +1490,5 @@ what a picked place IS, how it survives a save, and how it survives a delete and
 - Stage explicit paths — never `git add -A` in a shared working copy.
 - Update this file (and the UI-audit tracker) in the same commit as the work;
   when ticking tracker rows, update progress lines in the same edit.
+
+The Map basemap styles have one home in `src/lib/mapStyles/`.

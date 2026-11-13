@@ -2,10 +2,9 @@
 // Each test fails when its rule breaks.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { scopeBandPlacement } from '../src/pages/trip/map/MapScopeBand'
 
-const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8')
-const tab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8')
+const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const tab = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** The 911-W9-phone block, from its comment to the next comment. */
 function phoneBlock() {
@@ -27,12 +26,10 @@ describe('911-W9-phone sheet structure', () => {
     expect(css).not.toContain('var(--mv2-lens-band-h)')
   })
 
-  it('keeps the ribbon in the sheet flow and the band sticky under the grip', () => {
-    const block = phoneBlock()
-    expect(block).toContain('.mv2-workspace .poi-col > .mv2-ribbon-sheet,')
-    expect(block).toMatch(/\.mv2-workspace \.mv2-detail > \.mv2-ribbon-sheet \{[^}]*position: static/)
-    expect(block).toMatch(/\.poi-col > \.mv2-lens-scope-band \{[^}]*position: sticky; top: var\(--mv2-sheet-grip-h\)/)
-    expect(block).toMatch(/--mv2-sheet-grip-h: 44px/)
+  it('keeps the sheet grip and floats the requested ribbon above it', () => {
+    expect(phoneBlock()).toMatch(/--mv2-sheet-grip-h: 44px/)
+    expect(css).toMatch(/\.mv2-workspace \.mv2-ribbon \{[^}]*bottom: calc\(var\(--mv2-sheet-height\)/)
+    expect(tab).toContain('inSheet={false}')
   })
 
   it('fits the grip, the ribbon and one peek row in the peek sheet', () => {
@@ -45,29 +42,27 @@ describe('911-W9-phone sheet structure', () => {
     expect(gaps).toMatch(/\[data-snap='peek'\] \.mv2-sheet-handle \{ height: 22px; min-height: 22px; \}/)
   })
 
-  it('renders the ribbon and the band above the deck list in the see sheet', () => {
-    const see = tab.indexOf("id=\"rail-see\"")
-    expect(see).toBeGreaterThan(-1)
-    const ribbon = tab.indexOf("{ribbonSheet === 'see' && phoneRibbon}", see)
-    const band = tab.indexOf("{ribbonSheet === 'see' && scopeBand}", see)
+  it('puts one scope control above the cards and keeps the ribbon out of the sheet', () => {
+    const see = tab.indexOf('id="rail-see"')
+    const band = tab.indexOf('{scopeBand}', see)
     const deck = tab.indexOf('<MapLensPanel', see)
-    expect(ribbon).toBeGreaterThan(see)
-    expect(band).toBeGreaterThan(ribbon)
+    expect(band).toBeGreaterThan(see)
     expect(deck).toBeGreaterThan(band)
+    expect(tab.slice(see, tab.indexOf('{phoneRibbon}', see))).not.toContain('<MapJourneyRibbon')
   })
 
-  it('keeps the desktop places unchanged', () => {
-    expect(tab).toContain('{!phoneSheet && scopeBand}')
-    expect(tab).toContain('{ribbonSheet === null && phoneRibbon}')
+  it('opens the desktop ribbon from the clock chip', () => {
+    expect(tab).toContain('className="mv2-clock-chip"')
+    expect(tab).toContain('aria-expanded={ribbonShown}')
+    expect(tab).toContain("loadFlag('map_ribbon', false)")
   })
 
-  it('gives each sheet its own ribbon slot and hides the band at peek', () => {
-    expect(tab).toContain("{ribbonSheet === 'needs' && phoneRibbon}")
-    expect(tab).toContain("{ribbonSheet === 'detail' && phoneRibbon}")
-    expect(scopeBandPlacement('peek', true)).toBe('hidden')
-    expect(scopeBandPlacement('half', true)).toBe('in-sheet')
-    expect(scopeBandPlacement('full', true)).toBe('in-sheet')
-    expect(scopeBandPlacement('half', false)).toBe('map')
+  it('offers the ribbon in the phone day menu and auto-shows previews', () => {
+    expect(tab).toContain('ribbonOpen || openPreview != null || activeFixPreview != null || splitPreview')
+    expect(tab).not.toContain('ribbonSheet')
+    const chrome = readFileSync(new URL('../src/components/map/MapWorkspaceChrome.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+    expect(chrome).toContain('onToggleRibbon(); setMenuOpen(false)')
+    expect(chrome).toContain('Journey clock</button>')
   })
 })
 

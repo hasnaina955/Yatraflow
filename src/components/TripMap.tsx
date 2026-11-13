@@ -50,14 +50,13 @@ import {
 import type { MapRef } from './mapcn/map'
 import { InlineIcon, CatIcon } from './icons'
 import {
-  Box, Car, CircleDot, Clock, Compass, Crosshair, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
+  Box, Car, CircleDot, Clock, Compass, Crosshair, Flag, Home, Info, Layers, Lightbulb, LocateFixed, Map as MapIcon, Maximize2, Minus, MoreHorizontal, Mountain, Navigation, PersonStanding, PlaneTakeoff, Plus,
   RotateCcw, Search, TriangleAlert, X,
 } from 'lucide-react'
 import { prefersReducedMotion, motionExitTiming, motionTiming } from '../lib/motion'
 import { StateBlock } from './page/StateBlock'
 import { MapStopSymbol, MapWorkspaceKey } from './map/MapWorkspaceMarks'
 import { standsOnLastNightStay } from './map/railModel'
-import { MapPhoneLocate } from './map/MapWorkspaceChrome'
 import { MapBasemapStatus, useWorkspaceBasemapStatus } from './map/MapBasemapStatus'
 import { DetourSpurOverlay } from './map/DetourSpurOverlay'
 import {
@@ -694,7 +693,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const [, setViewTick] = useState(0)
   // The compass shows the map's own bearing and resets it to north.
   const [bearing, setBearing] = useState(0)
-  const [workspaceToolsOpen, setWorkspaceToolsOpen] = useState(false)
   const toolbarId = useId()
   // A host drives the day filter through the prop (Board columns, the slots
   // rail's day strip); the map's own chips report their choice back through
@@ -1760,26 +1758,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   )
 
   return (
-    <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open={workspaceToolsOpen ? 'true' : 'false'}>
-      {workspaceChrome && showToolbar && <button type="button" className="mv2-map-tools-toggle mv2-icon-btn" aria-label="Map tools" aria-expanded={workspaceToolsOpen} aria-controls={toolbarId} onClick={() => setWorkspaceToolsOpen(open => !open)}><Layers size={18} aria-hidden /></button>}
-      {workspaceChrome && showToolbar && <MapPhoneLocate onLocate={fitToTrip} />}
+    <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open="true">
       {showToolbar && (
       <div className="map-toolbar" id={toolbarId}>
         {workspaceChrome ? (
         <div className="mv2-map-tools" role="group" aria-label="Map tools">
-          {/* W8-tools card 1: zoom. The board keeps + and - apart with a hairline. */}
-          <div className="mv2-map-tools-card mv2-map-tools-card--zoom" role="group" aria-label="Zoom">
-            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom in" title="Zoom in"
-              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + 1, { duration: motionTiming('--motion-med').duration }) }}>
-              <Plus size={17} aria-hidden />
-            </button>
-            <span className="mv2-map-tools-divider" aria-hidden="true" />
-            <button type="button" className="mv2-map-tools-btn" aria-label="Zoom out" title="Zoom out"
-              onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - 1, { duration: motionTiming('--motion-med').duration }) }}>
-              <Minus size={17} aria-hidden />
-            </button>
+          <div className="mv2-map-tools-card mv2-map-tools-card--zoom" role="group" aria-label="Zoom and recentre">
+            <button type="button" className="mv2-map-tools-btn mv2-zoom" aria-label="Zoom in" title="Zoom in" onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + 1, { duration: motionTiming('--motion-med').duration }) }}><Plus size={17} aria-hidden /></button>
+            <button type="button" className="mv2-map-tools-btn mv2-zoom" aria-label="Zoom out" title="Zoom out" onClick={() => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - 1, { duration: motionTiming('--motion-med').duration }) }}><Minus size={17} aria-hidden /></button>
+            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
+            {bearing !== 0 && <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing} onClick={() => mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration })} aria-label="Turn the map back to north" title="Turn the map back to north"><Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} /></button>}
           </div>
-          {/* W8-tools card 2: view modes as text. Only the active mode wears the wash. */}
+          <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
+            <summary className="mv2-icon-btn" aria-label="Layers" title="Layers"><Layers size={18} aria-hidden /></summary>
+            <div className="mv2-tool-menu-body popover" aria-label="Map layers">
           {enableMapViewModes && (
           <div className="mv2-map-tools-card mv2-map-tools-card--mode" role="group" aria-label="Map view mode">
             {MAP_VIEW_MODES.map(m => (
@@ -1797,16 +1789,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             ))}
           </div>
           )}
-          {/* W8-tools card 3: compass, locate, clock, layers, directions and expand. */}
-          <div className="mv2-map-tools-card mv2-map-tools-card--tools" role="group" aria-label="Map layers and day actions">
-            <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing}
-              onClick={() => { mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration }) }}
-              aria-label={bearing === 0 ? 'The map points north' : `Turn the map back to north. It is turned ${Math.abs(bearing)} degrees`}
-              title={bearing === 0 ? 'The map points north' : 'Turn the map back to north'}>
-              <Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} />
-            </button>
-            <span className="mv2-map-tools-divider" aria-hidden="true" />
-            <button type="button" className="mv2-map-tools-btn map-recenter" onClick={fitToTrip} aria-label="Recentre the map on the trip route" title="Recentre the map on the trip route"><Crosshair size={17} aria-hidden /></button>
             {clockMilestones && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
@@ -1840,6 +1822,11 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                   )}
                 </div></>
             )}
+            </div>
+          </details>
+          <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
+            <summary className="mv2-icon-btn" aria-label="More map tools" title="More map tools"><MoreHorizontal size={18} aria-hidden /></summary>
+            <div className="mv2-tool-menu-body popover" aria-label="More map tools">
             {dayDirectionsUrl && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className="mv2-map-tools-btn" onClick={() => openExternal(dayDirectionsUrl)}
@@ -1852,8 +1839,6 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               aria-label={expanded ? 'Shrink the map back into the page' : 'Expand the map to fill the screen'}>
               {expanded ? <X size={17} aria-hidden /> : <Maximize2 size={17} aria-hidden />}
             </button>
-          </div>
-          <div className="mv2-map-tools-card mv2-map-tools-card--extras" role="group" aria-label="Live location and map key">
             <button type="button" className={`mv2-map-tools-btn${liveOn ? ' on' : ''}`}
               onClick={toggleLive} aria-pressed={liveOn}
               aria-label={liveOn ? 'Stop showing my live location' : 'Show my live location on the map'}
@@ -1867,7 +1852,8 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
               title={legendOpen ? 'Hide the map key' : 'Show the map key'}>
               {legendOpen ? <X size={17} aria-hidden /> : <Info size={17} aria-hidden />}
             </button>
-          </div>
+            </div>
+          </details>
         </div>
         ) : (
         <>

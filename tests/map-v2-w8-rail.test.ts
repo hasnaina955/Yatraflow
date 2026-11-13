@@ -117,7 +117,7 @@ describe('W8 rail top and stay rail', () => {
 
   it('keeps the budget label, the bold number and the bar in one card', () => {
     const html = rail({ budgetBar: { text: '12 of 45 min · 2 free stops', step: 1 } })
-    expect(html).toContain('class="mv2-lens-budget-label">Detour budget</span>')
+    expect(html).toContain('class="mv2-lens-budget-label sr-only">Detour budget</span>')
     expect(html).toContain('<b class="mv2-lens-budget-number">12</b> of 45 min · 2 free stops')
     expect(html).toContain('role="progressbar"')
     expect(html.indexOf('mv2-lens-budget-label')).toBeLessThan(html.indexOf('mv2-lens-budget-value'))

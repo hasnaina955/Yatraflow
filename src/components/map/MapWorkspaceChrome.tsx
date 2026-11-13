@@ -15,7 +15,7 @@ import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText, ribbonSto
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
 export type { RibbonPreview }
 
-export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange, onBack, endTown }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void; onBack?: (() => void) | undefined; /** The town the day ends in. Absent keeps the last stop's name. */ endTown?: string | null }) {
+export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange, onBack, endTown, ribbonOpen, onToggleRibbon }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void; onBack?: (() => void) | undefined; /** The town the day ends in. Absent keeps the last stop's name. */ endTown?: string | null; ribbonOpen?: boolean; onToggleRibbon?: () => void }) {
   const days = [...trip.days].sort((a, b) => a.index - b.index)
   const at = days.findIndex(day => day.index === activeDay)
   const day = days[at]
@@ -54,6 +54,7 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
       {menuOpen && <div className="mv2-phone-day-menu" role="menu" aria-label="Map days to show">
         <button type="button" role="menuitemradio" aria-checked={!allDays} onClick={() => { onDayChange(activeDay); setMenuOpen(false) }}>{!allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}This day</button>
         <button type="button" role="menuitemradio" aria-checked={allDays} onClick={() => { onShowAll(); setMenuOpen(false) }}>{allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}All days</button>
+        {onToggleRibbon && <button type="button" role="menuitemcheckbox" aria-checked={ribbonOpen === true} onClick={() => { onToggleRibbon(); setMenuOpen(false) }}>Journey clock</button>}
       </div>}
     </div>
   </div>
@@ -122,7 +123,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   /** The Fix lens's own problem, with its engine evidence. */
   fixProblem?: { title: string; evidence: readonly string[] } | null
   /** The detour budget bar. Null keeps the original two lines. */
-  budgetBar?: { text: string; step: number } | null
+  budgetBar?: { text: string; step: number; detail?: string | null } | null
   /** Formats one minute of the day for a window row. */
   clock?: (min: number) => string
   /** The open add preview. Its index finds one row by stop id. */
@@ -282,8 +283,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       <p>{headSub ?? (journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.')}</p>
       <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><PanelLeftClose size={16} /></button>
     </header>
-    {hideBudget !== true && <div className="mv2-budget mv2-lens-budget"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
-      ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
+    {hideBudget !== true && <div className="mv2-budget mv2-lens-budget" title={budgetBar?.detail ?? undefined}><span className="mv2-lens-budget-label sr-only">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
+      ? <div className="mv2-budget-progress" role="progressbar" aria-label="All suggestions compared with the detour limit" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
     <ol className="mv2-stops" ref={stopsRef}>
       {shownPoints.map(({ point, index, clock: rowTime }, shownIndex) => {
@@ -332,7 +333,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       {onOpenDay && <button type="button" className="mv2-timeline-link" onClick={() => onOpenDay(activeDay)}>Open day in Timeline<ArrowRight size={15} aria-hidden /></button>}
       <span className="mv2-section-label">Days on the map</span>
       <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}><span aria-hidden="true" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} />{item.index + 1}</button>)}</div>
-      {daysCaption && <p className="hint-text" role="status">{daysCaption}</p>}
+      {daysCaption && <span className="sr-only">{daysCaption}</span>}
     </footer>
   </aside>
 }
@@ -460,7 +461,7 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
     return next.arrive > stop.depart ? [{ key: stop.point.stop.id, from: stop.depart, to: next.arrive }] : []
   })
   return <section className={rootClass} aria-label="Journey clock" style={tone}>
-    <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small title={preview ? previewTitle(preview, format) : undefined}>{preview ? previewTitle(preview, format) : current.cameraReveal ? (note ?? 'Drag to scrub') : 'Road position unavailable'}</small></div>
+    <div className="mv2-ribbon-title"><span>Journey</span><strong>Day {(journey?.dayIndex ?? 0) + 1}</strong><small title={preview ? previewTitle(preview, format) : undefined}>{preview ? previewTitle(preview, format) : current.cameraReveal ? note : 'Road position unavailable'}</small></div>
     <div className="mv2-clock-track">
       <div className="mv2-clock-drawing" ref={drawingRef} aria-hidden="true">
         {axis.ticks.map(tick => <Fragment key={tick}>

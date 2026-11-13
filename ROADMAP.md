@@ -357,6 +357,8 @@ and date), per the AGENTS §6 same-edit rule. Detail lives in
 
 ## Map V2 local UI work
 
+- [x] Map truth and control pass, steps 1 and 2. The ribbon opens on request. Drive owns scope. Fix owns route advice.
+
 - [x] Correct the real-trip lens checks. Stay excludes scheduled evening stops. Meal names and shared schedule times set meal slots. Fix counts the panel's problems. Departure stays before stops with bad saved positions. A valid Lonavala sample keeps its nonzero road distance. Browser proof uses sample data only; saved trip coordinates need a separate data correction.
 
 - [ ] Complete Map V2 acceptance against the six supplied boards. The local UI branch contains the map canvas layout, timed day list, place details, journey clock and phone sheet. The map adds numbered stop discs, stay marks, fixed-time badges and a visual key. These use the existing engine and write paths. The phone search row and the place card Escape key are checked in the browser. Browser checks use a synthetic trip. Signed-in, native and phone-lane acceptance remain open.

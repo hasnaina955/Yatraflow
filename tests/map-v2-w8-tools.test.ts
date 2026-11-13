@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-const tsx = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8')
-const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8')
+const tsx = readFileSync(new URL('../src/components/TripMap.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const css = readFileSync(new URL('../src/styles/components/map-v2-rail.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 // The workspace branch runs from the ternary to the legacy branch.
 function workspaceBranch(): string {
@@ -12,12 +12,13 @@ function workspaceBranch(): string {
 }
 
 describe('W8 tools map controls', () => {
-  it('renders three stacked cards', () => {
+  it('keeps primary tools in a column and secondary tools in menus', () => {
     const b = workspaceBranch()
     expect(b.length).toBeGreaterThan(0)
-    expect(b).toContain('mv2-map-tools-card--zoom')
+    expect(b).toContain('aria-label="Zoom and recentre"')
     expect(b).toContain('mv2-map-tools-card--mode')
-    expect(b).toContain('mv2-map-tools-card--tools')
+    expect(b).toContain('aria-label="More map tools"')
+    expect(b).toContain('aria-label="Layers"')
   })
 
   it('keeps the zoom buttons and their labels', () => {

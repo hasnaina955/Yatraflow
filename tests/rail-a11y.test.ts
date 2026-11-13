@@ -123,12 +123,12 @@ describe('MapTab wires those sentences into the DOM', () => {
     expect(mapTabSrc).toMatch(/aria-label=\{fillLabel\(/)
   })
 
-  it('A8: the minute scope is a radio group that states each step in words', () => {
-    // #898 replaced the km slider. The control file owns the radio semantics.
-    expect(mapTabSrc).toMatch(/<MinuteScopeControl/)
-    const control = readFileSync('src/pages/trip/map/MinuteScopeControl.tsx', 'utf8')
-    expect(control).toContain('role="radiogroup"')
-    expect(control).toContain('aria-label={scopeValueMinutesText(minutes)}')
+  it('A8: the deck scope uses the named shared select and minute options', () => {
+    expect(mapTabSrc).toContain('<MapScopeBand')
+    const control = readFileSync('src/pages/trip/map/MapScopeBand.tsx', 'utf8').replace(/\r\n/g, '\n')
+    expect(control).toContain('<Select aria-label="Extra driving there and back"')
+    expect(control).toContain('label: `Within ${step} min`')
+    expect(control).toContain('aria-label={status ?? countLabel}')
   })
 
   it('A6: the toggle points at the vote status element', () => {

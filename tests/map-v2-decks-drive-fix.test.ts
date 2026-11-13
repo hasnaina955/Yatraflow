@@ -179,14 +179,15 @@ describe('FixDeck', () => {
     expect(renderFix({ problem: null })).toContain('Fix · 0 problems on Day 3')
   })
 
-  it('shows the evidence lines and the found-by footer', () => {
+  it('shows evidence and keeps its source in the tooltip', () => {
     const markup = renderFix()
     const text = markup.replace(/<[^>]+>/g, '')
     expect(text).toContain('Boarding closes at 15:00.')
     expect(text).toContain('You reach the jetty at 15:05.')
     // The board sets each clock in bold.
     expect(markup).toContain('Boarding closes at <b>15:00</b>.')
-    expect(markup).toContain('Found by the opening-hours check · every fix below was run through the impact preview')
+    expect(markup).toContain('title="Found by the opening-hours check"')
+    expect(markup).not.toContain('mv2-lens-found-by')
     expect(markup).toContain('You reach the boat after boarding closes')
   })
 

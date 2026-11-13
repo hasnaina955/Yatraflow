@@ -2,7 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
-import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, SlidersHorizontal } from 'lucide-react'
+import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, Info, X } from 'lucide-react'
 import { uid } from '../../data/seed'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
@@ -11,7 +11,7 @@ import type { WriterRoadBinding } from './map/writerRoadBinding'
 import { buildJourney, type JourneyPoint, minutesToHM, hmToMinutes, fmtDur, computeCategoryBias, MODE_SPEED, isRoundTrip, isAirMode, tripJourneyGeometry, legBetween, getAssumptions, originOf, type LegEstimate } from '../../lib/engine'
 import { useTimeFormat, formatClocksInText, formatHM, formatHMRange, validHM } from '../../lib/timefmt'
 import type { MapTarget } from '../../lib/mapTarget'
-import { loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
+import { loadFlag, saveFlag, loadPref, savePref, loadHaltPinsForTrip, saveHaltPin, clearHaltPin, clearHaltPinsForTrip } from '../../lib/uiPrefs'
 import { DEBOUNCE_MS } from '../../lib/geocode'
 import { Modal, Field, toast, undoToast, useInView, useMedia, usePageVisible } from '../../components/ui'
 import { Select } from '../../components/Select'
@@ -44,12 +44,11 @@ import { applyFixChangeSet, verifyFixSet } from './map/fixLens'
 import { fixIsOffered, type FixChangeSet } from '../../lib/mapLensContracts'
 import type { RingId } from '../../components/map/lenses/StayDeck'
 import { hiddenDrivePicks } from '../../components/map/lenses/DriveTabs'
-import { MinuteScopeControl, type ScopeCountsState } from './map/MinuteScopeControl'
 import { MapScopeBand, bandCounts, phoneLensAriaLabel, type ScopeBandCounts } from './map/MapScopeBand'
-import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
+import { LensRailExtras, fixRailLine, fixTargetStopId, driveBudgetBarText, driveBudgetDetailText, driveBudgetStep, windowDurationText } from './map/LensRailExtras'
 import { baseTagText, fixMarkFactsLabel } from '../../lib/mapStyles/lensMarks'
 import {
-  readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, scopeCounts, dayPurposesFor, type ScopeMinutes,
+  readScopeMinutes, scopeStorageKey, scopeKmForMinutes, nextScopeMinutes, dayPurposesFor, type ScopeMinutes,
 } from './map/minuteScope'
 import { useRailContent } from './map/useRailContent'
 import { journeyCostLabels } from './map/railLabels'
@@ -677,6 +676,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const splitDeclined = splitDeclinedAt === travelDayNeed
   const setSplitDeclined = (declined: boolean) => setSplitDeclinedAt(declined ? travelDayNeed : null)
   const [splitPreview, setSplitPreview] = useState(false)
+  const [ribbonOpen, setRibbonOpen] = useState(() => loadFlag('map_ribbon', false))
+  const [dismissedTrip, setDismissedTrip] = useState(() => loadFlag(`map_route_dismissed_${trip.id}`, false) ? trip.id : null)
+  const [fixPreview, setFixPreview] = useState<FixChangeSet | null>(null)
+  function toggleRibbon() {
+    const next = !ribbonOpen
+    setRibbonOpen(next)
+    saveFlag('map_ribbon', next)
+  }
   const applySplitDays = () => {
     setSplitPreview(false)
     if (clockVerdict.verdict !== 'ok') return // defer/hop: nothing honest to stamp
@@ -1198,17 +1205,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const quotaOut = googleEnabled() && corridorQuotaBlocked
   // #898: the scope counts read the rows already held. Loading, failed, paused and
   // retained stay apart, so a failed read never shows as "0 inside".
-  const scopeState: ScopeCountsState = useMemo(() => {
-    if (loadingPois) return { kind: 'loading' }
-    if (quotaOut) return { kind: 'unavailable', reason: 'Counts paused by the provider limit' }
-    if (poisFailed || scanFailed) return { kind: 'unavailable', reason: 'Counts unavailable: the search failed' }
-    const scoped = discoveryDayIndex == null ? driveRows : driveRows.filter(row => row.dayIndex === discoveryDayIndex)
-    return {
-      kind: 'ready',
-      counts: scopeCounts(scoped, scopeMinutes),
-      ...(corridorSource === 'retained' ? { note: 'from the last good search' } : {}),
-    }
-  }, [loadingPois, quotaOut, poisFailed, scanFailed, driveRows, discoveryDayIndex, scopeMinutes, corridorSource])
 
   /**
    * "Also nearby" candidates, pre-grouped once per render instead of per row.
@@ -1707,6 +1703,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const budgetBarText = driveBudgetBarText(driveBudget)
   const budgetBar = budgetBarText == null ? null : {
     text: budgetBarText,
+    detail: driveBudgetDetailText(driveBudget),
     step: driveBudgetStep(driveBudget?.usedMin ?? null, driveBudget?.budgetMin ?? null) ?? 0,
   }
   function addLensHit(hit: PlaceHit, dayIndex: number) {
@@ -1746,9 +1743,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     toast('Fix applied to this day.')
   }
   function applyLensFix(set: FixChangeSet) {
+    setFixPreview(null)
     applyFixAgainst(trip, set)
   }
   function previewLensFix(set: FixChangeSet) {
+    setFixPreview(set)
     // Preview draws nothing new: it selects the day and shows the Fix lens.
     chooseDay(set.dayIndex)
     setLens('fix')
@@ -1932,22 +1931,24 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // W9-phone: on a phone the journey ribbon and the Drive scope band are
   // in-flow children of the open sheet. They cannot overlap the map or the
   // top row at any snap. A folded deck keeps the ribbon docked on the map.
-  const ribbonSheet: 'see' | 'needs' | 'detail' | null = !phoneSheet || !deckOpen || snap === 'peek'
-    ? null
-    : selectedHit ? 'detail' : sheetTab === 'needs' ? 'needs' : 'see'
+  const activeFixPreview = fixPreview?.dayIndex === activeDayIndex ? fixPreview : null
+  const fixPreviewTrip = activeFixPreview ? applyFixChangeSet(trip, activeFixPreview) : null
+  const fixPreviewDay = fixPreviewTrip?.days.find(day => day.index === activeDayIndex)
+  const ribbonJourney = fixPreviewTrip && fixPreviewDay ? buildJourney(fixPreviewTrip, fixPreviewDay, legCorrections) : journey
+  const ribbonShown = ribbonOpen || openPreview != null || activeFixPreview != null || splitPreview
   const ribbonLockedIds = trip.fixedCommitments.filter(entry => entry.dayIndex === activeDayIndex && entry.stopId != null).map(entry => String(entry.stopId))
   const ribbonNote = lens === 'fix' && commitmentClock != null
     ? `Fixed ${commitmentClock}`
     : lens === 'stay' && stayEvening != null ? `Free ${lensClock(stayEvening.startMin)}–${lensClock(stayEvening.endMin)}` : null
-  const phoneRibbon = (
-    <MapJourneyRibbon journey={journey} corrections={legCorrections} windows={railWindows.filter(row => row.nextDayLabel == null)} lockedStopIds={ribbonLockedIds} lockedClockOf={stopId => trip.fixedCommitments?.find(entry => entry.dayIndex === activeDayIndex && entry.stopId != null && String(entry.stopId) === stopId)?.time ?? null} fixStopId={fixStopId} note={ribbonNote} {...(openPreview ? { preview: openPreview } : {})} inSheet={phoneSheet && snap !== 'peek'} onScrub={(position, minute) => {
+  const phoneRibbon = ribbonShown && (
+    <MapJourneyRibbon journey={ribbonJourney} corrections={legCorrections} windows={railWindows.filter(row => row.nextDayLabel == null)} lockedStopIds={ribbonLockedIds} lockedClockOf={stopId => trip.fixedCommitments?.find(entry => entry.dayIndex === activeDayIndex && entry.stopId != null && String(entry.stopId) === stopId)?.time ?? null} fixStopId={fixStopId} note={ribbonNote} {...(openPreview ? { preview: openPreview } : {})} inSheet={false} onScrub={(position, minute) => {
       if (position.grade === 'estimated') { setScrubCursor(null); return }
       setScrubCursor({ contextKey: scrubContext, coordinate: position.coordinate, minute })
       setLocalTarget({ kind: 'coordinate', coordinate: position.coordinate }, true)
     }} />
   )
   const scopeBand = lens === 'drive'
-    ? <MapScopeBand minutes={scopeChoice} onMinutes={changeScope} counts={driveCounts} snap={snap} phone={phoneSheet} />
+    ? <MapScopeBand minutes={scopeChoice} onMinutes={changeScope} counts={driveCounts} disabled={loadingPois || quotaOut} status={loadingPois ? 'Searching…' : poisFailed || scanFailed ? 'Search failed' : quotaOut ? 'Search paused' : null} />
     : null
   // W10: the peek names the active lens with its real count, and shows the
   // first pick from that lens. An unknown count stays null, never a guess.
@@ -1967,7 +1968,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   // one row in the planning sheet. Desktop keeps them where they were.
   // The one scan retry. The Refresh button and the Retry button of a failed deck both call it.
   const retryScan = () => { suggestionCache.clearMap(); setRefreshTick(t => t + 1) }
-  const routeAdvice = (<>
+  const routeAdvice = (clockVerdict.verdict !== 'ok' || travelDayNeed > trip.days.length) ? (<>
         {/* Day Planner proposals (P1-B/P1-C) — the split the route demands,
             the defer/hop verdict for the real start time. They sit above the
             strip because they change WHAT the strip plans. */}
@@ -2006,7 +2007,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                 <button className="btn btn-primary btn-sm" onClick={applySplitDays}>
                   Apply - add {travelDayNeed - trip.days.length} day{travelDayNeed - trip.days.length !== 1 ? 's' : ''}
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setSplitDeclined(true)}>Keep my {trip.days.length}-day plan</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setSplitPreview(false); setSplitDeclined(true) }}>Keep my {trip.days.length}-day plan</button>
               </div>
             ) : (
               <span className="small dayplanner-red">
@@ -2024,42 +2025,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             )}
           </div>
         )}
-  </>)
-  const settingsTools = (
-    <details className="mv2-tools" id="mv2-map-settings">
-        <summary><SlidersHorizontal size={15} aria-hidden />Search settings and route advice<ChevronDown size={14} aria-hidden /></summary>
-        <div className="mv2-tools-body">
-        <EngineTips />
-        <div className="row-between">
-          <h3 style={{ margin: 0 }}><InlineIcon icon={Lightbulb} size={16} gap={4} vAlign="-3px" />Nearby ideas</h3>
-          <div className="row-between" style={{ gap: 10 }}>
-            <span className="small muted" aria-live="polite">{loadingPois ? 'searching…' : `${pois.filter(p => p.hit).length} suggested stops - spaced for fatigue & anchored on cities`}</span>
-            <button
-              className="btn btn-outline btn-sm suggestion-refresh-btn"
-              title="Refresh suggestions"
-              onClick={retryScan}
-              disabled={loadingPois}
-            >
-              <InlineIcon icon={RotateCcw} size={12} gap={3} />Refresh
-            </button>
-          </div>
-        </div>
-        <div className="hint-text" style={{ margin: '4px 0 6px' }}>
-          Live data from {googleEnabled() ? 'Google Places' : 'OpenStreetMap, Wikipedia & Mappls'} — every idea is clock-anchored, budget-checked, and never around your starting point.{' '}
-          <details className="hint-more">
-            <summary>How suggestions work</summary>
-            Lunch lands in the 11:30–14:30 window, stretch breaks follow wheel time, fuel rides your tank’s rhythm, and long drives end at a real city for the night. Every pick is checked against your detour budget.
-          </details>
-        </div>
-        <div className="row-between" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-          <MinuteScopeControl
-            value={scopeChoice}
-            onChange={next => changeScope(next)}
-            disabled={loadingPois || quotaOut}
-            state={scopeState}
-          />
-        </div>
-        {routeAdvice}
+  </>) : null
+  const deckFooter = <footer className="mv2-deck-footer">
+    <LensDeckSource
+      sources={deckHits(lens, lenses, { driveTab, stayWindow: activeStayWindowId }).map(hit => hit.source)}
+      fetchedAt={scanFetchedAt} coverage={scanCoverage}
+      fixed={lens === 'fix' ? (lenses.fix.phase === 'ready' && lenses.fix.problem != null ? FIX_SOURCE_LINE : '') : null} />
+    <button type="button" className="btn btn-ghost btn-sm" onClick={retryScan} disabled={loadingPois} title="Refresh suggestions"><RotateCcw size={14} aria-hidden />Refresh</button>
+    <details className="mv2-suggestion-info">
+      <summary className="mv2-icon-btn" aria-label="How suggestions work" title="How suggestions work"><Info size={16} aria-hidden /></summary>
+      <div className="mv2-suggestion-notes"><EngineTips />
+        {budgetHeldCount > 0 && <p>{budgetHeldCount} alternatives exceed the detour limit. Add fewer stops or change the scope.</p>}
+        <p>Meal picks follow meal windows. Stretch breaks follow driving time. Fuel picks follow tank range.</p>
+        <p>Each pick is checked against the detour limit.</p>
         {/* #141 standalone: drizzle-grade rain never flips the verdict, so it
             says itself when no split banner is up. */}
         {drizzleDay >= 0 && dayRainPct && !(splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length) && clockVerdict.verdict === 'ok' && (
@@ -2118,17 +2096,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <p className="muted small">This route is too short for a fatigue plan. The drive lens has little to show, so try Around the stay.</p>
           )
         )}
-        </div>
+      </div>
     </details>
-  )
+  </footer>
   return (
     <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
-      {!phoneSheet && settingsTools}
-      {(clockVerdict.verdict !== 'ok' || (splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status" role="status">
-        {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `This drive needs ${travelDayNeed} travel days. The current plan has ${trip.days.length}.`}
-        {' '}<button type="button" className="mv2-route-advice" onClick={() => { const tools = listRef.current?.parentElement?.querySelector('details.mv2-tools'); if (tools instanceof HTMLDetailsElement) { tools.open = true; tools.querySelector('summary')?.focus() } }}>Review route advice</button>
+      {dismissedTrip !== trip.id && !loadFlag(`map_route_dismissed_${trip.id}`, false) && (clockVerdict.verdict !== 'ok' || (splitVerdict && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status mv2-route-banner" role="status">
+        <button type="button" className="mv2-route-advice" onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}>
+          {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `${travelDayNeed} travel days needed. Review fixes`}
+        </button>
+        <button type="button" className="mv2-route-dismiss" aria-label="Dismiss route warning" onClick={() => { setDismissedTrip(trip.id); saveFlag(`map_route_dismissed_${trip.id}`, true) }}><X size={14} aria-hidden /></button>
       </div>}
-      {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Open search settings to retry.'}</p>}
+      {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Use Refresh in the deck to retry.'}</p>}
       {filterActive && (
         <div className="poi-filterbar" role="status">
           {/* #162: the bar reads the label, the filter keys on the stable key. */}
@@ -2137,11 +2116,11 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         </div>
       )}
       <div className={'map-ideas-grid' + (folded.needs ? ' is-needs-folded' : '') + (folded.see ? ' is-see-folded' : '')} ref={listRef}>
-        <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} endTown={headerEndTown} />
+        <MapPhoneDay trip={trip} journey={journey} activeDay={activeDayIndex} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onBack={onBackToTrip} endTown={headerEndTown} ribbonOpen={ribbonShown} onToggleRibbon={toggleRibbon} />
         {itineraryOpen && <div className="map-edit-keys" onKeyDown={e => edit.onReorderKey(e, selectedStop, selectedStop == null ? null : trip.days.find(d => d.stops.some(st => st.id === selectedStop))?.index ?? null)}><MapItinerary trip={trip} journey={journey} corrections={legCorrections} activeDay={activeDayIndex} budgetMin={mapBudget} selectedStop={selectedStop} allDays={mapShowsAll} onShowAll={showAllMapDays} onDayChange={chooseDay} onSelect={selectPoint} onOpenDay={onOpenDay} onFold={() => toggleItinerary(false)} railExtras={<LensRailExtras lens={lens} ringId={stayRing} onRing={setStayRing} />} windowRows={railWindows} daysCaption={daysCaption} fixStopId={fixStopId} fixSubLine={lens === 'fix' ? fixRowLine : null} fixProblem={lens === 'fix' ? fixProblem : null} budgetBar={budgetBar} clock={lensClock} previewChip={previewChip} stayView={stayView} hotelSub={stayTownSub} hideBudget={lens === 'stay'} endTown={headerEndTown} /></div>}
         {!itineraryOpen && <button className="mv2-reopen-day mv2-icon-btn" type="button" aria-label="Show day itinerary" onClick={() => toggleItinerary(true)}><PanelLeftOpen size={19} /></button>}
         <div className="mv2-lenses mv2-lens-pill" role="group" aria-label="Map planning panels">
-          <button type="button" aria-label="Along the drive" aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span></button>
+          <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span></button>
           <button type="button" aria-label={phoneLensAriaLabel('Around the stay', lenses.counts.stay)} aria-controls="rail-see" aria-pressed={lens === 'stay' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('stay'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><BedDouble size={16} aria-hidden /><span>Stay</span>{lenses.counts.stay != null && <b>{lenses.counts.stay}</b>}</button>
           <button type="button" aria-label={phoneLensAriaLabel('Gaps in this day', lenses.counts.gap)} aria-controls="rail-see" aria-pressed={lens === 'gap' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('gap'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Sparkles size={16} aria-hidden /><span>Gap</span>{lenses.counts.gap != null && <b>{lenses.counts.gap}</b>}</button>
           <button type="button" aria-label={phoneLensAriaLabel('Fix this day', lenses.counts.fix)} aria-controls="rail-see" aria-pressed={lens === 'fix' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Lightbulb size={16} aria-hidden /><span>Fix</span>{lenses.counts.fix != null && <b>{lenses.counts.fix}</b>}</button>
@@ -2150,7 +2129,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         </div>
         <div tabIndex={-1} className={'poi-col poi-col--needs' + sheetHiddenClass('needs', sheetTab, sheetApplies)} id="rail-needs" hidden={!deckOpen || sheetTab !== 'needs' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-needs')} />
-            {ribbonSheet === 'needs' && phoneRibbon}
+
 
             <div className="poi-col-head">
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
@@ -2281,7 +2260,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             ) : (
               <div className={'slots-list' + (slotsPeek ? ' is-peek' : '')} id="slots-list">
               {mapScopeNote(mapFilter, activeDayIndex) && (
-                <p className="hint-text" role="status">{mapScopeNote(mapFilter, activeDayIndex)}</p>
+                <span className="sr-only">{mapScopeNote(mapFilter, activeDayIndex)}</span>
               )}
               {/* #333 A5: the slot's candidates had no live region, so a screen-reader
                   user opening a part heard nothing about what was in reach. Mounted even
@@ -2391,7 +2370,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                         <div className="day-slot-top">
                           <span className="day-slot-st" aria-hidden>{slot.state === 'filled' ? '\u2713' : ''}</span>
                           <span className="day-slot-lab"><SlotGlyph kind={slot.kind} label={slot.label} />{slot.label}</span>
-                          <span className="day-slot-win">{slot.state === 'filled' ? formatHM(filledStopClock(journeyDay?.daySchedule ?? null, slot.filledStop?.id ?? '') ?? '', timeFormat) : slot.windowLabel ?? ''}</span>
+                          <span className="day-slot-win">{slot.state === 'filled' ? (filledStopClock(journeyDay?.daySchedule ?? null, slot.filledStop?.id ?? '') ? formatHM(filledStopClock(journeyDay?.daySchedule ?? null, slot.filledStop?.id ?? '') ?? '', timeFormat) : 'Time unavailable') : slot.windowLabel ?? ''}</span>
                           <span className="day-slot-val">
                             {slot.state === 'filled'
                               ? <b>{slot.filledStop?.title ?? slot.segment?.label ?? 'Planned'}</b>
@@ -2603,12 +2582,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               {...(edit.previewRoad ? { previewRoad: edit.previewRoad } : {})}
               corridorDay={lens === 'drive' ? activeDayIndex : null}
             />
-            {!phoneSheet && scopeBand}
+
           </div>
           <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies)} id="rail-see" hidden={!deckOpen || sheetTab !== 'see' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
-            {ribbonSheet === 'see' && phoneRibbon}
-            {ribbonSheet === 'see' && scopeBand}
+
+            {scopeBand}
 
             {lens === 'drive' && <div className="mv2-peek">
               {peekHit ? <>
@@ -2625,7 +2604,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   </button>
                   {editable && <button type="button" className="btn btn-primary mv2-peek-add" disabled={addingAny || !!previewOpen} onClick={() => openAddModal(peekHit)}><Plus size={15} aria-hidden />Add</button>}
                 </div>
-              </> : <p className="mv2-peek-empty">{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Open search settings to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
+              </> : <p className="mv2-peek-empty">{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Use Refresh in the deck to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
             </div>}
             <MapLensPanel
               lens={lens}
@@ -2674,6 +2653,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               } : {})}
             />
             {lens === 'drive' && <div className="poi-plan-list is-ledger">
+              {editable && arcs.length > 0 && <details className="mv2-route-arcs">
+                <summary>Route arcs</summary>
               {editable && !filterActive && arcs.slice(0, 2).length > 0 && (
                 <div className="poi-grp mv2-deck-arc-group">
                   <span className="poi-grp-k">Route arcs</span>
@@ -2695,6 +2676,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   </div>
                 </div>
               ))}
+              </details>}
               {/* One state, one message: the deck note above says wait, failed, paused or empty. */}
               {seeForRail.length === 0
                 ? (lenses.drive.phase === 'ready' && <p className="muted small" role="status">No extra picks yet. Search for a place or open the day plan.</p>)
@@ -2704,20 +2686,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                       <div className="poi-more-list">{hiddenRows.map(ledgerRow)}</div>
                     </details>
                   )}
-              {budgetHeldCount > 0 && (
-                <p className="hint-text">{budgetHeldCount} idea{budgetHeldCount === 1 ? '' : 's'} held back - beyond the day&apos;s detour budget. Add fewer stops, or raise the scope, and the engine will offer them again.</p>
-              )}
+
             </div>}
-            <LensDeckSource
-              sources={deckHits(lens, lenses, { driveTab, stayWindow: activeStayWindowId }).map(hit => hit.source)}
-              fetchedAt={scanFetchedAt}
-              coverage={scanCoverage}
-              fixed={lens === 'fix' ? (lenses.fix.phase === 'ready' && lenses.fix.problem != null ? FIX_SOURCE_LINE : '') : null} />
-            {phoneSheet && <div className="mv2-sheet-settings">{settingsTools}</div>}
+            {deckFooter}
           </div>
           {selectedHit && deckOpen && <div className="mv2-detail" onKeyDown={e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); closeDetails() } }}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-detail')} />
-            {ribbonSheet === 'detail' && phoneRibbon}
+
 
             <MapPickCard hit={selectedHit} trip={trip} dayIndex={detailDay} detourMin={detailDetourMin} reason={selectedRow?.reason ?? null}
               arriveText={detailArriveMin == null ? null : lensClock(detailArriveMin)}
@@ -2755,7 +2730,9 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           </div>}
           {deckOpen && !selectedHit && editable && selectedStop != null && <div className="mv2-detail"><MapEditStopPanel edit={edit} trip={trip} stopId={selectedStop} editable={editable} /></div>}
           <MapEditLive edit={edit} />
-          {ribbonSheet === null && phoneRibbon}
+          {phoneRibbon}
+          {!phoneSheet && <button type="button" className="mv2-clock-chip" aria-expanded={ribbonShown} aria-label={ribbonShown ? 'Hide journey clock' : 'Show journey clock'} onClick={toggleRibbon}><Clock size={15} aria-hidden />{formatHM(journey?.startTime ?? '', timeFormat)} – {formatHM(journey?.points[(journey?.points.length ?? 0) - 1]?.depart ?? '', timeFormat)}</button>}
+          {activeFixPreview && <div className="mv2-fix-preview-actions"><button type="button" className="btn btn-primary" onClick={() => applyLensFix(activeFixPreview)}>Keep fix</button><button type="button" className="btn btn-ghost" onClick={() => setFixPreview(null)}>Cancel fix preview</button></div>}
       </div>
       {/* Shortlist tray: the rail collects, the tray decides. Sticky so it stays
           reachable while the rails scroll. #420 slice 1 moved the markup into

@@ -64,16 +64,14 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
       tone="risk"
       onClose={onClose}
     />
-    {problem && <div className="mv2-lens-evidence">
+    {problem && <div className="mv2-lens-evidence" title={`Found by the ${problem.foundBy}`}>
       {/* One reason is a plain line. Two or more are a list, so each stays a unit. */}
       {problem.evidence.length === 1
         ? <p className="mv2-lens-evidence-line"><EvidenceLine text={problem.evidence[0]} /></p>
         : <ul className="mv2-lens-evidence-lines">
           {problem.evidence.map((line, index) => <li key={index}><EvidenceLine text={line} /></li>)}
         </ul>}
-      <p className="mv2-lens-found-by">
-        {`Found by the ${problem.foundBy} · every fix below was run through the impact preview`}
-      </p>
+
     </div>}
     {routeAdvice}
     {problem == null

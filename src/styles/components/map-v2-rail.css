@@ -47,13 +47,13 @@
 .mv2-workspace .map-shell--workspace { height: 100%; border-radius: 0; box-shadow: none; border: 0; }
 .mv2-workspace .map-ideas-grid .map-ideas-map .map-shell--workspace:not(.map-shell--expanded) .map-frame { height: 100%; min-height: 0; }
 .mv2-workspace .yf-maplibre { height: 100%; }
-.mv2-workspace .map-shell--workspace .map-toolbar { position: absolute; z-index: 3; top: 86px; right: calc(var(--mv2-deck-width) + var(--space-10)); width: 48px; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: var(--space-4); border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; }
+.mv2-workspace .map-shell--workspace .map-toolbar { position: absolute; z-index: 7; top: 86px; right: calc(var(--mv2-deck-width) + var(--space-10)); width: 48px; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: var(--space-4); border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; bottom: auto; overflow: visible; pointer-events: auto; }
 /* F1: the control column stays between the lens toolbar and the journey ribbon at every height.
    It ends above the ribbon. When its cards are taller than that space, the gaps close first and
    the column then scrolls. The 236px of left padding is clear room for the filter popup, which the
    scroll box would otherwise cut off. The box lets pointer events through, so the map stays draggable. */
 @media (min-width: 761px) {
-  .mv2-workspace .map-shell--workspace .map-toolbar { z-index: 6; bottom: calc(var(--mv2-inset) + var(--mv2-ribbon-h) + var(--space-4)); box-sizing: border-box; width: 284px; padding-left: 236px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; pointer-events: none; }
+  .mv2-workspace .map-shell--workspace .map-toolbar { z-index: 6; bottom: calc(var(--mv2-inset) + var(--mv2-ribbon-h) + var(--space-4)); box-sizing: border-box; width: 48px; padding: 0; overflow: visible; pointer-events: auto; }
   .mv2-workspace .map-toolbar::-webkit-scrollbar { display: none; }
   .mv2-workspace .map-toolbar .mv2-map-tools { flex: 0 0 auto; pointer-events: none; }
   .mv2-workspace .map-toolbar .mv2-map-tools-card { flex: 0 0 auto; pointer-events: auto; }
@@ -928,15 +928,7 @@
   box-shadow: var(--shadow-soft);
 }
 .mv2-workspace .mv2-map-tools-card--mode { gap: var(--space-1); padding: var(--space-2); }
-.mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn {
-  position: relative; display: flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px; min-height: 40px; padding: 0;
-  border: 0; border-radius: var(--radius-sm);
-  background: transparent; color: var(--pw-ink-2);
-  font-size: var(--text-xs); font-weight: 800; line-height: 1;
-  cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
-}
+.mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--pw-ink-2); font-size: var(--text-xs); font-weight: 800; line-height: 1; cursor: pointer; transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out); }
 .mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn svg { width: 17px; height: 17px; }
 .mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn:hover { background: var(--pw-lagoon-50); color: var(--pw-sea-700); }
 .mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn:active { background: var(--pw-lagoon-100); }
@@ -1229,3 +1221,59 @@
   .mv2-workspace .map-ideas-grid > .poi-col,
   .mv2-workspace .mv2-detail { z-index: 6; }
 }
+
+/* The map keeps one small tool column. Menus open into the clear canvas. */
+
+.mv2-workspace .map-toolbar .mv2-map-tools { gap: var(--space-2); pointer-events: auto; }
+
+.mv2-tool-menu { position: relative; }
+.mv2-tool-menu > summary { list-style: none; box-shadow: var(--shadow-soft); }
+.mv2-tool-menu > summary::-webkit-details-marker, .mv2-suggestion-info > summary::-webkit-details-marker { display: none; }
+.mv2-tool-menu-body {
+  position: absolute; right: 56px; top: 0; display: flex; flex-direction: column;
+  align-items: stretch; gap: var(--space-2); width: 200px; max-height: 290px;
+  overflow: auto; padding: var(--space-4);
+  box-shadow: var(--shadow-soft); border-radius: var(--radius-sm);
+  animation: popover-in var(--motion-med) var(--ease-paper);
+}
+.mv2-tool-menu-body .mv2-map-tools-card { flex-direction: row; width: auto; flex-wrap: wrap; background: transparent; box-shadow: none; border: 0; }
+.mv2-tool-menu-body > button { display: flex; align-items: center; gap: var(--space-4); min-height: 44px; width: 100%; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); text-align: left; }
+.mv2-tool-menu-body > button::after { content: attr(aria-label); font-size: var(--text-xs); font-weight: 600; }
+.mv2-tool-menu-body .mv2-map-tools-divider { display: none; }
+.mv2-workspace .mv2-tool-menu-body .map-filters-pop { position: static; width: auto; max-height: none; box-shadow: none; }
+.mv2-workspace .mv2-lens-scope-band {
+  position: static; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4);
+  width: auto; margin: 0; padding: var(--space-5); border-radius: 0; box-shadow: none;
+  background: transparent; font-size: var(--text-xs);
+}
+.mv2-deck-footer { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-top: 1px solid var(--line); }
+.mv2-deck-footer .mv2-lens-source { flex: 1; }
+.mv2-suggestion-info > summary { list-style: none; }
+.mv2-suggestion-notes { padding-block: var(--space-5); font-size: var(--text-xs); }
+.mv2-suggestion-info[open] { flex-basis: 100%; animation: popover-in var(--motion-med) var(--ease-paper); }
+.mv2-workspace .mv2-route-banner { display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: var(--space-4); padding: 0 var(--space-5); margin: 0 0 var(--space-3); min-height: 44px; font-size: var(--text-xs); }
+.mv2-route-banner .mv2-route-advice { min-height: 44px; text-align: left; }
+.mv2-clock-chip { position: absolute; z-index: 5; left: calc(var(--mv2-day-width) + var(--space-10)); bottom: var(--mv2-inset); display: flex; align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-clock-chip[aria-expanded='true'] { bottom: calc(var(--mv2-ribbon-h) + var(--space-10)); }
+.mv2-ribbon { animation: popover-in var(--motion-med) var(--ease-paper); }
+.mv2-fix-preview-actions { position: absolute; z-index: 6; bottom: calc(var(--mv2-ribbon-h) + var(--space-10)); left: calc(var(--mv2-day-width) + var(--space-10)); display: flex; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3); background: var(--card); border-radius: var(--radius-sm); }
+@media (max-width: 760px) {
+  .mv2-workspace .map-shell--workspace .map-toolbar { display: flex; top: 124px; right: var(--space-4); width: 48px; max-height: none; }
+  .mv2-workspace .map-toolbar .mv2-map-tools-card { display: flex; }
+  .mv2-workspace .mv2-ribbon { left: var(--space-4); right: var(--space-4); bottom: calc(var(--mv2-sheet-height) + var(--space-4)); z-index: 6; }
+  .mv2-fix-preview-actions { left: var(--space-4); bottom: calc(var(--mv2-sheet-height) + var(--mv2-ribbon-h) + var(--space-7)); }
+  .mv2-tool-menu-body { right: 56px; max-height: 230px; }
+}
+
+.mv2-workspace .mv2-lens-budget { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-3); }
+.mv2-workspace .mv2-lens-budget-value { min-width: 0; max-width: none; text-align: left; white-space: normal; }
+@media (max-width: 760px) {
+  .mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn.mv2-zoom { display: none; }
+}
+
+.mv2-route-banner .mv2-route-dismiss { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 14px; flex: 0 0 auto; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-2); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
+.mv2-route-dismiss:hover { background: var(--bg-soft); }
+.mv2-lens-drive .mv2-lens-cell-label, .mv2-lens-drive .mv2-lens-deck-kicker { display: none; }
+.mv2-lens-budget-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.mv2-route-arcs[open] { animation: popover-in var(--motion-med) var(--ease-paper); }

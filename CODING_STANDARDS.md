@@ -1466,3 +1466,5 @@ The editor primitives are the default; a script is the exception.
     made two rows that send two invitations. Compare the name too.
     Pinned in tests/create-crew-fields.test.ts; the entry fails on the
     pre-fix parser (see 6h's break-proof rule).
+
+**Map counts and clocks.** Label totals of alternative picks as alternatives. Filled slots read the shared schedule, not search windows.

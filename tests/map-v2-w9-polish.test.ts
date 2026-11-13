@@ -208,8 +208,9 @@ describe('scope counts text', () => {
       onMinutes: noop,
       counts: { inside: 3, justPast: 2, worthDetour: 1 },
     }))
-    expect(html).toContain('aria-label="3 inside, 2 just past it, 1 worth the detour"')
-    const counts = /class="mv2-lens-scope-counts"[^>]*>(.*?)<\/p>/.exec(html)?.[1] ?? ''
+    expect(html).toContain('aria-label="3 picks fit scope and budget"')
+    const counts = /class="mv2-lens-scope-count"[^>]*>(.*?)<\/span>/.exec(html)?.[1] ?? ''
+    expect(counts).toBe('3 fit')
     expect(counts).not.toContain('·')
     expect(counts).not.toContain(',')
   })

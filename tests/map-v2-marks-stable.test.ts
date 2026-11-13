@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { layoutMarks, type LayoutMark } from '../src/lib/mapStyles/placeMarks'
 import { coincidentPinOffsets } from '../src/lib/pinOffsets'
@@ -85,5 +86,35 @@ describe('F1 a pan does not change the layout', () => {
     const spots = layoutMarks(marks, { bounds: { left: 100, top: 0, right: 800, bottom: 600 } })
     expect(spots.get('c')!.hidden).toBe(true)
     expect(spots.get('d')).toEqual({ dx: 0, dy: 0, hidden: false })
+  })
+})
+
+// F1 follow-up: source guards for the camera frame, the control column and the lens row.
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+describe('F1 frame, control column and lens row', () => {
+  const rail = read('../src/styles/components/map-v2-rail.css')
+  const map = read('../src/components/TripMap.tsx')
+
+  it('keeps the control column above the ribbon and zoom in view', () => {
+    expect(rail).toMatch(/\.map-toolbar \{ z-index: 6; bottom: calc\(var\(--mv2-inset\) \+ var\(--mv2-ribbon-h\)/)
+    expect(rail).toContain('.mv2-map-tools-card--zoom { position: sticky; top: 0;')
+  })
+
+  it('gives the filter menu the solid card surface', () => {
+    expect(rail).toMatch(/\.map-filters-pop \{[^}]*background: var\(--card\); -webkit-backdrop-filter: none; backdrop-filter: none;/)
+  })
+
+  it('shrinks the search bar before it can cover a lens, then drops the lens names', () => {
+    expect(rail).toContain('--mv2-lens-span')
+    expect(rail).toMatch(/@media \(min-width: 1181px\) and \(max-width: 1259px\)[\s\S]*?\.mv2-lenses > button > span \{ position: absolute;/)
+  })
+
+  it('reserves the map under the narrow bars and beside the control column', () => {
+    expect(map).toContain("'.mv2-omnibar, .mv2-lenses, .mv2-phone-day'")
+    expect(map).toContain("'.mv2-map-tools-card'")
+  })
+
+  it('frames the selected pick together with the route until the user moves the map', () => {
+    expect(map).toMatch(/frameReleased\.current \? null : boundsOf\(\[\.\.\.fitPoints, \{ lat: hit\.latitude, lng: hit\.longitude \}\]\)/)
   })
 })

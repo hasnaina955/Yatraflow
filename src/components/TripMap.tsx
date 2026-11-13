@@ -117,7 +117,7 @@ const NO_CLUSTER_DATA = { type: 'FeatureCollection' as const, features: [] }
 // dead. The stall is real: a hidden webview can hold a style mid-load forever.
 const STYLE_LOAD_WATCHDOG_MS = 4000
 // Overlays that cover the map in the workspace. The camera keeps marks clear of them.
-const WORKSPACE_COVER_SELECTOR = '.mv2-itinerary, .poi-col--see, .mv2-ribbon, .mv2-omnibar, .mv2-lenses, .mv2-phone-day, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left'
+const WORKSPACE_COVER_SELECTOR = '.mv2-itinerary, .poi-col, .mv2-detail, .mv2-ribbon, .mv2-omnibar, .mv2-lenses, .mv2-phone-day, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left'
 // Drawn size of the marks the camera must keep inside the open map area.
 // Every box is a hit box: an interactive mark owns at least 44 by 44 px (see mapMarks.css).
 const STOP_BOX = { w: 44, h: 44, drawW: 36, drawH: 36 }
@@ -894,6 +894,21 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const root = container.closest('.mv2-workspace') ?? document
       const covers = Array.from(root.querySelectorAll(WORKSPACE_COVER_SELECTOR)).map(el => el.getBoundingClientRect())
       insets = mergeInsets(insets, coverInsets(container.getBoundingClientRect(), covers))
+      // F1: a narrow bar still hides a stop that sits under it. The search bar and the lens switch
+      // reserve the map above their lower edge, and the control column reserves the map beside it.
+      const canvasBox = container.getBoundingClientRect()
+      const bars = Array.from(root.querySelectorAll('.mv2-omnibar, .mv2-lenses, .mv2-phone-day')).map(el => el.getBoundingClientRect())
+        .filter(r => r.width > 0 && r.height > 0 && r.bottom > canvasBox.top && r.top < canvasBox.top + canvasBox.height / 3)
+      const column = Array.from(root.querySelectorAll('.mv2-map-tools-card')).map(el => el.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0)
+      const reserved: FrameInsets = { top: 0, bottom: 0, left: 0, right: 0 }
+      for (const r of bars) reserved.top = Math.max(reserved.top, r.bottom - canvasBox.top)
+      if (column.length) {
+        const colLeft = Math.min(...column.map(r => r.left))
+        const colRight = Math.max(...column.map(r => r.right))
+        if ((colLeft + colRight) / 2 > canvasBox.left + canvasBox.width / 2) reserved.right = Math.max(0, canvasBox.right - colLeft)
+        else reserved.left = Math.max(0, colRight - canvasBox.left)
+      }
+      insets = mergeInsets(insets, reserved)
       // W14: the scope band sits in one corner, so the generic rule ignores it. A
       // mark or a clock pill under it would be cut. Reserve the map above its top edge.
       const band = root.querySelector('.mv2-lens-scope-band')
@@ -1538,11 +1553,19 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     const hit = nearbyPois.find(h => h.id === activeHitId)
     if (!hit || !hasCoords(hit)) return
     const m = mapRef.current
+    const duration = prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration
+    // F1: while the camera still frames the route, a selected pick joins that frame. Every stop of the
+    // view stays in the clear map area. A user who moved the map keeps the old glide to the pick.
+    const framed = frameReleased.current ? null : boundsOf([...fitPoints, { lat: hit.latitude, lng: hit.longitude }])
+    if (workspaceChrome && framed) {
+      m.fitBounds(framed, { padding: cameraPadding(), maxZoom: 12, duration })
+      return
+    }
     m.easeTo({
       center: [hit.longitude, hit.latitude],
       padding: cameraPadding(),
       zoom: Math.max(m.getZoom(), 7),
-      duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration,
+      duration,
     })
   }, [activeHitId, mapLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 

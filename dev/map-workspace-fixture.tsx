@@ -110,12 +110,13 @@ const denseStops: [string, ItineraryStop['category'], number, number][][] = [
   [['Basilica of Bom Jesus', 'temple', 15.5009, 73.9116], ['Se Cathedral', 'temple', 15.503, 73.912], ['Dudhsagar falls', 'nature', 15.3144, 74.3143], ['Palolem beach', 'beach', 15.01, 74.023], ['Agonda beach', 'beach', 15.045, 73.988], ['Colva beach', 'beach', 15.28, 73.922], ['Check in · Palolem Huts', 'hotel', 15.011, 74.024]],
   [['Om beach, Gokarna', 'beach', 14.52, 74.317], ['Mahabaleshwar temple', 'temple', 14.54, 74.32], ['Murudeshwar', 'temple', 14.094, 74.485], ['Udupi Krishna temple', 'temple', 13.3409, 74.7421], ['Panambur beach', 'beach', 12.94, 74.812], ['Check in · Mangaluru Hotel', 'hotel', 12.87, 74.842]],
 ]
+const DENSE_TITLES = new Map(['Mumbai', 'Konkan coast', 'North Goa', 'South Goa', 'Karnataka coast'].entries())
 const dense = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Mumbai to Mangaluru', startLocation: 'Mumbai', startLocationCoords: { lat: 18.9388, lng: 72.8354 }, destinations: ['Mangaluru'], destinationCoords: [{ lat: 12.87, lng: 74.842 }],
   startDate: '2026-11-14', endDate: '2026-11-18', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
   createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }], fixedCommitments: [],
   days: denseStops.map((rows, dayIndex) => ({
-    id: `fixture-dense-day-${dayIndex + 1}`, index: dayIndex, startTime: '09:00', title: ['Mumbai', 'Konkan coast', 'North Goa', 'South Goa', 'Karnataka coast'][dayIndex],
+    id: `fixture-dense-day-${dayIndex + 1}`, index: dayIndex, startTime: '09:00', title: DENSE_TITLES.get(dayIndex) ?? `Day ${dayIndex + 1}`,
     stops: rows.map(([title, category, lat, lng], order) => stop(`fixture-dense-${dayIndex + 1}-${order + 1}`, title, category, lat, lng, order + 1, 45)),
   })),
 })
@@ -170,8 +171,10 @@ const legs = chain.points.slice(1).map((point, index) => {
 // dinner. The corrected first leg is synthetic, not a live road measurement.
 const GOA_LEGS: ReadonlyArray<readonly [number, number]> = [goaSavedCoordinates ? [0, 0] : [80, 90], [46, 38], [167, 189], [321, 286], [5, 10], [7, 12]]
 if (goaScenario) {
+  const legsByIndex = new Map(legs.entries())
   GOA_LEGS.forEach(([distanceKm, durationMinutes], index) => {
-    if (legs[index]) legs[index] = { ...legs[index], distanceKm, durationMinutes }
+    const leg = legsByIndex.get(index)
+    if (leg) legs.splice(index, 1, { ...leg, distanceKm, durationMinutes })
   })
 }
 const road: TripRoadView = { chain, legs, status: 'ok', retry: () => undefined }

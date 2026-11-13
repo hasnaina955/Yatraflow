@@ -59,11 +59,15 @@ export function scheduledBusyAfter(
 ): StayBusy[] {
   if (baseAt < 0) return []
   const out: StayBusy[] = []
+  // Index-keyed maps replace computed reads. A hole reads as undefined.
+  const arrivals = new Map(schedule.arrivalTimes.entries())
+  const departures = new Map((schedule.departures ?? []).entries())
+  const stops = new Map(schedule.activeStops.entries())
   for (let at = baseAt + 1; at < schedule.activeStops.length; at += 1) {
-    const arrive = clockOrNull(schedule.arrivalTimes[at])
+    const arrive = clockOrNull(arrivals.get(at))
     if (arrive == null) continue
-    const left = clockOrNull(schedule.departures?.[at])
-    const visit = schedule.activeStops[at]?.visitMinutes
+    const left = clockOrNull(departures.get(at))
+    const visit = stops.get(at)?.visitMinutes
     const end = left != null && left >= arrive
       ? left
       : arrive + (typeof visit === 'number' && Number.isFinite(visit) ? Math.max(0, visit) : 0)

@@ -14,11 +14,11 @@ export const SUBTYPE_ICON: Record<string, LucideIcon> = {
 }
 
 /** A pick tile by place subtype. The letter, when given, is the rank among picks for one gap. */
-export function PlaceSubtypeMark({ category, name, size = 15, letter }: { category?: string | null; name?: string | null; size?: number; letter?: 'A' | 'B' | 'C' | null }) {
+export function PlaceSubtypeMark({ category, name, size = 15, strokeWidth = 1.75, letter }: { category?: string | null; name?: string | null; size?: number; strokeWidth?: number; letter?: 'A' | 'B' | 'C' | null }) {
   const subtype = placeSubtype({ category, name })
   const Icon = SUBTYPE_ICON[subtype.key] ?? Binoculars
   return <span className="mv2-subtype-mark" data-family={subtype.family} data-subtype={subtype.key} aria-hidden="true">
-    <Icon size={size} strokeWidth={1.75} />
+    <Icon size={size} strokeWidth={strokeWidth} />
     {letter && <span className="mv2-pick-letter">{letter}</span>}
   </span>
 }

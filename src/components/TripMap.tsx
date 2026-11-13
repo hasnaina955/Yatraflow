@@ -144,6 +144,9 @@ const CLOCK_BOX = { w: 96, h: 26, dy: 33 }
 const WARN_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
 const SLOT_BOX = { w: 44, h: 44, drawW: 38, drawH: 38 }
 const PICK_BOX = { w: 44, h: 44 }
+// The glyph fills two thirds of the 30 px pick tile, with a heavier line, so the
+// umbrella or the waterfall reads at a glance and not only the coloured tile.
+const MAP_PICK_GLYPH = { size: 20, stroke: 2.4 }
 // A pick with its add button is a column. The pick pad reaches 14px above it and the add pad 26px below.
 const PICK_ADD_BOX = { w: 44, h: 91 }
 const PICK_ADD_SHIFT = 6
@@ -2510,7 +2513,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                         onClick={() => onActivateHit?.(hit.id as string | number)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivateHit?.(hit.id as string | number) } }}
                       >
-                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={14} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
+                        {isSearchHit ? <Search size={14} aria-hidden /> : workspaceChrome ? <PlaceSubtypeMark category={hit.category} name={hit.name} size={MAP_PICK_GLYPH.size} strokeWidth={MAP_PICK_GLYPH.stroke} letter={pickLetters?.[String(hit.id)] ?? null} /> : <CatIcon category={hit.category} size={14} />}
                       </span>
                       {pickTags?.[String(hit.id)] != null && <span className="mv2-pick-tag" data-band={band} data-collapsed={camMoving || markSpots.get(`pick-tag:${hit.id}`)?.hidden ? 'true' : undefined} style={(() => { const t = markSpots.get(`pick-tag:${hit.id}`); return t && !t.hidden && (t.dx || t.dy) ? { translate: `${t.dx}px ${t.dy}px` } : undefined })()}>{pickTags[String(hit.id)]}</span>}
                       {onAddNearby && !workspaceChrome && (

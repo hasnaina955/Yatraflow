@@ -56,6 +56,30 @@ describe('Space round four', () => {
   })
 })
 
+describe('Space round five', () => {
+  it('keeps the day title on one line, with the full title in its tooltip', () => {
+    expect(chrome).toContain('<h2 title={headTitleText}>')
+    expect(css).toContain('.mv2-workspace .mv2-day-header h2 { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }')
+  })
+  it('hides the detour box when the day has no detour stops', () => {
+    expect(tab).toContain("driveBudget?.kind === 'empty'")
+  })
+  it('puts the time range in the day info line and the chip only on a folded rail', () => {
+    expect(chrome).toContain('className="mv2-day-clock"')
+    expect(tab).toContain('{!phoneSheet && !itineraryOpen && <button type="button" className="mv2-clock-chip"')
+  })
+  it('draws the footer as one row: day pills and a Timeline icon', () => {
+    expect(chrome).not.toContain('Days on the map</span>')
+    expect(chrome).toContain('aria-label="Open day in Timeline" title="Open day in Timeline"')
+    expect(css).toContain('.mv2-workspace .mv2-day-footer { flex-direction: row;')
+  })
+  it('cycles the map view from one button, kept in the More menu on the phone', () => {
+    expect(tripMap).toContain('className="mv2-map-tools-btn mv2-map-view-cycle"')
+    expect(tripMap).toContain('className="mv2-map-tools-btn mv2-map-view-menu"')
+    expect(css).toMatch(/@media \(max-width: 760px\) \{\n  \.mv2-workspace \.map-toolbar \.mv2-map-tools-card\.mv2-map-view \{ display: none; \}/)
+  })
+})
+
 describe('Cluster badge', () => {
   it('draws a group as a DOM pin, a pile of pick tiles with its count', () => {
     expect(tripMap).toContain('drawBadges={!workspaceChrome}')

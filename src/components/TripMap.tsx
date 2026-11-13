@@ -1823,6 +1823,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     [dayFilter, dayRoutePoints],
   )
 
+  const nextViewMode = MAP_VIEW_MODES[(MAP_VIEW_MODES.indexOf(viewMode) + 1) % MAP_VIEW_MODES.length]
+  function cycleViewMode() { haptic('select'); setViewMode(nextViewMode) }
+  function viewModeGlyph(mode: typeof viewMode): React.ReactNode {
+    return mode === 'terrain' ? <Mountain size={16} aria-hidden /> : MAP_VIEW_MODE_META[mode].label
+  }
+
   return (
     <div className={`map-shell${workspaceChrome ? ' map-shell--workspace' : ''}${expanded ? ' map-shell--expanded' : ''}${closing ? ' map-shell--closing' : ''}`} data-tools-open="true">
       {showToolbar && (
@@ -1836,20 +1842,18 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {bearing !== 0 && <button type="button" className="mv2-map-tools-btn map-compass" data-bearing={bearing} onClick={() => mapRef.current?.resetNorth({ duration: motionTiming('--motion-med').duration })} aria-label="Turn the map back to north" title="Turn the map back to north"><Compass size={17} aria-hidden style={{ rotate: `${-45 - bearing}deg` }} /></button>}
           </div>
           {enableMapViewModes && (
+          // One button cycles flat, relief and 3D. It shows the view that is on now.
           <div className="mv2-map-tools-card mv2-map-view" role="group" aria-label="Map view mode">
-            {MAP_VIEW_MODES.map(m => (
-              <button
-                key={m}
-                type="button"
-                className={`mv2-map-tools-btn${viewMode === m ? ' on' : ''}`}
-                aria-pressed={viewMode === m}
-                aria-label={MAP_VIEW_MODE_META[m].aria}
-                title={MAP_VIEW_MODE_META[m].aria}
-                onClick={() => { haptic('select'); setViewMode(m) }}
-              >
-                {m === 'terrain' ? <Mountain size={16} aria-hidden /> : m === '2d' ? '2D' : MAP_VIEW_MODE_META[m].label}
-              </button>
-            ))}
+            <button
+              type="button"
+              className="mv2-map-tools-btn mv2-map-view-cycle"
+              data-mode={viewMode}
+              aria-label={`Map view: ${MAP_VIEW_MODE_META[viewMode].aria}. Switch to ${MAP_VIEW_MODE_META[nextViewMode].aria}`}
+              title={`${MAP_VIEW_MODE_META[viewMode].aria} · Click for ${MAP_VIEW_MODE_META[nextViewMode].aria}`}
+              onClick={cycleViewMode}
+            >
+              <span key={viewMode} className="mv2-map-view-glyph">{viewModeGlyph(viewMode)}</span>
+            </button>
           </div>
           )}
           <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
@@ -1892,6 +1896,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           <details className="mv2-tool-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
             <summary className="mv2-icon-btn" aria-label="More map tools" title="More map tools"><MoreHorizontal size={18} aria-hidden /></summary>
             <div className="mv2-tool-menu-body popover" aria-label="More map tools">
+            {/* The phone keeps the view switch in this menu, so the tools column stays short. */}
+            {enableMapViewModes && <button type="button" className="mv2-map-tools-btn mv2-map-view-menu" data-mode={viewMode}
+              aria-label={`Map view: ${MAP_VIEW_MODE_META[viewMode].aria}`} title={`Click for ${MAP_VIEW_MODE_META[nextViewMode].aria}`} onClick={cycleViewMode}>{viewModeGlyph(viewMode)}</button>}
             {dayDirectionsUrl && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className="mv2-map-tools-btn" onClick={() => openExternal(dayDirectionsUrl)}

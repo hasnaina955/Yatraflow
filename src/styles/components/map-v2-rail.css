@@ -1287,7 +1287,7 @@
 .mv2-ribbon { animation: popover-in var(--motion-med) var(--ease-paper); }
 .mv2-fix-preview-actions { position: absolute; z-index: 6; bottom: calc(var(--mv2-ribbon-h) + var(--space-10)); left: calc(var(--mv2-day-width) + var(--space-10)); display: flex; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3); background: var(--card); border-radius: var(--radius-sm); }
 @media (max-width: 760px) {
-  .mv2-workspace .map-shell--workspace .map-toolbar { display: flex; top: 124px; right: var(--space-4); width: 48px; max-height: none; }
+  .mv2-workspace .map-shell--workspace .map-toolbar { display: flex; top: 124px; right: var(--space-4); width: 48px; max-height: none; overflow: visible; }
   .mv2-workspace .map-toolbar .mv2-map-tools-card { display: flex; }
   .mv2-workspace .mv2-ribbon { left: var(--space-4); right: var(--space-4); bottom: calc(var(--mv2-sheet-height) + var(--space-4)); z-index: 6; }
   .mv2-fix-preview-actions { left: var(--space-4); bottom: calc(var(--mv2-sheet-height) + var(--mv2-ribbon-h) + var(--space-7)); }
@@ -1341,6 +1341,19 @@
 .mv2-day-strip > .mv2-day-pill:hover { background: color-mix(in srgb, var(--mv2-day-tone) 24%, var(--pw-card)); }
 .mv2-day-strip > .mv2-day-pill[aria-pressed='true'] { border-color: transparent; background: var(--mv2-day-tone); color: #fff; box-shadow: 0 1px 4px color-mix(in srgb, var(--mv2-day-tone) 45%, transparent); }
 .mv2-day-strip > button:first-child { transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+/* Space round five. The day title keeps one line. The time range sits in the info line. The footer is one row. */
+.mv2-workspace .mv2-day-header h2 { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mv2-workspace .mv2-day-header h2 > svg { display: inline; margin: 0 var(--space-2); vertical-align: -3px; }
+.mv2-day-clock { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: var(--space-3); padding: 0 var(--space-3); border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: transparent; color: var(--pw-ink-2); font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.mv2-day-clock:hover, .mv2-day-clock[aria-expanded='true'] { background: var(--pw-soft); color: var(--pw-ink); }
+.mv2-day-clock:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
+.mv2-workspace .mv2-day-footer { flex-direction: row; align-items: center; gap: var(--space-4); }
+.mv2-workspace .mv2-day-footer > .mv2-day-strip { flex: 1 1 auto; min-width: 0; }
+.mv2-workspace .mv2-day-footer > .mv2-timeline-link { flex: none; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--ink-teal); transition: background var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper); }
+.mv2-workspace .mv2-day-footer > .mv2-timeline-link::before { inset: -4px; }
+.mv2-workspace .mv2-day-footer > .mv2-timeline-link:hover { background: var(--pw-soft); transform: translateY(-1px); }
+@media (pointer: coarse) { .mv2-day-clock { position: relative; } .mv2-day-clock::before { content: ''; position: absolute; inset: -14px -4px; } }
+@media (prefers-reduced-motion: reduce) { .mv2-day-clock, .mv2-workspace .mv2-day-footer > .mv2-timeline-link { transition: none; } }
 
 /* ---- Attribution: a small round chip in the map corner ---- */
 .mv2-workspace .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 28px; margin: 0; border-radius: var(--radius-pill); box-shadow: var(--shadow-soft); transition: background var(--motion-fast) var(--ease-paper); }
@@ -1420,6 +1433,14 @@
 
 /* ---- View switch in the tools column: 2D, relief and 3D, one tap each ---- */
 .mv2-workspace .mv2-map-view .mv2-map-tools-btn { font-size: 12px; font-weight: 800; letter-spacing: .02em; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), scale var(--motion-fast) var(--ease-paper); }
+/* One button cycles the view. The glyph pops in on each change. The phone keeps the switch in the More menu. */
+.mv2-map-view-glyph { display: inline-grid; place-items: center; animation: mv2-pick-pop var(--motion-med) var(--ease-paper) backwards; }
+.mv2-workspace .mv2-map-view-menu { display: none; }
+@media (max-width: 760px) {
+  .mv2-workspace .map-toolbar .mv2-map-tools-card.mv2-map-view { display: none; }
+  .mv2-workspace .mv2-tool-menu-body > .mv2-map-view-menu { display: flex; font-size: 12px; font-weight: 800; }
+}
+@media (prefers-reduced-motion: reduce) { .mv2-map-view-glyph { animation: none; } }
 
 /* ---- One surface for everything that floats over the map ----
    The app's frosted glass: one tint, one blur, one light edge, one shadow. Every

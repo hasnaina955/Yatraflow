@@ -105,8 +105,8 @@ describe('W8 rail top and stay rail', () => {
     const head = html.indexOf('class="mv2-day-head"')
     expect(head).toBeGreaterThan(html.indexOf('mv2-day-arrows'))
     expect(html.indexOf('class="mv2-day-mark"')).toBeGreaterThan(head)
-    expect(html.indexOf('<h2>')).toBeGreaterThan(head)
-    expect(html.indexOf('<h2>')).toBeLessThan(html.indexOf('aria-label="Next day"'))
+    expect(html.indexOf('<h2 ')).toBeGreaterThan(head)
+    expect(html.indexOf('<h2 ')).toBeLessThan(html.indexOf('aria-label="Next day"'))
   })
 
   it('names the day line a drive, as the board does', () => {

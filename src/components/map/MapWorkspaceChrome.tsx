@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, CarFront, Check, ChevronLeft, ChevronRight, House, LocateFixed, Lock, MoreHorizontal, PanelLeftClose } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, CarFront, Check, ChevronLeft, ChevronRight, Clock, House, LocateFixed, Lock, MoreHorizontal, PanelLeftClose } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import type { Journey, JourneyPoint, LegEstimate } from '../../lib/engine'
 import { fmtDur, legKey } from '../../lib/engine'
@@ -103,7 +103,7 @@ export interface ItineraryStayView {
   baseSub: string | null
 }
 
-export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hotelSub, hideBudget, endTown }: {
+export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin, selectedStop, allDays, onShowAll, onDayChange, onSelect, onOpenDay, onFold, railExtras, windowRows, windowRow, daysCaption, fixStopId, fixSubLine, fixProblem: fixProblemProp, budgetBar, clock, previewChip, stayView, hotelSub, hideBudget, endTown, clockRange }: {
   trip: Trip; journey: Journey | null; activeDay: number; budgetMin: number; selectedStop: string | null
   corrections?: Record<string, LegEstimate>
   allDays: boolean; onShowAll: () => void
@@ -136,6 +136,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   hideBudget?: boolean
   /** The town the day ends in. The header reads town to town. Absent keeps the last stop's name. */
   endTown?: string | null
+  /** The day's time range. It sits in the info line and opens the journey clock. Absent hides it. */
+  clockRange?: { text: string; expanded: boolean; onToggle: () => void } | null
 }) {
   const timeFormat = useTimeFormat()
   const days = [...trip.days].sort((a, b) => a.index - b.index)
@@ -244,6 +246,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const dayTone = { '--mv2-day-tone': dayColor(activeDay) } as CSSProperties
   const headTitle = stayView?.title != null ? stayView.title : null
   const headSub = stayView?.sub != null ? stayView.sub : null
+  // The title keeps one line. The tooltip carries the full text.
+  const headTitleText = headTitle ?? (journey ? `${journey.startTitle} → ${endTown ?? journey.endTitle}` : day?.title || 'Your day on the map')
   // The "Leave X" row shows the clock the car leaves: a breakfast at the start
   // place comes first. Every other row keeps its booking or arrival clock.
   const rowClock = (point: JourneyPoint, index: number): string => {
@@ -276,11 +280,11 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         <button type="button" className="mv2-icon-btn" disabled={position <= 0} aria-label="Previous day" onClick={() => { const previous = days[position - 1]; if (previous) onDayChange(previous.index) }}><ChevronLeft size={18} /></button>
         <div className="mv2-day-head" key={allDays ? 'all' : activeDay}>
           <span className="mv2-day-mark"><i className="mv2-day-dot" style={{ '--mv2-day-tone': dayColor(activeDay) } as CSSProperties} aria-hidden="true" />Day {activeDay + 1}{dateLabel && ` · ${dateLabel}`}</span>
-          <h2>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
+          <h2 title={headTitleText}>{headTitle ?? (journey ? <>{journey.startTitle}<ArrowRight size={17} aria-hidden />{endTown ?? journey.endTitle}</> : day?.title || 'Your day on the map')}</h2>
         </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
-      <p>{headSub ?? (journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'Estimated' : 'Planned'}` : 'Day · No stops')}</p>
+      <p>{headSub ?? (journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'Estimated' : 'Planned'}` : 'Day · No stops')}{clockRange != null && <button type="button" className="mv2-day-clock" aria-expanded={clockRange.expanded} aria-label={clockRange.expanded ? 'Hide journey clock' : 'Show journey clock'} title={clockRange.expanded ? 'Hide journey clock' : 'Show journey clock'} onClick={clockRange.onToggle}><Clock size={12} aria-hidden />{clockRange.text}</button>}</p>
       <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><PanelLeftClose size={16} /></button>
     </header>
     {hideBudget !== true && <div className="mv2-budget mv2-lens-budget" title={budgetBar?.detail ?? undefined}><span className="mv2-lens-budget-label sr-only">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar?.step != null
@@ -331,9 +335,8 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     </ol>
     {railExtras}
     <footer className="mv2-day-footer">
-      {onOpenDay && <button type="button" className="mv2-timeline-link" onClick={() => onOpenDay(activeDay)}>Open day in Timeline<ArrowRight size={15} aria-hidden /></button>}
-      <span className="mv2-section-label">Days on the map</span>
       <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}>{item.index + 1}</button>)}</div>
+      {onOpenDay && <button type="button" className="mv2-timeline-link" aria-label="Open day in Timeline" title="Open day in Timeline" onClick={() => onOpenDay(activeDay)}><CalendarDays size={16} aria-hidden /></button>}
       {daysCaption && <span className="sr-only">{daysCaption}</span>}
     </footer>
   </aside>

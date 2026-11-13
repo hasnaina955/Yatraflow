@@ -8,4 +8,4 @@
 
 - **The day rail no longer shows "Leave" after a stop.** The departure row is the first row of the day. Only a breakfast at last night's stay can come before it. A stop saved at the start place still shows zero distance. Its position needs a separate correction in the trip data.
 
-- **The detour budget now says "over budget" when the offered detours exceed it.** The first figure is the sum of the detours of the places on offer, not time already spent. The rail line reads, for example, "78 of 25 min · over budget · 4 free stops".
+- **The detour budget uses planned stops only.** The rail names the excess when planned detours exceed the limit. Unknown planned costs and a plan with no detour stops each show their own message.

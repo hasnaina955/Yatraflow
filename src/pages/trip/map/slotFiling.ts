@@ -147,14 +147,14 @@ export type SlotFileInput = {
 export function slotFileRefusal(input: SlotFileInput): SlotFileRefusal | null {
   const { hit, slotLabel, manual, candidates, isAdded } = input
   if (isAdded(hit)) {
-    return { kind: 'added', message: `"${hit.name}" is already on the plan or was dismissed.` }
+    return { kind: 'added', message: `"${hit.name}" · Planned or dismissed` }
   }
   const id = String(hit.id)
   const already = manual.some(x => String(x.id) === id) || candidates.some(c => String(c.hit.id) === id)
   if (already) {
     return {
       kind: 'candidate',
-      message: `"${hit.name}" is already a candidate for the ${slotLabel.toLowerCase()} slot.`,
+      message: `"${hit.name}" · Already a ${slotLabel.toLowerCase()} candidate`,
     }
   }
   return null

@@ -88,7 +88,7 @@ export function placementOptions(input: PlacementInput): PlacementOption[] {
   const placeDayName = `Day ${placeDayIndex + 1}`
   const km = input.km
   const dayHint = km == null
-    ? `No road position for this place, so ${placeDayName} is a guess — you can change it in the stop editor.`
+    ? `No road position for this place, so ${placeDayName} is a guess · you can change it in the stop editor.`
     : `~${Math.round(km)} km into the route, so it lands on the day that covers that stretch.`
 
   // A vote is raised FROM the tray, so the hit has to be in it: offering "ask the
@@ -117,17 +117,17 @@ export function placementOptions(input: PlacementInput): PlacementOption[] {
       label: shortlisted ? 'Remove from the shortlist' : 'Put it on the shortlist',
       hint: shortlisted
         ? 'Takes it back off the shortlist. Nothing in the plan changes.'
-        : 'Collects it for the tray without touching the plan — decide later.',
+        : 'Collects it for the tray without touching the plan · decide later.',
       disabled: false,
     },
     {
       kind: 'vote',
       label: voteBlocked ? `Ask the crew to vote (needs ${VOTE_MIN_PLACES} places)` : 'Ask the crew to vote',
-      hint: 'Posts the shortlist as one open decision — resolving it lands the winner.',
+      hint: 'Posts the shortlist as one open decision · resolving it lands the winner.',
       disabled: voteBlocked,
       reason: !shortlisted
         ? 'A vote compares places: put this one on the shortlist first, then ask.'
-        : `A vote needs ${VOTE_MIN_PLACES} places — shortlist one more, then ask.`,
+        : `A vote needs ${VOTE_MIN_PLACES} places · shortlist one more, then ask.`,
     },
   ]
 
@@ -135,7 +135,7 @@ export function placementOptions(input: PlacementInput): PlacementOption[] {
     return options.map(o => ({
       ...o,
       disabled: true,
-      reason: 'This place has no map position yet, so it cannot be filed — pick another result.',
+      reason: 'This place has no map position yet, so it cannot be filed · pick another result.',
     }))
   }
 

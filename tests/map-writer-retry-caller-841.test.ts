@@ -592,7 +592,7 @@ describe('the arc caller stages and retries through the same contract', () => {
     expect(changed.status).toBe('refused')
     if (changed.status === 'refused') {
       expect(changed.resume?.disposition).toBe('payload-changed')
-      expect(arcStageLine('Fort trail', changed).text).toContain('replaced this save')
+      expect(arcStageLine('Fort trail', changed).text).toContain('Save replaced')
     }
     expect(h.stages).toHaveLength(1)
 

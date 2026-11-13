@@ -49,7 +49,7 @@ describe('#841 writer hooks use the exported action factories', () => {
   it('the writers hook keeps the resolve-or-prompt guard and the pinned vote payload', () => {
     expect(writers).toContain('resolvePick(c.hit)')
     expect(writers).toContain('usable.length < 2')
-    expect(writers).toContain('was not created')
+    expect(writers).toContain('Not created')
     expect(writers).toMatch(/lat:\s*pinned\.latitude/)
     expect(writers).toMatch(/lng:\s*pinned\.longitude/)
     expect(writers).not.toMatch(/lat:\s*c\.hit\.latitude/)

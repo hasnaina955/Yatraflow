@@ -853,7 +853,7 @@ export default function App() {
         </svg>
         <div className="container footer-inner">
           <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
-          <span className="small muted">All costs are transparent estimates. No bookings — planning plus paid itinerary unlocks. <a className="footer-link" href={feedbackHref()}>Send feedback</a> · <a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh trip cost calculator</a></span>
+          <span className="small muted">All costs are transparent estimates. No bookings · planning plus paid itinerary unlocks. <a className="footer-link" href={feedbackHref()}>Send feedback</a> · <a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh trip cost calculator</a></span>
         </div>
       </footer>
 
@@ -1367,7 +1367,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
             }
           : {
               title: 'Couldn’t join just now',
-              body: 'The link may still be good — a dropped connection looks the same as a refused join. Try again, or ask the organiser for a fresh link.',
+              body: 'The link may still be good · a dropped connection looks the same as a refused join. Try again, or ask the organiser for a fresh link.',
             }
     return (
       <div className="container yf-page page-enter">

@@ -36,7 +36,7 @@ export function applyVerifiedPlacement(
 /** Truthful copy for a guarded-Undo refusal. No success claim. */
 export function undoRefusalMessage(outcome: { status: string; reason?: string }): string | null {
   if (outcome.status === 'undone') return null
-  if (outcome.status === 'refused') return 'The saved stop changed, so Undo did not delete it.'
-  if (outcome.status === 'not-admitted') return 'Undo was not admitted; the saved stop is still there.'
-  return 'Undo did not complete; check Saved edits.'
+  if (outcome.status === 'refused') return 'Undo · Stop changed · Preserved'
+  if (outcome.status === 'not-admitted') return 'Undo · Unavailable · Stop preserved'
+  return 'Undo · Incomplete · Check Saved edits'
 }

@@ -210,7 +210,7 @@ describe('fixSummary', () => {
     if (!set) throw new Error('expected the shortening fix')
     expect(fixSummary(set, nameOf, clock)).toEqual({
       title: 'Shorten Spice farm walk to 75 min',
-      change: 'Stay 75 min · keeps every stop',
+      change: 'Stay 75 min · All stops kept',
       result: 'Clears it · 15 min shorter day',
     })
   })

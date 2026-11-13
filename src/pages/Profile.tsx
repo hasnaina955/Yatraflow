@@ -392,7 +392,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                 <Field label="Display name" error={nameErr ?? undefined}><input className="input" ref={nameRef} autoComplete="name" value={f.name} onChange={e => { setF(x => ({ ...x, name: e.target.value })); if (nameErr) setNameErr(null) }} /></Field>
                 <Field label="Home city"><input className="input" autoComplete="address-level2" value={f.homeCity} onChange={e => setF(x => ({ ...x, homeCity: e.target.value }))} placeholder="e.g. Kochi" /></Field>
               </div>
-              <Field label="Languages you speak" hint="Comma separated — e.g. en, hi, ml">
+              <Field label="Languages you speak" hint="Comma separated · e.g. en, hi, ml">
                 <input className="input" value={f.languages} onChange={e => setF(x => ({ ...x, languages: e.target.value }))} />
               </Field>
               {/* The Save control sits beside the fields it validates. The
@@ -403,7 +403,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                   // Inline validation — the name silently reverting to the old one
                   // read as "save doesn't work". Say so, next to the field.
                   if (!f.name.trim()) {
-                    setNameErr('Pick a display name — it shows on shared trips.')
+                    setNameErr('Pick a display name · it shows on shared trips.')
                     // F-15: the message renders next to Display name, which this
                     // button is scrolled away from — take the user to it (scroll,
                     // then focus with preventScroll so the scroll is ours).
@@ -433,7 +433,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
           <Section id="styles" label="Travel styles" accent="teal">
             <Surface className="prof-panel">
               <PanelHead icon={Sparkles} title="Travel styles"
-                note="Pick all that fit — helps collaborators know what kind of trip to invite you to."
+                note="Pick all that fit · helps collaborators know what kind of trip to invite you to."
                 mark={<Chip tone="teal">{me.profile.travelStyles.length} picked</Chip>} />
               <div className="prof-style-grid">
                 {TRAVEL_STYLES.map(s => (
@@ -476,14 +476,14 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
               <PanelHead icon={Bell} title="Notifications"
                 note="One per-tab ping, mirrored to the system while YatraFlow is open." />
               <p className="hint-text prof-hint">
-                Get an OS-level ping when a collaborator writes to you — even with
+                Get an OS-level ping when a collaborator writes to you · even with
                 YatraFlow in a background tab. The in-app bell always works; this
                 just mirrors it to the system.
               </p>
               {!notifApi ? (
                 <p className="hint-text">This browser doesn’t support notifications.</p>
               ) : notifPerm === 'denied' ? (
-                <p className="hint-text">Notifications are blocked for this site — allow them in your browser’s site settings to turn this on.</p>
+                <p className="hint-text">Notifications are blocked for this site · allow them in your browser’s site settings to turn this on.</p>
               ) : (
                 <div className="row-between prof-notif-toggle">
                   <span className="small prof-notif-label">
@@ -501,7 +501,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                         if (perm !== 'granted') { toast('Browser notifications need permission to ping you.', 'err'); return }
                         setBrowserNotifEnabled(true)
                         setNotifOn(true)
-                        toast('Browser notifications on — we’ll ping you from background tabs.')
+                        toast('Browser notifications on · we’ll ping you from background tabs.')
                       } else {
                         setBrowserNotifEnabled(false)
                         setNotifOn(false)
@@ -585,7 +585,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                   // The success line waits for the server. A refused write rolls
                   // the creator state back to its saved value.
                   const r = await updateProfile({ isCreator: true })
-                  if (r.ok) toast('Creator mode enabled — open the hub to add your bio and links.')
+                  if (r.ok) toast('Creator mode enabled · open the hub to add your bio and links.')
                   else toast(r.error ?? PROFILE_NOT_SAVED, 'err')
                 }}>
                   Enable creator mode
@@ -620,7 +620,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
                 <li className="prof-data-row"><span className="prof-data-rail" aria-hidden="true" /><b>Trips, votes and decisions</b><span>Saved to your account, so they follow you between devices.</span></li>
                 <li className="prof-data-row"><span className="prof-data-rail" aria-hidden="true" /><b>Display preferences</b><span>Stay on this device.</span></li>
                 <li className="prof-data-row"><span className="prof-data-rail" aria-hidden="true" /><b>AI endpoint and key</b><span>Stored on this device only, never sent to YatraFlow’s servers.</span></li>
-                <li className="prof-data-row"><span className="prof-data-rail" aria-hidden="true" /><b>Costs and timings</b><span>Transparent estimates — always verify prices before travelling.</span></li>
+                <li className="prof-data-row"><span className="prof-data-rail" aria-hidden="true" /><b>Costs and timings</b><span>Transparent estimates · always verify prices before travelling.</span></li>
               </ul>
             </Surface>
           </Section>
@@ -711,7 +711,7 @@ function AiProviderCard() {
       if (abort.signal.aborted) return
       setResult(failure
         ? `Saved, but the endpoint did not answer: ${failure} Until it connects, answers fall back to the offline router.`
-        : 'Connected — the companion will answer with this model.')
+        : 'Connected · the companion will answer with this model.')
     } catch {
       if (abort.signal.aborted) return
       setResult('Could not reach the endpoint.')
@@ -730,7 +730,7 @@ function AiProviderCard() {
     const previous = cfg
     clearAiProviderConfig()
     setCfg({ baseUrl: '', apiKey: '', model: '' })
-    setResult('Cleared — the companion answers offline (deterministic) again.')
+    setResult('Cleared · the companion answers offline (deterministic) again.')
     undoToast('Saved endpoint cleared', () => {
       saveAiProviderConfig(previous)
       setCfg(previous)
@@ -745,11 +745,11 @@ function AiProviderCard() {
         <Chip tone={saved ? 'ok' : 'info'}>{saved ? 'LLM configured' : 'Not configured'}</Chip>
       </div>
       <p className="hint-text prof-hint-top">
-        Optional. Point the companion at any OpenAI-compatible endpoint and it answers with that model — grounded in this
+        Optional. Point the companion at any OpenAI-compatible endpoint and it answers with that model · grounded in this
         trip's data. Without one it uses the built-in deterministic assistant. The key is stored on this device only and
         is never sent to YatraFlow's servers.
       </p>
-      <Field label="Endpoint base URL" hint="e.g. https://api.openai.com/v1 — everything before /chat/completions">
+      <Field label="Endpoint base URL" hint="e.g. https://api.openai.com/v1 · everything before /chat/completions">
         <input
           className="input" type="url" inputMode="url" autoComplete="off" spellCheck={false}
           placeholder="https://api.openai.com/v1"
@@ -812,7 +812,7 @@ function JevCard() {
       if (abort.signal.aborted) return
       setResult(failure
         ? `Saved, but the endpoint did not answer: ${failure} Until it connects, answers fall back to the LLM or the offline router.`
-        : 'Connected — companion answers route through Jev.')
+        : 'Connected · companion answers route through Jev.')
     } catch {
       if (abort.signal.aborted) return
       setResult('Could not reach the endpoint.')
@@ -830,7 +830,7 @@ function JevCard() {
     const previous = cfg
     clearJevConfig()
     setCfg({ baseUrl: '', apiKey: '' })
-    setResult('Cleared — companion answers come from the LLM or offline router again.')
+    setResult('Cleared · companion answers come from the LLM or offline router again.')
     undoToast('Saved router cleared', () => {
       saveJevConfig(previous)
       setCfg(previous)
@@ -846,11 +846,11 @@ function JevCard() {
       </div>
       <p className="hint-text prof-hint-top">
         Optional, and independent of the LLM above. Jev (TypeSafe System One) reads the question and picks which
-        analysis to run — the answer itself is then computed on-device, so replies arrive after one small request
+        analysis to run · the answer itself is then computed on-device, so replies arrive after one small request
         instead of a full model generation. When configured it takes precedence over the LLM endpoint. The key is
         stored on this device only.
       </p>
-      <Field label="Endpoint base URL" hint="e.g. https://api.typesafe.ai/v1 — everything before /systemone">
+      <Field label="Endpoint base URL" hint="e.g. https://api.typesafe.ai/v1 · everything before /systemone">
         <input
           className="input" type="url" inputMode="url" autoComplete="off" spellCheck={false}
           placeholder="https://api.typesafe.ai/v1"
@@ -898,7 +898,7 @@ function InstallCard({ onRenderable }: { onRenderable: (renderable: boolean) => 
       <p className="hint-text prof-hint-tight">
         {ios
           ? 'On iPhone and iPad: tap Share, then “Add to Home Screen”. It opens in its own window, like an app.'
-          : 'Adds YatraFlow to your home screen — its own window, its own icon, and a faster start.'}
+          : 'Adds YatraFlow to your home screen · its own window, its own icon, and a faster start.'}
       </p>
       {available && (
         <div className="chip-row">

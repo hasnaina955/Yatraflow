@@ -362,7 +362,7 @@ describe('#841 the slot search drops answers that belong to another context', ()
     quota.reject(new Error('cap'))
     await expect(quotaFlow).resolves.toBe('failed')
     expect(quotaPatches).toEqual([{ busy: false, err: SLOT_SEARCH_QUOTA_COPY }])
-    expect(SLOT_SEARCH_QUOTA_COPY).toBe('Google Places monthly cap reached - text search stays paused until the counter rolls over.')
+    expect(SLOT_SEARCH_QUOTA_COPY).toBe('Google Places · Monthly limit reached')
 
     const failGuard = createSlotSearchGuard()
     const failure = deferred<PlaceHit[]>()
@@ -371,7 +371,7 @@ describe('#841 the slot search drops answers that belong to another context', ()
     failure.reject(new Error('network'))
     await expect(failFlow).resolves.toBe('failed')
     expect(failPatches).toEqual([{ busy: false, err: SLOT_SEARCH_FAILED_COPY }])
-    expect(SLOT_SEARCH_FAILED_COPY).toBe('Search failed - try again.')
+    expect(SLOT_SEARCH_FAILED_COPY).toBe('Search · Failed · Retry')
   })
 
   it('an empty answer reports the query once and commits an empty list', async () => {
@@ -556,7 +556,7 @@ describe('#841 the arc Add all goes through the shared writer', () => {
     expect(gate.reservations().length).toBeGreaterThan(0)
     // The saved trip is untouched until the save is acknowledged.
     expect(titlesOf(ws.current(), DAY_A)).toEqual(['Start', 'Night halt'])
-    expect(arcStageLine('Fort trail', outcome).text).toContain('Keep to save it')
+    expect(arcStageLine('Fort trail', outcome).text).toContain('Keep to save')
     expect(arcStageLine('Fort trail', outcome).text).not.toMatch(/added/)
   })
 
@@ -620,7 +620,7 @@ describe('#841 the arc Add all goes through the shared writer', () => {
     expect(effects.dnaHits).toEqual([])
     expect(effects.undoStops).toEqual([])
     expect(effects.line.tone).toBe('err')
-    expect(effects.line.text).toMatch(/not confirmed/)
+    expect(effects.line.text).toMatch(/Unconfirmed/)
   })
 
   it('an acknowledged receipt with zero verified stops does not say the save landed (F3)', async () => {
@@ -636,7 +636,7 @@ describe('#841 the arc Add all goes through the shared writer', () => {
     expect(effects.undoStops).toEqual([])
     expect(effects.line.tone).toBe('err')
     expect(effects.line.text).not.toMatch(/landed/)
-    expect(effects.line.text).toMatch(/could not confirm/)
+    expect(effects.line.text).toMatch(/Stops unverified/)
   })
 
   it('an unconfirmed Undo never promises the plan is unchanged (F4)', () => {
@@ -721,7 +721,7 @@ describe('#841 the arc Add all goes through the shared writer', () => {
     })
     const outcome = await stageArcAdd(deps, { tripId: TRIP_ID, plan: mixed })
     expect(outcome.status).toBe('staged')
-    expect(arcStageLine('Fort trail', outcome).text).toMatch(/1 place stayed in the list with a reason/)
+    expect(arcStageLine('Fort trail', outcome).text).toMatch(/Picks retained: 1/)
     const onlyLost = arcPickPlan({ hitIds: ['arc-lost'], arcHits: [ARC_NO_POS], isAdded: () => false, dayForKm, dayIdForIndex })
     const nothing = await stageArcAdd(deps, { tripId: TRIP_ID, plan: onlyLost })
     expect(nothing.status).toBe('nothing')

@@ -123,10 +123,10 @@ export function computeBenchBill(input: BenchInputs): BenchBill {
   const passenger = input.mode === 'bus' || input.mode === 'train'
   const fatigue =
     hoursPerDay <= 4
-      ? { verdict: passenger ? 'Easy riding — sit back and enjoy' : 'Easy going — time for detours', tone: 'calm' as const }
+      ? { verdict: passenger ? 'Easy riding · sit back and enjoy' : 'Easy going · time for detours', tone: 'calm' as const }
       : hoursPerDay <= 7
-        ? { verdict: passenger ? 'Long ride — carry snacks and a playlist' : 'Full driving days — pace yourself', tone: 'warn' as const }
-        : { verdict: passenger ? 'Marathon ride — book a sleeper or break the journey' : 'Long haul — split it or take the train', tone: 'hot' as const }
+        ? { verdict: passenger ? 'Long ride · carry snacks and a playlist' : 'Full driving days · pace yourself', tone: 'warn' as const }
+        : { verdict: passenger ? 'Marathon ride · book a sleeper or break the journey' : 'Long haul · split it or take the train', tone: 'hot' as const }
 
   return {
     roadKm, transportCost, transportFormula, rooms, stayCost, stayFormula,
@@ -265,12 +265,12 @@ export function benchInputsEqual(a: BenchInputs, b: BenchInputs): boolean {
 export function formatBenchShareText(bill: BenchBill, input: BenchInputs): string {
   const rideWord = input.mode === 'bus' || input.mode === 'train' ? 'on the move' : 'driving'
   return [
-    'YatraFlow — trip cost estimate',
+    'YatraFlow · trip cost estimate',
     `${bill.roadKm} km road · ${bill.days} days · ${input.crew} traveller${input.crew === 1 ? '' : 's'} · ${input.mode}${input.roundTrip ? ' (return)' : ''}`,
     '',
-    `Transport  ${formatInr(bill.transportCost)} — ${bill.transportFormula}`,
-    `Stay  ${formatInr(bill.stayCost)} — ${bill.stayFormula}`,
-    `Food  ${formatInr(bill.mealCost)} — ${bill.mealFormula}`,
+    `Transport  ${formatInr(bill.transportCost)} · ${bill.transportFormula}`,
+    `Stay  ${formatInr(bill.stayCost)} · ${bill.stayFormula}`,
+    `Food  ${formatInr(bill.mealCost)} · ${bill.mealFormula}`,
     '',
     `Total ${formatInr(bill.total)} · ${formatInr(bill.perHead)} per person`,
     `${bill.fatigue.verdict} (~${Math.round(bill.wheelHours)}h ${rideWord}, ~${bill.hoursPerDay.toFixed(1)}h/day)`,

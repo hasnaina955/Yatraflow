@@ -37,9 +37,9 @@ export function FeaturedCard({ pub, creator, kicker, healthScore, saved, needsLo
         <p className="ex-feature-tagline">{pub.tagline}</p>
         <p className="ex-credibility">
           Why featured: {pub.copies >= 1
-            ? <><GitFork size={12} aria-hidden className="ex-inline-icon" /> {pub.copies} fork{pub.copies === 1 ? '' : 's'} — the most-forked plan here</>
+            ? <><GitFork size={12} aria-hidden className="ex-inline-icon" /> {pub.copies} fork{pub.copies === 1 ? '' : 's'} · the most-forked plan here</>
             : <><Eye size={12} aria-hidden className="ex-inline-icon" /> {pub.views} views</>}
-          {healthScore !== undefined && <> · trip health {healthScore}/100</>} — by {creatorName}
+          {healthScore !== undefined && <> · trip health {healthScore}/100</>} · by {creatorName}
           {creator?.profile.isCreator && <> <Sparkles size={12} aria-hidden className="ex-inline-icon" /></>}.
         </p>
         <div className="ex-feature-foot">

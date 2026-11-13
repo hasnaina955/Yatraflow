@@ -75,11 +75,11 @@ describe('MapTab — the travel-day banner carries its retry', () => {
     expect(mapTab).not.toMatch(/\(routeTotalKm != null \|\| routeFailed\)/)
     // the "rough estimate" sentence keys on the LIVE failure — the latch holds
     // the banner open without claiming a failure that is being re-measured
-    expect(mapTab).toMatch(/routeFailed && 'Rough estimate/)
+    expect(mapTab).toMatch(/routeFailed && 'Road · Estimated/)
   })
 
   it('says the in-flight state and offers the button from the banner', () => {
-    expect(mapTab).toMatch(/Measuring the road again — the estimates hold until it resolves\./)
+    expect(mapTab).toMatch(/Road · Measuring again/)
     expect(mapTab).toMatch(/onClick=\{road\.retry\}/)
     expect(mapTab).toMatch(/Retry road measurement/)
     // the button hides while the re-measure is in flight

@@ -94,7 +94,7 @@ describe('golden itineraries — the gallery pipeline gate', () => {
 
       it('scores high by default — engine health ≥ 85 with no high-severity warnings', () => {
         const health = computeHealth(trip)
-        const describe = (w: { code: string; title: string; detail: string; fix: string }) => `${w.code}: ${w.title} — ${w.detail} (fix: ${w.fix})`
+        const describe = (w: { code: string; title: string; detail: string; fix: string }) => `${w.code}: ${w.title} · ${w.detail} (fix: ${w.fix})`
         for (const w of health.warnings) console.log(`    ⚠ [${w.severity}] ${describe(w)}`)
         const bad = health.warnings.filter(w => w.severity === 'high')
         expect(bad, `${f} has blocking engine warnings: ${bad.map(describe).join(' | ')}`).toHaveLength(0)

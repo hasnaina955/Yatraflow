@@ -123,7 +123,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   /** The Fix lens's own problem, with its engine evidence. */
   fixProblem?: { title: string; evidence: readonly string[] } | null
   /** The detour budget bar. Null keeps the original two lines. */
-  budgetBar?: { text: string; step: number; detail?: string | null } | null
+  budgetBar?: { text: string; step: number | null; detail?: string | null } | null
   /** Formats one minute of the day for a window row. */
   clock?: (min: number) => string
   /** The open add preview. Its index finds one row by stop id. */
@@ -280,10 +280,10 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
         </div>
         <button type="button" className="mv2-icon-btn" disabled={position < 0 || position >= days.length - 1} aria-label="Next day" onClick={() => { const next = days[position + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={18} /></button>
       </div>
-      <p>{headSub ?? (journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'estimate' : 'planned'}` : 'Add a stop to start this day.')}</p>
+      <p>{headSub ?? (journey ? `${Math.round(journey.distanceKm)} km · ${fmtDur(journey.driveMinutes)} drive · ${estimated ? 'Estimated' : 'Planned'}` : 'Day · No stops')}</p>
       <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><PanelLeftClose size={16} /></button>
     </header>
-    {hideBudget !== true && <div className="mv2-budget mv2-lens-budget" title={budgetBar?.detail ?? undefined}><span className="mv2-lens-budget-label sr-only">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
+    {hideBudget !== true && <div className="mv2-budget mv2-lens-budget" title={budgetBar?.detail ?? undefined}><span className="mv2-lens-budget-label sr-only">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar?.step != null
       ? <div className="mv2-budget-progress" role="progressbar" aria-label="Planned detour used" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
     <ol className="mv2-stops" ref={stopsRef}>
@@ -446,7 +446,7 @@ export function MapJourneyRibbon({ journey, corrections, preview = null, onScrub
     if (outcome.position) onScrub(outcome.position, outcome.minute)
   }
   const rootClass = inSheet ? 'mv2-ribbon-sheet' : 'mv2-ribbon'
-  if (!stops.length) return <section className={rootClass} aria-label="Journey clock"><span className="mv2-ribbon-title">Journey clock</span><span>No scheduled stops yet.</span></section>
+  if (!stops.length) return <section className={rootClass} aria-label="Journey clock"><span className="mv2-ribbon-title">Journey clock</span><span>Journey clock · No stops</span></section>
   const labels: Array<{ key: string; at: number; text: string; title: string }> = []
   stops.forEach(stop => {
     const point = stop.point

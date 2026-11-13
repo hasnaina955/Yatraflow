@@ -111,7 +111,7 @@ describe('W8 rail top and stay rail', () => {
 
   it('names the day line a drive, as the board does', () => {
     const html = rail()
-    expect(html).toContain('83 km · 2h 25m drive · planned')
+    expect(html).toContain('83 km · 2h 25m drive · Planned')
     expect(html).not.toContain(' travel · ')
   })
 
@@ -157,7 +157,7 @@ describe('W8 rail top and stay rail', () => {
     expect(html).toContain('How far from the base')
     expect(html).toContain('aria-label="Reach from the base"')
     expect(html.match(/mv2-lens-rail-ring-btn/g)).toHaveLength(2)
-    expect(html).toContain('The crew&#x27;s mode sets the default; the walk ring and the 30 min drive ring draw on the map.')
+    expect(html).toContain('Range · Walk or 30 min drive')
   })
 
   it('renders no rail card outside the stay lens', () => {

@@ -271,7 +271,7 @@ export function describePreLog(f: Pick<PubFunnel, 'preLogViews' | 'preLogForks' 
   // of my plans been recorded since X / has THIS one). The clause names which,
   // so a reader can hold both at once. The pinned per-pub date is unchanged.
   const since = f.recordingSinceDay
-    ? ` — this plan's recording began ${new Date(`${f.recordingSinceDay}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    ? ` · this plan's recording began ${new Date(`${f.recordingSinceDay}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
     : ''
   return `${counts} of the all-time counts predate the event log${since}.`
 }

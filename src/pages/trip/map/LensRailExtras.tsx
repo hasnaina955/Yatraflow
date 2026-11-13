@@ -64,32 +64,38 @@ export function windowDurationText(startMin: number, endMin: number): string | n
   return rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, '0')}`
 }
 
-export interface DriveBudget {
-  usedMin: number | null
-  budgetMin: number | null
-}
+export type DriveBudget = { budgetMin: number } & (
+  | { kind: 'known'; usedMin: number }
+  | { kind: 'unknown'; usedMin: null }
+  | { kind: 'empty'; usedMin: null }
+)
 
 /** Every active planned stop needs its own known cost. Alternatives never spend. */
 export function plannedDriveBudget(
   stops: readonly Pick<ItineraryStop, 'id' | 'status'>[],
   rows: readonly Pick<JourneyRow, 'stopId' | 'detourMin'>[],
   budgetMin: number,
-): DriveBudget | null {
+): DriveBudget {
   const costs = new Map<string, number>()
   for (const stop of stops) {
     if (stop.status === 'rejected') continue
     const facts = rows.filter(row => row.stopId === String(stop.id))
     const cost = facts[0]?.detourMin
-    if (cost == null || !Number.isFinite(cost) || cost < 0 || facts.some(row => row.detourMin !== cost)) return null
+    if (cost == null || !Number.isFinite(cost) || cost < 0 || facts.some(row => row.detourMin !== cost)) return { kind: 'unknown', usedMin: null, budgetMin }
     costs.set(String(stop.id), cost)
   }
-  return { usedMin: Math.round([...costs.values()].reduce((sum, cost) => sum + cost, 0)), budgetMin }
+  return costs.size === 0
+    ? { kind: 'empty', usedMin: null, budgetMin }
+    : { kind: 'known', usedMin: [...costs.values()].reduce((sum, cost) => sum + cost, 0), budgetMin }
 }
 
 /** Only the chosen day's planned stops can spend the rail budget. */
 export function driveBudgetBarText(budget: DriveBudget | null): string | null {
-  if (budget == null || budget.usedMin == null || budget.budgetMin == null) return null
-  return `${budget.usedMin} of ${budget.budgetMin} min detour used`
+  if (budget == null) return null
+  if (budget.kind === 'unknown') return 'Detour · Not measured'
+  if (budget.kind === 'empty') return 'Detour · No stops'
+  if (budget.usedMin > budget.budgetMin) return `Detour ${Math.round(budget.usedMin)} / ${budget.budgetMin} min · ${Math.round(budget.usedMin - budget.budgetMin)} min over`
+  return `Detour ${Math.round(budget.usedMin)} / ${budget.budgetMin} min`
 }
 
 /** A five-step fill fraction. Null when the numbers are unknown. */
@@ -108,13 +114,12 @@ export interface BudgetBlockView {
   showBar: boolean
 }
 
-/** One budget block for every lens. Stay and Fix pass no bar, so only the
- *  known budget shows. The used line is printed only when all parts are known. */
-export function budgetBlockView(budgetBar: { text: string; step: number } | null, budgetMin: number): BudgetBlockView {
+/** Known spend draws progress. Unknown and empty states show their own text. */
+export function budgetBlockView(budgetBar: { text: string; step: number | null } | null, budgetMin: number): BudgetBlockView {
   return {
     label: 'Detour budget',
     value: budgetBar == null ? `${budgetMin} min` : budgetBar.text,
-    showBar: budgetBar != null,
+    showBar: budgetBar?.step != null,
   }
 }
 
@@ -168,6 +173,6 @@ export function LensRailExtras({ lens, ringId, onRing }: LensRailExtrasProps) {
         </button>
       ))}
     </div>
-    <p className="mv2-lens-rail-note">The crew's mode sets the default; the walk ring and the 30 min drive ring draw on the map.</p>
+    <p className="mv2-lens-rail-note">Range · Walk or 30 min drive</p>
   </section>
 }

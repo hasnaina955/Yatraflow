@@ -87,11 +87,11 @@ export function reorderRequest(proposal: ReorderProposal): EditRequest {
 }
 
 const REFUSAL_TEXT: Record<ReorderRefusal, string> = {
-  'no-move': 'The stop is already at the end of the day. Nothing moved.',
-  fixed: 'This stop has a fixed time and cannot be moved by reorder. Edit its time instead.',
-  'out-of-range': 'That place is not on this day. Nothing moved.',
-  'stop-missing': 'That stop is no longer on this day. Nothing moved.',
-  'day-missing': 'That day is no longer on this trip. Nothing moved.',
+  'no-move': 'Stop · Already last · No change',
+  fixed: 'Stop · Fixed time · Edit time to move',
+  'out-of-range': 'Place · Outside this day · No change',
+  'stop-missing': 'Stop · Outside this day · No change',
+  'day-missing': 'Day · Outside this trip · No change',
   'not-a-reorder-key': 'Hold Alt and press the up or down arrow to move a stop.',
 }
 
@@ -102,5 +102,5 @@ export function announceReorder(result: ReorderResult, edit: Pick<EditProposal, 
   const biggest = (edit?.clocks ?? [])
     .filter(c => c.deltaMin !== null && c.deltaMin !== 0)
     .sort((a, b) => Math.abs(b.deltaMin ?? 0) - Math.abs(a.deltaMin ?? 0))[0]
-  return biggest ? `${moved} Preview: ${biggest.title} moves from ${biggest.from} to ${biggest.to}. Not saved yet.` : `${moved} No clock changes. Not saved yet.`
+  return biggest ? `${moved} Preview: ${biggest.title} moves from ${biggest.from} to ${biggest.to} · Not saved` : `${moved} Clock · Unchanged · Not saved`
 }

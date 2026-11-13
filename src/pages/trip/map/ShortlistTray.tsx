@@ -23,7 +23,7 @@ export function ShortlistTray({
   if (count === 0) return null
   return (
     <div className="poi-tray" role="region" aria-label="Shortlisted stops">
-      <span className="poi-tray-n">{count} shortlisted</span>
+      <span className="poi-tray-n">Shortlisted: {count}</span>
       <span className="poi-tray-actions">
         <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={onAddAll}>Add all</button>
         <button className="btn btn-ghost btn-sm" type="button" disabled={busy} onClick={onVote}>Send to a vote</button>

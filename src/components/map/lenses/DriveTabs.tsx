@@ -18,11 +18,11 @@ type DriveRow = DriveTabGroup['shown'][number]
 
 /** The phase text of each phase that has no cards. */
 const PHASE_TEXT = {
-  unscanned: 'Pick a day to see what is along the drive.',
-  scanning: 'Looking along the drive…',
-  failed: 'The search along the drive failed. Try again.',
-  quota: 'The place search is over its limit for now.',
-  empty: 'Nothing along this drive fits your scope.',
+  unscanned: 'Drive · Choose a day',
+  scanning: 'Drive · Searching…',
+  failed: 'Drive search · Failed',
+  quota: 'Place search · Limit reached',
+  empty: 'Drive · No picks in scope',
 } as const
 
 /** A deck with no cards still shows its title, so every phase keeps one header. */
@@ -35,8 +35,9 @@ export function driveNoteKicker(dayNumber: number): string {
 
 /** The tag of each band that shows one. The other bands show no tag. */
 const BAND_TAG: Partial<Record<ScopeBand, string>> = {
-  'just-past': 'just past your scope',
-  'over-budget': "over today's budget",
+  unknown: 'Detour · Not measured',
+  'just-past': 'Just past scope',
+  'over-budget': "Over budget",
 }
 
 /**

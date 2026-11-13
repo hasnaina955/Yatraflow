@@ -53,7 +53,7 @@ export const COVER_EXT = 'jpg'
 export function coverFileError(file: { type: string; size: number }): string | null {
   if (!COVER_TYPES.includes(file.type)) return 'Covers must be a JPEG, PNG or WebP image.'
   if (file.size > COVER_MAX_PICK_BYTES) {
-    return `That image is ${(file.size / (1024 * 1024)).toFixed(1)} MB — too large to resize here. Please pick one under ${COVER_MAX_PICK_BYTES / (1024 * 1024)} MB.`
+    return `That image is ${(file.size / (1024 * 1024)).toFixed(1)} MB · too large to resize here. Please pick one under ${COVER_MAX_PICK_BYTES / (1024 * 1024)} MB.`
   }
   return null
 }
@@ -274,7 +274,7 @@ export async function uploadCover(
 ): Promise<{ url?: string; error?: string }> {
   if (!isSupabaseConfigured) return { error: MISSING_BACKEND_MESSAGE }
   const path = coverObjectPath(userId, coverRandomName())
-  if (!path) return { error: 'Could not name the upload — try again.' }
+  if (!path) return { error: 'Could not name the upload · try again.' }
   let blob: Blob
   try {
     blob = await downscaleCover(file)
@@ -288,7 +288,7 @@ export async function uploadCover(
   // than letting the bucket refuse with a bare message.
   if (blob.size > COVER_MAX_INPUT_BYTES) {
     return {
-      error: `That image is still ${(blob.size / (1024 * 1024)).toFixed(1)} MB after resizing — over the ${COVER_MAX_INPUT_BYTES / (1024 * 1024)} MB the server accepts. Try a smaller one.`,
+      error: `That image is still ${(blob.size / (1024 * 1024)).toFixed(1)} MB after resizing · over the ${COVER_MAX_INPUT_BYTES / (1024 * 1024)} MB the server accepts. Try a smaller one.`,
     }
   }
   const { error } = await supabase.storage.from(COVER_BUCKET).upload(path, blob, {

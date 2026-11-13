@@ -29,7 +29,7 @@ export interface UnpickedStopErrors {
 export function unpickedStopMessage(text: string): string {
   const t = text.trim().replace(/\s+/g, ' ')
   const shown = t.length > 48 ? `${t.slice(0, 47)}…` : t
-  return `Pick “${shown}” from the suggestions so it gets a map pin — or add it without one.`
+  return `Pick “${shown}” from the suggestions so it gets a map pin · or add it without one.`
 }
 
 /** Only non-empty, unpicked text counts. Whitespace is not a stop, and a return

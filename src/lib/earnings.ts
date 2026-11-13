@@ -198,11 +198,11 @@ export function payoutPeriodStatus(period: PayoutPeriod): string {
   // own net — without it, "Owed ₹600" beside "Net ₹300" reads as an error.
   if (period.belowMinimum) {
     const carried = period.carriedInInr > 0 ? ` (with ₹${period.carriedInInr.toLocaleString('en-IN')} rolled in)` : ''
-    return `Under ₹${PAYOUT_MINIMUM_INR.toLocaleString('en-IN')} — rolls over${carried}`
+    return `Under ₹${PAYOUT_MINIMUM_INR.toLocaleString('en-IN')} · rolls over${carried}`
   }
   if (period.past) {
     const cleared = period.carriedInInr > 0 ? ` ₹${period.clearsInr.toLocaleString('en-IN')} including ₹${period.carriedInInr.toLocaleString('en-IN')} rolled in` : ''
-    return `Owed — not disbursed${cleared}`
+    return `Owed · not disbursed${cleared}`
   }
   return 'Scheduled'
 }

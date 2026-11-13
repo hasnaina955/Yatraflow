@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
 import { BedDouble, ChevronDown, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, Info, X } from 'lucide-react'
-import { uid } from '../../data/seed'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
@@ -36,7 +35,7 @@ import { dayStayBase, useCorridorCache } from './map/useCorridorCache'
 import { useRailView } from './map/useRailView'
 import { useMapEdit } from './map/useMapEdit'
 import { MapEditAddPanel, MapEditStopPanel, MapEditLive } from './map/MapEditPanel'
-import { TravelDayAdvice } from '../../components/map/lenses/TravelDayAdvice'
+import { travelDayAdviceFor, applyTravelDays } from '../../components/map/lenses/TravelDayAdvice'
 import { MapLensPanel } from './map/MapLensPanel'
 import { driveLettersByRoad, useMapLenses, type MapLensId } from './map/useMapLenses'
 import { driveCardStrip, driveDeckIntro, filledStopClock, scopeBandOf, overBudgetAlternativeIds, type DriveTab } from './map/driveLens'
@@ -685,31 +684,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     saveFlag('map_ribbon', next)
   }
   const applySplitDays = () => {
-    if (clockVerdict.verdict !== 'ok') return // defer/hop: nothing honest to stamp
-    const add = travelDayNeed - trip.days.length // #123 single source
-    if (add <= 0) return
-    applyChange(draft => {
-      let next = Math.max(...draft.days.map(d => d.index)) + 1
-      for (let i = 0; i < add; i++) {
-        // #133 — stamp real shells: title + startTime so clockVerdict and
-        // computeTotals never fall back to undefined. Dates are derived from
-        // the day index (ItineraryDay carries no date), so extending endDate
-        // is what keeps the new shells inside the trip.
-        const dayNo = trip.days.length + i + 1
-        draft.days.push({
-          id: uid('day'),
-          index: next,
-          title: `Travel day ${dayNo}`,
-          startTime: '08:30',
-          stops: [],
-        })
-        next += 1
-      }
-      draft.days.sort((a, b) => a.index - b.index)
-      if (trip.endDate) draft.endDate = isoAddDays(trip.endDate, add)
-    }, 'add', -1)
-    setSplitDeclined(true) // own mutation must not re-fire the banner
-    toast(`Added ${add} travel day${add !== 1 ? 's' : ''} (08:30 starts) - accept a night halt to pin them`)
+    if (applyTravelDays(trip, drivingPlan, applyChange, undo => undoToast('Added travel days', undo))) setSplitDeclined(true)
   }
 
   // #420 slice 11: the corridor cache (hash, publish, both scans) lives in
@@ -894,7 +869,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     const q = (slotSearch?.key === slot.key ? slotSearch.q : '').trim()
     if (q.length < 2 || slotSearch?.busy) return
     if (!searchContextForSlot(slot)) {
-      toast('This part has no stable day yet - reload the trip before searching inside it.', 'err')
+      toast('Day · Not ready · Reload trip', 'err')
       return
     }
     slotAbort.current?.abort()
@@ -915,7 +890,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           .map(x => x.h),
         isQuotaError: err => err instanceof QuotaExhaustedError,
         commit: patch => setSlotSearch(s => (s && s.key === slot.key ? { ...s, ...patch } : s)),
-        onEmpty: query => toast(`No places found for "${query}".`),
+        onEmpty: query => toast(`Search "${query}" · No places`),
       })
     } catch (err) {
       // The flow reports its own failures. A throw from the commit or toast
@@ -1019,7 +994,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         // the picks from the current rail.
         const ticket = completion.retry
         if (ticket) {
-          toast(done.line.text, 'err', { label: 'Retry', run: () => { void retryArcAdd(arcDeps(), plan, ticket).then(report).catch(err => { console.error('[yatraflow] arc retry threw', err); toast('The retry could not start. Check the day before you try again; Saved edits can still recover the trip.', 'err') }) } })
+          toast(done.line.text, 'err', { label: 'Retry', run: () => { void retryArcAdd(arcDeps(), plan, ticket).then(report).catch(err => { console.error('[yatraflow] arc retry threw', err); toast('Retry · Unavailable · Check Saved edits', 'err') }) } })
           return
         }
         toast(done.line.text, 'err')
@@ -1113,10 +1088,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     ...(roadGrade.measured ? { routeKey: roadGrade.routeKey } : {}),
   })
   const filterActive = chipFilter != null
-  // Detour-budget enforcement (Horizon 3.2's "finite, honest menu"): the
-  // see-&-do list is the endless one — need halts are finite by construction,
-  // so the budget gates only sights. Per day: walk the journey-ordered sight
-  // Alternatives do not spend one another's budget. Each pick is checked alone.
+  // Compare each sight with the budget left after known planned detours.
   const { budgetHeldIds, budgetHeldCount } = useMemo(() => {
     const heldIds = new Set<string>()
     const byDay = new Map<number, SegmentHit[]>()
@@ -1132,12 +1104,14 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         travelStyle: trip.travelStyle,
         plannedStops: (trip.days.find(x => x.index === d)?.stops ?? []).filter(s => s.status !== 'rejected').length,
       })
-      const deferred = overBudgetAlternativeIds(rows.flatMap(sh => sh.hit ? [{ id: String(sh.hit.id), detourMin: detourMinFor(sh.hit) ?? null }] : []), budget)
+      const day = journeyDays.byDay.get(d)
+      const planned = plannedDriveBudget(day?.dayStops ?? [], day?.projection.rows ?? [], budget)
+      const deferred = overBudgetAlternativeIds(rows.flatMap(sh => sh.hit ? [{ id: String(sh.hit.id), detourMin: detourMinFor(sh.hit) ?? null }] : []), budget, planned.usedMin)
       for (const id of deferred) heldIds.add(id)
 
     }
     return { budgetHeldIds: heldIds, budgetHeldCount: heldIds.size }
-  }, [seeAndDoLive, dayForKm, detourMinFor, trip.travelStyle, trip.days])
+  }, [seeAndDoLive, dayForKm, detourMinFor, trip.travelStyle, trip.days, journeyDays])
   // S2: publish the corridor facts the future workspace producer reads. The
   // callback is read through a ref, so a parent re-render cannot republish.
   // Only a changed snapshot key reaches the workspace.
@@ -1580,7 +1554,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     const km = gapWindowKm(row, index)
     // A dinner window with no road position is dinner at the day's stay.
     const aroundKm = aroundKmText(km == null ? null : km - dayKmBase)
-    const aroundStay = row.slotKey === 'dinner' && aroundKm == null && dayHasStay ? 'around the stay' : null
+    const aroundStay = row.slotKey === 'dinner' && aroundKm == null && dayHasStay ? 'Around the stay' : null
     const detail = [aroundKm ?? aroundStay, picksText(part?.picks.picks.length)].filter((piece): piece is string => piece != null).join(' · ')
     return [{
       label: part?.title ?? slot?.label ?? row.slotKey,
@@ -1681,11 +1655,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     }
     : null
   const driveBudget = plannedDriveBudget(activeDayStops, journeyDay?.projection.rows ?? [], mapBudget)
-  // Unknown planned costs keep the budget block out of the rail.
   const budgetBarText = driveBudgetBarText(driveBudget)
   const budgetBar = budgetBarText == null ? null : {
     text: budgetBarText,
-    step: driveBudgetStep(driveBudget?.usedMin ?? null, driveBudget?.budgetMin ?? null) ?? 0,
+    step: driveBudgetStep(driveBudget.usedMin, driveBudget.budgetMin),
   }
   function addLensHit(hit: PlaceHit, dayIndex: number) {
     if (!editable || isAlreadyAdded(hit, identity)) return
@@ -1694,7 +1667,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   function addStayHit(hit: PlaceHit, dayIndex: number, startMin: number | null) {
     if (!editable || isAlreadyAdded(hit, identity)) return
     if (startMin == null) {
-      toast('This pick has no start inside the free window. Nothing changed.')
+      toast('Pick · Outside free time · No change')
       return
     }
     const stamped: PlaceHit = { ...hit, plannedStartMin: startMin } as PlaceHit
@@ -1704,12 +1677,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     // Check the real plan first. A fix that does not pass its check never writes.
     const checked = verifyFixSet(baseTrip, set, legCorrections)
     if (!fixIsOffered(checked)) {
-      toast('This fix did not pass its check. Nothing changed.')
+      toast('Fix · Check failed · No change')
       return
     }
     const next = applyFixChangeSet(baseTrip, checked)
     if (!next) {
-      toast('This fix could not apply to this trip. Nothing changed.')
+      toast('Fix · Unavailable · No change')
       return
     }
     applyChange(draft => {
@@ -1721,7 +1694,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       }
       draft.fixedCommitments = next.fixedCommitments.map(entry => ({ ...entry }))
     }, 'edit', checked.dayIndex)
-    toast('Fix applied to this day.')
+    toast('Fix · Applied')
   }
   function applyLensFix(set: FixChangeSet) {
     setFixPreview(null)
@@ -1938,7 +1911,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const peekEyebrow = lens === 'drive' ? 'Along the drive' : lens === 'stay' ? 'Around the stay' : lens === 'gap' ? 'Gaps in this day' : 'Fix this day'
   const peekTitle = peekTotal == null
     ? 'Picks for this day'
-    : `${peekTotal} ${peekTotal === 1 ? 'pick' : 'picks'} ${lens === 'drive' ? 'along the drive' : lens === 'stay' ? 'around the stay' : lens === 'gap' ? 'in this day' : 'to fix this day'}`
+    : `${peekTotal} ${peekTotal === 1 ? 'pick' : 'picks'} ${lens === 'drive' ? 'Along the drive' : lens === 'stay' ? 'Around the stay' : lens === 'gap' ? 'In this day' : 'to fix this day'}`
   const peekSub = peekDrive?.detourMin == null
     ? null
     : `+${Math.round(peekDrive.detourMin)} min detour${peekDrive.budgetSharePct != null && peekDrive.budgetSharePct > 0 ? ` · ${Math.round(peekDrive.budgetSharePct)}% of budget` : ''}`
@@ -1953,7 +1926,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             strip because they change WHAT the strip plans. */}
         {clockVerdict.verdict === 'defer' && (
           <div className="dayplanner-banner" role="status">
-            <b>Too late to drive honestly today.</b>
+            <b>Start · Too late today</b>
             <span className="small muted">{clockVerdict.reason}</span>
             {editable && (
               <button className="btn btn-primary btn-sm" onClick={() => applyChange(draft => { const d0 = draft.days[0]; if (d0) d0.startTime = DEFER_START }, 'edit', 0)}>
@@ -1964,37 +1937,36 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         )}
         {clockVerdict.verdict === 'hop' && (
           <div className="dayplanner-banner" role="status">
-            <b>Late start - a short hop, then rest.</b>
+            <b>Late start · Short drive then rest</b>
             <span className="small muted">{clockVerdict.reason}</span>
           </div>
         )}
         {(routeTotalKm != null || roadNeedsRetry) && splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length && (
           <div className="dayplanner-banner" role="status">
-            <b>This drive needs {travelDayNeed} travel days{tripIsRoundTrip ? ' - there and back' : ''}.</b>
+            <b>{travelDayNeed} travel days needed{tripIsRoundTrip ? ' · Round trip' : ''} · Review fixes</b>
             <span className="small muted">
-              {routeFailed && 'Rough estimate - the road measurement did not resolve. '}≈{Math.round(splitVerdict.perDay)} km a day keeps wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} - the honest cap for {(trip.travelStyle ?? 'balanced')} pace.
+              {routeFailed && 'Road · Estimated · '}Daily distance ≈{Math.round(splitVerdict.perDay)} km · Wheel time ≈{minutesToHM(splitVerdict.maxDailyWheelMin)} · Pace {(trip.travelStyle ?? 'balanced').replace(/^./, letter => letter.toUpperCase())}
             </span>
             {roadRetryUnderway && (
               <span className="small muted">
-                <InlineIcon icon={RefreshCw} size={12} gap={3} />Measuring the road again — the estimates hold until it resolves.
+                <InlineIcon icon={RefreshCw} size={12} gap={3} />Road · Measuring again…
               </span>
             )}
             {!splitDeclined ? (
-              <TravelDayAdvice currentDays={trip.days.length} neededDays={travelDayNeed}
-                onApply={applySplitDays} onKeep={() => setSplitDeclined(true)} />
+              travelDayAdviceFor(drivingPlan, trip.days.length, { onApply: applySplitDays, onKeep: () => setSplitDeclined(true) })
             ) : (
               <span className="small dayplanner-red">
-                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} behind the wheel in a single stretch is past the honest cap - the fatigue verdict stays red.
+                Keeping {trip.days.length} day{trip.days.length !== 1 ? 's' : ''}: ≈{minutesToHM(wholeTrip.min * loopFactor)} plan · Driving limit exceeded
               </span>
             )}
             {roadNeedsRetry && road && !roadRetryUnderway && (
               <button className="btn btn-outline btn-sm" onClick={road.retry}
-                title="Ask the routing provider again — the first tries may have been rate-limited">
+                title="Ask the routing provider again · the first tries may have been rate-limited">
                 <InlineIcon icon={RefreshCw} size={12} gap={3} />Retry road measurement
               </button>
             )}
             {drizzleDay >= 0 && dayRainPct && (
-              <span className="small muted">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} - {travelDayNeed !== 1 ? travelDayNeed : 'one'} day{travelDayNeed !== 1 ? 's' : ''} planned stays, but pack a buffer for one more.</span>
+              <span className="small muted">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} - {travelDayNeed} day{travelDayNeed !== 1 ? 's' : ''} planned · Extra day buffer</span>
             )}
           </div>
         )}
@@ -2008,19 +1980,19 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     <details className="mv2-suggestion-info">
       <summary className="mv2-icon-btn" aria-label="How suggestions work" title="How suggestions work"><Info size={16} aria-hidden /></summary>
       <div className="mv2-suggestion-notes"><EngineTips />
-        {budgetHeldCount > 0 && <p>{budgetHeldCount} alternatives exceed the detour limit. Add fewer stops or change the scope.</p>}
-        <p>Meal picks follow meal windows. Stretch breaks follow driving time. Fuel picks follow tank range.</p>
-        <p>Each pick is checked against the detour limit.</p>
+        {budgetHeldCount > 0 && <p>{budgetHeldCount} alternatives · Over detour limit</p>}
+        <p>Meals · Meal windows · Breaks · Driving time · Fuel · Tank range</p>
+        <p>Picks · Within detour limit</p>
         {/* #141 standalone: drizzle-grade rain never flips the verdict, so it
             says itself when no split banner is up. */}
         {drizzleDay >= 0 && dayRainPct && !(splitVerdict && clockVerdict.verdict === 'ok' && travelDayNeed > trip.days.length) && clockVerdict.verdict === 'ok' && (
-          <p className="hint-text" role="status">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} - a slow day, not a new plan. The split holds; carry the umbrella.</p>
+          <p className="hint-text" role="status">☁ {Math.round(dayRainPct[drizzleDay]!)}% rain chance on day {drizzleDay + 1} · Slower pace · Day split unchanged</p>
         )}
         {!loadingPois && pois.length === 0 && (
           fractionPois && fractionPois.length > 0 ? (
             <div>
               <p className="muted small" style={{ marginBottom: 6 }}>
-                Below the fatigue-plan floor, but the corridor has places - the closest to each quarter of the drive:
+                Route quarters · Nearby picks
               </p>
               {(() => {
                 // One Set across all three rows (#128a): a place can't win two quarters.
@@ -2051,8 +2023,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                       // #128c: a non-empty pool with no fit here is a scope/
                       // purpose miss, not an empty corridor — say the honest thing.
                       <span className="muted small">{fractionPois.length > 0
-                        ? 'no sight or meal near this quarter - try widening the detour scope.'
-                        : 'no corridor stop found - add a stop on the Timeline and suggestions will pin themselves here.'}</span>
+                        ? 'Picks · None nearby · Try wider scope'
+                        : 'Route · No stops · Add in Timeline'}</span>
                     )}
                   </div>
                 )
@@ -2061,12 +2033,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             </div>
           ) : quotaOut ? (
             // #176: under quota-out the empty strip must not blame the plan.
-            <p className="muted small">Google search quota reached - corridor fallback suggestions are paused until the counter rolls over (this is not about your route).</p>
+            <p className="muted small">Google search · Monthly limit reached</p>
           ) : poisFailed ? (
             // #704: a failed search is not an empty one, so the route is not blamed.
-            <p className="muted small">Stops along the route could not be loaded just now.</p>
+            <p className="muted small">Route stops · Unavailable</p>
           ) : (
-            <p className="muted small">This route is too short for a fatigue plan. The drive lens has little to show, so try Around the stay.</p>
+            <p className="muted small">Short drive · Explore Around the stay</p>
           )
         )}
       </div>
@@ -2076,15 +2048,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     <div className={`mv2-workspace${itineraryOpen ? '' : ' is-day-folded'}${deckOpen ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
       {dismissedTrip !== trip.id && !loadFlag(`map_route_dismissed_${trip.id}`, false) && (clockVerdict.verdict !== 'ok' || (splitVerdict && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status mv2-route-banner" role="status">
         <button type="button" className="mv2-route-advice" onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}>
-          {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `${travelDayNeed} travel days needed. Review fixes`}
+          {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `${travelDayNeed} travel days needed · Review fixes`}
         </button>
         <button type="button" className="mv2-route-dismiss" aria-label="Dismiss route warning" onClick={() => { setDismissedTrip(trip.id); saveFlag(`map_route_dismissed_${trip.id}`, true) }}><X size={14} aria-hidden /></button>
       </div>}
-      {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'New Google searches are paused by the provider limit.' : 'Route suggestions could not be loaded. Use Refresh in the deck to retry.'}</p>}
+      {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'Google search · Limit reached' : 'Route picks · Unavailable · Refresh to retry'}</p>}
       {filterActive && (
         <div className="poi-filterbar" role="status">
           {/* #162: the bar reads the label, the filter keys on the stable key. */}
-          <span>Showing only suggestions that are {{ 'over-budget': 'over budget', 'lunch-window': 'in the lunch window', stretch: 'a long stretch from the last stop', rating: 'rated 4.0+', 'budget-share': 'using a big share of the day budget', 'first-stop': 'the day’s first stop' }[chipFilter as string] ?? chipFilter}</span>
+          <span>Showing only suggestions that are {{ 'over-budget': 'Over budget', 'lunch-window': 'Lunch window', stretch: 'Long drive since last stop', rating: 'Rating · 4.0+', 'budget-share': 'Budget · Large share', 'first-stop': 'First stop' }[chipFilter as string] ?? chipFilter}</span>
           <button type="button" onClick={() => setChipFilter(null)}>Clear filter</button>
         </div>
       )}
@@ -2108,7 +2080,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               <span className="poi-col-head-ico"><Fuel size={13} aria-hidden /></span>
               <div className="poi-col-head-txt">
                 <b>Day {activeDayIndex + 1} · {activeDayLabel(trip.days, activeDayIndex)}</b>
-                <span className="small muted">{activeDaySlots.length === 0 ? 'the day takes shape as you plan the drive' : `${activeReadinessLabel(activeDayReadiness)}`}</span>
+                <span className="small muted">{activeDaySlots.length === 0 ? 'Drive plan · In progress' : `${activeReadinessLabel(activeDayReadiness)}`}</span>
               </div>
               <button
                 type="button"
@@ -2124,7 +2096,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   disabled={fillingDay}
                   onClick={() => { void fillTheDay() }}
                   title="Add the top candidate for every empty part of the day"
-                >{fillingDay ? 'Planning.' : 'Fill the day'}</button>
+                >{fillingDay ? 'Planning…' : 'Fill the day'}</button>
               )}
               <span className="poi-col-count">{`${activeDayReadiness.filled}/${activeDayReadiness.required}`}</span>
               <button
@@ -2157,13 +2129,13 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                     key={d.index}
                     type="button"
                     aria-pressed={d.index === activeDayIndex}
-                    aria-label={`Day ${d.index + 1}: ${filled} of ${required} planned${auto > 0 ? `, ${auto} added by the app` : ''}`}
+                    aria-label={`Day ${d.index + 1}: ${filled} of ${required} planned${auto > 0 ? `, ${auto} Added by the app` : ''}`}
                     className={'slots-daychip' + (d.index === activeDayIndex ? ' is-on' : '')}
                     onClick={() => { setLocalDay(d.index); onDayFocusChange?.(d.index); setOpenSlotKey(null) }}
                   >
                     Day {d.index + 1} <span className="slots-daychip-rd">{filled}/{required}</span>
                     {dayRainPct?.[d.index] != null && dayRainPct[d.index]! >= 40 && (
-                      <span className="slots-daychip-rain" title={`${Math.round(dayRainPct[d.index]!)}% rain chance`}>rain</span>
+                      <span className="slots-daychip-rain" title={`${Math.round(dayRainPct[d.index]!)}% rain chance`}>Rain</span>
                     )}
                   </button>
                 )
@@ -2176,15 +2148,15 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               <details className="slots-legend">
                 <summary className="chip chip-sm">Legend</summary>
                 <div className="slots-legend-body">
-                  <p><b>✓</b> a planned part - one quiet line</p>
-                  <p><b>○</b> an unplanned part - candidates inside</p>
-                  <p><b>dashed ring</b> a stretch break the app added</p>
-                  <p><b>violet dot</b> an extra worth adding</p>
+                  <p><b>✓</b> Planned part · Solid line</p>
+                  <p><b>○</b> Unplanned part · Picks inside</p>
+                  <p><b>Dashed ring</b> Break · Suggested</p>
+                  <p><b>Violet dot</b> Extra pick</p>
                 </div>
               </details>
             </div>
             {activeDaySlots.length > 0 && (
-              <div className="slots-meter" role="status" aria-label={`Day ${activeDayIndex + 1}: ${activeDayReadiness.filled} of ${activeDayReadiness.required} parts of the day planned${activeDayReadiness.auto > 0 ? `, ${activeDayReadiness.auto} added by the app` : ''}`}>
+              <div className="slots-meter" role="status" aria-label={`Day ${activeDayIndex + 1}: ${activeDayReadiness.filled} of ${activeDayReadiness.required} parts of the day planned${activeDayReadiness.auto > 0 ? `, ${activeDayReadiness.auto} Added by the app` : ''}`}>
                 {activeDaySlots.map(s => (
                   <i key={s.key} className={s.state === 'filled' ? 'is-filled' : s.state === 'auto' ? 'is-auto' : 'is-empty'} />
                 ))}
@@ -2201,7 +2173,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   onClick={() => setSlotsPeek(p => !p)}
                 >
                   {slotsPeek ? 'Hide' : activeDaySlots.some(s => s.state === 'empty')
-                    ? `${activeDaySlots.filter(s => s.state === 'empty').length} empty — open`
+                    ? `${activeDaySlots.filter(s => s.state === 'empty').length} Empty · Open`
                     : 'Open'}
                 </button>
               </div>
@@ -2225,10 +2197,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             ) : activeDaySlots.length === 0 ? (
               <div className="poi-plan-list is-emptyday">
                 <p className="muted small">{quotaOut
-                  ? 'Google Places reached its 80% safety pause - corridor suggestions resume next UTC month.'
+                  ? 'Google Places · Safety pause · Resumes next UTC month'
                   : needs.length === 0
-                    ? 'No driving plan yet - the day takes shape as you add driving days.'
-                    : `Nothing scheduled for Day ${activeDayIndex + 1} yet - its halts belong to other days.`}</p>
+                    ? 'Driving plan · No days'
+                    : `Day ${activeDayIndex + 1} · No stops`}</p>
               </div>
             ) : (
               <div className={'slots-list' + (slotsPeek ? ' is-peek' : '')} id="slots-list">
@@ -2283,7 +2255,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                           {slot.drift && !driftDismissed.has(slot.segment?.index ?? -1) && (
                             <div className="day-slot-drift" role="group" aria-label="Pinned rest drifted">
                               <span className="day-slot-drift-t">
-                                The plan now puts your pinned rest {Math.abs(Math.round(slot.drift.toKm - slot.drift.fromKm))} km from your pin.
+                                The plan now puts your pinned rest {Math.abs(Math.round(slot.drift.toKm - slot.drift.fromKm))} km from your pin
                               </span>
                               <span className="day-slot-drift-a">
                                 <button
@@ -2325,7 +2297,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                                 : `Voting · ${slot.vote.votesCast} vote${slot.vote.votesCast === 1 ? '' : 's'}`
                               }</span>
                               <span className="day-slot-vote-lead">
-                                {slot.vote.leadingLabel ? `${slot.vote.leadingLabel} leads` : 'no votes yet'} · open Group input
+                                {slot.vote.leadingLabel ? `${slot.vote.leadingLabel} leads` : 'Votes · None'} · open Group input
                               </span>
                             </div>
                           ) : (
@@ -2375,7 +2347,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                             >{slotSearch?.key === slot.key && slotSearch.busy ? 'Finding…' : 'Find'}</button>
                           </div>
                           {slotSearch?.key === slot.key && slotSearch.q.trim().length === 1 && !slotSearch.busy && (
-                            <p className="muted small" style={{ margin: '0 0 6px' }}>Keep typing - search starts at 2 characters.</p>
+                            <p className="muted small" style={{ margin: '0 0 6px' }}>Search · 2 characters minimum</p>
                           )}
                           {slotSearch?.key === slot.key && slotSearch.err && (
                             <p className="muted small" role="status" style={{ margin: '0 0 6px' }}>{slotSearch.err}</p>
@@ -2389,7 +2361,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                                 </div>
                               ))}
                               {slotSearch.hits.length > 6 && (
-                                <p className="muted small" style={{ margin: '4px 2px 0' }}>{slotSearch.hits.length - 6} more - refine the search to narrow it.</p>
+                                <p className="muted small" style={{ margin: '4px 2px 0' }}>More: {slotSearch.hits.length - 6} · Refine search</p>
                               )}
                             </div>
                           )}
@@ -2398,8 +2370,8 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                               <span className="day-slot-cand-nm">
                                 <b>{c.hit.name}</b>
                                 <span>
-                                  {c.detourMin == null ? 'position unknown' : `+${Math.round(c.detourMin)} min`}
-                                  {c.arriveLabel ? ` · arrive ${formatHM(c.arriveLabel, timeFormat)}` : ''}
+                                  {c.detourMin == null ? 'Position · Unknown' : `+${Math.round(c.detourMin)} min`}
+                                  {c.arriveLabel ? ` · Arrive ${formatHM(c.arriveLabel, timeFormat)}` : ''}
                                   {/* Runtime hours (repair of #887): the candidate's own day
                                       date and intended visit length decide the shown intervals
                                       and the closed note. Structured hours never fall back to
@@ -2419,7 +2391,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                                     }
                                     return (c.hit.openTime || c.hit.closeTime) ? ` · ${formatHMRange(c.hit.openTime, c.hit.closeTime, timeFormat)}` : ''
                                   })()}
-                                  {c.detourMin == null ? 'position unknown' : c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · on route'}
+                                  {c.detourMin == null ? 'Position · Unknown' : c.budgetSharePct > 0 ? ` · ${c.budgetSharePct}% of day detours` : ' · On route'}
                                   {c.reason ? ` · ${c.reason}` : ''}
                                 </span>
                                 {c.budgetSharePct > 0 && (
@@ -2437,7 +2409,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                           ))}
                           {slotRowsOf(dayPlan, slot.key).length === 0 && (
                             <p className="muted small" style={{ margin: '4px 0 0' }}>
-                              No candidates in reach{slot.windowLabel ? ` inside ${slot.windowLabel}` : ''} - add one on the Timeline, or search the map.
+                              No candidates in reach{slot.windowLabel ? ` · Window ${slot.windowLabel}` : ''} · Add in Timeline or search the map
                             </p>
                           )}
                           {editable && !slot.vote && slotVoteReady(dayPlan, slot.key) && (
@@ -2577,7 +2549,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   </button>
                   {editable && <button type="button" className="btn btn-primary mv2-peek-add" disabled={addingAny || !!previewOpen} onClick={() => openAddModal(peekHit)}><Plus size={15} aria-hidden />Add</button>}
                 </div>
-              </> : <p className="mv2-peek-empty">{loadingPois ? 'Finding picks along the drive…' : poisFailed ? 'Picks could not be loaded. Use Refresh in the deck to retry.' : quotaOut ? 'Search is paused. Available results stay here.' : 'No extra picks yet. Search for a place or open the day plan.'}</p>}
+              </> : <p className="mv2-peek-empty">{loadingPois ? 'Finding picks Along the drive…' : poisFailed ? 'Picks · Unavailable · Refresh to retry' : quotaOut ? 'Search · Paused · Saved results available' : 'Picks · None · Search or open the day plan'}</p>}
             </div>}
             <MapLensPanel
               lens={lens}
@@ -2652,7 +2624,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
               </details>}
               {/* One state, one message: the deck note above says wait, failed, paused or empty. */}
               {seeForRail.length === 0
-                ? (lenses.drive.phase === 'ready' && <p className="muted small" role="status">No extra picks yet. Search for a place or open the day plan.</p>)
+                ? (lenses.drive.phase === 'ready' && <p className="muted small" role="status">Picks · None · Search or open the day plan</p>)
                 : hiddenRows.length > 0 && (
                     <details className="poi-more mv2-deck-more mv2-lens-more">
                       <summary>More like this · {hiddenRows.length}</summary>
@@ -2722,7 +2694,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
         {poiDraft && (
           <div>
             {poiDraft.hit.description && <p className="small muted" style={{ marginTop: 0 }}>{poiDraft.hit.description}</p>}
-            <Field label="Add to which day?">
+            <Field label="Target day">
               <Select
                 value={String(pickDay)}
                 onChange={v => { setPickDay(Number(v)); setPickDayGuessed(false) }}
@@ -2734,7 +2706,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
                   <p className="hint-text" role="status">{pickDayCaveat(pickDay, !pickDayGuessed)}</p>
                 )}
             </Field>
-            <p className="hint-text">You can fine-tune duration, fees and timings in the Timeline afterwards.</p>
+            <p className="hint-text">Duration, fees and times · Edit in Timeline</p>
             <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 8 }}>
               <button className="btn btn-outline" onClick={() => setPoiDraft(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={() => { recordDnaEvent({ tripId: trip.id, action: 'accept', haltKind: poiDraft.hit.haltPurpose, category: poiDraft.hit.category, detourMin: asymmetricDetourMinutes(poiDraft.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined, visitMin: visitMinutesForCategory(poiDraft.hit.category) }); setDnaTick(t => t + 1); addPoiToDay(poiDraft.hit, pickDay); setPoiDraft(null) }}>

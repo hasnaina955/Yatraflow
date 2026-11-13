@@ -23,7 +23,7 @@ describe('W4-B map and rail', () => {
   it('omits unknown count parts', () => {
     expect(scopeBandCountsText(null)).toBeNull()
     expect(scopeBandCountsText({ inside: 9, justPast: null, worthDetour: 1 }))
-      .toBe('9 inside 1 worth the detour')
+      .toBe('9 Inside 1 Worth the detour')
   })
 
   it('renders no counts line when counts are unknown', () => {
@@ -38,9 +38,9 @@ describe('W4-B map and rail', () => {
       minutes: 30, onMinutes: noop,
       counts: { inside: 9, justPast: 2, worthDetour: 1 },
     }))
-    expect(html).toContain('9 fit')
+    expect(html).toContain('Fits: 9')
     expect(html).not.toContain('2 just past')
-    expect(html).not.toContain('1 worth the detour')
+    expect(html).not.toContain('1 Worth the detour')
     expect(html).not.toContain('·')
   })
 
@@ -76,13 +76,13 @@ describe('W4-B map and rail', () => {
   it('shows the planned budget only when its total and limit are known', () => {
     expect(driveBudgetStep(9, 45)).toBe(1)
     expect(driveBudgetStep(null, 45)).toBeNull()
-    expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45 }))
-      .toBe('12 of 45 min detour used')
-    expect(driveBudgetBarText({ usedMin: null, budgetMin: 45 })).toBeNull()
+    expect(driveBudgetBarText({ kind: 'known', usedMin: 12, budgetMin: 45 }))
+      .toBe('Detour 12 / 45 min')
+    expect(driveBudgetBarText({ kind: 'unknown', usedMin: null, budgetMin: 45 })).toBe('Detour · Not measured')
     // A planned total can exceed its limit.
-    expect(driveBudgetBarText({ usedMin: 78, budgetMin: 25 }))
-      .toBe('78 of 25 min detour used')
-    expect(driveBudgetBarText({ usedMin: 25, budgetMin: 25 })).toBe('25 of 25 min detour used')
+    expect(driveBudgetBarText({ kind: 'known', usedMin: 78, budgetMin: 25 }))
+      .toBe('Detour 78 / 25 min · 53 min over')
+    expect(driveBudgetBarText({ kind: 'known', usedMin: 25, budgetMin: 25 })).toBe('Detour 25 / 25 min')
     expect(driveBudgetBarText(null)).toBeNull()
   })
 

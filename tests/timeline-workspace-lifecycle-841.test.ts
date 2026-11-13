@@ -762,7 +762,7 @@ describe('Timeline retry revalidation after a real Keep', () => {
     // through this real workspace after a Keep; the test records that limit.
     await runTimelineProjectedRetry({ controller, config })
 
-    expect(controller.getSnapshot().terminal).toMatch(/saved trip changed after Keep/i)
+    expect(controller.getSnapshot().terminal).toMatch(/Trip changed/i)
     expect(transport.updates).toHaveLength(sent)
     expect(resolverCalls).toBe(1)
     expect(beginOperationIds).toHaveLength(begins)

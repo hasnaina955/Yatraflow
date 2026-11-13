@@ -26,7 +26,7 @@ const HIGHWAY_TWIST_PER_KM = 0.15
 /** Above this day-average km/h a non-ghat window is ordinary road; below it, crawl. */
 export const CITY_SPEED_KMH = 30
 /** Warning shown on city-crawl windows (exported so callers stay in sync). */
-export const CITY_CRAWL_WARNING = 'city crawl ahead — short hops, slow traffic'
+export const CITY_CRAWL_WARNING = 'city crawl ahead · short hops, slow traffic'
 
 function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   return haversineKm(a.lat, a.lng, b.lat, b.lng)
@@ -83,11 +83,11 @@ export function classifyRoadWindow(
   const twistPerKm = pathKm > 0 ? twist / pathKm : 0
 
   if (opts.avgSpeedKmh != null && Number.isFinite(opts.avgSpeedKmh) && opts.avgSpeedKmh < CITY_SPEED_KMH) {
-    return { kind: 'city', sinuosity, twistPerKm, warning: 'city crawl ahead — short hops, slow traffic' }
+    return { kind: 'city', sinuosity, twistPerKm, warning: 'city crawl ahead · short hops, slow traffic' }
   }
   if (sinuosity >= GHAT_SINUOSITY || twistPerKm >= GHAT_TWIST_PER_KM) {
     const km = Math.max(1, Math.round(pathKm))
-    return { kind: 'ghat', sinuosity, twistPerKm, warning: `rest before the climb — ${km} km of switchbacks ahead` }
+    return { kind: 'ghat', sinuosity, twistPerKm, warning: `rest before the climb · ${km} km of switchbacks ahead` }
   }
   if (sinuosity < HIGHWAY_SINUOSITY && twistPerKm < HIGHWAY_TWIST_PER_KM) {
     return { kind: 'highway', sinuosity, twistPerKm, warning: null }

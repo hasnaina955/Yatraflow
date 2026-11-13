@@ -26,11 +26,11 @@ import { previewRoadOf, type PreviewRoad } from './previewRoad'
 import { newStopId } from './pageHelpers'
 
 const REFUSAL: Record<string, string> = {
-  'stop-missing': 'That stop is no longer on the plan.',
-  'day-missing': 'That day is no longer on the trip.',
-  'same-day': 'The stop is already on that day.',
-  'same-stop': 'Choose a different stop.',
-  'visit-invalid': 'That stay length is not valid.',
+  'stop-missing': 'Stop · No longer planned',
+  'day-missing': 'Day · No longer planned',
+  'same-day': 'Stop · Already planned',
+  'same-stop': 'Stop · Choose another',
+  'visit-invalid': 'Visit length · Invalid',
 }
 
 export interface MapEditDeps {
@@ -107,7 +107,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
         await keepWithWriter(hit, preview.dayIndex)
         after?.()
       } catch {
-        setAnnouncement('The add could not start. Try again.')
+        setAnnouncement('Add · Unavailable · Retry')
       } finally {
         dispatch({ type: 'handoff' })
         setUnknown(null)
@@ -175,7 +175,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
   const undo = useCallback(() => {
     if (session.phase !== 'done' || !session.undo) return
     if (undoState(tripRef.current, session.undo) !== 'available') {
-      setAnnouncement('Undo is not possible: the plan changed after this add.')
+      setAnnouncement('Undo · Unavailable · Plan changed')
       return
     }
     const rec = session.undo
@@ -201,7 +201,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
   // ---- stop editor (#906) ----
   const commit = useCallback((proposal: EditProposal) => {
     const { request } = proposal
-    applyChange(request.mutate, request.kind, request.dayIndex, () => setAnnouncement(`Saved: ${request.label}.`))
+    applyChange(request.mutate, request.kind, request.dayIndex, () => setAnnouncement(`Saved: ${request.label}`))
   }, [applyChange])
 
   const run = useCallback((result: RequestResult) => {
@@ -215,7 +215,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
   const stepStay = useCallback((stopId: string, direction: 1 | -1) => {
     const stop = tripRef.current.days.flatMap(d => d.stops).find(s => s.id === stopId)
     const next = stepVisit(stop?.visitMinutes, direction)
-    if (next === null) { setAnnouncement('The stay length is not known, so it cannot change.'); return }
+    if (next === null) { setAnnouncement('Stay length · Unknown · No change'); return }
     run(setVisitRequest(tripRef.current, stopId, next))
   }, [run])
 
@@ -231,7 +231,7 @@ export function useMapEdit({ trip, editable, applyChange, legCorrections, routeK
     const other = targetId != null
       ? active.find(s => s.id === targetId)
       : active[at + 1] ?? active[at - 1]
-    if (!other) { setAnnouncement('There is no other stop on this day to swap with.'); return }
+    if (!other) { setAnnouncement('Swap · No other stop'); return }
     run(swapWithStopRequest(tripRef.current, stopId, other.id))
   }, [run])
 

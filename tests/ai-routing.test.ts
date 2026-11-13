@@ -39,7 +39,7 @@ describe('answerQuestion harvested routing regressions', () => {
   const realTrip = seedData.trips[0]
 
   it.each([
-    'Day 2 is packed — which stop do we drop?',
+    'Day 2 is packed · which stop do we drop?',
     'Is day 3 too packed?',
   ])('routes an overloaded day to lightening advice: %s', question => {
     expect(answerQuestion(realTrip, question).text).toContain('is your heaviest:')

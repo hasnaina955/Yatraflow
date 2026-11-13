@@ -184,7 +184,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
 
   const hoursHint =
     hoursState === 'loading' ? 'Looking up hours from OpenStreetMap…' :
-    hoursState === 'found' ? 'Auto-filled from OpenStreetMap — edit if needed' :
+    hoursState === 'found' ? 'Auto-filled from OpenStreetMap · edit if needed' :
     undefined
 
   // Time pickers on the shared listbox (the calendar's design language):
@@ -239,7 +239,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
         picked = await resolvePick(unnamedPick('stop-editor', v.locationName.trim()))
       } finally { pinPrompting.current = false }
       if (!picked) {
-        setErrs({ locationName: 'Pick a suggestion, or enter the coordinates — a stop cannot go on the map without a position.' })
+        setErrs({ locationName: 'Pick a suggestion, or enter the coordinates · a stop cannot go on the map without a position.' })
         return
       }
       onSave({
@@ -253,7 +253,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
 
   return (
     <>
-    <Modal open={open} onClose={onModalClose} title={`${initial?.title ? 'Edit stop' : 'Add stop'}${dayLabel ? ` — ${dayLabel}` : ''}`}>
+    <Modal open={open} onClose={onModalClose} title={`${initial?.title ? 'Edit stop' : 'Add stop'}${dayLabel ? ` · ${dayLabel}` : ''}`}>
       {banner}
       <form onSubmit={submit}>
         <div className="form-row">
@@ -320,7 +320,7 @@ export function StopEditor({ open, onClose, initial, resetKey, onSave, dayLabel,
         {legContext && v.geocoded && (
           <div className="card" style={{ background: 'var(--bg-soft)', padding: 12, marginBottom: 12 }}>
             <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>
-              <InlineIcon icon={Car} size={13} gap={4} />Travel to this stop {legState === 'loading' ? <span className="muted">— measuring road…</span> : ''}
+              <InlineIcon icon={Car} size={13} gap={4} />Travel to this stop {legState === 'loading' ? <span className="muted">· measuring road…</span> : ''}
             </div>
             <div className="small muted" style={{ marginBottom: 10 }}>
               {legContext.fromName} → {v.title || v.locationName || 'this stop'}

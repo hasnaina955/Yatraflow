@@ -28,9 +28,9 @@ export function bandCounts(bands: readonly ScopeBand[]): ScopeBandCounts {
 export function scopeBandCountParts(counts: ScopeBandCounts | null): { value: number; label: string }[] | null {
   if (counts == null) return null
   const parts: { value: number; label: string }[] = []
-  if (counts.inside != null) parts.push({ value: counts.inside, label: 'inside' })
-  if (counts.justPast != null) parts.push({ value: counts.justPast, label: 'just past it' })
-  if (counts.worthDetour != null) parts.push({ value: counts.worthDetour, label: 'worth the detour' })
+  if (counts.inside != null) parts.push({ value: counts.inside, label: 'Inside' })
+  if (counts.justPast != null) parts.push({ value: counts.justPast, label: 'Just past it' })
+  if (counts.worthDetour != null) parts.push({ value: counts.worthDetour, label: 'Worth the detour' })
   return parts.length > 0 ? parts : null
 }
 
@@ -70,6 +70,6 @@ export function MapScopeBand({ minutes, onMinutes, counts, disabled = false, sta
         const next = MINUTE_SCOPE_STEPS.find(step => String(step) === value)
         if (next != null) onMinutes(next)
       }} />
-    <span className="mv2-lens-scope-count" role="status" aria-label={status ?? countLabel} title={countLabel}>{status ?? (counts?.inside == null ? 'Count unavailable' : `${counts.inside} fit`)}</span>
+    <span className="mv2-lens-scope-count" role="status" aria-label={status ?? countLabel} title={countLabel}>{status ?? (counts?.inside == null ? 'Count unavailable' : `Fits: ${counts.inside}`)}</span>
   </section>
 }

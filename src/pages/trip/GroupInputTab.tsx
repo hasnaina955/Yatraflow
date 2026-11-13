@@ -51,9 +51,9 @@ type GroupItem = { kind: 'idea'; sg: StopSuggestion } | { kind: 'decision'; d: T
 
 /** Per-filter empty states — each with its own way out ("Show everything"). */
 const EMPTY_COPY: Record<Filter, { icon: 'idea' | 'question'; title: string; body: string }> = {
-  all: { icon: 'idea', title: 'Nothing waiting on the group', body: 'Propose stops for everyone to vote on, or raise a decision — both land here with the activity feed.' },
-  open: { icon: 'idea', title: 'Nothing open right now', body: 'Every idea and question has landed — propose the next one from the composer.' },
-  ideas: { icon: 'idea', title: 'No stop ideas here yet', body: 'Propose one from the composer — the group votes and comments right on the card.' },
+  all: { icon: 'idea', title: 'Nothing waiting on the group', body: 'Propose stops for everyone to vote on, or raise a decision · both land here with the activity feed.' },
+  open: { icon: 'idea', title: 'Nothing open right now', body: 'Every idea and question has landed · propose the next one from the composer.' },
+  ideas: { icon: 'idea', title: 'No stop ideas here yet', body: 'Propose one from the composer · the group votes and comments right on the card.' },
   decisions: { icon: 'question', title: 'No open questions', body: 'Raise a decision to turn a group-chat debate into one clear vote.' },
   mine: { icon: 'idea', title: 'You’re all caught up', body: 'Nothing on this trip needs your vote right now.' },
   resolved: { icon: 'question', title: 'Nothing resolved yet', body: 'Once a decision is settled or a suggestion lands on the timeline, it shows up here.' },
@@ -347,7 +347,7 @@ function SuggestionCard({ sg, trip, me, editable, memberCount, needsMe, previewO
       if (follow?.toast) toast(follow.toast, follow.toastTone)
       if (follow?.report) reportCollabOutcome(follow.report)
     } catch {
-      toast('Could not add this idea. Your idea is still open — try again.', 'err')
+      toast('Could not add this idea. Your idea is still open · try again.', 'err')
     } finally {
       release()
     }
@@ -678,14 +678,14 @@ function DecisionCard({ d, me, editable, needsMe, trip, previewOpen, slotResolut
           {rec && (
             <p className="small gin-guide-rec">
               <InlineIcon icon={Sparkles} size={12} gap={4} />
-              <b>{rec.label}</b> — {rec.reason} <Chip tone="info">offline</Chip>
+              <b>{rec.label}</b> · {rec.reason} <Chip tone="info">offline</Chip>
             </p>
           )}
         </div>
       )}
       {d.status === 'open' && totalVotes > 0 && (
         <p className="small muted verdict-line">
-          Tally leans <b>{d.options[leadingIdx]?.label}</b>{needsMe ? ' — your vote could flip it' : ' — editors resolve'}.
+          Tally leans <b>{d.options[leadingIdx]?.label}</b>{needsMe ? ' · your vote could flip it' : ' · editors resolve'}.
         </p>
       )}
       {editable && d.status === 'open' && (
@@ -874,10 +874,10 @@ function DecisionComposerForm({ trip }: { trip: Trip }) {
       <h3 className="gin-card-title">Raise a decision</h3>
       <p className="hint-text gin-composer-hint">Turn endless group-chat debates into one clear vote.</p>
       <Field label="Question"><input className="input" value={q} onChange={e => setQ(e.target.value)} placeholder="e.g. Beach day or backwater day on Day 3?" /></Field>
-      <Field label="Context (optional)" hint="Why the group is deciding — e.g. “forecast says one beach afternoon is a washout”.">
+      <Field label="Context (optional)" hint="Why the group is deciding · e.g. “forecast says one beach afternoon is a washout”.">
         <input className="input" value={context} onChange={e => setContext(e.target.value)} />
       </Field>
-      <Field label="Options" hint="At least two — cost impact is optional.">
+      <Field label="Options" hint="At least two · cost impact is optional.">
         <span className="gin-option-grid">
           {opts.map((o, i) => (
             <span key={i} className="opt-row">

@@ -76,15 +76,15 @@ describe('W8-card place card', () => {
 describe('W8-card scope band', () => {
   it('writes counts with no separators', () => {
     expect(scopeBandCountsText({ inside: 9, justPast: 2, worthDetour: 1 }))
-      .toBe('9 inside 2 just past it 1 worth the detour')
+      .toBe('9 Inside 2 Just past it 1 Worth the detour')
     expect(scopeBandCountParts(null)).toBeNull()
   })
 
   it('shows only the eligible count with a full accessible name', () => {
     const html = band()
-    expect(html).toContain('9 fit')
+    expect(html).toContain('Fits: 9')
     expect(html).toContain('aria-label="9 picks fit scope and budget"')
-    expect(html).not.toContain('2 just past it')
+    expect(html).not.toContain('2 Just past it')
     expect(band({ counts: null })).toContain('Count unavailable')
   })
 

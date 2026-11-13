@@ -150,7 +150,7 @@ describe('#335 — addDecision preserves the option ids its caller supplied', ()
     const trip = freshTrip()
     getSnapshot().sessionUserId = ownerId
     addDecision(trip.id, {
-      question: 'Which of these should we add?',
+      question: 'Choose a place',
       context: 'Shortlisted from the Map rail',
       options: [
         { id: 'h-1234', label: 'Baker Street Cafe' },

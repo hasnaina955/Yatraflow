@@ -55,9 +55,9 @@ export type GapPeek =
 
 /** One plain sentence per no-fit reason. No sentence names a place. */
 export const GAP_NO_FIT_TEXT: Record<GapNoFitReason, string> = {
-  'no-candidates': 'No open place of this kind was found near the road for this window.',
-  'outside-window': 'The places found are open, but none can be reached inside this window.',
-  'window-unproven': 'This part of the day has no proven time window yet.',
+  'no-candidates': 'Places · None open in this window',
+  'outside-window': 'Places · None reachable in this window',
+  'window-unproven': 'Time window · Not measured',
 }
 
 /**

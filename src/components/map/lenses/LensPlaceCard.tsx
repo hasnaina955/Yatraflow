@@ -63,7 +63,7 @@ export interface LensPlaceCardProps {
   reasons?: readonly string[]
   /** The cost strip cells, in board order. */
   cells: readonly LensCostCell[]
-  /** One scope tag, such as "just past your scope". */
+  /** One scope tag, such as "Just past scope". */
   tag?: string | null
   /** A band name, such as "just-past" or "over-budget". */
   band?: string | null
@@ -171,7 +171,7 @@ export function LensPlaceCard(props: LensPlaceCardProps) {
       {reasons.map(reason => <span className="mv2-lens-reason" key={reason}>{reason}</span>)}
     </div>}
     {shownCells.length > 0 && <div className="mv2-lens-strip">
-      {shownCells.map(cell => <span className="mv2-lens-cell" key={cell.key} role="group" aria-label={`${cell.label}: ${cell.value}`} title={cell.label}>
+      {shownCells.map(cell => <span className="mv2-lens-cell" data-cell={cell.key} key={cell.key} role="group" aria-label={`${cell.label}: ${cell.value}`} title={cell.label}>
         <span className="mv2-lens-cell-label">{cell.key === 'budget' ? 'Of budget' : cell.label}</span>
         <span className="mv2-lens-cell-value">{cell.value}</span>
       </span>)}

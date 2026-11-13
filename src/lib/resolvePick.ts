@@ -17,7 +17,7 @@ export type ManualCoordsResult =
   | { ok: true; latitude: number; longitude: number }
   | { ok: false; latError?: string; lngError?: string }
 
-const ZERO_MSG = 'The map reads a 0 here as "position unknown" — enter the real value.'
+const ZERO_MSG = 'The map reads a 0 here as "position unknown" · enter the real value.'
 
 type Parsed = { ok: true; value: number } | { ok: false; error: string }
 

@@ -38,8 +38,8 @@ export type DetourLabelBits = {
 export function detourBits({ arriveLabel, detourMin, budgetSharePct }: DetourLabelBits): string[] {
   const display = detourDisplay(detourMin)
   return [
-    arriveLabel ? `arrive ${arriveLabel}` : null,
-    display.kind === 'unknown' ? 'position unknown' : display.kind === 'on-route' ? 'on route' : `+${display.minutes} min`,
+    arriveLabel ? `Arrive ${arriveLabel}` : null,
+    display.kind === 'unknown' ? 'Position · Unknown' : display.kind === 'on-route' ? 'On route' : `+${display.minutes} min`,
     display.kind === 'extra' && budgetSharePct != null && budgetSharePct > 0 ? `${budgetSharePct}% of the day's detour budget` : null,
   ].filter((bit): bit is string => bit != null)
 }

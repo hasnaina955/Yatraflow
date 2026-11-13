@@ -93,7 +93,7 @@ export function UnlockReveal({ open, pub, trip, creator, amountPaidInr, entitlem
 
         <p className="unlock-reveal-receipt">
           {typeof amountPaidInr === 'number' ? <>Paid <b>{formatInr(amountPaidInr)}</b> · </> : null}
-          yours for good — find it any time under{' '}
+          yours for good · find it any time under{' '}
           <a className="unlock-reveal-link" {...appLink(`/purchases?new=${encodeURIComponent(pub.id)}`)}>My purchases</a>.
         </p>
 

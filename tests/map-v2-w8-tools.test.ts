@@ -42,11 +42,11 @@ describe('W8 tools map controls', () => {
     expect(b).toContain('aria-label="Filter nearby ideas by type"')
   })
 
-  it('keeps every old aria-label', () => {
+  it('keeps each map action labelled', () => {
     const b = workspaceBranch()
     for (const label of [
       'Recentre the map on the trip route',
-      'Show or hide the road milestones',
+      'Road milestones',
       'Directions for this day in Google Maps',
       'Expand the map to fill the screen',
     ]) expect(b).toContain(label)

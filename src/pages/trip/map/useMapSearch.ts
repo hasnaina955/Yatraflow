@@ -125,13 +125,13 @@ export function useMapSearch({
           return ao - bo || (a.km == null ? Number.POSITIVE_INFINITY : a.km) - (b.km == null ? Number.POSITIVE_INFINITY : b.km)
         })
       const onScope = ranked.filter(en => en.off != null && en.off <= scopeKm)
-      if (hits.length === 0) toast('No places found for that search.')
-      else if (onScope.length === 0) toast(`Nothing for “${q}” inside your scope. Try a wider minute scope.`)
+      if (hits.length === 0) toast('Search · No places')
+      else if (onScope.length === 0) toast(`Search “${q}” · No places in scope · Increase scope`)
       return ranked
     } catch (err) {
       if (mySeq !== searchSeq.current || controller.signal.aborted) return null
-      if (err instanceof QuotaExhaustedError) { setSearchQuotaOut(true); toast('Google Places 80% safety pause reached - search resumes next UTC month. Remove the key in Settings and reload to use the free stack.', 'err') } else {
-        toast('Search failed - try again.', 'err')
+      if (err instanceof QuotaExhaustedError) { setSearchQuotaOut(true); toast('Google Places · Paused at 80% · Resumes next UTC month · Free search in Settings', 'err') } else {
+        toast('Search · Failed · Retry', 'err')
       }
       return null
     } finally {

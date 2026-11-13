@@ -24,18 +24,18 @@ const views = readFileSync(new URL('../src/pages/trip/map/RailRowViews.tsx', imp
 
 describe('#420 — the three bits, in the order every surface prints them', () => {
   it('says an unmeasured position instead of a number', () => {
-    expect(detourBits({ detourMin: null })).toEqual(['position unknown'])
+    expect(detourBits({ detourMin: null })).toEqual(['Position · Unknown'])
   })
 
   it('calls a fraction of a minute on route, and rounds the rest up to a minute', () => {
-    expect(detourBits({ detourMin: 0.5 })).toEqual(['on route'])
+    expect(detourBits({ detourMin: 0.5 })).toEqual(['On route'])
     expect(detourBits({ detourMin: 0.6 })).toEqual(['+1 min'])
     expect(detourBits({ detourMin: 26.4 })).toEqual(['+26 min'])
   })
 
   it('leads with the arrival, then the cost, then the budget share', () => {
     expect(detourBits({ arriveLabel: '11:24', detourMin: 26, budgetSharePct: 58 }))
-      .toEqual(['arrive 11:24', '+26 min', "58% of the day's detour budget"])
+      .toEqual(['Arrive 11:24', '+26 min', "58% of the day's detour budget"])
   })
 
   it('prints no share when there is nothing to say', () => {
@@ -57,22 +57,22 @@ describe('#08 — the sentence is formatted from canonical row facts', () => {
 
   it('uses the row own arrival minute and never recomputes a detour or share', () => {
     // 684 minutes = 11:24; every other number is the row's own.
-    expect(journeyCostLabels([row()]).a).toBe("arrive 11:24 · +26 min · 58% of the day's detour budget")
+    expect(journeyCostLabels([row()]).a).toBe("Arrive 11:24 · +26 min · 58% of the day's detour budget")
   })
 
   it('says an unknown position instead of inventing an arrival or a number', () => {
     expect(journeyCostLabels([row({ arriveMin: null, detourMin: null, budgetSharePct: null })]).a)
-      .toBe('position unknown')
+      .toBe('Position · Unknown')
   })
 
   it('formats a stored label when the row carries no minute, and shows a known zero honestly', () => {
     expect(journeyCostLabels([row({ arriveMin: null, arriveLabel: '13:05', detourMin: 0, budgetSharePct: null })]).a)
-      .toBe('arrive 13:05 · on route')
+      .toBe('Arrive 13:05 · On route')
   })
 
   it('drops the share when the row has none', () => {
     expect(journeyCostLabels([row({ arriveMin: 620, detourMin: 20, budgetSharePct: null })]).a)
-      .toBe('arrive 10:20 · +20 min')
+      .toBe('Arrive 10:20 · +20 min')
   })
 
   it('emits no entry for a hit no row covers', () => {
@@ -95,7 +95,7 @@ describe('#420 — the empty-part pin says the same thing', () => {
     ])
     expect(pins.map(p => p.key)).toEqual(['lunch'])
     expect(pins[0].name).toBe('Cafe')
-    expect(pins[0].meta).toBe("arrive 13:00 · +12 min · 25% of the day's detour budget")
+    expect(pins[0].meta).toBe("Arrive 13:00 · +12 min · 25% of the day's detour budget")
   })
 
   it('uses the top candidate, and says an unknown position', () => {
@@ -106,7 +106,7 @@ describe('#420 — the empty-part pin says the same thing', () => {
       ] as never }),
     ])
     expect(pins[0].name).toBe('First')
-    expect(pins[0].meta).toBe('position unknown')
+    expect(pins[0].meta).toBe('Position · Unknown')
   })
 })
 
@@ -148,7 +148,7 @@ describe('#08 AC5 — one cost fact, consumed where covered', () => {
     expect(mapTab).toContain('% of day detours')
     expect(mapTab).not.toContain('min detour`')
     expect(views).toContain('min detour`')
-    expect((mapTab.match(/'position unknown'/g) ?? []).length).toBe(2)
-    expect((views.match(/'position unknown'/g) ?? []).length).toBe(1)
+    expect((mapTab.match(/'Position · Unknown'/g) ?? []).length).toBe(2)
+    expect((views.match(/'Position · Unknown'/g) ?? []).length).toBe(1)
   })
 })

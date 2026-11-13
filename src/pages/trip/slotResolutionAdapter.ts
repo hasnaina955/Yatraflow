@@ -338,7 +338,7 @@ export async function runDecisionResolution(
     }
     return { kind: 'settled', outcome, needsDayPicker }
   } catch {
-    deps.toast('Could not resolve this vote. It is still open — try again.', 'err')
+    deps.toast('Could not resolve this vote. It is still open · try again.', 'err')
     return { kind: 'threw' }
   } finally {
     deps.release()

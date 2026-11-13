@@ -12,7 +12,7 @@ export const PLACEHOLDER_SUPABASE_URL = 'http://localhost:54321'
 
 /** Shown when the bundle has no Supabase project baked into it. */
 export const MISSING_BACKEND_MESSAGE =
-  'This build is not connected to a backend — VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY ' +
+  'This build is not connected to a backend · VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY ' +
   'were missing when it was compiled, so sign-in requests go nowhere. ' +
   'Set both variables for this environment and redeploy (they are read at build time).'
 
@@ -55,7 +55,7 @@ export function describeAuthFailure(
   if (!opts.configured) return MISSING_BACKEND_MESSAGE
 
   const msg = extractMessage(err)
-  if (!msg) return 'Sign-in failed for an unknown reason — check the browser console.'
+  if (!msg) return 'Sign-in failed for an unknown reason · check the browser console.'
   if (/failed to fetch|networkerror|fetch failed|load failed|err_connection|timed? ?out/i.test(msg)) {
     return `Cannot reach the Supabase backend (network, CORS or an auth-protection rule blocked the request): ${msg}`
   }

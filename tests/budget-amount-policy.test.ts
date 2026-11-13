@@ -121,10 +121,10 @@ describe('#382 — the money arithmetic cannot be poisoned', () => {
   it('the formatters print an em dash, never ₹NaN', () => {
     // formatInr's guard is #369's, pinned here so it cannot regress;
     // formatInrShort's is new — a NaN fell through every comparison there.
-    expect(formatInr(NaN)).toBe('—')
-    expect(formatInr(Infinity)).toBe('—')
-    expect(formatInrShort(NaN)).toBe('—')
-    expect(formatInrShort(Infinity)).toBe('—')
+    expect(formatInr(NaN)).toBe('Not available')
+    expect(formatInr(Infinity)).toBe('Not available')
+    expect(formatInrShort(NaN)).toBe('Not available')
+    expect(formatInrShort(Infinity)).toBe('Not available')
     expect(formatInrShort(2500)).toBe('₹3k')
   })
 })

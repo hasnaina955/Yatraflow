@@ -68,12 +68,12 @@ describe('the Fix problem subtitle', () => {
 describe('stay header facts', () => {
   it('keeps out a part with no fact', () => {
     expect(stayRailSub({ arriveText: null, commitmentTitle: null, commitmentText: null, freeStartMin: null, freeEndMin: null })).toBeNull()
-    expect(stayRailSub({ arriveText: '17:30', commitmentTitle: null, commitmentText: null, freeStartMin: 1080, freeEndMin: 1260 })).toBe('Arrive 17:30 · 3 h free after it')
+    expect(stayRailSub({ arriveText: '17:30', commitmentTitle: null, commitmentText: null, freeStartMin: 1080, freeEndMin: 1260 })).toBe('Arrive 17:30 · Free time · 3 h')
     expect(stayRailSub({ arriveText: null, commitmentTitle: 'Periyar boat', commitmentText: '15:30', freeStartMin: null, freeEndMin: null })).toBe('Periyar boat at 15:30')
   })
   it('drops the check-in lead and never invents a name', () => {
-    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · tonight')
-    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · evening')
+    expect(stayRailTitle('Thekkady', false)).toBe('Thekkady · Tonight')
+    expect(stayRailTitle('Thekkady', true)).toBe('Thekkady · Evening')
     expect(stayRailTitle(null, true)).toBeNull()
     expect(stayRailTitle('  ', true)).toBeNull()
   })
@@ -87,7 +87,7 @@ describe('window row facts', () => {
     expect(picksText(7)).toBe('7 picks')
     expect(aroundKmText(undefined)).toBeNull()
     expect(aroundKmText(-1)).toBeNull()
-    expect(aroundKmText(46.6)).toBe('around km 47')
+    expect(aroundKmText(46.6)).toBe('Road km · 47')
   })
   it('uses the engine arrival only inside the window', () => {
     expect(windowAtMin(660, 870, 700)).toBe(700)

@@ -28,7 +28,7 @@ export function AiDrawer({ trip, open, onOpen, onClose, legCorrections }: {
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([{
     id: 1, role: 'bot',
-    text: `Hi! I’m your YatraFlow companion. I can see “${trip.name}” — ${trip.days.length} days, ${trip.destinations.join(' → ')}. Ask me to lighten a day, check timings against a fixed commitment, find savings or plan for rain.`,
+    text: `Hi! I’m your YatraFlow companion. I can see “${trip.name}” · ${trip.days.length} days, ${trip.destinations.join(' → ')}. Ask me to lighten a day, check timings against a fixed commitment, find savings or plan for rain.`,
   }])
   const msgIdRef = useRef(1)
   const [input, setInput] = useState('')

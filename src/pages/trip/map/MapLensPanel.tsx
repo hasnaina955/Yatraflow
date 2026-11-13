@@ -62,8 +62,8 @@ function StayWindowUnknown({ onClose, noFreeTime }: { onClose?: () => void; noFr
   return <section className="mv2-lens-deck" aria-label="Around the stay">
     <LensDeckHeader kicker="Around the stay" title="Around the stay" onClose={onClose} />
     <p className="mv2-lens-phase">{noFreeTime === true
-      ? 'No free time is left around this stay today.'
-      : 'The free time around this stay is unknown for this day.'}</p>
+      ? 'Stay · No free time'
+      : 'Stay free time · Not measured'}</p>
   </section>
 }
 

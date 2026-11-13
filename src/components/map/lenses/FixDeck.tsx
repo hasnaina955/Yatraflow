@@ -9,11 +9,11 @@ import { LensPhaseNote } from './LensPhaseNote'
 
 /** The phase text of each phase that has no deck. */
 const PHASE_TEXT = {
-  unscanned: 'Pick a day to see what is for this day.',
-  scanning: 'Looking for this day…',
-  failed: 'The search for this day failed. Try again.',
-  quota: 'The place search is over its limit for now.',
-  empty: 'Nothing for this day fits your scope.',
+  unscanned: 'Fix · Choose a day',
+  scanning: 'Fix · Searching…',
+  failed: 'Fix search · Failed',
+  quota: 'Place search · Limit reached',
+  empty: 'Fix · No picks in scope',
 } as const
 
 /** The kicker of the deck header, for example "Fix · 1 problem on Day 3". */
@@ -75,9 +75,9 @@ export function FixDeck({ phase, dayNumber, problem, fixes, onApply, onPreview, 
     </div>}
     {routeAdvice}
     {problem == null
-      ? (routeAdvice ? null : <p className="mv2-lens-none">No problems on this day.</p>)
+      ? (routeAdvice ? null : <p className="mv2-lens-none">Day · No problems</p>)
       : shown.length === 0
-        ? (routeAdvice ? null : <p className="mv2-lens-none">No safe fix was found. Every change we tried left the problem or made a new one.</p>)
+        ? (routeAdvice ? null : <p className="mv2-lens-none">Fix · No safe change</p>)
         : <ol className="mv2-lens-fixes">
           {shown.map((fix, index) => <li key={fix.set.id}
             className={`mv2-lens-fix${index === 0 ? ' is-first' : ''}`}>

@@ -48,7 +48,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
 
   /** The success side of both paths, in the order the two toasts must read. */
   function announceImported(done: { trip: Trip; summary: string; note: string; digest: ImportReportDigest | null }) {
-    toast(`Imported “${done.trip.name}” — ${done.summary}.${done.note}`)
+    toast(`Imported “${done.trip.name}” · ${done.summary}.${done.note}`)
     if (done.digest) toast(done.digest.message, done.digest.kind)
     onNavigate('/trips')
   }
@@ -56,7 +56,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
   /** The offer path toasts the import but leaves navigation to the dialog.
    *  Confirm opens the prefilled Share tab; cancel goes to My Trips. */
   function offerPrefill(trip: Trip, draft: PublicationDraft, digest: ImportReportDigest | null, summary: string) {
-    toast(`Imported “${trip.name}” — ${summary}.`)
+    toast(`Imported “${trip.name}” · ${summary}.`)
     if (digest) toast(digest.message, digest.kind)
     setOffer({ trip, draft })
   }
@@ -156,7 +156,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
       <ConfirmDialog
         open={!!offer}
         title="Publish details found"
-        body="This file carries a publish block. The import only prefills the publish form — nothing goes live until you publish in the Share tab."
+        body="This file carries a publish block. The import only prefills the publish form · nothing goes live until you publish in the Share tab."
         confirmLabel="Prefill the publish form"
         onConfirm={confirmOffer}
         onClose={closeOffer}

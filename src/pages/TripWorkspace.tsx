@@ -838,7 +838,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     // would be untrue for it.
     if (left === 'saving') toast('Your last change is still saving on the trip you left.', 'err')
     else if (left === 'uncertain') toast(LEAVE_UNCERTAIN, 'err')
-    else toast('Staged change discarded — you switched trips', 'err')
+    else toast('Staged change discarded · you switched trips', 'err')
   }, [trip?.id, abandonPreview])
 
   // F-16: a reload or tab close while a proposed change is pending silently
@@ -921,7 +921,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       moving.orderInDay = to.stops.length + 1
       to.stops.push(moving)
     }, 'move-day', dayIndex)
-    toast(`Moved “${last.title}” to Day ${dayIndex + 2} — review and keep`)
+    toast(`Moved “${last.title}” to Day ${dayIndex + 2} · review and keep`)
   }
 
   // The header's cover is the same plan every card draws: the traveller's

@@ -692,7 +692,7 @@ export function planTravelClock(input: TravelClockInput, splitOverride?: DriveDa
     return {
       verdict: 'defer',
       wheelAvailMin,
-      reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00 — leave tomorrow by ${DEFER_START} instead`,
+      reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00 · leave tomorrow by ${DEFER_START} instead`,
     }
   }
   // The rain clamp is per walked day (#127): day i's forecast caps only day
@@ -712,7 +712,7 @@ export function planTravelClock(input: TravelClockInput, splitOverride?: DriveDa
       verdict: 'hop',
       hopKm,
       nightHaltEtaMin: Math.min(anchors.nightEndMin - 60, startMin + hopMin),
-      reason: `Late start — drive ~${hopKm} km to a night halt, eat dinner there, and let the real drive start tomorrow`,
+      reason: `Late start · drive ~${hopKm} km to a night halt, eat dinner there, and let the real drive start tomorrow`,
     }
   }
   const split = splitOverride === undefined ? planClockSplit(input) : splitOverride
@@ -1041,16 +1041,16 @@ const PURPOSE_LABEL: Record<HaltPurpose, string> = {
   meal: 'Lunch',
   fuel: 'Fuel + stretch',
   rest: 'Rest break',
-  overnight: 'Overnight — end of day',
+  overnight: 'Overnight · end of day',
   sight: 'Sightseeing',
 }
 
 const PURPOSE_HINT: Record<HaltPurpose, (mins: number) => string> = {
-  stretch: () => '≈2 h wheel time — stretch & hydrate',
-  meal: () => '≈4 h — time for a proper meal',
-  fuel: () => 'Tank’s running low — refuel while you stretch',
-  rest: () => 'Recovery break — rest before carrying on',
-  overnight: () => '≈7 h driven today — end the day here and sleep',
+  stretch: () => '≈2 h wheel time · stretch & hydrate',
+  meal: () => '≈4 h · time for a proper meal',
+  fuel: () => 'Tank’s running low · refuel while you stretch',
+  rest: () => 'Recovery break · rest before carrying on',
+  overnight: () => '≈7 h driven today · end the day here and sleep',
   sight: () => 'Worth-a-visit along the way',
 }
 
@@ -1449,7 +1449,7 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
       haltPinned: m.pinned ? true : undefined,
       haltDriftToKm: m.driftTo != null ? Math.round(m.driftTo) : undefined,
       hint: includeCharge && purpose === 'fuel'
-        ? 'Plug in — ≈60 min at the charger; stretch while it fills'
+        ? 'Plug in · ≈60 min at the charger; stretch while it fills'
         : PURPOSE_HINT[purpose](minutesFromPrev),
     }
   })
@@ -1488,8 +1488,8 @@ export function fuelGapWarnings(
     const gap = Math.max(0, nextKm - segments[i].targetKm)
     if (gap > fuelStrideKm * 1.4) {
       segments[i].roadWarning = (segments[i].roadWarning ?? '')
-        ? `${segments[i].roadWarning} · no scheduled fuel for ~${Math.round(gap)} km — fill the tank`
-        : `No scheduled fuel for ~${Math.round(gap)} km — fill the tank here`
+        ? `${segments[i].roadWarning} · no scheduled fuel for ~${Math.round(gap)} km · fill the tank`
+        : `No scheduled fuel for ~${Math.round(gap)} km · fill the tank here`
     }
   }
 }
@@ -1916,7 +1916,7 @@ export function reasonForSegmentHit(r: SegmentHit, detour: number | null): strin
   const city = r.hit?.nearestCity ? `near ${r.hit.nearestCity}` : null
   const parts = [...fatigue, off, city].filter((s): s is string => !!s)
   if (r.segment.rainy && r.hit && WEATHER_SHELTERED.has(r.hit.category ?? '')) {
-    parts.push(r.segment.rainPct != null ? `indoor pick — ${Math.round(r.segment.rainPct)}% rain` : 'indoor pick for rain')
+    parts.push(r.segment.rainPct != null ? `indoor pick · ${Math.round(r.segment.rainPct)}% rain` : 'indoor pick for rain')
   }
   return parts.join(' · ')
 }

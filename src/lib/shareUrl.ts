@@ -69,7 +69,7 @@ export function currentBuyerShareUrl(pubId: string, entitlementId: string): stri
  * which is why it carries no price and no numbers.
  */
 export function purchaseShareMessage(title: string, url: string): string {
-  return `I bought the "${title}" plan on YatraFlow — you can see it here: ${url}`
+  return `I bought the "${title}" plan on YatraFlow · you can see it here: ${url}`
 }
 
 /**
@@ -165,5 +165,5 @@ export function withShareRef(url: string, ref: ShareSource | null | undefined): 
  * sentence only has to be honest.
  */
 export function publicationShareMessage(title: string, url: string): string {
-  return `The "${title}" trip plan on YatraFlow — see it here: ${url}`
+  return `The "${title}" trip plan on YatraFlow · see it here: ${url}`
 }

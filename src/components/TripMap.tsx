@@ -1792,12 +1792,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
             {clockMilestones && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className={`mv2-map-tools-btn${clockOn ? ' on' : ''}`} aria-pressed={clockOn} onClick={toggleClock}
-                  aria-label="Show or hide the road milestones" title="Show or hide the road milestones - each planned stop's time and distance on the road"><Clock size={17} aria-hidden /></button></>
+                  aria-label="Road milestones" title="Show or hide the road milestones - each planned stop's time and distance on the road"><Clock size={17} aria-hidden /></button></>
             )}
             {returnLeg && (
               <><span className="mv2-map-tools-divider" aria-hidden="true" />
                 <button type="button" className={`mv2-map-tools-btn${showReturn ? ' on' : ''}`} aria-pressed={showReturn} onClick={() => setShowReturn(s => !s)}
-                  aria-label="Show or hide the return leg" title={showReturn
+                  aria-label="Return leg" title={showReturn
                     ? 'Return leg shown. The loop km (out + back) feed the plan; hide to read the outbound road alone.'
                     : 'Return leg hidden - the corridor and km labels read the OUTBOUND road only.'}><RotateCcw size={17} aria-hidden /></button></>
             )}
@@ -1806,7 +1806,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <div className="map-filters">
                   <button type="button" className="mv2-map-tools-btn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}
                     aria-label="Filter nearby ideas by type"
-                    title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
+                    title={hiddenIdeaCats.size > 0 ? `Idea filters · ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
                     <Layers size={17} aria-hidden />
                   </button>
                   {filtersOpen && (
@@ -1930,7 +1930,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 className="map-day-chip map-day-chip--util"
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(o => !o)}
-                title={hiddenIdeaCats.size > 0 ? `Idea filters — ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
+                title={hiddenIdeaCats.size > 0 ? `Idea filters · ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
               >
                 Filters{hiddenIdeaCats.size > 0 ? ` (${hiddenIdeaCats.size})` : ''}
               </button>
@@ -2435,7 +2435,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                   <MarkerTooltip>
                     {isSearchHit && <><InlineIcon icon={Search} size={12} gap={3} vAlign="-1px" />Search result: </>}
                     {!isSearchHit && <InlineIcon icon={Lightbulb} size={12} gap={3} vAlign="-1px" />}
-                    {hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
+                    {hit.name}{hit.haltPurpose ? `, ${hit.haltPurpose === 'overnight' ? 'Overnight option' : hit.haltPurpose}` : ''}{hit.cumKm != null ? `, ~${hit.cumKm} km in` : ''}{hit.nearestCity ? `, near ${hit.nearestCity}` : ''}{hitCosts?.[String(hit.id)] ? `, ${hitCosts[String(hit.id)]}` : ''}
                   </MarkerTooltip>
                 </MapMarker>
               )
@@ -2493,9 +2493,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
           {legendOpen && (workspaceChrome ? <MapWorkspaceKey id={keyId} onClose={closeWorkspaceKey} /> : (
             <div className="map-legend-body">
               {dayFilter === 'all'
-                ? <>main line = whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
-                : <>colours = day · </>}
-              pin icon = stop type · number = timeline order · dashed pin = "maybe" · plane/flag pins = start & final destination · plane/flag pins on a single day = that day's start and end where no stop is pinned · gold bulb markers = nearby ideas{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · a teal count badge groups nearby ideas — zoom in to open one · click a pin for details · hollow amber pin = an unplanned part · tap to open it
+                ? <>Main line · Whole route{returnLeg ? ' · dashed = drive back home' : ''} · </>
+                : <>Colours · Day · </>}
+              Pin · Stop type · Number · Timeline order · Dashed pin · Tentative · Flag · Endpoint · Gold bulb · Nearby picks{onAddNearby ? ' (+ to add)' : ''}{ideaCats.length > 0 ? ' · chips filter ideas by type' : ''} · Teal count · Nearby picks · Pin · Place details · Hollow amber pin · Unplanned part
             </div>
           ))}
         </div>
@@ -2509,7 +2509,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         </p>
       )}
       <p className="hint-text tm-note">
-        <InlineIcon icon={TriangleAlert} size={12} gap={3} />Route lines follow real roads (© OSRM/OpenStreetMap) when available; distances/durations in the plan are real-road estimates for ground travel, falling back to transparent haversine assumptions when offline/other modes - no live traffic data.
+        <InlineIcon icon={TriangleAlert} size={12} gap={3} />Roads · OSRM/OpenStreetMap · Offline routes · Estimated · Traffic · Unavailable
       </p>
     </div>
   )

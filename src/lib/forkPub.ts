@@ -9,7 +9,7 @@ import { emptyLockedDay, isWireLocked } from './lockedDay'
 import { toast } from '../components/ui'
 import { finishPendingFork, pendingForkId, rememberFork, type CampaignId } from './growthAttribution'
 
-const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
+const LOCKED_STOP_DESCRIPTION = 'Locked · the full plan is on the original itinerary.'
 const inFlight = new Map<string, Promise<boolean>>()
 
 /** Defense-in-depth stub: empties every day NOT in the publication's free
@@ -89,7 +89,7 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   rememberFork(pub.id, { source: source ?? null, campaign: campaign ?? null })
   const operation = performFork(pub, meId, onNavigate, unlockedPresentationOnly, source, campaign)
     .catch(() => {
-      toast('Could not save the forked trip — check your connection and try again.', 'err')
+      toast('Could not save the forked trip · check your connection and try again.', 'err')
       return false
     })
     .finally(() => inFlight.delete(key))
@@ -107,7 +107,7 @@ async function performFork(pub: PublishedItinerary, meId: string, onNavigate: (r
   // is re-stubbed below: a row that did not come off the wire is not evidence
   // about anything.
   const src = wireRow ?? tripById(pub.tripId)
-  if (!src) { toast('Couldn’t load that itinerary — it may be unpublished now, or the connection dropped.', 'err'); return false }
+  if (!src) { toast('Couldn’t load that itinerary · it may be unpublished now, or the connection dropped.', 'err'); return false }
   // #359 — the entitlement read REJECTS on a failed read, so a rejection is
   // caught HERE and answered as the CONSERVATIVE answer: not entitled. The fork
   // then takes the re-stubbed locked path, which is the direction that withholds
@@ -149,7 +149,7 @@ async function performFork(pub: PublishedItinerary, meId: string, onNavigate: (r
     ? await duplicateTripPersisted(safe, meId, undefined, source, origin)
     : await duplicateTripPublicPersisted(safe, meId, pub.freeDayIndexes, source, origin)
   if (!persisted) {
-    toast('Could not save the forked trip — check your connection and try again.', 'err')
+    toast('Could not save the forked trip · check your connection and try again.', 'err')
     return false
   }
   finishPendingFork(meId, pub.id)

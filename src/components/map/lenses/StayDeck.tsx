@@ -14,15 +14,15 @@ import { LensPlaceCard, selectedCardIndex, type LensCostCell } from './LensPlace
 import { pickFactChips } from '../placeCardFacts'
 
 export const STAY_PHASE_TEXT: Record<LensPhase, string> = {
-  unscanned: 'Pick a window to look around the stay.',
-  scanning: 'Looking around the stay…',
-  failed: 'The search around the stay failed. Try again.',
-  quota: 'The place search is over its limit for now.',
-  empty: 'Nothing open around the stay in this window.',
+  unscanned: 'Stay · Choose a window',
+  scanning: 'Stay · Searching…',
+  failed: 'Stay search · Failed',
+  quota: 'Place search · Limit reached',
+  empty: 'Stay · No open places in this window',
   ready: '',
 }
 
-const NEEDS_BASE_TEXT = "Set tonight's stay to see what is around it."
+const NEEDS_BASE_TEXT = "Stay · Choose a base"
 
 export type RingId = (typeof STAY_RINGS)[number]['id']
 
@@ -65,7 +65,7 @@ export function stayDeckKicker(
     return 'Around the stay'
   }
   if (window.endMin <= window.startMin) return 'Around the stay'
-  return `Around the stay · free ${clock(window.startMin)}–${clock(window.endMin)}`
+  return `Stay free time · ${clock(window.startMin)}–${clock(window.endMin)}`
 }
 
 /** The deck title. A known count names the picks; every other state names the base. */
@@ -152,7 +152,7 @@ export function stayHoursText(
   format: TimeFormat,
 ): string | null {
   const close = closeMinute(hit)
-  return close == null ? null : `open till ${formatHM(clockHM(close), format)}`
+  return close == null ? null : `Open till ${formatHM(clockHM(close), format)}`
 }
 
 /** One row of the "also in this window" list. A tap opens that pick in the deck. */
@@ -262,7 +262,7 @@ export function StayDeck(props: StayDeckProps) {
         {others.map(pick => <AlsoRow key={pick.row.row.hit.id} pick={pick} timeFormat={timeFormat}
           shortlisted={shortlistedOf?.(pick.row.row.hit) ?? false}
           onChoose={() => setChosen(String(pick.row.row.hit.id))} />)}
-        {others.length === 0 && <p className="mv2-lens-more">{alsoCount} more</p>}
+        {others.length === 0 && <p className="mv2-lens-more">More: {alsoCount}</p>}
       </div>}
     </>}
   </section>

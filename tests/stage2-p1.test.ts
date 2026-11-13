@@ -183,7 +183,7 @@ describe('Stage 2 P1 regressions', () => {
     // loud (#346), the plan is written empty, and the search's own late write
     // is then dropped by the bump rather than landing over the user's edit.
     commitPlan([])
-    expect(toast).toHaveBeenCalledWith('Plan changed — the spot search was restarted. Press search again when ready.')
+    expect(toast).toHaveBeenCalledWith('Plan changed · the spot search was restarted. Press search again when ready.')
     ++spotRequest.current // the cancel the bump causes
     spots.resolve([])
     await work

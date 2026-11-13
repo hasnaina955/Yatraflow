@@ -15,23 +15,23 @@ import type { ItineraryDay } from '../src/data/types'
 describe('the rail meter copy', () => {
   it('says nothing is scheduled on an empty day', () => {
     expect(activeReadinessLabel({ total: 0, filled: 0, required: 0, auto: 0 }))
-      .toBe('nothing scheduled for this day yet')
+      .toBe('Schedule · No stops')
   })
 
   it('counts filled over required, naming the engine-managed parts', () => {
     expect(activeReadinessLabel({ total: 5, filled: 3, required: 4, auto: 1 }))
-      .toBe('3 of 4 planned · 1 auto')
+      .toBe('Planned: 3 / 4 · Auto: 1')
   })
 
   it('stays silent about auto parts when there are none', () => {
     expect(activeReadinessLabel({ total: 2, filled: 2, required: 2, auto: 0 }))
-      .toBe('2 of 2 planned')
+      .toBe('Planned: 2 / 2')
   })
 })
 
 describe("the header's day identity", () => {
   it('falls back to the drive when the day is gone', () => {
-    expect(activeDayLabel([], 0)).toBe('your drive')
+    expect(activeDayLabel([], 0)).toBe('Your drive')
   })
 
   it('prefers the day’s own title', () => {

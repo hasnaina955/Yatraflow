@@ -100,7 +100,7 @@ export function QuickAddStop({ target, trip, onClose, onAdd, onMore }: {
       if (!v.geocoded) {
         const picked = await resolvePick(unnamedPick('timeline-quick-add', v.locationName.trim() || v.title.trim()))
         if (!picked) {
-          setErrs({ locationName: 'Pick a suggestion, or use “More details…” to enter coordinates — a stop cannot go on the map without a position.' })
+          setErrs({ locationName: 'Pick a suggestion, or use “More details…” to enter coordinates · a stop cannot go on the map without a position.' })
           return
         }
         onAdd(target.dayIndex, target.slot, {
@@ -117,7 +117,7 @@ export function QuickAddStop({ target, trip, onClose, onAdd, onMore }: {
 
   return (
     <>
-      <Modal open={!!target} onClose={onClose} title={target ? `Add a stop — Day ${target.dayIndex + 1}` : 'Add a stop'}>
+      <Modal open={!!target} onClose={onClose} title={target ? `Add a stop · Day ${target.dayIndex + 1}` : 'Add a stop'}>
         {target && (
           <form onSubmit={submit} noValidate>
             {/* The insertion slot, in words. Announced with the dialog and

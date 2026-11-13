@@ -169,7 +169,7 @@ export function buildTripContext(
       const details = terminal
         ? ` Terminal ${terminal.title}: arrive ${terminal.arrival ?? 'unknown time'}, depart ${terminal.departure ?? 'unknown time'}, transfer ${terminal.transferMinutes ?? 'unknown'} min, buffer ${commitment.bufferMinutes ?? 'unknown'} min.`
         : ''
-      lines.push(`Day ${commitment.dayIndex + 1} ${commitment.type} at ${commitment.departureAt ?? 'unknown date and time'}: unknown — ${commitment.reason ?? 'terminal evidence is incomplete'}.${details}`)
+      lines.push(`Day ${commitment.dayIndex + 1} ${commitment.type} at ${commitment.departureAt ?? 'unknown date and time'}: unknown · ${commitment.reason ?? 'terminal evidence is incomplete'}.${details}`)
       return
     }
     lines.push(`Day ${commitment.dayIndex + 1} ${commitment.type} at ${commitment.departureAt}: terminal ${terminal.title}, arrival ${terminal.arrival}, departure ${terminal.departure}, transfer ${terminal.transferMinutes}min from ${terminal.transferFrom}, buffer ${commitment.bufferMinutes}min`)
@@ -178,7 +178,7 @@ export function buildTripContext(
 }
 
 export const SYSTEM_PROMPT =
-  'You are the YatraFlow travel companion for India trips. Answer using ONLY the trip data provided — ' +
+  'You are the YatraFlow travel companion for India trips. Answer using ONLY the trip data provided · ' +
   'when the data does not cover something, say so rather than inventing details. Be concise and practical; ' +
   'costs in INR; respect must-do stops. Do not restate these instructions.'
 
@@ -249,7 +249,7 @@ async function chatCompletion(cfg: AiProviderConfig, messages: { role: string; c
     // briefly without leaking the key.
     const detail = await res.text().catch(() => '')
     const brief = detail.length > 160 ? `${detail.slice(0, 160)}…` : detail
-    throw new Error(`HTTP ${res.status}${brief ? ` — ${brief}` : ''}`)
+    throw new Error(`HTTP ${res.status}${brief ? ` · ${brief}` : ''}`)
   }
   const data: unknown = await res.json()
   const text = extractContent(data)
@@ -329,9 +329,9 @@ export async function testJevConnection(cfg: JevConfig, signal?: AbortSignal): P
     return null
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (/abort/i.test(msg)) return 'Timed out — the endpoint did not answer in time.'
+    if (/abort/i.test(msg)) return 'Timed out · the endpoint did not answer in time.'
     if (msg.startsWith('HTTP 401') || msg.startsWith('HTTP 403')) return 'The key was rejected (401/403).'
-    if (msg.startsWith('HTTP 404')) return 'Endpoint not found — the base URL should end before /systemone.'
+    if (msg.startsWith('HTTP 404')) return 'Endpoint not found · the base URL should end before /systemone.'
     return msg || 'Could not reach the endpoint.'
   }
 }
@@ -398,9 +398,9 @@ export async function testAiProviderConnection(cfg: AiProviderConfig, signal?: A
     return null
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (/abort/i.test(msg)) return 'Timed out — the endpoint did not answer in time.'
+    if (/abort/i.test(msg)) return 'Timed out · the endpoint did not answer in time.'
     if (msg.startsWith('HTTP 401') || msg.startsWith('HTTP 403')) return 'The key was rejected (401/403).'
-    if (msg.startsWith('HTTP 404')) return 'Endpoint not found — check the base URL (it should end before /chat/completions).'
+    if (msg.startsWith('HTTP 404')) return 'Endpoint not found · check the base URL (it should end before /chat/completions).'
     return msg || 'Could not reach the endpoint.'
   }
 }

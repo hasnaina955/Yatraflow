@@ -70,10 +70,10 @@ function signedMin(n: number): string {
 
 function buildReason(basis: GroundedRecommendation['basis'], pick: TripDecision['options'][number], ctx: DecisionContext): string {
   if (basis === 'cost') {
-    return `${pick.label} keeps the most budget — ${signedInr(pick.costImpactInr ?? 0)} against a ${formatInr(ctx.totals.totalCostInr)} trip.`
+    return `${pick.label} keeps the most budget · ${signedInr(pick.costImpactInr ?? 0)} against a ${formatInr(ctx.totals.totalCostInr)} trip.`
   }
   if (basis === 'time') {
-    return `${pick.label} adds the least driving time — ${signedMin(pick.timeImpactMin ?? 0)} against ${minutesToHM(ctx.totals.totalTravelMinutes)} on the road.`
+    return `${pick.label} adds the least driving time · ${signedMin(pick.timeImpactMin ?? 0)} against ${minutesToHM(ctx.totals.totalTravelMinutes)} on the road.`
   }
-  return `${pick.label} — no cost or time impact was declared, so this just leans with the current votes.`
+  return `${pick.label} · no cost or time impact was declared, so this just leans with the current votes.`
 }

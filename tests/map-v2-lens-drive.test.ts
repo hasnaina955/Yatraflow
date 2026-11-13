@@ -174,9 +174,9 @@ describe('driveDeckIntro', () => {
   it('writes an inside and outside window line', () => {
     const hit = { id: 'a', name: 'a', latitude: 1, longitude: 2, kind: 'poi' as const, cumKm: 57 }
     const inside = lensRow(row('a', { hit, arriveMin: 725, windowMin: [690, 870], inWindow: true }))
-    expect(driveDeckIntro(inside, clock)).toBe('You pass km 57 at 12:05, inside the 11:30–14:30 window')
+    expect(driveDeckIntro(inside, clock)).toBe('Pass km 57 at 12:05 · Inside 11:30–14:30')
     const outside = lensRow(row('a', { hit, arriveMin: 725, windowMin: [690, 870], inWindow: false }))
-    expect(driveDeckIntro(outside, clock)).toBe('You pass km 57 at 12:05, outside the 11:30–14:30 window')
+    expect(driveDeckIntro(outside, clock)).toBe('Pass km 57 at 12:05 · Outside 11:30–14:30')
   })
 
   it('returns null text when a field is unknown', () => {

@@ -144,5 +144,5 @@ export function clusterCountLabel(count: number): string {
  */
 export function clusterSummary(groupedCount: number): string | null {
   if (!Number.isFinite(groupedCount) || groupedCount <= 0) return null
-  return `${clusterCountLabel(groupedCount)} grouped into map clusters at this zoom — zoom in to open them one by one.`
+  return `${clusterCountLabel(groupedCount)} grouped into map clusters at this zoom · zoom in to open them one by one.`
 }

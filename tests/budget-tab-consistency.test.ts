@@ -184,7 +184,7 @@ describe('P12/PW-13 — the money did not move', () => {
     expect(code).toContain('const ledgerUnread = !ledgerReady && !ledgerKept')
     expect(code).toContain('bud-mini-track is-unread')
     expect(code).toContain('Reading the expense lines…')
-    expect(code).toContain('Couldn’t read the expense lines — this is not a zero')
+    expect(code).toContain('Couldn’t read the expense lines · this is not a zero')
     expect(code).not.toContain('Couldn’t read the ledger — this is not a zero')
     expect(code).not.toMatch(/% of the estimate is marked settled/)
     expect(code).not.toMatch(/% of the estimate sits in untagged lines/)

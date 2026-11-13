@@ -131,12 +131,12 @@ const UNRESOLVED_COPY: Record<ArcUnresolvedReason, string> = {
 }
 
 const REFUSAL_COPY: Record<WriterRefusal, string> = {
-  'missing-day': 'A target day has no saved identity yet - reload the trip, then try again.',
-  'gate-busy': 'Another change already uses one of those places. Wait for it to finish.',
-  'road-evidence-unavailable': 'The road has not been measured yet, so those places cannot be placed. Try again after the route finishes measuring.',
-  'current-trip-unavailable': 'The current saved trip is unavailable, so this retry cannot start.',
-  'nothing-pinned': 'Those places could not be pinned on the map - nothing was added.',
-  'no-placements': 'Nothing could be placed from that arc. The places stay available.',
+  'missing-day': 'Target day · Not ready · Reload trip',
+  'gate-busy': 'Place · Change pending',
+  'road-evidence-unavailable': 'Road · Not measured · Retry after measurement',
+  'current-trip-unavailable': 'Retry · Saved trip unavailable',
+  'nothing-pinned': 'Places · Position unavailable · None added',
+  'no-placements': 'Arc · No places added · Picks available',
 }
 
 /** The line shown at stage time. A staged arc says it is staged, never added. */
@@ -144,14 +144,14 @@ export function arcStageLine(label: string, outcome: ArcStageOutcome): { text: s
   const retained = outcome.plan.unresolved.length
     + (outcome.status === 'staged' ? outcome.result.unresolved.length : 0)
   const tail = retained > 0
-    ? ` ${retained} place${retained === 1 ? '' : 's'} stayed in the list with a reason.`
+    ? ` · Picks retained: ${retained}`
     : ''
   if (outcome.status === 'nothing') {
     if (outcome.plan.unresolved.length > 0) {
       const reasons = [...new Set(outcome.plan.unresolved.map(item => UNRESOLVED_COPY[item.reason]))].join(', ')
-      return { text: `Those places could not be placed yet (${reasons}). They stay available.`, tone: 'err' }
+      return { text: `Places · Not placed · ${reasons} · Picks retained`, tone: 'err' }
     }
-    return { text: 'All of those are already added', tone: 'info' }
+    return { text: 'Places · Already added', tone: 'info' }
   }
   if (outcome.status === 'refused') {
     if (outcome.resume) {
@@ -161,7 +161,7 @@ export function arcStageLine(label: string, outcome: ArcStageOutcome): { text: s
   }
   const n = outcome.result.planned.length
   return {
-    text: `“${label}” is staged (${n} stop${n === 1 ? '' : 's'}). Keep to save it.${tail}`,
+    text: `“${label}” · Staged stops: ${n} · Keep to save${tail}`,
     tone: 'info',
   }
 }
@@ -184,13 +184,13 @@ export function arcCompletionEffects(label: string, completion: WriterCompletion
   if (completion.phase === 'abandoned') {
     return {
       addedIds: [], dnaHits: [], undoStops: [], retained: completion.unresolved.length,
-      line: { text: 'This saved edit was discarded; choose again.', tone: 'err' },
+      line: { text: 'Saved edit · Discarded · Choose again', tone: 'err' },
     }
   }
   if (!completion.acknowledged) {
     return {
       addedIds: [], dnaHits: [], undoStops: [], retained: completion.unresolved.length,
-      line: { text: 'The save was not confirmed, so nothing was marked as added. Retry it, or open Saved edits.', tone: 'err' },
+      line: { text: 'Save · Unconfirmed · Retry or check Saved edits', tone: 'err' },
     }
   }
   const placed = completion.placed
@@ -198,7 +198,7 @@ export function arcCompletionEffects(label: string, completion: WriterCompletion
   if (placed.length === 0) {
     return {
       addedIds: [], dnaHits: [], undoStops: [], retained,
-      line: { text: 'A save was acknowledged, but the app could not confirm that these stops arrived. Nothing was marked as added. Retry it, or check the day.', tone: 'err' },
+      line: { text: 'Save · Stops unverified · Retry or check day', tone: 'err' },
     }
   }
   const tail = retained > 0 ? ` - ${retained} stayed in the list with a reason` : ''
@@ -221,10 +221,10 @@ export function arcUndoLine(label: string, outcome: GuardedUndoOutcome): { text:
   if (outcome.status === 'refused') {
     return {
       text: outcome.reason === 'missing-day'
-        ? 'Undo stopped: that day no longer exists.'
-        : 'Undo stopped: a saved stop changed or moved, so it was left alone.',
+        ? 'Undo · Day unavailable'
+        : 'Undo · Stop changed · No change',
       tone: 'err',
     }
   }
-  return { text: 'Undo was not confirmed. Check the day before you retry - Saved edits can still recover this trip.', tone: 'err' }
+  return { text: 'Undo · Unconfirmed · Check day or Saved edits', tone: 'err' }
 }

@@ -177,7 +177,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
       refuses with a message, never a silent drop. */
   const handleMoveStopInto = useCallback((stopId: string, _fromDayIndex: number, toDayIndex: number, position: number | null) => {
     if (!trip.days.some(d => d.index === toDayIndex)) {
-      toast(`Day ${toDayIndex + 1} is no longer on this trip — the stop stayed on its day.`, 'err')
+      toast(`Day ${toDayIndex + 1} is no longer on this trip · the stop stayed on its day.`, 'err')
       return
     }
     applyChange(draft => {
@@ -306,20 +306,20 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
           <div className="glass board-info">
             <b>Plan by day, see the route</b>
             <span className="small muted" style={{ display: 'block', marginTop: 3 }}>
-              Drag a stop to another day — its impact previews before saving. Click a column to focus its route.
+              Drag a stop to another day · its impact previews before saving. Click a column to focus its route.
             </span>
             {roadUnmeasured && (
               <span className="small" style={{ display: 'block', marginTop: 3 }}>
                 <InlineIcon icon={TriangleAlert} size={12} gap={3} />
                 {roadRetrying
-                  ? 'Measuring the road… — until it resolves, the line and figures stay estimates.'
-                  : 'Road not measured — the map\'s line and this board\'s figures are estimates.'}
+                  ? 'Measuring the road… · until it resolves, the line and figures stay estimates.'
+                  : 'Road not measured · the map\'s line and this board\'s figures are estimates.'}
               </span>
             )}
             {roadUnmeasured && !roadRetrying && road && (
               <button type="button" className="btn btn-outline btn-sm" style={{ marginTop: 4 }}
                 onClick={road.retry}
-                title="Ask the routing provider again — the first tries may have been rate-limited">
+                title="Ask the routing provider again · the first tries may have been rate-limited">
                 <InlineIcon icon={RefreshCw} size={12} gap={4} />Retry road measurement
               </button>
             )}
@@ -337,7 +337,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
                 {health.score}
               </b>
               <span className={`board-pulse-band ${healthBandClass(health.band)}`}>
-                {health.band}{warn.total > 0 ? ' — needs attention' : ''}
+                {health.band}{warn.total > 0 ? ' · needs attention' : ''}
               </span>
             </div>
             <div className="health-bar" aria-hidden="true">
@@ -576,7 +576,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
             // the throw — position and deformation cannot share a transform.
             <div key={s.id} className="board-row"
               data-stop-id={s.id}
-              title={meta ? `${s.title} — ${meta}` : s.title}
+              title={meta ? `${s.title} · ${meta}` : s.title}
               style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }}
               {...(editable ? dndHandlers(i) : {})}>
               <div className={`board-stop stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}>
@@ -624,7 +624,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
                       </button>}
                     <button type="button" className="move-btn move-btn--danger"
                       onClick={() => onDelete(s.id, day.index)}
-                      title={`Delete ${s.title} — you'll see the impact first; Undo is offered after Keep`}
+                      title={`Delete ${s.title} · you'll see the impact first; Undo is offered after Keep`}
                       aria-label={`Delete ${s.title}`}>
                       <Trash2 size={13} aria-hidden />
                     </button>
@@ -661,7 +661,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
               return (
                 <button key={d.id} type="button" className="btn btn-outline" style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onMoveStopIn(moveStop.id, day.index, d.index, null); setMoveStop(null) }}>
-                  Day {d.index + 1}{d.title ? ` — ${d.title}` : ''} · {count} stop{count === 1 ? '' : 's'}
+                  Day {d.index + 1}{d.title ? ` · ${d.title}` : ''} · {count} stop{count === 1 ? '' : 's'}
                 </button>
               )
             })}

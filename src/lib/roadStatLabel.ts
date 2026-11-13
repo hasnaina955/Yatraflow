@@ -105,12 +105,12 @@ export function distanceStatLabel(journey: DistanceJourney, state: RoadState): s
     case 'ok':
       return `${km} km · road measured`
     case 'pending':
-      return `~${km} km · straight-line estimate — measuring the road`
+      return `~${km} km · straight-line estimate · measuring the road`
     case 'failed':
-      return `~${km} km · straight-line estimate — road measurement failed`
+      return `~${km} km · straight-line estimate · road measurement failed`
     case 'partial':
-      return `~${km} km · mixed estimate — part of this day's road is measured`
+      return `~${km} km · mixed estimate · part of this day's road is measured`
     default:
-      return `~${km} km · straight-line estimate — road not measured yet`
+      return `~${km} km · straight-line estimate · road not measured yet`
   }
 }

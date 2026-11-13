@@ -80,7 +80,7 @@ describe('deck kicker and title per lens', () => {
   })
 
   it('names the free stay window in the kicker and the base in the title', () => {
-    expect(stayDeckKicker({ startMin: 1020, endMin: 1200 }, clock)).toBe('Around the stay · free 17:00–20:00')
+    expect(stayDeckKicker({ startMin: 1020, endMin: 1200 }, clock)).toBe('Stay free time · 17:00–20:00')
     expect(stayDeckKicker(null, clock)).toBe('Around the stay')
     expect(stayDeckKicker({ startMin: 1200, endMin: 1020 }, clock)).toBe('Around the stay')
     expect(stayDeckTitle(3, 'Hotel Ashoka')).toBe('3 picks near Hotel Ashoka')
@@ -144,7 +144,7 @@ describe('LensPlaceCard', () => {
       ],
     })
     expect(html).not.toContain('aria-label="unknown"')
-    expect(html).not.toContain('—')
+    expect(html).not.toContain('Not available')
     expect(html).toContain('mv2-lens-cell-label">Detour')
     expect(html).not.toContain('mv2-lens-cell-label">Arrive')
   })
@@ -320,7 +320,7 @@ describe('decks draw the shared header', () => {
 
   it('draws the free stay window in the kicker and the base in the title', () => {
     const html = stayHtml()
-    expect(html).toContain('Around the stay · free 17:00–21:00')
+    expect(html).toContain('Stay free time · 17:00–21:00')
     expect(html).toContain('1 pick near Hotel Ashoka')
     expect(html).toContain('Add to Day 2 · 17:08')
     expect(html).toContain('Walk')
@@ -331,7 +331,7 @@ describe('decks draw the shared header', () => {
     const html = stayHtml({ result: { kind: 'phase', phase: 'scanning' } })
     expect(html).not.toContain('picks near')
     expect(html).not.toContain('1 pick near')
-    expect(html).toContain('Looking around the stay…')
+    expect(html).toContain('Stay · Searching…')
   })
 
   it('lists every pick but the open one under "also in this window"', () => {
@@ -339,7 +339,7 @@ describe('decks draw the shared header', () => {
     const html = stayHtml({ result: { kind: 'ready', picks, alsoCount: 1 } })
     expect(html.match(/<article/g)).toHaveLength(1)
     expect(html.match(/mv2-lens-also-row/g)).toHaveLength(3)
-    expect(html).toContain('Also in this window')
+    expect(html).toContain('Also in this')
     expect(html).toContain('mv2-lens-also-row')
   })
 

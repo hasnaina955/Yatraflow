@@ -99,7 +99,7 @@ describe('swapOptionsFor', () => {
 describe('minute scope copy', () => {
   const search = readFileSync('src/pages/trip/map/useMapSearch.ts', 'utf8').replace(/\r\n/g, '\n')
   it('names a wider minute scope, not the old slider', () => {
-    expect(search).toContain('Try a wider minute scope')
+    expect(search).toContain('Increase scope')
     expect(search).not.toContain('widen the detour-scope slider')
   })
 })

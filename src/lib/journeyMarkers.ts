@@ -26,7 +26,7 @@ export function extraJourneyMarkers(
       : direction === 'return' ? 'Ride home' : 'Day destination'
     return [{
       kind: p.kind as JourneyEndpointMarker['kind'],
-      label: `${prefix} — ${p.title}`,
+      label: `${prefix} · ${p.title}`,
       position: { lat: p.lat, lng: p.lng },
     }]
   })

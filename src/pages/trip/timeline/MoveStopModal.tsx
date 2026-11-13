@@ -19,7 +19,7 @@ export function MoveStopModal({ stop, trip, onClose, onMove }: {
       <div className="chip-row">
         {trip.days.filter(d => d.stops.every(s => s.id !== stop?.id)).map(d => (
           <Chip key={d.index} tone="info" onClick={() => onMove(d.index)}>
-            Day {d.index + 1}{d.title ? ` — ${d.title}` : ''}
+            Day {d.index + 1}{d.title ? ` · ${d.title}` : ''}
           </Chip>
         ))}
       </div>

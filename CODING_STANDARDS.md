@@ -1469,5 +1469,8 @@ The editor primitives are the default; a script is the exception.
 
 **Map counts and clocks.** Label totals of alternative picks as alternatives. Filled slots read the shared schedule, not search windows.
 
-**Planned detour spend.** Alternatives do not spend the day budget. Sum known costs by planned stop ID, or show no total.
+**Planned detour spend.** Alternatives do not spend the day budget. Sum known costs by planned stop ID. Subtract this spend before a pick can fit. Show distinct unknown and empty states.
 **Proposal previews.** A preview must derive from the proposed trip. An Apply action that adds empty days must not show the current journey as a preview.
+
+- Map UI labels start with a capital and use short label and value pairs. Use middle dots between facts. Keep full sentences in tooltips, accessible names, and suggestion help only.
+- UI strings in `src/` must not contain an em dash or its HTML entity. Preserve en dashes in time ranges. The source scan reports the file and line.

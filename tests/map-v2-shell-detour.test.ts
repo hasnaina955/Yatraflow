@@ -14,19 +14,19 @@ const read = (...parts: string[]) => readFileSync(join(root, ...parts), 'utf8').
 
 describe('rail detour bits', () => {
   it('reads 0 and 0.2 the same and hides the share', () => {
-    expect(detourBits({ detourMin: 0, budgetSharePct: 12 })).toEqual(['on route'])
-    expect(detourBits({ detourMin: 0.2, budgetSharePct: 12 })).toEqual(['on route'])
-    expect(detourBits({ detourMin: 0.5, budgetSharePct: 12 })).toEqual(['on route'])
+    expect(detourBits({ detourMin: 0, budgetSharePct: 12 })).toEqual(['On route'])
+    expect(detourBits({ detourMin: 0.2, budgetSharePct: 12 })).toEqual(['On route'])
+    expect(detourBits({ detourMin: 0.5, budgetSharePct: 12 })).toEqual(['On route'])
   })
 
   it('keeps the share for a detour above the cutoff', () => {
     expect(detourBits({ detourMin: 0.6, budgetSharePct: 12 })).toEqual(['+1 min', "12% of the day's detour budget"])
-    expect(detourBits({ detourMin: 4, budgetSharePct: 9, arriveLabel: '12:05' })).toEqual(['arrive 12:05', '+4 min', "9% of the day's detour budget"])
+    expect(detourBits({ detourMin: 4, budgetSharePct: 9, arriveLabel: '12:05' })).toEqual(['Arrive 12:05', '+4 min', "9% of the day's detour budget"])
   })
 
   it('keeps unknown separate from on route', () => {
-    expect(detourBits({ detourMin: null, budgetSharePct: 12 })).toEqual(['position unknown'])
-    expect(detourBits({ detourMin: Number.NaN })).toEqual(['position unknown'])
+    expect(detourBits({ detourMin: null, budgetSharePct: 12 })).toEqual(['Position · Unknown'])
+    expect(detourBits({ detourMin: Number.NaN })).toEqual(['Position · Unknown'])
   })
 
   it('never prints a zero share', () => {

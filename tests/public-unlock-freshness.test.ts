@@ -25,7 +25,7 @@ import { tripToRow } from '../src/lib/tripRow'
 /** The notice `get_public_trip` stamps on every stop of a withheld day. Written
  *  out here rather than imported: this is the wire's string, and a test that
  *  agrees with the code by construction cannot notice the code drifting. */
-const LOCKED = 'Locked — the full plan is on the original itinerary.'
+const LOCKED = 'Locked · the full plan is on the original itinerary.'
 
 const { state, toast } = vi.hoisted(() => ({
   state: {

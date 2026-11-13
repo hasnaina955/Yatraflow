@@ -41,7 +41,7 @@ export async function sharePurchase(purchase: ShareablePurchase): Promise<boolea
   if (await nativeShareText({ text, title: purchase.title, url }) === 'shared') return true
   const copied = await nativeCopyText(url)
   toast(copied
-    ? 'Purchase link copied — when you paste it, the card says what you bought'
-    : 'Could not copy the link — open the plan and copy its address.')
+    ? 'Purchase link copied · when you paste it, the card says what you bought'
+    : 'Could not copy the link · open the plan and copy its address.')
   return copied
 }

@@ -80,7 +80,7 @@ describe('scopeValueText (A8) and voteStatusId (A6)', () => {
     // The fallback to Day 1 was preselected in silence; the reasoning lived in a
     // code comment the user never sees.
     expect(pickDayCaveat(0, false)).toBe(
-      'This place has no position on the route, so Day 1 is a guess — pick the day you want.',
+      'This place has no position on the route, so Day 1 is a guess · pick the day you want.',
     )
     expect(pickDayCaveat(2, false)).toContain('Day 3')
     expect(pickDayCaveat(0, false)).toContain('guess')

@@ -109,10 +109,10 @@ describe('the Map tab turns the failure into its own note (#704)', () => {
   })
 
   it('the failed note comes before the default copy, so a failure never reads as an empty route', () => {
-    const note = mapTab.indexOf('Stops along the route could not be loaded just now.')
+    const note = mapTab.indexOf('Route stops · Unavailable')
     // The default copy a too-short route shows. It must never come before the
     // failure note, or a failed search would read as an empty route.
-    const blame = mapTab.indexOf('This route is too short for a fatigue plan.')
+    const blame = mapTab.indexOf('Short drive · Explore Around the stay')
     expect(note).toBeGreaterThan(-1)
     expect(mapTab).toMatch(/\) : poisFailed \? \(/)
     expect(blame).toBeGreaterThan(note)

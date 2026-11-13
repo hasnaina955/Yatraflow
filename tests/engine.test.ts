@@ -358,9 +358,9 @@ describe('formatting', () => {
     // One hand-edited money field used to render “₹NaN” wherever it was shown
     // — the Board's trip pulse included. A missing value reads “—”, never ₹0,
     // because “free” is a claim and “unknown” is the truth.
-    expect(formatInr(NaN)).toBe('—')
-    expect(formatInr(Infinity)).toBe('—')
-    expect(formatInr(undefined as unknown as number)).toBe('—')
+    expect(formatInr(NaN)).toBe('Not available')
+    expect(formatInr(Infinity)).toBe('Not available')
+    expect(formatInr(undefined as unknown as number)).toBe('Not available')
     expect(formatInr(0)).toBe('₹0')
   })
 })
@@ -555,8 +555,8 @@ describe('unified day journeys (one travel system, any distance)', () => {
 
 describe('minutesToHM — non-finite guard', () => {
   it('renders an em dash instead of NaN for non-finite input', () => {
-    expect(minutesToHM(NaN)).toBe('—')
-    expect(minutesToHM(Infinity)).toBe('—')
+    expect(minutesToHM(NaN)).toBe('Not available')
+    expect(minutesToHM(Infinity)).toBe('Not available')
     expect(minutesToHM(45)).toBe('0h 45m')
     expect(minutesToHM(130)).toBe('2h 10m')
   })

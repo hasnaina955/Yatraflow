@@ -86,7 +86,7 @@ export function ResolvePickDialog({ hit, retry, onResolved, onSkip }: {
     try {
       const r = await retry()
       if (r) { onResolved(r); return }
-      setErrs({ form: 'Still no position for that place — enter its coordinates below, or skip it.' })
+      setErrs({ form: 'Still no position for that place · enter its coordinates below, or skip it.' })
     } finally { setBusy(false) }
   }
 
@@ -100,7 +100,7 @@ export function ResolvePickDialog({ hit, retry, onResolved, onSkip }: {
   return (
     <Modal open onClose={onClose} title={`Pin "${hit.name}" on the map`}>
       <p className="muted" style={{ marginTop: 0 }}>
-        We couldn't find this place's position — and the map refuses to guess,
+        We couldn't find this place's position · and the map refuses to guess,
         because a wrong pin measures the whole journey wrong. Try again, enter
         its coordinates, or skip it.
       </p>

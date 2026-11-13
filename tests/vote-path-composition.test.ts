@@ -138,7 +138,7 @@ describe('MapTab vote writers (source tripwire to the composed contract)', () =>
     const body = fnBody(writersSrc, 'raiseSlotVote')
     expect(body).toMatch(/resolvePick\(c\.hit\)/)               // resolve-or-prompt at the boundary
     expect(body).toMatch(/usable\.length < 2/)                  // a vote needs ≥2 pinnable places
-    expect(body).toMatch(/was not created/)                     // refusal is said out loud
+    expect(body).toMatch(/Not created/)                     // refusal is said out loud
     expect(body).toMatch(/lat:\s*pinned\.latitude/)             // payload carries PINNED coords…
     expect(body).toMatch(/lng:\s*pinned\.longitude/)
     expect(body).not.toMatch(/lat:\s*c\.hit\.latitude/)         // …never the raw pick's
@@ -148,7 +148,7 @@ describe('MapTab vote writers (source tripwire to the composed contract)', () =>
     const body = fnBody(shortlistSrc, 'raiseShortlistVote')
     expect(body).toMatch(/resolvePick\(h\)/)
     expect(body).toMatch(/usable\.length === 0/)                // nothing pinnable, no vote
-    expect(body).toMatch(/was not created/)
+    expect(body).toMatch(/Not created/)
     expect(body).toMatch(/lat:\s*pinned\.latitude/)
     expect(body).toMatch(/lng:\s*pinned\.longitude/)
     expect(body).not.toMatch(/lat:\s*h\.latitude/)

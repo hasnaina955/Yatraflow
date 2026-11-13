@@ -199,7 +199,7 @@ describe('ChoiceMenu selection', () => {
 describe('scope counts text', () => {
   it('joins the spoken parts with commas', () => {
     expect(scopeBandCountsSpoken({ inside: 3, justPast: 2, worthDetour: 1 }))
-      .toBe('3 inside, 2 just past it, 1 worth the detour')
+      .toBe('3 Inside, 2 Just past it, 1 Worth the detour')
     expect(scopeBandCountsSpoken(null)).toBeNull()
   })
   it('gives the container that aria-label and keeps the visual text bare', () => {
@@ -210,7 +210,7 @@ describe('scope counts text', () => {
     }))
     expect(html).toContain('aria-label="3 picks fit scope and budget"')
     const counts = /class="mv2-lens-scope-count"[^>]*>(.*?)<\/span>/.exec(html)?.[1] ?? ''
-    expect(counts).toBe('3 fit')
+    expect(counts).toBe('Fits: 3')
     expect(counts).not.toContain('·')
     expect(counts).not.toContain(',')
   })

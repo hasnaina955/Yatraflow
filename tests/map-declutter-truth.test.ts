@@ -1,13 +1,15 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { readFileSync } from 'node:fs'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+import { deriveDrivingPlan } from '../src/lib/ridePlan'
+import type { ApplyChange } from '../src/lib/mutationLifecycle'
 import { splitByDetourBudget } from '../src/lib/detourBudget'
 import { seedData } from '../src/data/seed'
 import { simulateDay } from '../src/lib/engine'
 import { filledStopClock } from '../src/pages/trip/map/driveLens'
-import { driveBudgetBarText, plannedDriveBudget } from '../src/pages/trip/map/LensRailExtras'
-import { TravelDayAdvice } from '../src/components/map/lenses/TravelDayAdvice'
+import { driveBudgetBarText, driveBudgetStep, plannedDriveBudget } from '../src/pages/trip/map/LensRailExtras'
+import { TravelDayAdvice, travelDayAdviceFor, applyTravelDays } from '../src/components/map/lenses/TravelDayAdvice'
 import { MapItinerary } from '../src/components/map/MapWorkspaceChrome'
 import { MapLensPanel, type MapLensPanelProps } from '../src/pages/trip/map/MapLensPanel'
 import { mapLensesFor } from '../src/pages/trip/map/useMapLenses'
@@ -50,14 +52,14 @@ it('the rail spends only the known detours of planned stops from the real projec
   const { trip, projection } = model()
   const day = trip.days[0]
   const budget = plannedDriveBudget(day.stops, projection.rows, 25)
-  expect(budget).toEqual({ usedMin: 12, budgetMin: 25 })
+  expect(budget).toEqual({ kind: 'known', usedMin: 12, budgetMin: 25 })
   expect(budget?.usedMin).toBe(projection.rows.filter(row => row.stopId != null).reduce((sum, row) => sum + (row.detourMin ?? 0), 0))
   const text = driveBudgetBarText(budget)
-  expect(text).toBe('12 of 25 min detour used')
+  expect(text).toBe('Detour 12 / 25 min')
   const html = renderToStaticMarkup(createElement(MapItinerary, { trip, journey: null, activeDay: day.index, budgetMin: 25, selectedStop: null, allDays: false, onShowAll: noop, onDayChange: noop, onSelect: noop, onFold: noop, budgetBar: { text: text ?? '', step: 2 } }))
-  expect(html).toContain('aria-valuetext="12 of 25 min detour used"')
-  expect(plannedDriveBudget(day.stops, projection.rows.filter(row => row.stopId !== day.stops[1].id), 25)).toBeNull()
-  expect(plannedDriveBudget([], projection.rows, 25)).toEqual({ usedMin: 0, budgetMin: 25 })
+  expect(html).toContain('aria-valuetext="Detour 12 / 25 min"')
+  expect(plannedDriveBudget(day.stops, projection.rows.filter(row => row.stopId !== day.stops[1].id), 25)).toEqual({ kind: 'unknown', usedMin: null, budgetMin: 25 })
+  expect(plannedDriveBudget([], projection.rows, 25)).toEqual({ kind: 'empty', usedMin: null, budgetMin: 25 })
 })
 
 it('the real route advice reaches the real Fix panel with Apply and Keep, without a false preview', () => {
@@ -67,18 +69,18 @@ it('the real route advice reaches the real Fix panel with Apply and Keep, withou
     activeDriveTab: null, onDriveTab: noop, stripOf: row => driveCardStrip(row, clock), bandOf: () => 'inside', introOf: () => null,
     onOpenDrive: noop, onAddDrive: noop, activeStayWindow: null, onStayWindow: noop, stayRing: 'walk-15', onStayRing: noop,
     onOpenStayPick: noop, onAddStayPick: noop, onSetStay: noop, onOpenGapPick: noop, onAddGapPick: noop, onApplyFix: noop, onPreviewFix: noop,
-    routeAdvice: createElement(TravelDayAdvice, { currentDays: trip.days.length, neededDays: 3, onApply: noop, onKeep: noop }),
+    routeAdvice: travelDayAdviceFor(advicePlan(), trip.days.length, { onApply: noop, onKeep: noop }),
   }
   const html = renderToStaticMarkup(createElement(MapLensPanel, props))
-  expect(html).toContain('Apply - add 2 days')
+  expect(html).toContain(`Apply - add ${advicePlan().dayCount - trip.days.length} days`)
   expect(html).toContain('Keep my 1-day plan')
-  expect(html).toContain('Existing stops keep their dates.')
+  expect(html).toContain('New days · Empty · Existing dates unchanged')
   expect(html).not.toContain('Preview added days')
   expect(html).not.toContain('No safe fix was found')
   expect(renderToStaticMarkup(createElement(TravelDayAdvice, { currentDays: 3, neededDays: 3, onApply: noop, onKeep: noop }))).toBe('')
   const source = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
   expect(source).not.toContain('splitPreview')
-  expect(source).toContain('onApply={applySplitDays}')
+  expect(source).toContain('travelDayAdviceFor(drivingPlan, trip.days.length')
 })
 
 it('the scope count equals in-scope picks rendered from the real lens producer across its tabs', () => {
@@ -93,7 +95,7 @@ it('the scope count equals in-scope picks rendered from the real lens producer a
   }))).join('')
   expect(counts.inside).toBeGreaterThan(0)
   expect((html.match(/data-scope-band="inside"/g) ?? []).length).toBe(counts.inside)
-  expect(renderToStaticMarkup(createElement(MapScopeBand, { minutes: 30, onMinutes: noop, counts }))).toContain(`${counts.inside} fit`)
+  expect(renderToStaticMarkup(createElement(MapScopeBand, { minutes: 30, onMinutes: noop, counts }))).toContain(`Fits: ${counts.inside}`)
 })
 
 it('keeps the clock out of the phone sheet and route advice in Fix', () => {
@@ -118,5 +120,120 @@ it('counts independent alternatives the same when provider order changes', () =>
   const reversed = overBudgetAlternativeIds([...rows].reverse(), 25)
   expect(forward).toEqual(reversed)
   expect(rows.filter(row => !forward.has(row.id))).toHaveLength(8)
-  expect(overBudgetAlternativeIds([{ id: 'unknown', detourMin: null }, { id: 'too-far', detourMin: 26 }], 25)).toEqual(new Set(['unknown', 'too-far']))
+  expect(overBudgetAlternativeIds([{ id: 'unknown', detourMin: null }, { id: 'too-far', detourMin: 26 }], 25)).toEqual(new Set(['too-far']))
+})
+
+function advicePlan() {
+  return deriveDrivingPlan({ totalKm: 1800, driveMinutes: 1800, dayStart: '05:00', travelStyle: 'balanced', transportMode: 'car' })
+}
+
+it('compares each known candidate with the budget left after planned stops', () => {
+  const held = overBudgetAlternativeIds([{ id: 'ten', detourMin: 10 }, { id: 'four', detourMin: 4 }], 25, 20)
+  expect(held).toEqual(new Set(['ten']))
+  const base = model().lenses.drive.view.rows[0]
+  expect(scopeBandOf({ ...base, row: { ...base.row, hit: { ...base.row.hit, id: 'ten' } }, detourMin: 10 }, 30, held)).toBe('over-budget')
+  expect(scopeBandOf({ ...base, row: { ...base.row, hit: { ...base.row.hit, id: 'four' } }, detourMin: 4 }, 30, held)).toBe('inside')
+})
+
+it('keeps an unknown detour separate, visible and available to add', () => {
+  const { lenses, slots } = model()
+  const row = { ...lenses.drive.view.rows[0], detourMin: null, budgetSharePct: 150 }
+  const held = overBudgetAlternativeIds([{ id: String(row.row.hit.id), detourMin: null }], 25, 20)
+  const band = scopeBandOf(row, 30, held)
+  expect(band).toBe('unknown')
+  expect(bandCounts([band])).toMatchObject({ inside: 0, justPast: 0, worthDetour: 0 })
+  const result = driveTabs({ ...lenses.drive.view, rows: [row] }, slots, 100)
+  const html = result.tabs.map(tab => renderToStaticMarkup(createElement(DriveTabs, {
+    result, activeTab: tab.tab, onTab: noop, intro: null, stripOf: item => driveCardStrip(item, clock),
+    bandOf: item => scopeBandOf(item, 30, held), nameOf: item => item.row.hit.name, onOpen: noop, onAdd: noop, dayNumber: 3,
+  }))).join('')
+  expect(html).toContain('Detour · Not measured')
+  expect(html).not.toContain('disabled=')
+  expect(html).not.toContain('over today')
+  expect(html).not.toContain('150%')
+})
+
+it('names known, unknown, empty and over-limit planned budgets', () => {
+  const { trip, projection } = model()
+  const day = trip.days[0]
+  expect(driveBudgetBarText(plannedDriveBudget(day.stops, projection.rows, 25))).toBe('Detour 12 / 25 min')
+  expect(driveBudgetBarText(plannedDriveBudget(day.stops, [], 25))).toBe('Detour · Not measured')
+  expect(driveBudgetBarText(plannedDriveBudget([], [], 25))).toBe('Detour · No stops')
+  expect(driveBudgetBarText({ kind: 'known', usedMin: 78, budgetMin: 25 })).toBe('Detour 78 / 25 min · 53 min over')
+})
+
+it('applies real driving advice through the writer and restores the old days on Undo', () => {
+  const { trip } = model()
+  const original = structuredClone(trip)
+  const writes: Parameters<ApplyChange>[] = []
+  const writer: ApplyChange = (...args) => { writes.push(args) }
+  const ready = vi.fn<(undo: () => void) => void>()
+  expect(applyTravelDays(trip, advicePlan(), writer, ready)).toBe(true)
+  expect(writes[0][1]).toBe('add')
+  writes[0][0](trip)
+  expect(trip.days.length).toBe(advicePlan().dayCount)
+  expect(ready).not.toHaveBeenCalled()
+  writes[0][3]?.()
+  expect(ready).not.toHaveBeenCalled()
+  writes[0][3]?.({ kind: 'acknowledged', revision: 'saved', writeVersion: 1 })
+  const added = trip.days[1]
+  trip.days[1] = { stops: added.stops, startTime: added.startTime, title: added.title, index: added.index, id: added.id }
+  ready.mock.calls[0][0]()
+  expect(writes[1][1]).toBe('edit')
+  writes[1][0](trip)
+  expect(trip).toEqual(original)
+})
+
+it('keeps changed added days when Undo would remove later work', () => {
+  const { trip } = model()
+  const writes: Parameters<ApplyChange>[] = []
+  const writer: ApplyChange = (...args) => { writes.push(args) }
+  const ready = vi.fn<(undo: () => void) => void>()
+  applyTravelDays(trip, advicePlan(), writer, ready)
+  writes[0][0](trip)
+  writes[0][3]?.({ kind: 'acknowledged', revision: 'saved', writeVersion: 1 })
+  trip.days[1].title = 'Changed after Apply'
+  ready.mock.calls[0][0]()
+  const beforeUndo = structuredClone(trip)
+  expect(() => writes[1][0](trip)).toThrow('The added days changed')
+  expect(trip).toEqual(beforeUndo)
+})
+
+it('renders explicit unknown and empty rail text without a progress bar', () => {
+  const { trip } = model()
+  for (const [stops, message] of [[trip.days[0].stops, 'Detour · Not measured'], [[], 'Detour · No stops']] as const) {
+    const budget = plannedDriveBudget(stops, [], 25)
+    const text = driveBudgetBarText(budget) ?? ''
+    const html = renderToStaticMarkup(createElement(MapItinerary, {
+      trip, journey: null, activeDay: trip.days[0].index, budgetMin: 25, selectedStop: null, allDays: false,
+      onShowAll: noop, onDayChange: noop, onSelect: noop, onFold: noop,
+      budgetBar: { text, step: driveBudgetStep(budget.usedMin, budget.budgetMin) },
+    }))
+    expect(html).toContain(message)
+    expect(html).not.toContain('role="progressbar"')
+  }
+})
+
+
+it.each(['flight', 'commitment'] as const)('keeps added days referenced by a later %s', kind => {
+  const { trip } = model()
+  const writes: Parameters<ApplyChange>[] = []
+  const writer: ApplyChange = (...args) => { writes.push(args) }
+  const ready = vi.fn<(undo: () => void) => void>()
+  applyTravelDays(trip, advicePlan(), writer, ready)
+  writes[0][0](trip)
+  writes[0][3]?.({ kind: 'acknowledged', revision: 'saved', writeVersion: 1 })
+  const dayIndex = trip.days[1].index
+  if (kind === 'flight') trip.flights = [{ id: 'new-flight', dayIndex, fromAirport: 'GOI', toAirport: 'BOM' }]
+  else trip.fixedCommitments.push({ id: 'new-event', dayIndex, title: 'Event', type: 'event', time: '12:00' })
+  ready.mock.calls[0][0]()
+  const beforeUndo = structuredClone(trip)
+  expect(() => writes[1][0](trip)).toThrow('The added days changed')
+  expect(trip).toEqual(beforeUndo)
+})
+
+
+it('keeps measured Fix travel evidence as compact labels with both original facts', async () => {
+  const { formatFixEvidence } = await import('../src/pages/trip/map/fixLens')
+  expect(formatFixEvidence('About 10h 25m of driving/transit across 626 km.', value => value)).toBe('Travel 10h 25m · Distance 626 km')
 })

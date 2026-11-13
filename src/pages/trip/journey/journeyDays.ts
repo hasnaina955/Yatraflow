@@ -499,6 +499,7 @@ export function buildJourneyDays(input: JourneyDaysInput): JourneyDays {
     : { dayForKm: () => scanDay, dayOfSegment: () => scanDay, daySpanKm: snapshot.dayAttribution.daySpanKm }
   const dnaVector = input.dnaVector ?? EMPTY_DNA
   const slotFacts = deriveDaySlotFacts({
+    scheduleOf: dayIndex => cards.byDay.get(dayIndex)?.sim,
     tripId: committed.id,
     days: trip.days,
     pois: snapshot.pois,

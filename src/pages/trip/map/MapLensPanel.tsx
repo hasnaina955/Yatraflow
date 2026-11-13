@@ -56,10 +56,12 @@ export interface MapLensPanelProps {
 }
 
 /** The stay deck when the base exists but no free window is known. */
-function StayWindowUnknown({ onClose }: { onClose?: () => void }) {
+function StayWindowUnknown({ onClose, noFreeTime }: { onClose?: () => void; noFreeTime?: boolean }) {
   return <section className="mv2-lens-deck" aria-label="Around the stay">
     <LensDeckHeader kicker="Around the stay" title="Around the stay" onClose={onClose} />
-    <p className="mv2-lens-phase">The free time around this stay is unknown for this day.</p>
+    <p className="mv2-lens-phase">{noFreeTime === true
+      ? 'No free time is left around this stay today.'
+      : 'The free time around this stay is unknown for this day.'}</p>
   </section>
 }
 
@@ -115,7 +117,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
         onClose={props.onFold}
       />
     }
-    if (stay.windowUnknown) return <StayWindowUnknown onClose={props.onFold} />
+    if (stay.windowUnknown) return <StayWindowUnknown onClose={props.onFold} noFreeTime={stay.noFreeTime === true} />
     const activeWindow = stay.windows.find(window => window.id === props.activeStayWindow)
       ?? stay.windows[0]
     const result = activeWindow == null

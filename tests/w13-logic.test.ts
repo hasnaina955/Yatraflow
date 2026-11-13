@@ -80,24 +80,24 @@ describe('fix tag and badge', () => {
     expect(html).toContain('mv2-stop-warn')
   })
 
-  it('flips the fix tag left when the right edge is short', () => {
+  it('hides the fix tag when its first free place is off the clear map area', () => {
     const spots = layoutMarks([
       { id: 'stop', layer: 'stop', x: 150, y: 100, w: 36, h: 36 },
       { id: 'fix-tag', layer: 'clock', follows: 'stop', x: 150, y: 100, w: 60, h: 20, alternates: [[50, 0], [-50, 0], [0, 30], [0, -30]] },
     ], { bounds: { left: 0, top: 0, right: 215, bottom: 200 } })
     const tag = spots.get('fix-tag')!
-    expect(tag.hidden).toBe(false)
-    expect(tag.dx).toBeLessThan(0)
+    // The bounds only hide a tag. They never move it, so a pan cannot flip it.
+    expect(tag.hidden).toBe(true)
   })
 
-  it('drops the fix tag below when neither side fits', () => {
+  it('moves the fix tag to its first free alternate when the stop covers its own place', () => {
     const spots = layoutMarks([
       { id: 'stop', layer: 'stop', x: 100, y: 100, w: 36, h: 36 },
       { id: 'fix-tag', layer: 'clock', follows: 'stop', x: 100, y: 100, w: 120, h: 20, alternates: [[80, 0], [-80, 0], [0, 30], [0, -30]] },
-    ], { bounds: { left: 0, top: 0, right: 200, bottom: 200 } })
+    ])
     const tag = spots.get('fix-tag')!
     expect(tag.hidden).toBe(false)
-    expect(tag.dy).toBeGreaterThan(0)
+    expect(tag.dx).toBe(80)
   })
 })
 

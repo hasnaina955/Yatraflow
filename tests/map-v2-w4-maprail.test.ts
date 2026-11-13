@@ -79,6 +79,10 @@ describe('W4-B map and rail', () => {
     expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45, freeStops: 2 }))
       .toBe('12 of 45 min · 2 free stops')
     expect(driveBudgetBarText({ usedMin: 12, budgetMin: 45, freeStops: null })).toBeNull()
+    // The sum of the offered detours is above the day budget (real Goa trip, Day 1).
+    expect(driveBudgetBarText({ usedMin: 78, budgetMin: 25, freeStops: 4 }))
+      .toBe('78 of 25 min · over budget · 4 free stops')
+    expect(driveBudgetBarText({ usedMin: 25, budgetMin: 25, freeStops: 4 })).toBe('25 of 25 min · 4 free stops')
     expect(driveBudgetBarText(null)).toBeNull()
   })
 

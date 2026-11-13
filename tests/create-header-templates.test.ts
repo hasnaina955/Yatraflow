@@ -66,8 +66,10 @@ describe('Create trip template strip (P11)', () => {
 describe('Create trip stylesheet (P11)', () => {
   const MARK = '/* ===== Create trip (P11)'
   const HIT = '/* ===== Create trip (P11): phone hit area'
-  const section = css.slice(css.indexOf(MARK))
-  const hit = css.slice(css.indexOf(HIT))
+  // The P11 block ends with its own file. A later file must not count as part of it.
+  const p11 = read('../src/styles/legacy/13-phone-polish-and-guided-create.css')
+  const section = p11.slice(p11.indexOf(MARK))
+  const hit = p11.slice(p11.indexOf(HIT))
   const phone = section.slice(section.indexOf('@media (max-width: 720px) {'))
 
   it('appends the P11 block after the Profile block at the end of the file', () => {

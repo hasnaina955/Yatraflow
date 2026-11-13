@@ -1,9 +1,11 @@
 // Around the stay lens. Pure functions for base, rings, reach, windows and fit.
-// This module has no UI and no schedule logic.
+// This module has no UI. It reads the day schedule only to find busy spans.
 import type { Trip, ItineraryStop } from '../../../data/types'
 import type { StayBase, StayLensRow, StayLensOutput, LensPhase } from '../../../lib/mapLensContracts'
 import { DEFAULT_SPEED_KMH } from '../../../lib/providers/hits'
 import { intendedVisitMinutes } from '../../../lib/hoursContext'
+import { hmToMinutes } from '../../../lib/engine'
+import { validHM } from '../../../lib/timefmt'
 import { lensFit, fitCopy, type FitWindow, type LensFit } from './lensFit'
 
 // The two reach rings: 15 min walk and 30 min drive.
@@ -35,9 +37,51 @@ export interface StayWindow extends FitWindow {
   label: string
 }
 
-/** The fixed evening booking the free window has to wait for: the boat's own
- *  clock, its length and the way back to the base. A missing length is treated
- *  as zero (the window starts when the booking starts), never guessed. */
+/** One scheduled stop's span in minutes since midnight. */
+export interface StayBusy {
+  startMin: number
+  endMin: number
+}
+
+/**
+ * The spans of the stops the day schedule places after the base stop. A span
+ * ends at the stop's departure; a missing or unreadable departure falls back to
+ * the arrival plus the stop's own visit length. An unreadable arrival drops the
+ * stop. No base on the schedule (index below 0) gives no span.
+ */
+export function scheduledBusyAfter(
+  schedule: {
+    activeStops: readonly { visitMinutes?: number }[]
+    arrivalTimes: readonly string[]
+    departures?: readonly string[]
+  },
+  baseAt: number,
+): StayBusy[] {
+  if (baseAt < 0) return []
+  const out: StayBusy[] = []
+  // Index-keyed maps replace computed reads. A hole reads as undefined.
+  const arrivals = new Map(schedule.arrivalTimes.entries())
+  const departures = new Map((schedule.departures ?? []).entries())
+  const stops = new Map(schedule.activeStops.entries())
+  for (let at = baseAt + 1; at < schedule.activeStops.length; at += 1) {
+    const arrive = clockOrNull(arrivals.get(at))
+    if (arrive == null) continue
+    const left = clockOrNull(departures.get(at))
+    const visit = stops.get(at)?.visitMinutes
+    const end = left != null && left >= arrive
+      ? left
+      : arrive + (typeof visit === 'number' && Number.isFinite(visit) ? Math.max(0, visit) : 0)
+    out.push({ startMin: arrive, endMin: end })
+  }
+  return out
+}
+
+function clockOrNull(hm: string | undefined): number | null {
+  const valid = validHM(hm)
+  return valid === undefined ? null : hmToMinutes(valid)
+}
+
+/** A fixed booking's clock and length. An unknown length adds no guessed time. */
 export interface StayEveningBook {
   startMin: number
   visitMin: number | null
@@ -141,6 +185,10 @@ export function stayWindows(input: {
   /** Where an empty dinner window begins. The free evening ends there, so the
    *  two windows never overlap. Absent keeps the day-end clock. */
   dinnerStartMin?: number | null
+  /** The stops the day schedule places after the base arrival. The evening
+   *  starts after the last one that falls before the day ends, so a beach and a
+   *  dinner on the plan are never called free time. */
+  scheduled?: readonly StayBusy[]
 }): StayWindow[] {
   const windows: StayWindow[] = []
   const { arriveAtBaseMin, leaveBaseMin, eveningBook } = input
@@ -148,9 +196,19 @@ export function stayWindows(input: {
   const bookEnd = book == null
     ? null
     : book.startMin + (book.visitMin != null && Number.isFinite(book.visitMin) ? Math.max(0, book.visitMin) : 0)
-  const eveningStart = arriveAtBaseMin != null && Number.isFinite(arriveAtBaseMin)
+  const afterBook = arriveAtBaseMin != null && Number.isFinite(arriveAtBaseMin)
     ? bookEnd == null ? arriveAtBaseMin : Math.max(arriveAtBaseMin, bookEnd)
     : bookEnd
+  // A scheduled stop that starts before the day ends and ends after the evening
+  // opens pushes the opening to its end. An unreadable stop is ignored.
+  const eveningStart = afterBook == null
+    ? null
+    : (input.scheduled ?? []).reduce((open, busy) => (
+      Number.isFinite(busy.startMin) && Number.isFinite(busy.endMin)
+        && busy.startMin < STAY_DAY_END_MIN && busy.endMin > open
+        ? busy.endMin
+        : open
+    ), afterBook)
   const dinnerStart = input.dinnerStartMin
   const eveningEnd = eveningStart !== null && dinnerStart != null && Number.isFinite(dinnerStart) && dinnerStart > eveningStart
     ? Math.min(STAY_DAY_END_MIN, dinnerStart)

@@ -41,19 +41,37 @@
 
 /* Map workspace. The real map sits behind the itinerary, search and pick deck. */
 .container.yf-workspace.yf-workspace[data-map-active='true'] { width: 100%; max-width: none; }
-.mv2-workspace { --mv2-day-width: 380px; --mv2-deck-width: 372px; --mv2-inset: var(--space-5); position: relative; min-width: 0; }
+.mv2-workspace { --mv2-day-width: 380px; --mv2-deck-width: 372px; --mv2-inset: var(--space-5); --mv2-ribbon-h: 72px; position: relative; min-width: 0; }
 .mv2-workspace .map-ideas-grid { display: block; position: relative; height: var(--mv2-canvas-height, max(640px, calc(100dvh - 200px))); min-height: 320px; margin-top: 0; isolation: isolate; overflow: clip; border-radius: var(--radius-lg); background: var(--bg-soft); transition: none; }
 .mv2-workspace .map-ideas-map { position: absolute; inset: 0; min-width: 0; }
 .mv2-workspace .map-shell--workspace { height: 100%; border-radius: 0; box-shadow: none; border: 0; }
 .mv2-workspace .map-ideas-grid .map-ideas-map .map-shell--workspace:not(.map-shell--expanded) .map-frame { height: 100%; min-height: 0; }
 .mv2-workspace .yf-maplibre { height: 100%; }
 .mv2-workspace .map-shell--workspace .map-toolbar { position: absolute; z-index: 3; top: 86px; right: calc(var(--mv2-deck-width) + var(--space-10)); width: 48px; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: var(--space-4); border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; }
+/* F1: the control column stays between the lens toolbar and the journey ribbon at every height.
+   It ends above the ribbon. When its cards are taller than that space, the gaps close first and
+   the column then scrolls. The 236px of left padding is clear room for the filter popup, which the
+   scroll box would otherwise cut off. The box lets pointer events through, so the map stays draggable. */
+@media (min-width: 761px) {
+  .mv2-workspace .map-shell--workspace .map-toolbar { z-index: 6; bottom: calc(var(--mv2-inset) + var(--mv2-ribbon-h) + var(--space-4)); box-sizing: border-box; width: 284px; padding-left: 236px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; pointer-events: none; }
+  .mv2-workspace .map-toolbar::-webkit-scrollbar { display: none; }
+  .mv2-workspace .map-toolbar .mv2-map-tools { flex: 0 0 auto; pointer-events: none; }
+  .mv2-workspace .map-toolbar .mv2-map-tools-card { flex: 0 0 auto; pointer-events: auto; }
+  /* Zoom is the most used control. It stays in view while the lower groups scroll under it. */
+  .mv2-workspace .map-toolbar .mv2-map-tools-card--zoom { position: sticky; top: 0; z-index: 1; }
+}
+@media (min-width: 761px) and (max-height: 860px) {
+  .mv2-workspace .map-shell--workspace .map-toolbar .mv2-map-tools { gap: var(--space-2); }
+  .mv2-workspace .map-toolbar .mv2-map-tools-divider { margin-block: 0; }
+}
 .mv2-workspace .map-shell--workspace .map-day-filter { display: none; }
 .mv2-workspace .map-toolbar-mid, .mv2-workspace .map-toolbar-end, .mv2-workspace .map-util-group, .mv2-workspace .map-mode-group { display: flex; flex-direction: column; align-items: center; width: 100%; margin: 0; padding: 0; gap: 0; border: 0; }
 .mv2-workspace .map-toolbar .map-day-chip { min-width: 40px; min-height: 44px; width: 40px; padding: var(--space-2); justify-content: center; font-size: 0; border: 0; }
 .mv2-workspace .map-toolbar .map-day-chip svg { width: 17px; height: 17px; margin: 0; }
 .mv2-workspace .map-toolbar .map-day-chip .inline-icon { margin: 0; }
-.mv2-workspace .map-filters-pop { right: 48px; top: 0; width: 220px; font-size: 13px; }
+/* F1: the filter menu opens to the left of the column, inside the clear map area. It has the deck's solid
+   card surface, so no mark shows through it. It scrolls when it is tall. */
+.mv2-workspace .map-filters-pop { left: auto; right: 48px; top: 0; width: 220px; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .mv2-workspace .yf-map-ctrls { display: none; }
 .mv2-workspace .mv2-omnibar { position: absolute; top: var(--mv2-inset); left: calc(var(--mv2-day-width) + var(--space-10)); width: min(390px, calc(100% - var(--mv2-day-width) - var(--mv2-deck-width) - 80px)); z-index: 6; margin: 0; padding: var(--space-2) var(--space-5); border: 0; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); background: var(--card); color: var(--text); }
 .mv2-omnibar > form { min-height: 44px; }
@@ -156,7 +174,7 @@
 .mv2-source { display: flex; align-items: flex-start; gap: var(--space-3); margin: 0; padding: var(--space-5) var(--space-7) var(--space-7); color: var(--pw-ink-3); font-size: 11.5px; font-weight: 400; line-height: 1.4; }
 .mv2-source svg { flex: 0 0 auto; margin-top: var(--space-1); }
 .mv2-viewer-note { font-size: var(--text-xs); color: var(--text-2); }
-.mv2-ribbon, .mv2-ribbon-sheet { position: absolute; z-index: 4; bottom: var(--mv2-inset); left: calc(var(--mv2-day-width) + var(--space-10)); right: calc(var(--mv2-deck-width) + var(--space-10)); display: grid; grid-template-columns: minmax(94px, max-content) minmax(0, 1fr); column-gap: 10px; align-items: stretch; height: 72px; min-height: 72px; padding: 0 var(--space-8) 0 var(--space-6); border-radius: 18px; background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); }
+.mv2-ribbon, .mv2-ribbon-sheet { position: absolute; z-index: 4; bottom: var(--mv2-inset); left: calc(var(--mv2-day-width) + var(--space-10)); right: calc(var(--mv2-deck-width) + var(--space-10)); display: grid; grid-template-columns: minmax(94px, max-content) minmax(0, 1fr); column-gap: 10px; align-items: stretch; height: var(--mv2-ribbon-h); min-height: var(--mv2-ribbon-h); padding: 0 var(--space-8) 0 var(--space-6); border-radius: 18px; background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); }
 .mv2-ribbon-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: 132px; padding-top: var(--space-5); line-height: 1.2; }
 .mv2-ribbon-title > span, .mv2-ribbon-title small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--pw-ink-3); font-size: 11px; }
 .mv2-ribbon-title > span { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
@@ -187,12 +205,25 @@
 .mv2-workspace .maplibregl-ctrl-attrib a { color: var(--text-2); }
 .mv2-workspace .map-shell--workspace > .tm-note { display: none; }
 .mv2-workspace .map-toolbar .map-filters .map-day-chip { font-size: 11px; }
+/* F1: the search bar and the lens switch share one row, so the bar never covers a lens. The bar
+   shrinks first. Below 1260px the lens names hide and each lens keeps its icon and count. Each button
+   keeps its aria-label and a 44px target. */
+@media (min-width: 1181px) {
+  .mv2-workspace { --mv2-lens-span: 491px; }
+  .mv2-workspace .mv2-omnibar { width: min(390px, calc(100% - var(--mv2-day-width) - var(--mv2-deck-width) - 80px), calc(100% - var(--mv2-day-width) - var(--space-10) - var(--mv2-lens-span) - var(--mv2-inset) - var(--space-4))); }
+}
+@media (min-width: 1181px) and (max-width: 1259px) {
+  .mv2-workspace { --mv2-lens-span: 290px; }
+  .mv2-workspace .mv2-lenses > button { min-width: 44px; padding-inline: var(--space-4); gap: var(--space-2); }
+  .mv2-workspace .mv2-lenses > button > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 @media (max-width: 1180px) and (min-width: 761px) {
   .mv2-workspace { --mv2-day-width: 272px; --mv2-deck-width: 280px; --mv2-inset: var(--space-5); }
   .mv2-workspace .mv2-omnibar { width: calc(100% - var(--mv2-day-width) - 70px); }
   .mv2-workspace .mv2-lenses { top: 82px; right: var(--mv2-inset); }
   .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail { top: 148px; bottom: 100px; }
   .mv2-workspace .map-toolbar { right: var(--mv2-inset); top: 148px; }
+  .mv2-workspace .map-shell--workspace .map-toolbar { top: 148px; }
   .mv2-workspace .mv2-ribbon { right: var(--mv2-inset); }
 }
 @media (max-width: 760px) {

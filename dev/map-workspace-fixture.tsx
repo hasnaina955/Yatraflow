@@ -30,7 +30,7 @@ import { boardLegBetween, fixtureModeFromSearch, installFixtureTransport } from 
 // The page says the provider transport is controlled. This call keeps that
 // promise on every dev server, so no lens deck waits on a live place scan.
 // The board trip answers its own sample places. A provider query picks another mode.
-installFixtureTransport(undefined, new URLSearchParams(location.search).has('provider') ? fixtureModeFromSearch(location.search) : new URLSearchParams(location.search).get('trip') === 'small' ? 'answer' : 'board')
+installFixtureTransport(undefined, new URLSearchParams(location.search).has('provider') ? fixtureModeFromSearch(location.search) : new URLSearchParams(location.search).get('scenario') === 'goa' ? 'near' : new URLSearchParams(location.search).get('trip') === 'small' ? 'answer' : 'board')
 
 const params = new URLSearchParams(location.search)
 const mode = params.get('state') ?? 'ready'
@@ -45,8 +45,13 @@ const stop = (id: string, title: string, category: ItineraryStop['category'], la
 // road is one recorded OSRM answer (dev/map-board-day3-road.json). Every stop of
 // Day 3 stands on a vertex of that line. All of this is sample data.
 const at = (key: keyof typeof boardRoad.stops) => ({ lat: boardRoad.stops[key].at[1], lng: boardRoad.stops[key].at[0] })
-const boardTrip = params.get('trip') !== 'small'
+// scenario=goa is the F2 real-trip sample: one Day 1 drive with a busy evening.
+const goaScenario = params.get('scenario') === 'goa'
+const boardTrip = !goaScenario && params.get('trip') !== 'small'
 const fixScenario = params.get('scenario') === 'fix'
+// The dense scenario is a 5 day, 34 stop trip along Mumbai, Goa and Karnataka. It shows how the
+// map draws many close stops at low zoom. All of it is sample data.
+const denseScenario = params.get('scenario') === 'dense'
 const small = (): Trip => ({
   id: 'fixture-map-local-only', name: 'Kerala loop', startLocation: 'Munnar', startLocationCoords: { lat: 10.088, lng: 77.059 }, destinations: ['Thekkady'], destinationCoords: [{ lat: 9.604, lng: 77.164 }],
   startDate: '2027-11-14', endDate: '2027-11-16', travellers: 2, budgetPerPersonInr: 12000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
@@ -98,7 +103,48 @@ const board = (): Trip => ({
     ] },
   ],
 })
-const trip: Trip = boardTrip ? board() : small()
+const denseStops: [string, ItineraryStop['category'], number, number][][] = [
+  [['Gateway of India', 'sightseeing', 18.922, 72.8347], ['Marine Drive walk', 'nature', 18.944, 72.823], ['CSMT station', 'sightseeing', 18.9398, 72.8355], ['Colaba Causeway', 'shopping', 18.9154, 72.828], ['Check in · Harbour Hotel', 'hotel', 18.922, 72.833], ['Elephanta Caves', 'sightseeing', 18.9633, 72.9315], ['Alibag beach', 'nature', 18.6414, 72.8722]],
+  [['Ganpatipule temple', 'temple', 17.145, 73.27], ['Ratnagiri fort', 'sightseeing', 16.983, 73.27], ['Tarkarli beach', 'beach', 16.02, 73.47], ['Sindhudurg fort', 'sightseeing', 16.042, 73.46], ['Check in · Tarkarli Homestay', 'hotel', 16.015, 73.465]],
+  [['Fort Aguada', 'sightseeing', 15.4925, 73.7737], ['Baga beach', 'beach', 15.5553, 73.7517], ['Calangute market', 'shopping', 15.544, 73.755], ['Candolim lunch', 'food', 15.518, 73.762], ['Anjuna flea market', 'shopping', 15.5736, 73.7413], ['Vagator cliff', 'nature', 15.6, 73.738], ['Check in · Candolim Resort', 'hotel', 15.519, 73.763], ['Chapora fort', 'sightseeing', 15.606, 73.736], ['Panjim Latin quarter', 'sightseeing', 15.4989, 73.8278]],
+  [['Basilica of Bom Jesus', 'temple', 15.5009, 73.9116], ['Se Cathedral', 'temple', 15.503, 73.912], ['Dudhsagar falls', 'nature', 15.3144, 74.3143], ['Palolem beach', 'beach', 15.01, 74.023], ['Agonda beach', 'beach', 15.045, 73.988], ['Colva beach', 'beach', 15.28, 73.922], ['Check in · Palolem Huts', 'hotel', 15.011, 74.024]],
+  [['Om beach, Gokarna', 'beach', 14.52, 74.317], ['Mahabaleshwar temple', 'temple', 14.54, 74.32], ['Murudeshwar', 'temple', 14.094, 74.485], ['Udupi Krishna temple', 'temple', 13.3409, 74.7421], ['Panambur beach', 'beach', 12.94, 74.812], ['Check in · Mangaluru Hotel', 'hotel', 12.87, 74.842]],
+]
+const DENSE_TITLES = new Map(['Mumbai', 'Konkan coast', 'North Goa', 'South Goa', 'Karnataka coast'].entries())
+const dense = (): Trip => ({
+  id: 'fixture-map-local-only', name: 'Mumbai to Mangaluru', startLocation: 'Mumbai', startLocationCoords: { lat: 18.9388, lng: 72.8354 }, destinations: ['Mangaluru'], destinationCoords: [{ lat: 12.87, lng: 74.842 }],
+  startDate: '2026-11-14', endDate: '2026-11-18', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
+  createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }], fixedCommitments: [],
+  days: denseStops.map((rows, dayIndex) => ({
+    id: `fixture-dense-day-${dayIndex + 1}`, index: dayIndex, startTime: '09:00', title: DENSE_TITLES.get(dayIndex) ?? `Day ${dayIndex + 1}`,
+    stops: rows.map(([title, category, lat, lng], order) => stop(`fixture-dense-${dayIndex + 1}-${order + 1}`, title, category, lat, lng, order + 1, 45)),
+  })),
+})
+// The Goa sample: a Day 1 drive from South Mumbai to a Candolim stay, with a
+// beach swim and a beach dinner after the check-in. Every name and number is
+// sample data. coordinates=saved keeps the bad start-place coordinates for
+// Lonavala. The default uses the town's sample position and a nonzero first leg.
+const goaStart = { lat: 18.9388, lng: 72.8354 }
+const goaSavedCoordinates = params.get('coordinates') === 'saved'
+const goaBreakfast = goaSavedCoordinates ? goaStart : { lat: 18.7546, lng: 73.4062 }
+const goa = (): Trip => ({
+  id: 'fixture-map-local-only', name: 'Goa North & South', startLocation: 'South Mumbai', startLocationCoords: goaStart, destinations: ['Panjim'], destinationCoords: [{ lat: 15.4909, lng: 73.8278 }],
+  startDate: '2026-09-15', endDate: '2026-09-16', travellers: 2, budgetPerPersonInr: 24000, travelStyle: 'balanced', transportMode: 'car', stayStyle: 'comfort', roundTrip: false,
+  createdAt: 1, updatedAt: 1, expenses: [], coverEmoji: '', visibility: 'private', members: [{ userId: 'fixture-map-user', role: 'owner', joinedAt: 1 }],
+  fixedCommitments: [],
+  days: [
+    { id: 'fixture-goa-1', index: 0, startTime: '05:00', title: 'South Mumbai → Panjim drive + Candolim beach arrival', stops: [
+      stop('goa-lonavala', 'Lonavala breakfast stop — chai & vada pav', 'food', goaBreakfast.lat, goaBreakfast.lng, 1, 30, 'Lonavala, Maharashtra'),
+      stop('goa-karla', 'Karla caves visit', 'sightseeing', 18.7826, 73.4727, 2, 45, 'Karla, Maharashtra'),
+      stop('goa-thana', 'Thana Ghat lunch — Goan seafood thali', 'food', 15.5993, 74.0113, 3, 60, 'Thana, Goa'),
+      stop('goa-hotel', 'Check in · Agoa Palace hotel', 'hotel', 15.518, 73.7628, 4, 60, 'Candolim, Bardez'),
+      stop('goa-beach', 'Candolim beach swim', 'beach', 15.5155, 73.7615, 5, 120, 'Candolim'),
+      stop('goa-dinner', 'Dinner at Kubyu Beach Club', 'food', 15.5553, 73.7517, 6, 120, 'Baga Beach'),
+    ] },
+    { id: 'fixture-goa-2', index: 1, startTime: '09:00', title: 'North Goa forts', stops: [stop('goa-fort', 'Fort Aguada', 'sightseeing', 15.4925, 73.7737, 1, 90)] },
+  ],
+})
+const trip: Trip = denseScenario ? dense() : goaScenario ? goa() : boardTrip ? board() : small()
 if (params.get('marks') === 'states') trip.days[0].stops[0].status = 'maybe'
 // Sample: the hotel is the stay base. It fills no slot (its key names none), so
 // the stay and dinner windows stay open and the stay lens shows the sample picks
@@ -113,7 +159,7 @@ const assumptions = getAssumptions(trip)
 const legs = chain.points.slice(1).map((point, index) => {
   const estimate = legBetween(chain.points[index], point, assumptions)
   const from = chain.points[index]
-  const onRoad = boardTrip ? boardLegBetween(from, point) : null
+  const onRoad = boardTrip && !denseScenario ? boardLegBetween(from, point) : null
   return {
     distanceKm: onRoad?.distanceKm ?? estimate.distanceKm,
     durationMinutes: onRoad?.durationMinutes ?? estimate.durationMinutes,
@@ -121,6 +167,16 @@ const legs = chain.points.slice(1).map((point, index) => {
     geometry: onRoad?.geometry ?? ([[from.lng, from.lat], [point.lng, point.lat]] as [number, number][]),
   }
 })
+// Sample legs in chain order: start, Lonavala, Karla, Thana, hotel, beach,
+// dinner. The corrected first leg is synthetic, not a live road measurement.
+const GOA_LEGS: ReadonlyArray<readonly [number, number]> = [goaSavedCoordinates ? [0, 0] : [80, 90], [46, 38], [167, 189], [321, 286], [5, 10], [7, 12]]
+if (goaScenario) {
+  const legsByIndex = new Map(legs.entries())
+  GOA_LEGS.forEach(([distanceKm, durationMinutes], index) => {
+    const leg = legsByIndex.get(index)
+    if (leg) legs.splice(index, 1, { ...leg, distanceKm, durationMinutes })
+  })
+}
 const road: TripRoadView = { chain, legs, status: 'ok', retry: () => undefined }
 const corrections = correctionsFromLegs(chain, legs)
 
@@ -175,8 +231,8 @@ const splitRecordedLegs = (hits: readonly { latitude: number; longitude: number 
       const from = chain.points[index]
       const to = chain.points[index + 1]
       if (!from || !to) continue
-      const inLeg = boardTrip ? boardLegBetween(from, point) : null
-      const outLeg = boardTrip ? boardLegBetween(point, to) : null
+      const inLeg = boardTrip && !denseScenario ? boardLegBetween(from, point) : null
+      const outLeg = boardTrip && !denseScenario ? boardLegBetween(point, to) : null
       if (!inLeg || !outLeg) continue
       const total = inLeg.distanceKm + outLeg.distanceKm
       if (!(total > 0)) continue
@@ -210,7 +266,7 @@ const SAMPLE_STAY: readonly PlaceHit[] = [
   sampleStayHit(930010, 'Boat landing viewpoint', 'sightseeing', -0.0115, -0.0082, '06:00', '18:30', { admin1: 'Thekkady', facts: { kind: 'Viewpoint' } }),
 ]
 splitRecordedLegs(SAMPLE_STAY)
-for (const [slotKey, hits] of [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
+for (const [slotKey, hits] of denseScenario ? [] : [['lunch', SAMPLE_LUNCH], ['stay', SAMPLE_STAY]] as const) {
   const context = { tripId: trip.id, dayId: 'fixture-day-3', slotKey }
   for (const hit of hits) mapManualSlotStore.file(context, hit)
 }
@@ -220,7 +276,7 @@ const crewSuggestions = syntheticSeeds.map((seed, index) => ({
 
 function Fixture() {
   const cache = useSuggestionCache(trip.id, trip.days.length)
-  const [day, setDay] = useState<number | 'all'>(boardTrip ? 2 : 0)
+  const [day, setDay] = useState<number | 'all'>(denseScenario ? 'all' : boardTrip ? 2 : 0)
   const [message, setMessage] = useState('Synthetic local data. Provider and write transports are controlled. Map tiles are external.')
   const [corridorSnapshot, setCorridorSnapshot] = useState<CorridorSnapshot | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set())
@@ -260,7 +316,7 @@ function Fixture() {
     setMessage('A local preview was requested. No trip or backend was changed.')
   }, [])
   return <div className="container yf-workspace" data-map-active="true" data-map-fullscreen="true">
-    <header className="map-fixture-header"><div><strong>Kerala loop</strong><span>{trip.days.length} days · sample trip · {mode} mode</span></div><nav aria-label="Fixture trip sections"><span>Overview</span><span>Timeline</span><strong aria-current="page">Map</strong><span>Budget</span></nav></header>
+    <header className="map-fixture-header"><div><strong>{trip.name}</strong><span>{trip.days.length} days · sample trip · {mode} mode</span></div><nav aria-label="Fixture trip sections"><span>Overview</span><span>Timeline</span><strong aria-current="page">Map</strong><span>Budget</span></nav></header>
     <p className="map-fixture-status" role="status">{message}</p>
     <Suspense fallback={<p>Loading map workspace…</p>}><MapTab trip={trip} editable={params.get('role') !== 'viewer'} road={road} legCorrections={corrections} suggestionCache={cache} dayFocus={day} onDayFocusChange={setDay}
       onCorridorState={publishCorridor} journeyDays={journeyDays} presence={journeyDays.presence} crewSeeds={crewSeeds}

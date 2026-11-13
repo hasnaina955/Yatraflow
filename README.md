@@ -95,6 +95,16 @@ _Release highlights, newest first — the full record lives in [CHANGELOG.md](CH
 
 Pending notes live in [change fragments](changelog.d/README.md). The release owner assembles them into the public record.
 
+## The v0.85.0 release
+
+v0.85.0 is deployed to production. It makes the Map tab one lens workspace on one engine schedule.
+
+- **The Map tab has four lenses behind one switch, and each lens shows honest counts.** An unscanned lens shows no count. The Fix lens lists only verified fixes. Preview on map shows a fix before Apply writes it.
+- **Map suggestions use the visit's own day and the clock they show.** Opening hours follow the visit date. A fixed booking reads its own clock. Every clock follows the 12 h or 24 h setting.
+- **Stop marks stay on their places on a crowded trip.** Labels yield instead of stops, so nothing jumps on zoom or pan. Stay and Plan follow the day's own schedule, and the Fix count matches its panel.
+- **Drive picks spread along the whole road, and the map has more room.** The scan keeps the best place of each 60 km stretch. Groups of picks are pins that move aside from stops. The route warning is a dot on the Fix button.
+- **A focused test run selects its tests with git.** `npm run test:changed` fails when a source change has no selected test.
+
 ## The v0.84.0 release
 
 v0.84.0 is deployed to production. It closes the paid-plan leak and adds fifty destination scenes.

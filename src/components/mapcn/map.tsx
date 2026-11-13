@@ -2281,6 +2281,8 @@ function MapClusterLayer<
     let last = "";
     let lastBadges = "";
     let cancelled = false;
+    // Only the latest report may set the badges. An older answer that comes back late is dropped.
+    let reportSeq = 0;
 
     const report = () => {
       const source = map.getSource(sourceId) as
@@ -2299,22 +2301,26 @@ function MapClusterLayer<
         const clusterId = properties?.cluster_id;
         if (typeof clusterId !== "number") continue;
         clusterIds.add(clusterId);
-        if (!places.has(clusterId) && feature.geometry.type === "Point") {
+        const count = Number(properties?.point_count);
+        if (!places.has(clusterId) && feature.geometry.type === "Point" && count > 0) {
           const [lng, lat] = feature.geometry.coordinates;
-          places.set(clusterId, { lng, lat, count: Number(properties?.point_count) || 0 });
+          places.set(clusterId, { lng, lat, count });
         }
       }
 
       if (onClusterBadges) {
+        const seq = ++reportSeq;
         void Promise.all(
           [...places].map(([clusterId, place]) =>
             source
               .getClusterExpansionZoom(clusterId)
-              .catch(() => map.getZoom() + 2)
-              .then((expandZoom): ClusterBadge => ({ id: clusterId, ...place, expandZoom })),
+              .then((expandZoom): ClusterBadge | null => ({ id: clusterId, ...place, expandZoom }))
+              // A failed lookup draws no pin. It never guesses a zoom.
+              .catch(() => null),
           ),
-        ).then((badges) => {
-          if (cancelled) return;
+        ).then((found) => {
+          if (cancelled || seq !== reportSeq) return;
+          const badges = found.filter((b): b is ClusterBadge => b != null);
           badges.sort((a, b) => a.id - b.id);
           const signature = badges.map((b) => `${b.id}:${b.count}:${b.lng.toFixed(6)},${b.lat.toFixed(6)}`).join("|");
           if (signature === lastBadges) return;
@@ -2420,6 +2426,9 @@ function MapClusterLayer<
         features?: MapLibreGL.MapGeoJSONFeature[];
       },
     ) => {
+      // Without badges, the DOM group pin owns the click. The hidden circle
+      // must not start a second camera move.
+      if (!drawBadges) return;
       const features = map.queryRenderedFeatures(e.point, {
         layers: [clusterLayerId],
       });

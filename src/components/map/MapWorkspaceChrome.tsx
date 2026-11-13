@@ -337,7 +337,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     <footer className="mv2-day-footer">
       <div className="mv2-day-strip" role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => onDayChange(item.index)}>{item.index + 1}</button>)}</div>
       {onOpenDay && <button type="button" className="mv2-timeline-link" aria-label="Open day in Timeline" title="Open day in Timeline" onClick={() => onOpenDay(activeDay)}><CalendarDays size={16} aria-hidden /></button>}
-      {daysCaption && <span className="sr-only">{daysCaption}</span>}
+      {daysCaption && <span className="sr-only" role="status">{daysCaption}</span>}
     </footer>
   </aside>
 }

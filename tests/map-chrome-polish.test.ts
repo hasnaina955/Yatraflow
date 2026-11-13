@@ -98,6 +98,13 @@ describe('Cluster badge', () => {
     expect(tripMap).toContain('zoom: Math.max(badge.expandZoom')
     expect(markCss).toMatch(/button\.mv2-stack:hover, button\.mv2-stack:focus-visible \{ transform: translateY\(-2px\)/)
   })
+  it('moves the camera once, never guesses a zoom, and keeps only the latest report', () => {
+    expect(mapcn).toContain('if (!drawBadges) return;')
+    expect(mapcn).toContain('.catch(() => null)')
+    expect(mapcn).not.toContain('getZoom() + 2')
+    expect(mapcn).toContain('if (cancelled || seq !== reportSeq) return;')
+    expect(chrome).toContain('<span className="sr-only" role="status">{daysCaption}</span>')
+  })
   it('draws the key mark as the same stack', () => {
     expect(css).toMatch(/\.mv2-key-cluster \{[^}]*box-shadow: 0 -4px 0 -2px #D6EEEA/)
     expect(markCss).toMatch(/\.mv2-stack \{[^}]*box-shadow: 0 -4px 0 -2px #D6EEEA/)

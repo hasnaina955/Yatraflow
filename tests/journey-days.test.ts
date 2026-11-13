@@ -38,6 +38,17 @@ const DNA: DnaVector = {
   avgVisitMin: null,
 }
 
+it('assigns an unnamed meal from the shared engine schedule', () => {
+  const trip = makeTrip()
+  trip.days[0].startTime = '08:00'
+  trip.days[0].stops[0].openTime = '06:00'
+  trip.days[0].stops[0].closeTime = '23:00'
+  const model = build({ trip })
+  const slots = model.byDay.get(0)?.slots ?? []
+  expect(slots.find(slot => slot.key === 'breakfast')?.filledStop?.id).toBe('st-a1')
+  expect(slots.find(slot => slot.key === 'lunch')?.filledStop).toBeNull()
+})
+
 function hit(overrides: Partial<PlaceHit> & Pick<PlaceHit, 'id' | 'name'>): PlaceHit {
   return { latitude: 10, longitude: 76, kind: 'poi', ...overrides }
 }

@@ -17,6 +17,17 @@ import type { JourneyStatus } from '../pages/trip/journey/journeyDays'
 /** The phase a lens panel shows. The five failure and wait states stay apart. */
 export type LensPhase = 'unscanned' | 'scanning' | 'failed' | 'quota' | 'empty' | 'ready'
 
+/**
+ * The Fix lens count: the problems the deck lists. The pill and the deck header
+ * both read this one rule. A lens that is not ready has no count. A ready lens
+ * with no problem is a real zero. The deck shows one problem per day, so the
+ * count never reads the number of fixes: a problem with no safe fix is still 1.
+ */
+export function fixProblemCount(phase: LensPhase, problem: unknown): number | null {
+  if (phase !== 'ready') return null
+  return problem == null ? 0 : 1
+}
+
 /** One lens result: a phase, the rows, and any notice about those rows. */
 export interface LensView<Row> {
   phase: LensPhase

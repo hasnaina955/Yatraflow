@@ -9,7 +9,7 @@ import { visitDateForDay } from '../../lib/hoursContext'
 import { titleCase } from '../../lib/labels'
 import { budgetBlockView, budgetValueParts, fixProblemReason, fixReasonLine, windowDurationText } from '../../pages/trip/map/LensRailExtras'
 import { dayColor } from '../../lib/mapStyles/dayColors'
-import { fixProblemSubLine, lastNightStaySub, railClockOrder, standsOnLastNightStay, railDepartClock, railLegVisible, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
+import { fixProblemSubLine, lastNightStaySub, railClockOrder, railDepartureFirst, standsOnLastNightStay, railDepartClock, railLegVisible, railMarkerKind, railStopNumber, railStopPaid } from './railModel'
 import { ribbonAxis, ribbonLabelLayout, ribbonPercent, ribbonTickText, ribbonStops, ribbonRange, ribbonSignature, ribbonResetMinute, ribbonKeyMinute, ribbonScrub, ribbonClockMinutes, retimedStops, type RibbonPosition, type RibbonPreview } from '../../lib/mapJourneyRibbon'
 
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
@@ -248,9 +248,20 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
   const rowClock = (point: JourneyPoint, index: number): string => {
     if (locks.has(point.stop.id)) return lockClocks.get(String(point.stop.id)) ?? point.arrive
     if (point.kind !== 'start') return point.arrive
-    return railDepartClock(point.arrive, allPoints.slice(index + 1).map(next => ({ distanceKm: next.legIn?.distanceKm, depart: next.depart })))
+    return railDepartClock(point.arrive, allPoints.slice(index + 1).map(next => ({
+      distanceKm: next.legIn?.distanceKm,
+      depart: next.depart,
+      onLastNightStay: standsOnLastNightStay(next.stop, previousHotel),
+    })))
   }
-  const clockRows = railClockOrder(points.map((point, index) => ({ index, clock: rowClock(point, index) })))
+  // The departure is the first row. Only a breakfast on last night's stay may
+  // come before the car leaves; a stop with an earlier clock never does.
+  const clockRows = railDepartureFirst(railClockOrder(points.map((point, index) => ({
+    index,
+    clock: rowClock(point, index),
+    isStart: point.kind === 'start',
+    beforeLeave: point.kind !== 'start' && standsOnLastNightStay(point.stop, previousHotel),
+  }))))
   const shownPoints = clockRows
     .map(row => ({ point: points[row.index], index: row.index, clock: rowClock(points[row.index], row.index) }))
     .filter(entry => entry.index >= firstShown)
@@ -272,7 +283,7 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
       <button type="button" className="mv2-fold-day" aria-label="Fold day itinerary" onClick={onFold}><PanelLeftClose size={16} /></button>
     </header>
     {hideBudget !== true && <div className="mv2-budget mv2-lens-budget"><span className="mv2-lens-budget-label">{budget.label}</span><strong className="mv2-lens-budget-value">{budgetParts.lead != null && <b className="mv2-lens-budget-number">{budgetParts.lead}</b>}{budgetParts.rest}</strong>{budget.showBar && budgetBar != null
-      ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
+      ? <div className="mv2-budget-progress" role="progressbar" aria-label="Detour budget used" aria-valuetext={budgetBar.text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={budgetBar.step * 25}><span className="mv2-budget-progress-fill" data-step={budgetBar.step} /></div>
       : null}</div>}
     <ol className="mv2-stops" ref={stopsRef}>
       {shownPoints.map(({ point, index, clock: rowTime }, shownIndex) => {

@@ -5,6 +5,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { MapLensPanel, type MapLensPanelProps } from '../src/pages/trip/map/MapLensPanel'
+import { fixProblemCount } from '../src/lib/mapLensContracts'
 import { mapLensesFor, phaseCount, type MapLenses, type MapLensId } from '../src/pages/trip/map/useMapLenses'
 import type { JourneyRow } from '../src/lib/journeyProjection'
 import type { DaySlot } from '../src/lib/daySlots'
@@ -164,7 +165,8 @@ describe('mapLensesFor counts', () => {
     expect(ready.counts.drive).toBe(1)
     expect(ready.counts.gap).toBe(1)
     expect(ready.counts.stay).toBeNull()
-    expect(ready.counts.fix).toBe(0)
+    // The pill counts the problems the deck lists, never the fixes it offers.
+    expect(ready.counts.fix).toBe(ready.fix.problem == null ? 0 : 1)
   })
 
   it('keeps a failed read with kept rows ready and degraded, never failed', () => {
@@ -184,6 +186,29 @@ describe('mapLensesFor counts', () => {
     const out = mapLensesFor(input)
     expect(out.stay.needsBase).toBe(true)
     expect(out.counts.stay).toBeNull()
+  })
+})
+
+describe('the Fix pill count reads the deck problem (real Goa trip, Day 1)', () => {
+  it('counts one problem when the deck lists one, even with no safe fix', () => {
+    const input = lensInput({ kind: 'ready', source: 'scan' })
+    // A hotel 2000 km from the start is a day with far too much driving.
+    const far = { ...input.trip.days[0].stops[0], lat: 28.6, lng: 77.2 }
+    input.trip = { ...input.trip, days: input.trip.days.map((day, index) => (index === 0 ? { ...day, stops: [far] } : day)) }
+    input.schedule = { activeStops: [far], arrivalTimes: ['17:00'] }
+    const out = mapLensesFor(input)
+    expect(out.fix.problem).not.toBeNull()
+    expect(out.fix.fixes).toHaveLength(0)
+    expect(out.counts.fix).toBe(1)
+    const panel = renderToStaticMarkup(createElement(MapLensPanel, { ...panelProps(), lens: 'fix', lenses: out }))
+    expect(panel).toContain('Fix · 1 problem on Day 1')
+  })
+
+  it('counts zero for a ready day with no problem and nothing for an unread day', () => {
+    expect(fixProblemCount('ready', null)).toBe(0)
+    expect(fixProblemCount('ready', { title: 'x' })).toBe(1)
+    for (const phase of PHASES) expect(fixProblemCount(phase, { title: 'x' })).toBeNull()
+    expect(fixProblemCount('empty', null)).toBeNull()
   })
 })
 

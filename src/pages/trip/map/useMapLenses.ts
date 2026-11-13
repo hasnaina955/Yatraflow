@@ -14,7 +14,7 @@ import type { DaySchedule, LegEstimate } from '../../../lib/engine'
 import { collectWarnings, groupWarnings, hmToMinutes } from '../../../lib/engine'
 import { validHM } from '../../../lib/timefmt'
 import {
-  driveLensRows, gapLensRows, fixLensRows, stayLensRows,
+  driveLensRows, fixLensRows, fixProblemCount, gapLensRows, stayLensRows,
   type DriveLensRow, type FixChangeSet, type FixTarget, type GapLensRow, type LensPhase,
   type LensView,
 } from '../../../lib/mapLensContracts'
@@ -22,7 +22,7 @@ import type { JourneyStatus } from '../journey/journeyDays'
 import { driveTabs, type DriveTabsResult } from './driveLens'
 import { gapPicks, gapCount, type GapPicks } from './gapLens'
 import { fixesForWarning, fixSummary, formatFixEvidence, warningRefs, type FixSummary } from './fixLens'
-import { resolveStayBase, stayPicks, stayWindows, type StayEveningBook, type StayPicksResult, type StayWindow } from './stayLens'
+import { resolveStayBase, scheduledBusyAfter, stayPicks, stayWindows, type StayEveningBook, type StayPicksResult, type StayWindow } from './stayLens'
 
 /** The four lens ids, in board order. */
 export type MapLensId = 'drive' | 'stay' | 'gap' | 'fix'
@@ -47,6 +47,8 @@ export interface StayLensDeck {
   picks: Readonly<Record<string, StayPicksResult>>
   /** True when a base exists but no free window is known. */
   windowUnknown: boolean
+  /** True when the base arrival is known and the day leaves no free evening. */
+  noFreeTime?: boolean
   /** The ready row count, or null when the phase makes it unknown. */
   rowCount: number | null
 }
@@ -101,7 +103,7 @@ export interface MapLensesInput {
   /** The day's detour budget in minutes. */
   budgetMin: number
   /** The active day's schedule slice, or null when no schedule is known. */
-  schedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null
+  schedule: (Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> & Partial<Pick<DaySchedule, 'departures'>>) | null
   /** The caller's 12h or 24h clock. */
   clock: (min: number) => string
   /** The deck's day line, for example "Day 3". */
@@ -222,6 +224,7 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
       windows: [],
       picks: {},
       windowUnknown: false,
+      noFreeTime: false,
       rowCount: null,
     }
   } else {
@@ -235,7 +238,9 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
     const leaveBaseMin = clockMinOrNull(nextDay?.startTime)
     // An empty dinner window ends the free evening, as the board draws it.
     const dinner = slots.find(entry => entry.key === 'dinner' && entry.state === 'empty' && entry.windowMin != null)
-    const windows = stayWindows({ arriveAtBaseMin, leaveBaseMin, dinnerStartMin: dinner?.windowMin?.[0] ?? null, ...(eveningBook != null ? { eveningBook } : {}) })
+    // The stops the schedule puts after the base are busy time, not free time.
+    const scheduled = schedule == null ? [] : scheduledBusyAfter(schedule, stopAt)
+    const windows = stayWindows({ arriveAtBaseMin, leaveBaseMin, dinnerStartMin: dinner?.windowMin?.[0] ?? null, scheduled, ...(eveningBook != null ? { eveningBook } : {}) })
     const output = stayLensRows({
       status,
       dayIndex,
@@ -258,6 +263,8 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
       windows,
       picks: picked,
       windowUnknown: windows.length === 0,
+      // The arrival is known and no free evening is left after the day's stops.
+      noFreeTime: arriveAtBaseMin != null && !windows.some(window => window.id === 'evening'),
       rowCount: output.kind === 'view' ? phaseCount(output.view.phase, output.view.rows.length) : null,
     }
   }
@@ -310,7 +317,7 @@ export function mapLensesFor(input: MapLensesInput): MapLenses {
     drive: phaseCount(drive.phase, drive.view.rows.length),
     stay: stay.phase === 'ready' && stay.windows.length > 0 ? stay.rowCount : null,
     gap: gapCount(gapView),
-    fix: fixPhase === 'ready' ? fixes.length : null,
+    fix: fixProblemCount(fixPhase, problem?.problem ?? null),
   }
 
   return { drive, stay, gap, fix, counts }

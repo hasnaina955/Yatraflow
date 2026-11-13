@@ -33,6 +33,9 @@ anywhere in this repo means the entry labelled `6b` below.
 Source-contract tests must handle both LF and CRLF line endings.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
 
+Meal names override a stale meal slot key. Other meal stops use the shared engine arrival before venue opening hours.
+Stay free windows must exclude scheduled stops after check-in. A missing window must distinguish a full day from unknown times.
+
 Fixture query parameters must change the rendered state or fail explicitly.
 A form fixture cannot prove failed or retained reads owned by its parent.
 

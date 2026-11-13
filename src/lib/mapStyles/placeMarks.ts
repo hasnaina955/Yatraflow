@@ -146,7 +146,7 @@ export function resolveMarkCollisions(items: (MarkBox & { droppable?: boolean; f
 
 // ---- One layout for every mark on the map ----
 
-export type MarkLayer = 'stop' | 'warn' | 'slot' | 'pick' | 'clock'
+export type MarkLayer = 'stop' | 'warn' | 'slot' | 'pick' | 'group' | 'clock'
 // `w` and `h` are the hit box. A pill never takes a tap, so it only has to clear the drawn size, `drawW` by `drawH`.
 export interface LayoutMark extends MarkBox {
   layer: MarkLayer
@@ -159,14 +159,14 @@ export interface LayoutMark extends MarkBox {
   maxTravel?: number
 }
 
-// A stop badge always wins. A warning, an empty-part pin and a pick follow. A clock pill gives way first.
-const LAYER_RANK: Record<MarkLayer, number> = { stop: 0, warn: 1, slot: 2, pick: 3, clock: 4 }
+// A stop badge always wins. A warning, an empty-part pin, a pick and a group pin follow. A clock pill gives way first.
+const LAYER_RANK: Record<MarkLayer, number> = { stop: 0, warn: 1, slot: 2, pick: 3, group: 4, clock: 5 }
 // A pill may slide this far from its stop. Past that it is hidden, so it never reads as another stop's time.
 const CLOCK_MAX_TRAVEL = 80
 
 /**
  * Lay out stops, problems, empty parts, picks and clock pills in one pass. A stop never moves: it is a
- * fixed obstacle, and at low zoom stops simply overlap. A pick is fixed too. Problems and empty parts slide off a stop.
+ * fixed obstacle, and at low zoom stops simply overlap. A pick is fixed too. Problems, empty parts and group pins slide off a stop.
  * A pill is placed last, from where its stop is. It is hidden when it has no room or ends
  * outside `bounds`. A pill spot is relative to its stop's place. Marks keep their real coordinates.
  */

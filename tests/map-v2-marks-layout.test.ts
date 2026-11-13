@@ -90,3 +90,22 @@ describe('layoutMarks: bounds', () => {
     expect(layoutMarks(marks, { bounds }).get('edge')).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 })
+
+describe('layoutMarks: group pins', () => {
+  it('slides a group pin off a stop instead of hiding under it, within its travel', () => {
+    const marks: LayoutMark[] = [
+      { id: 'stop', layer: 'stop', x: 200, y: 200, w: 40, h: 40 },
+      { id: 'group', layer: 'group', x: 204, y: 202, w: 42, h: 46, maxTravel: 64 },
+    ]
+    const spots = layoutMarks(marks)
+    expect(spots.get('stop')).toEqual({ dx: 0, dy: 0, hidden: false })
+    const g = spots.get('group')!
+    expect(g.hidden).toBe(false)
+    expect(Math.hypot(g.dx, g.dy)).toBeGreaterThan(0)
+    expect(Math.hypot(g.dx, g.dy)).toBeLessThanOrEqual(64)
+  })
+  it('keeps a group pin where it is when nothing covers it', () => {
+    const spots = layoutMarks([{ id: 'group', layer: 'group', x: 50, y: 50, w: 42, h: 46, maxTravel: 64 }])
+    expect(spots.get('group')).toEqual({ dx: 0, dy: 0, hidden: false })
+  })
+})

@@ -29,6 +29,13 @@ button.mv2-warn-diamond:hover { transform: rotate(45deg) scale(1.12); box-shadow
 .mv2-warn-diamond > b { transform: rotate(-45deg); font-size: 13px; font-weight: 800; line-height: 1; }
 .mv2-warn-diamond.is-severe { background: #A6342A; }
 .mv2-pin-offset { display: inline-flex; flex-direction: column; align-items: center; transition: transform var(--motion-fast) var(--ease-out); }
+/* A group pin: a pile of pick tiles with its count, drawn like the key mark. It is a DOM mark, so it slides off a stop. */
+.mv2-stack { --stack-size: 30px; position: relative; display: grid; place-items: center; min-width: var(--stack-size); height: var(--stack-size); margin-top: 8px; padding: 0 var(--space-2); border: 2px solid #0B6B63; border-radius: var(--radius-sm); background: #FFFFFF; color: #0B4F4A; font: inherit; font-size: 13px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; cursor: pointer; box-shadow: 0 -4px 0 -2px #D6EEEA, 0 -4px 0 -1px #0B6B6399, 0 -8px 0 -5px #D6EEEA, 0 -8px 0 -4px #0B6B6366, 0 6px 12px -6px rgba(64, 54, 44, 0.5); animation: mv2-pick-pop var(--motion-med) var(--ease-paper) backwards; transition: transform var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper); }
+.mv2-stack[data-size='m'] { --stack-size: 34px; }
+.mv2-stack[data-size='l'] { --stack-size: 38px; font-size: 14px; }
+/* Every tappable mark answers a hover: the pile fans out and lifts. */
+button.mv2-stack:hover, button.mv2-stack:focus-visible { transform: translateY(-2px); box-shadow: 0 -6px 0 -2px #D6EEEA, 0 -6px 0 -1px #0B6B63AA, 0 -12px 0 -5px #D6EEEA, 0 -12px 0 -4px #0B6B6380, 0 10px 18px -8px rgba(64, 54, 44, 0.55); }
+button.mv2-stack:focus-visible { outline: 2px solid var(--pw-ink); outline-offset: 3px; }
 @media (pointer: coarse) {
   .mv2-workspace .yf-map-pin--slot::before, .mv2-workspace .mv2-warn-diamond::before, .mv2-workspace .yf-map-idea-add::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
   .mv2-workspace .yf-map-ctrls button, .mv2-workspace .map-legend-toggle { min-width: 44px; min-height: 44px; }
@@ -37,6 +44,7 @@ button.mv2-warn-diamond:hover { transform: rotate(45deg) scale(1.12); box-shadow
 }
 @media (prefers-reduced-motion: reduce) {
   .mv2-pin-clock, .mv2-pin-offset, .mv2-route-window, .mv2-pick-tag { transition: none; }
+  .mv2-stack { animation: none; transition: none; }
 }
 @media (max-width: 760px) {
   .mv2-workspace .maplibregl-ctrl-attrib-inner { font-size: 10px; line-height: 1.3; }

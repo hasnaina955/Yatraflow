@@ -496,6 +496,12 @@ export interface NearbyOpts {
   purposes?: HaltPurpose[]
   /** Vehicle profile for accurate fuel/charging cadence. */
   vehicleProfile?: VehicleProfile
+  /**
+   * Spread the kept places along the road: take the best place of each
+   * stretch this many km long in turn. One famous town can then not fill
+   * every slot. Hits with no road position share one stretch.
+   */
+  spreadKm?: number
   /** Crew size — tunes the fatigue cadence (see cadenceForCrew). */
   travellers?: number
   /** Trip travel style — tunes the fatigue cadence (see cadenceForCrew). */
@@ -747,6 +753,43 @@ export function nearbyHitKey(h: Pick<PlaceHit, 'latitude' | 'longitude' | 'name'
   return `${h.latitude},${h.longitude},${h.name}`
 }
 
+/** The length of one road stretch when picks spread along a drive. */
+export const ROUTE_STRETCH_KM = 60
+
+/** How many corridor picks a drive keeps: 16 up to 200 km, then 16 for each
+ *  200 km, up to 32. An unknown length keeps 16. */
+export function corridorPickCount(routeKm: number | null | undefined): number {
+  if (routeKm == null || !Number.isFinite(routeKm) || routeKm <= 0) return 16
+  return Math.min(32, Math.max(16, Math.round((routeKm / 200) * 16)))
+}
+
+/** The length of a [lng, lat] line in km. */
+export function polylineKm(coords: readonly [number, number][] | null | undefined): number | null {
+  if (!coords || coords.length < 2) return null
+  let km = 0
+  for (let i = 1; i < coords.length; i++) km += haversineKm(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0])
+  return Number.isFinite(km) ? km : null
+}
+
+/** Interleave hits by road stretch: the best of each stretch, then the
+ *  second best of each, and so on. The input is in score order. */
+export function spreadByStretch<T extends Pick<PlaceHit, 'alongRouteKm'>>(hits: readonly T[], stretchKm: number): T[] {
+  const buckets = new Map<number, T[]>()
+  for (const h of hits) {
+    const km = h.alongRouteKm
+    const key = km != null && Number.isFinite(km) ? Math.floor(Math.max(0, km) / stretchKm) : -1
+    const list = buckets.get(key)
+    if (list) list.push(h)
+    else buckets.set(key, [h])
+  }
+  const lists = [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(entry => entry[1])
+  const out: T[] = []
+  for (let round = 0; out.length < hits.length; round++) {
+    for (const list of lists) if (round < list.length) out.push(list[round])
+  }
+  return out
+}
+
 /**
  * Shared tail of every nearby search: drop hits in the home zone around the
  * trip's start, rank by tourist value (+ itinerary-gap bias), then greedy-pick
@@ -767,6 +810,8 @@ export function rankAndCap(
   homeFiltered.sort((a, b) =>
     poiTouristScore(b, anchors, radiusM, opts.categoryBias) - poiTouristScore(a, anchors, radiusM, opts.categoryBias))
   const deduped = dedupeCandidates(homeFiltered)
+  const spread = opts.spreadKm != null && opts.spreadKm > 0
+  const order = spread ? spreadByStretch(deduped, opts.spreadKm!) : deduped
   const catCap = Math.max(3, Math.ceil(count / 3))
   // 'a couple of pit stops' — the documented cap, and harder than every other
   // category's: fuel exists to break a drive, not to become the list (#565).
@@ -774,7 +819,7 @@ export function rankAndCap(
   const used = new Map<string, number>()
   const out: PlaceHit[] = []
   let fuelUsed = 0
-  for (const h of deduped) {
+  for (const h of order) {
     if (out.length >= count) break
     const k = h.category ?? 'sightseeing'
     if (k === 'transport-hub') {
@@ -787,5 +832,7 @@ export function rankAndCap(
     }
     out.push(h)
   }
+  // The spread only chooses which places stay. They keep their score order.
+  if (spread) out.sort((a, b) => deduped.indexOf(a) - deduped.indexOf(b))
   return out
 }

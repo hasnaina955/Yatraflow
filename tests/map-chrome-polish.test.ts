@@ -9,6 +9,7 @@ const tab = read('../src/pages/trip/MapTab.tsx')
 const tripMap = read('../src/components/TripMap.tsx')
 const mapcn = read('../src/components/mapcn/map.tsx')
 const css = read('../src/styles/components/map-v2-rail.css')
+const markCss = read('../src/components/map/mapMarks.css')
 
 describe('Days on the map', () => {
   it('draws each day as one pill in its own colour, with no separate dot', () => {
@@ -36,21 +37,26 @@ describe('Suggestion states', () => {
 })
 
 describe('Cluster badge', () => {
-  it('draws a group as a pile of pick tiles with its count, not a bare number', () => {
-    expect(tripMap).toContain('look={workspaceChrome ? WORKSPACE_CLUSTER_LOOK : undefined}')
-    expect(mapcn).toContain('function drawStack(look: ClusterLook')
-    expect(mapcn).toContain('map.on("styleimagemissing", handleMissingImage)')
-    expect(mapcn).toContain('"icon-image": ["concat", stackPrefix, ["to-string", stackBandStep(clusterThresholds)], "-", ["get", "point_count_abbreviated"]]')
-    expect(mapcn).not.toContain('haloLayerId')
+  it('draws a group as a DOM pin, a pile of pick tiles with its count', () => {
+    expect(tripMap).toContain('drawBadges={!workspaceChrome}')
+    expect(tripMap).toContain('onClusterBadges={workspaceChrome ? onClusterBadges : undefined}')
+    expect(tripMap).toContain('className="mv2-stack"')
+    expect(mapcn).toContain('onClusterBadges?: (badges: ClusterBadge[]) => void;')
+    expect(mapcn).not.toContain('drawStack')
+    expect(mapcn).not.toContain('styleimagemissing')
   })
-  it('names the group on hover and glows it, and keeps it above the route bands', () => {
-    expect(tripMap).toContain('title: count => `${clusterCountLabel(count)} · Click to open`')
-    expect(mapcn).toContain('map.getCanvas().title = look.title(count)')
-    expect(mapcn).toContain('["case", ["boolean", ["feature-state", "hover"], false], STACK_HOVER_OPACITY, 0]')
-    expect(mapcn).toContain('map.on("styledata", raise)')
+  it('slides the pin off a stop, as a mark in the shared layout', () => {
+    expect(tripMap).toContain("spreadMarks.push({ id: `group:${badge.id}`, layer: 'group'")
+    expect(tripMap).toContain('offsetWrap(`group:${badge.id}`')
+  })
+  it('names the group on hover, opens it on click, and lifts', () => {
+    expect(tripMap).toContain('title={`${label} · Click to open`}')
+    expect(tripMap).toContain('zoom: Math.max(badge.expandZoom')
+    expect(markCss).toMatch(/button\.mv2-stack:hover, button\.mv2-stack:focus-visible \{ transform: translateY\(-2px\)/)
   })
   it('draws the key mark as the same stack', () => {
     expect(css).toMatch(/\.mv2-key-cluster \{[^}]*box-shadow: 0 -4px 0 -2px #D6EEEA/)
+    expect(markCss).toMatch(/\.mv2-stack \{[^}]*box-shadow: 0 -4px 0 -2px #D6EEEA/)
   })
 })
 

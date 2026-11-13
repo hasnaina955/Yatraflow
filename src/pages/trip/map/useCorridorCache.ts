@@ -16,7 +16,7 @@ import {
   effectiveDrivingDays, drivingPlanFingerprint,
   type DrivingPlan, type NearbyOpts, type PlaceHit, type SegmentHit,
 } from '../../../lib/geocode'
-import { anchorHash, corridorAnchors, hasCoords, type HaltPurpose, type DiscoveryCoverage } from '../../../lib/providers/hits'
+import { anchorHash, corridorAnchors, corridorPickCount, hasCoords, polylineKm, ROUTE_STRETCH_KM, type HaltPurpose, type DiscoveryCoverage } from '../../../lib/providers/hits'
 import { leftoverAsSight } from '../../../lib/ridePlan'
 import { QuotaExhaustedError, googleEnabled } from '../../../lib/providers/google'
 import type { PlaceFamily } from '../../../lib/providers/families'
@@ -292,8 +292,9 @@ export function useCorridorCache({
     const scan = dayContext
       ? searchNearbyPoisMulti(
           corridorAnchors(routeGeometry?.map(([lng, lat]) => ({ lat, lng })) ?? anchors, null, scopeKm * 1000),
-          scopeKm * 1000, 16,
-          { ...scanOpts, ...failurePolicy, signal: controller.signal, families: CORRIDOR_FAMILIES, onCoverage: value => { coverage = value } },
+          // A longer drive keeps more picks, spread stretch by stretch.
+          scopeKm * 1000, corridorPickCount(polylineKm(routeGeometry)),
+          { ...scanOpts, ...failurePolicy, spreadKm: ROUTE_STRETCH_KM, signal: controller.signal, families: CORRIDOR_FAMILIES, onCoverage: value => { coverage = value } },
         ).then(hits => leftoverAsSight(hits, [], anchors, { routePolyline: routeGeometry?.map(([lng, lat]) => ({ lat, lng })) }))
       : planJourneyHalts(anchors, planKm, wholeTripMin, {
       ...nearbyOpts, plan: drivingPlan, signal: controller.signal,

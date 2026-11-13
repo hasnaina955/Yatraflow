@@ -68,7 +68,7 @@ import {
   MapGeoJSON,
   type MapGeoJSONData,
   MapClusterLayer,
-  type ClusterLook,
+  type ClusterBadge,
   MapControls,
   prefersCooperativeGestures,
   wantsCooperativeGestures,
@@ -118,8 +118,14 @@ function closeToolMenus(keep: Element | null): void {
 const TICK_ROOM = 36
 // The workspace badge: a white chip with a sea ring and a soft halo, like the idea pins.
 const WORKSPACE_CLUSTER_COLORS: [string, string, string] = ['#FFFFFF', '#FFFFFF', '#FFFFFF']
-// A group draws as a pile of pick tiles, so it reads as "several picks here".
-const WORKSPACE_CLUSTER_LOOK: ClusterLook = { ring: '#0B6B63', fill: '#FFFFFF', back: '#D6EEEA', text: '#0B4F4A', sizes: [28, 31, 35], title: count => `${clusterCountLabel(count)} · Click to open` }
+// A group draws as a DOM pin: a pile of pick tiles with its count. It is a mark
+// like any other, so it slides off a stop instead of hiding under it.
+const GROUP_BOX = { w: 42, h: 46 }
+const GROUP_MAX_TRAVEL = 64
+/** The size band of a group, by the same thresholds as the clusterer. */
+function groupSize(count: number): 's' | 'm' | 'l' {
+  return count >= IDEA_CLUSTER_THRESHOLDS[1] ? 'l' : count >= IDEA_CLUSTER_THRESHOLDS[0] ? 'm' : 's'
+}
 /** The workspace chrome hands the cluster layer no point, so no canvas badge can
  *  stand under a stop pin. One object, so the layer's data effect does not churn. */
 
@@ -883,6 +889,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   // Stable identity matters: a new callback re-subscribes the layer's reporting
   // effect and re-reports on every render.
   const onClustersChange = useCallback((ids: Set<string>) => { setClusteredIds(ids) }, [])
+  // The workspace draws each group as its own pin, from the place and count the layer reports.
+  const [clusterBadges, setClusterBadges] = useState<ClusterBadge[]>([])
+  const onClusterBadges = useCallback((badges: ClusterBadge[]) => { setClusterBadges(badges) }, [])
   function toggleIdeaCat(cat: string) {
     setHiddenIdeaCats(prev => {
       const next = new Set(prev)
@@ -1196,6 +1205,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
       const hasAdd = !!onAddNearby && !workspaceChrome
       spreadMarks.push({ id: `pick:${hit.id}`, layer: 'pick', x: 0, y: 0, ...(hasAdd ? PICK_ADD_BOX : PICK_BOX), lat: hit.latitude, lng: hit.longitude, ox: 0, oy: hasAdd ? PICK_ADD_SHIFT : 0 })
     }
+    if (workspaceChrome) for (const badge of clusterBadges) spreadMarks.push({ id: `group:${badge.id}`, layer: 'group', x: 0, y: 0, ...GROUP_BOX, lat: badge.lat, lng: badge.lng, ox: 0, oy: 0, maxTravel: GROUP_MAX_TRAVEL })
   }
   // The road labels, the route ticks and the pick words are pills too. They yield to the stops,
   // slide a short way, or hide. They come after the stop pills, so a stop's own pill wins a spot.
@@ -2292,16 +2302,37 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 GL circle for it would be a second, dead copy.
                 The workspace groups its picks too. A pick never slides off its
                 place, so a crowd shows as one count bubble that splits on zoom.
-                clearOfMarks already drops a pick at a stop or a flag, so no
-                badge lands under a stop pin. Lettered picks stay single. */}
+                The workspace draws each group as a DOM pin (below), so the
+                pin slides off a stop like any mark. Lettered picks stay single. */}
             <MapClusterLayer
               data={clusterData}
               clusterColors={workspaceChrome ? WORKSPACE_CLUSTER_COLORS : IDEA_CLUSTER_COLORS}
-              look={workspaceChrome ? WORKSPACE_CLUSTER_LOOK : undefined}
+              drawBadges={!workspaceChrome}
+              onClusterBadges={workspaceChrome ? onClusterBadges : undefined}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}
               onClustersChange={onClustersChange}
             />
+            {workspaceChrome && clusterBadges.map(badge => {
+              const label = clusterCountLabel(badge.count)
+              return (
+                <MapMarker key={`group_${badge.id}`} longitude={badge.lng} latitude={badge.lat}>
+                  <MarkerContent>
+                    {offsetWrap(`group:${badge.id}`, <button
+                      type="button"
+                      className="mv2-stack"
+                      data-size={groupSize(badge.count)}
+                      aria-label={`${label}. Zoom in to open`}
+                      title={`${label} · Click to open`}
+                      onClick={e => {
+                        e.stopPropagation()
+                        mapRef.current?.easeTo({ center: [badge.lng, badge.lat], zoom: Math.max(badge.expandZoom, (mapRef.current?.getZoom() ?? 0) + 1), duration: prefersReducedMotion() ? 0 : motionTiming('--motion-slow').duration, easing: easeInOutCubic })
+                      }}
+                    >{badge.count}</button>)}
+                  </MarkerContent>
+                </MapMarker>
+              )
+            })}
             {/* P5.3: the day's empty parts stand on the map - hollow amber pins at
                 their top candidate's real position (placeholder hits resolve via
                 the same coord-fix pass as the ideas), the cost line in the tooltip. */}

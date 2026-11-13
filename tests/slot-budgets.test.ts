@@ -214,7 +214,7 @@ describe('#346 — ONE canonical plan order, both sides', () => {
 
 describe('#346 — a superseded search says so', () => {
   it('commitPlan toasts when it cancels an in-flight search, and the search write is exempt', () => {
-    expect(travelPanel).toMatch(/Plan changed · the spot search was restarted/)
+    expect(travelPanel).toMatch(/Plan changed. The spot search was restarted/)
     expect(travelPanel).toMatch(/searchCommitting/)
   })
 })

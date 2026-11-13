@@ -70,16 +70,23 @@ export type DriveBudget = { budgetMin: number } & (
   | { kind: 'empty'; usedMin: null }
 )
 
-/** Every active planned stop needs its own known cost. Alternatives never spend. */
+/** Only planned detour stops spend the budget. Alternatives never spend.
+ *  A stay, a start or end anchor, and a stop on the route (no corridor match)
+ *  are destinations, not detours, so they add nothing. A detour stop with no
+ *  known cost makes the spend unknown. */
 export function plannedDriveBudget(
-  stops: readonly Pick<ItineraryStop, 'id' | 'status'>[],
-  rows: readonly Pick<JourneyRow, 'stopId' | 'detourMin'>[],
+  stops: readonly (Pick<ItineraryStop, 'id' | 'status'> & Partial<Pick<ItineraryStop, 'auto' | 'category'>>)[],
+  rows: readonly (Pick<JourneyRow, 'stopId' | 'detourMin'> & Partial<Pick<JourneyRow, 'onCorridor'>>)[],
   budgetMin: number,
+  /** True when the corridor scan answered, so a stop with no row is on the route. */
+  corridorReady = false,
 ): DriveBudget {
   const costs = new Map<string, number>()
   for (const stop of stops) {
-    if (stop.status === 'rejected') continue
+    if (stop.status === 'rejected' || stop.auto === true || stop.category === 'hotel') continue
     const facts = rows.filter(row => row.stopId === String(stop.id))
+    if (facts.length === 0 && corridorReady) continue
+    if (facts.length > 0 && facts.every(row => row.onCorridor === false)) continue
     const cost = facts[0]?.detourMin
     if (cost == null || !Number.isFinite(cost) || cost < 0 || facts.some(row => row.detourMin !== cost)) return { kind: 'unknown', usedMin: null, budgetMin }
     costs.set(String(stop.id), cost)

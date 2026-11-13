@@ -5,6 +5,7 @@ import { scopeCounts } from './minuteScope'
 import { detourDisplayText } from './detourRule'
 import { detourDisplay } from './driveSuggestionView'
 import type { DaySchedule } from '../../../lib/engine'
+import type { DriveBudget } from './LensRailExtras'
 
 /** A planned stop reads the same arrival as the day rail. */
 export function filledStopClock(schedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | null, stopId: string): string | null {
@@ -159,4 +160,30 @@ export function driveDeckIntro(
 export function overBudgetAlternativeIds(rows: readonly { id: string; detourMin: number | null }[], budgetMin: number, plannedMin: number | null = null): Set<string> {
   const remaining = budgetMin - (plannedMin ?? 0)
   return new Set(rows.filter(row => row.detourMin != null && Number.isFinite(row.detourMin) && row.detourMin >= 0 && row.detourMin > remaining).map(row => row.id))
+}
+
+/** One day's alternatives with the day's budget and its planned detour spend. */
+export interface DayBudgetWalk {
+  budgetMin: number
+  planned: DriveBudget
+  rows: readonly { id: string; detourMin: number | null }[]
+}
+
+/** The ids of alternatives that the budget left after planned detours cannot
+ *  hold. When a day's planned spend is unknown, the day makes no budget claim
+ *  and holds nothing back: the count then states the scope only. */
+export function budgetHeldAlternativeIds(days: readonly DayBudgetWalk[]): Set<string> {
+  const held = new Set<string>()
+  for (const day of days) {
+    if (day.planned.kind === 'unknown') continue
+    for (const id of overBudgetAlternativeIds(day.rows, day.budgetMin, day.planned.usedMin ?? 0)) held.add(id)
+  }
+  return held
+}
+
+/** Scope counts by place: one place listed under several tabs counts once. */
+export function distinctPlaceBands<T>(rows: readonly { id: string; band: T }[]): T[] {
+  const byPlace = new Map<string, T>()
+  for (const row of rows) if (!byPlace.has(row.id)) byPlace.set(row.id, row.band)
+  return [...byPlace.values()]
 }

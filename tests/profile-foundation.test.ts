@@ -83,7 +83,7 @@ describe('Profile: the supporting rail shows only saved data', () => {
 
 describe('Profile: the page keeps the Save handler and its error path', () => {
   it('keeps validation, the pending state and the scroll-to-error beside the fields', () => {
-    expect(TSX).toContain("setNameErr('Pick a display name · it shows on shared trips.')")
+    expect(TSX).toContain("setNameErr('Pick a display name. It shows on shared trips.')")
     expect(TSX).toContain('el.scrollIntoView({ behavior: scrollBehavior(), block: \'center\' })')
     expect(TSX).toContain('disabled={saving}')
     expect(TSX).toContain('setSaveErr(r.error ?? PROFILE_NOT_SAVED)')

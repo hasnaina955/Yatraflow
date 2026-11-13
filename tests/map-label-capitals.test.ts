@@ -12,3 +12,10 @@ it('starts visible Map labels with a capital or number', () => {
   const files = ['src/pages/trip/MapTab.tsx', 'src/components/TripMap.tsx', ...sourceFiles('src/pages/trip/map'), ...sourceFiles('src/components/map')]
   expect(files.flatMap(file => lowercaseMapLabels(file))).toEqual([])
 })
+
+it('detects a capital inserted inside a phrase, as after a number', () => {
+  const source = 'const view = <><p>{`${n} picks Along the drive`}</p><span aria-label="2 Added by the app">X</span><p>Picks along the drive</p></>'
+  expect(lowercaseMapLabels('example.tsx', source)).toEqual([
+    expect.stringMatching(/^example\.tsx:1: picks Along the drive$/), expect.stringMatching(/^example\.tsx:1: 2 Added by the app$/),
+  ])
+})

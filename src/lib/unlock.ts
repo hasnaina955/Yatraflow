@@ -374,14 +374,14 @@ export async function purchaseUnlock(input: {
     }
     session = { orderId: json.orderId, keyId: json.keyId, amountPaise: json.amountPaise }
   } catch {
-    toast('Could not reach the payment service · check your connection.', 'err')
+    toast('Could not reach the payment service. Check your connection.', 'err')
     return 'failed'
   }
 
   // 2. The gateway modal. Without checkout.js there is nothing to open.
   const loaded = await loadRazorpay()
   if (!loaded || !window.Razorpay) {
-    toast('The payment window could not load · check your connection or an ad blocker.', 'err')
+    toast('The payment window could not load. Check your connection or an ad blocker.', 'err')
     return 'failed'
   }
   const callback = await new Promise<Record<string, string> | null>(resolve => {
@@ -401,7 +401,7 @@ export async function purchaseUnlock(input: {
     // resolves and the Unlock button stays stuck on "Opening payments…".
     checkout.on?.('payment.failed', (response: unknown) => {
       const description = (response as { error?: { description?: string } } | null)?.error?.description
-      toast(description || 'The payment failed · no money was taken. Try again.', 'err')
+      toast(description || 'The payment failed. No money was taken. Try again.', 'err')
       resolve(null)
     })
     checkout.open()
@@ -417,7 +417,7 @@ export async function purchaseUnlock(input: {
     })
     if (status === 200) {
       input.onUnlocked()
-      toast('Unlocked · every day of this plan is yours to fork. 🎉')
+      toast('Unlocked. Every day of this plan is yours to fork. 🎉')
       return 'unlocked'
     }
     // 503 with the confirm-but-not-saved wording means the money moved and
@@ -426,7 +426,7 @@ export async function purchaseUnlock(input: {
     toast(message, 'err')
     return 'failed'
   } catch {
-    toast('The payment went through but confirming it failed · refresh in a minute; the webhook will finish it.', 'err')
+    toast('The payment went through but confirming it failed. Refresh in a minute; the webhook will finish it.', 'err')
     return 'failed'
   }
 }

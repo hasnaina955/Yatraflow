@@ -1806,7 +1806,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 <div className="map-filters">
                   <button type="button" className="mv2-map-tools-btn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}
                     aria-label="Filter nearby ideas by type"
-                    title={hiddenIdeaCats.size > 0 ? `Idea filters · ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
+                    title={hiddenIdeaCats.size > 0 ? `Idea filters: ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}>
                     <Layers size={17} aria-hidden />
                   </button>
                   {filtersOpen && (
@@ -1930,7 +1930,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 className="map-day-chip map-day-chip--util"
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(o => !o)}
-                title={hiddenIdeaCats.size > 0 ? `Idea filters · ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
+                title={hiddenIdeaCats.size > 0 ? `Idea filters: ${hiddenIdeaCats.size} hidden` : 'Filter nearby ideas by type'}
               >
                 Filters{hiddenIdeaCats.size > 0 ? ` (${hiddenIdeaCats.size})` : ''}
               </button>

@@ -119,7 +119,7 @@ describe('computeBenchBill — clamps and fatigue', () => {
     expect(train.fatigue.verdict).toContain('sleeper')
     const calmTrain = computeBenchBill(input({ km: 300, mode: 'train', nights: 5, roundTrip: false }))
     expect(calmTrain.fatigue.tone).toBe('calm')
-    expect(calmTrain.fatigue.verdict).toBe('Easy riding · sit back and enjoy')
+    expect(calmTrain.fatigue.verdict).toBe('Easy riding. Sit back and enjoy')
   })
 })
 

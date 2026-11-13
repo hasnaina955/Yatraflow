@@ -138,9 +138,9 @@ describe('clusterSummary', () => {  it('says nothing when nothing is grouped', (
   })
 
   it('names the count and what to do about it', () => {
-    expect(clusterSummary(1)).toBe('1 suggestion grouped into map clusters at this zoom · zoom in to open them one by one.')
+    expect(clusterSummary(1)).toBe('1 suggestion grouped into map clusters at this zoom. Zoom in to open them one by one.')
     expect(clusterSummary(9)).toContain('9 suggestions')
-    expect(clusterSummary(9)).toContain('zoom in')
+    expect(clusterSummary(9)).toContain('Zoom in')
   })
 
   it('uses one noun for the badge language and the sentence', () => {

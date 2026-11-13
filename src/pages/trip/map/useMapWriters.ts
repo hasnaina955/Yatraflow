@@ -477,7 +477,7 @@ export function useMapWriters({
           undoMessage: placed => {
             const added = `“${hit.name}” added to Day ${dayIndex + 1}`
             return placed === 1 && hit.haltPurpose === 'overnight'
-              ? `${added} - night halt pinned, it won't move unless the road does`
+              ? `${added}. Night halt pinned. It moves only if the road changes.`
               : added
           },
           onPlaced: () => pinOvernightHalt(hit),
@@ -571,7 +571,7 @@ export function useMapWriters({
         afterPlacement(completion, {
           undoMessage: placed => {
             const left = targets.length - placed
-            return `Day ${activeDayIndex + 1} planned - ${placed} stop${placed === 1 ? '' : 's'} added${left > 0 ? ` · ${left} left for you` : ''}`
+            return `Day ${activeDayIndex + 1} planned: ${placed} stop${placed === 1 ? '' : 's'} added${left > 0 ? `. ${left} left for you` : ''}`
           },
           onPlaced: () => setOpenSlotKey(null),
           ...(retry ? { retry } : {}),

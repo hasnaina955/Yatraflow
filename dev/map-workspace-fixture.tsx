@@ -134,9 +134,9 @@ const goa = (): Trip => ({
   fixedCommitments: [],
   days: [
     { id: 'fixture-goa-1', index: 0, startTime: '05:00', title: 'South Mumbai → Panjim drive + Candolim beach arrival', stops: [
-      stop('goa-lonavala', 'Lonavala breakfast stop — chai & vada pav', 'food', goaBreakfast.lat, goaBreakfast.lng, 1, 30, 'Lonavala, Maharashtra'),
+      stop('goa-lonavala', 'Lonavala breakfast: chai & vada pav', 'food', goaBreakfast.lat, goaBreakfast.lng, 1, 30, 'Lonavala, Maharashtra'),
       stop('goa-karla', 'Karla caves visit', 'sightseeing', 18.7826, 73.4727, 2, 45, 'Karla, Maharashtra'),
-      stop('goa-thana', 'Thana Ghat lunch — Goan seafood thali', 'food', 15.5993, 74.0113, 3, 60, 'Thana, Goa'),
+      stop('goa-thana', 'Thana Ghat lunch: Goan seafood thali', 'food', 15.5993, 74.0113, 3, 60, 'Thana, Goa'),
       stop('goa-hotel', 'Check in · Agoa Palace hotel', 'hotel', 15.518, 73.7628, 4, 60, 'Candolim, Bardez'),
       stop('goa-beach', 'Candolim beach swim', 'beach', 15.5155, 73.7615, 5, 120, 'Candolim'),
       stop('goa-dinner', 'Dinner at Kubyu Beach Club', 'food', 15.5553, 73.7517, 6, 120, 'Baga Beach'),

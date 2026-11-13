@@ -168,7 +168,7 @@ export async function googleRoute(
 /** Thrown when the Phase-B soft cap says no more Routes events this month. */
 export class QuotaExhaustedError extends Error {
   constructor(sku: QuotaSku) {
-    super(`Google Routes quota soft-cap reached for ${sku} · falling back to OSRM`)
+    super(`Google Routes quota soft-cap reached for ${sku}. Falling back to OSRM`)
     this.name = 'QuotaExhaustedError'
   }
 }

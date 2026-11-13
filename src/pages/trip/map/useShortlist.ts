@@ -382,7 +382,7 @@ export function useShortlist({
         return
       }
       const outcome = await addDecision(tripId, request.request)
-      reportCollabOutcome(outcome, 'Decision posted for the group - resolving it adds the winner to the plan')
+      reportCollabOutcome(outcome, 'Decision posted for the group. Resolve it to add the winner to the plan.')
       // The tray empties on the RECEIPT: a refused poll must not throw away
       // the shortlist the user collected one place at a time.
       if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') setShortlist([])

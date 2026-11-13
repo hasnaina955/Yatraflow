@@ -204,7 +204,7 @@ export function OfflineBanner() {
   const clock = userId && db.cachedAt ? formatHM(new Date(db.cachedAt).toTimeString().slice(0, 5), timeFormat) : null
   const connection = online
     ? 'Trip edit recovery'
-    : `No connection · showing ${clock ? `your saved plan from ${clock}` : 'what loaded last'}.`
+    : `No connection. Showing ${clock ? `your saved plan from ${clock}` : 'what loaded last'}.`
 
   return (
     <section className="offline-banner" aria-label="Saved edits and connection" aria-busy={busy}>

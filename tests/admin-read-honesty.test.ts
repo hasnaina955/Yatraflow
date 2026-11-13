@@ -93,7 +93,7 @@ describe('P15 R23 — every console panel reads its verdict, not the raw length'
     expect(page).toMatch(/\{audit\.length === 0 && !auditFailed \? \(/)
     // The notice above it is the answer over a failure, and it is kept verbatim.
     expect(page).toContain("The audit log couldn't be read.")
-    expect(page).toContain('Rows shown below may be out of date · nothing was lost.')
+    expect(page).toContain('Rows shown below may be out of date. Nothing was lost.')
   })
 
   it('every retry re-reads the slice the panel renders', () => {

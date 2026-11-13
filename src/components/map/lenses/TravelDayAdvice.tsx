@@ -56,7 +56,7 @@ export function TravelDayAdvice({ currentDays, neededDays, onApply, onKeep }: {
   if (!Number.isInteger(add) || add <= 0) return null
   return <div className="mv2-travel-day-actions">
     <p>New days · Empty · Existing dates unchanged</p>
-    <button type="button" className="btn btn-primary btn-sm" onClick={onApply}>Apply - add {add} day{add === 1 ? '' : 's'}</button>
+    <button type="button" className="btn btn-primary btn-sm" onClick={onApply}>Add {add} day{add === 1 ? '' : 's'}</button>
     <button type="button" className="btn btn-ghost btn-sm" onClick={onKeep}>Keep my {currentDays}-day plan</button>
   </div>
 }

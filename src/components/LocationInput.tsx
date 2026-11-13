@@ -123,7 +123,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
       setResolving(true)
       try {
         const resolved = await resolvePick(hit)
-        if (!resolved) { setPickErr('That place was not pinned on the map · pick another suggestion.'); return }
+        if (!resolved) { setPickErr('That place was not pinned on the map. Pick another suggestion.'); return }
         // A newer pick owns the field now — this answer must not write (#842 F16).
         if (!latest.isCurrent(pickId)) return
         hit = resolved
@@ -209,7 +209,7 @@ export function LocationInput({ value, onChange, onPick, placeholder, error, err
               ? 'Place search · Google'
               : mapplsEnabled()
                 ? 'Place search · Mappls · coords by OpenStreetMap'
-                : 'Basic place search · add a maps key for richer results'}
+                : 'Basic place search. Add a maps key for richer results'}
           </li>
         </ul>
       )}

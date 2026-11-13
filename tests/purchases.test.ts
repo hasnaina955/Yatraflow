@@ -803,7 +803,7 @@ describe('#570 — rowExists and onSale are different facts', () => {
     // from here (it does — get_public_trip serves entitled holders); the
     // gone-entirely face falls back to the forked copy.
     expect(pageSrc).toContain('!row.refunded && !row.pendingGrant && !row.onSale && (')
-    expect(pageSrc).toContain('it still opens from here')
+    expect(pageSrc).toContain('It still opens from here')
   })
 
   it('keeps Open and Fork working through a withdrawal — the buyer\'s one working path', () => {

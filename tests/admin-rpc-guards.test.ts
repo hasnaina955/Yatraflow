@@ -149,7 +149,7 @@ describe('admin_remove_member guards', () => {
 
   it('the UI copy mirrors the last-owner refusal (AdminPage)', () => {
     const page = readRaw(PAGE).replace(/\r\n/g, '\n')
-    expect(page).toMatch(/transfer ownership first/)
+    expect(page).toMatch(/Transfer ownership first/)
   })
 })
 

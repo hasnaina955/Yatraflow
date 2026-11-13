@@ -69,7 +69,7 @@ function UnlockCheckState({ read, onRetry, centered }: {
   return (
     <div className="hub-note is-failure" role="alert" style={{ marginTop: 8, textAlign: centered ? 'center' : undefined }}>
       <b>Couldn&apos;t check your access.</b> We couldn&apos;t read what you own, so this plan stays locked
-      rather than guess. If you have already paid for it, try again · nothing is charged twice.
+      rather than guess. If you have already paid for it, try again. Nothing is charged twice.
       <button className="btn btn-outline btn-sm hub-note-action" onClick={onRetry}>Retry</button>
     </div>
   )
@@ -534,7 +534,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     return (
       <div className="container page-enter">
         <EmptyState icon={<TriangleAlert size={38} aria-hidden />} title="This itinerary is no longer published"
-          body="The creator took it off Explore, so it is no longer on sale. If you unlocked it, sign in with the account that bought it and the full plan is still yours · otherwise browse what’s published now."
+          body="The creator took it off Explore, so it is no longer on sale. If you unlocked it, sign in with the account that bought it and the full plan is still yours. Otherwise browse what’s published now."
           action={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Back to Explore</button>} />
       </div>
     )
@@ -549,7 +549,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                this copy must not pick one cause: it names the real possibilities
                and says plainly that the page cannot tell them apart. */
             <EmptyState icon={<Link2 size={38} aria-hidden />} title="This itinerary didn’t load"
-              body="Unpublished, mistyped, or a dropped connection · we can’t tell which from here. Ask whoever shared it for a fresh link, or browse what’s published now."
+              body="Unpublished, mistyped, or a dropped connection. We can’t tell which from here. Ask whoever shared it for a fresh link, or browse what’s published now."
               action={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Back to Explore</button>} />}
       </div>
     )
@@ -794,7 +794,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                 </p>
               ) : (
               <p className="editorial-body">
-                Built around {minutesToHM(totalsN.totalTravelMinutes)} of real road time across {pub.durationDays} days ·
+                Built around {minutesToHM(totalsN.totalTravelMinutes)} of real road time across {pub.durationDays} days. 
                 pacing, breaks and costs are all in the plan below.
               </p>
               )}
@@ -852,7 +852,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         <b className="pub-fg-title">This link, last 7 days</b>
                         <span className="pub-fg-line num">
                           {myReadFailed
-                            ? 'Recorded traffic could not be read just now · the creator hub shows the same numbers when it can.'
+                            ? 'Recorded traffic could not be read just now. The creator hub shows the same numbers when it can.'
                             : myReadPending
                             ? 'Reading this link’s traffic…'
                             : myGlance?.glance
@@ -910,7 +910,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                         {wire
                           ? (wire.stopCount === null ? 'Locked day' : `${wire.stopCount} stop${wire.stopCount === 1 ? '' : 's'}`)
                           : sim.activeStops.length <= 1 && sim.totalDistanceKm < 0.5
-                          ? 'Local day · no drive planned'
+                          ? 'Local day. No drive planned'
                           : `${stops.length} stops · ~${minutesToHM(sim.totalTravelMinutes)} travel`}
                       </div>
                     </div>
@@ -984,7 +984,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               <div className="card">
                 <h2>Take this trip with you</h2>
                 <p className="hint-text" style={{ margin: '8px 0 14px' }}>
-                  Forks the free preview into your YatraFlow account · locked days come over as empty days you can fill in yourself.
+                  Forks the free preview into your YatraFlow account. Locked days come over as empty days you can fill in yourself.
                 </p>
                 <button className="btn fork-btn btn-lg" style={{ width: '100%' }} onClick={copyThis}>
                   <InlineIcon icon={GitFork} size={15} gap={5} />{me ? 'Fork this trip' : 'Log in to fork'}
@@ -1005,7 +1005,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                   ? <PurchaseLoadState onRetry={retryPostPurchaseReads} retrying={postPurchaseRetrying} centered />
                   : <UnlockCheckState read={entitlementRead} onRetry={retryEntitlements} centered />)}
                 {price !== undefined && unlocked && <p className="hint-text" style={{ textAlign: 'center', marginTop: 10 }}>
-                  ✓ Full plan unlocked · forking carries every day as a real, editable plan.
+                  ✓ Full plan unlocked. Forking carries every day as a real, editable plan.
                 </p>}
                 {/* Which days stay back is read from the publication's own freeDayIndexes
                     rather than assumed to be the tail — a live ₹500 publication kept days

@@ -22,17 +22,17 @@ export const INTENT_KEYS: string[] = [...INTENTS, INTENT_NONE]
 /** What the traveller WANTS, phrased as intent not keywords — handed to Jev
  *  verbatim; the development audit imports this same object. */
 export const INTENT_CRITERIA: Record<string, string> = {
-  tiring: 'Make one particular day less demanding · less travel, walking or fewer stops.',
+  tiring: 'Make one particular day less demanding: less travel, walking or fewer stops.',
   airport: 'Check whether a fixed flight or train departure can actually be reached in time.',
   cheaper: 'Propose changes that reduce what the trip costs.',
   rain: 'Plan alternatives for wet weather.',
   family: 'Re-cast the itinerary to be gentler and better suited to a family group.',
   kids: 'Identify which specific stops are unsuitable when travelling with children.',
   compare: 'Compare a relaxed itinerary against a packed one.',
-  risks: 'Identify what could go wrong · the biggest risks in the plan.',
+  risks: 'Identify what could go wrong: the biggest risks in the plan.',
   delay: 'Get a contingency plan for being delayed in transit.',
   youtube: 'Draft publishable promotional text (video description, blog or caption) from the trip.',
-  cost: 'Report the cost breakdown as it stands · total, per person, per day, by category.',
+  cost: 'Report the cost breakdown as it stands: total, per person, per day, by category.',
   summary: 'Give a high-level recap of the whole plan.',
-  none: 'None of the above serve this request · it needs something the assistant cannot do.',
+  none: 'None of the above serve this request. It needs something the assistant cannot do.',
 }

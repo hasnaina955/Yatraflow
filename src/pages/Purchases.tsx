@@ -176,10 +176,10 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
         back={{ label: 'My trips', onClick: () => onNavigate('/trips') }}
         headline={{ lead: 'My', accent: 'purchases' }}
         lede={<>
-          Plans you unlocked, kept here for good · with what you paid, the shape of the plan, and any update
+          Plans you unlocked, kept here for good. With what you paid, the shape of the plan, and any update
           from the person who made them.
           {shelf.rows.some(r => !r.onSale && !r.refunded && !r.pendingGrant) && (
-            <> A plan taken off sale keeps its receipt and your access · it still opens from here.</>
+            <> A plan taken off sale keeps its receipt and your access. It still opens from here.</>
           )}
           {shelf.rows.some(r => !r.rowExists && !r.refunded && !r.pendingGrant) && (
             <> A plan whose catalogue entry is gone keeps its receipt and your access; its length, places and cover
@@ -196,7 +196,7 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
           actions={<button className="btn btn-primary" onClick={() => onNavigate('/auth')}>Sign in</button>} />
       ) : failed ? (
         <StateBlock kind="failed" titleLevel="h2" title="Couldn’t load your purchases"
-          body="The request failed, which is not the same as owning nothing · your plans are safe on your account. Check your connection and try again."
+          body="The request failed, which is not the same as owning nothing. Your plans are safe on your account. Check your connection and try again."
           actions={<button className="btn btn-primary" onClick={() => setAttempt(n => n + 1)}>Try again</button>} />
       ) : entitlements === null || orders === null ? (
         <StateBlock kind="loading" titleLevel="h2" icon={<span className="spinner" aria-hidden="true" />} title="Loading your purchases…" />
@@ -204,21 +204,21 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
         <StateBlock kind="empty" titleLevel="h2"
           art={<StateVignette name="no-purchases" fallback={<ShoppingBag size={38} aria-hidden />} />}
           title="Nothing bought yet"
-          body="Unlock a priced itinerary and it appears here permanently · with the price you paid and any later updates. Free previews you fork live in My trips."
+          body="Unlock a priced itinerary and it appears here permanently. With the price you paid and any later updates. Free previews you fork live in My trips."
           actions={<button className="btn btn-primary" onClick={() => onNavigate('/explore')}>Browse itineraries</button>} />
       ) : (
         <>
           {shelf.pendingGrantCount > 0 && (
             <p className="hint-text pur-note">
               A payment was captured and its access is still being finalized. This usually clears in a
-              minute. If it does not, open the plan once more and press Unlock · the checkout completes
+              minute. If it does not, open the plan once more and press Unlock. The checkout completes
               the grant without a second charge.
             </p>
           )}
           {!shelf.totalReadable && (
             <p className="hint-text pur-note">
               One or more purchases could not be read back, so this total is a floor rather than the
-              whole amount. Your plans are unaffected · the price is just not showing.
+              whole amount. Your plans are unaffected. The price is just not showing.
             </p>
           )}
 
@@ -308,7 +308,7 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
                   {row.refunded && (
                     <p className="hint-text">
                       The money for this plan was refunded, so the access it came with has ended. The
-                      receipt stays here · what you paid and when · because a refund is a change of
+                      receipt stays here. What you paid and when. Because a refund is a change of
                       access, not a reason to erase that you bought it.
                     </p>
                   )}
@@ -319,7 +319,7 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
                       recovery path (press Unlock again — the checkout self-heals). */}
                   {row.pendingGrant && (
                     <p className="hint-text">
-                      <b>Payment received</b> · access is being finalized. This row is a receipt until the
+                      <b>Payment received</b>. Access is being finalized. This row is a receipt until the
                       grant lands; it usually takes a minute.
                     </p>
                   )}
@@ -335,10 +335,10 @@ export function PurchasesPage({ onNavigate }: { onNavigate: (r: string) => void 
                     <p className="hint-text">
                       This plan is not listed publicly any more. Your access is unaffected
                       {row.rowExists
-                        ? <> · it still opens from here, any time.</>
+                        ? <>. It still opens from here, any time.</>
                         : copy
-                          ? <> · your own copy is the trip you forked, and it still works.</>
-                          : <> · but we could not find your copy in My trips, so there is nothing here to open.</>}
+                          ? <>. Your own copy is the trip you forked, and it still works.</>
+                          : <>. But we could not find your copy in My trips, so there is nothing here to open.</>}
                     </p>
                   )}
                   <div className="pur-actions">

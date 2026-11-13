@@ -14,7 +14,7 @@ export interface AiReply {
   assumptions?: string
 }
 
-const DISCLAIMER = 'Estimates use demo coordinates and fixed assumptions · not live traffic or prices.'
+const DISCLAIMER = 'Estimates use demo coordinates and fixed assumptions. Not live traffic or prices.'
 type AdviceExposure = 'indoor' | 'outdoor' | 'unknown'
 type DepartureCommitment = Trip['fixedCommitments'][number] & { type: 'flight-departure' | 'train-departure' }
 type DepartureCandidate =
@@ -409,7 +409,7 @@ function makeLessTiring(trip: Trip): AiReply {
   if (droppable.length) {
     const d = droppable[droppable.length - 1]
     lines.push(`\nTo lighten it:`)
-    lines.push(`1. Move “${d.title}” (${d.locationName}) to another day · saves its visit + transit time.`)
+    lines.push(`1. Move “${d.title}” (${d.locationName}) to another day. Saves its visit + transit time.`)
     lines.push(`2. Start the day 30–45 min earlier so stops aren't rushed.`)
     lines.push(`3. Shorten optional photo/shopping halts by 15 min each.`)
   } else {
@@ -456,7 +456,7 @@ function cheaperAlternative(trip: Trip): AiReply {
   lines.push(`Current estimated total: ${formatInr(totals_of(trip).totalCostInr)} (${formatInr(totals_of(trip).costPerPersonInr)}/person).`)
   lines.push(`\nBiggest levers:`)
   lines.push(`• Transport is priced at ~₹${A.inrPerKm}/km for ${A.mode}. Shifting some legs to bus/local ferry typically cuts that by half or more.`)
-  if (cand) lines.push(`• “${cand.stop.title}” is marked ${cand.stop.priority} · dropping it saves roughly ${formatInr(cand.saving)}.`)
+  if (cand) lines.push(`• “${cand.stop.title}” is marked ${cand.stop.priority}. Dropping it saves roughly ${formatInr(cand.saving)}.`)
   lines.push(`• Swap one paid attraction for a free viewpoint/beach stop; Kerala's coastline gives you several.`)
   return { text: lines.join('\n'), assumptions: DISCLAIMER }
 }
@@ -469,9 +469,9 @@ function rainPlan(trip: Trip): AiReply {
   const indoor = stops.filter(stop => stop.exposure === 'indoor').map(stop => `${stop.title} (${stop.category})`)
   const unknown = stops.filter(stop => stop.exposure === 'unknown').map(stop => stop.label)
   const lines = [`Three rain options:\n`]
-  lines.push(`Option A · Shuffle: swap outdoor stops (${outdoor.slice(0, 2).join(', ') || 'none verified'}) with indoor ones later in the trip.`)
-  lines.push(`Option B · Indoor day: build the day around museums, spas, cafes & shopping; keep drive time similar.`)
-  lines.push(`Option C · Push through: keep the plan but add 30–40 min buffer per outdoor stop for wet roads.`)
+  lines.push(`Option A. Shuffle: swap outdoor stops (${outdoor.slice(0, 2).join(', ') || 'none verified'}) with indoor ones later in the trip.`)
+  lines.push(`Option B. Indoor day: build the day around museums, spas, cafes & shopping; keep drive time similar.`)
+  lines.push(`Option C. Push through: keep the plan but add 30–40 min buffer per outdoor stop for wet roads.`)
   if (outdoor.length) lines.push(`\nWeather-sensitive stops flagged: ${outdoor.join('; ')}.`)
   if (indoor.length) lines.push(`\nVerified indoor stops: ${indoor.join('; ')}.`)
   if (unknown.length) lines.push(`\nExposure is unknown for: ${unknown.join('; ')}. Check these stops before relying on an indoor alternative.`)
@@ -484,7 +484,7 @@ function familyVersion(trip: Trip): AiReply {
   lines.push(`1. Cap each day at 4 activities and ~3h of total driving.`)
   lines.push(`2. Add a mid-day rest/pool break between 1–3 PM.`)
   lines.push(`3. Keep two anchor attractions per day max; everything else becomes optional.`)
-  if (longDays.length) lines.push(`\nStart by easing Day ${longDays.map(x => x.i + 1).join(', ')} · currently ${longDays.map(x => minutesToHM(x.sim.totalTravelMinutes)).join(', ')} of transit.`)
+  if (longDays.length) lines.push(`\nStart by easing Day ${longDays.map(x => x.i + 1).join(', ')}. Currently ${longDays.map(x => minutesToHM(x.sim.totalTravelMinutes)).join(', ')} of transit.`)
   return { text: lines.join('\n'), assumptions: DISCLAIMER }
 }
 
@@ -495,7 +495,7 @@ function removeForKids(trip: Trip): AiReply {
   )
   const lines = [`With children along, first consider removing:`]
   if (candidates.length) candidates.forEach((c, i) => lines.push(`${i + 1}. ${c}`))
-  else lines.push(`Nothing looks child-unfriendly based on durations and categories · nice!`)
+  else lines.push(`Nothing looks child-unfriendly based on durations and categories. Nice!`)
   lines.push(`\nAlso replace any late-evening stops (after 8 PM) with early dinners.`)
   return { text: lines.join('\n'), assumptions: DISCLAIMER }
 }
@@ -505,7 +505,7 @@ function compareRelaxedPacked(trip: Trip): AiReply {
   // Guard a dayless trip — Math.min()/Math.max() on an empty spread are
   // ±Infinity, which would print "~∞/day".
   if (curStopsPerDay.length === 0) {
-    return { text: 'Your itinerary has no days yet · add at least one day to compare a relaxed vs packed version.', assumptions: DISCLAIMER }
+    return { text: 'Your itinerary has no days yet. Add at least one day to compare a relaxed vs packed version.', assumptions: DISCLAIMER }
   }
   const relaxedCount = Math.max(1, Math.round(Math.min(...curStopsPerDay) * 0.8))
   const packedCount = Math.max(...curStopsPerDay) + 2
@@ -530,10 +530,10 @@ function biggestRisks(trip: Trip): AiReply {
   const med = warnings.filter(w => w.severity === 'medium')
   const lines: string[] = []
   if (!warnings.length) {
-    lines.push(`No schedule risks detected · the plan has healthy buffers. Watch weather during monsoon months regardless.`)
+    lines.push(`No schedule risks detected. The plan has healthy buffers. Watch weather during monsoon months regardless.`)
   } else {
     lines.push(`Top risks right now:`)
-    high.concat(med).slice(0, 4).forEach((w, i) => lines.push(`${i + 1}. ${w.title} · ${w.detail} Fix: ${w.fix}`))
+    high.concat(med).slice(0, 4).forEach((w, i) => lines.push(`${i + 1}. ${w.title}: ${w.detail} Fix: ${w.fix}`))
     if (high.length === 0 && med.length < 4) {
       lines.push(`\nAlso keep an eye on: monsoon-season outdoor stops and single-lane ghat sections on hill routes.`)
     }
@@ -547,7 +547,7 @@ function delayBackup(trip: Trip): AiReply {
   const last = sim.activeStops[sim.activeStops.length - 1]
   const lines = [
     `Backup plan if you're delayed 60–90 min (most likely on Day ${busy.index + 1}, your longest travel day):`,
-    `1. Pre-identify the 2 lowest-priority stops today · skip them without discussion.`,
+    `1. Pre-identify the 2 lowest-priority stops today. Skip them without discussion.`,
     `2. If “${last?.title ?? 'the final stop'}” can't fit, move it to tomorrow morning; its opening hours matter more than its order.`,
     `3. Shift dinner reservation 45 min later as buffer.`,
     `4. If a fixed commitment (train/flight) is at risk, leave immediately from the previous stop rather than adding one more halt.`,

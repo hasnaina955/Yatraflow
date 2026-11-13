@@ -399,12 +399,12 @@ export function withUncertainty(outcome: KeepOutcome, holds: boolean): KeepOutco
 /** The one line the user reads when a Keep did not save. Each line says the
  *  preview is still there. */
 export const KEEP_REFUSAL: Record<RefusedKind, string> = {
-  stale: 'The plan changed while you were reviewing · remove this preview and redo the change.',
+  stale: 'The plan changed while you were reviewing. Remove this preview and redo the change.',
   refused: 'This change could not be saved. Your preview is kept.',
   superseded: 'A newer edit replaced this save. Your preview is kept.',
   conflict: 'Earlier changes are still saving or need attention. Your preview is kept.',
   forbidden: 'You can no longer edit this trip. Your preview is kept.',
-  unavailable: 'The save was not confirmed. Your preview is kept · try Keep again.',
+  unavailable: 'The save was not confirmed. Your preview is kept. Try Keep again.',
 }
 
 /** Shown while a Keep is in flight and the user tries Remove. The write may

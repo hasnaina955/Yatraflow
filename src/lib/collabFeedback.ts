@@ -27,7 +27,7 @@ export function reportCollabOutcome(outcome: CollabOutcome, successMessage?: str
       toast('You need editor access to do that.', 'err')
       return
     case 'unavailable':
-      toast('Could not reach the server. Your change was not saved · try again.', 'err')
+      toast('Could not reach the server. Your change was not saved. Try again.', 'err')
       return
   }
 }

@@ -55,7 +55,7 @@ describe('#354 — the publish rules refuse, and they are ONE set of rules', () 
 
   it('refuses a coverless row — the link would preview as the brand card', () => {
     const e = publishValidation(ok({ coverImageUrl: undefined }))
-    expect(e.cover).toBe('Add a cover photo · it is the picture your share link previews with.')
+    expect(e.cover).toBe('Add a cover photo. It is the picture your share link previews with.')
   })
 
   it('refuses a cover the OG handler will not serve', () => {
@@ -85,19 +85,19 @@ describe('#354 — the publish rules refuse, and they are ONE set of rules', () 
     // The "charged for nothing" row: every day free, a price nonetheless. The
     // unlock CTA would appear and reveal nothing.
     const e = publishValidation(ok({ freeDayCount: 3, totalDays: 3 }))
-    expect(e.freeDays).toBe('Every day is free · clear the price or lock a day.')
+    expect(e.freeDays).toBe('Every day is free. Clear the price or lock a day.')
   })
 
   it('refuses a premium plan with no free day at all', () => {
     // The hole the toggle's guard could not see: a publication hydrated with
     // `freeDayIndexes: []` never reaches the toggle.
     const e = publishValidation(ok({ freeDayCount: 0, totalDays: 3 }))
-    expect(e.freeDays).toBe('At least one day must stay free · it is the preview readers see.')
+    expect(e.freeDays).toBe('At least one day must stay free. It is the preview readers see.')
   })
 
   it('refuses a premium plan with nothing to unlock towards', () => {
     expect(publishValidation(ok({ cta: '', hasPremiumDay: true })).cta)
-      .toBe('Premium days need a call-to-action · tell readers what they get when they unlock.')
+      .toBe('Premium days need a call-to-action. Tell readers what they get when they unlock.')
   })
 
   it('leaves an entirely-free publication alone', () => {
@@ -500,7 +500,7 @@ describe('#391 — a refused member write is rolled back and said', () => {
     expect(setRole).toMatch(/toast\(`Couldn't change that role/)
     // …and distinguishes a refused write from a dropped connection.
     expect(removeMember).toContain("console.error('[yatraflow] trip_members write failed'")
-    expect(setRole).toContain('Couldn’t change that role · check your connection.')
+    expect(setRole).toContain('Couldn’t change that role. Check your connection.')
   })
 
   it('keeps the undo window, which covers intent rather than failure', () => {

@@ -74,7 +74,7 @@ export class ErrorBoundary extends Component<Props, State> {
       // A render error stays a failed state with its recovery actions. It never renders as empty (rule R23).
       const body = confirming
         ? <>{this.state.error.message}<br /><br />{LOCAL_DATA_NOTE}</>
-        : staleChunk ? 'A new version shipped while this page was open · one reload picks it up.' : this.state.error.message
+        : staleChunk ? 'A new version shipped while this page was open. One reload picks it up.' : this.state.error.message
       let actions: ReactNode
       if (confirming) {
         actions = (

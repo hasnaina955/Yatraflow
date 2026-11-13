@@ -55,13 +55,13 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
       const url = snapshotUrl(trip, payload)
       setLink(url)
       void nativeCopyText(url)
-      toast('Snapshot link copied · anyone with the link can read the trip, and you cannot revoke it')
+      toast('Snapshot link copied. Anyone with the link can read the trip, and you cannot revoke it')
     } catch (e) {
       console.error('[yatraflow] snapshot encode failed', e)
       // The raw failure names CompressionStream or a URL-length error; neither
       // is anything a reader can act on, so the message says what to do instead
       // and the cause stays in the console.
-      toast('Couldn’t build a snapshot link for this trip · the plan may be too large for a URL. Download the JSON instead.', 'err')
+      toast('Couldn’t build a snapshot link for this trip. The plan may be too large for a URL. Download the JSON instead.', 'err')
     } finally {
       setBusy(false)
     }
@@ -80,7 +80,7 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
                   <ImportTripButton ownerId={me.id} onNavigate={onNavigate} className="btn btn-outline btn-sm" />
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTripJson(trip, publication)}><InlineIcon icon={Download} size={13} gap={4} />Download JSON</button>
                   <PrintExport trip={trip} legCorrections={legCorrections} />
-                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for flights and fixed commitments · imports into Google/Apple/Outlook calendars"><InlineIcon icon={CalendarDays} size={13} gap={4} />Add to calendar</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTripIcs(trip, legCorrections)} title="One calendar event per day plus timed events for flights and fixed commitments. Imports into Google/Apple/Outlook calendars"><InlineIcon icon={CalendarDays} size={13} gap={4} />Add to calendar</button>
                    <button className="btn btn-saffron btn-sm" onClick={makeLink} disabled={busy} aria-busy={busy}>
                      <InlineIcon icon={Link2} size={13} gap={4} />{busy ? 'Building…' : 'Create snapshot link'}
                    </button>
@@ -98,7 +98,7 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
 // ================= Publication editor (free/premium picker) =================
 
 const DEFAULT_TRAVEL_TIPS = ['Start ghat-section drives early.', 'Carry cash in hill towns.']
-const DEFAULT_WARNINGS = ['All costs are estimates based on typical prices · verify locally before booking.']
+const DEFAULT_WARNINGS = ['All costs are estimates based on typical prices. Verify locally before booking.']
 
 // The publish rules, the price ceiling, the field order and the refusal type all
 // live in `lib/publishRules` (#354) because `publishItinerary` enforces the same
@@ -193,7 +193,7 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
     if (free.has(index) && free.size <= 1) {
       // Tagged to the DAY PICKER, which is the control the message is about —
       // and it used to be a form-wide `err` the reader could not locate.
-      setErrs(prev => ({ ...prev, freeDays: 'At least one day must stay free · it is the preview readers see.' }))
+      setErrs(prev => ({ ...prev, freeDays: 'At least one day must stay free. It is the preview readers see.' }))
       return
     }
     setErrs(prev => {
@@ -285,7 +285,7 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
       // Only an accepted write reports success (#704). A refused one shows its
       // message beside the button, and the form keeps the user's edits.
       if (!outcome.ok) {
-        setSaveErr(outcome.error ?? 'Could not save the publication · nothing was published. Try again.')
+        setSaveErr(outcome.error ?? 'Could not save the publication. Nothing was published. Try again.')
         return
       }
       onDone(Boolean(pub) && live)
@@ -308,7 +308,7 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
       }
       // `saveErr`, not `errs`: a write that failed is not a field's fault, and
       // pointing at the price box for a dropped connection would be a lie.
-      setSaveErr('Could not save the publication · nothing was published. Try again.')
+      setSaveErr('Could not save the publication. Nothing was published. Try again.')
     } finally {
       setBusy(false)
       onWriting(false)
@@ -325,7 +325,7 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
       <FormErrorSummary errors={errs} labels={PUBLISH_FIELD_LABELS} />
       <div className="ts-subhead">
         <b>Cover photo</b>
-        <span className="small muted">Required · this is the picture every shared link previews with.</span>
+        <span className="small muted">Required. This is the picture every shared link previews with.</span>
       </div>
       {/* Two of the six rules are about this control, and it took no `error`
           prop — so a refused publish said "add a cover photo" with nothing
@@ -339,7 +339,7 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
       </div>
       {!trip.coverImageUrl && (
         <p className="hint-text ts-note">
-          That preview is a suggestion the app found · nothing is saved yet, and a link cannot show it.
+          That preview is a suggestion the app found. Nothing is saved yet, and a link cannot show it.
           Use it or paste your own; publishing needs a saved cover.
         </p>
       )}
@@ -359,27 +359,27 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
           // Floored, because `formatInr` rounds: a net of ₹172.55 must not be
           // promised as ₹173 — a figure you can *at least* count on is the only
           // one this sentence is allowed to state.
-          ? `At ${formatInr(priceNum)} a sale nets you at least ${formatInr(Math.floor(netOfFeeInr(priceNum)))} · the platform fee is ${PLATFORM_FEE_SUMMARY}.`
+          ? `At ${formatInr(priceNum)} a sale nets you at least ${formatInr(Math.floor(netOfFeeInr(priceNum)))}. The platform fee is ${PLATFORM_FEE_SUMMARY}.`
           : 'Leave empty or 0 for an entirely free itinerary.'}>
           <input className="input" type="number" min={0} inputMode="numeric" placeholder="e.g. 199"
             ref={el => (fieldRefs.current.price = el)}
             value={price} onChange={e => { setPrice(e.target.value); clearErr('price'); setSaveErr(null) }} />
         </Field>
-        <Field label="Best season" hint="Optional · shown as practical guidance.">
+        <Field label="Best season" hint="Optional. Shown as practical guidance.">
           <input className="input" value={bestSeason} onChange={e => { setBestSeason(e.target.value); setSaveErr(null) }} placeholder="e.g. Sep–Mar" />
         </Field>
       </div>
       <Field label="Travel tips" hint="One per line.">
         <textarea className="textarea" rows={3} value={tips} onChange={e => { setTips(e.target.value); setSaveErr(null) }} />
       </Field>
-      <Field label="Subscriber call-to-action" error={errs.cta} hint={hasPremiumDay ? 'Required while any day is premium.' : 'Used on premium days · add one before charging.'}>
+      <Field label="Subscriber call-to-action" error={errs.cta} hint={hasPremiumDay ? 'Required while any day is premium.' : 'Used on premium days. Add one before charging.'}>
         <input className="input" value={cta} ref={el => (fieldRefs.current.cta = el)}
           onChange={e => { setCta(e.target.value); clearErr('cta'); setSaveErr(null) }} placeholder="e.g. Full checklist + stay contacts." />
       </Field>
 
       <div className="ts-subhead">
         <b>Free preview days</b>
-        {entirelyFree && <span className="small muted">Entirely free · every day is viewable.</span>}
+        {entirelyFree && <span className="small muted">Entirely free. Every day is viewable.</span>}
       </div>
       {/* The day picker's focus target: the group, not one button — moving focus
           to an arbitrary day would be worse than moving it to the group that
@@ -528,7 +528,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
     if (!isOwner) { setPendingUnpublish(false); return }
     unpublishItinerary(trip.id)
     setPendingUnpublish(false)
-    toast('Unpublished · removed from Explore')
+    toast('Unpublished. Removed from Explore')
   }
 
   return (
@@ -558,7 +558,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
                 <code className="invite-code-text" aria-label={`Trip code ${inviteCode}`}>{inviteCode}</code>
                 <CopyButton text={inviteCode} />
               </div>
-              <span className="small muted">read it out loud · friends type it on the home screen</span>
+              <span className="small muted">read it out loud. Friends type it on the home screen</span>
             </div>
           )}
           {/* Minting the code is a write, so its three outcomes are three
@@ -637,7 +637,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           <span className="share-intent share-intent--saffron">2 · Share publicly</span>
           <h3 className="shr-card-title">Publish as public itinerary</h3>
           <p className="hint-text shr-publication-description">
-            List this trip on Explore so anyone can discover and fork it. Choose which days are the free preview · the rest sit behind a premium placeholder (no real payments in this MVP).
+            List this trip on Explore so anyone can discover and fork it. Choose which days are the free preview. The rest sit behind a premium placeholder (no real payments in this MVP).
           </p>
           {/* Loading, failed and "not published" are three different statements
               (#704). The last one is said only after a read that succeeded.
@@ -665,7 +665,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
             // No "View public page" button and no copyable link here: nothing is
             // up to share. The form below is the way back.
             <p className="hint-text ts-note shr-unpublished-note">
-              Unpublished · it has left Explore and is no longer on sale. Anyone who already unlocked it keeps the full plan.
+              Unpublished. It has left Explore and is no longer on sale. Anyone who already unlocked it keeps the full plan.
             </p>
           ))}
           {publishView === 'kept' && (
@@ -722,7 +722,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
       <ConfirmDialog
         open={pendingUnpublish}
         title="Unpublish this itinerary?"
-        body="It leaves Explore immediately and stops selling. The trip itself is not touched, and anyone who already unlocked it keeps the full plan · you can publish it again anytime from this tab."
+        body="It leaves Explore immediately and stops selling. The trip itself is not touched, and anyone who already unlocked it keeps the full plan. You can publish it again anytime from this tab."
         confirmLabel="Unpublish"
         onConfirm={confirmUnpublish}
         onClose={() => setPendingUnpublish(false)}

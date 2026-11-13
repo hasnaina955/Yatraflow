@@ -34,7 +34,7 @@ export function ImpactPreviewPanel({ result, busy = false, uncertain = false, on
       <div className="impact-panel">
         <div className="impact-head">
           <span><Zap size={14} aria-hidden /></span>
-          <span>Impact preview · estimates only</span>
+          <span>Impact preview: estimates only</span>
           <span style={{ marginLeft: 'auto' }} className={`chip ${result.newWarnings.length ? 'chip-danger' : 'chip-ok'}`}>
             {result.newWarnings.length ? `+${result.newWarnings.length} warning${result.newWarnings.length > 1 ? 's' : ''}` : 'no new warnings'}
           </span>
@@ -58,7 +58,7 @@ export function ImpactPreviewPanel({ result, busy = false, uncertain = false, on
             <div className="impact-cell">
               <div className="k">Too busy?</div>
               <div className={`v ${result.tooBusy ? 'impact-busy' : 'impact-ok'}`}>
-                {result.tooBusy ? 'Yes · over-packed day' : 'No'}
+                {result.tooBusy ? 'Yes: over-packed day' : 'No'}
               </div>
             </div>
           </div>

@@ -168,7 +168,7 @@ describe('#704 — native Home reads the trips verdict before it renders', () =>
 
   it('a failed read with loaded trips keeps the rows and adds one status note with Try again above them', () => {
     expect(homeBody).toMatch(
-      /\{trips\.length > 0 && \(\s*<>\s*\{tripsRead === 'failed' && \(\s*<p className="small muted" role="status">Couldn’t refresh your trips · showing what was loaded\. <button className="btn btn-outline btn-sm" onClick=\{retryTrips\} disabled=\{retrying\}>\{retrying \? 'Trying…' : 'Try again'\}<\/button><\/p>\s*\)\}/,
+      /\{trips\.length > 0 && \(\s*<>\s*\{tripsRead === 'failed' && \(\s*<p className="small muted" role="status">Couldn’t refresh your trips\. Showing what was loaded\. <button className="btn btn-outline btn-sm" onClick=\{retryTrips\} disabled=\{retrying\}>\{retrying \? 'Trying…' : 'Try again'\}<\/button><\/p>\s*\)\}/,
     )
   })
 

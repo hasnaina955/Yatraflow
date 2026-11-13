@@ -100,7 +100,7 @@ export function QuickAddStop({ target, trip, onClose, onAdd, onMore }: {
       if (!v.geocoded) {
         const picked = await resolvePick(unnamedPick('timeline-quick-add', v.locationName.trim() || v.title.trim()))
         if (!picked) {
-          setErrs({ locationName: 'Pick a suggestion, or use “More details…” to enter coordinates · a stop cannot go on the map without a position.' })
+          setErrs({ locationName: 'Pick a suggestion, or use “More details…” to enter coordinates. A stop cannot go on the map without a position.' })
           return
         }
         onAdd(target.dayIndex, target.slot, {

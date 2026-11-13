@@ -49,7 +49,7 @@ export const demoProfileTemplates: Record<string, PrivateUserProfile> = {
     travelStyles: ['creator', 'luxury', 'spiritual'],
     isCreator: true,
     creatorAvailable: true,
-    creatorBio: 'Heritage storyteller. I plan slow, deep India itineraries · forts, havelis, food lanes and the people in between.',
+    creatorBio: 'Heritage storyteller. I plan slow, deep India itineraries. Forts, havelis, food lanes and the people in between.',
     socialLinks: { youtube: 'youtube.com/@DevikaRoams', instagram: 'instagram.com/devikaroams' },
   },
 }
@@ -82,14 +82,14 @@ const keralaTrip: Trip = {
   createdAt: T(10),
   updatedAt: T(1),
   fixedCommitments: [
-    { id: 'fc_1', title: 'Hotel check-in · Kochi', type: 'hotel-checkin', dayIndex: 0, time: '14:00', notes: 'Fort Kochi homestay' },
-    { id: 'fc_2', title: 'Houseboat boarding · Alleppey', type: 'event', dayIndex: 3, time: '12:00', notes: 'Boarding gate closes 12:30 sharp' },
-    { id: 'fc_3', title: 'Train departure · Ernakulam Jn', type: 'train-departure', dayIndex: 3, time: '19:45', notes: 'Vrinda Express' },
+    { id: 'fc_1', title: 'Hotel check-in: Kochi', type: 'hotel-checkin', dayIndex: 0, time: '14:00', notes: 'Fort Kochi homestay' },
+    { id: 'fc_2', title: 'Houseboat boarding: Alleppey', type: 'event', dayIndex: 3, time: '12:00', notes: 'Boarding gate closes 12:30 sharp' },
+    { id: 'fc_3', title: 'Train departure: Ernakulam Jn', type: 'train-departure', dayIndex: 3, time: '19:45', notes: 'Vrinda Express' },
   ],
   days: [
     // ---- Day 1: Kochi → Munnar ----
     {
-      id: 'day_k_1', index: 0, title: 'Kochi to Munnar · waterfalls en route',
+      id: 'day_k_1', index: 0, title: 'Kochi to Munnar: waterfalls en route',
       stops: [
         {
           id: 'st_k_cheeyappara', title: 'Cheeyappara Waterfalls', category: 'nature',
@@ -106,7 +106,7 @@ const keralaTrip: Trip = {
           priority: 'optional', status: 'maybe', orderInDay: 2,
         },
         {
-          id: 'st_k_hotel_munnar', title: 'Check-in · Munnar hill resort', category: 'hotel',
+          id: 'st_k_hotel_munnar', title: 'Check-in: Munnar hill resort', category: 'hotel',
           locationName: 'Munnar town', lat: 10.0889, lng: 77.0595,
           description: 'Tea-valley view rooms. Early dinner on terrace.', visitMinutes: 45,
           openTime: '13:00', closeTime: '23:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
@@ -115,7 +115,7 @@ const keralaTrip: Trip = {
         {
           id: 'st_k_blossom', title: 'Blossom International Park evening walk', category: 'nature',
           locationName: 'Munnar', lat: 10.0740, lng: 77.0298,
-          description: 'Easy lakeside trail · good leg-stretch after the ghat drive.', visitMinutes: 60,
+          description: 'Easy lakeside trail. Good leg-stretch after the ghat drive.', visitMinutes: 60,
           openTime: '09:00', closeTime: '18:00', entryFeeInrPerPerson: 50, transportCostInrTotal: 200,
           priority: 'optional', weatherSensitive: true, status: 'suggested', orderInDay: 4,
         },
@@ -123,7 +123,7 @@ const keralaTrip: Trip = {
     },
     // ---- Day 2: Munnar full day ----
     {
-      id: 'day_k_2', index: 1, title: 'Munnar · tea estates & Top Station',
+      id: 'day_k_2', index: 1, title: 'Munnar: tea estates & Top Station',
       stops: [
         {
           id: 'st_k_sunrise', title: 'Top Station sunrise viewpoint', category: 'sightseeing',
@@ -171,7 +171,7 @@ const keralaTrip: Trip = {
     },
     // ---- Day 3: Munnar → Thekkady ----
     {
-      id: 'day_k_3', index: 2, title: 'Munnar to Thekkady · spice country',
+      id: 'day_k_3', index: 2, title: 'Munnar to Thekkady: spice country',
       stops: [
         {
           id: 'st_k_spice', title: 'Spice garden guided walk', category: 'nature',
@@ -183,14 +183,14 @@ const keralaTrip: Trip = {
         {
           id: 'st_k_permits', title: 'Periyar boat safari (book slots)', category: 'adventure',
           locationName: 'Periyar Tiger Reserve', lat: 9.4644, lng: 77.1570,
-          description: '1.5h lake safari · elephant/gaur sightings possible. Needs booking.', visitMinutes: 120,
+          description: '1.5h lake safari. Elephant/gaur sightings possible. Needs booking.', visitMinutes: 120,
           openTime: '07:30', closeTime: '16:00', entryFeeInrPerPerson: 300, transportCostInrTotal: 400,
           priority: 'must-do', weatherSensitive: true, notes: 'Book upper-deck seats online.', status: 'needs-booking', orderInDay: 2,
         },
         {
           id: 'st_k_kathakali', title: 'Kathakali & Kalaripayattu show', category: 'event',
           locationName: 'Kumily junction', lat: 9.5960, lng: 77.1615,
-          description: 'Evening cultural performance · makeup demo starts 30 min early.', visitMinutes: 90,
+          description: 'Evening cultural performance. Makeup demo starts 30 min early.', visitMinutes: 90,
           openTime: '17:00', closeTime: '20:00', entryFeeInrPerPerson: 300, transportCostInrTotal: 150,
           priority: 'nice-to-have', status: 'confirmed', orderInDay: 3,
         },
@@ -198,7 +198,7 @@ const keralaTrip: Trip = {
     },
     // ---- Day 4: Thekkady → Alleppey houseboat ----
     {
-      id: 'day_k_4', index: 3, title: 'Thekkady to Alleppey · houseboat finale',
+      id: 'day_k_4', index: 3, title: 'Thekkady to Alleppey: houseboat finale',
       stops: [
         {
           id: 'st_k_houseboat', title: 'Houseboat boarding & cruise', category: 'travel',
@@ -248,21 +248,21 @@ const goaTrip: Trip = {
   createdAt: T(6),
   updatedAt: T(2),
   fixedCommitments: [
-    { id: 'fc_g1', title: 'Return drive deadline · Mumbai', type: 'other', dayIndex: 2, time: '16:00', notes: 'One of us has a Monday shift' },
+    { id: 'fc_g1', title: 'Return drive deadline: Mumbai', type: 'other', dayIndex: 2, time: '16:00', notes: 'One of us has a Monday shift' },
   ],
   days: [
     {
       id: 'day_g_1', index: 0, title: 'Panjim arrival & North Goa beaches',
       stops: [
         { id: 'st_g_baga', title: 'Baga Beach sunset', category: 'beach', locationName: 'Baga', lat: 15.5555, lng: 73.7519, description: 'Shack hopping after sunset.', visitMinutes: 120, openTime: '06:00', closeTime: '22:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 600, priority: 'must-do', weatherSensitive: true, status: 'confirmed', orderInDay: 1 },
-        { id: 'st_g_cafe', title: 'Late lunch at Thalassa (booking needed)', category: 'food', locationName: 'Siolim', lat: 15.6180, lng: 73.7380, description: 'Greek cliffside views.', visitMinutes: 90, openTime: '12:00', closeTime: '23:00', entryFeeInrPerPerson: 800, transportCostInrTotal: 500, priority: 'nice-to-have', notes: 'Weekend queues · reserve.', status: 'needs-booking', orderInDay: 2 },
+        { id: 'st_g_cafe', title: 'Late lunch at Thalassa (booking needed)', category: 'food', locationName: 'Siolim', lat: 15.6180, lng: 73.7380, description: 'Greek cliffside views.', visitMinutes: 90, openTime: '12:00', closeTime: '23:00', entryFeeInrPerPerson: 800, transportCostInrTotal: 500, priority: 'nice-to-have', notes: 'Weekend queues. Reserve.', status: 'needs-booking', orderInDay: 2 },
       ],
     },
     {
       id: 'day_g_2', index: 1, title: 'Forts, markets & Old Goa churches',
       stops: [
         { id: 'st_g_fort', title: 'Chapora Fort (Dil Chahta Hai fort)', category: 'sightseeing', locationName: 'Vagator', lat: 15.6060, lng: 73.7360, description: 'Morning light is best; climb before it gets hot.', visitMinutes: 60, openTime: '09:00', closeTime: '18:30', entryFeeInrPerPerson: 0, transportCostInrTotal: 400, priority: 'must-do', weatherSensitive: true, status: 'confirmed', orderInDay: 1 },
-        { id: 'st_g_market', title: 'Anjuna Flea Market', category: 'shopping', locationName: 'Anjuna', lat: 15.5760, lng: 73.7410, description: 'Wednesdays only · check the date!', visitMinutes: 90, openTime: '08:00', closeTime: '18:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 300, priority: 'optional', status: 'suggested', orderInDay: 2 },
+        { id: 'st_g_market', title: 'Anjuna Flea Market', category: 'shopping', locationName: 'Anjuna', lat: 15.5760, lng: 73.7410, description: 'Wednesdays only. Check the date!', visitMinutes: 90, openTime: '08:00', closeTime: '18:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 300, priority: 'optional', status: 'suggested', orderInDay: 2 },
         { id: 'st_g_basilica', title: 'Basilica of Bom Jesus', category: 'temple', locationName: 'Old Goa', lat: 15.5009, lng: 73.9116, description: 'UNESCO baroque church; St Francis Xavier relics.', visitMinutes: 60, openTime: '09:00', closeTime: '18:30', entryFeeInrPerPerson: 0, transportCostInrTotal: 700, priority: 'must-do', status: 'confirmed', orderInDay: 3 },
         { id: 'st_g_river', title: 'Mandovi river cruise', category: 'event', locationName: 'Panjim jetty', lat: 15.4989, lng: 73.8278, description: 'Live music cruise at sunset.', visitMinutes: 90, openTime: '16:00', closeTime: '19:45', entryFeeInrPerPerson: 500, transportCostInrTotal: 300, priority: 'nice-to-have', status: 'suggested', orderInDay: 4 },
       ],
@@ -302,7 +302,7 @@ const rajasthanTrip: Trip = {
   createdAt: T(60),
   updatedAt: T(3),
   fixedCommitments: [
-    { id: 'fc_r1', title: 'Haveli check-in · Jaipur', type: 'hotel-checkin', dayIndex: 0, time: '15:00' },
+    { id: 'fc_r1', title: 'Haveli check-in: Jaipur', type: 'hotel-checkin', dayIndex: 0, time: '15:00' },
   ],
   days: [
     {
@@ -323,7 +323,7 @@ const rajasthanTrip: Trip = {
     {
       id: 'day_r_3', index: 2, title: 'Jodhpur → Udaipur via Ranakpur',
       stops: [
-        { id: 'st_r_ranakpur', title: 'Ranakpur Jain Temple', category: 'temple', locationName: 'Ranakpur', lat: 25.1170, lng: 73.4410, description: '1,444 marble pillars · none identical.', visitMinutes: 90, openTime: '12:00', closeTime: '17:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 300, notes: 'Opens to non-Jain visitors at noon.', priority: 'must-do', status: 'confirmed', orderInDay: 1 },
+        { id: 'st_r_ranakpur', title: 'Ranakpur Jain Temple', category: 'temple', locationName: 'Ranakpur', lat: 25.1170, lng: 73.4410, description: '1,444 marble pillars. None identical.', visitMinutes: 90, openTime: '12:00', closeTime: '17:00', entryFeeInrPerPerson: 0, transportCostInrTotal: 300, notes: 'Opens to non-Jain visitors at noon.', priority: 'must-do', status: 'confirmed', orderInDay: 1 },
         { id: 'st_r_citypalace', title: 'City Palace Udaipur sunset', category: 'museum', locationName: 'Udaipur', lat: 24.5764, lng: 73.6835, description: 'Lake Pichola from the upper courtyards.', visitMinutes: 120, openTime: '09:30', closeTime: '19:30', entryFeeInrPerPerson: 300, transportCostInrTotal: 250, priority: 'must-do', status: 'confirmed', orderInDay: 2 },
       ],
     },
@@ -345,7 +345,7 @@ const suggestions: StopSuggestion[] = [
   {
     id: 'sg_1', tripId: keralaTripId, dayIndex: 1, proposedBy: 'u_meera', title: 'Pothamedu viewpoint sunset',
     category: 'sightseeing', locationName: 'Pothamedu, Munnar', lat: 10.0680, lng: 77.0480,
-    description: 'Quiet viewpoint over the tea valleys · better than Echo Point honestly.',
+    description: 'Quiet viewpoint over the tea valleys. Better than Echo Point honestly.',
     visitMinutes: 45, estimatedEntryFeeInr: 0, estimatedTransportInr: 250,
     votes: [{ userId: 'u_meera', value: 1, createdAt: T(2) }, { userId: 'u_arjun', value: 1, createdAt: T(1) }],
     comments: [{ id: 'cm_1', authorId: 'u_arjun', text: 'Yes! Echo Point was a letdown last time.', createdAt: T(1) }],
@@ -357,7 +357,7 @@ const suggestions: StopSuggestion[] = [
     description: 'Ethical elephant bathing session, 45 min. Kids would love it.',
     visitMinutes: 60, estimatedEntryFeeInr: 700, estimatedTransportInr: 300,
     votes: [{ userId: 'u_arjun', value: 1, createdAt: T(1) }, { userId: 'u_meera', value: -1, createdAt: T(1) }],
-    comments: [{ id: 'cm_2', authorId: 'u_meera', text: 'I read mixed reviews about this place · can we check an ethical operator?', createdAt: T(1) }],
+    comments: [{ id: 'cm_2', authorId: 'u_meera', text: 'I read mixed reviews about this place. Can we check an ethical operator?', createdAt: T(1) }],
     status: 'open', createdAt: T(1),
   },
 ]
@@ -365,7 +365,7 @@ const suggestions: StopSuggestion[] = [
 const decisions: TripDecision[] = [
   {
     id: 'dc_1', tripId: keralaTripId,
-    question: 'Day 2 is packed · which stop do we drop?',
+    question: 'Day 2 is packed. Which stop do we drop?',
     context: 'Six activities in one day. Health score flags Day 2 as Tight.',
     options: [
       { id: 'o_1', label: 'Drop Echo Point', costImpactInr: -20, timeImpactMin: -95 },
@@ -381,7 +381,7 @@ const decisions: TripDecision[] = [
     question: 'Vegetarian-only houseboat menu or mixed?',
     options: [
       { id: 'o_4', label: 'Pure veg sadya' },
-      { id: 'o_5', label: 'Mixed · include karimeen' , costImpactInr: 900 },
+      { id: 'o_5', label: 'Mixed: include karimeen' , costImpactInr: 900 },
     ],
     votesByUserId: {},
     comments: [],
@@ -409,13 +409,13 @@ const publishedItineraries: PublishedItinerary[] = [
   {
     id: 'kerala-hills-backwaters-4d',
     tripId: keralaTripId, creatorId: 'u_demo',
-    title: 'Kerala Hills & Backwaters · 4-Day Road Trip',
+    title: 'Kerala Hills & Backwaters: 4-Day Road Trip',
     tagline: 'Waterfalls, tea estates and a night drifting through Kuttanad.',
     routeSummary: ['Kochi', 'Munnar', 'Thekkady', 'Alleppey'],
     durationDays: 4, estimatedBudgetPerPersonInr: 22000, travelStyle: 'balanced',
     bestSeason: 'Sep–Mar',
     travelTips: [
-      'Start ghat-section drives before 9 AM · mist rolls in after 4 PM.',
+      'Start ghat-section drives before 9 AM. Mist rolls in after 4 PM.',
       'Carry cash; card machines fail in Munnar town during power cuts.',
       'Book Periyar boat safari slots 3–4 days ahead in season.',
     ],
@@ -445,7 +445,7 @@ const publishedItineraries: PublishedItinerary[] = [
   {
     id: 'rajasthan-heritage-circuit',
     tripId: rajasthanTripId, creatorId: 'u_devika',
-    title: 'Royal Rajasthan Heritage Circuit · Jaipur · Jodhpur · Udaipur',
+    title: 'Royal Rajasthan Heritage Circuit: Jaipur · Jodhpur · Udaipur',
     tagline: 'Forts at opening hour, stepwell sunsets and the stories between them.',
     routeSummary: ['Jaipur', 'Jodhpur', 'Ranakpur', 'Udaipur'],
     durationDays: 7, estimatedBudgetPerPersonInr: 48000, travelStyle: 'luxury',
@@ -455,7 +455,7 @@ const publishedItineraries: PublishedItinerary[] = [
       'Ranakpur temple opens to visitors only after noon.',
       'Book Chowki Dhani VIP seating in peak season.',
     ],
-    warningsAndAssumptions: ['Luxury pricing · heritage hotels vary wildly by season.', 'Distances use demo coordinates; verify ghat routes.'],
+    warningsAndAssumptions: ['Luxury pricing. Heritage hotels vary wildly by season.', 'Distances use demo coordinates; verify ghat routes.'],
     freeDayIndexes: [0, 1], premiumPriceInr: 499,
     subscriberCta: 'Room-by-room hotel picks, guide contacts and my photo-spot map.',
     publishedAt: T(20), views: 5310, copies: 342,
@@ -464,12 +464,12 @@ const publishedItineraries: PublishedItinerary[] = [
     id: 'sikkim-adventure-week',
     tripId: 'trip_sikkim_ref', creatorId: 'u_devika',
     title: 'Sikkim Adventure Week',
-    tagline: 'Gangtok, Nathula pass and Tsomgo lake · permits decoded.',
+    tagline: 'Gangtok, Nathula pass and Tsomgo lake. Permits decoded.',
     routeSummary: ['Gangtok', 'Tsomgo Lake', 'Nathula', 'Pelling'],
     durationDays: 6, estimatedBudgetPerPersonInr: 31000, travelStyle: 'adventure',
     bestSeason: 'Mar–Jun, Oct–Nov',
     travelTips: ['Nathula permits need 24h advance processing.', 'Altitude: take the acclimatization day seriously.'],
-    warningsAndAssumptions: ['High-altitude sections carry real weather risk · always confirm pass status locally.'],
+    warningsAndAssumptions: ['High-altitude sections carry real weather risk. Always confirm pass status locally.'],
     freeDayIndexes: [0], premiumPriceInr: 249,
     subscriberCta: 'Permit paperwork templates + verified stay list.',
     publishedAt: T(35), views: 1890, copies: 74,
@@ -478,7 +478,7 @@ const publishedItineraries: PublishedItinerary[] = [
     id: 'mumbai-weekend-sprint',
     tripId: 'trip_mumbai_ref', creatorId: 'u_arjun',
     title: 'Mumbai Weekend Sprint',
-    tagline: 'Colaba to Bandra · street food, art deco and sea-link sunsets in 48 hours.',
+    tagline: 'Colaba to Bandra: street food, art deco and sea-link sunsets in 48 hours.',
     routeSummary: ['Colaba', 'Bandra', 'Juhu'],
     durationDays: 2, estimatedBudgetPerPersonInr: 7500, travelStyle: 'food-focused',
     bestSeason: 'All year (avoid monsoon high tide evenings)',

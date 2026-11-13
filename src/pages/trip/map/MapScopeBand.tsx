@@ -53,16 +53,25 @@ export function scopeBandCountsSpoken(counts: ScopeBandCounts | null): string | 
   return parts == null ? null : parts.map(part => `${part.value} ${part.label}`).join(', ')
 }
 
-export function MapScopeBand({ minutes, onMinutes, counts, disabled = false, status = null }: {
+/** The visible count. With a known budget it says what fits; with an unknown
+ *  planned spend it states the scope only and makes no budget claim. */
+export function scopeCountText(counts: ScopeBandCounts | null, minutes: ScopeMinutes, budgetKnown: boolean): string {
+  if (counts?.inside == null) return 'Count unavailable'
+  return budgetKnown ? `Fits: ${counts.inside}` : `Within ${minutes} min: ${counts.inside}`
+}
+
+export function MapScopeBand({ minutes, onMinutes, counts, disabled = false, status = null, budgetKnown = true }: {
   minutes: ScopeMinutes
   onMinutes: (next: ScopeMinutes) => void
   counts: ScopeBandCounts | null
   disabled?: boolean
   status?: string | null
+  /** False when the day's planned detour spend is not measured. */
+  budgetKnown?: boolean
   snap?: string
   phone?: boolean
 }) {
-  const countLabel = counts?.inside == null ? 'Count unavailable' : `${counts.inside} picks fit scope and budget`
+  const countLabel = counts?.inside == null ? 'Count unavailable' : budgetKnown ? `${counts.inside} picks fit scope and budget` : `${counts.inside} picks within ${minutes} min. Budget not measured.`
   return <section className="mv2-lens-scope-band" data-placement="deck" aria-label="Drive scope">
     <Select aria-label="Extra driving there and back" value={String(minutes)} disabled={disabled}
       options={MINUTE_SCOPE_STEPS.map(step => ({ value: String(step), label: `Within ${step} min` }))}
@@ -70,6 +79,6 @@ export function MapScopeBand({ minutes, onMinutes, counts, disabled = false, sta
         const next = MINUTE_SCOPE_STEPS.find(step => String(step) === value)
         if (next != null) onMinutes(next)
       }} />
-    <span className="mv2-lens-scope-count" role="status" aria-label={status ?? countLabel} title={countLabel}>{status ?? (counts?.inside == null ? 'Count unavailable' : `Fits: ${counts.inside}`)}</span>
+    <span className="mv2-lens-scope-count" role="status" aria-label={status ?? countLabel} title={countLabel}>{status ?? scopeCountText(counts, minutes, budgetKnown)}</span>
   </section>
 }

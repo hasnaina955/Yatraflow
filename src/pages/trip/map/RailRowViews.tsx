@@ -141,7 +141,7 @@ export function LedgerRow({
       {!added && editable && (
         <button
           className="chip chip-sm"
-          title="Not interested - hide this and teach the engine"
+          title="Not interested. Hide this and teach the engine."
           onClick={onDismiss}
         >Dismiss</button>
       )}
@@ -149,7 +149,7 @@ export function LedgerRow({
         <button
           className="chip chip-sm"
           aria-pressed={shortlisted}
-          title="Collect for the shortlist tray - the rail collects, the tray decides"
+          title="Collect for the shortlist tray. The rail collects, the tray decides."
           onClick={onToggleShortlist}
         >
           {shortlisted ? 'Shortlisted' : 'Shortlist'}

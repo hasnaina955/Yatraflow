@@ -33,7 +33,7 @@ export function isAppLocalKey(key: string): boolean {
  *  edits are the user's own work, not cache. Trips are on the account, not
  *  here — so say that rather than implying the user is about to lose them. */
 export const LOCAL_DATA_NOTE =
-  'This clears what this browser saved · display preferences, cached suggestions, the offline copy and the app\'s cached files. Unsynced edits still waiting to upload stay. Trips saved to your account are not affected.'
+  'This clears what this browser saved. Display preferences, cached suggestions, the offline copy and the app\'s cached files. Unsynced edits still waiting to upload stay. Trips saved to your account are not affected.'
 
 /** Remove every key this app keeps in localStorage. Returns how many went, so a
  *  caller can say what happened instead of shrugging. Best-effort: private mode

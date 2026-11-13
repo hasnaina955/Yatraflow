@@ -123,7 +123,7 @@ export function NativeHomePage({ me, onNavigate }: {
         lede={(trips.length > 0 || tripsRead === 'ready') && (
           <span className="muted small">
             {trips.length === 0
-              ? 'Nothing planned yet · your first trip is one tap away.'
+              ? 'Nothing planned yet. Your first trip is one tap away.'
               : trips.length === 1
                 ? 'One trip on your bench.'
                 : `${trips.length} trips on your bench.`}
@@ -180,7 +180,7 @@ export function NativeHomePage({ me, onNavigate }: {
       {trips.length > 0 && (
         <>
           {tripsRead === 'failed' && (
-            <p className="small muted" role="status">Couldn’t refresh your trips · showing what was loaded. <button className="btn btn-outline btn-sm" onClick={retryTrips} disabled={retrying}>{retrying ? 'Trying…' : 'Try again'}</button></p>
+            <p className="small muted" role="status">Couldn’t refresh your trips. Showing what was loaded. <button className="btn btn-outline btn-sm" onClick={retryTrips} disabled={retrying}>{retrying ? 'Trying…' : 'Try again'}</button></p>
           )}
           <h2 className="nh-section">Your trips</h2>
           <div className="nh-trips">

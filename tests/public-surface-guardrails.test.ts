@@ -123,7 +123,7 @@ describe('the public page names no cause it cannot know', () => {
     // fetchSharedTrip resolves null for a deleted row AND for a failed select,
     // so "unpublished" was a guess dressed as a diagnosis.
     expect(page).not.toMatch(/may have been unpublished/)
-    expect(page).toMatch(/we can’t tell which from here/)
+    expect(page).toMatch(/We can’t tell which from here/)
   })
 })
 

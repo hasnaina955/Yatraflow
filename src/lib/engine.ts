@@ -1205,7 +1205,7 @@ export function collectWarnings(trip: Trip, legCorrections?: Record<string, LegE
     if (isFuelEconomyMode(trip.transportMode)) {
       const hasHalt = sim.activeStops.some(s => (s.category === 'food' || s.category === 'rest') && !s.auto && s.visitMinutes > 0)
       if (travelMinutes > FATIGUE_DRIVE_MINUTES && !hasHalt) {
-        warnings.push({ code: 'fatigue', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1}: fatigue risk on a long drive`, detail: `About ${minutesToHM(travelMinutes)} of wheel time with no meal or rest halt.`, fix: 'Use the long-ride planner on this day to add a halt · or split the drive across two days.' })
+        warnings.push({ code: 'fatigue', severity: 'high', dayIndex: day.index, title: `Day ${day.index + 1}: fatigue risk on a long drive`, detail: `About ${minutesToHM(travelMinutes)} of wheel time with no meal or rest halt.`, fix: 'Use the long-ride planner on this day to add a halt. Or split the drive across two days.' })
       }
     }
 
@@ -1323,9 +1323,9 @@ export function collectWarnings(trip: Trip, legCorrections?: Record<string, LegE
     warnings.push({
       code: 'short-rest', severity, dayIndex: next.index,
       title: `Day ${next.index + 1}: short night after Day ${prev.index + 1}`,
-      detail: `Day ${prev.index + 1} ends ~${a.endsAt} and Day ${next.index + 1} starts ${b.startsAt} · about ${minutesToHM(rest)} of rest between them.`,
+      detail: `Day ${prev.index + 1} ends ~${a.endsAt} and Day ${next.index + 1} starts ${b.startsAt}. About ${minutesToHM(rest)} of rest between them.`,
       fix: severity === 'high'
-        ? 'Trim the late stop or start the next day later · under 5 h of rest is not a plan.'
+        ? 'Trim the late stop or start the next day later. Under 5 h of rest is not a plan.'
         : 'Consider starting the next day a little later, or move one stop off it.',
     })
   }

@@ -122,7 +122,7 @@ function assumptionsText(trip: Trip): string {
     `Buffer ${A.bufferMinutesPerStop} min per stop`,
     `Time includes driving + stop time`,
     `Road distance ≈ straight-line × 1.25`,
-    `Demo coordinates · not live traffic`,
+    `Demo coordinates. Not live traffic`,
   ].join(' · ')
 }
 

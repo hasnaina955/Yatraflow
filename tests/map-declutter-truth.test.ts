@@ -15,8 +15,8 @@ import { MapLensPanel, type MapLensPanelProps } from '../src/pages/trip/map/MapL
 import { mapLensesFor } from '../src/pages/trip/map/useMapLenses'
 import { projectJourney } from '../src/lib/journeyProjection'
 import { journeyFixture } from './helpers/journeyProjectionFixture'
-import { bandCounts, MapScopeBand } from '../src/pages/trip/map/MapScopeBand'
-import { scopeBandOf, overBudgetAlternativeIds, driveTabs, driveCardStrip } from '../src/pages/trip/map/driveLens'
+import { bandCounts, MapScopeBand, scopeCountText } from '../src/pages/trip/map/MapScopeBand'
+import { scopeBandOf, overBudgetAlternativeIds, driveTabs, driveCardStrip, budgetHeldAlternativeIds, distinctPlaceBands } from '../src/pages/trip/map/driveLens'
 import { DriveTabs } from '../src/components/map/lenses/DriveTabs'
 
 it('reads the filled stop clock from the actual day schedule', () => {
@@ -52,13 +52,14 @@ it('the rail spends only the known detours of planned stops from the real projec
   const { trip, projection } = model()
   const day = trip.days[0]
   const budget = plannedDriveBudget(day.stops, projection.rows, 25)
-  expect(budget).toEqual({ kind: 'known', usedMin: 12, budgetMin: 25 })
-  expect(budget?.usedMin).toBe(projection.rows.filter(row => row.stopId != null).reduce((sum, row) => sum + (row.detourMin ?? 0), 0))
+  // The stay carries an 8 min corridor detour, but a stay is a destination, so only the fuel stop spends.
+  expect(budget).toEqual({ kind: 'known', usedMin: 4, budgetMin: 25 })
+  expect(budget?.usedMin).toBe(projection.rows.filter(row => row.stopId === String(day.stops[0].id)).reduce((sum, row) => sum + (row.detourMin ?? 0), 0))
   const text = driveBudgetBarText(budget)
-  expect(text).toBe('Detour 12 / 25 min')
+  expect(text).toBe('Detour 4 / 25 min')
   const html = renderToStaticMarkup(createElement(MapItinerary, { trip, journey: null, activeDay: day.index, budgetMin: 25, selectedStop: null, allDays: false, onShowAll: noop, onDayChange: noop, onSelect: noop, onFold: noop, budgetBar: { text: text ?? '', step: 2 } }))
-  expect(html).toContain('aria-valuetext="Detour 12 / 25 min"')
-  expect(plannedDriveBudget(day.stops, projection.rows.filter(row => row.stopId !== day.stops[1].id), 25)).toEqual({ kind: 'unknown', usedMin: null, budgetMin: 25 })
+  expect(html).toContain('aria-valuetext="Detour 4 / 25 min"')
+  expect(plannedDriveBudget(day.stops, projection.rows.filter(row => row.stopId !== day.stops[0].id), 25)).toEqual({ kind: 'unknown', usedMin: null, budgetMin: 25 })
   expect(plannedDriveBudget([], projection.rows, 25)).toEqual({ kind: 'empty', usedMin: null, budgetMin: 25 })
 })
 
@@ -72,7 +73,8 @@ it('the real route advice reaches the real Fix panel with Apply and Keep, withou
     routeAdvice: travelDayAdviceFor(advicePlan(), trip.days.length, { onApply: noop, onKeep: noop }),
   }
   const html = renderToStaticMarkup(createElement(MapLensPanel, props))
-  expect(html).toContain(`Apply - add ${advicePlan().dayCount - trip.days.length} days`)
+  expect(html).toContain(`>Add ${advicePlan().dayCount - trip.days.length} days<`)
+  expect(html).not.toContain('Apply - add')
   expect(html).toContain('Keep my 1-day plan')
   expect(html).toContain('New days · Empty · Existing dates unchanged')
   expect(html).not.toContain('Preview added days')
@@ -156,7 +158,7 @@ it('keeps an unknown detour separate, visible and available to add', () => {
 it('names known, unknown, empty and over-limit planned budgets', () => {
   const { trip, projection } = model()
   const day = trip.days[0]
-  expect(driveBudgetBarText(plannedDriveBudget(day.stops, projection.rows, 25))).toBe('Detour 12 / 25 min')
+  expect(driveBudgetBarText(plannedDriveBudget(day.stops, projection.rows, 25))).toBe('Detour 4 / 25 min')
   expect(driveBudgetBarText(plannedDriveBudget(day.stops, [], 25))).toBe('Detour · Not measured')
   expect(driveBudgetBarText(plannedDriveBudget([], [], 25))).toBe('Detour · No stops')
   expect(driveBudgetBarText({ kind: 'known', usedMin: 78, budgetMin: 25 })).toBe('Detour 78 / 25 min · 53 min over')
@@ -236,4 +238,53 @@ it.each(['flight', 'commitment'] as const)('keeps added days referenced by a lat
 it('keeps measured Fix travel evidence as compact labels with both original facts', async () => {
   const { formatFixEvidence } = await import('../src/pages/trip/map/fixLens')
   expect(formatFixEvidence('About 10h 25m of driving/transit across 626 km.', value => value)).toBe('Travel 10h 25m · Distance 626 km')
+})
+
+it('spends the detour budget only on planned detour stops', () => {
+  const stop = (id: string, extra: Record<string, unknown> = {}) => ({ id, status: 'confirmed' as const, ...extra })
+  const row = (stopId: string, detourMin: number | null, onCorridor?: boolean) => ({ stopId, detourMin, ...(onCorridor == null ? {} : { onCorridor }) })
+  // A stay, an anchor and an on-route stop are destinations, not detours.
+  expect(plannedDriveBudget(
+    [stop('start', { auto: true }), stop('lonavala'), stop('pick'), stop('hotel', { category: 'hotel' })],
+    [row('start', null, false), row('lonavala', null, false), row('pick', 8, true), row('hotel', null, false)],
+    25,
+  )).toEqual({ kind: 'known', usedMin: 8, budgetMin: 25 })
+  // Only destinations: no detour stops yet.
+  expect(plannedDriveBudget([stop('lonavala'), stop('hotel', { category: 'hotel' })], [row('lonavala', null, false), row('hotel', null, false)], 25))
+    .toEqual({ kind: 'empty', usedMin: null, budgetMin: 25 })
+  // A detour stop without its cost makes the spend unknown.
+  expect(plannedDriveBudget([stop('pick')], [row('pick', null, true)], 25)).toEqual({ kind: 'unknown', usedMin: null, budgetMin: 25 })
+})
+
+it('holds back alternatives against the budget left, and claims nothing when the spend is unknown', () => {
+  const rows = [{ id: 'ten', detourMin: 10 }, { id: 'four', detourMin: 4 }, { id: 'open', detourMin: null }]
+  expect([...budgetHeldAlternativeIds([{ budgetMin: 25, planned: { kind: 'known', usedMin: 20, budgetMin: 25 }, rows }])]).toEqual(['ten'])
+  expect([...budgetHeldAlternativeIds([{ budgetMin: 25, planned: { kind: 'empty', usedMin: null, budgetMin: 25 }, rows }])]).toEqual([])
+  expect([...budgetHeldAlternativeIds([{ budgetMin: 25, planned: { kind: 'unknown', usedMin: null, budgetMin: 25 }, rows: [{ id: 'big', detourMin: 40 }] }])]).toEqual([])
+})
+
+it('counts one place once and states the scope only when the spend is unknown', () => {
+  expect(distinctPlaceBands([{ id: 'a', band: 'inside' }, { id: 'a', band: 'inside' }, { id: 'a', band: 'inside' }, { id: 'b', band: 'outside' }]))
+    .toEqual(['inside', 'outside'])
+  expect(scopeCountText({ inside: 4, justPast: 0, worthDetour: 0 }, 30, true)).toBe('Fits: 4')
+  expect(scopeCountText({ inside: 4, justPast: 0, worthDetour: 0 }, 30, false)).toBe('Within 30 min: 4')
+})
+
+it('wires MapTab through the tested budget walk, the distinct count and the travel-day writer', () => {
+  const source = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+  expect(source).toContain('const heldIds = budgetHeldAlternativeIds(walks)')
+  expect(source).toContain('planned: plannedDriveBudget(day?.dayStops ?? [], day?.projection.rows ?? [], budget, corridorReady)')
+  expect(source).toContain('bandCounts(distinctPlaceBands(')
+  expect(source).toContain("budgetKnown={driveBudget.kind !== 'unknown'}")
+  expect(source).toContain('applyTravelDays(trip, drivingPlan, applyChange')
+  expect(source).not.toContain('overBudgetAlternativeIds(')
+})
+
+it('treats a stop with no corridor row as on the route only after the scan answered', () => {
+  const stops = [{ id: 'karla', status: 'confirmed' as const }]
+  expect(plannedDriveBudget(stops, [], 25, true)).toEqual({ kind: 'empty', usedMin: null, budgetMin: 25 })
+  expect(plannedDriveBudget(stops, [], 25, false)).toEqual({ kind: 'unknown', usedMin: null, budgetMin: 25 })
+  const source = readFileSync(new URL('../src/pages/trip/MapTab.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+  expect(source).toContain("const corridorReady = corridorStatusFor({ quota: scanQuotaOut, scanFailed, loading: loadingPois }) === 'ready'")
+  expect(source).toContain('plannedDriveBudget(activeDayStops, journeyDay?.projection.rows ?? [], mapBudget, corridorReady)')
 })

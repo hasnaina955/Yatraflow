@@ -409,7 +409,7 @@ describe('the admin read is honest about failure', () => {
     const page = codeOf(read('../src/pages/AdminPage.tsx'))
     expect(page).toContain('fetchAdminShareAttribution')
     expect(page).toContain('SHARE_SOURCE_LABELS')
-    expect(page).toContain('Share attribution · how readers arrived')
+    expect(page).toContain('Share attribution: how readers arrived')
     // The empty-vs-error rule (the §6 lesson): a failed read renders Retry,
     // never a friendly zero that reads as "no shares".
     expect(page).toContain('setAttrAttempt(a => a + 1)')

@@ -259,7 +259,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     if (resolving && !searchCommitting) {
       ++spotRequest.current
       setResolving(false)
-      toast('Plan changed · the spot search was restarted. Press search again when ready.')
+      toast('Plan changed. The spot search was restarted. Press search again when ready.')
     }
     setPlan(next)
     const sorted = [...next].sort((a, b) => a.km - b.km)
@@ -405,7 +405,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   function addHaltsToDay() {
     if (plan.length === 0) return
     const genericTitle = (purpose: HaltPurpose) =>
-      purpose === 'meal' ? 'Meal break' : purpose === 'fuel' ? 'Fuel stop' : purpose === 'overnight' ? 'Overnight stay' : 'Break · tea & stretch'
+      purpose === 'meal' ? 'Meal break' : purpose === 'fuel' ? 'Fuel stop' : purpose === 'overnight' ? 'Overnight stay' : 'Break: tea & stretch'
     const halts = plan.map(item => {
       const useSpot = item.pin && item.hit
       // Unpinned halts sit ON the road at the requested road-km: interpolate
@@ -531,7 +531,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>
           <div>
             <div className="warn-title">~{minutesToHM(journey.driveMinutes)} behind the wheel with no halt</div>
-            <div className="warn-fix">Riding more than ~6–7 h in one go is a fatigue risk · add a halt below or split the drive across two days.</div>
+            <div className="warn-fix">Riding more than ~6–7 h in one go is a fatigue risk. Add a halt below or split the drive across two days.</div>
           </div>
         </div>
       )}
@@ -649,7 +649,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
         <div className={`travel-panel-add halt-planner${plannerOpen ? ' is-open' : ''}${plan.length > 0 ? ' has-plan' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
           {haltStale && (
             <div className="hint-text ts-warn-note">
-              <InlineIcon icon={TriangleAlert} size={12} gap={3} />Party, fuel, budget or the plan itself changed since these halts were tuned · the saved plan was dropped. Review the km points below, then search for spots again.
+              <InlineIcon icon={TriangleAlert} size={12} gap={3} />Party, fuel, budget or the plan itself changed since these halts were tuned. The saved plan was dropped. Review the km points below, then search for spots again.
             </div>
           )}
           {/* The form is a disclosure, opened from the button on the ETA row.
@@ -708,7 +708,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
               </div>
               {searched && !plan.some(p => p.hit) && (
                 <span className="small muted">
-                  No good spots found near your km points · the halts will be added as generic breaks on the route itself.
+                  No good spots found near your km points. The halts will be added as generic breaks on the route itself.
                 </span>
               )}
             </>
@@ -730,7 +730,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                       locationName: h.description || h.name,
                       lat: h.latitude, lng: h.longitude,
                       description: h.description ?? '',
-                      notes: "Slack pick · fits the day's leftover time",
+                      notes: "Slack pick: fits the day's leftover time",
                       visitMinutes: intendedVisitMinutes(h),
                       openTime: '', closeTime: '',
                       entryFeeInrPerPerson: 0, transportCostInrTotal: 0,

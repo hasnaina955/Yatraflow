@@ -69,7 +69,7 @@ export function AdminPage({ onNavigate }: { onNavigate: (r: string) => void }) {
         kicker="Admin"
         headline={{ lead: 'Master admin' }}
         lede={<>
-          Full-control console · every destructive action is audit-logged.
+          Full-control console. Every destructive action is audit-logged.
           {/* #367: the hatch boundary, said where admins will see it. Direct
               writes through the workspace's own UI are the documented escape
               hatch (admin FOR ALL policies) and only the console's RPC actions
@@ -313,7 +313,7 @@ function UsersTab() {
               <input className="adm-force-delete-checkbox" type="checkbox" checked={deleteForce} onChange={e => setDeleteForce(e.target.checked)}
               />
               <span className="small">
-                Also delete the published itinerary(ies) · they are public on Explore and will
+                Also delete the published itinerary(ies). They are public on Explore and will
                 disappear for everyone. The RPC refuses the deletion without this.
               </span>
             </label>
@@ -431,7 +431,7 @@ function TripsTab() {
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
         title={`Delete “${deleteTarget?.name ?? ''}”?`}>
         <p className="muted adm-trip-delete-warning">
-          This is permanent · the trip, its votes, decisions, activity and publication go with it
+          This is permanent. The trip, its votes, decisions, activity and publication go with it
           (the audit log keeps a snapshot). Type the trip name to confirm.
         </p>
         <input className="input adm-trip-delete-confirm" value={deleteName} onChange={e => setDeleteName(e.target.value)}
@@ -531,7 +531,7 @@ function InvitesTab() {
       <ConfirmDialog
         open={!!confirmKick}
         title={`Remove ${confirmKick?.user.profile.name ?? ''}?`}
-        body="They lose access immediately. The last owner cannot be removed · transfer ownership first."
+        body="They lose access immediately. The last owner cannot be removed. Transfer ownership first."
         confirmLabel="Remove member"
         danger
         onConfirm={() => {
@@ -564,7 +564,7 @@ function ContentTab() {
           #350, and contradicted its own dialog below. It now states the shipped
           policy — parity with ShareTab's and the creator hub's copy. */}
       <p className="hint-text adm-published-content-intro">
-        Every published itinerary · live and withdrawn. Unpublishing takes a plan off Explore and stops it
+        Every published itinerary: live and withdrawn. Unpublishing takes a plan off Explore and stops it
         selling. The trip itself is not touched, the creator keeps its sales history, and anyone who already
         unlocked it keeps the full plan.
       </p>
@@ -615,7 +615,7 @@ function ContentTab() {
                         // still idempotent server-side; it is just not offered
                         // twice, and the tooltip says what already happened.
                         <button className="btn btn-outline btn-sm" disabled
-                          title={`Already unpublished on ${new Date(p.unpublishedAt).toLocaleDateString()} · the creator can re-publish from their Share tab.`}>
+                          title={`Already unpublished on ${new Date(p.unpublishedAt).toLocaleDateString()}. The creator can re-publish from their Share tab.`}>
                           Unpublish
                         </button>
                       ) : (
@@ -773,7 +773,7 @@ function AnalyticsTab() {
         {' '}These cached lifetime figures include demo and imported trips. Membership alone does not prove a collaborative action.
       </p>
       <Surface as="section" className="adm-section">
-      <h2 className="adm-card-title">Growth · last 12 weeks</h2>
+      <h2 className="adm-card-title">Growth: last 12 weeks</h2>
       {feedsRead === 'reading' && <StateBlock kind="loading" size="compact" title="Loading growth…" />}
       {feedsRead === 'failed' && (
         <StateBlock kind="kept" size="compact" title="Couldn’t refresh growth." body="The bars below may be older than now."
@@ -783,7 +783,7 @@ function AnalyticsTab() {
       )}
       {feedsRead === 'ready' && (
         <>
-      <table className="compare-table" tabIndex={0} aria-label="Growth · last 12 weeks">
+      <table className="compare-table" tabIndex={0} aria-label="Growth: last 12 weeks">
         <thead><tr><th>Week of</th><th className="num">Signups</th><th className="num">Trips</th><th>Trend</th></tr></thead>
         <tbody>
           {growth.map(g => (
@@ -810,12 +810,12 @@ function AnalyticsTab() {
       </Surface>
 
       <Surface as="section" className="adm-section">
-      <h2 className="adm-card-title">Share attribution · how readers arrived</h2>
+      <h2 className="adm-card-title">Share attribution: how readers arrived</h2>
       {attr.phase === 'loading' && <p className="hint-text">Reading the funnel log…</p>}
       {attr.phase === 'error' && (
         <>
           <p className="hint-text">
-            The funnel log could not be read · {attr.message}. This section shows nothing rather
+            The funnel log could not be read. {attr.message}. This section shows nothing rather
             than a zero it cannot vouch for.
           </p>
           <button type="button" className="btn btn-outline btn-sm adm-attribution-retry"  onClick={() => setAttrAttempt(a => a + 1)}>
@@ -825,12 +825,12 @@ function AnalyticsTab() {
       )}
       {attr.phase === 'ready' && (attr.rows ?? []).length === 0 && (
         <p className="hint-text">
-          No recorded traffic yet · this fills in from the first view of a shared link.
+          No recorded traffic yet. This fills in from the first view of a shared link.
         </p>
       )}
       {attr.phase === 'ready' && (attr.rows ?? []).length > 0 && (
         <>
-          <table className="compare-table" tabIndex={0} aria-label="Share attribution · how readers arrived">
+          <table className="compare-table" tabIndex={0} aria-label="Share attribution: how readers arrived">
             <thead><tr><th>Route in</th><th className="num">Views</th><th className="num">Forks</th><th className="num">Fork/view ratio</th><th>Last seen</th></tr></thead>
             <tbody>
               {(attr.rows ?? []).map(row => (
@@ -859,7 +859,7 @@ function AnalyticsTab() {
       {revenue.phase === 'error' && (
         <>
           <p className="hint-text">
-            The sales ledger could not be read · {revenue.message}. The numbers below are the
+            The sales ledger could not be read. {revenue.message}. The numbers below are the
             books as the database reports them, so this tab shows nothing rather than a zero it
             cannot vouch for.
           </p>
@@ -870,7 +870,7 @@ function AnalyticsTab() {
       )}
       {revenue.phase === 'ready' && books && (books.sales.rows.length === 0 ? (
         <p className="hint-text">
-          No sales yet · this fills in as soon as someone buys a priced publication.
+          No sales yet. This fills in as soon as someone buys a priced publication.
         </p>
       ) : (
         <>
@@ -897,7 +897,7 @@ function AnalyticsTab() {
           <p className="hint-text adm-payout-explanation">
             Weeks are the payout runs creators are told about. The fee is the 15% / 10% ladder
             charged to each of {books.creators} {books.creators === 1 ? 'creator' : 'creators'}
-            {' '}separately · the tier follows a creator's own lifetime gross, so it is not one
+            {' '}separately. The tier follows a creator's own lifetime gross, so it is not one
             ladder over the platform total. Figures cover current unlocks: a refunded sale is
             revoked, so refunded money leaves these totals.
           </p>
@@ -922,7 +922,7 @@ function AnalyticsTab() {
           </table>
           <p className="hint-text adm-payout-explanation">
             The same rows as the weekly table, grouped by plan instead of by date, and they add up
-            to the tiles above · each fee is its own sale's slice of that creator's ladder, not a
+            to the tiles above. Each fee is its own sale's slice of that creator's ladder, not a
             rate applied to a plan's total. A plan nobody bought is absent rather than a ₹0 row.
           </p>
         </>
@@ -930,12 +930,12 @@ function AnalyticsTab() {
       </Surface>
 
       <Surface as="section" className="adm-section">
-      <h2 className="adm-card-title">Create funnel · last 30 days</h2>
+      <h2 className="adm-card-title">Create funnel: last 30 days</h2>
       {cf.phase === 'loading' && <p className="hint-text">Reading the funnel log…</p>}
       {cf.phase === 'error' && (
         <>
           <p className="hint-text">
-            The funnel log could not be read · {cf.message}. This tab shows nothing rather
+            The funnel log could not be read. {cf.message}. This tab shows nothing rather
             than a zero it cannot vouch for.
           </p>
           <button type="button" className="btn btn-outline btn-sm adm-cancellation-retry"  onClick={() => setCfAttempt(a => a + 1)}>
@@ -963,7 +963,7 @@ function AnalyticsTab() {
             Top abandonment stage: {cfStats.topAbandonStage ?? 'Not available'}.
             {cfStats.templates.length > 0 && ` Template picks: ${cfStats.templates.slice(0, 5).map(t => `${t.templateId} (${t.picks})`).join(', ')}.`}
             {' '}The abandoned event is best-effort (mobile kills page beacons), so it is
-            directional · never read it as an exact denominator.
+            directional. Never read it as an exact denominator.
             {' '}Events can repeat or fail. The ratio does not measure linked sessions or authoritative trip activation.
             {' '}The legacy moment_invite_sent event means a share destination opened, not that a person joined.
           </p>
@@ -996,7 +996,7 @@ function AuditTab() {
           <span className="warn-icon"><ShieldAlert size={13} aria-hidden /></span>
           <div className="adm-audit-failure-copy">
             <div className="warn-title">The audit log couldn't be read.</div>
-            <div className="warn-fix">Rows shown below may be out of date · nothing was lost.</div>
+            <div className="warn-fix">Rows shown below may be out of date. Nothing was lost.</div>
           </div>
           <button type="button" className="btn btn-outline" onClick={() => void refreshAdminAuditNow()}>Retry</button>
         </div>

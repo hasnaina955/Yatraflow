@@ -44,7 +44,7 @@ export const MUTATION_PHASES: readonly MutationPhase[] = ['staged', 'kept', 'dis
  *  of naming them is that "is this recoverable?" has an answer per phase rather
  *  than per surface. */
 export const PHASE_MEANING: Record<MutationPhase, string> = {
-  staged: 'Proposed, measured, and reversible until you decide · Remove discards it without writing.',
+  staged: 'Proposed, measured, and reversible until you decide. Remove discards it without writing.',
   kept: 'Written to the trip. Every destructive keep leaves an Undo.',
   discarded: 'Never written. The proposal is gone and the row is untouched.',
   undone: 'Walked back after a keep. Identity, day and order are restored.',
@@ -118,7 +118,7 @@ export type MutationRecovery = 'undo' | 'confirm' | 'marker' | 'regenerated'
 export const RECOVERY_MEANING: Record<MutationRecovery, string> = {
   undo: 'A toast carries Undo: the removed thing comes back where it was.',
   confirm: 'The action asks first, because Undo could not honestly cover it.',
-  marker: 'Nothing is destroyed · the row survives with its new state visible.',
+  marker: 'Nothing is destroyed. The row survives with its new state visible.',
   regenerated: 'Rebuilt from the new facts; the removed value would now be false.',
 }
 
@@ -153,7 +153,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
     recovery: 'undo',
     storeCall: 'deleteStop',
     surfaces: ['Map day plan (Fill, Fill the day)'],
-    why: 'This removal is itself the Undo of an add, and it runs after the preview has closed · the compensation for stopping at a place that turned out to be wrong. #841: it is admitted through the guarded Undo, which refuses a stop that changed after the save.',
+    why: 'This removal is itself the Undo of an add, and it runs after the preview has closed. The compensation for stopping at a place that turned out to be wrong. #841: it is admitted through the guarded Undo, which refuses a stop that changed after the save.',
   },
   {
     action: 'shortlist.clear',
@@ -165,7 +165,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
     action: 'settings.clear-local',
     recovery: 'confirm',
     surfaces: ['Crash screen'],
-    why: 'Clears everything this browser saved · preferences, caches and the offline copy · so it asks first, and it no longer removes a key nothing writes.',
+    why: 'Clears everything this browser saved. Preferences, caches and the offline copy. So it asks first, and it no longer removes a key nothing writes.',
   },
   {
     action: 'ai-config.clear',
@@ -192,7 +192,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
     recovery: 'undo',
     storeCall: 'trashTrip',
     surfaces: ['My Trips'],
-    why: 'Soft delete · the trip survives in Trash, and Undo restores it immediately.',
+    why: 'Soft delete. The trip survives in Trash, and Undo restores it immediately.',
   },
   {
     action: 'trip.purge',
@@ -211,7 +211,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
     action: 'halts.clear-on-reshape',
     recovery: 'regenerated',
     surfaces: ['Map day plan (endpoints edited)'],
-    why: 'A halt pin is a promise about a specific road; when the endpoints move the plan is re-derived from the new road, so putting the old pins back would restore a claim that is no longer true · the toast says they were cleared.',
+    why: 'A halt pin is a promise about a specific road; when the endpoints move the plan is re-derived from the new road, so putting the old pins back would restore a claim that is no longer true. The toast says they were cleared.',
   },
   {
     action: 'suggestion-cache.rescan',
@@ -272,7 +272,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
     recovery: 'confirm',
     storeCall: 'adminUnpublish',
     surfaces: ['Masteradmin · publications'],
-    why: 'The console confirms it, and it leaves the same soft marker the creator-side unpublish leaves · buyers keep what they paid for.',
+    why: 'The console confirms it, and it leaves the same soft marker the creator-side unpublish leaves. Buyers keep what they paid for.',
   },
 ] as const
 
@@ -283,7 +283,7 @@ export const MUTATION_RECOVERY: readonly DestructiveAction[] = [
 export function nonDestructiveStoreWrites(): readonly { name: string; why: string }[] {
   return [
     { name: 'adminAuditRowToEntry', why: 'Maps an audit row into the console entry shape; reads only.' },
-    { name: 'adminSetCreator', why: 'Grants the creator badge · a grant, not a removal, and reversible.' },
+    { name: 'adminSetCreator', why: 'Grants the creator badge. A grant, not a removal, and reversible.' },
     { name: 'adminSetTripVisibility', why: 'Changes who can see a trip, not whether it exists; setting it back is the way back.' },
     { name: 'unpublishedTripIds', why: 'A reader: which of a creator\'s trips carry the unpublished marker.' },
   ]
@@ -296,7 +296,7 @@ export function supersededPaths(): readonly { name: string; why: string }[] {
   return [
     {
       name: 'deleteTrip',
-      why: 'The pre-trash hard delete. `trashTrip` replaced it (v0.47.0) and nothing in the app calls this · only tests/undo-trip.test.ts does, along with the snapshot machinery (restoreTrip, snapshotTrip, lastDeletedTrip) that exists to undo it. Delete the cluster and that suite together; until then no new caller may reach for it, because it would skip the trash window entirely.',
+      why: 'The pre-trash hard delete. `trashTrip` replaced it (v0.47.0) and nothing in the app calls this. Only tests/undo-trip.test.ts does, along with the snapshot machinery (restoreTrip, snapshotTrip, lastDeletedTrip) that exists to undo it. Delete the cluster and that suite together; until then no new caller may reach for it, because it would skip the trash window entirely.',
     },
   ]
 }

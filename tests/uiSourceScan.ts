@@ -16,7 +16,7 @@ export function sourceTree(file: string, input = readFileSync(file, 'utf8')) {
 }
 
 // The dash character, its HTML entity, and the escape text a source file can carry.
-const BANNED_DASH = /—|&mdash;|\\u2014/i
+const BANNED_DASH = /—|&mdash;|&#8212;|&#x2014;|\\u2014|\\u\{2014\}/i
 
 export function emDashLabels(file: string, input?: string): string[] {
   const normalized = (input ?? readFileSync(file, 'utf8')).replace(/\r\n/g, '\n')
@@ -35,17 +35,29 @@ export function emDashLabels(file: string, input?: string): string[] {
   return failures
 }
 
+const MID_PHRASE_CAPITAL = /[a-z0-9] (?:Along|In|Added|By|On|At|For|With|Of|To|From|The|And|Or|Is|Are) [a-z]/
 const visibleProps = /^(?:aria-label|aria-description|title|placeholder|alt|label|caption|subtitle|hint|message|emptyText|loadingText|errorText|description|text)$/
 export function lowercaseMapLabels(file: string, input?: string): string[] {
   const { tree } = sourceTree(file, input)
   const failures = new Set<string>()
+  function at(node: ts.Node, value: string) {
+    failures.add(`${file}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1}: ${value}`)
+  }
+  // Only the first letter is a capital. A capital inside a phrase ("3 picks Along the drive") is a sweep defect.
+  function midPhrase(node: ts.Node, text: string) {
+    if (MID_PHRASE_CAPITAL.test(text)) at(node, text.trim())
+  }
   function check(node: ts.Node, text: string) {
     const value = text.trim()
-    if (/^[a-z]/.test(value) && !/^(?:min|km|m|h|s|k|px|am|pm)(?:\b|$)/.test(value)) failures.add(`${file}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1}: ${value}`)
+    if (/^[a-z]/.test(value) && !/^(?:min|km|m|h|s|k|px|am|pm)(?:\b|$)/.test(value)) at(node, value)
+    midPhrase(node, text)
   }
   function rendered(node: ts.Node) {
     if (ts.isStringLiteralLike(node) || ts.isJsxText(node)) check(node, node.text)
-    else if (ts.isTemplateExpression(node)) check(node.head, node.head.text)
+    else if (ts.isTemplateExpression(node)) {
+      check(node.head, node.head.text)
+      for (const span of node.templateSpans) midPhrase(span.literal, span.literal.text)
+    }
     else if (ts.isConditionalExpression(node)) { rendered(node.whenTrue); rendered(node.whenFalse) }
     else if (ts.isParenthesizedExpression(node)) rendered(node.expression)
     else if (ts.isBinaryExpression(node)) {

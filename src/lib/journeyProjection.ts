@@ -85,6 +85,9 @@ export interface JourneyRow {
   placeKeys: readonly PlaceKey[]
   origin: 'manual' | 'engine' | 'drive'
   detourMin: number | null
+  /** True when a corridor drive row matched this place, so the row is a detour
+   *  off the road. A stop with no match is on the route. Absent = not told. */
+  onCorridor?: boolean
   /** Road detour km when the slot engine measured or estimated one; null else. */
   detourKm: number | null
   budgetSharePct: number | null
@@ -468,6 +471,7 @@ function rowFromFilledSlot(
     placeKeys,
     origin: stop.auto ? 'engine' : 'manual',
     detourMin: drive?.detourMin ?? null,
+    onCorridor: drive != null,
     detourKm: null,
     budgetSharePct: drive?.budgetSharePct ?? null,
     visitMin: typeof stop.visitMinutes === 'number' ? stop.visitMinutes : null,

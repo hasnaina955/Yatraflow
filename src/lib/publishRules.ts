@@ -77,8 +77,8 @@ export function publishValidation(input: PublishValidationInput): Partial<Record
   // og:image/twitter:image. Publishing without one — or with a URL the handler's
   // own test rejects — ships a link that previews as the brand card instead of
   // this trip, which is the one thing a creator cannot see from inside the app.
-  if (!coverImageUrl) errs.cover = 'Add a cover photo · it is the picture your share link previews with.'
-  else if (!COVER_URL_PATTERN.test(coverImageUrl)) errs.cover = 'The cover must be an https image URL · link previews ignore anything else.'
+  if (!coverImageUrl) errs.cover = 'Add a cover photo. It is the picture your share link previews with.'
+  else if (!COVER_URL_PATTERN.test(coverImageUrl)) errs.cover = 'The cover must be an https image URL. Link previews ignore anything else.'
   if (!Number.isFinite(priceNum) || priceNum < 0) errs.price = 'Price must be a number of rupees, 0 or more.'
   else if (!entirelyFree && priceNum > MAX_PREMIUM_PRICE_INR) errs.price = 'The maximum premium price is ₹1,00,000.'
   // #592 — a charged plan at ₹0 does not exist: the gateway floor is ₹1
@@ -92,15 +92,15 @@ export function publishValidation(input: PublishValidationInput): Partial<Record
   else if (!Number.isInteger(priceNum)) errs.price = 'Price must be a whole number of rupees.'
   // A price over content the reader can already see is charged for nothing, so
   // a priced publication must withhold at least one day.
-  else if (!entirelyFree && freeDayCount >= totalDays) errs.freeDays = 'Every day is free · clear the price or lock a day.'
+  else if (!entirelyFree && freeDayCount >= totalDays) errs.freeDays = 'Every day is free. Clear the price or lock a day.'
   // The ≥1-free-day rule used to live ONLY in the day toggle's guard, so it was
   // enforced by interaction rather than at the point of writing: a publication
   // hydrated with `freeDayIndexes: []` slipped past the toggle entirely and
   // published a premium plan with zero free days — `0 >= totalDays` is false,
   // and every day button renders as free. Re-asserted here for both callers;
   // the toggle keeps its friendly version for the interactive case.
-  else if (!entirelyFree && freeDayCount < 1) errs.freeDays = 'At least one day must stay free · it is the preview readers see.'
-  if (hasPremiumDay && !cta) errs.cta = 'Premium days need a call-to-action · tell readers what they get when they unlock.'
+  else if (!entirelyFree && freeDayCount < 1) errs.freeDays = 'At least one day must stay free. It is the preview readers see.'
+  if (hasPremiumDay && !cta) errs.cta = 'Premium days need a call-to-action. Tell readers what they get when they unlock.'
   return errs
 }
 

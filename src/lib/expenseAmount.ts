@@ -40,8 +40,8 @@ export function allowedAmount(amount: unknown): number | null {
 
 const REFUSALS: Record<AmountRefusal, string> = {
   'not-a-number': 'Enter an amount in rupees.',
-  'not-finite': 'That is not a real amount · enter rupees.',
-  negative: 'An amount cannot be negative · enter rupees to add the cost, or remove the line.',
+  'not-finite': 'That is not a real amount. Enter rupees.',
+  negative: 'An amount cannot be negative. Enter rupees to add the cost, or remove the line.',
   zero: 'Enter an amount above zero.',
 }
 

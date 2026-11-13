@@ -36,8 +36,17 @@ describe('layoutMarks: hit boxes', () => {
     const spots = layoutMarks(marks)
     expect(spots.get('stop')).toEqual({ dx: 0, dy: 0, hidden: false })
     expect(spots.get('warn')!.dx || spots.get('warn')!.dy).toBeTruthy()
-    const boxes = placed(marks, spots)
+    // A pick is fixed too. clearOfMarks keeps a pick off a stop before the layout runs.
+    expect(spots.get('pick')).toEqual({ dx: 0, dy: 0, hidden: false })
+    const boxes = placed(marks.filter(m => m.id !== 'pick'), spots)
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(meet(boxes[i], boxes[j])).toBe(false)
+  })
+
+  it('never draws a pick away from its place, even in a crowd', () => {
+    // A slide of up to 92px put pins on the sea at low zoom. A crowd merges into a count bubble instead.
+    const marks: LayoutMark[] = [0, 4, 8].map(i => ({ id: `p${i}`, layer: 'pick', x: 300 + i, y: 300, w: 44, h: 44 }))
+    const spots = layoutMarks(marks)
+    for (const m of marks) expect(spots.get(m.id)).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
   it('leaves marks that already clear each other where they are', () => {

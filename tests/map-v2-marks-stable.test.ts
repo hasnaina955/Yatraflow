@@ -36,11 +36,12 @@ describe('F1 stops stay on their coordinate', () => {
     for (const m of marks) expect(spots.get(m.id)).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
-  it('moves a pick off a stop and leaves the stop', () => {
+  it('leaves both a stop and a pick on their own coordinates', () => {
+    // clearOfMarks drops a pick at a stop before the layout. A pick never slides.
     const marks: LayoutMark[] = [stop('s', 100, 100), { id: 'pick', layer: 'pick', x: 100, y: 100, w: 44, h: 44 }]
     const spots = layoutMarks(marks)
     expect(spots.get('s')).toEqual({ dx: 0, dy: 0, hidden: false })
-    expect(spots.get('pick')!.dx || spots.get('pick')!.dy).toBeTruthy()
+    expect(spots.get('pick')).toEqual({ dx: 0, dy: 0, hidden: false })
   })
 
   it('hides a pill that no longer fits among dense stops', () => {

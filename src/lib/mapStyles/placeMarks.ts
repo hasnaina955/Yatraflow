@@ -166,14 +166,16 @@ const CLOCK_MAX_TRAVEL = 80
 
 /**
  * Lay out stops, problems, empty parts, picks and clock pills in one pass. A stop never moves: it is a
- * fixed obstacle, and at low zoom stops simply overlap. Problems, empty parts and picks slide off a stop.
+ * fixed obstacle, and at low zoom stops simply overlap. A pick is fixed too. Problems and empty parts slide off a stop.
  * A pill is placed last, from where its stop is. It is hidden when it has no room or ends
  * outside `bounds`. A pill spot is relative to its stop's place. Marks keep their real coordinates.
  */
 export function layoutMarks(marks: LayoutMark[], opts: { gap?: number; maxSteps?: number; bounds?: MarkBounds } = {}): Map<string, MarkSpot> {
   const solid = marks.filter(m => m.layer !== 'clock').map((m, index) => ({ m, index })).sort((a, b) => LAYER_RANK[a.m.layer] - LAYER_RANK[b.m.layer] || a.index - b.index).map(entry => entry.m)
   // The solid marks ignore the bounds, so a pan never changes how they resolve.
-  const first = resolveMarkCollisions(solid.map(m => ({ ...m, fixed: m.layer === 'stop' })), { ...opts, bounds: undefined })
+  // A pick never moves either. A crowd of picks merges into a count bubble instead, so a pick
+  // can never be drawn away from its place (at low zoom a slide put pins on the sea).
+  const first = resolveMarkCollisions(solid.map(m => ({ ...m, fixed: m.layer === 'stop' || m.layer === 'pick' })), { ...opts, bounds: undefined })
   const out = new Map<string, MarkSpot>(first)
   const fixed = solid.map(m => { const spot = first.get(m.id)!; return { id: m.id, x: m.x + spot.dx, y: m.y + spot.dy, w: m.drawW ?? m.w, h: m.drawH ?? m.h } })
   const clocks = marks.filter(m => m.layer === 'clock').map(m => {

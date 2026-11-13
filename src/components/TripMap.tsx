@@ -107,7 +107,6 @@ const IDEA_CLUSTER_COLORS: [string, string, string] = ['#0B6B63', '#0F4C4C', '#1
 const IDEA_CLUSTER_THRESHOLDS: [number, number] = [10, 30]
 /** The workspace chrome hands the cluster layer no point, so no canvas badge can
  *  stand under a stop pin. One object, so the layer's data effect does not churn. */
-const NO_CLUSTER_DATA = { type: 'FeatureCollection' as const, features: [] }
 
 // How long the map's ready gate waits for the style's 'load' event before
 // opening anyway (see the mapLoaded effect). The fit behind that gate is a
@@ -1072,9 +1071,9 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
   const clusterPins = useMemo(
     () => clusterCandidates(
       markPois.filter(h => !slotPinIds.has(String(h.id))),
-      { activeId: activeHitId, searchIds: searchHitIds },
+      { activeId: activeHitId, searchIds: searchHitIds, keepIds: pickLetters ? new Set(Object.keys(pickLetters)) : null },
     ),
-    [markPois, slotPinIds, activeHitId, searchHitIds],
+    [markPois, slotPinIds, activeHitId, searchHitIds, pickLetters],
   )
   const clusterData = useMemo(() => clusterFeatureCollection(clusterPins), [clusterPins])
   const { individual: individualClusterPins } = useMemo(
@@ -2235,14 +2234,12 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
                 false because every pin the map did NOT group keeps its own DOM
                 marker below — tooltip, role, keyboard activation and all — so a
                 GL circle for it would be a second, dead copy.
-                W14: the workspace chrome draws no canvas badge. A badge sits
-                under every DOM mark, so one that landed on a stop or a start
-                flag showed as a stray dark crescent behind the pin and hid its
-                own count. The board draws its picks individually with letters,
-                so the workspace hands the clusterer nothing; the classic map
-                keeps the grouping. */}
+                The workspace groups its picks too. A pick never slides off its
+                place, so a crowd shows as one count bubble that splits on zoom.
+                clearOfMarks already drops a pick at a stop or a flag, so no
+                badge lands under a stop pin. Lettered picks stay single. */}
             <MapClusterLayer
-              data={workspaceChrome ? NO_CLUSTER_DATA : clusterData}
+              data={clusterData}
               clusterColors={IDEA_CLUSTER_COLORS}
               clusterThresholds={IDEA_CLUSTER_THRESHOLDS}
               unclusteredVisible={false}

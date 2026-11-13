@@ -151,14 +151,21 @@ describe('clusterSummary', () => {  it('says nothing when nothing is grouped', (
 })
 
 describe('#417 wiring — the Map tab groups its suggestion pins', () => {
-  it('draws no canvas cluster badge in the workspace chrome', () => {
-    // A GL badge cannot yield to a DOM stop pin: one that landed on a stop drew
-    // as a stray dark crescent behind it. The workspace draws its picks alone.
-    expect(tripMap).toMatch(/data=\{workspaceChrome \? NO_CLUSTER_DATA : clusterData\}/)
+  it('groups crowded picks in the workspace too, and keeps lettered picks single', () => {
+    // A pick no longer slides off its place, so a crowd must merge into a count.
+    // clearOfMarks already drops a pick at a stop, so no badge lands under a stop pin.
+    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,200}?data=\{clusterData\}/)
+    expect(tripMap).not.toContain('NO_CLUSTER_DATA')
+    expect(tripMap).toMatch(/keepIds: pickLetters \? new Set\(Object\.keys\(pickLetters\)\) : null/)
+  })
+  it('exempts a kept id from grouping', () => {
+    const hit = (id: string) => ({ id, name: id, latitude: 18.75, longitude: 73.4 }) as unknown as PlaceHit
+    const out = clusterCandidates([hit('a'), hit('b')], { keepIds: new Set(['b']) })
+    expect(out.map(c => [c.id, c.exempt])).toEqual([['a', false], ['b', true]])
   })
   it('renders the suggestion family through the one cluster implementation', () => {
     expect(tripMap).toContain("from '../lib/mapCluster'")
-    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{workspaceChrome \? NO_CLUSTER_DATA : clusterData\}/)
+    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{clusterData\}/)
     expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?onClustersChange=\{onClustersChange\}/)
   })
 

@@ -2,7 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InlineIcon, CatIcon } from '../../components/icons'
-import { BedDouble, ChevronDown, ChevronLeft, ChevronRight, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock, X } from 'lucide-react'
+import { BedDouble, ChevronDown, ChevronLeft, ChevronRight, Coffee, Fuel, Lightbulb, Pause, Plus, RefreshCw, RotateCcw, Sparkles, Utensils, Route, List, PanelLeftOpen, PanelRightOpen, Clock } from 'lucide-react'
 import type { Trip } from '../../data/types'
 import { removeStopWithUndo, type ApplyChange } from '../../lib/mutationLifecycle'
 import { mapRoadViewFromLegs, mapReturnGeometryFromLegs, outboundLegs, type TripRoadView } from '../../lib/tripRoad'
@@ -624,7 +624,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   const splitDeclined = splitDeclinedAt === travelDayNeed
   const setSplitDeclined = (declined: boolean) => setSplitDeclinedAt(declined ? travelDayNeed : null)
   const [ribbonOpen, setRibbonOpen] = useState(() => loadFlag('map_ribbon', false))
-  const [dismissedTrip, setDismissedTrip] = useState(() => loadFlag(`map_route_dismissed_${trip.id}`, false) ? trip.id : null)
   const [fixPreview, setFixPreview] = useState<FixChangeSet | null>(null)
   function toggleRibbon() {
     const next = !ribbonOpen
@@ -1991,6 +1990,10 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           )
         )}
   </div>
+  // The route warning is a dot on the Fix button, with its reason in the tooltip.
+  // The Fix deck carries the full advice, so no strip takes map height.
+  const routeAlert = clockVerdict.verdict !== 'ok' || (splitVerdict && travelDayNeed > trip.days.length)
+  const routeAlertText = clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `Travel days needed: ${travelDayNeed}`
   const deckFooter = <footer className="mv2-deck-footer">
     <LensDeckSource
       sources={deckHits(lens, lenses, { driveTab, stayWindow: activeStayWindowId }).map(hit => hit.source)}
@@ -2000,12 +2003,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
   </footer>
   return (
     <div className={`mv2-workspace${railPresence.mounted ? '' : ' is-day-folded'}${deckPresence.mounted ? '' : ' is-deck-folded'}`} data-snap={snap} data-role={editable ? 'editor' : 'viewer'}>
-      {dismissedTrip !== trip.id && !loadFlag(`map_route_dismissed_${trip.id}`, false) && (clockVerdict.verdict !== 'ok' || (splitVerdict && travelDayNeed > trip.days.length)) && <div className="mv2-provider-status mv2-route-banner" role="status">
-        <button type="button" className="mv2-route-advice" onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}>
-          {clockVerdict.verdict !== 'ok' ? clockVerdict.reason : `${travelDayNeed} travel days needed · Review fixes`}
-        </button>
-        <button type="button" className="mv2-route-dismiss" aria-label="Dismiss route warning" onClick={() => { setDismissedTrip(trip.id); saveFlag(`map_route_dismissed_${trip.id}`, true) }}><X size={14} aria-hidden /></button>
-      </div>}
       {(poisFailed || quotaOut) && !deckOpen && <p className="mv2-provider-status" role="status">{quotaOut ? 'Google search · Limit reached' : 'Route picks · Unavailable · Refresh to retry'}</p>}
       {filterActive && (
         <div className="poi-filterbar" role="status">
@@ -2030,7 +2027,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           <button type="button" aria-label={phoneLensAriaLabel('Along the drive', lenses.counts.drive)} aria-controls="rail-see" aria-pressed={lens === 'drive' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('drive'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Route size={16} aria-hidden /><span>Drive</span></button>
           <button type="button" aria-label={phoneLensAriaLabel('Around the stay', lenses.counts.stay)} aria-controls="rail-see" aria-pressed={lens === 'stay' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('stay'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><BedDouble size={16} aria-hidden /><span>Stay</span>{lenses.counts.stay != null && <b>{lenses.counts.stay}</b>}</button>
           <button type="button" aria-label={phoneLensAriaLabel('Gaps in this day', lenses.counts.gap)} aria-controls="rail-see" aria-pressed={lens === 'gap' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('gap'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Sparkles size={16} aria-hidden /><span>Gap</span>{lenses.counts.gap != null && <b>{lenses.counts.gap}</b>}</button>
-          <button type="button" aria-label={phoneLensAriaLabel('Fix this day', lenses.counts.fix)} aria-controls="rail-see" aria-pressed={lens === 'fix' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><Lightbulb size={16} aria-hidden /><span>Fix</span>{lenses.counts.fix != null && <b>{lenses.counts.fix}</b>}</button>
+          <button type="button" aria-label={phoneLensAriaLabel('Fix this day', lenses.counts.fix)} aria-controls="rail-see" aria-pressed={lens === 'fix' && sheetTab === 'see' && deckOpen && !selectedHit} onClick={() => { setLens('fix'); setSheetTab('see'); setDetailId(null); setDeckOpen(true); setSnap('half') }} data-alert={routeAlert ? 'true' : undefined} title={routeAlert ? routeAlertText : undefined} aria-description={routeAlert ? routeAlertText : undefined}><Lightbulb size={16} aria-hidden /><span>Fix</span>{lenses.counts.fix != null && <b>{lenses.counts.fix}</b>}{routeAlert && <i className="mv2-lens-alert" aria-hidden="true" />}</button>
           <button type="button" aria-label={phoneLensAriaLabel('Day plan', activeDaySlots.length)} aria-controls="rail-needs" aria-pressed={sheetTab === 'needs' && deckOpen && !selectedHit} onClick={() => { setSheetTab('needs'); setDetailId(null); setDeckOpen(true); setSnap('half') }}><List size={16} aria-hidden /><span>Plan</span><b>{activeDaySlots.length}</b></button>
           {!deckOpen && <button type="button" aria-label="Show suggestions" onClick={() => setDeckOpen(true)}><PanelRightOpen size={18} /></button>}
         </div>
@@ -2495,7 +2492,6 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
           <div tabIndex={-1} className={'poi-col poi-col--see' + sheetHiddenClass('see', sheetTab, sheetApplies) + (deckPresence.leaving ? ' is-leaving' : '')} id="rail-see" data-lens={lens} hidden={!deckPresence.mounted || sheetTab !== 'see' || !!selectedHit}>
             <MapSheetHandle snap={snap} onChange={setSnap} onSnapSettled={(_next, source) => settleSheetSnap(source, 'rail-see')} />
 
-            {scopeBand}
             {deckStatus}
 
             {lens === 'drive' && <div className="mv2-peek">
@@ -2518,6 +2514,7 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
             <MapLensPanel
               lens={lens}
               routeAdvice={routeAdvice}
+              scopeSlot={scopeBand}
               onFold={foldDeck}
               onRetry={retryScan}
               lenses={lenses}

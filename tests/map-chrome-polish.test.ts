@@ -32,7 +32,27 @@ describe('Suggestion states', () => {
   it('shows the live states on the deck top and keeps no hidden help button', () => {
     expect(tab).not.toContain('How suggestions work')
     expect(tab).not.toContain('mv2-suggestion-info')
-    expect(tab).toMatch(/\{scopeBand\}\n\s*\{deckStatus\}/)
+    // The scope picker shares the deck title row, so the live status opens the deck.
+    expect(tab).toContain('scopeSlot={scopeBand}')
+    expect(tab).toMatch(/onSnapSettled=[^\n]*\n\n\s*\{deckStatus\}/)
+  })
+})
+
+describe('Space round four', () => {
+  it('puts the route warning on the Fix button, not in a strip', () => {
+    expect(tab).not.toContain('mv2-route-banner')
+    expect(tab).toContain("data-alert={routeAlert ? 'true' : undefined} title={routeAlert ? routeAlertText : undefined}")
+    expect(css).toMatch(/\.mv2-lens-alert \{[^}]*background: var\(--pw-marigold-500\)/)
+  })
+  it('shows card facts as icon and value on one line, with a quick add on other cards', () => {
+    const card = read('../src/components/map/lenses/LensPlaceCard.tsx')
+    expect(card).toContain('<CellIcon className="mv2-lens-cell-icon" size={14} aria-hidden />')
+    expect(card).toContain('className="mv2-lens-quick-add"')
+    expect(css).toContain('.mv2-workspace[data-role="viewer"] .mv2-lens-quick-add { display: none; }')
+  })
+  it('puts the scope picker in the deck title row and drops the wide-screen close button', () => {
+    expect(read('../src/components/map/lenses/DriveTabs.tsx')).toContain('aside={scopeSlot}')
+    expect(css).toContain('@media (min-width: 761px) { .mv2-workspace .mv2-lens-deck-close { display: none; } }')
   })
 })
 

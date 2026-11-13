@@ -32,6 +32,8 @@ export interface MapLensPanelProps {
   introOf: (row: DriveRow) => string | null
   /** The live scope, in minutes there and back. A non-window deck names it. */
   scopeMinutes?: number | null
+  /** The Drive scope picker and count. It sits in the deck title row. */
+  scopeSlot?: ReactNode
   onOpenDrive: (row: DriveRow) => void
   onAddDrive: (row: DriveRow) => void
   activeStayWindow: string | null
@@ -75,6 +77,7 @@ export function MapLensPanel(props: MapLensPanelProps) {
     const intro = active?.shown[0] ? props.introOf(active.shown[0]) : null
     // A deck with no window has no pass line. It still states the real scope.
     return <DriveTabs
+      scopeSlot={props.scopeSlot}
       result={lenses.drive.tabs}
       activeTab={props.activeDriveTab}
       onTab={props.onDriveTab}

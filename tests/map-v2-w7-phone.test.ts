@@ -50,7 +50,7 @@ describe('W7 phone CSS block', () => {
   })
   it('keeps scope above the deck instead of on the map', () => {
     const see = tab.indexOf('id="rail-see"')
-    expect(tab.indexOf('{scopeBand}', see)).toBeLessThan(tab.indexOf('<MapLensPanel', see))
+    expect(tab.indexOf('scopeSlot={scopeBand}', see)).toBeGreaterThan(tab.indexOf('<MapLensPanel', see))
     expect(tab).not.toContain('{!phoneSheet && scopeBand}')
   })
   it('shows one requested ribbon on the map, with a phone day-menu entry', () => {

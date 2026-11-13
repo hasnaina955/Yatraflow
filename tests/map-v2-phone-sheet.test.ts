@@ -44,10 +44,10 @@ describe('911-W9-phone sheet structure', () => {
 
   it('puts one scope control above the cards and keeps the ribbon out of the sheet', () => {
     const see = tab.indexOf('id="rail-see"')
-    const band = tab.indexOf('{scopeBand}', see)
+    // The scope picker rides in the deck title row, which sits above the cards.
     const deck = tab.indexOf('<MapLensPanel', see)
-    expect(band).toBeGreaterThan(see)
-    expect(deck).toBeGreaterThan(band)
+    expect(tab.indexOf('scopeSlot={scopeBand}', deck)).toBeGreaterThan(deck)
+    expect(tab).not.toMatch(/\n\s*\{scopeBand\}\n/)
     expect(tab.slice(see, tab.indexOf('{phoneRibbon}', see))).not.toContain('<MapJourneyRibbon')
   })
 

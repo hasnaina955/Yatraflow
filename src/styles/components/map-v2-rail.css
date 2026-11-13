@@ -196,7 +196,6 @@
 .mv2-tools > summary { width: fit-content; display: flex; align-items: center; gap: var(--space-3); min-height: 44px; padding-inline: var(--space-5); color: var(--text-2); cursor: pointer; }
 .mv2-tools-body { max-width: 720px; padding: var(--space-7); margin-bottom: var(--space-7); border-radius: var(--radius); background: var(--card); color: var(--text); }
 .mv2-provider-status { margin: 0 0 var(--space-5); padding: var(--space-5); border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--ink-amber); font-size: 12px; }
-.mv2-route-advice { display: inline; min-height: 44px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-xs); background: transparent; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .mv2-map-clock { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-primary); border-radius: var(--radius-pill); background: var(--card); color: var(--ink-teal); box-shadow: var(--shadow-soft); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; }
 .mv2-sheet-handle, .mv2-peek, .mv2-phone-day, .mv2-map-tools-toggle { display: none; }
 .mv2-workspace .map-legend { position: absolute; bottom: 108px; right: calc(var(--mv2-deck-width) + var(--space-10)); max-width: min(280px, 80%); z-index: 3; }
@@ -529,6 +528,22 @@
 .mv2-lens-cell { display: flex; flex-direction: column; gap: 1px; padding: 0; border-radius: 0; background: transparent; }
 .mv2-lens-cell-label { color: var(--pw-ink-3); font: var(--pw-kicker); font-size: 11px; letter-spacing: var(--kicker-tracking); text-transform: uppercase; }
 .mv2-lens-cell-value { color: var(--pw-ink); font: var(--pw-ui); font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* A deck card shows its facts on one line: icon and value. The label stays for screen readers and the tooltip. */
+.mv2-lens-place > .mv2-lens-strip { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-6); row-gap: var(--space-2); padding: var(--space-3) var(--space-5); border-radius: var(--radius-pill); }
+.mv2-lens-place > .mv2-lens-strip > .mv2-lens-cell { flex-direction: row; align-items: center; gap: var(--space-2); min-width: 0; }
+.mv2-lens-place > .mv2-lens-strip > .mv2-lens-cell[data-icon='true'] > .mv2-lens-cell-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mv2-lens-cell-icon { flex: none; color: var(--pw-sea-700); }
+:root:where([data-theme='dark']) .mv2-lens-cell-icon { color: var(--pw-time-drive); }
+/* The quick add on a card that is not selected: a small round plus, top right. */
+.mv2-lens-quick-add { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; margin-left: auto; padding: 0; border: 1px solid var(--pw-line); border-radius: var(--radius-pill); background: var(--pw-card); color: var(--pw-time-drive); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper); }
+.mv2-lens-quick-add:hover:not(:disabled) { background: var(--pw-time-drive); color: var(--pw-on-sea); transform: scale(1.06); }
+.mv2-lens-quick-add:active:not(:disabled) { transform: scale(.94); }
+.mv2-lens-quick-add:disabled { opacity: .5; cursor: not-allowed; }
+.mv2-lens-quick-add:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
+.mv2-workspace[data-role="viewer"] .mv2-lens-quick-add { display: none; }
+@media (prefers-reduced-motion: reduce) { .mv2-lens-quick-add { transition: none; } }
+/* A touch target is 44 px: the pad reaches past the 30 px circle. */
+@media (pointer: coarse) { .mv2-lens-quick-add { position: relative; } .mv2-lens-quick-add::before { content: ''; position: absolute; inset: -7px; } }
 .mv2-lens-more { margin: 0; color: var(--pw-ink-3); font: var(--pw-meta); }
 .mv2-lens-fix-title { margin: 0; color: var(--pw-ink); font: var(--pw-title); }
 .mv2-lens-evidence { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--pw-risk) 33%, transparent); background: var(--pw-risk-100); }
@@ -1045,6 +1060,14 @@
   background: var(--bg-soft);
   color: var(--text);
 }
+/* The route warning is a marigold dot on the Fix button. The tooltip names it. */
+.mv2-workspace .mv2-lens-pill > button[data-alert='true'] { position: relative; }
+.mv2-lens-alert { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--pw-marigold-500); box-shadow: 0 0 0 2px var(--pw-card); animation: mv2-pick-pop var(--motion-med) var(--ease-paper) backwards; }
+@media (prefers-reduced-motion: reduce) { .mv2-lens-alert { animation: none; } }
+/* The Drive scope picker shares the deck title row. The edge tab closes the deck on a wide screen, so the round close button shows on the phone only. */
+.mv2-lens-deck-head:has(> .mv2-lens-scope-band) { align-items: center; }
+.mv2-workspace .mv2-lens-deck-head > .mv2-lens-scope-band { flex: 0 1 auto; flex-wrap: nowrap; gap: var(--space-4); width: auto; min-width: 0; margin-left: auto; padding: 0; border: 0; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (min-width: 761px) { .mv2-workspace .mv2-lens-deck-close { display: none; } }
 .mv2-lens-tab:hover:not(.is-active) { background: var(--bg-soft); color: var(--text); }
 .mv2-lens-tab:active:not(.is-active) { transform: scale(.98); }
 .mv2-lens-place:hover:not(.is-selected) {
@@ -1259,8 +1282,6 @@
 .mv2-suggestion-info > summary { list-style: none; }
 .mv2-suggestion-notes { padding-block: var(--space-5); font-size: var(--text-xs); }
 .mv2-suggestion-info[open] { flex-basis: 100%; animation: popover-in var(--motion-med) var(--ease-paper); }
-.mv2-workspace .mv2-route-banner { display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: var(--space-4); padding: 0 var(--space-5); margin: 0 0 var(--space-3); min-height: 44px; font-size: var(--text-xs); }
-.mv2-route-banner .mv2-route-advice { min-height: 44px; text-align: left; }
 .mv2-clock-chip { position: absolute; z-index: 5; left: calc(var(--mv2-day-width) + var(--space-10)); bottom: var(--mv2-inset); display: flex; align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
 .mv2-clock-chip[aria-expanded='true'] { bottom: calc(var(--mv2-ribbon-h) + var(--space-10)); }
 .mv2-ribbon { animation: popover-in var(--motion-med) var(--ease-paper); }
@@ -1279,8 +1300,6 @@
   .mv2-workspace .mv2-map-tools-card button.mv2-map-tools-btn.mv2-zoom { display: none; }
 }
 
-.mv2-route-banner .mv2-route-dismiss { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 14px; flex: 0 0 auto; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-2); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper); }
-.mv2-route-dismiss:hover { background: var(--bg-soft); }
 .mv2-lens-drive .mv2-lens-deck-kicker { display: none; }
 .mv2-lens-budget-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 

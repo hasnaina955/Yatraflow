@@ -14,7 +14,7 @@ import {
   acknowledgedReceiptOf, cacheHoldsProposal, composeOperations, discardOperations, isAcknowledgement, keepIsStale, keepOutcomeOf, markAttempted, markUnadmitted, notifyUncertain, previewBase,
   runOperations, runStoreDiscarded, stagedChange, withUncertainty, withoutOperations,
 } from '../src/lib/previewChain'
-import type { Trip } from '../src/data/types'
+import type { ItineraryStop, Trip } from '../src/data/types'
 
 function trip(): Trip {
   return {
@@ -34,7 +34,7 @@ function trip(): Trip {
   }
 }
 
-const stop = (id: string, title: string) => ({
+const stop = (id: string, title: string): ItineraryStop => ({
   id, title, category: 'food', locationName: title, lat: 9.5, lng: 76.3,
   visitMinutes: 45, entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
   priority: 'nice-to-have', status: 'suggested', orderInDay: 2,
@@ -83,7 +83,7 @@ describe('the surfaces that must not race a preview (#334)', () => {
     expect(src).toMatch(/applyChange\(draft => \{/)                                     // Move goes through the chain
     expect(src).toMatch(/'move-day', dayIndex\)/)
     expect(src).toMatch(/previewOpen=\{!!pending\}/)                                    // timeline is told
-    expect(src).toMatch(/Staged change discarded — you switched trips/)
+    expect(src).toMatch(/Staged change discarded. You switched trips/)
   })
 
   it('the map popup delete and every expense write refuse while a preview is open', () => {
@@ -117,7 +117,7 @@ describe('the surfaces that must not race a preview (#334)', () => {
     // One spelling of the refusal AND one home for it: since #424 the surfaces
     // import the rule from lib/mutationLifecycle instead of pasting the message,
     // so a drift has nowhere to hide.
-    expect(src).toMatch(/import \{ refuseWhileStaged, removeStopWithUndo \} from '\.\.\/\.\.\/lib\/mutationLifecycle'/)
+    expect(src).toMatch(/import \{ refuseWhileStaged, removeStopWithUndo, type ApplyChange \} from '\.\.\/\.\.\/lib\/mutationLifecycle'/)
     expect(src).not.toMatch(/PREVIEW_BUSY/)
   })
 

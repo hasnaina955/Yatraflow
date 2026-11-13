@@ -25,14 +25,17 @@ const VALIDATOR = 'scripts/validate-itinerary.mjs'
  *  real Trip, not a partial one. */
 function toTrip(raw: { trip: Record<string, unknown> }, slug: string): Trip {
   const now = Date.now()
+  const parsed = raw.trip as unknown as Trip
   return {
-    id: `golden:${slug}`,
-    createdAt: now,
-    updatedAt: now,
-    members: [],
-    fixedCommitments: [],
-    expenses: [],
-    ...(raw.trip as unknown as Trip),
+    ...parsed,
+    // The import JSON omits these tool-managed fields, so a value it does not
+    // carry is synthesized here and one it does carry is kept.
+    id: parsed.id ?? `golden:${slug}`,
+    createdAt: parsed.createdAt ?? now,
+    updatedAt: parsed.updatedAt ?? now,
+    members: parsed.members ?? [],
+    fixedCommitments: parsed.fixedCommitments ?? [],
+    expenses: parsed.expenses ?? [],
   }
 }
 
@@ -91,7 +94,7 @@ describe('golden itineraries — the gallery pipeline gate', () => {
 
       it('scores high by default — engine health ≥ 85 with no high-severity warnings', () => {
         const health = computeHealth(trip)
-        const describe = (w: { code: string; title: string; detail: string; fix: string }) => `${w.code}: ${w.title} — ${w.detail} (fix: ${w.fix})`
+        const describe = (w: { code: string; title: string; detail: string; fix: string }) => `${w.code}: ${w.title} · ${w.detail} (fix: ${w.fix})`
         for (const w of health.warnings) console.log(`    ⚠ [${w.severity}] ${describe(w)}`)
         const bad = health.warnings.filter(w => w.severity === 'high')
         expect(bad, `${f} has blocking engine warnings: ${bad.map(describe).join(' | ')}`).toHaveLength(0)

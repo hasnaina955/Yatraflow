@@ -93,7 +93,7 @@ function trip(): Trip {
 /** The payload `get_public_trip` actually sent before the fix: a valid trip row
  *  with the stubbed days AND the traveller's invite code still attached. */
 function leakedPayload() {
-  return [{ ...tripToRow(trip()), invite_code: LEAKED_CODE }]
+  return [{ ...tripToRow(trip(), OWNER), invite_code: LEAKED_CODE }]
 }
 
 async function freshStore() {

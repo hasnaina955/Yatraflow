@@ -21,6 +21,14 @@ Sections:
 
 ## The gate
 
+Change notes use `changelog.d/pending/`. `npm run changelog:check` checks format, STE prose, IDs, and PR coverage.
+`npm run verify` runs the check. A pull request run uses the event base and head SHAs. A push run checks format only.
+Local checks use the merge base with `origin/test` or an explicit `--base`. With no commit ahead of that base, the check covers format only.
+The direct-entry bridge ends at the next release. Existing Unreleased notes stay in place until that release.
+The promotion agent freezes the release input, reviews the diff, and applies the checked patch with editor primitives.
+Assembly must preserve the preamble and released bytes. The line count must include every inserted line.
+See [the fragment guide](../changelog.d/README.md) for commands and receipt checks.
+
 Locate a named unpublished dependency before planning its replacement.
 Separate unavailable source from an absent live database function. A repository search proves only repository contents.
 Do not certify a server contract from tests that replace its transport.
@@ -55,7 +63,16 @@ Browser checks must accept this floor instead of requiring an exact zero.
 The check once read only unstaged edits, so a commit made it inspect zero lines and always pass. If the checked count is zero, read the base named in the verdict before you trust the pass.
 
 Use `npm run verify` — it runs the full gate:
-`tsc -b --clean` → fresh typecheck → full test suite → production build.
+`tsc -b --clean` → `tsc -b` → `npm run typecheck:tests` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run changelog:check` → `npm run check:css` → `npm test` → `vite build`.
+
+**Between full gate runs, a focused run selects with git, not memory.**
+`npm run test:changed` unions the test files changed vs the batch base with the
+staged, unstaged, untracked and `--extra` paths. The batch base defaults to the
+merge base with `origin/test`. Pass `--base <ref>` when the batch's base is not
+the integration branch. The script runs vitest on the union and passes the
+child's exit code through. A source change that selects no test exits 1 — it
+never reports an empty green. The full gate still runs everything;
+`test:changed` only makes the focused run honest.
 
 On a busy machine, set process-only `VITEST_MAX_WORKERS=1` before `npm run verify`.
 Vitest 4.1.12 resolves this value as `maxWorkers`.
@@ -135,9 +152,9 @@ Hard rules (each learned the hard way — do not relearn them):
   touched a file both sides edited, run the full `npm run verify` on the
   rebased tree before pushing — and when a suite fails wholesale after a
   rebase, suspect the merge of the file the suite covers before suspecting the
-  branch's own change. The replay also means **the branch's CHANGELOG entries
-  re-filed themselves into the released section** if the branch was cut before
-  the release:  check `git diff origin/test..HEAD -- CHANGELOG.md` lands under `[Unreleased]`.
+  branch's own change. Older branches also moved pending changelog notes into released sections.
+  New work uses fragments. On a transition conflict, compare both sides with the merge base.
+  Keep each pending note under one Unreleased heading and preserve every released byte.
 - **A custom `merge=<driver>` attribute can delete a file's change from a rebased
   commit while the rebase reports success (learned 2026-09-26).** Resolving a
   four-branch stack's recurring `CHANGELOG.md` conflicts with a `--union` driver
@@ -227,7 +244,9 @@ curl -s -m 12 -w '\nHTTP %{http_code}\n' -H "apikey: $KEY" -H "Authorization: Be
 discriminates a migration-gated table in one call — **`200 []` means the table EXISTS and RLS withholds the rows from an anon caller, `404 PGRST205` means it does not exist** — and control-running it against a nonsense table name is what anchors the reading, since `PGRST205` is also the exact code the client's degradation path keys on. `https://example.com` is the cheap "is the network up at all" check. Pull `$URL`/`$KEY` from `.env.local` (`grep '^VITE_SUPABASE_URL=' .env.local | cut -d= -f2- | tr -d '\r"'`) rather than pasting them into a transcript. **For an RPC, send its real argument names** — a bare `{}` answers `404 PGRST202` for a function whose parameters have no defaults, which reads as absent when the function is there and merely mis-called (measured 2026-09-22: `owns_publication` and `bump_published_stats` both looked absent that way and both exist); the same code, with the real arguments, is the honest missing-check. The root `/rest/v1/` schema endpoint is not an option for this — it answers `401 Invalid API key`, since only a `service_role` key may read it.
 - **A fresh harness sandbox starts as a shallow, blob-filtered partial clone with only `test` fetched — no `origin/main` ref, no `node_modules`, no `.env.local` (learned 2026-09-22).** `git rev-list origin/main…` therefore dies with *unknown revision* until you fetch the ref you need; run `npm install` before any `npm run verify`; and the live-DB checks (`npm run check:migrations`, PostgREST probes) must run from the user's credentialed box, since the keys never reach this clone. The local `git log` is depth-1 — answer history questions with `gh api` / `git ls-remote`, not the local log.
 - **A pull request can carry no `Verify` run at all, and its page will not say so (learned 2026-09-25).** Two PRs were pushed with **zero** workflow runs on their branches: `gh pr checks` listed only Codacy and Vercel, which reads as "the gate is fine" because nothing is red. `gh run list --branch <branch>` is what tells the difference — if it returns nothing for the head SHA, the gate never ran and a local `npm run verify` on that branch is the only evidence there is. Companion: a **stacked PR** (a branch cut from another PR's branch) shows only its own delta in `git diff <base>...<head>` while its PR diff against the base still carries the parent's work, so merge the parent first and then `git merge origin/test` into the child — the child's `CHANGELOG.md` conflict disappeared entirely once its parent landed.
-- **When a release cut has already moved `[Unreleased]` into a version heading, an incoming `[Unreleased]` entry must be folded INTO that heading (learned 2026-09-25).** Merging `test` into a promote branch conflicts on `CHANGELOG.md` exactly this way; resolving it by keeping your own side silently drops the incoming entries from the release. Take the incoming file (`git checkout --theirs CHANGELOG.md`), re-apply the cut heading above its sections with `edit`, and check the entry count on both sides of the conflict before committing — twenty entries in, twenty entries under the heading.
+- **Release conflicts need a new assembly from frozen inputs.** A 2026-09-25 merge lost incoming notes when it kept one changelog side.
+  Compare both sides with the merge base. Keep both sets of pending notes and preserve released history with editor primitives.
+  Freeze a new input after the conflict resolution. Run assembly and verification again. Never restore one whole side.
 - **A lane worktree lives OUTSIDE the session workspace, so the harness's default `workspace-write` policy denies every write to it — and a note claiming the sandbox is already full-access can be stale (learned 2026-09-27).** Where parallel lanes each get their own `git worktree` beside the clone (`git worktree list` names them), the first `write` into that tree comes back `[sandbox: file access denied]`: a policy fact, not a bad path. With an `ask` approval policy, retry that exact write once with `danger-full-access` — the narrower mode cannot reach outside the workspace, so it cannot be the answer; with approvals disabled, do the work inside the workspace instead. Re-derive the policy from the session's own runtime context rather than from a doc: the §2.7 dev-server entry describes the same failure shape, where the policy actually in force, not the tool, decides the outcome.
 - **Never run dependent git checks as parallel shell calls** — during the PR
   audit, a ref-rewriting fetch raced a `merge-base --is-ancestor` check and
@@ -397,7 +416,7 @@ the same job:
 | PR into `test` | yes | **no** |
 | `v*` tag | — | yes (builds the APK and attaches it to the release) |
 
-The APK workflow triggers on `push` to `main`, `feat/capacitor-android` and `v*`
+The APK workflow triggers on `push` to `main` and `v*`
 tags — **not on pull requests**. So a PR into `main` costs one `ci.yml` run plus
 Vercel, while the merge itself is what burns an Android build. Verify with
 `gh pr checks <n>` rather than reasoning from the YAML; the check list names the
@@ -610,3 +629,21 @@ that shape: the check names a file, a human runs it, the next run flips to `ok`
 - **An audit issue's `file:line` anchors have expired by the time anyone acts on them — re-grep before scoping, and name regions by their symbols (learned 2026-09-26).** A P0–P3 sweep's issue bodies carried line numbers that were wrong by ~140 lines within days: the finding that said `MapTab.tsx:2335` is `focusDay={activeDayIndex}` pointed at a "Stay" button, and a lane that had already announced those numbers to a parallel agent had to correct the record. Treat every anchor in a written artifact — an issue, a plan doc, a decision block, a handoff note, a PR body — as a hypothesis about a file that has moved since it was written: resolve it with grep in the session that uses it, quote live numbers in the PR you open, and when coordinating with another agent name the REGION by its symbols (`daySlotDeps`, the fill/delete handlers, the banner) rather than by line numbers that will drift under both of you. This is §6c's rule one step out: an absence claim expires at the next merge, and so does a location claim.
 - **A scripted source edit that matches nothing succeeds quietly — count the token you meant to insert, never the absence of an error (learned 2026-09-26).** Three PowerShell edits in a row wrote nothing and reported success because the pattern could not match: this clone's working copy is **LF**, so a `\r\n` literal or a `$`-anchored regex silently no-ops (`.Replace()` and `-replace` return the input unchanged by design and raise nothing). The "repair" of that sequence then inserted a SECOND copy of a line whose first insertion had in fact succeeded — the declaration was missing, the call was duplicated, and the token count (3 where 2 was correct) is the only reason it was caught. So: check the file's line endings before writing one (git's *"LF will be replaced by CRLF"* warning, printed for the file you are editing, is the tell), and verify every scripted edit by **counting the token** (`([regex]::Matches($src,'setMapFilter')).Count` must be exactly 2) — never by the absence of an exception, and never by byte count alone (the #416 wiring grew `MapTab.tsx` by 252 bytes with the state declaration missing and a handler call doubled: the size looked plausible, the counts did not). Same reasoning that makes `CHANGELOG.md` editor-primitive-only (§9) applies to source: for a file whose braces are load-bearing, a silent no-op and a shredding look alike until the gate runs.
 
+
+## Fast checks: verify:fast and typecheck:tests
+
+Use these two commands for fast feedback while you work. They do not replace the gate.
+
+- `npm run verify:fast` runs `tsc -b` for `src/`. It then runs `vitest related --run` on the changed files. The changed files are the files that differ from the merge base with `origin/test`, plus uncommitted and untracked files. `npm run verify:fast -- --base <rev>` lists only the commits from `<rev>` to HEAD. The command prints what it runs and what it skips.
+- `npm run typecheck:tests` runs `tsc -p tsconfig.tests.json`. It type-checks `src/` and `tests/`. It is a step of `verify`, so a type error in a test file fails the gate.
+
+`npm run verify` stays the gate before a push. Run it before every push, even after `verify:fast` passes.
+
+### Opt-in pre-push hook
+
+- `npm run hooks:install` sets `core.hooksPath` to `.githooks` for this clone. `npm run hooks:uninstall` removes it. No install step runs the hook by itself.
+- Before a branch push, `.githooks/pre-push` runs `npm run verify:fast -- --base <base>`. The base is the remote tip that the push replaces. A new branch uses the merge base with `origin/test`, or with `origin/main` when `origin/test` is missing. If neither ref exists, the hook blocks the push. Run `git fetch origin` first.
+- The hook blocks the push when HEAD is not the branch tip. It also blocks the push when the tree has an uncommitted or untracked file. It blocks the push when the gate fails. It does not check tags or branch deletions. A blocked push prints one line that names the escape hatch.
+- Skip one push with `YF_SKIP_PRE_PUSH=1 git push ...`. The hook then prints that it skipped. Say why in the chat. Do not use `git push --no-verify`, which skips the hook too, unless the user asks for it.
+- The setting lives in the repository config, so every linked worktree of this clone shares it. A worktree without `node_modules` fails the gate, because `verify:fast` needs `tsc` and `vitest`. The hook also blocks a push when `npm` does not start in the shell that runs `git push`.
+- The hook runs `verify:fast`, not `verify`. Run `npm run verify` before every push.

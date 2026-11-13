@@ -9,7 +9,7 @@ import type { PlaceHit } from '../lib/providers/hits'
 import type { VehicleProfile } from '../data/types'
 
 export interface SuggestionCache {
-  map: { segments: SegmentHit[]; plan?: DrivingPlanDay[]; inputsHash: string; scopeKm: number; ts: number } | null
+  map: { segments: SegmentHit[]; plan?: DrivingPlanDay[]; inputsHash: string; scopeKm: number; ts: number; fetchedAt?: number | null; coverage?: import('../lib/providers/hits').DiscoveryCoverage } | null
   /** fraction fallback pool cached under the same map TTL */
   fraction: { hits: PlaceHit[]; inputsHash: string; scopeKm: number; ts: number } | null
   /** per-day manual halt planner: the user's {km, minutes, purpose} list + best real spots */
@@ -47,8 +47,12 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 4 // 4 hours
  * category-only edit used to hit the same hash and serve the old ranked
  * pool (F18); v8 entries cannot say what ranking they were built for, so
  * they evict with the bump.
+ *
+ * Bumped to 10 on 2026-11-13: the Drive corridor keeps picks stretch by
+ * stretch along the road, and a long drive keeps more of them. A v9 pool was
+ * ranked for one town to fill every slot, so it evicts with the bump.
  */
-const CACHE_VERSION = 9
+const CACHE_VERSION = 10
 
 /**
  * Build the cache key from every input the corridor search reads. Kept here
@@ -82,6 +86,9 @@ export function planInputsHash(input: {
   roundTrip?: boolean | undefined
   vehicleProfile?: VehicleProfile | undefined
   planFingerprint?: string | undefined
+  /** Map V2 ticket 09 AC5: the scanned family set. Sorted in the key so any
+   *  order of the same set shares one cache entry. */
+  families?: readonly string[] | undefined
   /** #842 F18: the ranking inputs the scan reads — a category-only edit
    *  changes these without touching any field above, and the cache must
    *  bust rather than serve the old ranked pool. */
@@ -89,6 +96,7 @@ export function planInputsHash(input: {
   categoryBias?: Record<string, number> | undefined
   plannedStops?: { lat: number; lng: number; name?: string }[] | undefined
   providerMode?: string | undefined
+  discoveryContext?: string | undefined
 }): string {
   return [
     input.anchorsHash,
@@ -115,6 +123,7 @@ export function planInputsHash(input: {
     // legacy Mixed plan starts answering a question nobody was asked.
     input.drivesPart === true ? 'mp-y' : input.drivesPart === false ? 'mp-n' : '-',
     input.planFingerprint ?? '-',
+    input.families && input.families.length > 0 ? [...input.families].sort().join(',') : '-',
     // #842 F18: ranking inputs, serialized stably — these arrive as objects
     // and arrays whose identity changes on every render.
     (input.purposes ?? []).join(','),
@@ -125,6 +134,7 @@ export function planInputsHash(input: {
       ? input.plannedStops.map(s => `${s.name ?? ''}@${s.lat.toFixed(6)},${s.lng.toFixed(6)}`).join('|')
       : '-',
     input.providerMode ?? '-',
+    input.discoveryContext ?? '-',
   ].join('|')
 }
 
@@ -218,11 +228,11 @@ export function useSuggestionCache(tripId: string, dayCount: number) {
     })
   }, [tripId, dayCount])
 
-  const setMapCache = useCallback((segments: SegmentHit[], inputsHash: string, scopeKm: number, plan?: readonly DrivingPlanDay[]) => {
+  const setMapCache = useCallback((segments: SegmentHit[], inputsHash: string, scopeKm: number, plan?: readonly DrivingPlanDay[], evidence?: { fetchedAt: number | null; coverage: import('../lib/providers/hits').DiscoveryCoverage | null }) => {
     setCache(prev => {
       const next: SuggestionCache = {
         ...prev,
-        map: { segments, plan: plan ? [...plan] : undefined, inputsHash, scopeKm, ts: Date.now() },
+        map: { segments, plan: plan ? [...plan] : undefined, inputsHash, scopeKm, ts: Date.now(), fetchedAt: evidence?.fetchedAt, coverage: evidence?.coverage ?? undefined },
       }
       save(tripId, next)
       return next

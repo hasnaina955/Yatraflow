@@ -8,10 +8,63 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { railKeyAction } from '../src/lib/railKeys'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const omniSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapOmnibar.tsx'), 'utf8').replace(/\r\n/g, '\n')
 const mapTabSrc = readFileSync(join(root, 'src', 'pages', 'trip', 'MapTab.tsx'), 'utf8')
+
+// A source-string guard cannot tell a control from a container, and a raw
+// regex stops at the arrow token in an earlier attribute. Read the TSX AST.
+const INTERACTIVE_TAGS = new Set(['button', 'input', 'select', 'textarea', 'a', 'summary'])
+const INTERACTIVE_ROLES = new Set(['button', 'link'])
+
+const attrOf = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement, name: string): ts.JsxAttribute | undefined =>
+  el.attributes.properties.find((a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && ts.isIdentifier(a.name) && a.name.text === name)
+
+const stringAttr = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement, name: string): string | null => {
+  const init = attrOf(el, name)?.initializer
+  if (!init) return null
+  if (ts.isStringLiteralLike(init)) return init.text
+  if (ts.isJsxExpression(init) && init.expression && ts.isStringLiteralLike(init.expression)) return init.expression.text
+  return null
+}
+
+/** True when a JSX tabIndex initializer is the literal -1. */
+const isNegativeOne = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean => {
+  const init = attrOf(el, 'tabIndex')?.initializer
+  if (!init) return false
+  if (ts.isStringLiteralLike(init)) return init.text === '-1'
+  if (!ts.isJsxExpression(init) || !init.expression) return false
+  const e = init.expression
+  return ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.MinusToken
+    && ts.isNumericLiteral(e.operand) && e.operand.text === '1'
+}
+
+/** Native interactive controls, or any element with role button/link. Custom
+ *  components are outside this source guard; a separate a11y review covers them. */
+const isInteractive = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean => {
+  const tag = el.tagName.getText()
+  if (/^[a-z]/.test(tag) && INTERACTIVE_TAGS.has(tag)) return true
+  const role = stringAttr(el, 'role')
+  return role != null && INTERACTIVE_ROLES.has(role)
+}
+
+/** Interactive JSX controls that opt out of the tab order. */
+function unreachableControls(source: string): { tag: string; line: number }[] {
+  const sf = ts.createSourceFile('fixture.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const found: { tag: string; line: number }[] = []
+  const visit = (n: ts.Node): void => {
+    const el = ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n) ? n : null
+    if (el && isInteractive(el) && isNegativeOne(el)) {
+      found.push({ tag: el.tagName.getText(), line: sf.getLineAndCharacterOfPosition(el.getStart(sf)).line + 1 })
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(sf)
+  return found
+}
 
 describe('railKeyAction', () => {
   const count = 5
@@ -67,18 +120,18 @@ describe('railKeyAction', () => {
 
 describe('the rail uses that grammar, not a one-branch Enter handler', () => {
   it('the search list is a listbox whose rows are options', () => {
-    expect(mapTabSrc).toMatch(/role="listbox"/)
-    expect(mapTabSrc).toMatch(/role="option"/)
+    expect(omniSrc).toMatch(/role="listbox"/)
+    expect(omniSrc).toMatch(/role="option"/)
     // The invalid pairing the issue named: listitem + aria-selected announces
     // static text, so a screen reader never says the row is selectable.
     expect(mapTabSrc).not.toMatch(/role="listitem"/)
   })
 
   it('rows run the shared grammar and keep a roving tabIndex', () => {
-    expect(mapTabSrc).toMatch(/railKeyAction\(/)
+    expect(omniSrc).toMatch(/railKeyAction\(/)
     // Roving, not every-row-tabbable: exactly one row owns the tab stop, and the
     // first row owns it while nothing is highlighted so the list is still enterable.
-    expect(mapTabSrc).toMatch(/tabIndex=\{[^}]*\? 0 : -1\}/)
+    expect(omniSrc).toMatch(/tabIndex=\{[^}]*\? 0 : -1\}/)
     expect(mapTabSrc).not.toMatch(/aria-selected=\{selected\} tabIndex=\{0\}/)
   })
 
@@ -91,25 +144,57 @@ describe('the rail uses that grammar, not a one-branch Enter handler', () => {
   })
 })
 
+describe('A4 guard reads the TSX AST, not a raw source regex', () => {
+  const bad = [
+    { label: 'the original #333 A4 button', source: '<button onClick={h} tabIndex={-1}>x</button>' },
+    { label: 'an arrow callback before tabIndex', source: '<button onClick={() => act()} tabIndex={-1}>x</button>' },
+    { label: 'a multiline arrow callback', source: '<button\n  onClick={() => act()}\n  tabIndex={-1}\n>x</button>' },
+    { label: 'tabIndex before the handler', source: '<button tabIndex={-1} onClick={() => act()}>x</button>' },
+    { label: 'a self-closing input', source: '<input tabIndex={-1} />' },
+    { label: 'summary', source: '<summary tabIndex={-1}>x</summary>' },
+    { label: 'a string -1 initializer', source: '<button tabIndex="-1">x</button>' },
+    { label: 'an explicit role button', source: '<div role="button" tabIndex={-1}>x</div>' },
+    { label: 'an explicit role link', source: '<span role="link" tabIndex={-1}>x</span>' },
+  ]
+  const legal = [
+    { label: 'a non-interactive sheet panel region', source: '<div tabIndex={-1} className="poi-col" id="rail-see"></div>' },
+    { label: 'a roving tabIndex expression', source: '<button tabIndex={row === active ? 0 : -1}>x</button>' },
+    { label: 'a zero tab stop', source: '<button tabIndex={0}>x</button>' },
+    { label: 'a plain group role', source: '<div role="group" tabIndex={-1}></div>' },
+    { label: 'a custom component outside this guard', source: '<MyControl tabIndex={-1} />' },
+  ]
+
+  it('flags every interactive control shape with a negative tabIndex', () => {
+    for (const c of bad) expect(unreachableControls(c.source), c.label).not.toEqual([])
+  })
+
+  it('allows non-interactive regions, roving tabIndex and custom components', () => {
+    for (const c of legal) expect(unreachableControls(c.source), c.label).toEqual([])
+  })
+
+  it('finds no interactive control with tabIndex -1 in MapTab', () => {
+    expect(unreachableControls(mapTabSrc)).toEqual([])
+  })
+})
+
 describe('the rail states scope in words, and keeps nothing unreachable (#333 A4, A7)', () => {
-  it('A4: the rotating tip dots are indicators, not unreachable buttons', () => {
-    // They were <button onClick tabIndex={-1}> inside an aria-hidden container:
-    // clickable, unreachable by keyboard, 8px wide, and hidden below 720px. The
-    // strip rotates on its own and screen readers get a static summary instead
-    // (#168), so the dots carry no control at all now.
-    expect(mapTabSrc).toMatch(/engine-tips-dots" aria-hidden="true"/)
-    expect(mapTabSrc).toMatch(/<span key=\{i\} className=\{`engine-tips-dot/)
-    // No control anywhere in the rail may opt itself out of the tab order —
-    // that is the shape of "focusable things a keyboard cannot reach".
-    expect(mapTabSrc).not.toMatch(/tabIndex=\{-1\}/)
-    expect(mapTabSrc).not.toMatch(/engine-tips-dot[^>]*onClick/)
+  it('A4: the Map tab keeps no rotating tip strip and no unreachable control', () => {
+    // The tip strip hid behind an info button and served no purpose, so it is gone.
+    // The live suggestion states (over limit, rain, empty, failed) sit on the deck top.
+    expect(mapTabSrc).not.toContain('engine-tips')
+    expect(mapTabSrc).toContain('{deckStatus}')
+    // No keyboard-reachable control may opt itself out of the tab order. A sheet
+    // panel region is not a control, so it may carry a negative tabIndex.
+    expect(unreachableControls(mapTabSrc)).toEqual([])
   })
 
   it('A7: an out-of-scope row is never dimmed, and says why in words', () => {
     // opacity 0.6 washed out text already near the contrast floor AND made the
     // row's own action buttons read as disabled while they were still pressable.
     expect(mapTabSrc).not.toMatch(/opacity: inScope \? undefined : 0\.6/)
-    expect(mapTabSrc).toMatch(/chip chip-saffron[^>]*>beyond your detour scope</)
+    expect(omniSrc).toContain('className="chip chip-saffron"')
+    expect(omniSrc).toContain("'beyond your detour scope'")
+    expect(omniSrc).not.toMatch(/opacity: inScope/)
     // the phrase must not still be trailing the muted comma-run
     expect(mapTabSrc).not.toMatch(/, beyond your detour scope'/)
   })

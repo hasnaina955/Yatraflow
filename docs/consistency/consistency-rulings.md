@@ -1,6 +1,6 @@
 # YatraFlow consistency work: standing rulings
 
-Owner: Claude (design lead). Updated 2026-10-11. Cline and Codex: **read this file before you ask the user a question.** If a ruling covers your question, follow it. If none does, ask the user and quote the question in full.
+Owner: Claude (design lead). Updated 2026-10-11. Workers: **read this file before you ask the user a question.** If a ruling covers your question, follow it. If none does, ask the user and quote the question in full.
 
 This file grows. Claude adds a ruling each time an agent asks something new. Re-read it at the start of each task.
 
@@ -24,15 +24,16 @@ This file grows. Claude adds a ruling each time an agent asks something new. Re-
 
 **R11. Batch at the end, one PR per lane.** When all your files are done and proven, create one batch branch from `origin/test` named `chore/consistency-<lane>-batch` (`cline` or `codex`). Merge each file branch into it. Expect trailing conflicts in `src/styles.css`. Keep every section. Run `npm run verify` on the batch branch. Tell the user. The user says when to push. Open one PR into `test`. Do not merge it.
 
-**R12. Do not re-proof a finished file.** A file is done when it has: its before and after screenshots (light and dark, 1280 and 390), a clean `npm run verify` run, and a changelog entry. Send Claude those three things. Claude reviews. Then move to the next file.
+**R12. Do not re-proof a finished file.** A finished file has before and after screenshots in light and dark, at 1280 and 390.
+It also has a clean `npm run verify` run and a change fragment. Send Claude that evidence. Claude reviews. Then move to the next file.
 
 **R13. A value that breaks a design-system gate stays inline.** The gate checks the CSS in `src/styles.css` (for example the spacing ladder `2, 4, 6, 8, 12, 14, 16, 20, 22, 24`). An inline style is not scanned. If moving a value into a class makes a gate fail, leave that one value inline. Do not snap it to the ladder. Do not re-baseline the gate. A snap is a visual change, and Claude decides those. Add a short comment above the element, such as `{/* off-ladder 18px: stays inline until the page redesign */}`, and list each one in your report to Claude. Claude clears them when the page gets its real pass.
 
 ## Working copies
 
-**R9. Cline works only in `C:\Users\hasna\yatraflow-cline`.** Leave `feat/launch-film` and the `launch-film/` files alone. Cut branches from `origin/test`.
+**R9. (Retired: this clone no longer exists.) Cline works only in `C:\Users\hasna\yatraflow-cline`.** Leave `feat/launch-film` and the `launch-film/` files alone. Cut branches from `origin/test`.
 
-**R10. Codex works only in `C:\Users\hasna\yatraflow-codex`, using a git worktree.** Do not stash, reset, discard or commit the discovery work in the main tree. Run `git worktree add -b chore/consistency-<file> .codex-worktrees/<file> origin/test`. Add `.codex-worktrees/` to `.git/info/exclude`.
+**R10. (Retired: this clone no longer exists.) Codex works only in `C:\Users\hasna\yatraflow-codex`, using a git worktree.** Do not stash, reset, discard or commit the discovery work in the main tree. Run `git worktree add -b chore/consistency-<file> .codex-worktrees/<file> origin/test`. Add `.codex-worktrees/` to `.git/info/exclude`.
 
 ## Design rulings (user-approved 2026-10-11, on Opus advice)
 

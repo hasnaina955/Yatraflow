@@ -70,7 +70,7 @@ export function emptyCopyFor(state: ReadState, what: string, retry: () => void):
   if (state === 'failed') {
     return {
       title: `Couldn’t load ${what}`,
-      body: `The request failed, which is not the same as there being none. Nothing is missing from your account — try again.`,
+      body: `The request failed, which is not the same as there being none. Nothing is missing from your account. Try again.`,
       retry,
     }
   }

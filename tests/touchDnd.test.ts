@@ -1,7 +1,7 @@
 // ============ touchDnd — pointer drag engine (pure helpers) ============
 import { describe, it, expect } from 'vitest'
 import {
-  LONG_PRESS_MS, MOVE_CANCEL_PX, MOUSE_START_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED, WARP_CALM_MS,
+  LONG_PRESS_MS, MOVE_CANCEL_PX, MOUSE_START_PX, EDGE_ZONE_PX, EDGE_SCROLL_SPEED,
   encodeDropKey, parseDropKey, longPressActivated, movedPx,
   edgeScrollDelta, isInteractiveTarget, warpFor, glideOffsetPx, insertionIndexFor,
 } from '../src/lib/touchDnd'
@@ -189,9 +189,4 @@ describe('insertionIndexFor (the drop-zone reading)', () => {
 describe('mouse activation constants', () => {
   it('a mouse drag starts after a small movement, well under the touch cancel', () => {
     expect(MOUSE_START_PX).toBeLessThan(MOVE_CANCEL_PX)
-  })
-
-  it('the warp calm window is shorter than one hover blink', () => {
-    expect(WARP_CALM_MS).toBe(90)
-  })
-})
+  })})

@@ -75,7 +75,7 @@ const HOME = { lat: 10.01, lng: 77.01 }
 
 /** tiny URL-routed fetch stub — handlers matched in order */
 function routeFetch(handlers: Array<[RegExp, unknown]>) {
-  return vi.fn(async (input: RequestInfo | URL) => {
+  return vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input)
     for (const [re, body] of handlers) {
       if (re.test(url)) return new Response(JSON.stringify(body), { status: 200 })

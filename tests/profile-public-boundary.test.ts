@@ -5,6 +5,7 @@
 // every table read, so a test can assert a public path never touches the private
 // table — which is the property the whole change rests on.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { PrivateUser } from '../src/data/types'
 
 const { state, toast } = vi.hoisted(() => ({
   state: {
@@ -16,7 +17,7 @@ const { state, toast } = vi.hoisted(() => ({
     /** What `get_public_profile_cards` answers. */
     cards: [] as unknown[],
     /** What `is_disabled` answers. */
-    disabled: false,
+    disabled: false as boolean | null,
     /** Set to make `get_public_profile_cards` answer with an error instead. */
     rpcError: false,
     /** Per-table read outcomes, so one read can fail while another succeeds. */
@@ -26,7 +27,7 @@ const { state, toast } = vi.hoisted(() => ({
     /** What a `profiles` row read answers, keyed by the `eq('id', …)` value. */
     profileRows: {} as Record<string, unknown>,
     /** Deferred RPC answers, resolved by the test. */
-    deferred: {} as Record<string, () => void>,
+    deferred: {} as Record<string, Promise<void> | undefined>,
     /** Every `auth.signOut` call, so a test can assert who was signed out. */
     signOuts: [] as string[],
     /** The user the session answers with, and the epoch `identityEpoch` holds. */
@@ -112,7 +113,7 @@ vi.mock('../src/lib/supabase', () => {
             const parked = new Map(Object.entries(state.deferred)).get(fn)
             if (parked) {
               Reflect.set(state.deferred, fn, () => {})
-              return parked().then(settle).then(res)
+              return parked.then(settle).then(res)
             }
             return settle().then(res)
           },
@@ -226,7 +227,7 @@ describe('the merge rule', () => {
     const merged = mergeUsers([priv], [rowToPublicUser({ ...OWNER_CARD, name: 'Renamed' })])[0]
 
     expect(merged.kind).toBe('private')
-    expect(merged.email).toBe('a@example.invalid')  // the private field survives
+    expect((merged as PrivateUser).email).toBe('a@example.invalid')  // the private field survives
     expect(merged.profile.name).toBe('Renamed')     // and the public one lands
   })
 
@@ -240,7 +241,7 @@ describe('the merge rule', () => {
     const { mergeUsers, rowToPublicUser, rowToPrivateUser } = await freshStore()
     const merged = mergeUsers([rowToPrivateUser(OWNER_PRIVATE)], [rowToPublicUser({ ...OWNER_CARD, avatar_url: 'https://cdn/new.png' })])[0]
     expect(merged.profile.avatarUrl).toBe('https://cdn/new.png')
-    expect(merged.email).toBe('a@example.invalid')
+    expect((merged as PrivateUser).email).toBe('a@example.invalid')
   })
 
   it('an admin-held private row keeps its own private fields and takes public updates', async () => {
@@ -254,8 +255,8 @@ describe('the merge rule', () => {
     const merged = mergeUsers([other], [rowToPublicUser({ ...OTHER_CARD, id: 'u-9', name: 'Bilal Ahmed' })])[0]
     expect(merged.kind).toBe('private')
     expect(merged.profile.name).toBe('Bilal Ahmed')
-    expect(merged.profile.homeCity).toBe('PRIVATE-CITY')
-    expect(merged.email).toBe('other@example.invalid')
+    expect((merged as PrivateUser).profile.homeCity).toBe('PRIVATE-CITY')
+    expect((merged as PrivateUser).email).toBe('other@example.invalid')
   })
 })
 
@@ -742,6 +743,6 @@ describe('the private read has its own verdict and retry', () => {
     expect(store.currentUser()).toBeNull()
     // No account's private row survives under the new session.
     expect(store.getSnapshot().users.every(u => u.kind === 'public')).toBe(true)
-    expect(store.getSnapshot().users.every(u => u.email === undefined)).toBe(true)
+    expect(store.getSnapshot().users.every(u => (u as PrivateUser).email === undefined)).toBe(true)
   })
 })

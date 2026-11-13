@@ -16,7 +16,7 @@ import type { Trip, PrivateUser, PrivateUserProfile } from '../src/data/types'
 function user(id: string, createdAt: number, extra: Partial<PrivateUserProfile> = {}): PrivateUser {
   return {
     id, kind: 'private', email: `${id}@x.com`, createdAt,
-    profile: { name: id, isCreator: false, creatorAvailable: true, ...extra },
+    profile: { name: id, isCreator: false, creatorAvailable: true, languages: [], travelStyles: [], ...extra },
   }
 }
 

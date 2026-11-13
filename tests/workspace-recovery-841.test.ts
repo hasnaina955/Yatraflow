@@ -299,7 +299,7 @@ describe('the exact admission trace replaces the cache guess', () => {
     const unsubscribe = subscribe(() => {
       if (tripById(trip.id)?.name === 'Preview') updateTrip(trip.id, { name: 'Different', travellers: 2 })
     })
-    let outcome: Awaited<ReturnType<ReturnType<typeof workspace>['actions']>['keepPending']>
+    let outcome: Awaited<ReturnType<ReturnType<ReturnType<typeof workspace>['actions']>['keepPending']>>
     try { outcome = await ws.actions().keepPending() } finally { unsubscribe() }
     expect(outcome).toEqual({ kind: 'superseded', uncertain: true })
     await tick()

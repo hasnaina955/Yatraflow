@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
+  clearOfMarks,
   clusterCandidates,
   clusterCountLabel,
   clusterFeatureCollection,
@@ -101,8 +102,35 @@ describe('splitByCluster', () => {
   })
 })
 
-describe('clusterSummary', () => {
-  it('says nothing when nothing is grouped', () => {
+describe('clearOfMarks', () => {
+  const same = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+    Math.hypot((a.lat - b.lat) * 111, (a.lng - b.lng) * 109) < 1
+
+  it('drops a suggestion that stands on a numbered stop or a start flag', () => {
+    const hits = [
+      hit({ id: 'on-stop', latitude: 10.0885, longitude: 77.0595 }),
+      hit({ id: 'on-flag', latitude: 9.6042, longitude: 77.1641 }),
+      hit({ id: 'clear', latitude: 9.7, longitude: 77.1 }),
+    ]
+    const out = clearOfMarks(hits, [
+      { lat: 10.0889, lng: 77.0596 },
+      { lat: 9.604, lng: 77.164 },
+    ], same)
+    expect(out.map(h => h.id)).toEqual(['clear'])
+  })
+
+  it('keeps every suggestion when the map draws no stop mark', () => {
+    const hits = [hit({ id: 'a' }), hit({ id: 'b' })]
+    expect(clearOfMarks(hits, [], same)).toEqual(hits)
+  })
+
+  it('keeps a suggestion the map cannot place: no coordinates, no mark either', () => {
+    const hits = [hit({ id: 'nowhere', latitude: Number.NaN, longitude: Number.NaN })]
+    expect(clearOfMarks(hits, [{ lat: 10, lng: 77 }], same)).toHaveLength(1)
+  })
+})
+
+describe('clusterSummary', () => {  it('says nothing when nothing is grouped', () => {
     expect(clusterSummary(0)).toBeNull()
     expect(clusterSummary(-3)).toBeNull()
     expect(clusterSummary(Number.NaN)).toBeNull()
@@ -110,9 +138,9 @@ describe('clusterSummary', () => {
   })
 
   it('names the count and what to do about it', () => {
-    expect(clusterSummary(1)).toBe('1 suggestion grouped into map clusters at this zoom — zoom in to open them one by one.')
+    expect(clusterSummary(1)).toBe('1 suggestion grouped into map clusters at this zoom. Zoom in to open them one by one.')
     expect(clusterSummary(9)).toContain('9 suggestions')
-    expect(clusterSummary(9)).toContain('zoom in')
+    expect(clusterSummary(9)).toContain('Zoom in')
   })
 
   it('uses one noun for the badge language and the sentence', () => {
@@ -123,6 +151,18 @@ describe('clusterSummary', () => {
 })
 
 describe('#417 wiring — the Map tab groups its suggestion pins', () => {
+  it('groups crowded picks in the workspace too, and keeps lettered picks single', () => {
+    // A pick no longer slides off its place, so a crowd must merge into a count.
+    // clearOfMarks already drops a pick at a stop, so no badge lands under a stop pin.
+    expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,200}?data=\{clusterData\}/)
+    expect(tripMap).not.toContain('NO_CLUSTER_DATA')
+    expect(tripMap).toMatch(/keepIds: pickLetters \? new Set\(Object\.keys\(pickLetters\)\) : null/)
+  })
+  it('exempts a kept id from grouping', () => {
+    const hit = (id: string) => ({ id, name: id, latitude: 18.75, longitude: 73.4 }) as unknown as PlaceHit
+    const out = clusterCandidates([hit('a'), hit('b')], { keepIds: new Set(['b']) })
+    expect(out.map(c => [c.id, c.exempt])).toEqual([['a', false], ['b', true]])
+  })
   it('renders the suggestion family through the one cluster implementation', () => {
     expect(tripMap).toContain("from '../lib/mapCluster'")
     expect(tripMap).toMatch(/<MapClusterLayer[\s\S]{0,500}?data=\{clusterData\}/)
@@ -134,15 +174,15 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
   })
 
   it('filters only the idea pins by the cluster report — confirmed stops keep their markers', () => {
-    const ideaLoop = tripMap.slice(tripMap.indexOf('{visiblePois.map(hit => {'), tripMap.indexOf('</MapLibreMap>'))
-    expect(ideaLoop.length, 'the idea-pin loop moved — re-anchor this guard').toBeGreaterThan(0)
+    const ideaLoop = tripMap.slice(tripMap.indexOf('{markPois.map(hit => {'), tripMap.indexOf('</MapLibreMap>'))
+    expect(ideaLoop.length, 'the idea-pin loop moved · re-anchor this guard').toBeGreaterThan(0)
     expect(ideaLoop).toContain('individualPinIds')
 
     const stopLoop = tripMap.slice(
       tripMap.indexOf('return allPoints.map((p, idx) => {'),
       tripMap.indexOf('{dayEndpointMarkers.map'),
     )
-    expect(stopLoop.length, 'the confirmed-stop loop moved — re-anchor this guard').toBeGreaterThan(0)
+    expect(stopLoop.length, 'the confirmed-stop loop moved · re-anchor this guard').toBeGreaterThan(0)
     // the pitfall: a confirmed stop must never become an anonymous count
     expect(stopLoop).not.toContain('individualPinIds')
     expect(stopLoop).toContain('yf-pin-cluster')
@@ -155,7 +195,7 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
 
   it('the map key names the badge', () => {
     const legend = tripMap.slice(tripMap.indexOf('map-legend-body'), tripMap.indexOf('hint-text', tripMap.indexOf('map-legend-body')))
-    expect(legend).toMatch(/count badge/i)
+    expect(legend).toMatch(/Teal count/i)
   })
 
   it('keeps the count legible where the badge is not opaque', () => {
@@ -171,8 +211,8 @@ describe('#417 wiring — the Map tab groups its suggestion pins', () => {
       mapcn.indexOf('// Update source data'),
     )
     const opacity = Number(clusterSource.match(/"circle-opacity":\s*([\d.]+)/)?.[1] ?? Number.NaN)
-    expect(colors.length, 'the cluster palette moved — re-anchor this guard').toBe(3)
-    expect(Number.isFinite(opacity), 'the cluster circle opacity moved — re-anchor this guard').toBe(true)
+    expect(colors.length, 'the cluster palette moved · re-anchor this guard').toBe(3)
+    expect(Number.isFinite(opacity), 'the cluster circle opacity moved · re-anchor this guard').toBe(true)
 
     const srgb = (c: number) => {
       const v = c / 255
@@ -212,7 +252,7 @@ describe('#417 wiring — MapClusterLayer gains only what the caller needs', () 
     // OpenFreeMap glyph endpoint on 2026-09-27 — "Open Sans Semibold" answered
     // 404, "Noto Sans Bold" and "Noto Sans Regular" answered 200.
     const fontStack = mapcn.match(/"text-font":\s*\[([^\]]+)\]/)?.[1] ?? ''
-    expect(fontStack, 'the cluster count layer moved — re-anchor this guard').not.toBe('')
+    expect(fontStack, 'the cluster count layer moved · re-anchor this guard').not.toBe('')
     expect(fontStack).toContain('Noto Sans')
     expect(fontStack).not.toContain('Open Sans')
   })

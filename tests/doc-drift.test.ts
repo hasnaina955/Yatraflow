@@ -45,6 +45,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 
 /** Docs whose sentences describe what the product does TODAY. */
 const LIVE = [
+  '../changelog.d/README.md',
   '../README.md',
   '../ROADMAP.md',
   '../AGENTS.md',
@@ -243,7 +244,7 @@ const CLAIMS: Claim[] = [
   },
   {
     file: '../src/App.tsx',
-    contains: 'No bookings — planning plus paid itinerary unlocks',
+    contains: 'No bookings. Planning plus paid itinerary unlocks',
     why: "The shell footer's honest scope line (#392): bookings do not exist (a true absence), and paid itinerary unlocks DO (v0.61.0) — the sentence names both halves. The requires-marker is the fix's second half: the day the rail's evidence disappears, this copy overstates the product and the gate says so.",
     requires: PAYMENTS_RAIL,
   },

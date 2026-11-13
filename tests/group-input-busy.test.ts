@@ -33,7 +33,7 @@ describe('#394 — the busy claim', () => {
   })
 
   it('never blocks a different row', () => {
-    const first = takeClaim<string>(new Set(), 'decision-1')
+    const first = takeClaim(new Set<string>(), 'decision-1')
     const second = takeClaim(first.claims, 'decision-2')
     expect(second.claimed).toBe(true)
     expect(isClaimed(second.claims, 'decision-1')).toBe(true)
@@ -58,8 +58,8 @@ describe('#394 — the busy claim', () => {
   it('a released row can be claimed again', () => {
     // The row spent the claim: a fresh claim over a fresh key (the next
     // decision card) is granted — the module never leaks state between rows.
-    const first = takeClaim<string>(new Set(), 'decision-1')
-    const next = takeClaim<string>(new Set(), 'decision-2')
+    const first = takeClaim(new Set<string>(), 'decision-1')
+    const next = takeClaim(new Set<string>(), 'decision-2')
     expect(next.claimed).toBe(true)
     expect(first.claims.has('decision-2')).toBe(false)
   })

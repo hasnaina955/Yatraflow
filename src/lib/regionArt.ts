@@ -139,23 +139,6 @@ export function artIdFor(region: ArtRegion, seed: string, manifest: ArtManifest 
 }
 
 /**
- * The generated id for a region at a POSITION, chosen by that position.
- *
- * `artIdFor` hashes its seed, which is right for a trip: the same trip keeps
- * the same scene. It is wrong for the Nth day of a list, because two hashes can
- * land on the same slot and two neighbouring days then draw one picture — with
- * two Goa scenes the second and fourth days collided. A position steps the
- * family predictably, so consecutive days differ whenever the region has more
- * than one scene.
- */
-export function artIdAt(region: ArtRegion, position: number, manifest: ArtManifest = ART_MANIFEST): string | null {
-  const ids = manifest.regions[region] ?? []
-  if (ids.length === 0) return null
-  const at = Math.abs(Math.trunc(position)) % ids.length
-  return ids[at]
-}
-
-/**
  * Every scene a region owns, seeded-first.
  *
  * `artIdFor` answers with ONE id, so a cover that can try only that id falls

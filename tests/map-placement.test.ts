@@ -22,7 +22,7 @@ const hit = (over: Partial<PlaceHit> = {}): PlaceHit =>
 const base = {
   dayIndex: 0,
   placeDayIndex: 0,
-  placeDayLabel: 'Kochi to Munnar — waterfalls en route',
+  placeDayLabel: 'Kochi to Munnar · waterfalls en route',
   km: 73,
   filingOptions: [] as Array<{ key: string; label: string; noun: string }>,
   alreadyAdded: false,

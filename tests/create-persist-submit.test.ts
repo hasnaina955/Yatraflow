@@ -54,13 +54,13 @@ vi.mock('../src/lib/supabase', () => {
     // column the fixture says is missing answers Postgres' unknown-column error —
     // the shape `isMissingColumnError` reads, which is what makes the Mixed
     // refusal reachable.
-    qb.then = (res: (v: { data: unknown; error: null }) => unknown) =>
+    qb.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
       Promise.resolve({
         data: [],
         error: state.missingColumns.has(qb.column ?? '') ? { code: '42703', message: 'column does not exist' } : null,
       }).then(res)
     qb.maybeSingle = () => ({
-      then: (res: (v: { data: unknown; error: null }) => unknown) =>
+      then: (res: (v: { data: unknown; error: unknown }) => unknown) =>
         Promise.resolve({ data: (() => {
           const row = table === 'trips' ? state.savedTrip : state.savedOwner
           return row && [...filters].every(([key, value]) => row[key] === value) ? row : null

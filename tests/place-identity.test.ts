@@ -215,7 +215,7 @@ describe('reproduced resume defects R1-R4 (issue #839)', () => {
   })
 
   it('R2: a suggestion with OSM metadata does not match a Google stop', () => {
-    const stopRow = { title: 'Fort', locationName: 'Fort', lat: 15, lng: 73, placeSource: 'google', placeId: 'same-raw' }
+    const stopRow: Parameters<typeof isSameEntity>[1] = { title: 'Fort', locationName: 'Fort', lat: 15, lng: 73, placeSource: 'google', placeId: 'same-raw' }
     expect(isSameEntity(
       { title: 'Fort', lat: 15, lng: 73, place: { source: 'osm', placeId: 'same-raw', exposure: 'unknown' } },
       stopRow,
@@ -281,8 +281,11 @@ describe('the release effect publishes every preview close (#839 review P2)', ()
     expect(bail).toBeGreaterThan(bump)
   })
   it('the identity memo re-reads the staged map when it is published', () => {
-    expect(mapTab).toMatch(/tripPresenceIds, addedIds, dismissedIds, stagedSnapshot\]/)
-    // Render reads the published snapshot, never the ref the handlers mutate.
-    expect(mapTab).toContain('staged: stagedSnapshot,')
+    const workspace = readFileSync(new URL('../src/pages/TripWorkspace.tsx', import.meta.url), 'utf8')
+    expect(workspace).toMatch(/placeIdentity\(effectiveTrip, addedIds, dismissedIds, stagedSnapshot\)/)
+    expect(workspace).toMatch(/\[effectiveTrip, addedIds, dismissedIds, stagedSnapshot\]/)
+    expect(workspace).toContain('presence={journeyDays.presence}')
+    // Render reads the published state, never the ref the handlers mutate.
+    expect(workspace).not.toMatch(/placeIdentity\(effectiveTrip, addedIds, dismissedIds, stagedIdsRef\.current\)/)
   })
 })

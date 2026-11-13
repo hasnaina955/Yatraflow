@@ -97,8 +97,3 @@ export function haptic(pattern: HapticPattern | HapticIntent): void {
     }
   }
 }
-
-/** True when haptics have a working backend (native plugin or Vibration API). */
-export function hapticsAvailable(): boolean {
-  return isNative || (typeof navigator !== 'undefined' && 'vibrate' in navigator)
-}

@@ -627,7 +627,8 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     const clean = fixtureRepo(GOOD)
     commitFile(clean, 'docs/sp ace/n.md', GOOD)
     expect(runScript(clean).code).toBe(0)
-  }, SLOW)
+    // Two fixture repositories, so twice the room. Under full suite load one SLOW was not enough.
+  }, SLOW * 2)
 
   it('exempts docs/consistency/ from the diff runs, and still checks the same line elsewhere', () => {
     // docs/consistency/ holds planning notes written before the rules applied.
@@ -689,7 +690,7 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     const original = git(dir, ['show', `${extraction}:${source}`])
     const historicalComment = (original.match(/\/\*[^\r\n]*\*\//g) ?? []).find((c) => /tap-flash/.test(c))
     expect(historicalComment).toBeTruthy()
-    const inner = historicalComment.replace(/^\/\*\s*/, '').replace(/\s*\*\/$/, '')
+    const inner = historicalComment!.replace(/^\/\*\s*/, '').replace(/\s*\*\/$/, '')
 
     const map = JSON.stringify({ owners: [{ id: 'moved', file: 'src/styles/moved.css' }] })
     commitFile(dir, 'docs/css-ownership.json', map)
@@ -703,7 +704,7 @@ describe('STE100 default run (fixture repositories, real git)', () => {
     expect(runScript(dir).code).toBe(1)
 
     // And the destination set does not include an unregistered module.
-    expect(JSON.parse(map).owners.map((o) => o.file)).not.toContain('src/styles/stranger.css')
+    expect(JSON.parse(map).owners.map((o: { file: string }) => o.file)).not.toContain('src/styles/stranger.css')
   }, SLOW)
 
   it('exits 2 when --base names no commit', () => {

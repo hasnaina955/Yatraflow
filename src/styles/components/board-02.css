@@ -25,10 +25,6 @@
 
 .board-head { margin-bottom: 14px; }
 
-.container--board .board-head { margin-bottom: 10px; }
-
-.container--board .board-head h2 { font-size: 19px; margin: 0 0 2px; }
-
 .board {
   position: relative; /* a wide 640px letterbox squeezed tall routes into a thin squiggle
      band — give the pinned map real vertical room (CTI mockup). 292px = compact

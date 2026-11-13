@@ -127,15 +127,17 @@ const otherTripId = 'trip-other-841'
 
 function trip(id = tripId): Trip {
   return {
-    id, title: 'Trip', destination: 'Test', startDate: '2026-11-01', endDate: '2026-11-02',
-    attendees: 2, ownerId: owner, writeVersion: 7, createdAt: 1, updatedAt: 1,
+    id, name: 'Trip', startLocation: 'Test', destinations: ['Test'], startDate: '2026-11-01', endDate: '2026-11-02',
+    travellers: 2, transportMode: 'car', budgetPerPersonInr: 5000, travelStyle: 'balanced',
+    fixedCommitments: [], coverEmoji: '🧭', visibility: 'private',
+    writeVersion: 7, createdAt: 1, updatedAt: 1,
     days: [
-      { id: 'day-a', index: 0, date: '2026-11-01', label: 'Day 1', stops: [] },
-      { id: 'day-b', index: 1, date: '2026-11-02', label: 'Day 2', stops: [] },
+      { id: 'day-a', index: 0, title: 'Day 1', stops: [] },
+      { id: 'day-b', index: 1, title: 'Day 2', stops: [] },
     ],
     members: [{ userId: owner, role: 'owner', joinedAt: 1 }],
-    expenses: [], collaborators: [],
-  } as Trip
+    expenses: [],
+  }
 }
 
 function applied() {
@@ -163,7 +165,7 @@ function seed(store: Awaited<ReturnType<typeof freshStore>>, id = tripId): void 
   db.decisions = [{
     id: 'decision-841', tripId: id, question: 'Lunch?', context: '',
     options: [
-      { id: 'slot:lunch:winner', label: 'Winner', place: { title: 'Cafe', dayId: 'day-a', dayIndex: 0 } },
+      { id: 'slot:lunch:winner', label: 'Winner', place: { title: 'Cafe', category: 'food', locationName: 'Cafe', lat: 15.5, lng: 73.9, visitMinutes: 45, dayId: 'day-a', dayIndex: 0 } },
       { id: 'slot:lunch:other', label: 'Other' },
     ],
     votesByUserId: { [owner]: 'slot:lunch:winner' }, comments: [], status: 'open',
@@ -252,14 +254,14 @@ describe('stage-c/841 ordered resolution captured intent and write admission', (
 
   it('refuses an ordered resolve while an earlier debounced edit is pending', async () => {
     store._setTripWriteDebounceMs(600)
-    expect(store.updateTrip(tripId, { title: 'Renamed' })).toBe(true)
+    expect(store.updateTrip(tripId, { name: 'Renamed' })).toBe(true)
     const before = await pendingWrites()
     expect(before.some(write => write.tripId === tripId && write.ownerId === owner)).toBe(true)
     const outcome = await store.resolveDecision('decision-841', 'slot:lunch:winner', intent(7))
     expect(outcome.status === 'conflict' || outcome.status === 'unavailable').toBe(true)
     expect(state.rpcCalls).toHaveLength(0)
     expect(await pendingWrites()).toEqual(before)
-    expect(store.tripById(tripId)?.title).toBe('Renamed')
+    expect(store.tripById(tripId)?.name).toBe('Renamed')
   })
 
   it('refuses an ordered resolve while an earlier durable queued write exists', async () => {
@@ -278,7 +280,7 @@ describe('stage-c/841 ordered resolution captured intent and write admission', (
     const db = store.getSnapshot()
     db.trips = [store.tripById(tripId)!, trip(otherTripId)]
     store._setTripWriteDebounceMs(600)
-    expect(store.updateTrip(otherTripId, { title: 'Other plan' })).toBe(true)
+    expect(store.updateTrip(otherTripId, { name: 'Other plan' })).toBe(true)
     const outcome = await store.resolveDecision('decision-841', 'slot:lunch:winner', intent(7))
     expect(outcome).toMatchObject({ status: 'applied' })
     expect(state.rpcCalls).toHaveLength(1)
@@ -294,7 +296,7 @@ describe('stage-c/841 ordered resolution captured intent and write admission', (
     state.ownerMember = { user_id: owner, role: 'owner', joined_at: 1 }
     state.currentTripRow = { id: tripId, owner_id: owner, write_version: 7, deleted_at: null }
     store._setTripWriteDebounceMs(600)
-    expect(store.updateTrip(tripId, { title: 'In flight' })).toBe(true)
+    expect(store.updateTrip(tripId, { name: 'In flight' })).toBe(true)
     store._flushTripWrites()
     await enteredPromise
     const resolvePromise = store.resolveDecision('decision-841', 'slot:lunch:winner', intent(7))

@@ -25,6 +25,11 @@
 import { isSameEntity, normalizePlaceName, placeKeysOf } from '../../../lib/placeIdentity'
 import type { PlaceHit } from '../../../lib/providers/hits'
 import { randomToken } from '../../../lib/randomId'
+import {
+  copyWriterBinding,
+  sameWriterBinding,
+  type WriterRoadBinding,
+} from './writerRoadBinding'
 
 /** Stable trip and day identity for one operation. `dayId` is null only for a
  *  shortlist operation that spans days; each item then carries its own day. */
@@ -81,6 +86,8 @@ export interface WriterRetryTicket {
   context: WriterOperationContext
   intent: WriterRetryIntent
   picks: readonly WriterCapturedPick[]
+  /** Captured measured-road bytes; a retry replays or refuses these. */
+  binding?: WriterRoadBinding
 }
 
 /** `abandoned`: the store positively proved this exact admitted write was
@@ -100,6 +107,8 @@ export interface WriterOperationRecord {
   items: WriterOperationItem[]
   /** Items whose outcome was decided (skipped, placed or discarded). */
   settledItemIds: string[]
+  /** Captured measured-road bytes for this operation, when strict. */
+  binding?: WriterRoadBinding
 }
 
 export interface WriterBeginRequest {
@@ -124,6 +133,8 @@ export interface WriterBeginRequest {
   mintOperationId?: () => string
   /** Explicit product decision to place a repeat visit already on the plan. */
   allowRepeat?: boolean
+  /** Strict measured-road bytes. Unbound callers stay compatible. */
+  binding?: WriterRoadBinding
 }
 
 export type WriterBeginDecision =
@@ -162,7 +173,7 @@ export interface WriterOperationGate {
    *  only on a live record and is idempotent, so a late ack, a late discard, a
    *  newer preview or an identity switch cannot release another operation or
    *  settle twice. */
-  settleProvenDiscarded: (operationId: string) => void
+  settleProvenDiscarded: (operationId: string) => boolean
   operation: (operationId: string) => WriterOperationRecord | undefined
   /** The exact retry proof for a genuinely uncertain operation, or null when a
    *  retry must not be offered: settled, in flight, unknown, unprovable payload
@@ -291,6 +302,13 @@ export function createWriterOperationGate(): WriterOperationGate {
   function requestMatchesOperation(operation: WriterOperationRecord, request: WriterBeginRequest): boolean {
     if (operation.requestKey !== request.requestKey) return false
     if (operation.intent !== request.intent) return false
+    // A binding mismatch is a different measured write. Both sides must carry
+    // one and agree; a legacy unbound operation stays compatible with unbound
+    // requests only.
+    if (operation.binding || request.binding) {
+      if (!operation.binding || !request.binding) return false
+      if (!sameWriterBinding(operation.binding, request.binding)) return false
+    }
     if (operation.context.tripId !== request.context.tripId) return false
     if (operation.context.dayId !== request.context.dayId) return false
     if (operation.context.dayIndex !== request.context.dayIndex) return false
@@ -391,6 +409,7 @@ export function createWriterOperationGate(): WriterOperationGate {
         notes: entry.notes ?? null,
       })),
       settledItemIds: [],
+      ...(request.binding ? { binding: copyWriterBinding(request.binding) } : {}),
     }
     operations.set(operationId, operation)
     liveRequests.set(request.requestKey, operationId)
@@ -449,12 +468,13 @@ export function createWriterOperationGate(): WriterOperationGate {
    *  payload. The `isLive` guard makes it idempotent and preserves an
    *  acknowledged success: a late ack, a second discard, a newer preview or an
    *  identity switch cannot release another operation or settle twice. */
-  function settleProvenDiscarded(operationId: string): void {
+  function settleProvenDiscarded(operationId: string): boolean {
     const operation = operations.get(operationId)
-    if (!operation || !isLive(operation)) return
+    if (!operation || !isLive(operation)) return false
     operation.phase = 'abandoned'
     liveRequests.delete(operation.requestKey)
     releaseItems(operationId, operation.items.map(item => item.itemId))
+    return true
   }
 
   /** Exact retry proof. A ticket exists only for a genuinely uncertain
@@ -485,6 +505,7 @@ export function createWriterOperationGate(): WriterOperationGate {
         dayIndex: item.dayIndex,
         ...(item.notes !== null ? { notes: item.notes } : {}),
       })),
+      ...(operation.binding ? { binding: copyWriterBinding(operation.binding) } : {}),
     }
   }
 

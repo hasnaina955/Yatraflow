@@ -17,6 +17,10 @@ import { hmToMinutes } from './engine'
 import { plannerDrives, transportPolicy } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 import { HOME_ZONE_KM, kmFromStartForHit, asymmetricDetourMinutes, dedupeCandidates, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { openingVerdict } from './providers/hours'
+import { weatherAdjustedPurposeFit } from './providers/families'
+import { intendedVisitMinutes } from './hoursContext'
+import { candidateArrivalMin, type ArrivalContext } from './candidateArrival'
 import { DEFAULT_FIT, PURPOSE_FIT } from './haltFit'
 
 // ---- Fatigue cadence (named constants — later settings can expose them) ----
@@ -688,7 +692,7 @@ export function planTravelClock(input: TravelClockInput, splitOverride?: DriveDa
     return {
       verdict: 'defer',
       wheelAvailMin,
-      reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00 — leave tomorrow by ${DEFER_START} instead`,
+      reason: `Under ${MIN_HONEST_WHEEL_MIN / 60} h of honest wheel time before ${Math.floor(anchors.nightEndMin / 60)}:00. Leave tomorrow by ${DEFER_START} instead`,
     }
   }
   // The rain clamp is per walked day (#127): day i's forecast caps only day
@@ -708,7 +712,7 @@ export function planTravelClock(input: TravelClockInput, splitOverride?: DriveDa
       verdict: 'hop',
       hopKm,
       nightHaltEtaMin: Math.min(anchors.nightEndMin - 60, startMin + hopMin),
-      reason: `Late start — drive ~${hopKm} km to a night halt, eat dinner there, and let the real drive start tomorrow`,
+      reason: `Late start. Drive ~${hopKm} km to a night halt, eat dinner there, and let the real drive start tomorrow`,
     }
   }
   const split = splitOverride === undefined ? planClockSplit(input) : splitOverride
@@ -1037,16 +1041,16 @@ const PURPOSE_LABEL: Record<HaltPurpose, string> = {
   meal: 'Lunch',
   fuel: 'Fuel + stretch',
   rest: 'Rest break',
-  overnight: 'Overnight — end of day',
+  overnight: 'Overnight: end of day',
   sight: 'Sightseeing',
 }
 
 const PURPOSE_HINT: Record<HaltPurpose, (mins: number) => string> = {
-  stretch: () => '≈2 h wheel time — stretch & hydrate',
-  meal: () => '≈4 h — time for a proper meal',
-  fuel: () => 'Tank’s running low — refuel while you stretch',
-  rest: () => 'Recovery break — rest before carrying on',
-  overnight: () => '≈7 h driven today — end the day here and sleep',
+  stretch: () => '≈2 h wheel time: stretch & hydrate',
+  meal: () => '≈4 h: time for a proper meal',
+  fuel: () => 'Tank’s running low. Refuel while you stretch',
+  rest: () => 'Recovery break: rest before carrying on',
+  overnight: () => '≈7 h driven today. End the day here and sleep',
   sight: () => 'Worth-a-visit along the way',
 }
 
@@ -1445,7 +1449,7 @@ function etaAt(km: number, dayStarts: number[], dayStartTimes: string[] | undefi
       haltPinned: m.pinned ? true : undefined,
       haltDriftToKm: m.driftTo != null ? Math.round(m.driftTo) : undefined,
       hint: includeCharge && purpose === 'fuel'
-        ? 'Plug in — ≈60 min at the charger; stretch while it fills'
+        ? 'Plug in. ≈60 min at the charger; stretch while it fills'
         : PURPOSE_HINT[purpose](minutesFromPrev),
     }
   })
@@ -1484,8 +1488,8 @@ export function fuelGapWarnings(
     const gap = Math.max(0, nextKm - segments[i].targetKm)
     if (gap > fuelStrideKm * 1.4) {
       segments[i].roadWarning = (segments[i].roadWarning ?? '')
-        ? `${segments[i].roadWarning} · no scheduled fuel for ~${Math.round(gap)} km — fill the tank`
-        : `No scheduled fuel for ~${Math.round(gap)} km — fill the tank here`
+        ? `${segments[i].roadWarning} · no scheduled fuel for ~${Math.round(gap)} km. Fill the tank`
+        : `No scheduled fuel for ~${Math.round(gap)} km. Fill the tank here`
     }
   }
 }
@@ -1552,23 +1556,51 @@ export interface AssignOpts {
   speedKmph?: number
   /** trip preference vector — favoured categories score a similarity boost */
   dnaVector?: DnaVector
+  /**
+   * Local visit date per segment, by segment index (journey order) —
+   * 'YYYY-MM-DD'. Ticket 02: lets opening-hours verdicts resolve the visit's
+   * weekday instead of staying neutral. Absent entries (or the whole field)
+   * keep the honest weekday-free behavior; the projection owns supplying it.
+   */
+  visitDates?: (string | null)[]
+  /**
+   * COMPLETE measured-evidence context (active route/generation + origin).
+   * When absent, measured arrival evidence is unknown (fail closed) and the
+   * unchanged geometric estimate applies. The measured transport is inactive;
+   * production callers do not supply this yet.
+   */
+  measuredContext?: ArrivalContext
 }
 
 /** Rain chance at or above this means the day counts as rainy. Matches OverviewTab. */
 export const RAIN_PCT_THRESHOLD = 60
-/** Categories that suffer in the rain. */
-const WEATHER_SENSITIVE = new Set(['nature', 'beach', 'temple', 'adventure'])
-/** Categories that shelter from it. */
-const WEATHER_SHELTERED = new Set(['museum', 'cafe', 'shopping'])
+/**
+ * Categories that suffer in the rain, aligned with the source's confirmed
+ * rain rows (ticket 09): nature is 'exposed'. 'temple' moves to sheltered
+ * (the source's Faith row says sheltered — it was wrongly sensitive here).
+ * 'adventure' leaves the set: the source's Culture row says 'mixed', which is
+ * no adjustment. Water, views and heritage have NO confirmed rain row
+ * (source cells empty) and stay neutral — nothing is invented for them.
+ * 'beach' keeps its pre-existing sensitivity: it predates this table and
+ * stripping it on an empty source cell would be a regression, not an
+ * alignment — flagged to the coordinator for the Water-rain decision.
+ */
+const WEATHER_SHELTERED = new Set(['museum', 'cafe', 'shopping', 'temple'])
 
-/** purpose-fit adjusted for rain: exposed sights lose a point, sheltered picks gain one. */
+/**
+ * Purpose-fit adjusted for rain. Delegates to the provider lane's pure
+ * contract (repair R1/R2 round 2): a hard eligibility gate first, then a
+ * family's CONFIRMED rain row only, then the legacy category sets for hits
+ * without a family fact. A family with no confirmed rain row stays neutral.
+ */
 function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): number {
-  const base = fitScoreForPurpose(h, purpose)
-  if (!rainy) return base
-  const cat = h.category ?? 'sightseeing'
-  if (WEATHER_SENSITIVE.has(cat)) return Math.max(0, base - 1)
-  if (WEATHER_SHELTERED.has(cat)) return Math.min(3, base + 1)
-  return base
+  return weatherAdjustedPurposeFit({
+    baseFit: fitScoreForPurpose(h, purpose),
+    category: h.category,
+    family: h.family,
+    subtype: h.subtype ?? null,
+    rainy,
+  })
 }
 
 /**
@@ -1576,14 +1608,29 @@ function weatherAdjustedFit(h: PlaceHit, purpose: HaltPurpose, rainy: boolean): 
  * arrival clock is degraded. Known hours + no arrival clock (or vice versa)
  * leave the hit untouched. Penalty is minutes a trip would "walk a shut
  * door" away from the ideal — scaled so a full locked-out place is about as
- * bad as a 10 km off-road detour (matches the ×2 minute weight).
+ * bad as a 10 km off-road detour (matches the detour minute weight).
+ *
+ * Ticket 02: when the hit carries structured hours (weekday-attributed
+ * intervals, from providers/hours.ts) the verdict comes from
+ * openingVerdict — split and overnight intervals, full-visit fit and
+ * known-closed-vs-unknown. Unknown hours stay neutral (no invented penalty);
+ * closed-with-a-measurable-edge keeps the legacy scaling; an edge-less
+ * closure (whole weekday / outside a uniform daily shape) is the legacy flat
+ * lock-out. Without structured hours the legacy single-interval behavior is
+ * byte-identical, so pre-existing hits score exactly as before.
  */
 export function hoursFitAdj(
-  h: Pick<PlaceHit, 'openTime' | 'closeTime'>,
+  h: Pick<PlaceHit, 'openTime' | 'closeTime' | 'hours'>,
   etaMinutes: number | null | undefined,
+  visit?: { date?: string | { year: number; month: number; day: number } | Date | null; visitMin?: number },
 ): number {
   const eta = etaMinutes
   if (eta == null || !Number.isFinite(eta)) return 0
+  if (h.hours) {
+    const verdict = openingVerdict(h.hours, visit?.date ?? null, eta, visit?.visitMin ?? 0)
+    if (verdict.state !== 'closed') return 0 // open, or honestly unknown — never an invented penalty
+    return verdict.missMin != null ? Math.round(verdict.missMin / 15) * 2 + 1 : 6
+  }
   const open = h.openTime ? hmToMinutes(h.openTime) : null
   const close = h.closeTime ? hmToMinutes(h.closeTime) : null
   if (open == null || close == null) return 0
@@ -1609,13 +1656,14 @@ export function scoreHitForSegment(
   const dist = Math.abs(pos - seg.targetKm)
   const window = Math.max(1, seg.maxKm - seg.minKm)
   const distPenalty = dist > window / 2 ? dist + window : dist
-  const fit = weatherAdjustedFit(h, seg.purpose, seg.rainy === true)
-  // Need-based purposes never take a wrong-kind place: a college with zero
-  // fuel-fit must leave the segment empty (rendered as a gap), not fill it
-  // as a bogus petrol pump. Generic breaks stay ungated.
-  if ((seg.purpose === 'fuel' || seg.purpose === 'meal' || seg.purpose === 'overnight') && fit < 1) {
+  // Hard eligibility reads the DRY fit: rain is a preference, so it must never
+  // turn a wrong-kind place into a valid need candidate (recheck P1 — a museum
+  // fort must not become a fuel candidate just because it is raining).
+  const dryFit = fitScoreForPurpose(h, seg.purpose)
+  if ((seg.purpose === 'fuel' || seg.purpose === 'meal' || seg.purpose === 'overnight') && dryFit < 1) {
     return null
   }
+  const fit = weatherAdjustedFit(h, seg.purpose, seg.rainy === true)
   // A night-halt ANCHOR belongs to the halt it sits near (#189). The upstream
   // city guard filters candidates against ANY halt km, so a town valid for a
   // late halt could still be grabbed by an early segment starved of nearby
@@ -1623,17 +1671,32 @@ export function scoreHitForSegment(
   // 800 km further down the corridor. Past this bound the segment is honestly
   // empty; a halt 800 km from its halt is not a suggestion.
   if (seg.purpose === 'overnight' && h.isPopulatedPlace && dist > 120) return null
-  // Detour scores in minutes at the trip's speed, not flat km: the same
-  // off-route distance costs a slow mode more. ×2 keeps the old weight at
-  // the 60 km/h reference (10 km = 10 min = 20 points, as before).
+  // Detour scores in return-driving minutes at the trip's speed, not flat km:
+  // the same off-route spur costs a slow mode more, and it costs the drive out
+  // plus the drive back. The weight is those return minutes once — the fact is
+  // already round-trip valued, so it is not doubled again here.
   // Asymmetric when route geometry is known: on-the-way hits cost ~0 detour,
-  // off-road spurs pay the round trip — so a place you literally pass is not
-  // penalized as a "detour".
+  // so a place you literally pass is not penalized as a "detour".
   const detour = asymmetricDetourMinutes(h, anchors, opts.routePolyline ?? undefined, opts.speedKmph)
   if (detour == null) return null // unknown position cannot be scored as free/on-route
-  const detourCost = detour * 2
-  // Opening-hours fit: a hit closed when you'd arrive is degraded.
-  const hours = hoursFitAdj(h, seg.etaMinutes)
+  const detourCost = detour
+  // Opening-hours fit: a hit closed when you'd arrive is degraded. Structured
+  // hours (ticket 02) resolve the visit weekday from visitDates when the
+  // projection supplies one; undated verdicts stay honest (neutral, not guessed).
+  // The visit length is the pacing the add path already intends for this kind,
+  // never a zero-length stand-in, so a visit that would overrun close is scored.
+  // Repair (recheck P1): the hours check reads the CANDIDATE ARRIVAL clock —
+  // ETA plus the outward leg — not the corridor ETA, and uses the directed
+  // measured leg when it was taken at this ETA. The slot and card use the
+  // same helper, so three surfaces cannot disagree about arrival.
+  const visitDate = opts.visitDates?.[seg.index] ?? null
+  const arrival = candidateArrivalMin({
+    hit: h,
+    etaMinutes: seg.etaMinutes,
+    detourMin: detour,
+    context: opts.measuredContext,
+  })
+  const hours = hoursFitAdj(h, arrival, { date: visitDate, visitMin: intendedVisitMinutes(h) })
   // Trip DNA bends ties only: favoured categories shave up to 3 points.
   const dna = opts.dnaVector ? dnaBoostForHit(h, opts.dnaVector) : 0
   return distPenalty + detourCost + hours + (3 - fit) * 4 - dna
@@ -1853,7 +1916,7 @@ export function reasonForSegmentHit(r: SegmentHit, detour: number | null): strin
   const city = r.hit?.nearestCity ? `near ${r.hit.nearestCity}` : null
   const parts = [...fatigue, off, city].filter((s): s is string => !!s)
   if (r.segment.rainy && r.hit && WEATHER_SHELTERED.has(r.hit.category ?? '')) {
-    parts.push(r.segment.rainPct != null ? `indoor pick — ${Math.round(r.segment.rainPct)}% rain` : 'indoor pick for rain')
+    parts.push(r.segment.rainPct != null ? `indoor pick: ${Math.round(r.segment.rainPct)}% rain` : 'indoor pick for rain')
   }
   return parts.join(' · ')
 }

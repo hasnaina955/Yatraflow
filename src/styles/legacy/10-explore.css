@@ -367,17 +367,6 @@
 .ex-share-btn { width: 100%; }
 
 /* ---------- Loading, failed and empty states ---------- */
-.ex-state {
-  display: grid; justify-items: center; gap: 10px; margin-top: 16px; padding: 44px 24px;
-  text-align: center; border: 1.5px dashed var(--ex-line-strong); border-radius: var(--radius);
-}
-.ex-state-icon { display: grid; place-items: center; color: var(--teal); }
-.ex-state-icon .spinner { width: 28px; height: 28px; }
-.ex-state-title {
-  margin: 0; color: var(--text); font-family: var(--font-body); font-size: 20px; font-weight: 800; line-height: 1.25;
-}
-.ex-state-body { margin: 0; max-width: 44ch; color: var(--text-2); }
-.ex-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
 .ex-more { display: flex; justify-content: center; padding: 18px 0 4px; }
 
 /* ---------- Travel-style tag ----------
@@ -437,7 +426,6 @@
   .ex-places { gap: 8px; }
   .ex-place-label { padding: 22px 8px 8px; }
   .ex-place-name { font-size: 13px; }
-  .ex-state { padding: 32px 16px; }
 }
 @media (max-width: 360px) {
   .ex-select, .ex-select--sort { flex-basis: 100%; }

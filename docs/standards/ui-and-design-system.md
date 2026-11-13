@@ -2,7 +2,7 @@
 
 CSS cascade, contrast, motion, a11y, chunking. Extracted from
 `CODING_STANDARDS.md` §2 on 2026-10-05; entries are verbatim. The root
-file's index says when to read here; pitfall rules `6a`–`6ag` stay there.
+file's index says when to read here; the 6-series rules (6a onward) stay there.
 
 `src/styles/components/search-field.css` owns the shared search control.
 `src/styles/components/select.css` owns native and custom select appearance.
@@ -19,11 +19,13 @@ Other legacy sections keep their order. Shared tokens and motion remain in legac
   input and echo the app preference as a live `.time-preview` ("= 6:30 PM")
   under it (see StopEditor / timefmt).
 
-- **Mobile**: breakpoint is **720px**; mobile CSS lives in the single
-  `@media (max-width: 720px)` block at the end of `src/styles.css`; keep touch
-  targets ≥40px; inputs 16px on mobile (iOS Safari zooms smaller ones).
+- **Mobile**: breakpoint is **720px**. `src/styles.css` is an import list.
+  Do not add rules to it. Put new CSS in the file under `src/styles/` that owns
+  the selector family (see `docs/css-ownership.json`). `npm run check:css`
+  checks this. Keep touch targets ≥40px; inputs 16px on mobile (iOS Safari
+  zooms smaller ones).
 
-- **Overlay z-index ladder** — use the `--z-*` token rungs in `styles.css` (`:root`, M4):
+- **Overlay z-index ladder** — use the `--z-*` token rungs in `src/styles/tokens.css` (`:root`, M4):
   impact sheet 210 > toast 200 > modal 100 > ai-drawer 90 > notif 80 > expanded map
   shell 70 / ai-fab 70 (tie — DOM order decides) > nav glass 60 > mobile dock 55.
   Any full-page overlay (e.g. the map's `⤢ Expand` mode, `.map-shell--expanded`) must sit BELOW the dialogs it can spawn, so modals/impact sheets opened from it still layer on top — no
@@ -86,7 +88,7 @@ Other legacy sections keep their order. Shared tokens and motion remain in legac
 
 - **FAB should hide while assistant is open.** `AiDrawer.tsx` kept the `ai-fab` visible behind the drawer, cluttering the UI. Fix: `{!open && !thinking && <button className="ai-fab" ... />}` — only show when drawer is closed AND not processing. Rule: when a panel overlays a floating action button, hide the FAB while the panel is open OR while the panel is in an intermediate state (thinking, loading, saving).
 
-- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule) — a 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints (#154's `map-rail warn ink` test is the pattern), and remember the baseline keys entries on **line numbers** — inserting CSS shifts them and fails the gate with phantom "new violations"; re-map  the numbers (or `UPDATE_DESIGN_SYSTEM_BASELINE=1`) and diff to confirm nothing but line numbers moved.
+- **A mechanical CSS gate only sees pairs declared in ONE rule.** The design-system contrast gate skips color-only overrides (`.x--warn { color: … }` on a separate background rule). A 3.65:1 warn-on-white shipped straight past it (#152). When styling new UI, add explicit AA pins for any warn/tone pair your surface paints. #154's `map-rail warn ink` test is the pattern. Remember the baseline keys entries on the offender's own text. A CSS insertion does not shift them, so a move does not need a re-baseline. Re-baseline only when a declaration changes (or use `UPDATE_DESIGN_SYSTEM_BASELINE=1`).
 
 - **The overlay measures an element's DECLARED background, not the composite — flatten before believing a
   contrast finding on a layered surface.** Its report of `PublicItinerary`'s hero at 2.6–3.1:1 was against
@@ -100,7 +102,7 @@ Other legacy sections keep their order. Shared tokens and motion remain in legac
   conservative worst case) close it. Triage the output generally: that page's 61 findings held 21
   `nested-cards` for **4** real ones (measured, depth 1), 4 `line-length` that prose measurements did not
   reproduce, `all-caps-body` on `.pub-hero-byline` (a deliberate uppercase byline), and ~18 that are this
-  repo's deliberate system — now listed in `.impeccable/critique/ignore.md`. Setup: mutation preflight,
+  repo's deliberate system. Setup: mutation preflight,
   `impeccable live-server --background`, inject `http://localhost:PORT/detect.js`, `live-server stop`
   (its `config_missing` warning is expected when you injected by hand) — `index.html` stays byte-clean.
 
@@ -240,7 +242,7 @@ Other legacy sections keep their order. Shared tokens and motion remain in legac
 
 - **A new CSS block may not claim an existing bare class name — later in the file wins on equal specificity, and the whole gate stays green while it does it (learned 2026-09-21).** I-20's unlock sheet shipped as `.reveal`, which is the Landing page's scroll-reveal utility (`body.reveal-armed .reveal` — nine elements: the section `h2`, three feature cards, four steps, all armed by one IntersectionObserver). The new block sits further down the stylesheet, so it won: those elements were re-laid-out as a flex column wearing the sheet's padding, and `.reveal > *` handed each of their children the sheet's stagger animation. **Nothing in the gate can see this** — `tsc` does not read CSS, the node tests have no DOM, and the contrast/spacing ratchets key on declarations rather than ownership — so it survived a fully green `npm run verify` (1613 passed, build clean). What caught it was rendering a page and asking the DOM a question: `document.querySelector('.reveal')` came back **truthy on a Landing render**. The recipe, cheap enough to run for every class a new block defines: `git show origin/test:src/styles.css | grep -c "\.<name>[ ,{:]"` — 15 of that block's 16 names cleared at zero and the sixteenth was the collision. Prefer a prefix you cannot collide with over a good short name (`.unlock-reveal*`, not `.reveal*`). It is now pinned by `tests/design-system.test.ts` → *"a class name has one owner"*, which fails on a bare `.reveal` selector naming the reason, and the pin was teeth-tested by appending `.reveal { outline: 0; }` and watching it fail before reverting. Same collision class as the two idea-banks' `I-19` and `I-20` (AGENTS §6): when a name is shared across the project, check the *namespace*, not just the name.
 
-- **The stylesheet has an owner per responsibility, not an append point (CSS-0 → CSS-3, 2026-10-29).** Read the sheet through `scripts/css-source-graph.mjs`, so a rule that moves into an imported module keeps its check. Edit the owning module. Add a module only for a new responsibility. Retire the superseded declaration in the same change that replaces it. Keep every legacy section frozen until its own stage. Never leave a permanent `fixes.css` or `overrides.css`. Token modules own primitive values, semantic mappings, themes and compatibility aliases. A component module owns its appearance, its local transitions and its interaction states. A control's focus rule sits beside the control. A page module owns composition and spacing, and it configures documented component variables; it never patches another component's internals. Shared keyframes and reusable motion recipes live in `motion.css`. Every import stays local, reachable, present and cycle-free.
+- **The stylesheet has an owner per responsibility, not an append point (CSS-0 → CSS-3, 2026-10-29).** Read the sheet through `scripts/css-source-graph.mjs`, so a rule that moves into an imported module keeps its check. Edit the owning module. Add a module only for a new responsibility. Retire the superseded declaration in the same change that replaces it. Keep every legacy section frozen until its own stage. Never leave a permanent `fixes.css` or `overrides.css`. Token modules own primitive values, semantic mappings, themes and compatibility aliases. A component module owns its appearance, its local transitions and its interaction states. A control's focus rule sits beside the control. A page module owns composition and spacing, and it configures documented component variables; it never patches another component's internals. Every import stays local, reachable, present and cycle-free.
 - **Check combined classes after a CSS move.** Compare the real class combinations in their page scopes. The source graph rejects nested CSS until its checks can resolve it.
 - **The ownership contract is executable, not prose (CSS-3, 2026-10-29).** `docs/css-ownership.json` registers each migrated family. It names the owner module and the classes that module owns. It names the page-level classes that accept configuration. It names the variables a page may set. `scripts/css-ownership.mjs` reads the same graph and fails on six things. It fails on an owned class declared outside its module. It fails on component appearance set on a configuration class. It fails on an unregistered stylesheet. It fails on a new file that defines tokens. It fails on a rising `!important` count. It fails on a relative `url()` that no longer resolves. Every finding names the real file and line. Run it alone with `npm run check:css`. `npm run verify` runs it after the STE gate and before the tests. When a batch lands, register the family and lower its own baseline in the same commit. The baselines only shrink. A page may set placement, sizing and flow on a configuration class. It may set a documented variable. It may not set padding, border, background, colour or type there. That is the control's own interior.
 

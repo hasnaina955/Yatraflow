@@ -1,6 +1,6 @@
 {
   "name": "yatraflow",
-  "version": "0.84.0",
+  "version": "0.85.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:changed": "node scripts/test-changed.mjs",
     "test:integration": "node scripts/integration/integrationHarness.mjs",
     "check:migrations": "node scripts/checkMigrations.mjs",
     "clean:env": "node scripts/clean-env.mjs",
@@ -22,8 +23,15 @@
     "lint": "eslint src",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "lint:ste": "node scripts/lint-ste.mjs",
-    "verify": "tsc -b --clean && tsc -b && npm run lint:ratchet && npm run lint:ste && npm run check:css && npm test && vite build",
-    "verify:typecheck": "tsc -b --clean && tsc -b"
+    "changelog:new": "node scripts/changelog.mjs new",
+    "changelog:check": "node scripts/changelog.mjs check",
+    "changelog:release": "node scripts/changelog.mjs release",
+    "verify": "tsc -b --clean && tsc -b && npm run typecheck:tests && npm run lint:ratchet && npm run lint:ste && npm run changelog:check && npm run check:css && npm test && vite build",
+    "verify:typecheck": "tsc -b --clean && tsc -b",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "verify:fast": "node scripts/verify-fast.mjs",
+    "hooks:install": "node scripts/hooks.mjs install",
+    "hooks:uninstall": "node scripts/hooks.mjs uninstall"
   },
   "allowScripts": {
     "esbuild": true
@@ -39,8 +47,6 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
-    "@fontsource/caveat": "^5.3.0",
-    "@fontsource/playfair-display": "^5.3.0",
     "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@fontsource/sora": "^5.3.0",
     "@supabase/supabase-js": "^2.112.4",

@@ -122,18 +122,18 @@ function FlightDayCard({ trip, day, editable }: { trip: Trip; day: ItineraryDay;
       </div>
 
       <div className="flight-card-body">
-        <div className="tps-stat"><div className="tps-label">Sector</div><b>{km > 0 ? `${Math.round(km)} km` : '—'}</b></div>
+        <div className="tps-stat"><div className="tps-label">Sector</div><b>{km > 0 ? `${Math.round(km)} km` : 'Not available'}</b></div>
         <div className="tps-stat">
           <div className="tps-label">Block time</div>
-          <b>{blockMin ? minutesToHM(blockMin) : '—'}</b>
+          <b>{blockMin ? minutesToHM(blockMin) : 'Not available'}</b>
         </div>
         <div className="tps-stat">
           <div className="tps-label">Fare / person</div>
-          <b>{fare ? formatInr(Math.round(fare)) : '—'}</b>
+          <b>{fare ? formatInr(Math.round(fare)) : 'Not available'}</b>
         </div>
         <div className="tps-stat">
           <div className="tps-label">At the airport by</div>
-          <b>{atAirportBy ? formatHM(atAirportBy, timeFormat) : '—'}</b>
+          <b>{atAirportBy ? formatHM(atAirportBy, timeFormat) : 'Not available'}</b>
         </div>
       </div>
 

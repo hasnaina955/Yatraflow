@@ -4,7 +4,7 @@ Conventions and hard-won pitfalls. Read during **review**, and reach for a
 single rule while implementing when a change touches that area.
 
 This file was extracted from `AGENTS.md` §4 (conventions & pitfalls) and
-`AGENTS.md` §2 rules 6a–6z (the pitfall entries that had accreted there
+the 6-series rules of `AGENTS.md` §2 (the pitfall entries that had accreted there
 over time). The rule **numbers are unchanged** — a reference to `§2.6b`
 anywhere in this repo means the entry labelled `6b` below.
 
@@ -28,10 +28,13 @@ anywhere in this repo means the entry labelled `6b` below.
 
 ---
 
-## 1. Pitfall entries (`AGENTS.md` §2 rules 6a–6z)
+## 1. Pitfall entries (`AGENTS.md` §2, the 6-series rules (6a onward))
 
 Source-contract tests must handle both LF and CRLF line endings.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
+
+Meal names override a stale meal slot key. Other meal stops use the shared engine arrival before venue opening hours.
+Stay free windows must exclude scheduled stops after check-in. A missing window must distinguish a full day from unknown times.
 
 Fixture query parameters must change the rendered state or fail explicitly.
 A form fixture cannot prove failed or retained reads owned by its parent.
@@ -55,7 +58,10 @@ SECURITY DEFINER functions bypass RLS, including restrictive disabled-account po
 Row policies cannot protect authors or ballots inside JSON arrays. Check stored shapes before merging, and reject malformed data.
 
  6a. **Async operations need input guards.** The AI drawer's `ask()` function had no protection against rapid re-submission during its 650ms processing delay — users could trigger duplicate questions. Fix: `disabled={thinking}` on input and button. When adding async paths (API calls, simulated latency, data processing), always disable user inputs to prevent race conditions, duplicate requests, or state inconsistency. The guard should match the visual feedback state (spinner, disabled button, etc.).
- 6b. **A release cut is not done until every change in it has a CHANGELOG entry — check coverage, not just the heading.** The v0.60.0 refinement pass ran 20 commits and only 10 of them touched `CHANGELOG.md`, so the release was about to go out describing the first half of its own work — while the plan document recording that work also stopped mid-way and read as finished. Both artifacts agreed with each other and neither agreed with `git log`. Before cutting a release, diff the two lists — `git log --oneline <base>..HEAD -- CHANGELOG.md` against `git log --oneline <base>..HEAD` — and account for every commit: it has a bullet, or it is genuinely invisible to a user (a doc reconciliation, a de-duplication, a test-only change). The entries are also where a superseded claim gets *edited* rather than appended, so that diff is the audit.
+ 6b. **A release needs change coverage for the whole batch.** Compare `git log --oneline <base>..HEAD -- changelog.d/` with all batch commits.
+ Account for each change in a pending fragment or checked release receipt. This includes documentation and tooling.
+ A v0.60.0 cut almost shipped notes for only half its commits. Compare outcomes as well as file counts.
+ Edit a pending fragment when later work replaces its claim. Review legacy Unreleased notes before the first fragment release.
  **Check what the cut REMOVED as well as what it added.** A cut edits the head of `CHANGELOG.md` — the place the preamble lives — and the v0.70.0 cut (`36b13b7`) deleted that whole block on its way past: `# Changelog`, the Keep-a-Changelog line, and the "Two version lines" note that stops anyone comparing the Android shell's `-native` numbering with web semver. Nothing failed, because no test reads prose; the loss surfaced days later while adding an unrelated bullet. So a cut's own diff deserves a look at the file's head (`git diff <base>..HEAD -- CHANGELOG.md | head -30`), and the preamble is not part of any release — it is never correct for a version heading to replace it. This block has now been repaired twice (`dfdd2d0`, then the restore after `36b13b7`), which is what makes it worth the glance rather than a rule about paranoia.
  6c. **A "missing guard" claim needs the same git check as a "done" claim.** A comment or summary saying something was *absent* ("the one animation with no reduced-motion guard") is also a hypothesis — grep `origin/test` for the guard before "adding" it, or you ship a duplicate rule plus a changelog sentence that isn't true. The map-tab review round did exactly this; found 2026-09-22 while polishing its motion. The mirror case: an absence claim expires at the *next* merge, not at the date on the block — the slots decision record (2026-09-22, 17:27) logged three plan items as still outstanding, and PR #303 landed them 70 minutes later, leaving the sentence false from the moment it merged (fixed 2026-09-23). Check an absence claim against merged-PR timestamps, not the block's date.
  6d. **Wired is not "looks like the approved mockup" — and a RESTYLE folds into the
@@ -93,8 +99,8 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    radius below the boxed block, and on any `.gcf.trip-starter` answer rule.
    **Rule: after appending any `.trip-starter` / page-scoped block, probe the
    computed style of a control the earlier block styled.** `:not(.gcf)` on the later
-   rule works only for one property at a time — line 12206 got it right and 12204
-   did not, so a whole block still leaked.
+   rule works only for one property at a time — in `src/styles/legacy/13-phone-polish-and-guided-create.css`, one rule got it
+   right and one did not, so a whole block still leaked.
  6e. **Two silent killers from the crew-channels pass (learned 2026-09-23).**
    (1) `window.open(url, '_blank', 'noopener')` **always returns null** — the
    `noopener` feature implies no window handle — so `if (!win) throw` or
@@ -268,9 +274,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    belongs in its OWN migration that creates no function and deletes nothing, so
    it cannot silently disturb what the function pins (here the 730-day clamp
    paired with the funnel reader) — and it must sort AFTER the file that granted
-   the door, which is load-bearing rather than cosmetic; (4) `schema.sql` is a
+   the door, which is load-bearing rather than cosmetic; (4) `supabase/schema.sql` is a
    second and independent way to build the database, so a grant fixed only in
-   the migration series leaves a fresh `schema.sql` instance wide open. Fix both
+   the migration series leaves a fresh `supabase/schema.sql` instance wide open. Fix both
    and let a test compare them.
  6m. **A redefinition inherits the holes of the body it copies — and a comment
    claiming a field is unused is a hypothesis, not evidence (learned
@@ -417,6 +423,10 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    counter plus a driven localhost session showed one editor-open re-rendering
    0 columns with the memo and all 12 without (3 columns × the dev
    double-render) — then remove the counter before committing.
+ **Map marker touch areas.** Check the computed width and height of the hit area on a coarse pointer. Borders reduce the space used by an inset calculation. Use a centred 44-pixel box when the visible marker must stay smaller.
+
+ **Initial map errors.** Observe map errors when constructing the map. A failed initial tile request can finish before child effects attach a listener.
+
  6t. **A drawing is a claim about the same measurement the numbers came from —
    and a failure must not wear the mark of success (learned 2026-09-26, #370).**
    The Board's mini-map measured a road of its own over the stops alone, while
@@ -741,15 +751,15 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
     `npx vitest run tests/page-consistency.test.ts tests/map-weather-geometry.test.ts`
     the moment you add a page file or touch MapTab — not at the end.
 
-  6am. **`lint:ste`'s 20-word sentence cap applies to `CHANGELOG.md` prose on
-    changed lines, and it is the last gate to fail (learned 2026-10-12).** There
-    is no markdown exemption in `EXCLUDED_PATH_PREFIXES` (only
-    `docs/consistency/`), and the diff run measures against the merge base — so
-    pre-existing long entries pass and your new ones do not. Write CHANGELOG
-    bullets as short declarative sentences from the start (a subject, a verb, one
-    fact), because rewriting a 60-word sentence into four after the fact is the
-    same work twice. The same gate demands "must" over the weaker word in any
-    comment on a changed line — including a doc comment above a `const`.
+  6am. **Fragment prose must pass `lint:ste`, and its 20-word sentence cap is the last gate to fail
+    (learned 2026-10-12).** The cap applies to every pending fragment, including untracked files.
+    Legacy `CHANGELOG.md` prose is checked on changed lines against the merge base,
+    so old long entries pass and new ones do not. There is no markdown exemption in
+    `EXCLUDED_PATH_PREFIXES` (only `docs/consistency/` and `docs/agents/AGENTS-FULL.md`).
+    Write short declarative sentences from the start: a subject, a verb, one fact.
+    A 60-word sentence rewritten into four after the fact costs the same work twice.
+    The same gate demands "must" over the weaker word in any comment on a changed
+    line, including a doc comment above a `const`.
 
  6aj. **You must classify a branch by patch ancestry, not by name or age
    (learned 2026-10-04, prune of 80 refs).** A merged pull request leaves its
@@ -761,23 +771,26 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    this repo tags no release. You must run `git worktree list` before you
    delete a local branch.   `git branch -d` refuses an unmerged branch, so it
    must be the only delete verb you use.
- 6ak. **You must not poll with requestAnimationFrame when a timer can poll
+ 6bh. **You must not poll with requestAnimationFrame when a timer can poll
    (learned 2026-10-05, the featured deep link).** A browser that makes no
    rendering frames never runs a rAF callback. The preview browser did this
    while it read "visible". A rAF loop then does nothing. A smooth scroll
    never moves. You must poll with `setTimeout`. You must land a scroll after
    the layout settles, or the target drifts. You must check a scroll by class
    and probe, not by `scrollY`. Script-driven scroll needs frames too.
- 6al. **A class rename must move the class's whole selector family (learned
+ 6bi. **A class rename must move the class's whole selector family (learned
    2026-10-06, MR9).** The rename from `.day-rail-chip` to `.day-rail-card` left one
    selector behind. The `[aria-current]` rule stayed on the dead name, so the
    current-day marker silently died. The green pins hid it: a sibling rule on
-   the new name already passed. You must grep the old class through
-   `styles.css` before the rename lands. Each selector must take the new
+   the new name already passed. Both class names are retired now, but the lesson holds
+   for any rename. `src/styles.css` is only an import list, so the old class can sit
+   in any module under `src/styles/`. You must run `git grep -n '<old-class>' -- src/styles`
+   before the rename lands. Each selector must take the new
    name or die with the old one.
- 6am. **A CSS gate can fail on how a rule is ADDED, not on what it says
-   (learned 2026-10-06, #645).** Three gates read `styles.css`, and one edit
-   hit all three. `duplicateSelectors` counts TOP-LEVEL rules only, so a new
+ 6bj. **A CSS gate can fail on how a rule is ADDED, not on what it says
+   (learned 2026-10-06, #645).** Three gates read the whole CSS graph, and one edit
+   hit all three. `tests/design-system.test.ts` reads it through
+   `readCssSource('src/styles.css')`. That call joins `src/styles.css` and every module it imports. `duplicateSelectors` counts TOP-LEVEL rules only, so a new
    top-level rule that repeats an existing selector fails: extend the existing
    rule in place. `offLadderSpacing` reads every `NNpx` in a spacing property,
    and the numbers inside `calc()` count too — `padding-left: calc(96px + 14px)`
@@ -788,8 +801,9 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    declaration's own text, with the old `styles.css:<line>` prefix dropped; the
    test file's header records why that changed. Edit a rule where it sits. Add
    comment lines above it. A shift moves nothing. Only a change to what a rule
-   *declares* trips a gate. So append at EOF when that is where the change
-   belongs — not to protect the baseline.
+   *declares* trips a gate. So put a new rule in the module that owns its
+   selector family (see `docs/css-ownership.json`). Do not append it to
+   `src/styles.css`, which is an import list. Placement never protects the baseline.
    **A migrated legacy value fails the gate until you delete its entry (learned
    2026-10-06).** The change from `.route-panel`'s raw `.55s` to `var(--motion-slow)`
    made the gate report `.route-panel — animation: .55s` under "these no longer
@@ -808,7 +822,7 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    instead of re-declaring its properties, or carry the filter with the
    background.
 
- 6ah. **A fix-ready comment earns its title in stages — verified facts, root cause, patch,
+ 6bg. **A fix-ready comment earns its title in stages — verified facts, root cause, patch,
    delivery (learned 2026-10-05, the review-loop retro).** The day-planner wave (#117–#181)
    ran 53 of these, and every operator correction was a missing stage: a premise taken from
    the issue body without reading the code (#43 — the "lost itinerary" was a
@@ -857,15 +871,15 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    `git log --oneline origin/test..HEAD`: one commit is a feature branch, five commits you did not
    write is a stack. The fix is a fresh branch plus a cherry-pick, never a force-push.
 
-6ar. **A conflict at the end of `src/styles.css` breaks a brace at the seam (learned 2026-10-14).**
-   Each page PR appends CSS at the end of `src/styles.css`. The next page PR then conflicts with it.
+6ar. **A conflict at the end of an owner CSS file breaks a brace at the seam (learned 2026-10-14).**
+   Each page PR adds CSS to the owner file under `src/styles/` (see `docs/css-ownership.json`). The next page PR then conflicts with it.
    Merge one PR first. Then rebase the next PR once.
    When you resolve the conflict, keep both blocks.
    Then check the seam. The shared closing brace `}` belongs to the last block only.
    The first block loses its closing brace. The tests do not catch this. `vite build` does.
-   After you resolve it, run this check:
-   `node -e "require('postcss').parse(require('fs').readFileSync('src/styles.css','utf8'))"`
-   The file has mixed CRLF and LF line endings. Do not match `=======\r\n` as a literal. Use a regex with `\r?` instead.
+   After you resolve it, parse each file that had a conflict. `src/styles.css` is only an import list, so parse the owner file:
+   `node -e "require('postcss').parse(require('fs').readFileSync('src/styles/<module>.css','utf8'))"`
+   `.gitattributes` pins `src/styles/**` to LF, so a marker line ends in `\n`. A scripted resolver can still use `\r?` to be safe.
    Regenerate `tests/page-consistency-baseline.json` instead of merging it by hand. Run `UPDATE_PAGE_CONSISTENCY_BASELINE=1 npx vitest run tests/page-consistency.test.ts`.
 
 6as. **Do not name a helper function with a name that ends in `Page` (learned 2026-10-14).**
@@ -879,15 +893,6 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    The fallback root did not carry `page-enter`, so the block appeared between two frames with no entrance.
    Put `page-enter` on the root of any screen that appears after load, and that includes a Suspense fallback.
    Run `npm run check:motion` before you push a change that adds or moves a `StateBlock` outside a page root.
-
-6au. **An inline `style` beats a stylesheet rule, so the Board tab's compact header
-   margins have no effect (learned 2026-10-15).** `TripWorkspace.tsx` sets the trip
-   header's `h1`, `p` and `.member-stack` top margins inline. So
-   `.container--board .trip-head-card h1 { margin-top: 4px }` has been inert since it
-   landed: the inline `12px` wins. A phone rule that compacts those margins must carry
-   `!important`. The Board's `.member-stack { margin-top: 0 !important }` rule already
-   does, and it is the precedent to copy. Check `TripWorkspace.tsx` for an inline value
-   before you write a margin rule for that header.
 
  6av. **A structural cast over a vendor's type hides the real shape (learned 2026-10-18, #806).**
    The SDK types `presenceState()` as a map of session key to a LIST of records.
@@ -905,11 +910,11 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    Run the test against the pre-fix source. Read the failures.
 
 - **A CSS pin must stop at the end of its own block.** `footer-route-mark.test.ts`
-  read `styles.css` from its marker to the end of the file. The rule is "append
-  CSS at the end". So the next appended section made the pin fail on rules that
+  read `styles.css` from its marker to the end of the file. The rule at that time
+  was "append CSS at the end". So the next appended section made the pin fail on rules that
   were not the footer's. Slice from the marker to the next section comment of
   any style (`/* ----` or `/* ====`). Never slice to the end of the file. Check this when a guard fails after you
-  append a section.
+  add a section to a CSS file.
 
 6ax. **One suffix rule cannot cover the Android SDK tools, and a passing `verify`
    does not identify the signer (learned 2026-10-19, #809 repair).** The manifest
@@ -1072,6 +1077,71 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    The gate compares legacy files with the extraction commit. It checks new and edited lines.
    If that commit is missing, the gate checks all changed lines. `--file` checks the whole file.
 
+6bg. **A covered row's snapshot key must include every visible identity, cost and time fact.**
+   Each consumer must read its own day. A key that omits a display fact republishes a stale card
+   after a silent change. A whole-trip row list is not a day slice: scope by the stable day before
+   rendering or writing.
+
+6bh. A test that runs a real generator with `--update` must snapshot the file and restore it
+   in `finally`. The generated file is production input, not a scratch copy.
+
+6bi. An unresolved write is owned by its operation id, not a global flag. Only that operation's
+   ack or proven discard clears it.
+
+6bj. A lifecycle ticket and its unresolved state must be owned outside a conditionally mounted
+   tab, keyed by the Workspace owner. A per-mount controller loses the only recovery control.
+
+6bk. A blocked recovery control must name the supported recovery path, not an action the open
+   preview cannot perform.
+
+6bl. **One shared Map floor rule beats a stack of one-off size overrides.** Two misses
+   (a 32px fold button, 25–26px shelf buttons) each shipped because a local repair
+   guarded one selector. A px size below 44 on a Map floor selector is now a gate
+   failure (`check:ui` rule U4, `scripts/uiAntipatterns.mjs`). The floor classes are
+   `.mv2-icon-btn` (Map V2 only) and `.poi-fold`/`.ledger-shelf` (scoped to
+   `.mv2-workspace`, because the legacy modules style them too). When you add a Map
+   control, size it with one of those classes or extend the list — never with a
+   smaller one-off override.
+
+6bm. **A focused test list from memory is a miss waiting to happen.** Two runs selected
+   tests by hand and both omitted files the change had touched
+   (`tests/production-road-binding.test.ts`; changed prose). Select with
+   `npm run test:changed` (git union of branch/staged/unstaged/untracked plus
+   `--extra`). It refuses the empty-green trap: a source change that selects no test
+   exits 1. It never replaces the full gate. `verify` and CI still run the whole
+   suite.
+
+6bn. **`--ring` is already a complete shadow; compose nothing around it, and
+   check the computed cascade (learned 2026-11-07, pick deck batch).** The
+   summary rule declared `box-shadow: 0 0 0 3px var(--ring)`. The token already
+   expands to a whole shadow, so the value is invalid: the browser drops the
+   declaration, keyboard focus renders nothing, and a source read still says
+   "covered". The fix is `box-shadow: var(--ring)`. The same pass hid a
+   specificity loss: a three-class override lost to the legacy four-class
+   ledger rule, so a 12px size computed at 10px. A static gate read catches
+   neither. Read the computed style in the browser for every new focus ring
+   and font-size override.
+
+6bo. **A reuse cache must move after React commits, not during render (learned
+   2026-11-07, journey model).** A memo body can run for a render that React
+   discards. If it writes the cache, that discarded render replaces the committed
+   base. Keep one selector with `select` and `commit`. `select` reads only and
+   runs in render. `commit` runs in `useEffect`. The next render then reuses the
+   committed day and card objects.
+
+6bp. **A camera readiness latch cannot authorize a style write (learned
+   2026-11-07, map style readiness).** `mapLoaded` opens on a 4 s watchdog, so it
+   can be true while MapLibre's `Style._loaded` is false, and `addSource` then
+   throws. Gate style writes on the provider's readiness (`useMap().isLoaded`,
+   which closes for a swap and reopens on `style.load`). Put the write in a child
+   overlay and list that value in the effect dependencies, or it never retries.
+
+6bq. **Fit, display and saved payload must read the same factual duration
+   (learned 2026-11-07, visit duration).** Route a confirmed subtype visit
+   length through one helper for fit, card, saved stop, vote draft and slack.
+   Keep an explicit visit override. When the fact is absent, keep each
+   surface's existing fallback. Never turn an invalid fact into zero.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **Separate crew fields must stay separate during parsing.** Normalize the mobile field alone. A name can contain digits. A parser that joins both fields can change that name or make the mobile number invalid. Keep the existing structured draft fields and duplicate rules.
@@ -1190,7 +1260,7 @@ process.
   catches it. Anchor `old_string`/`new_string` pairs so line endings can't
   shift: include the following line in both, or end neither with a newline.
 
-- **`src/styles.css` is CRLF on disk — Node one-off scripts must handle `\r`.**
+- **`src/styles.css` is LF on disk. `.gitattributes` pins `eol=lf` for it. Source-reading pins must still convert CRLF to LF.**
   Bulk CSS edits via `node` scripts split on `\n`, so every line carries a
   trailing `\r` and exact-string anchors silently fail (or, worse, writing
   LF-only sections leaves the file mixed-ending). Strip `\r` before matching,
@@ -1219,7 +1289,7 @@ process.
   and port only the intended hunks.
 
 - **Re-cut a stale visual branch, never merge it. Move layout overrides on shared classes into page classes, with three exceptions (learned 2026-09-29, #512; revised 2026-10-11, R5).** The V2 settings branch predated five behavior waves on the same form. A merge silently reverted one side. The recut keeps the state, handlers and tests from `test` and applies only the presentation again. Every landed mapping stays landed. The stale `HEALTH_TONE`, `MODE_ICON` and inline settlement math were the traps.
-  Move an inline layout value into a page-prefixed class (R1). Find every rule that sets the same property on the shared class. Include the `+`, `>` and ancestor forms, such as `.card + .card`. If one exists, use a same-element compound selector, such as `.row-between.bud-watch-row`. If none exists, use the page class alone. Append the rule at the end of `src/styles.css` (R6). A two-class compound only ties a combinator rule. If a host rule has more specificity than two classes, keep the value inline.
+  Move an inline layout value into a page-prefixed class (R1). Find every rule that sets the same property on the shared class. Include the `+`, `>` and ancestor forms, such as `.card + .card`. If one exists, use a same-element compound selector, such as `.row-between.bud-watch-row`. If none exists, use the page class alone. `src/styles.css` is an import list. Do not add rules to it. Put new CSS in the file under `src/styles/` that owns the selector family (see `docs/css-ownership.json`). `npm run check:css` checks this. A two-class compound only ties a combinator rule. If a host rule has more specificity than two classes, keep the value inline.
   Keep the value inline in three cases. (1) A test collects rules by selector name and the new selector contains that name. `tests/health-band.test.ts` collects every `health` or `pulse` selector, and four `.tsx-read .health-*` overrides failed it in #512. Do not widen the test to pass. (2) The value breaks a design-system gate (R13). (3) The value comes from data (R4).
 
 - **A squash-merge can silently DROP files, and nothing in the gate catches it.**
@@ -1262,15 +1332,15 @@ process.
 
 - **Vendored ripgrep can be missing in the desktop environment — `code_search` fails with ENOENT (`rg.exe` not found).** Don't retry it; fall back to `grep -n` / `awk` in the shell, which answer the same question.
 
-- **The changelog's union driver applies only when both sides already carry it (learned 2026-10-10).** Git provides the `union` driver. You do not need a `merge.union.driver` setting. With the rule in `.gitattributes`, an append conflict keeps both sides without markers. The merge that adds this rule is an exception. The earlier tip had no `CHANGELOG.md merge=union` line, so that merge wrote markers. Incoming release headings also left 29 new entries inside the released `[0.73.0]` section. A later edit moved each entry back to `[Unreleased]`. After a release merge, you must check every new entry's release heading. You must compare each moved block with its earlier copy.
+- **The changelog no longer has a union merge driver (learned 2026-10-10, driver removed 2026-11-12).** The old `CHANGELOG.md merge=union` rule kept both sides of an append conflict, and it had two failures. A merge that added the rule wrote conflict markers, because the earlier tip had no rule. A release merge also left 29 new entries inside the released `[0.73.0]` section. New work uses change fragments, so two PRs no longer share an anchor. A direct `CHANGELOG.md` conflict is rare now. Resolve it by hand with editor primitives. Compare both sides with the merge base, and check every new entry's release heading. Never add a merge driver for `CHANGELOG.md` or a fragment.
 
 - **Release tags are not automatic — they were skipped after v0.44.0.** `git tag` stopped at v0.44.0 while `package.json` climbed to 0.47.0 and nothing in the gate reads tags, so nobody noticed. Verify tag state with `git tag --sort=-creatordate | head` when a release claims to be tagged; backfilling needs an explicit tag push to the remote.
 
 - **A day is addressed by `day.index` and never by array position — and one report names only one of the places that got it wrong (learned 2026-09-26).** Issue #338 read as a per-day money bug in `computeTotals` (`byDay` was built positionally but read with `byDay[day.index]`, the round-trip drive home went to `byDay[len - 1]`, and an expense's `dayIndex` was clamped to the last day — so on a sparse trip, indexes 0,2,3 after a deleted middle day, a day could show a stranger's total). Fixing exactly that was not enough for the issue's own acceptance test *"an unsorted `trip.days` array follows `day.index`"*: the same index-vs-position mistake lived in `originOf`'s `dayEndPosition` (`trip.days[dayIndex]`, so a sparse trip's later days woke up at their own start and measured zero legs), in `firstFixedPoint`/`lastActiveStopPoint` ("home" and the return turnaround read from the array's first/last slot, so shuffling the array moved the whole route), and in two `day.index === trip.days.length - 1` return-shape checks (a count is not the last index). When a day-keyed bug lands, grep `trip.days[` **and** `days.length - 1` across `src/lib` before calling it fixed. The readers clamp too: the Timeline's chip, `printModel` and the engine's own lookups each had their own positional `Math.min(index, len - 1)` — a lookup that finds no bucket must render NOTHING, never another day's number. Two smaller lessons from the same wave: the page handlers that carry this class of bug can still be regression-tested in the node suite — `react-dom/server` renders a pure component (`tests/timefmt.test.ts`, `tests/form-error-summary.test.ts` are the precedent, used here for `DaySpark`'s NaN coordinates) and a narrow source assertion binds a handler to the helper it must call (`tests/decision-resolve.test.ts` is the precedent); and a guard keyed on a row's `status` must treat a MISSING status as open (`if (sg.status && sg.status !== 'open')`), because a hydrated row that predates the field would otherwise become un-actionable — the `fire-and-forget` fixture has no status and caught exactly that.
 
 - **A test that reads source text must turn CRLF into LF first (learned 2026-10-11).**
-  On Windows, `core.autocrlf` is `true`. Git stores LF and writes CRLF to the
-  working tree. A pin that searches for `\n\n` or `/>\n` then finds nothing, and
+  The value of `core.autocrlf` depends on the clone. Read it with `git config --get core.autocrlf`.
+  A clone set to `true` stores LF and writes CRLF to the working tree. A pin that searches for `\n\n` or `/>\n` then finds nothing, and
   it fails on every Windows checkout. CI on Linux hides the fault. Read the file
   with `.replace(/\r\n/g, '\n')`. Two pins failed this way
   (`tests/trips-my-trips-defects.test.ts`, `tests/ladakh-calculator.test.ts`).
@@ -1302,7 +1372,7 @@ process.
   app routes by path (`/trips`). A signed-out visit to a signed-in route keeps
   its URL and shows the landing page in place. A check that compares URLs
   reports success on a wrong page. Compare the page content, such as the h1.
-  `AGENTS.md` still says "hash routing". Treat that line as stale. Link to a page with `appLink('/path')`, never with a `#/` anchor. `tests/app-link.test.ts` fails when a source file does.
+  Link to a page with `appLink('/path')`, never with a `#/` anchor. `tests/app-link.test.ts` fails when a source file does.
 
 - **A snapshot payload keeps its fragment, and every reader of it must agree (learned 2026-10-18, #805).**
   `snapshotUrl` returns `<origin>/#/share/<payload>`. A browser sends `pathname
@@ -1375,7 +1445,7 @@ The editor primitives are the default; a script is the exception.
   half-written. Keep that property: assert every anchor exists and is unique,
   `throw` before any write, then verify by counting the token you inserted.
 
-  6aw. **Never normalize a whole free-form string to find the phone number in
+  6bk. **Never normalize a whole free-form string to find the phone number in
     it (learned 2026-10-24, the create branch review).** `parseCrewEntry` ran
     `normalizeIndianMobile` over the entire entry, which strips every non-digit
     and then tests for exactly ten. A name carrying a digit ("Team 2 98450
@@ -1396,3 +1466,11 @@ The editor primitives are the default; a script is the exception.
     made two rows that send two invitations. Compare the name too.
     Pinned in tests/create-crew-fields.test.ts; the entry fails on the
     pre-fix parser (see 6h's break-proof rule).
+
+**Map counts and clocks.** Label totals of alternative picks as alternatives. Filled slots read the shared schedule, not search windows.
+
+**Planned detour spend.** Alternatives do not spend the day budget. Sum known costs by planned stop ID. Subtract this spend before a pick can fit. Show distinct unknown and empty states.
+**Proposal previews.** A preview must derive from the proposed trip. An Apply action that adds empty days must not show the current journey as a preview.
+
+- Map UI labels start with a capital and use short label and value pairs. Use middle dots between facts. Keep full sentences in tooltips, accessible names, and suggestion help only.
+- UI strings in `src/` must not contain an em dash or its HTML entity. Preserve en dashes in time ranges. The source scan reports the file and line.

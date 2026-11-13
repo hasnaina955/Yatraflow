@@ -275,18 +275,12 @@
    element is `<img class="yf-cover-img">`; the older `.yf-cover-photo` and
    `.mt-art` selectors below match nothing here. */
 
-.yf-page .yf-cover-photo,
 .yf-page .yf-cover-media .mt-art {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.yf-page .yf-cover-photo {
-  background-position: center 45%;
-  background-size: cover;
 }
 
 .yf-page .yf-cover-emoji {
@@ -1445,7 +1439,6 @@
   color: var(--pw-ink);
 }
 
-.yf-surface.ovw-block.ovw2-quiet,
 .ovw.ovw2 > .ovw-weather {
   min-width: 0;
   padding: var(--space-7a) var(--space-8);
@@ -1453,10 +1446,6 @@
   border-radius: var(--radius-lg);
   background: var(--pw-card);
   box-shadow: none;
-}
-
-.ovw2 .ovw2-quiet .ovw-head {
-  margin-bottom: var(--space-5);
 }
 
 .ovw2 .ovw-commitments {
@@ -1502,15 +1491,6 @@
   background: var(--pw-sunken);
   color: var(--pw-ink-2);
   font-size: 11px;
-}
-
-.ovw2 .ovw-crew-row {
-  min-height: 44px;
-  border-top: 1px dashed var(--pw-line-soft);
-}
-
-.ovw2 .ovw-crew-row:first-of-type {
-  border-top: 0;
 }
 
 .ovw2 .ovw-avatars .avatar + .avatar {
@@ -1675,7 +1655,6 @@
   .yf-surface.ovw-card.ovw2-issues,
   .yf-surface.ovw-block.ovw-matrix,
   .yf-surface.ovw-card.ovw2-route,
-  .yf-surface.ovw-block.ovw2-quiet,
   .ovw.ovw2 > .ovw-weather {
     padding: var(--space-6);
   }

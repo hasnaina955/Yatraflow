@@ -1,0 +1,115 @@
+#!/bin/sh
+# Opt-in pre-push gate. Git runs this before a push once `npm run hooks:install`
+# has pointed core.hooksPath at this folder. It runs the fast gate, not the full one.
+#
+# Git passes one line per ref on stdin: local ref, local sha, remote ref, remote sha.
+# For each branch in the push, the hook checks, in order:
+#   1. The pushed commit is HEAD. verify:fast reads the checked-out files, so it
+#      can vouch only for HEAD.
+#   2. The tree has no uncommitted or untracked files. Any such file would be
+#      tested but not pushed, so the verdict would describe a different tree.
+#   3. The base is the remote tip that the push replaces. A new branch uses the
+#      merge base with origin/test, or with origin/main when origin/test is missing.
+#   4. `npm run verify:fast -- --base <base>` passes. With --base it lists only the
+#      commits from the base to HEAD, which are the commits this push sends.
+#
+# Tags and branch deletions are not checked. To skip one push, set YF_SKIP_PRE_PUSH=1
+# and say why in the chat.
+
+# A sha of only zeros means "no commit": a new ref on the remote side, or a deletion.
+is_zero() {
+  case "$1" in
+    *[!0]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+short() {
+  printf '%.12s' "$1"
+}
+
+# Prints the commit to diff against. Prints nothing and returns 1 when none is known.
+# Arguments: the local sha, then the remote sha.
+pick_base() {
+  pb_local=$1
+  pb_remote=$2
+  if ! is_zero "$pb_remote" && git cat-file -e "$pb_remote^{commit}" 2>/dev/null; then
+    printf '%s' "$pb_remote"
+    return 0
+  fi
+  for pb_ref in origin/test origin/main; do
+    if git rev-parse --verify --quiet "$pb_ref^{commit}" >/dev/null 2>&1; then
+      pb_found=$(git merge-base "$pb_local" "$pb_ref" 2>/dev/null) || pb_found=""
+      if [ -n "$pb_found" ]; then
+        printf '%s' "$pb_found"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+# Read the whole push before any early exit, so git never writes into a closed pipe.
+input=$(cat)
+
+if [ "${YF_SKIP_PRE_PUSH:-}" = "1" ]; then
+  echo "pre-push: skipped. YF_SKIP_PRE_PUSH=1 is set, so verify:fast did not run."
+  exit 0
+fi
+
+head_sha=$(git rev-parse --verify --quiet HEAD) || head_sha=""
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "$remote_ref" ] || continue
+
+  case "$remote_ref" in
+    refs/tags/*)
+      echo "pre-push: not gating $remote_ref. Tags are not checked."
+      continue
+      ;;
+  esac
+
+  if is_zero "$local_sha"; then
+    echo "pre-push: deleting $remote_ref. Nothing to check."
+    continue
+  fi
+
+  if [ "$local_sha" != "$head_sha" ]; then
+    echo "pre-push: blocked. $remote_ref is at $(short "$local_sha"), but HEAD is at $(short "$head_sha"). verify:fast reads HEAD, so push from that commit, or skip with YF_SKIP_PRE_PUSH=1 and say why in the chat."
+    status=1
+    continue
+  fi
+
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "pre-push: blocked. The tree has uncommitted or untracked files, so verify:fast would test more than this push. Commit them, or skip with YF_SKIP_PRE_PUSH=1 and say why in the chat."
+    status=1
+    continue
+  fi
+
+  base=$(pick_base "$local_sha" "$remote_sha") || base=""
+  if [ -z "$base" ]; then
+    echo "pre-push: blocked. No base to compare $remote_ref with. Run: git fetch origin. Or skip with YF_SKIP_PRE_PUSH=1 and say why in the chat."
+    status=1
+    continue
+  fi
+
+  # npm can be broken in a given shell. Say so, rather than report a failed gate.
+  if ! npm --version >/dev/null 2>&1; then
+    echo "pre-push: blocked. npm does not start in this shell, so verify:fast cannot run. Put a working npm first on PATH, or skip with YF_SKIP_PRE_PUSH=1 and say why in the chat."
+    status=1
+    continue
+  fi
+
+  echo "pre-push: running verify:fast for $remote_ref against $(short "$base")"
+  if npm run verify:fast -- --base "$base" </dev/null; then
+    echo "pre-push: verify:fast passed for $remote_ref"
+  else
+    echo "pre-push: blocked. verify:fast failed for $remote_ref. Fix it, or skip with YF_SKIP_PRE_PUSH=1 and say why in the chat."
+    status=1
+  fi
+done <<EOF
+$input
+EOF
+
+exit "$status"

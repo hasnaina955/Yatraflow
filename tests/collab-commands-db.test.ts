@@ -234,7 +234,7 @@ describe('collaboration command SQL behavior', () => {
     await db.query(`update public.suggestions set status='declined' where id='${suggestion}'`)
     await actor(editorB)
     const ownNotifications = await db.query('select user_id from public.notifications')
-    expect(ownNotifications.rows.every(row => row.user_id === editorB)).toBe(true)
+    expect(ownNotifications.rows.every((row: unknown) => (row as { user_id: string }).user_id === editorB)).toBe(true)
     expect((await db.query(`update public.notifications set read=true where user_id='${owner}'`)).rowCount).toBe(0)
     expect((await db.query(`delete from public.notifications where user_id='${owner}'`)).rowCount).toBe(0)
     await actor(viewer)

@@ -53,7 +53,7 @@ export function voteStatusId(slotKey: string): string {
  *  the moment the user picks a day themselves. */
 export function pickDayCaveat(dayIndex: number, derivedFromRoute: boolean): string | null {
   if (derivedFromRoute) return null
-  return `This place has no position on the route, so Day ${dayIndex + 1} is a guess — pick the day you want.`
+  return `This place has no position on the route, so Day ${dayIndex + 1} is a guess. Pick the day you want.`
 }
 
 

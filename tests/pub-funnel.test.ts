@@ -241,7 +241,7 @@ describe('the two recording dates name their scope (#358)', () => {
       pubs: [{ id: 'p1', title: 'P', priceInr: 199, lifetimeViews: 9, lifetimeForks: 3 }],
     })[0]
     const line = describePreLog(f)!
-    expect(line).toContain("this plan's recording began")
+    expect(line).toContain("This plan's recording began")
     // The DATE itself is untouched — the pinned per-pub value still renders
     // (21 Sep minus 20 days), and the day the row is windowed on never reaches
     // the reader.
@@ -251,7 +251,7 @@ describe('the two recording dates name their scope (#358)', () => {
 
   it('the page says its date is the earliest of the whole account', () => {
     const hub = read('../src/pages/CreatorHubPage.tsx')
-    expect(hub).toContain('the earliest of your plans')
+    expect(hub).toContain('The earliest of your plans')
     // …and it is still derived from the global minimum, unchanged.
     expect(hub).toMatch(/daily\.reduce\(\(min, r\) => \(r\.day < min \? r\.day : min\), daily\[0\]\.day\)/)
   })
@@ -534,7 +534,7 @@ describe('the hub reads the funnel it says it does', () => {
     // The row speaks the same three truths the panel does — figures, in flight,
     // nothing to read — derived by the same function the ledger uses. Gating on the
     // error flag made the rows withhold a log they already had; gating on a boolean
-    // made them announce "nothing to measure for this plan" under a panel saying
+    // made them announce "Nothing to measure for this plan" under a panel saying
     // "Reading…", a claim about traffic made before the read that reports it.
     expect(hub).toMatch(/funnelRead=\{trafficRead\}/)
     expect(hub).toMatch(/deriveLedgerRead\(\{ hasFigures: daily !== null, reading: funnelReading, error: funnelError \}\)/)
@@ -551,7 +551,7 @@ describe('the hub reads the funnel it says it does', () => {
     expect(failed).toBeGreaterThan(reading)
     // The kept-log sentence, which exists only because the log survives a failure.
     expect(hub).toMatch(/daily !== null && dailyAt !== null/)
-    expect(hub).toContain('showing the log read at')
+    expect(hub).toContain('Showing the log read at')
     // The guarantee in its strongest form: the catch sets the error flag and
     // nothing else.
     expect(hub).toMatch(/\.catch\(\(\) => \{ if \(alive\) setFunnelError\(true\) \}\)/)

@@ -8,7 +8,7 @@ import {
   type PurchaseRow,
 } from '../src/lib/purchases'
 import type { Entitlement, PurchaseOrder } from '../src/lib/payments'
-import type { PublishedItinerary, User } from '../src/data/types'
+import type { CachedUser, PublishedItinerary } from '../src/data/types'
 
 const read = async (relativePath: string) =>
   (await readFile(join(process.cwd(), relativePath), 'utf8')).replace(/\r\n/g, '\n')
@@ -19,7 +19,7 @@ function pub(overrides: Partial<PublishedItinerary> = {}): PublishedItinerary {
   return {
     id: 'pub_a', tripId: 'trip_a', creatorId: 'creator_1', title: 'Spiti Valley Circuit',
     tagline: 'Cold desert, high passes', routeSummary: ['Shimla', 'Kaza'], durationDays: 6,
-    estimatedBudgetPerPersonInr: 24000, travelStyle: 'roadtrip', travelTips: ['Carry cash', 'Acclimatise'],
+    estimatedBudgetPerPersonInr: 24000, travelStyle: 'balanced', travelTips: ['Carry cash', 'Acclimatise'],
     warningsAndAssumptions: [], freeDayIndexes: [0], premiumPriceInr: 500, publishedAt: 1_700_000_000_000,
     views: 1, copies: 1, ...overrides,
   }
@@ -29,8 +29,8 @@ function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
   return { id: 'ent_1', userId: 'buyer_1', pubId: 'pub_a', orderId: 'order_1', amountPaidInr: 500, grantedAt: GRANTED_AT, ...overrides }
 }
 
-function creator(name: string, avatarUrl?: string): User {
-  return { id: 'creator_1', email: 'c@example.com', createdAt: 0, profile: { name, avatarUrl, languages: ['en'], travelStyles: [], isCreator: true } }
+function creator(name: string, avatarUrl?: string): CachedUser {
+  return { id: 'creator_1', kind: 'private', email: 'c@example.com', createdAt: 0, profile: { name, avatarUrl, languages: ['en'], travelStyles: [], isCreator: true, creatorAvailable: false } }
 }
 
 function rowFor(pubOverrides: Partial<PublishedItinerary> = {}, name = 'Priya Nair', avatarUrl?: string): PurchaseRow {

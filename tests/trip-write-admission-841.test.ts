@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { seedData } from '../src/data/seed'
 import type { QueuedWrite, WriteQueueStore } from '../src/lib/writeQueue'
+import type { Trip } from '../src/data/types'
 
 const { state } = vi.hoisted(() => ({
   state: {
@@ -132,7 +133,7 @@ describe('operation-bound preview admission', () => {
     await tick()
     const queued = (await pendingWrites()).find(write => write.tripId === trip.id)
     expect(settled).toBe(false)
-    expect(queued?.trip.name).toBe('Preview')
+    expect((queued?.trip as Trip).name).toBe('Preview')
     release({ data: null, error: null })
     await expect(result).resolves.toEqual({ kind: 'acknowledged', revision: queued?.revision, writeVersion: 1 })
   })

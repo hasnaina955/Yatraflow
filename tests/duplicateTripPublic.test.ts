@@ -25,7 +25,7 @@ vi.mock('../src/lib/supabase', () => {
     builder.in = () => builder
     builder.limit = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => { if (method) calls.push({ table, method }); resolve({ data: null, error: null }) }).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => { if (method) calls.push({ table, method }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {
@@ -122,7 +122,7 @@ describe('duplicateTripPublicPersisted premium stripping', () => {
     expect(copy.expenses.some(e => e.label === 'Park entry (day 0)')).toBe(true)
     expect(copy.expenses.some(e => e.label === 'Houseboat premium add-on')).toBe(false)
     // Fixed commitments on locked days (day 3 pair) don't ship with the fork.
-    expect(copy.fixedCommitments.map(f => f.title)).toEqual(['Hotel check-in — Kochi'])
+    expect(copy.fixedCommitments.map(f => f.title)).toEqual(['Hotel check-in: Kochi'])
   })
 
   it('an all-free fork keeps every expense and fixed commitment', async () => {

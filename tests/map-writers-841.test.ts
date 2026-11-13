@@ -18,6 +18,7 @@ const read = (path: string): string =>
 
 const writers = read('../src/pages/trip/map/useMapWriters.ts')
 const shortlist = read('../src/pages/trip/map/useShortlist.ts')
+const resume = read('../src/pages/trip/map/writerResumeDisposition.ts')
 const filing = read('../src/pages/trip/map/useSlotSearch.ts')
 const gate = read('../src/pages/trip/map/writerOperationGate.ts')
 const mapTab = read('../src/pages/trip/MapTab.tsx')
@@ -37,7 +38,8 @@ describe('#841 writer hooks use the exported action factories', () => {
   })
 
   it('the writers hook reads ONE effective plan for the single, batch and vote paths', () => {
-    expect(writers).toContain('buildDayPlan(')
+    expect(writers).toContain('buildDayPlanForDay(')
+    expect(writers).toContain('readManualPicksForDay(')
     expect(writers).toContain('batchSelection(')
     expect(writers).toContain('voteSelection(')
     expect(writers).toContain('effectiveDaySlotOf(')
@@ -47,7 +49,7 @@ describe('#841 writer hooks use the exported action factories', () => {
   it('the writers hook keeps the resolve-or-prompt guard and the pinned vote payload', () => {
     expect(writers).toContain('resolvePick(c.hit)')
     expect(writers).toContain('usable.length < 2')
-    expect(writers).toContain('was not created')
+    expect(writers).toContain('Not created')
     expect(writers).toMatch(/lat:\s*pinned\.latitude/)
     expect(writers).toMatch(/lng:\s*pinned\.longitude/)
     expect(writers).not.toMatch(/lat:\s*c\.hit\.latitude/)
@@ -100,7 +102,7 @@ describe('#841 hook surface stays compatible for the MapTab lease', () => {
 
   it('the writers hook returns the additive effective day plan for MapTab', () => {
     expect(writers).toContain('dayPlan: DayPlan')
-    expect(writers).toContain('dayPlan: planForDay()')
+    expect(writers).toContain('dayPlan: displayDayPlan ?? planForDay()')
     // The return value and every action read the SAME producer.
     expect(writers.match(/planForDay\(\)/g)?.length).toBeGreaterThanOrEqual(4)
   })
@@ -188,13 +190,30 @@ describe('#841 writer contract fixes at the owned call sites', () => {
     }
   })
 
-  it('the hooks speak the precise resume dispositions', () => {
-    // F2: a changed request under an uncertain operation is a distinct
+  it('the hooks speak the precise resume dispositions through the one helper', () => {
+    // F3: a changed request under an uncertain operation is a distinct
     // boundary, and an unverifiable retry points at Saved edits recovery.
     for (const source of [writers, shortlist]) {
-      expect(source).toContain('payload-changed')
-      expect(source).toContain('resume-unverifiable')
+      expect(source).toContain("from './writerResumeDisposition'")
+      expect(source).toContain('writerResumePresentation(result.resume.disposition)')
+      expect(source).not.toMatch(/resume\.disposition === 'payload-changed'/)
       expect(source).toContain('already-in-plan')
     }
+    // The shared table is exhaustive: every disposition has its own mapping and
+    // terminal action, so a changed/unknown retry cannot fall through to
+    // "already completed".
+    for (const disposition of [
+      'payload-changed', 'resume-unverifiable', 'operation-settled',
+      'operation-unknown', 'road-changed', 'trip-changed',
+    ]) {
+      expect(resume).toContain(`'${disposition}': {`)
+    }
+    expect(resume.match(/terminal: true/g)?.length).toBe(6)
+    expect(resume).not.toMatch(/text:.*already completed/i)
+  })
+
+  it('deletion control: a hook that stops calling the helper loses the pin', () => {
+    const disconnected = writers.replace(/writerResumePresentation\(result\.resume\.disposition\)/g, '')
+    expect(disconnected).not.toContain('writerResumePresentation(')
   })
 })

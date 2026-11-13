@@ -14,6 +14,7 @@ import { Clipboard } from '@capacitor/clipboard'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Geolocation, type Position as NativePosition } from '@capacitor/geolocation'
 import { Share } from '@capacitor/share'
+import { watchErrorCode, type LiveWatchErrorCode } from './liveLocation'
 
 /** True only inside a packaged app (android/ios), not on any web host. */
 export const isNative = Capacitor.isNativePlatform()
@@ -165,30 +166,41 @@ export type WatchHandle = { stop: () => void }
 /**
  * Continuous position stream for the live map dot. Native uses the plugin's
  * watchPosition (fused provider, system permission dialog); web uses the
- * browser watch. Errors surface through the same onFix(null) contract.
+ * browser watch. A fix goes to onFix. A failure goes to onError as one code,
+ * so a timeout never reads as a refusal. Stop also clears a native watch
+ * whose id has not arrived yet.
  */
 export function nativeWatch(
-  onFix: (pos: GeolocationPosition | null) => void,
+  onFix: (pos: GeolocationPosition) => void,
+  onError?: (code: LiveWatchErrorCode) => void,
 ): WatchHandle {
   if (isNative) {
     let callbackId: string | null = null
+    let stopped = false
+    const clear = (id: string) => { void Geolocation.clearWatch({ id }).catch(() => {}) }
     void Geolocation.watchPosition(
       { enableHighAccuracy: true, timeout: 15_000 },
       (pos, err) => {
-        if (err) { onFix(null); return }
+        if (stopped) return
+        if (err) { onError?.(watchErrorCode(err)); return }
         if (pos) onFix(toGeolocationPosition(pos))
       },
-    ).then(id => { callbackId = id }).catch(() => onFix(null))
+    ).then(id => {
+      callbackId = id
+      if (stopped) clear(id)
+    }).catch(err => { if (!stopped) onError?.(watchErrorCode(err)) })
     return {
       stop: () => {
-        if (callbackId) void Geolocation.clearWatch({ id: callbackId }).catch(() => {})
+        if (stopped) return
+        stopped = true
+        if (callbackId) clear(callbackId)
       },
     }
   }
   if (!('geolocation' in navigator)) return { stop: () => {} }
   const wid = navigator.geolocation.watchPosition(
     p => onFix(p),
-    () => onFix(null),
+    err => onError?.(watchErrorCode(err)),
     { enableHighAccuracy: true, timeout: 15_000, maximumAge: 5_000 },
   )
   return { stop: () => navigator.geolocation.clearWatch(wid) }

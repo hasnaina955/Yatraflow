@@ -13,8 +13,8 @@ import {
 } from '../src/lib/daySlots'
 import { BREAKFAST_WINDOW, DINNER_WINDOW, LUNCH_WINDOW, type RideSegment, type SegmentHit } from '../src/lib/ridePlan'
 import { SLOT_KIND_CATEGORIES } from '../src/lib/haltFit'
-import type { PlaceHit } from '../src/lib/providers/hits'
-import type { ItineraryStop } from '../src/data/types'
+import { asymmetricDetourKm, asymmetricDetourMinutes, detourKm, type PlaceHit } from '../src/lib/providers/hits'
+import type { ItineraryStop, TripDecision } from '../src/data/types'
 
 /** A minimal engine segment. eta = minutes since midnight; dayEnd marks the overnight. */
 function seg(purpose: RideSegment['purpose'], over: Partial<RideSegment> = {}): RideSegment {
@@ -337,9 +337,9 @@ describe('filled states (P1.2)', () => {
 describe('candidates (P1.4)', () => {
   it('the segment hit leads, pool entries follow, duplicates collapse', () => {
     const slots = daySlots(0, base({
-      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel'))],
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), hit('h1', 'Grand Hotel', { offRouteKm: 2 }))],
       dayStops: [],
-      altPool: [hit('h1', 'Grand Hotel'), hit('p1', 'Halais, Cherthala', { offRouteKm: 8 }), hit('p2', 'Another eatery', { offRouteKm: 6, alongRouteKm: 130 })],
+      altPool: [hit('h1', 'Grand Hotel'), hit('p1', 'Halais, Cherthala', { offRouteKm: 5 }), hit('p2', 'Another eatery', { offRouteKm: 1, alongRouteKm: 130 })],
     }))
     const names = slots[0].candidates.map(c => c.hit.name)
     expect(names[0]).toBe('Grand Hotel')
@@ -353,13 +353,13 @@ describe('candidates (P1.4)', () => {
       dayStops: [],
     }))
     const c = slots[0].candidates[0]
-    expect(c.detourMin).toBe(18) // 12 km at the 40 km/h fallback
-    expect(c.arriveMin).toBe(753) // 735 + 18
+    expect(c.detourMin).toBe(36) // a 12 km spur at 40 km/h costs 36 min there and back
+    expect(c.arriveMin).toBe(753) // 735 + the 18-min one-way leg
     expect(c.arriveLabel).toBe('12:33')
     expect(c.inWindow).toBe(true) // inside 11:30-14:30
     expect(c.detourKm).toBe(12)
     expect(c.reason).toContain('off-route')
-    expect(c.budgetSharePct).toBe(Math.round((18 / 45) * 100)) // 40% of the 45-min default budget
+    expect(c.budgetSharePct).toBe(Math.round((36 / 45) * 100)) // 80% of the 45-min default budget
   })
 
   it('a candidate whose arrival misses the window is marked honestly', () => {
@@ -378,7 +378,7 @@ describe('candidates (P1.4)', () => {
   })
 
   it('candidates are capped at the limit', () => {
-    const altPool = [1, 2, 3, 4, 5].map(i => hit(`p${i}`, `Eatery ${i}`, { alongRouteKm: 100 + i }))
+    const altPool = [1, 2, 3, 4, 5].map(i => hit(`p${i}`, `Eatery ${i}`, { alongRouteKm: 100 + i, offRouteKm: 1 }))
     const slots = daySlots(0, base({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
@@ -410,16 +410,40 @@ describe('candidates (P1.4)', () => {
   })
 
   it('the day detour budget culls the tail', () => {
-    const altPool = [1, 2, 3].map(i => hit(`p${i}`, `Far eatery ${i}`, { offRouteKm: 30, alongRouteKm: 100 + i }))
+    const altPool = [1, 2, 3].map(i => hit(`p${i}`, `Far eatery ${i}`, { offRouteKm: 15, alongRouteKm: 100 + i }))
     const slots = daySlots(0, base({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       altPool,
     }))
-    // Each 30 km detour costs 45 min at 40 km/h - the 45-min default budget
-    // funds exactly one of them.
+    // Each 15 km spur costs 45 min there and back at 40 km/h - the 45-min
+    // default budget funds exactly one of them.
     expect(slots[0].candidates).toHaveLength(1)
     expect(slots[0].candidates[0].budgetSharePct).toBe(100)
+  })
+
+  // #08 AC1 and AC5: a slot row's km is the road measure the rail prints. The
+  // only anchor sits at the road's west end, so the far hit is about 48 km from
+  // it in a straight line but only about 2 km off the drawn road.
+  it('a far hit on the road reads its road spur km and minutes, not the anchor distance', () => {
+    const ROAD_EAST = [{ lat: 10, lng: 77 }, { lat: 10, lng: 78.5 }]
+    const SPARSE = [{ lat: 10, lng: 77 }]
+    const far = hit('far', 'Roadside dhaba', { latitude: 10.018, longitude: 77.44, offRouteKm: undefined })
+    const slots = daySlots(0, base({
+      anchors: SPARSE,
+      routePolyline: ROAD_EAST,
+      haltSegments: [sh(seg('meal', { etaMinutes: 735 }), far)],
+      dayStops: [],
+    }))
+    const c = slots[0].candidates[0]
+    // The rail km (MapTab detourKmFor) is this same road measure on the same inputs.
+    const railKm = asymmetricDetourKm(far, SPARSE, ROAD_EAST) as number
+    expect(detourKm(far, SPARSE)).toBeGreaterThan(40) // the old symmetric read
+    expect(c.detourKm).toBeCloseTo(railKm, 6)
+    expect(railKm).toBeLessThan(3)
+    // The minutes are the return drive of that same km at the default 40 km/h.
+    expect(c.detourMin).toBeCloseTo(((railKm / 40) * 60) * 2, 6)
+    expect(c.detourMin).toBeCloseTo(asymmetricDetourMinutes(far, SPARSE, ROAD_EAST, 40) as number, 6)
   })
 
   it('an on-route candidate spends nothing', () => {
@@ -515,7 +539,7 @@ describe('readiness (P1.5)', () => {
       sh(seg('overnight', { dayEnd: true }), null),
     ]
     const rows = tripReadiness(haltSegments, [{ index: 0, stops: [stop('s1', 'Lunch place', { openTime: '12:00', closeTime: '14:00' }), stop('s2', 'Night stay', { category: 'hotel' })] }, { index: 1, stops: [] }], {
-      dayStops: [], anchors: ANCHORS,
+      anchors: ANCHORS,
     })
     expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
     expect(rows[0]).toMatchObject({ filled: 2, total: 3, auto: 1 })
@@ -635,7 +659,7 @@ describe('single-blob corridor plans (P2 fix round)', () => {
     const haltSegments = [sh(seg('meal', { etaMinutes: 735 }), null), sh(seg('stretch'), null)]
     expect(daySlots(0, base({ haltSegments, dayStops: [] })).map(s => s.key)).toEqual(['lunch', 'stretch'])
     expect(daySlots(1, base({ haltSegments, dayStops: [] }))).toEqual([])
-    const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }], { dayStops: [], anchors: ANCHORS })
+    const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }], { anchors: ANCHORS })
     expect(rows.map(r => r.dayIndex)).toEqual([0])
   })
 })
@@ -653,7 +677,7 @@ describe('day attribution override (P2 fix round 2)', () => {
   })
   it('tripReadiness covers every attributed day', () => {
     const rows = tripReadiness(haltSegments, [{ index: 0, stops: [] }, { index: 1, stops: [] }], {
-      dayStops: [], anchors: ANCHORS, dayOfSegment: (s) => (s.segment.targetKm >= 400 ? 1 : 0),
+      anchors: ANCHORS, dayOfSegment: (s) => (s.segment.targetKm >= 400 ? 1 : 0),
     })
     expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
     expect(rows[1].total).toBe(2)
@@ -768,8 +792,8 @@ describe('coupled re-ranking after a stay (plan P3.4)', () => {
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
       dayStops: [],
       altPool: [
-        hit('a', 'A', { latitude: 10.9, longitude: 76.9, alongRouteKm: 100 }),
-        hit('b', 'B', { latitude: 10.01, longitude: 76.01, alongRouteKm: 105 }),
+        hit('a', 'A', { latitude: 10.9, longitude: 76.9, alongRouteKm: 100, offRouteKm: 1 }),
+        hit('b', 'B', { latitude: 10.01, longitude: 76.01, alongRouteKm: 105, offRouteKm: 1 }),
       ],
     }))
     expect(slots[0].candidates.length).toBeGreaterThanOrEqual(2)
@@ -918,7 +942,7 @@ describe('the review fixes', () => {
   it('a stretch part claimed by a stop is filled, never also auto (m13)', () => {
     const deps = base({
       haltSegments: [sh(seg('stretch', { targetKm: 128, etaMinutes: 660 }), null)],
-      dayStops: [stop('s-fill', 'Coffee stop', { category: 'cafe', slotKey: 'stretch' })],
+      dayStops: [stop('s-fill', 'Coffee stop', { category: 'food', slotKey: 'stretch' })],
     })
     const stretch = daySlots(0, deps).find(s => s.key === 'stretch')!
     expect(stretch.state).toBe('filled')
@@ -932,7 +956,7 @@ describe('the review fixes', () => {
   it('a fill is remembered as DATA, so tidying its note cannot un-plan it (B3)', () => {
     const at = (over: Partial<ItineraryStop>) => daySlots(0, base({
       haltSegments: [sh(seg('meal', { etaMinutes: 735 }), null)],
-      dayStops: [stop('s1', 'Lunch place', over)],
+      dayStops: [stop('s1', 'Meal place', over)],
     })).find(s => s.key === 'lunch')!
 
     expect(at({ slotKey: 'lunch' }).state).toBe('filled')
@@ -963,7 +987,7 @@ describe('the review fixes', () => {
         { index: 0, stops: [] },
         { index: 1, stops: [stop('s2', 'Beach day', { category: 'sightseeing' })] },
       ],
-      { dayStops: [], anchors: ANCHORS, fillSkeleton: true },
+      { anchors: ANCHORS, fillSkeleton: true },
     )
     expect(rows.map(r => r.dayIndex)).toEqual([0, 1])
     // Day 1 has no halts but does have a stop, so its skeleton gives it parts —
@@ -999,5 +1023,82 @@ describe('the engine’s own category table (haltFit)', () => {
 
   it('the four kinds the day plan names are the four the hint speaks for', () => {
     expect(Object.keys(SLOT_KIND_CATEGORIES).sort()).toEqual(['fuel', 'meal', 'overnight', 'stretch'])
+  })
+})
+
+describe('a stop that names a meal fills that meal (real Goa trip, Day 1)', () => {
+  const hotel = stop('s-hotel', 'Check in · Agoa Palace hotel', { category: 'hotel', orderInDay: 3 })
+  const goaDay = (): DaySlotsDeps => base({
+    fillSkeleton: true,
+    dayStops: [
+      stop('s-breakfast', 'Lonavala breakfast stop — chai & vada pav', { orderInDay: 0, openTime: '06:00', closeTime: '23:00' }),
+      stop('s-lunch', 'Thana Ghat lunch — Goan seafood thali', { orderInDay: 2, openTime: '06:00', closeTime: '23:00' }),
+      hotel,
+      stop('s-dinner', 'Dinner at Kubyu Beach Club', { orderInDay: 5, openTime: '06:00', closeTime: '23:00' }),
+    ],
+  })
+  const filledBy = (slots: ReturnType<typeof daySlots>, key: string) => slots.find(slot => slot.key === key)?.filledStop?.id ?? null
+
+  it('puts breakfast, lunch and dinner stops in their own slots, never swapped', () => {
+    const slots = daySlots(0, goaDay())
+    expect(filledBy(slots, 'breakfast')).toBe('s-breakfast')
+    expect(filledBy(slots, 'lunch')).toBe('s-lunch')
+    expect(filledBy(slots, 'dinner')).toBe('s-dinner')
+  })
+
+  it('keeps the same slots when the stops come in another order', () => {
+    const deps = goaDay()
+    const slots = daySlots(0, { ...deps, dayStops: [...deps.dayStops].reverse() })
+    expect(filledBy(slots, 'breakfast')).toBe('s-breakfast')
+    expect(filledBy(slots, 'lunch')).toBe('s-lunch')
+    expect(filledBy(slots, 'dinner')).toBe('s-dinner')
+  })
+
+  it('leaves a meal slot empty before it takes a stop that names another meal', () => {
+    const slots = daySlots(0, base({
+      fillSkeleton: true,
+      dayStops: [hotel, stop('s-lunch', 'Thana Ghat lunch', { orderInDay: 1, openTime: '06:00', closeTime: '23:00' })],
+    }))
+    expect(filledBy(slots, 'lunch')).toBe('s-lunch')
+    expect(filledBy(slots, 'breakfast')).toBeNull()
+    expect(filledBy(slots, 'dinner')).toBeNull()
+  })
+
+  it('still uses the hours for a stop that names no meal', () => {
+    const slots = daySlots(0, base({
+      fillSkeleton: true,
+      dayStops: [hotel, stop('s-cafe', 'Panjim cafe', { orderInDay: 1, openTime: '12:00', closeTime: '14:00' })],
+    }))
+    expect(filledBy(slots, 'lunch')).toBe('s-cafe')
+  })
+
+  it('uses the engine arrival for an unnamed meal, ahead of venue hours', () => {
+    const cafe = stop('cafe', 'Panjim cafe', { openTime: '06:00', closeTime: '23:00' })
+    const slots = daySlots(0, base({
+      fillSkeleton: true, dayStops: [cafe],
+      scheduleOf: () => ({ activeStops: [cafe], arrivalTimes: ['08:30'] }),
+    }))
+    expect(filledBy(slots, 'breakfast')).toBe('cafe')
+    expect(filledBy(slots, 'lunch')).toBeNull()
+  })
+
+  it('keeps a named lunch out of breakfast despite an early arrival or stale slot key', () => {
+    const lunch = stop('lunch', 'Thana Ghat lunch', { slotKey: 'breakfast' })
+    const slots = daySlots(0, base({
+      fillSkeleton: true, dayStops: [hotel, lunch],
+      scheduleOf: () => ({ activeStops: [lunch], arrivalTimes: ['08:30'] }),
+    }))
+    expect(filledBy(slots, 'lunch')).toBe('lunch')
+    expect(filledBy(slots, 'breakfast')).toBeNull()
+  })
+
+  it('keeps named breakfast and dinner on the first day without a hotel', () => {
+    const slots = daySlots(0, base({
+      fillSkeleton: true,
+      dayStops: [stop('early', 'Breakfast by the road'), stop('late', 'Dinner in Panjim')],
+    }))
+    expect(filledBy(slots, 'breakfast')).toBe('early')
+    expect(filledBy(slots, 'dinner')).toBe('late')
+    expect(filledBy(slots, 'lunch')).toBeNull()
   })
 })

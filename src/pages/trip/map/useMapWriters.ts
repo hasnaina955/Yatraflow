@@ -33,6 +33,7 @@ import { isAirMode, MODE_SPEED } from '../../../lib/engine'
 import { roadChainSig } from '../../../lib/tripRoad'
 import type { ApplyChange } from '../../../lib/mutationLifecycle'
 import { visitMinutesForCategory } from '../../../lib/slackPrompts'
+import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import { newStopId, poiVisitMinutes } from './pageHelpers'
 import { saveHaltPin } from '../../../lib/uiPrefs'
 import { recordDnaEvent } from '../../../lib/tripDna'
@@ -40,15 +41,15 @@ import { addDecision, admitTripPreview, tripById } from '../../../store/store'
 import { reportCollabOutcome } from '../../../lib/collabFeedback'
 import { persistedPlaceFromHit } from '../../../lib/placeDraft'
 import { isSameEntity, type PlaceIdentity } from '../../../lib/placeIdentity'
-import type { DaySlot, SlotCandidate } from '../../../lib/daySlots'
+import type { DaySlot } from '../../../lib/daySlots'
 import {
   batchSelection,
-  buildDayPlan,
   effectiveDaySlotOf,
   voteSelection,
   type DayPlan,
   type EffectiveDaySlot,
 } from '../../../lib/dayPlan'
+import { dayDetourBudgetForDay } from '../../../lib/detourBudget'
 import type { Trip } from '../../../data/types'
 import {
   ZERO_VERIFIED_SAVE_MESSAGE,
@@ -65,12 +66,15 @@ import {
   type WriterRetryTicket,
   type WriterStageResult,
 } from './mapWriterActions'
+import { applyVerifiedPlacement } from './verifiedPlacementEffects'
 import {
   mapWriterOperationGate,
   type WriterOperationGate,
 } from './writerOperationGate'
 import { mapManualSlotStore, manualContextForSlot } from './manualSlotContexts'
-import { manualCandidateFor } from './slotFiling'
+import type { WriterRoadBinding } from './writerRoadBinding'
+import { writerResumePresentation } from './writerResumeDisposition'
+import { buildDayPlanForDay, readManualPicksForDay } from './manualPicks'
 import { buildSlotVoteOption, createSlotVoteRequest } from './slotVoteOptions'
 
 /** Every page value the four writes touch. */
@@ -130,6 +134,9 @@ export type UseMapWritersDeps = {
   roadMeasured?: boolean
   /** #841: stable identity of the measured chain. Defaults to `roadChainSig`. */
   routeKey?: string
+  /** Strict measured-road bytes and live accessor. */
+  roadBinding?: WriterRoadBinding | null
+  currentRoad?: () => WriterRoadBinding | null
   /** #841: the workspace gate. Defaults to the shared map gate. */
   operationGate?: WriterOperationGate
   /** #841: the CURRENT committed trip, read at acknowledgement and retry time.
@@ -142,16 +149,20 @@ export type UseMapWritersDeps = {
   detourKmFor?: (hit: PlaceHit) => number | null
   /** #841: explicit repeat visit, a separate product action. */
   allowRepeatVisit?: boolean
+  /** S3: the shared producer's display plan. Actions still revalidate with
+   *  `planForDay()` at call time, so a stale display can never place a stop. */
+  displayDayPlan?: DayPlan
 }
 
 /** The one line a refusal speaks. Kept here so each refusal has a reason the
  *  user can act on, never a silent no-op. */
 const REFUSAL_MESSAGE: Record<WriterRefusal, string> = {
-  'missing-day': 'This day has no saved identity yet - reload the trip, then try again.',
-  'gate-busy': 'Another change is already using that place. Wait for it to finish.',
-  'road-evidence-unavailable': 'The road has not been measured yet, so the app cannot place this stop. Try again after the route finishes measuring.',
-  'nothing-pinned': 'That place could not be pinned on the map - nothing was placed.',
-  'no-placements': 'Nothing could be placed from that choice - the day was not changed.',
+  'missing-day': 'Day · Not ready · Reload trip',
+  'gate-busy': 'Place · Change in progress',
+  'road-evidence-unavailable': 'Road · Not measured · Add after measurement',
+  'current-trip-unavailable': 'Retry · Saved trip unavailable',
+  'nothing-pinned': 'Place · Pin failed · No change',
+  'no-placements': 'Place · Unavailable · Day unchanged',
 }
 
 export function useMapWriters({
@@ -178,11 +189,14 @@ export function useMapWriters({
   slotManual,
   roadMeasured,
   routeKey: routeKeyProp,
+  roadBinding,
+  currentRoad,
   operationGate = mapWriterOperationGate,
   currentTrip: currentTripProp,
   detourMinFor,
   detourKmFor,
   allowRepeatVisit,
+  displayDayPlan,
 }: UseMapWritersDeps): {
   addPoiToDay: (hit: PlaceHit, dayIndex: number) => Promise<void>
   fillSlot: (slot: DaySlot, hit: PlaceHit) => Promise<void>
@@ -228,41 +242,27 @@ export function useMapWriters({
   }
 
   /** The day's ONE effective plan: manual picks (stable store + the page's
-   *  legacy bucket) then the engine's rows, over the complete derived slots. */
+   *  legacy bucket) then the engine's rows, over the complete derived slots.
+   *  The store read and the pure merge live in ./manualPicks, so the future
+   *  shared producer calls the same pair and no second merge exists. */
   function planForDay(): DayPlan {
     const context = writerContextFor(trip, activeDayIndex)
     const stableDayId = context?.dayId ?? null
-    const manual: Record<string, SlotCandidate[]> = {}
-    const deps = { detourMin: detourMinFor, detourKm: detourKmFor }
-    if (stableDayId) {
-      const fromStore = mapManualSlotStore.candidatesBySlot({ tripId: trip.id, dayId: stableDayId }, deps)
-      for (const [key, candidates] of Object.entries(fromStore)) manual[key] = [...candidates]
-    }
-    for (const [key, hits] of Object.entries(slotManual ?? {})) {
-      // The page bucket carries no day of its own. It is read only while the
-      // last filing for that key came from THIS stable day; otherwise the
-      // stable store above is the only source, so Day A's lunch cannot be
-      // placed on Day B.
-      const bound = stableDayId
-        ? mapManualSlotStore.legacyPicksFor(key, { tripId: trip.id, dayId: stableDayId })
-        : []
-      if (bound.length === 0) continue
-      const rows = hits.map(hit => manualCandidateFor({
-        hit,
-        detourMin: detourMinFor?.(hit) ?? null,
-        detourKm: detourKmFor?.(hit) ?? null,
-        budgetMin: 1,
-        sharePct: () => 100,
-      }))
-      manual[key] = [...(manual[key] ?? []), ...rows]
-    }
-    return buildDayPlan({
-      dayIndex: activeDayIndex,
-      slots: activeDaySlots,
+    return buildDayPlanForDay({
       tripId: trip.id,
-      ...(stableDayId ? { dayId: stableDayId } : {}),
-      manual,
-      ...(presence ? { identity: presence } : {}),
+      dayIndex: activeDayIndex,
+      dayId: stableDayId,
+      slots: activeDaySlots,
+      manual: readManualPicksForDay({
+        store: mapManualSlotStore,
+        tripId: trip.id,
+        dayId: stableDayId,
+        slotManual: slotManual ?? {},
+        detourMinFor,
+        detourKmFor,
+        budgetMin: dayDetourBudgetForDay(trip, activeDayIndex),
+      }),
+      identity: presence ?? null,
     })
   }
 
@@ -280,6 +280,8 @@ export function useMapWriters({
       currentTrip: currentTripProp ?? (() => tripById(trip.id)),
       onCompletion,
       poiVisitMinutes,
+      ...(roadBinding ? { roadBinding } : {}),
+      ...(currentRoad ? { currentRoad } : {}),
       ...(allowRepeatVisit ? { allowRepeatVisit } : {}),
     }
   }
@@ -305,8 +307,8 @@ export function useMapWriters({
         if (outcome.status === 'refused') {
           toast(
             outcome.reason === 'missing-day'
-              ? 'Undo stopped: that day no longer exists.'
-              : 'Undo stopped: the saved stop changed or moved, so it was left alone.',
+              ? 'Undo · Day unavailable'
+              : 'Undo · Stopped · Saved stop changed',
             'err',
           )
           return
@@ -314,7 +316,7 @@ export function useMapWriters({
         // The inverse may already be in this device's cache, so the copy must
         // not promise that the plan is unchanged. Saved edits stays the
         // recovery path, and the user is told the result is unconfirmed.
-        toast('Undo was not confirmed. Check the day before you retry - Saved edits can still recover this trip.', 'err')
+        toast('Undo · Unconfirmed · Check day or Saved edits', 'err')
       })
     })
   }
@@ -344,7 +346,7 @@ export function useMapWriters({
         reportStageResult(result, stagedMessage)
       } catch (err) {
         console.error('[yatraflow] writer retry threw', err)
-        toast('The retry could not start. Check the day before you try again; Saved edits can still recover the trip.', 'err')
+        toast('Retry · Unavailable · Check Saved edits', 'err')
       }
     }
     retryRunners.current.set(ticket.operationId, run)
@@ -359,14 +361,19 @@ export function useMapWriters({
     onPlaced?: (completion: WriterCompletion) => void
     retry?: () => Promise<void>
   }) {
+    if (completion.phase === 'abandoned') {
+      retryRunners.current.delete(completion.operationId)
+      toast('Saved edit · Discarded · Choose again', 'err')
+      return
+    }
     const retryAction = input.retry
       ? { label: 'Retry', run: () => { void input.retry!() } }
       : undefined
     if (!completion.acknowledged) {
       toast(
         completion.phase === 'uncertain'
-          ? 'The save was not confirmed, so this change stays pending. Retry it, or open Saved edits.'
-          : 'The save could not be confirmed. Nothing was removed from your list. Retry it, or open Saved edits.',
+          ? 'Save · Unconfirmed · Change pending · Check Saved edits'
+          : 'Save · Unconfirmed · List unchanged · Check Saved edits',
         'err',
         retryAction,
       )
@@ -376,20 +383,25 @@ export function useMapWriters({
       toast(ZERO_VERIFIED_SAVE_MESSAGE, 'err', retryAction)
       return
     }
-    for (const item of completion.placed) {
-      recordDnaEvent({
-        tripId: trip.id,
-        action: 'accept',
-        haltKind: input.slot?.kind,
-        category: item.hit.category,
-        detourMin: asymmetricDetourMinutes(item.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined,
-        visitMin: visitMinutesForCategory(item.hit.category),
-      })
-      const context = input.slot
-        ? manualContextForSlot(input.slot)
-        : { tripId: trip.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
-      if (context?.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
-    }
+    applyVerifiedPlacement(completion, {
+      onDna: item => {
+        recordDnaEvent({
+          tripId: trip.id,
+          action: 'accept',
+          haltKind: input.slot?.kind,
+          category: item.hit.category,
+          detourMin: asymmetricDetourMinutes(item.hit, anchors, routePolyline ?? null, MODE_SPEED[trip.transportMode] ?? 40) ?? undefined,
+          visitMin: visitMinutesForCategory(item.hit.category),
+        })
+      },
+      onDrop: item => {
+        const context = input.slot
+          ? manualContextForSlot(input.slot)
+          : { tripId: trip.id, dayId: item.dayId, slotKey: item.slotKey ?? '' }
+        if (context?.slotKey) mapManualSlotStore.dropPlaced(context, [item.hit])
+      },
+      onPlaced: () => setDnaTick(t => t + 1),
+    })
     // #143: an overnight fill pins the halt, same as addPoiToDay's rule.
     if (input.slot && completion.placed.some(item => item.hit.haltPurpose === 'overnight')) {
       const ordinals = pois
@@ -398,9 +410,8 @@ export function useMapWriters({
         .findIndex(x => x.segment.index === input.slot?.segment?.index)
       if (ordinals >= 0) saveHaltPin(trip.id, ordinals, input.slot.segment?.targetKm ?? 0)
     }
-    setDnaTick(t => t + 1)
     if (completion.phase === 'partial') {
-      toast(`${completion.unresolved.length} placed stop${completion.unresolved.length === 1 ? '' : 's'} could not be confirmed in the saved day. Check before you retry.`, 'err')
+      toast(`Saved day · Unverified stops: ${completion.unresolved.length} · Check before retry`, 'err')
     }
     input.onPlaced?.(completion)
     offerUndo(completion, input.undoMessage(completion.placed.length))
@@ -411,28 +422,20 @@ export function useMapWriters({
   function reportStageResult(result: WriterStageResult, stagedMessage: string) {
     if (result.status === 'staged') {
       if (result.unresolved.length > 0) {
-        toast(`${stagedMessage} ${result.unresolved.length} place${result.unresolved.length === 1 ? '' : 's'} stayed in your list with a reason.`)
+        toast(`${stagedMessage} · Picks retained: ${result.unresolved.length}`)
       }
       return
     }
     if (result.resume) {
-      // F2: a refused retry speaks its precise disposition. A changed choice
-      // is a distinct operation; an unverifiable retry points at Saved edits.
-      toast(result.resume.disposition === 'payload-changed'
-        ? 'That choice changed since the last save was not confirmed, so it needs a separate action. The day was not changed.'
-        : result.resume.disposition === 'resume-unverifiable'
-          ? 'The earlier save is still unconfirmed and cannot be retried from here. Saved edits can recover the trip.'
-          : result.resume.disposition === 'operation-unknown'
-            ? 'That earlier change is no longer known on this page. Check the day before you retry; Saved edits can still recover the trip.'
-            : 'That change already completed - check the day before you retry.', 'err')
+      toast(writerResumePresentation(result.resume.disposition).text, 'err')
       return
     }
     if (result.apply) {
-      toast('The day order no longer accepts that stop, so the day was not changed. Check the day and try again.', 'err')
+      toast('Add · Day order changed · Check day and retry', 'err')
       return
     }
     if (result.skipped.some(item => item.reason === 'already-in-plan')) {
-      toast('That place is already in the day - nothing was added.')
+      toast('Place · Already planned · No change')
       return
     }
     toast(REFUSAL_MESSAGE[result.reason], 'err')
@@ -465,7 +468,7 @@ export function useMapWriters({
     try {
       const context = writerContextFor(trip, dayIndex)
       if (!context) { toast(REFUSAL_MESSAGE['missing-day'], 'err'); return }
-      const stagedMessage = `“${hit.name}” is staged for Day ${dayIndex + 1}. Keep to save it.`
+      const stagedMessage = `“${hit.name}” · Day ${dayIndex + 1} staged · Keep to save`
       const handleCompletion: (completion: WriterCompletion) => void = completion => {
         const retry = !completion.acknowledged || completion.placed.length === 0
           ? registeredRetry(completion, handleCompletion, stagedMessage)
@@ -474,7 +477,7 @@ export function useMapWriters({
           undoMessage: placed => {
             const added = `“${hit.name}” added to Day ${dayIndex + 1}`
             return placed === 1 && hit.haltPurpose === 'overnight'
-              ? `${added} - night halt pinned, it won't move unless the road does`
+              ? `${added}. Night halt pinned. It moves only if the road changes.`
               : added
           },
           onPlaced: () => pinOvernightHalt(hit),
@@ -515,10 +518,10 @@ export function useMapWriters({
       const effective = effectiveDaySlotOf(plan, slot.key)
       const candidate = effective?.candidates.find(row => isSameEntity(row.hit, hit))
       if (!candidate) {
-        toast('That place is no longer in this part’s list - open the part and choose again.', 'err')
+        toast('Place · Removed from choices · Choose again', 'err')
         return
       }
-      const stagedMessage = `“${candidate.hit.name}” is staged for ${slot.label} on Day ${activeDayIndex + 1}. Keep to save it.`
+      const stagedMessage = `“${candidate.hit.name}” · Day ${activeDayIndex + 1} · ${slot.label} staged · Keep to save`
       const handleCompletion: (completion: WriterCompletion) => void = completion => {
         const retry = !completion.acknowledged || completion.placed.length === 0
           ? registeredRetry(completion, handleCompletion, stagedMessage)
@@ -560,7 +563,7 @@ export function useMapWriters({
     setFillingDay(true)
     try {
       const targets = batch.items
-      const stagedMessage = `Day ${activeDayIndex + 1} is staged. Keep to save the planned stops.`
+      const stagedMessage = `Day ${activeDayIndex + 1} · Staged · Keep to save`
       const handleCompletion: (completion: WriterCompletion) => void = completion => {
         const retry = !completion.acknowledged || completion.placed.length === 0
           ? registeredRetry(completion, handleCompletion, stagedMessage)
@@ -568,7 +571,7 @@ export function useMapWriters({
         afterPlacement(completion, {
           undoMessage: placed => {
             const left = targets.length - placed
-            return `Day ${activeDayIndex + 1} planned - ${placed} stop${placed === 1 ? '' : 's'} added${left > 0 ? ` · ${left} left for you` : ''}`
+            return `Day ${activeDayIndex + 1} planned: ${placed} stop${placed === 1 ? '' : 's'} added${left > 0 ? `. ${left} left for you` : ''}`
           },
           onPlaced: () => setOpenSlotKey(null),
           ...(retry ? { retry } : {}),
@@ -599,9 +602,9 @@ export function useMapWriters({
     const effective: EffectiveDaySlot | undefined = effectiveDaySlotOf(planForDay(), slot.key)
     const selection = effective ? voteSelection(effective) : null
     if (selection && !selection.canRaise) {
-      if (selection.refusal === 'vote-already-open') toast('The crew is already voting on this part.')
-      else if (selection.refusal === 'too-few-candidates') toast('This part needs two places before the crew can vote.')
-      else toast('This part cannot be voted on yet.')
+      if (selection.refusal === 'vote-already-open') toast('Crew vote · In progress')
+      else if (selection.refusal === 'too-few-candidates') toast('Crew vote · Two places needed')
+      else toast('Crew vote · Not ready')
       return
     }
     const picks = selection?.options ?? []
@@ -610,7 +613,7 @@ export function useMapWriters({
     try {
       const resolved = await Promise.all(picks.map(async c => ({ c, pinned: await resolvePick(c.hit) })))
       const usable = resolved.filter((x): x is { c: (typeof picks)[number]; pinned: PlaceHit } => !!x.pinned)
-      if (usable.length < 2) { toast('Those places could not be pinned on the map - the vote was not created.'); return }
+      if (usable.length < 2) { toast('Vote · Position unavailable · Not created'); return }
       const taken = new Set<string>()
       const options = usable.map(({ c, pinned }) => {
         const optionPlace = persistedPlaceFromHit(c.hit)
@@ -626,7 +629,7 @@ export function useMapWriters({
             lat: pinned.latitude,
             lng: pinned.longitude,
             description: c.hit.description,
-            visitMinutes: poiVisitMinutes(c.hit.category),
+            visitMinutes: confirmedVisitMinutes(c.hit) ?? poiVisitMinutes(c.hit.category),
             openTime: c.hit.openTime,
             closeTime: c.hit.closeTime,
             dayIndex: activeDayIndex,
@@ -638,16 +641,16 @@ export function useMapWriters({
         return option
       })
       const request = createSlotVoteRequest({
-        question: `Day ${activeDayIndex + 1} ${slot.label.toLowerCase()} - where?`,
+        question: `Day ${activeDayIndex + 1} · ${slot.label} · Choose place`,
         context: `Voting from the day plan (Day ${activeDayIndex + 1})`,
         options,
       })
       if (!request.ok) {
-        toast('Those places are the same place - the vote needs two different choices. It was not created.')
+        toast('Vote · Two different places needed · Not created')
         return
       }
       const outcome = await addDecision(trip.id, request.request)
-      reportCollabOutcome(outcome, `The crew is voting on Day ${activeDayIndex + 1} ${slot.label.toLowerCase()} - resolve it in Group input`)
+      reportCollabOutcome(outcome, `Crew vote · Day ${activeDayIndex + 1} · ${slot.label} · Resolve in Group input`)
       if (outcome.status === 'applied' || outcome.status === 'alreadyApplied') {
         setOpenSlotKey(null)
         onOpenGroupInput?.()
@@ -655,5 +658,5 @@ export function useMapWriters({
     } finally { setAddingAny(false) }
   }
 
-  return { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan: planForDay(), retryUncertain }
+  return { addPoiToDay, fillSlot, fillTheDay, raiseSlotVote, dayPlan: displayDayPlan ?? planForDay(), retryUncertain }
 }

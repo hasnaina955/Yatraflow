@@ -23,7 +23,7 @@ import {
 import { createManualSlotStore } from '../src/pages/trip/map/manualSlotContexts'
 import { STALE_SEARCH_REFUSAL, useSlotSearch, type SlotSearchState } from '../src/pages/trip/map/useSlotSearch'
 import type { PlaceHit } from '../src/lib/providers/hits'
-import type { DaySlotKind, SlotState } from '../src/lib/daySlots'
+import type { DaySlotKind, SlotKey, SlotState } from '../src/lib/daySlots'
 
 const toasts = vi.hoisted(() => [] as string[])
 vi.mock('../src/components/ui', () => ({ toast: (message: string) => { toasts.push(message) } }))
@@ -36,8 +36,8 @@ const slotHook = readFileSync(new URL('../src/pages/trip/map/useSlotSearch.ts', 
 const hit = (id: string, over: Partial<PlaceHit> = {}): PlaceHit =>
   ({ id, name: `Place ${id}`, latitude: 10, longitude: 76, kind: 'poi', ...over }) as PlaceHit
 
-type OfferedSlot = { key: string; label: string; kind: DaySlotKind; state: SlotState }
-const slot = (key: string, label: string, kind: DaySlotKind, state: SlotState = 'empty'): OfferedSlot =>
+type OfferedSlot = { key: SlotKey; label: string; kind: DaySlotKind; state: SlotState }
+const slot = (key: SlotKey, label: string, kind: DaySlotKind, state: SlotState = 'empty'): OfferedSlot =>
   ({ key, label, kind, state })
 
 describe('slotKindsForCategory — which kinds can hold a found place', () => {
@@ -68,7 +68,7 @@ describe('filingOptionsFor — the empty slots this hit may be filed into', () =
   it('offers only empty slots of a matching kind, in rail order, with its own copy', () => {
     const opts = filingOptionsFor(hit('a', { category: 'food' }), [
       slot('lunch', 'Lunch', 'meal'),
-      slot('fuel-1', 'Fuel', 'fuel'),
+      slot('fuel', 'Fuel', 'fuel'),
       slot('dinner', 'Dinner', 'meal', 'filled'),
       slot('breakfast', 'Breakfast', 'meal'),
     ])
@@ -154,13 +154,13 @@ describe('slotFileRefusal — a refusal always has a reason', () => {
   it('refuses a place already on the plan, and names it', () => {
     const r = slotFileRefusal({ ...base, hit: hit('owned', { name: 'Kayees' }), manual: [], candidates: [] })
     expect(r?.kind).toBe('added')
-    expect(r?.message).toBe('"Kayees" is already on the plan or was dismissed.')
+    expect(r?.message).toBe('"Kayees" · Planned or dismissed')
   })
 
   it('refuses a place already filed by hand for this slot, and names the slot in lower case', () => {
     const r = slotFileRefusal({ ...base, hit: hit('m1', { name: 'Paragon' }), manual: [hit('m1')], candidates: [] })
     expect(r?.kind).toBe('candidate')
-    expect(r?.message).toBe('"Paragon" is already a candidate for the lunch slot.')
+    expect(r?.message).toBe('"Paragon" · Already a lunch candidate')
   })
 
   it('refuses a place the engine already proposes for this slot', () => {
@@ -169,7 +169,7 @@ describe('slotFileRefusal — a refusal always has a reason', () => {
       manual: [], candidates: [{ hit: hit('e1') }],
     })
     expect(r?.kind).toBe('candidate')
-    expect(r?.message).toBe('"Homestay" is already a candidate for the stay slot.')
+    expect(r?.message).toBe('"Homestay" · Already a stay candidate')
   })
 
   it('allows the filing when nothing stands in the way', () => {
@@ -202,10 +202,10 @@ describe('MapTab goes THROUGH the module (wiring is part of the contract)', () =
     // (`arcs.slice(0, 2)` in the page is unrelated: it caps the story-arc list,
     // not the filing options — so the assertion names the rule, not the idiom.)
     expect(mapTab).not.toContain('kinds.includes(')
-    expect(mapTab).not.toContain('is already a candidate for the')
-    expect(mapTab).not.toContain('is already on the plan or was dismissed')
-    expect(module_).toContain('is already a candidate for the')
-    expect(module_).toContain('is already on the plan or was dismissed')
+    expect(mapTab).not.toContain('Already a ${slotLabel.toLowerCase()} candidate')
+    expect(mapTab).not.toContain('Planned or dismissed')
+    expect(module_).toContain('Already a ${slotLabel.toLowerCase()} candidate')
+    expect(module_).toContain('Planned or dismissed')
   })
 
   it('carries no cap in the filing rule — the slice that dropped dinner', () => {
@@ -275,7 +275,7 @@ describe('useSlotSearch files under the stable context only (#841 F6)', () => {
   it('a slot with no stable day is refused, never guessed', () => {
     const { store, writer } = build()
     writer.addManualCandidate({ key: 'lunch', label: 'Lunch', candidates: [] } as never, hit('a'))
-    expect(toasts[0]).toMatch(/no stable day/)
+    expect(toasts[0]).toMatch(/Day · Not ready/)
     expect(store.picksFor({ tripId: 'trip-1', dayId: 'day-a', slotKey: 'lunch' })).toEqual([])
   })
 

@@ -10,12 +10,15 @@ import { describe, expect, it } from 'vitest'
 import { coordValid } from '../src/lib/routing'
 import { buildRoadChain } from '../src/lib/tripRoad'
 import { overviewRoutePoints, routeWeatherAnchor } from '../src/lib/overviewTruth'
+import type { ItineraryDay, ItineraryStop } from '../src/data/types'
 
-const stop = (over: Partial<{ lat: number; lng: number; status?: string; orderInDay: number; title: string }> = {}) => ({
-  lat: 15.5, lng: 73.9, orderInDay: 0, title: 'Stop', ...over,
+const stop = (over: Partial<ItineraryStop> = {}): ItineraryStop => ({
+  id: 's1', title: 'Stop', category: 'sightseeing', locationName: 'Stop',
+  lat: 15.5, lng: 73.9, visitMinutes: 30, entryFeeInrPerPerson: 0,
+  transportCostInrTotal: 0, priority: 'must-do', status: 'confirmed', orderInDay: 0, ...over,
 })
-const day = (over: Partial<{ index: number; stops: ReturnType<typeof stop>[] }> = {}) => ({
-  index: 0, stops: [stop()], ...over,
+const day = (over: Partial<ItineraryDay> = {}): ItineraryDay => ({
+  id: `d${over.index ?? 0}`, index: 0, stops: [stop()], ...over,
 })
 const tripOf = (over: Partial<Parameters<typeof buildRoadChain>[0]> = {}) => ({
   startLocationCoords: { lat: 12.97, lng: 77.59 },
@@ -92,7 +95,7 @@ describe('#403 — the snapshot uses the road chain, not a second point list', (
     const trip = tripOf({ roundTrip: true })
     const chain = buildRoadChain(trip).points
     const pts = overviewRoutePoints(trip)
-    expect(pts[pts.length - 1]).toMatchObject({ lat: trip.startLocationCoords.lat, lng: trip.startLocationCoords.lng })
+    expect(pts[pts.length - 1]).toMatchObject({ lat: trip.startLocationCoords!.lat, lng: trip.startLocationCoords!.lng })
     expect(pts).toHaveLength(chain.length)
   })
 
@@ -143,7 +146,6 @@ describe('#403 — the snapshot uses the road chain, not a second point list', (
 describe('#403 — the weather anchor refuses a poisoned centroid', () => {
   const weatherTrip = (stops: ReturnType<typeof stop>[]) =>
     ({ days: [day({ stops })] }) as never as Parameters<typeof routeWeatherAnchor>[0]
-
   it('a (0,0) stop does not drag the forecast into the Atlantic', () => {
     // The old average summed every non-rejected stop, so ONE placeholder moved
     // the anchor by half the distance to Null Island — and the fetch SUCCEEDED

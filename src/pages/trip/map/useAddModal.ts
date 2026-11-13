@@ -55,7 +55,7 @@ export function useAddModal({ identity, dayForKm, days }: UseAddModalDeps): {
     // Duplicate guard (#179 family): a place already in the plan (matched by
     // title) can't be added again from ANY path — the map-pin "+", a search
     // row, or the shortlist tray — so the modal never opens for a repeat.
-    if (isAlreadyAdded(hit, identity)) { toast(`“${hit.name}” is already in your trip.`); return }
+    if (isAlreadyAdded(hit, identity)) { toast(`“${hit.name}” · Already planned`); return }
     // Pick-day default: prefer the caller's road position (search rows pass the
     // along-route km they already measured — searchPlacesText hits carry NO
     // cumKm, so reading hit.cumKm alone always defaulted to Day 1), else the

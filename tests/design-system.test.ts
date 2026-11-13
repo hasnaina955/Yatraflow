@@ -11,7 +11,7 @@ const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
 
 const srcRoot = new URL('../src/', import.meta.url)
-const sourceFiles = readdirSync(srcRoot, { recursive: true })
+const sourceFiles = readdirSync(srcRoot, { recursive: true, encoding: 'utf8' })
   .filter((f) => /\.tsx?$/.test(f))
   .map((f) => {
     const rel = 'src/' + f.split('\\').join('/')
@@ -173,7 +173,7 @@ describe('one green (#0D8D82)', () => {
   })
 
   it('keeps the map palette, logo mark and favicon on the unified green', () => {
-    expect(source('src/components/TripMap.tsx')).toContain("const DAY_COLORS = ['#0D8D82'")
+    expect(source('src/lib/mapStyles/dayColors.ts')).toContain("export const DAY_COLORS = ['#0D8D82'")
     // The Ribbon Y reads the teal ladder so it follows the theme; its fallbacks
     // and the static favicon stay on the one brand green.
     expect(source('src/components/ui.tsx')).toContain("stroke: 'var(--teal-500, #0D8D82)'")
@@ -1174,7 +1174,7 @@ describe('categorical palettes: hues stay distinguishable', () => {
   }
 
   it('introduces no new hue collision', () => {
-    const daySource = source('src/components/TripMap.tsx').match(/const DAY_COLORS = \[([^\]]+)\]/)?.[1] ?? ''
+    const daySource = source('src/lib/mapStyles/dayColors.ts').match(/export const DAY_COLORS = \[([^\]]+)\]/)?.[1] ?? ''
     const days = [...daySource.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0])
     expect(days.length, 'DAY_COLORS must parse').toBeGreaterThanOrEqual(7)
 
@@ -1428,13 +1428,13 @@ describe('a surface that appears carries motion (AGENTS §2.10)', () => {
    *  literal counts: the page's own text is what the gate greps). */
   const rootClassName = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement): string | null => {
     for (const attr of el.attributes.properties) {
-      if (!ts.isJsxAttribute(attr) || attr.name.text !== 'className') continue
+      if (!ts.isJsxAttribute(attr) || !ts.isIdentifier(attr.name) || attr.name.text !== 'className') continue
       let init: ts.Expression | undefined = attr.initializer
       if (!init) return ''
       // `className={\`...\`}` wraps the value in a JsxExpression; unwrap it.
       if (ts.isJsxExpression(init)) init = init.expression
-      if (!init || init.kind === ts.SyntaxKind.NullLiteral) return null
-      if (ts.isStringLiteral(init) || init.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral) return init.text
+      if (!init || init.kind === ts.SyntaxKind.NullKeyword) return null
+      if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) return init.text
       return init.getText()
     }
     return null
@@ -1453,7 +1453,7 @@ describe('a surface that appears carries motion (AGENTS §2.10)', () => {
     if (ts.isBinaryExpression(expr) && (expr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken || expr.operatorToken.kind === ts.SyntaxKind.BarBarToken)) {
       jsxRoots(expr.left, out, file, component, depth + 1); jsxRoots(expr.right, out, file, component, depth + 1); return
     }
-    if (expr.kind === ts.SyntaxKind.NullLiteral || expr.kind === ts.SyntaxKind.NullKeyword || expr.getText() === 'null') return
+    if (expr.kind === ts.SyntaxKind.NullKeyword || expr.getText() === 'null') return
     out.push({ file, component, line: lineOf(expr), cls: null, kind: 'unresolved', detail: expr.getText().slice(0, 60) })
   }
 

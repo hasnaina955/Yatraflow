@@ -4,6 +4,7 @@ Start here. The codebase is documented across the files below — read the ones 
 
 | Doc | What's in it |
 |---|---|
+| [`redesign/map-v2/IMPLEMENTATION.md`](redesign/map-v2/IMPLEMENTATION.md) | Map workspace UI, synthetic fixture, data boundaries and open acceptance gates. |
 | [`redesign/papercut-warmth/REFERENCES.md`](redesign/papercut-warmth/REFERENCES.md) | Papercut source manifest, authority and conflicts. The execution plan is in ROADMAP. |
 | [`redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md`](redesign/p2-p12-combined/IMPLEMENTATION-SPEC.md) | Trip workspace header and Overview implementation spec. It records the 28 October source direction and the P2 behavior contracts. |
 | [`dev/evidence/README.md`](../dev/evidence/README.md) | Overview fixture evidence and its signed-in verification limits. |
@@ -11,6 +12,7 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`README.md`](../README.md) | Project overview, features, MVP scope, roadmap, quick start. The front door. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the pieces fit: data model, store, engine math, AI, geocoding, routing, maps, theming, extension points, gotchas. Read before changing core logic. |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | Supabase setup, Vercel + other static hosts, env vars, release checklist. |
+| [`supabase-types.md`](supabase-types.md) | How-to: the generated Supabase database types in `src/types/database.generated.ts`, how to regenerate them, and their drift limits. Nothing imports them yet. |
 | [`OFFLINE-REPLAY-783.md`](OFFLINE-REPLAY-783.md) | Offline replay audit, conflict choices, account boundaries, tests, and migration rollout. |
 | [`agents/collab-command-contract.md`](agents/collab-command-contract.md) | Reference: Stage A suggestion and decision RPC commands, receipts, restore rules, and cutover order. |
 | [`APK-UPDATE-FEED.md`](APK-UPDATE-FEED.md) | Reference: the Android update feed — the manifest contract, the proposed endpoint, the version-code rule, and the activation steps that still need approval. |
@@ -28,7 +30,7 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`PERFORMANCE_AUDIT_2026-09-05.md`](PERFORMANCE_AUDIT_2026-09-05.md) | ⚠️ HISTORICAL audit (2026-09-05): the bundle/chunk and render-path findings that drove the M3 performance work (store immutability, slice selectors, memoised day sections, route-level `lazy`, fetch dedup). Kept for the measurements; the fixes landed in v0.49–v0.53. |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Setup + ground rules for contributors. |
 | [`AGENTS.md`](../AGENTS.md) | Operating manual for AI coding agents. **Start here** — workflow rules, branch model, and where everything else lives (it is short on purpose; the detail is behind pointers). Includes the documentation protocol (§6). |
-| [`CODING_STANDARDS.md`](../CODING_STANDARDS.md) | Conventions and hard-won pitfalls, indexed **by what you are changing**. Read during review. Holds `AGENTS.md` §4 plus the pitfall rules §2.6a–§2.6ah; their numbers are unchanged. The domain entries live in the three `standards/` files below. |
+| [`CODING_STANDARDS.md`](../CODING_STANDARDS.md) | Conventions and hard-won pitfalls, indexed **by what you are changing**. Read during review. Holds `AGENTS.md` §4 plus the pitfall rules §2.6a–§2.6bk; their numbers are unchanged. The domain entries live in the three `standards/` files below. |
 | [`standards/store-persistence.md`](standards/store-persistence.md) | Reference: the store/persistence convention entries, split verbatim out of `CODING_STANDARDS.md` §2 (2026-10-05) — write-through, Supabase `{error}`, RLS probes, the covers bucket, offline cache/queue, import quality. |
 | [`standards/maps-and-providers.md`](standards/maps-and-providers.md) | Reference: the maps/provider convention entries, split verbatim out of `CODING_STANDARDS.md` §2 (2026-10-05) — basemaps, glyph stacks, quota SKUs, Null Island coords, route measurement, suggestion-cache persistence. |
 | [`standards/ui-and-design-system.md`](standards/ui-and-design-system.md) | Reference: the UI/design-system convention entries, split verbatim out of `CODING_STANDARDS.md` §2 (2026-10-05) — the CSS cascade traps, contrast ratchets, motion tokens, a11y, z-index, chunking. |
@@ -38,6 +40,7 @@ Start here. The codebase is documented across the files below — read the ones 
 | [`evidence/css-3-batches.md`](evidence/css-3-batches.md) | Evidence (2026-10-29): CSS-3 batches. B0 enforcement rules and fixtures, B1 token consolidation with the declaration signature proof, the results, and the measurement limits. |
 | [`evidence/css-1-extraction.md`](evidence/css-1-extraction.md) | Evidence (2026-10-29): stage CSS-1. The slice table, the frozen input fingerprint, the ordered-parse and built-CSS equivalence, the commands and the one-step rollback. |
 | [`AGENTS-VERIFICATION.md`](AGENTS-VERIFICATION.md) | The `npm run verify` gate, the shell traps that make it lie, what CI runs per destination (§3.1), and the migration status check `verify` cannot see (§3.2). |
+| [`scripts/README.md`](../scripts/README.md) | Reference: every tracked file under `scripts/`, with its purpose, how it runs, and its status. |
 | [`../GLOSSARY.md`](../GLOSSARY.md) | Reference: the domain vocabulary — plan, crew, road measurement, publishing and session terms — each entry grounded in the export that defines it and stating the traps (day `index` vs array position, 1-based `orderInDay`, INTO-legs, unpublish-is-a-marker). Read before naming a domain term in code or in a brief. |
 | [`adr/`](adr/) | Decision records: expensive-to-reverse, surprising, or contested choices. An Accepted ADR is never edited — it is superseded. Begins with the two-branch release model and the mockup palette decision. |
 | [`../.out-of-scope/`](../.out-of-scope/) | One file per **rejected feature request**, so `triage` stops re-litigating a decision already made. Not for bugs, and not for milestone-scope deferrals (those go in ROADMAP's idea bank). |
@@ -88,4 +91,7 @@ Start here. The codebase is documented across the files below — read the ones 
 - [`diagrams/yatraflow-architecture.json`](diagrams/yatraflow-architecture.json) — hand-authored source of the architecture diagram; the generated `.html` is gitignored (regenerate from the JSON, don't hand-edit).
 
 ## Changelog
+- [`changelog.d/README.md`](../changelog.d/README.md) — fragment format, coverage checks, and release assembly.
 - [`CHANGELOG.md`](../CHANGELOG.md) — every notable change, Keep-a-Changelog style.
+
+The Map basemap styles have one home in `src/lib/mapStyles/`.

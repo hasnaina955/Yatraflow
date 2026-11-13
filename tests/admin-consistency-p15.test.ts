@@ -28,7 +28,7 @@ describe('P15 — the page scope, the header and the tab row', () => {
     expect(page).toMatch(/<PageHeader\s+kicker="Admin"/)
     expect(page).toMatch(/headline=\{\{ lead: 'Master admin' \}\}/)
     // #367 — the boundary sentence the console exists to state.
-    expect(page).toContain('Full-control console — every destructive action is audit-logged.')
+    expect(page).toContain('Full-control console. Every destructive action is audit-logged.')
     expect(page).toContain('Actions taken here are logged. Actions taken through the regular workspace are not.')
     expect(page).not.toMatch(/<h1[\s>]/)
   })

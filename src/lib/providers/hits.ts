@@ -7,7 +7,49 @@ import type { VehicleProfile } from '../../data/types'
 // exercise this module directly.
 import { haversineKm } from '../geo'
 import type { DnaVector } from '../tripDna'
+import type { PlaceHours } from './hours'
+import type { PlaceFamily } from './families'
 import type { PlaceExposure } from '../../data/types'
+
+/**
+ * One road measurement, bound to the hit and the route context it was taken
+ * under. A fact for another hit, another route or another generation must not
+ * be applied; stale fields are removed by the bridge, not left to age.
+ */
+export interface MeasuredRoadFact {
+  /** the hit this fact belongs to */
+  hitId: string
+  /** stable identity of the measurement origin (the pair's shared start) */
+  originKey: string
+  /** route fingerprint and generation of the active route when measured */
+  routeFingerprint: string
+  generation: number
+  /** departure clock (minutes since local midnight) both legs were measured at */
+  departAtMin: number
+  /** measured extra driving for the complete pair — charged once */
+  detourMin: number
+  /** measured directed arrival leg (origin -> place) */
+  arriveMin: number
+}
+
+/**
+ * One Google photo reference. It holds no image bytes and no key.
+ * Google rules say the author text must show with the photo.
+ */
+export interface PlacePhotoRef {
+  /** Google resource name, for example "places/ID/photos/REF" */
+  name: string
+  widthPx: number | null
+  heightPx: number | null
+  attribution: { text: string; authorUri: string | null }
+}
+
+/** Short card facts for one place. See `PlaceHit.facts`. */
+export interface PlaceFacts {
+  why?: string
+  kind?: string
+  diet?: string
+}
 
 export interface PlaceHit {
   id: number | string
@@ -33,12 +75,55 @@ export interface PlaceHit {
   /** reported opening hours "HH:MM" — Google hits only, rendered as "reported" */
   openTime?: string
   closeTime?: string
+  /** An explicit start inside a lens's free window, in minutes since local
+   *  midnight. Only a lens writer sets it; the stop it creates keeps the clock. */
+  plannedStartMin?: number
+  /**
+   * structured opening-hours facts (ticket 02): weekday-attributed intervals
+   * (split + overnight), source basis and fetch date. The legacy open/closeTime
+   * pair above stays for undated display and pre-existing consumers; verdicts
+   * (open / closed / unknown for a visit) come from here when present.
+   */
+  hours?: PlaceHours
+  /**
+   * source family + subtype when classification refined the category
+   * (ticket 09) — 'water' | 'nature' | 'views' | 'faith' | 'heritage' |
+   * 'culture'. Undefined = generic (no evidence or a non-family category);
+   * confirmed subtype facts come only from complete source rows.
+   */
+  family?: PlaceFamily
+  subtype?: string
+  /**
+   * Short card facts a provider or a sample supplies. Each part is optional and
+   * shows only when present: a free-stack hit carries none, and the card then
+   * shows nothing. Never filled by a guess.
+   *  why     — one short line on why the place fits ("breaks a 2 h ghat stretch")
+   *  kind    — the kind line ("Kerala meals", "South Indian", "Kalaripayattu show")
+   *  diet    — the food type ("veg and non-veg")
+   */
+  facts?: PlaceFacts
   /** Google rating 1–5 — present on Google hits when the mask returns it */
   rating?: number
   /** Google review count — gates the rating boost against thin samples */
   ratingCount?: number
+  /**
+   * Up to three Google photo references. Each has its own attribution.
+   * Set only when a Google key is on. A scan never fetches the image.
+   */
+  photos?: PlacePhotoRef[]
   /** real road detour in km (Google routingSummaries); undefined when unknown */
   offRouteKm?: number
+  /**
+   * ROAD-MEASURED facts for this hit, bound to the route context they were
+   * measured under (ticket 11, repaired). One record, so cost, arrival and
+   * context can never drift apart: the measured extra driving is charged ONCE
+   * (24 for a 60-baseline/84-via pair, never 48), the directed arrival leg is
+   * the via route's origin-to-place leg, and the departure clock plus route
+   * identity say when the evidence applies. A consumer must check the record
+   * before use; see candidateArrival.ts. Invalid values are ignored, never
+   * read as free.
+   */
+  measuredRoadFact?: MeasuredRoadFact
   // ---- ride-plan annotations (filled by src/lib/ridePlan.ts + providers) ----
   /** road km along the route from the journey origin (Google leg0/1000; free = coarse anchor position) */
   alongRouteKm?: number
@@ -117,6 +202,15 @@ export function distToNearest(h: Pick<PlaceHit, 'latitude' | 'longitude'>, ancho
   return Math.min(...anchors.map(a => haversineKm(h.latitude, h.longitude, a.lat, a.lng) * 1000))
 }
 
+/**
+ * A supplied detour distance is usable only when it is a finite, non-negative
+ * number of km. Missing, negative or non-finite evidence stays unknown — it is
+ * never read as free.
+ */
+function usableDetourKm(v: number | undefined | null): number | null {
+  return v != null && Number.isFinite(v) && v >= 0 ? v : null
+}
+
 /** How far a hit sits off the route corridor, in km (real road detour when known).
  *  Returns null when the detour is genuinely unknown (Google along-route hits with no
  *  computed detour) so the UI can say "on route" instead of a misleading straight-line estimate. */
@@ -124,7 +218,10 @@ export function detourKm(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
   anchors: { lat: number; lng: number }[],
 ): number | null {
-  if (h.offRouteKm != null && Number.isFinite(h.offRouteKm)) return h.offRouteKm
+  const known = usableDetourKm(h.offRouteKm)
+  if (known != null) return known
+  // Supplied but invalid evidence (negative or non-finite) stays unknown.
+  if (h.offRouteKm != null) return null
   // Google Search-Along-Route hits already hug the polyline, so a straight-line fallback
   // would report a misleadingly tiny "off route" distance. When the real detour is unknown,
   // return null and let the UI say "on route".
@@ -177,17 +274,22 @@ export function spurKm(
 }
 
 /**
- * Asymmetric detour: a destination ON the road is on-the-way (~0 detour —
- * you pass it), a destination off the road pays a one-way spur (the caller
- * doubles it to out-and-back). When no polyline is available it falls back to
- * the straight-line-to-anchor measure. Google's real road detour always wins.
+ * Asymmetric one-way detour: a destination ON the road is on-the-way (~0 km —
+ * you pass it), a destination off the road pays a one-way spur. When no
+ * polyline is available it falls back to the straight-line-to-anchor measure.
+ * Supplied road evidence always wins. Returns null when the detour is unknown
+ * or the supplied evidence is invalid; never returns a negative distance.
  */
 export function asymmetricDetourKm(
   h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
 ): number | null {
-  if (h.offRouteKm != null && Number.isFinite(h.offRouteKm)) return h.offRouteKm
+  const known = usableDetourKm(h.offRouteKm)
+  if (known != null) return known
+  // Supplied but invalid evidence stays unknown instead of falling through to
+  // a geometric guess that could read as free.
+  if (h.offRouteKm != null) return null
   if (h.fromGoogleAlongRoute) return null // on the polyline, no real detour known
   if (routePolyline && routePolyline.length >= 2) {
     const spur = spurKm(h, routePolyline)
@@ -197,20 +299,30 @@ export function asymmetricDetourKm(
 }
 
 /**
- * Asymmetric detour in minutes at the trip's speed. On-the-way hits cost ~0;
- * off-road hits are the spur (doubled by scorers). Falls back to the current
- * symmetric minute math when there's no route geometry to measure against.
+ * Return-driving time in minutes at the trip's speed: the one-way detour out
+ * to the place plus the drive back. An on-the-way hit costs 0; an 8 km spur at
+ * 40 km/h costs 24 minutes. Unknown or invalid detours return null — never 0,
+ * so a broken measurement cannot ride for free.
  */
 export function asymmetricDetourMinutes(
-  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute'>,
+  h: Pick<PlaceHit, 'latitude' | 'longitude' | 'offRouteKm' | 'fromGoogleAlongRoute' | 'measuredRoadFact'>,
   anchors: { lat: number; lng: number }[],
   routePolyline?: { lat: number; lng: number }[] | null,
   speedKmph?: number,
 ): number | null {
   const speed = speedKmph != null && Number.isFinite(speedKmph) && speedKmph > 0 ? speedKmph : DEFAULT_SPEED_KMH
-  if (h.fromGoogleAlongRoute) return 0
+  // Ticket 11 (repaired): a road-measured fact wins over every estimate. The
+  // stored value is the COMPLETE extra driving (via − baseline, out-and-back
+  // inherent) — charged ONCE, returned VERBATIM. Doubling it (the old
+  // `×2`) manufactured 48 minutes out of a real 24 (progress review P1).
+  // Invalid values are ignored — never read as free — and the estimate paths
+  // apply as before. The directed arrival leg lives in the same record and is
+  // consumed by candidateArrival.ts, never derived as detour/2.
+  const measured = h.measuredRoadFact?.detourMin
+  if (measured != null && Number.isFinite(measured) && measured >= 0) return measured
   const km = asymmetricDetourKm(h, anchors, routePolyline ?? undefined)
-  return km == null ? null : (km / speed) * 60
+  if (km == null) return null
+  return ((km / speed) * 60) * 2
 }
 
 /**
@@ -354,6 +466,8 @@ export function routeHash(geometry: [number, number][] | null): string {
 }
 
 export interface NearbyOpts {
+  /** Reports search reach after a successful provider read. */
+  onCoverage?: (coverage: DiscoveryCoverage) => void
   /** include petrol pumps as pit stops (self-drive trips only, capped) */
   includeFuel?: boolean
   /** EV drive (#144B): replace fuel cadence with charge cadence — mutually
@@ -382,6 +496,12 @@ export interface NearbyOpts {
   purposes?: HaltPurpose[]
   /** Vehicle profile for accurate fuel/charging cadence. */
   vehicleProfile?: VehicleProfile
+  /**
+   * Spread the kept places along the road: take the best place of each
+   * stretch this many km long in turn. One famous town can then not fill
+   * every slot. Hits with no road position share one stretch.
+   */
+  spreadKm?: number
   /** Crew size — tunes the fatigue cadence (see cadenceForCrew). */
   travellers?: number
   /** Trip travel style — tunes the fatigue cadence (see cadenceForCrew). */
@@ -413,6 +533,49 @@ export interface NearbyOpts {
   dnaVector?: DnaVector
   /** Cancels an in-flight provider scan when a newer Map action supersedes it. */
   signal?: AbortSignal
+}
+
+export interface DiscoveryCoverage {
+  method: 'circles' | 'route-bias'
+  totalKm: number | null
+  /** A lower bound for circle searches. Null means reach is not measured. */
+  coveredKm: number | null
+  anchorCount: number
+  radiusM: number
+  complete: boolean
+}
+
+/** Measures a conservative lower bound. Each counted road piece fits inside one query circle. */
+export function circleCoverage(
+  road: readonly { lat: number; lng: number }[] | null,
+  anchors: readonly { lat: number; lng: number }[],
+  radiusM: number,
+): DiscoveryCoverage {
+  let totalKm = 0
+  let coveredKm = 0
+  for (let i = 1; road && i < road.length; i++) {
+    const a = road[i - 1]
+    const b = road[i]
+    const length = haversineKm(a.lat, a.lng, b.lat, b.lng)
+    totalKm += length
+    const pieces = Math.max(1, Math.ceil(length / 0.5))
+    const pieceKm = length / pieces
+    for (let j = 0; j < pieces; j++) {
+      const f = (j + 0.5) / pieces
+      const lat = a.lat + (b.lat - a.lat) * f
+      const lng = a.lng + (b.lng - a.lng) * f
+      if (anchors.some(p => haversineKm(lat, lng, p.lat, p.lng) + pieceKm / 2 <= radiusM / 1000)) {
+        coveredKm += pieceKm
+      }
+    }
+  }
+  const hasRoad = road != null && road.length >= 2
+  return {
+    method: 'circles', totalKm: hasRoad ? totalKm : null,
+    coveredKm: hasRoad ? Math.min(totalKm, coveredKm) : null,
+    anchorCount: anchors.length, radiusM,
+    complete: hasRoad && totalKm > 0 && totalKm - coveredKm < 0.001,
+  }
 }
 
 /**
@@ -473,6 +636,27 @@ export const CATEGORY_PRIORITY: Record<string, number> = {
   food: 2, event: 2, travel: 2, rest: 3, hotel: 3, 'transport-hub': 4, shopping: 5,
 }
 
+/**
+ * Prior for the quality average. A place with no reviews reads as 4.0.
+ * Twenty reviews weigh as much as the prior.
+ */
+const QUALITY_PRIOR_MEAN = 4.0
+const QUALITY_PRIOR_WEIGHT = 20
+/** Below this many reviews a rating earns no ranking bonus. */
+const MIN_REVIEWS_FOR_BONUS = 10
+
+/**
+ * Bayesian average of a Google rating. Few reviews pull the result towards the
+ * prior, so five stars from three people cannot beat 4.6 from hundreds.
+ * Returns null when the rating or the review count is missing or invalid.
+ */
+export function calibratedQuality(h: Pick<PlaceHit, 'rating' | 'ratingCount'>): number | null {
+  const { rating, ratingCount } = h
+  if (rating == null || !Number.isFinite(rating) || rating < 1 || rating > 5) return null
+  if (ratingCount == null || !Number.isFinite(ratingCount) || ratingCount < 1) return null
+  return (QUALITY_PRIOR_WEIGHT * QUALITY_PRIOR_MEAN + ratingCount * rating) / (QUALITY_PRIOR_WEIGHT + ratingCount)
+}
+
 export function poiTouristScore(
   h: PlaceHit,
   anchors: { lat: number; lng: number }[],
@@ -485,13 +669,11 @@ export function poiTouristScore(
   if ((h.description ?? '').length > 40) s += 3
   if (cat === 'sightseeing' || cat === 'nature' || cat === 'beach' || cat === 'temple' || cat === 'museum') s += 3
   if (categoryBias && categoryBias[cat]) s += categoryBias[cat] // itinerary gaps
-  // Google ratings: trusted samples only (10+ reviews). Strong picks outrank
-  // geography-only equals; free-mode hits without ratings score as before.
-  const rc = h.ratingCount ?? 0
-  if (rc >= 10 && h.rating != null && Number.isFinite(h.rating)) {
-    if (h.rating >= 4.5) s += 4
-    else if (h.rating >= 4.0) s += 2
-  }
+  // Google ratings count only from ten reviews. Above that, the bonus follows
+  // the calibrated quality, grows above the prior and stops at 4, below one
+  // category tier (8). Hits without a usable rating score as before.
+  const quality = (h.ratingCount ?? 0) >= MIN_REVIEWS_FOR_BONUS ? calibratedQuality(h) : null
+  if (quality != null) s += Math.min(4, Math.max(0, (quality - QUALITY_PRIOR_MEAN) * 8))
   const frac = Math.min(1, distToNearest(h, anchors) / Math.max(1, radiusM))
   s -= frac * 6
   return s
@@ -535,7 +717,7 @@ export function dedupeCandidates<T extends Pick<PlaceHit, 'latitude' | 'longitud
   return out
 }
 
-export interface PlannedStop {
+interface PlannedStop {
   lat: number
   lng: number
   name?: string
@@ -571,6 +753,43 @@ export function nearbyHitKey(h: Pick<PlaceHit, 'latitude' | 'longitude' | 'name'
   return `${h.latitude},${h.longitude},${h.name}`
 }
 
+/** The length of one road stretch when picks spread along a drive. */
+export const ROUTE_STRETCH_KM = 60
+
+/** How many corridor picks a drive keeps: 16 up to 200 km, then 16 for each
+ *  200 km, up to 32. An unknown length keeps 16. */
+export function corridorPickCount(routeKm: number | null | undefined): number {
+  if (routeKm == null || !Number.isFinite(routeKm) || routeKm <= 0) return 16
+  return Math.min(32, Math.max(16, Math.round((routeKm / 200) * 16)))
+}
+
+/** The length of a [lng, lat] line in km. */
+export function polylineKm(coords: readonly [number, number][] | null | undefined): number | null {
+  if (!coords || coords.length < 2) return null
+  let km = 0
+  for (let i = 1; i < coords.length; i++) km += haversineKm(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0])
+  return Number.isFinite(km) ? km : null
+}
+
+/** Interleave hits by road stretch: the best of each stretch, then the
+ *  second best of each, and so on. The input is in score order. */
+export function spreadByStretch<T extends Pick<PlaceHit, 'alongRouteKm'>>(hits: readonly T[], stretchKm: number): T[] {
+  const buckets = new Map<number, T[]>()
+  for (const h of hits) {
+    const km = h.alongRouteKm
+    const key = km != null && Number.isFinite(km) ? Math.floor(Math.max(0, km) / stretchKm) : -1
+    const list = buckets.get(key)
+    if (list) list.push(h)
+    else buckets.set(key, [h])
+  }
+  const lists = [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(entry => entry[1])
+  const out: T[] = []
+  for (let round = 0; out.length < hits.length; round++) {
+    for (const list of lists) if (round < list.length) out.push(list[round])
+  }
+  return out
+}
+
 /**
  * Shared tail of every nearby search: drop hits in the home zone around the
  * trip's start, rank by tourist value (+ itinerary-gap bias), then greedy-pick
@@ -591,6 +810,8 @@ export function rankAndCap(
   homeFiltered.sort((a, b) =>
     poiTouristScore(b, anchors, radiusM, opts.categoryBias) - poiTouristScore(a, anchors, radiusM, opts.categoryBias))
   const deduped = dedupeCandidates(homeFiltered)
+  const spread = opts.spreadKm != null && opts.spreadKm > 0
+  const order = spread ? spreadByStretch(deduped, opts.spreadKm!) : deduped
   const catCap = Math.max(3, Math.ceil(count / 3))
   // 'a couple of pit stops' — the documented cap, and harder than every other
   // category's: fuel exists to break a drive, not to become the list (#565).
@@ -598,7 +819,7 @@ export function rankAndCap(
   const used = new Map<string, number>()
   const out: PlaceHit[] = []
   let fuelUsed = 0
-  for (const h of deduped) {
+  for (const h of order) {
     if (out.length >= count) break
     const k = h.category ?? 'sightseeing'
     if (k === 'transport-hub') {
@@ -611,5 +832,7 @@ export function rankAndCap(
     }
     out.push(h)
   }
+  // The spread only chooses which places stay. They keep their score order.
+  if (spread) out.sort((a, b) => deduped.indexOf(a) - deduped.indexOf(b))
   return out
 }

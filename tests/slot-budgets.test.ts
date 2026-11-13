@@ -20,6 +20,7 @@ const mapTab = read('../src/pages/trip/MapTab.tsx')
 const writersSrc = read('../src/pages/trip/map/useMapWriters.ts')
 // #420 slice 14: the deps memo lives in the day-slots hook; the pins follow it.
 const hook = read('../src/pages/trip/map/useDaySlots.ts')
+const workspace = read('../src/pages/TripWorkspace.tsx')
 const daySlotsSrc = read('../src/lib/daySlots.ts')
 const cacheSrc = read('../src/hooks/useSuggestionCache.ts')
 
@@ -57,11 +58,11 @@ describe('#344 — slot and rail budget from the same base', () => {
     expect(dayDetourBudgetMin({ travelStyle: 'balanced', plannedStops: 4, })).toBe(35)
   })
 
-  it('MapTab does not pass a single shared plannedStops into daySlotDeps (per-day derivation instead)', () => {
+  it('the shared deps do not pass a single shared plannedStops (per-day derivation instead)', () => {
     // A single shared count would charge every day of tripReadiness' matrix
     // the ACTIVE day's density; the per-day derivation in candidatesFor is
     // the fix, so the deps must not carry the prop at all.
-    expect(hook).toMatch(/const daySlotDeps = useMemo<Omit<DaySlotsDeps, 'dayStops'>/)
+    expect(hook).toMatch(/const daySlotDeps = buildDaySlotDeps\(args\)/)
     expect(mapTab).not.toMatch(/plannedStops: /)
   })
 
@@ -128,8 +129,8 @@ describe('#344 — non-finite detours defer, never ride free', () => {
   it('splitByDetourBudget defers NaN detours (the old NaN path landed within)', () => {
     const items = [{ id: 'nan', detourMin: Number.NaN }, { id: 'ok', detourMin: 10 }]
     const { within, deferred } = splitByDetourBudget(items as never, 45)
-    expect(deferred.map(i => (i as { id: string }).id)).toEqual(['nan'])
-    expect(within.map(i => (i as { id: string }).id)).toEqual(['ok'])
+    expect(deferred.map(i => (i as unknown as { id: string }).id)).toEqual(['nan'])
+    expect(within.map(i => (i as unknown as { id: string }).id)).toEqual(['ok'])
   })
 
   it('candidatesFor skips non-finite detours explicitly', () => {
@@ -146,9 +147,9 @@ describe('#344 — the pool is re-scored with the inputs the corridor used', () 
     expect(daySlotsSrc).toMatch(/deps\.homeCenter \? \{ homeCenter: deps\.homeCenter \}/)
   })
 
-  it('MapTab passes the corridor DNA and home centre into daySlotDeps', () => {
-    expect(hook).toMatch(/dnaVector: buildDnaVectorAcrossTrips\(loadDnaLog\(\), crewSeedEvents\(tripId, crewSeeds\)\),/)
-    expect(hook).toMatch(/homeCenter: startLocationCoords \?\? null,\n\s*addedIds,/)
+  it('the workspace passes the corridor DNA and the shared deps keep the home centre', () => {
+    expect(workspace).toMatch(/buildDnaVectorAcrossTrips\(loadDnaLog\(\), crewSeedEvents\(trip\.id, crewSeeds\)\)/)
+    expect(hook).toMatch(/homeCenter: args\.startLocationCoords \?\? null,\n\s*addedIds:/)
   })
 })
 
@@ -186,7 +187,7 @@ describe('#346 — the halt plan persists its pins', () => {
     // stamp a cached plan is checked against — so the version moved to 7, then to 8 for #832, and
     // un-stamped payloads evict rather than hydrating as "always fresh". #842
     // moved it to 9: the hash now covers the ranking inputs (F18).
-    expect(cacheSrc).toMatch(/const CACHE_VERSION = 9/)
+    expect(cacheSrc).toMatch(/const CACHE_VERSION = 10/)
     expect(cacheSrc).toMatch(/#346/)
     expect(cacheSrc).toMatch(/#414/)
   })
@@ -213,7 +214,7 @@ describe('#346 — ONE canonical plan order, both sides', () => {
 
 describe('#346 — a superseded search says so', () => {
   it('commitPlan toasts when it cancels an in-flight search, and the search write is exempt', () => {
-    expect(travelPanel).toMatch(/Plan changed — the spot search was restarted/)
+    expect(travelPanel).toMatch(/Plan changed. The spot search was restarted/)
     expect(travelPanel).toMatch(/searchCommitting/)
   })
 })
@@ -237,7 +238,9 @@ describe('#346 — fills and deletes filter locally', () => {
     // Refresh button + endpoint-change are input changes, not local filters.
     const clears = [...mapTab.matchAll(/suggestionCache\.clearMap\(\)/g)].length
     expect(clears).toBe(2)
-    expect(mapTab).toMatch(/onClick=\{\(\) => \{ suggestionCache\.clearMap\(\); setRefreshTick\(t => t \+ 1\) \}\}/)
+    // The Refresh button and the failed-note Retry share one handler with the same two calls.
+    expect(mapTab).toMatch(/const retryScan = \(\) => \{ suggestionCache\.clearMap\(\); setRefreshTick\(t => t \+ 1\) \}/)
+    expect(mapTab).toMatch(/onClick=\{retryScan\}/)
   })
 
   it('dismiss relies on the same render filtering it always did — no refreshTick', () => {

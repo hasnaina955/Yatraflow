@@ -41,8 +41,8 @@ function bareExport() {
     fixedCommitments: [{ id: 'fc1', dayIndex: 0, title: 'Ferry', time: '09:00' }],
     expenses: [{ id: 'e1', label: 'Fuel', category: 'transport', amountInr: 2000 }],
     days: [
-      { id: 'd1', index: 0, stops: [{ id: 's1', title: 'Fort', lat: 15.5, lng: 73.9, visitMinutes: 60, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, category: 'sightseeing', priority: 'must-do', status: 'confirmed', orderInDay: 1 }] },
-      { id: 'd2', index: 1, stops: [{ id: 's2', title: 'Beach', lat: 15.01, lng: 74.02, visitMinutes: 90, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, category: 'beach', priority: 'must-do', status: 'confirmed', orderInDay: 1 }] },
+      { id: 'd1', index: 0, stops: [{ id: 's1', title: 'Fort', locationName: 'Fort', lat: 15.5, lng: 73.9, visitMinutes: 60, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, category: 'sightseeing', priority: 'must-do', status: 'confirmed', orderInDay: 1 }] },
+      { id: 'd2', index: 1, stops: [{ id: 's2', title: 'Beach', locationName: 'Beach', lat: 15.01, lng: 74.02, visitMinutes: 90, entryFeeInrPerPerson: 0, transportCostInrTotal: 0, category: 'beach', priority: 'must-do', status: 'confirmed', orderInDay: 1 }] },
     ],
   }
 }
@@ -355,7 +355,7 @@ describe('parseTripImport — the repair pass', () => {
     expect(r.trip.days[0].index).toBe(0)
     expect(r.trip.days[1].index).toBe(1)
     expect(r.trip.days[1].stops[0].title).toBe('Beach')
-    expect(r.report.warnings.join(' ')).toMatch(/the day imports empty/)
+    expect(r.report.warnings.join(' ')).toMatch(/The day imports empty/)
   })
 
   it('names the mixed-placeholder case (lat 0 with a real lng)', () => {

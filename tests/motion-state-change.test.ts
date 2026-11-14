@@ -25,7 +25,7 @@ const parse = (rel: string) =>
   ts.createSourceFile(rel, readFileSync(new URL('../src/' + rel, import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 
 const attrOf = (el: ts.JsxOpeningElement | ts.JsxSelfClosingElement, name: string): ts.JsxAttribute | undefined =>
-  el.attributes.properties.find((a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && a.name.text === name)
+  el.attributes.properties.find((a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && ts.isIdentifier(a.name) && a.name.text === name)
 
 const stringValueOf = (attr: ts.JsxAttribute | undefined): string | null => {
   const init = attr?.initializer

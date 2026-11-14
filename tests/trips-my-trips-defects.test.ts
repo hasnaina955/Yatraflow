@@ -245,7 +245,6 @@ vi.mock('../src/lib/supabase', () => {
         onAuthStateChange: () => ({ data: { subscription: {} } }),
         signOut: () => Promise.resolve(),
       },
-      removeChannel: () => Promise.resolve(),
     },
   }
 })

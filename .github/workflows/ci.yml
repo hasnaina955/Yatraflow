@@ -38,13 +38,13 @@ permissions:
 
 jobs:
   verify:
-    name: Verify (tsc + lint ratchet + lint:ste + tests + build)
+    name: Verify (tsc + lint ratchet + lint:ste + changelog + tests + build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          # lint:ste compares against origin/test, so the gate needs full history.
+          # lint:ste and changelog:check compare against origin/test and the PR SHAs, so the gate needs full history.
           fetch-depth: 0
 
       - uses: actions/setup-node@v4

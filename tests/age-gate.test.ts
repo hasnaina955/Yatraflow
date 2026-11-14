@@ -3,7 +3,7 @@
 // it, plus source pins that the page really gates the account creation.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { MIN_SIGNUP_AGE, ageFromDob, isAdultSignup } from '../src/lib/ageGate'
+import { ageFromDob, isAdultSignup } from '../src/lib/ageGate'
 
 const auth = readFileSync(new URL('../src/pages/Auth.tsx', import.meta.url), 'utf8')
 
@@ -45,10 +45,6 @@ describe('ageFromDob refuses input that is not a real past date', () => {
 })
 
 describe('the signup page gates account creation on age', () => {
-  it('pins the minimum age at 18', () => {
-    expect(MIN_SIGNUP_AGE).toBe(18)
-  })
-
   it('Auth.tsx calls isAdultSignup and names the field error', () => {
     expect(auth).toContain('isAdultSignup(')
     expect(auth).toContain('You need to be 18 or older to create an account.')

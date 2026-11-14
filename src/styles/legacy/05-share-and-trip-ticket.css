@@ -60,25 +60,14 @@
   display: grid; align-items: start; gap: 22px;
   grid-template-columns: minmax(0, 1.55fr) minmax(300px, .95fr);
 }
-.ts-controls { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 /* The travel-style rail reuses the workspace tab bar verbatim (.tabbar + .tab-btn);
    inside a form its 20px bottom margin and enabled-looking disabled state are wrong. */
 .ts-form .tabbar { margin-bottom: 0; }
 .ts-form .tab-btn:disabled { opacity: .55; cursor: not-allowed; }
-.ts-receiptcol {
-  position: sticky;
-  top: calc(var(--nav-h) + 18px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-  min-width: 0;
-}
-.ts-receipt-name {
-  margin: 2px 0 10px; font-size: 16px; font-weight: 800; letter-spacing: -.015em;
-  color: var(--text); overflow-wrap: anywhere;
-}
 /* Below the workspace's two-pane width the receipt follows the controls instead of
    floating beside them (sticky would fight the stacked scroll). */
 @media (max-width: 980px) {
   .ts-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-  .ts-receiptcol { position: static; }
 }
 
 /* warning note (implausible fuel economy) — replaces an inline style */
@@ -146,12 +135,6 @@
 .ts-head h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 .ts-head .small { margin: 6px 0 0; font-size: 13.5px; }
 
-.ts-blocks { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; min-width: 0; }
-.ts-block {
-  background: var(--yf-surface); border: 1px solid var(--yf-border); border-radius: 20px;
-  padding: 14px 16px 16px; box-shadow: 0 10px 26px rgba(18, 63, 73, 0.07), 0 2px 5px rgba(18, 63, 73, 0.05);
-  min-width: 0; position: relative;
-}
 /* Elevate the block that owns an OPEN popover, for as long as it exists.
    Two reasons, one rung:
    · the entrance animation (transform only, fill: backwards) gives every block
@@ -162,18 +145,9 @@
      decides where its descendants paint. At `2` the whole calendar painted
      UNDER the fixed bottom dock (--z-dock 55) and its lower rows were
      unreachable on a phone. The floating-chrome rung clears the dock. */
-.ts-block:has(.loc-dropdown), .ts-block:has(.cal-pop) { z-index: var(--z-nav-glass); }
-[data-theme='dark'] .ts-block { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25); }
 .span7 { grid-column: span 7; }
 .span5 { grid-column: span 5; }
 .span12 { grid-column: span 12; }
-.ts-block-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-.ts-block-head .eyebrow { margin: 0; }
-.ts-block-value { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--yf-teal-700); white-space: nowrap; }
-[data-theme='dark'] .ts-block-value { color: var(--yf-teal-600); }
-
-.ts-block .field { margin-bottom: 10px; }
-.ts-block .field:last-child { margin-bottom: 0; }
 /* The original .form-row intent (and .commitment-row's grid tracks) was a
    RESPONSIVE row; the flex override that won globally dropped that, so 4-field
    rows compressed instead of wrapping. flex-basis 160px mirrors the dead grid's
@@ -240,7 +214,6 @@
 [data-theme='dark'] .trip-starter .pill { color: var(--yf-teal-600); }
 
 /* Crew & transport: mode tiles | fuel stack | crew circles */
-.ct-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr); gap: 18px; align-items: start; }
 .group-lab { display: block; color: var(--yf-text-muted); margin-bottom: 7px; }
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .mode-btn {
@@ -287,7 +260,6 @@
 }
 .crew-btn:hover { border-color: color-mix(in srgb, var(--yf-teal-600) 45%, transparent); background: var(--yf-teal-100); }
 .crew-btn.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
-.crew-btn--custom { border-radius: 999px; font-size: 12px; }
 .crew-custom { margin-top: 8px; max-width: 140px; }
 
 /* Quick budget chips (raw buttons — .chip base is global; state here) */
@@ -302,17 +274,7 @@
    it reuses paints a glass stadium around the rail — right for a single-row
    tab bar, but once the pills wrap it reads as one giant blob, so the create
    page strips the container chrome and lets the glider carry the state. */
-.style-carousel {
-  width: 100%; overflow-x: auto; scrollbar-width: none;
-  background: none; border: none; box-shadow: none; padding: 0; border-radius: 14px; margin-bottom: 2px;
-}
-.style-carousel::-webkit-scrollbar { display: none; }
-.style-carousel .tab-btn { white-space: nowrap; flex: none; }
 .style-copy { min-height: 2.4em; margin-top: 8px; }
-@media (min-width: 721px) {
-  .style-carousel { flex-wrap: wrap; overflow: visible; row-gap: 2px; }
-}
-
 /* Single range calendar (replaces the two raw date inputs) */
 .cal-wrap { position: relative; }
 .cal-trigger { position: relative; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
@@ -390,12 +352,6 @@
 .tk-stub { padding: 12px 18px 18px; }
 
 /* Hidden bill → printer slot → textured paper */
-.tk-print-btn {
-  width: 100%; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: rgba(255, 255, 255, 0.1); border: 1px dashed rgba(255, 255, 255, 0.38);
-  color: #F2F7F5; font-weight: 700; font-size: 14px; cursor: pointer;
-}
-.tk-print-btn:hover { background: rgba(255, 255, 255, 0.18); border-style: solid; }
 .tk-fine { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
 .tk-cancel { margin-top: 9px; width: 100%; text-align: center; font-size: 12.5px; color: var(--text-3); background: none; border: none; cursor: pointer; padding: 4px; min-height: 24px; text-decoration: underline; text-underline-offset: 3px; }
 .tk-cancel:hover { color: var(--text-2); }
@@ -485,13 +441,7 @@
    the navbar). `backwards` fills only the pre-animation delay; base state is
    the final frame, so nothing sticks after the entrance. */
 @media (prefers-reduced-motion: no-preference) {
-  .ts-block, .ticket { animation: ts-rise 0.5s var(--ease-out) backwards; }
-  .ts-blocks > .ts-block:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
-  .ts-blocks > .ts-block:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
-  .ts-blocks > .ts-block:nth-child(3) { animation-delay: calc(var(--stagger-step) * 3); }
-  .ts-blocks > .ts-block:nth-child(4) { animation-delay: calc(var(--stagger-step) * 4); }
-  .ts-blocks > .ts-block:nth-child(5) { animation-delay: calc(var(--stagger-step) * 5); }
-  .ts-blocks > .ts-block:nth-child(6) { animation-delay: calc(var(--stagger-step) * 6); }
+  .ticket { animation: ts-rise 0.5s var(--ease-out) backwards; }
   .ticket { animation-delay: 0.24s; }
   @keyframes ts-rise { from { opacity: 0; transform: translateY(10px); } }
 }

@@ -385,7 +385,7 @@ export function ExplorePage({ onNavigate }: { onNavigate: (r: string) => void })
               {gridPubs.length > visibleCount && (
                 <div className="ex-more ex-enter">
                   <button className="btn btn-secondary" type="button" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                    aria-label={`Load more itineraries — ${gridPubs.length - visibleCount} remaining`}>
+                    aria-label={`Load more itineraries: ${gridPubs.length - visibleCount} remaining`}>
                     Load more · {gridPubs.length - visibleCount} more
                   </button>
                 </div>

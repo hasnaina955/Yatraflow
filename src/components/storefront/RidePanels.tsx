@@ -45,6 +45,7 @@ export function RideDayPanel(p: RideArtProps & {
   /** The pace word. Absent when the card may not claim one. */
   pace?: string
   meta: string
+  placeCount?: number
   budget: ReactNode
   /** The timeline of a readable day, or the lock note of a locked one. */
   children: ReactNode
@@ -64,12 +65,12 @@ export function RideDayPanel(p: RideArtProps & {
         <div className="pi-ride-titles">
           <div className="pi-ride-titleline">
             <h2 className="pi-ride-title">{title}</h2>
-            {p.pace ? <span className="pi-pill pi-pill--sand">{p.pace}</span> : null}
+            {p.state !== 'locked' && p.pace ? <span className="pi-pill pi-pill--sand">{p.pace}</span> : null}
           </div>
-          <p className="pi-ride-meta">{p.meta}</p>
+          <p className="pi-ride-meta">{p.state === 'locked' ? p.placeCount === undefined ? 'In the full plan' : `${p.placeCount} places` : p.meta}</p>
         </div>
       </div>
-      <div className="pi-ride-budget">{p.budget}</div>
+      {p.state !== 'locked' && <div className="pi-ride-budget">{p.budget}</div>}
       <div className="pi-ride-body">{p.children}</div>
       {p.footer ? <div className="pi-ride-foot">{p.footer}</div> : null}
     </article>
@@ -86,6 +87,7 @@ export function RideOtherRow(p: RideArtProps & {
   photo?: string
   /** "A → B → C" for a readable day, a count line for a locked one. */
   line: string
+  placeCount?: number
   km: string
   drive: string
   stagger?: number
@@ -105,11 +107,10 @@ export function RideOtherRow(p: RideArtProps & {
           <span className="pi-other-title">{p.state === 'locked' ? `Day ${p.index + 1}` : p.title}</span>
           <span className={'pi-pill pi-pill--' + (p.state === 'locked' ? 'paid' : 'ok')}>{read ? 'Read ✓' : TAG[p.state]}</span>
         </span>
-        <span className="pi-other-line">{p.line}</span>
+        <span className="pi-other-line">{p.state === 'locked' ? p.placeCount === undefined ? 'In the full plan' : `${p.placeCount} places` : p.line}</span>
       </span>
       <span className="pi-other-road">
-        <b>{p.km}</b>
-        <span>{p.drive}</span>
+        {p.state !== 'locked' && <><b>{p.km}</b><span>{p.drive}</span></>}
       </span>
       <button type="button" className="pi-other-open" aria-label={`Open Day ${p.index + 1}`} onClick={p.onOpen}>
         <ChevronDown size={18} aria-hidden />

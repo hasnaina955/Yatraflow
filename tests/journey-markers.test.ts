@@ -25,7 +25,7 @@ describe('extraJourneyMarkers', () => {
       pt({ ...MEHRANGARH, kind: 'visit', title: 'Mehrangarh Fort' }),
     ]
     expect(extraJourneyMarkers(points, [MEHRANGARH])).toEqual([
-      { kind: 'start', label: 'Day start — Chowki Dhani village evening', position: CHOWKI_DHANI },
+      { kind: 'start', label: 'Day start · Chowki Dhani village evening', position: CHOWKI_DHANI },
     ])
   })
 
@@ -48,9 +48,9 @@ describe('extraJourneyMarkers', () => {
     const home = { lat: 15.499, lng: 73.8282 }
     const points = [pt({ ...MEHRANGARH, kind: 'start' }), pt({ ...home, kind: 'destination', title: 'Home', synthesized: true })]
     expect(extraJourneyMarkers(points, [MEHRANGARH], 'return')).toEqual([
-      { kind: 'destination', label: 'Ride home — Home', position: home },
+      { kind: 'destination', label: 'Ride home · Home', position: home },
     ])
-    expect(extraJourneyMarkers(points, [MEHRANGARH], 'outbound')[0]?.label).toBe('Day destination — Home')
+    expect(extraJourneyMarkers(points, [MEHRANGARH], 'outbound')[0]?.label).toBe('Day destination · Home')
   })
 
   it('ignores synthesized points that are not the journey endpoints', () => {

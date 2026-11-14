@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { Trip } from '../../../data/types'
+import { isWireLocked } from '../../../lib/lockedDay'
 import { measureRouteHeights, type RouteHeightInput, type RouteHeightsResult } from '../../../lib/elevation'
 import { activeElevationTileLoader } from '../../../lib/elevationTiles'
 import {
@@ -15,12 +16,19 @@ import {
 type HeightState = { kind: 'loading' } | RouteHeightsResult
 
 export function rideHeightPoints(trip: Trip, freeIndexes: readonly number[]): RouteHeightInput[] {
-  return [...trip.days].sort((a, b) => a.index - b.index)
-    .flatMap(day => [...day.stops].filter(stop => stop.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
-      .map(stop => ({ stop, dayIndex: day.index })))
-    .map((row, chainIndex) => ({ ...row, chainIndex }))
-    .filter(row => freeIndexes.includes(row.dayIndex))
-    .map(({ stop, dayIndex, chainIndex }) => ({ key: stop.id, title: stop.title, kind: 'stop', dayIndex, lat: stop.lat, lng: stop.lng, chainIndex }))
+  const points: RouteHeightInput[] = []
+  let chainIndex = 0
+  for (const day of [...trip.days].sort((a, b) => a.index - b.index)) {
+    if (isWireLocked(day) || !freeIndexes.includes(day.index)) {
+      chainIndex += 1
+      continue
+    }
+    for (const stop of [...day.stops].filter(stop => stop.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)) {
+      points.push({ key: stop.id, title: stop.title, kind: 'stop', dayIndex: day.index, lat: stop.lat, lng: stop.lng, chainIndex })
+      chainIndex += 1
+    }
+  }
+  return points
 }
 
 // The paid-band helpers live in `elevationPlot.ts`, next to the plot they read.
@@ -79,11 +87,11 @@ function oneHeightPath(runs: ReadonlyArray<{ line: string }>): string {
   return path
 }
 
-/** The Ride along side card. One height line runs the whole trip, paid days included. */
+/** The Ride along side card. Withheld days supply no terrain points. */
 export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: readonly number[] }) {
   const dayIndexes = useMemo(() => trip.days.map(day => day.index), [trip])
-  // Paid days give heights only. They never show a place name or a stop. Issue #917 moves their height series to the server.
-  const { result } = useRouteHeights(trip, dayIndexes)
+  // Withheld coordinates must never reach a tile request, including from an older cached trip.
+  const { result } = useRouteHeights(trip, freeIndexes)
   const paidIndexes = useMemo(() => [...dayIndexes].filter(index => !freeIndexes.includes(index)).sort((a, b) => a - b), [dayIndexes, freeIndexes])
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const skyId = `pi-height-sky-${uid}`
@@ -197,4 +205,3 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
     {caption && <p className="pi-height-caption">{caption}</p>}
   </section>
 }
-

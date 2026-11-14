@@ -17,7 +17,7 @@ export const SITE = 'YatraFlow'
 
 /** Route head -> title, for the routes that need nothing looked up. */
 const STATIC: Record<string, string> = {
-  '': `${SITE} — Plan real trips, together`,
+  '': `${SITE}: Plan real trips, together`,
   auth: `Sign in · ${SITE}`,
   trips: `Your trips · ${SITE}`,
   new: `New trip · ${SITE}`,

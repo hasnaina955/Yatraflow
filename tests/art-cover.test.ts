@@ -78,7 +78,7 @@ describe('the handler and the client agree on the scene', () => {
   })
 
   it('has a scene family for every keyword region', () => {
-    for (const region of ['kerala', 'goa', 'rajasthan', 'coorg', 'meghalaya', 'kashmir']) {
+    for (const region of ['kerala', 'goa', 'rajasthan', 'coorg', 'meghalaya', 'kashmir'] as const) {
       expect(ART_MANIFEST.regions[region]?.length, region).toBeGreaterThan(0)
     }
   })

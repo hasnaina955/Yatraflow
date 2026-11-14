@@ -30,7 +30,7 @@ export function useRailView({ dayFocus, dayIndexes }: RailViewArgs) {
   // #415: which rail the narrow-band sheet shows, and whether the sheet is in play
   // at all. false until the width is measured -- the desktop layout is what renders
   // on an unknown width, never a guess that hides a rail.
-  const [sheetTab, setSheetTab] = useState<SheetTabKey>('needs')
+  const [sheetTab, setSheetTab] = useState<SheetTabKey>('see')
   const [sheetApplies, setSheetApplies] = useState(false)
   useEffect(() => {
     const sync = () => setSheetApplies(sheetAppliesAt(typeof window === 'undefined' ? null : window.innerWidth))

@@ -404,6 +404,16 @@
       "variables": []
     },
     {
+      "id": "map-v2-rail",
+      "file": "src/styles/components/map-v2-rail.css",
+      "owned": [],
+      "configClasses": [],
+      "variables": [],
+      "files": [
+        "src/styles/components/map-v2-rail.css"
+      ]
+    },
+    {
       "id": "public-itinerary",
       "file": "src/styles/pages/public-itinerary.css",
       "owned": [],

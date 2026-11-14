@@ -32,9 +32,9 @@ applies: one batch branch per worker group, no push until the user says so.
 3. Check each worker report against `git log` and `git status -sb`. Do not trust a summary.
 4. Do not push or merge without the user's say-so (`AGENTS.md` §2.1, §2.8, §2.11).
 5. Run `git fetch origin` with no wildcard refspec.
-6. Append CSS only at the end of `src/styles.css`.
+6. `src/styles.css` is an import list. Do not add rules to it. Put new CSS in the file under `src/styles/` that owns the selector family (see `docs/css-ownership.json`). `npm run check:css` checks this.
 7. Convert CRLF to LF in source-scanning tests.
-8. Edit `CHANGELOG.md` with editor primitives only (`AGENTS.md` §2.9).
+8. Feature work edits changelog fragments. Apply release patches to `CHANGELOG.md` with editor primitives only (`AGENTS.md` §2.9).
 9. Write prose in STE (`AGENTS.md` §2.13).
 10. Keep the failed, loading and empty states separate. Do not invent data.
 

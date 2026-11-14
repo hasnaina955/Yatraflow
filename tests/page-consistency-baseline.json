@@ -93,6 +93,24 @@
       "inlineStyle": 2,
       "rawH1": 0
     },
+    "src/pages/trip/map/editing/EditCards.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
+    "src/pages/trip/map/MapEditPanel.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
+    "src/pages/trip/map/MinuteScopeControl.tsx": {
+      "EmptyState": 0,
+      "loadingBlock": 0,
+      "inlineStyle": 0,
+      "rawH1": 0
+    },
     "src/pages/trip/map/RailRowViews.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
@@ -108,13 +126,13 @@
     "src/pages/trip/MapOmnibar.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 18,
+      "inlineStyle": 17,
       "rawH1": 0
     },
     "src/pages/trip/MapTab.tsx": {
       "EmptyState": 0,
       "loadingBlock": 0,
-      "inlineStyle": 32,
+      "inlineStyle": 10,
       "rawH1": 0
     },
     "src/pages/trip/MapTabSkeleton.tsx": {
@@ -145,12 +163,6 @@
       "EmptyState": 0,
       "loadingBlock": 0,
       "inlineStyle": 4,
-      "rawH1": 0
-    },
-    "src/pages/trip/timeline/DaySpark.tsx": {
-      "EmptyState": 0,
-      "loadingBlock": 0,
-      "inlineStyle": 0,
       "rawH1": 0
     },
     "src/pages/trip/timeline/FlightsPanel.tsx": {

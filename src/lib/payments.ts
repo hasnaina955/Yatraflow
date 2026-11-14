@@ -18,8 +18,6 @@
 // mirror; the migration pins its SQL twin. Nothing in this file decides
 // WHO may read a locked day — that is RLS (entitlements) + the fork gate.
 
-export const CURRENCY = 'INR'
-
 /** Razorpay test-mode max is ₹1,00,000 per order; the UI caps creators lower
  *  at publish time. Enforced server-side before an order is created. */
 export const MAX_ORDER_AMOUNT_INR = 100_000
@@ -246,15 +244,4 @@ export function hasUnlock(entitlements: Entitlement[], userId: string | null, pu
   if (userId && userId === creatorId) return true
   if (!userId) return false
   return entitlements.some(e => e.userId === userId && e.pubId === pubId)
-}
-
-/** What the checkout API returns to the browser: everything Razorpay's
- *  checkout.js needs to open, plus the ids the verify call echoes back. */
-export interface CheckoutSession {
-  orderId: string
-  orderDraft: OrderDraft
-  /** Amount in paise — checkout.js takes paise, not rupees. */
-  amountPaise: number
-  currency: typeof CURRENCY
-  prefill: { name?: string; email?: string }
 }

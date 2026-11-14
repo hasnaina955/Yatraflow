@@ -251,7 +251,7 @@ export async function attachDnaAccount(client: SupabaseClient | null, userId: st
     const { data, error } = await client.from('user_dna').select('log').eq('user_id', userId).maybeSingle()
     if (error) {
       if (isMissingTableError(error) && !warnedMissingTable) {
-        console.warn('[yatraflow] user_dna missing — run supabase/migrations/20260921_user_dna.sql; Trip DNA stays device-local until then.')
+        console.warn('[yatraflow] user_dna missing: run supabase/migrations/20260921_user_dna.sql; Trip DNA stays device-local until then.')
         warnedMissingTable = true
       }
       return

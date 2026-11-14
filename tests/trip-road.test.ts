@@ -368,7 +368,7 @@ describe('derivations from the one measurement', () => {    const chain: RoadCha
     }
 
   it('derives the return geometry from the measured chain without a destination-tail false positive', () => {
-    const returnLeg = { ...leg(250, 300), geometry: [[77.2, 10.2], [77, 10]] }
+    const returnLeg: RoadLeg = { ...leg(250, 300), geometry: [[77.2, 10.2], [77, 10]] }
     expect(mapReturnGeometryFromLegs(chain, [leg(100, 120), leg(150, 180), returnLeg])).toEqual(returnLeg.geometry)
     const oneWayTail = { ...chain, points: [P(10, 77), P(10.1, 77.1), P(11, 78)], outboundCount: 2, hasDestTail: true }
     expect(mapReturnGeometryFromLegs(oneWayTail, [leg(100, 120), leg(150, 180)])).toBeNull()

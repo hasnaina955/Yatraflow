@@ -3,9 +3,9 @@
 // departure→ETA, the halt planner (HaltPlanDraft/HaltPlanRow) and corridor search.
 // ============ Trip workspace — Timeline tab ============
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
-// Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow, DaySpark,
+// Includes DaySection, DayWeatherChip, TravelPanel, HaltPlanRow,
 // MoveStopModal and ClampedText — the whole timeline hot path.
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
 
   BedDouble, ChevronUp, Coffee, Eye, ExternalLink, Fuel, MapPin,
@@ -26,10 +26,11 @@ import { toast } from '../../../components/ui'
 import { Select } from '../../../components/Select'
 import { useSuggestionCache } from '../../../hooks/useSuggestionCache'
 import { searchNearbyPoisMulti, searchCitiesAlong, corridorAnchors, reasonForHit, filterPlannedNearby, asymmetricDetourMinutes, googleEnabled, googleCitiesAlong, anchorHash, routeHash } from '../../../lib/geocode'
+import { intendedVisitMinutes, visitDatesForPlan } from '../../../lib/hoursContext'
 import type { PlaceHit, SegmentHit } from '../../../lib/geocode'
-import { kmFromStartForHit, type HaltPurpose } from '../../../lib/providers/hits'
+import { hasCoords, kmFromStartForHit, type HaltPurpose } from '../../../lib/providers/hits'
 import { segmentsFromPlan, assignSegmentHits, annotateSegmentHits, type HaltPlanItem } from '../../../lib/ridePlan'
-import { daySlackMin, slackPrompt, pickSlackHit, visitMinutesForCategory } from '../../../lib/slackPrompts'
+import { daySlackMin, slackPrompt, pickSlackHit } from '../../../lib/slackPrompts'
 import { pointAtKm } from '../../../lib/geo'
 import { loadHaltPinsForTrip } from '../../../lib/uiPrefs'
 import { planInputsHash, isHaltCacheFresh } from '../../../hooks/useSuggestionCache'
@@ -37,6 +38,11 @@ import type { LucideIcon } from 'lucide-react'
 import { InlineIcon, MetaIcon } from '../../../components/icons'
 import { FlightsPanel } from './FlightsPanel'
 import { cap } from '../shared'
+import type { TimeFormat } from '../../../lib/timefmt'
+import type { JourneyRow } from '../../../lib/journeyProjection'
+import type { JourneyDay, JourneyStatus } from '../journey/journeyDays'
+import { journeyRowMeta, travelJourneyRows } from './travelJourneyRows'
+import { timelineAddUnavailableCopy, type TimelineAddAvailability } from './timelineAddAvailability'
 function modeLabelMode(m: string): string {
   const map: Record<string, string> = {
     car: 'Car', motorcycle: 'Motorcycle', taxi: 'Taxi', bus: 'Bus',
@@ -52,7 +58,7 @@ function modeLabelMode(m: string): string {
  * route corridor. Replaces the old split where long rides got a completely
  * different "LongRidePanel" with its own ride-style options.
  */
-export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections }: {
+export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAddPlannedHalts, suggestionCache, legCorrections, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
   trip: Trip
   day: Trip['days'][number]
   editable: boolean
@@ -61,11 +67,32 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   onSetDayStart: (dayIndex: number, time: string) => void
   onAddPlannedHalts: (dayIndex: number, halts: { km: number; stop: Omit<ItineraryStop, 'id' | 'orderInDay'> }[]) => void
   suggestionCache: ReturnType<typeof useSuggestionCache>
+  /** S4: the shared day model. Optional so existing render sites stay valid. */
+  journeyDay?: JourneyDay
+  journeyStatus?: JourneyStatus
+  /** S4 repair: the real #841 writer hop. Absent = Add stays unavailable. */
+  onAddProjectedRow?: (row: JourneyRow, dayIndex: number) => void
+  projectedAddBusy?: boolean
+  previewOpen?: boolean
+  projectedAddError?: string | null
+  onRetryProjectedRow?: () => void
+  projectedRetryAvailable?: boolean
+  projectedTerminal?: string | null
+  projectedUnresolved?: boolean
+  projectedRetryBlockedReason?: string | null
+  /** S4: typed covered-Add reason from the measured road grade. Optional so a
+   *  direct render without the hop keeps its own disabled reason. */
+  projectedAvailability?: TimelineAddAvailability
 }) {
   const A = getAssumptions(trip)
   const hasAirLeg = journey.points.some(p => p.legIn?.kind === 'air')
   const timeFormat = useTimeFormat()
+  const retryReasonId = useId()
   const { cache: sugCache, setHaltCache } = suggestionCache
+  // S4: the covered rows come from the shared producer. The panel does not
+  // derive slots, drive rows or a second projection.
+  const journeyRows = journeyDay ? travelJourneyRows(journeyDay) : []
+  const journeyStatusNow: JourneyStatus = journeyStatus ?? { kind: 'unscanned' }
 
   // The day's ride as one continuous ROAD polyline (assembled from the routing
   // provider's per-leg geometry). Planned halts are placed along it, so a halt
@@ -232,7 +259,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     if (resolving && !searchCommitting) {
       ++spotRequest.current
       setResolving(false)
-      toast('Plan changed — the spot search was restarted. Press search again when ready.')
+      toast('Plan changed. The spot search was restarted. Press search again when ready.')
     }
     setPlan(next)
     const sorted = [...next].sort((a, b) => a.km - b.km)
@@ -338,7 +365,14 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           .slice(0, 12),
       )
       const assigned = annotateSegmentHits(
-        assignSegmentHits(unplanned, segments, anchors, { homeCenter: trip.startLocationCoords ?? null, routePolyline: roadNow ?? (routePts.length >= 2 ? routePts : null), speedKmph: MODE_SPEED[trip.transportMode] ?? 40 }),
+        assignSegmentHits(unplanned, segments, anchors, {
+          homeCenter: trip.startLocationCoords ?? null,
+          routePolyline: roadNow ?? (routePts.length >= 2 ? routePts : null),
+          speedKmph: MODE_SPEED[trip.transportMode] ?? 40,
+          // Runtime hours (repair of #887): score each halt against its own trip
+          // day date, so a weekday closure and a full-visit overrun are real facts.
+          visitDates: visitDatesForPlan(segments, trip.startDate),
+        }),
         candidates,
       )
       const hitById = new Map<string, PlaceHit | null>()
@@ -371,7 +405,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
   function addHaltsToDay() {
     if (plan.length === 0) return
     const genericTitle = (purpose: HaltPurpose) =>
-      purpose === 'meal' ? 'Meal break' : purpose === 'fuel' ? 'Fuel stop' : purpose === 'overnight' ? 'Overnight stay' : 'Break — tea & stretch'
+      purpose === 'meal' ? 'Meal break' : purpose === 'fuel' ? 'Fuel stop' : purpose === 'overnight' ? 'Overnight stay' : 'Break: tea & stretch'
     const halts = plan.map(item => {
       const useSpot = item.pin && item.hit
       // Unpinned halts sit ON the road at the requested road-km: interpolate
@@ -411,7 +445,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
     driveMin: journey.driveMinutes, dwellMin: journey.dwellMinutes,
     planMin: planMinutes, bufferMin: planBuffer,
   })
-  const slackCands = slackPool.map(o => ({ name: o.hit.name, detourMin: o.detourMin == null ? Number.POSITIVE_INFINITY : o.detourMin, category: o.hit.category }))
+  const slackCands = slackPool.map(o => ({ name: o.hit.name, detourMin: o.detourMin == null ? Number.POSITIVE_INFINITY : o.detourMin, category: o.hit.category, visitMin: intendedVisitMinutes(o.hit) }))
   const slackPickHit = (() => {
     const pick = pickSlackHit(slackMin, slackCands)
     if (!pick) return null
@@ -497,7 +531,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
           <span className="warn-icon"><TriangleAlert size={13} aria-hidden /></span>
           <div>
             <div className="warn-title">~{minutesToHM(journey.driveMinutes)} behind the wheel with no halt</div>
-            <div className="warn-fix">Riding more than ~6–7 h in one go is a fatigue risk — add a halt below or split the drive across two days.</div>
+            <div className="warn-fix">Riding more than ~6–7 h in one go is a fatigue risk. Add a halt below or split the drive across two days.</div>
           </div>
         </div>
       )}
@@ -510,11 +544,112 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
         </div>
       )}
 
+      {/* Along the drive: the covered suggestions, from the shared projection.
+          A sibling of the halt planner; the user halt/slack paths below are
+          unchanged and outside this projection's coverage. */}
+      <div className="travel-panel-suggestions">
+        <div className="small muted">
+          <InlineIcon icon={RouteIcon} size={13} gap={4} />
+          Along the drive · Day {day.index + 1}
+          {journeyStatusNow.kind === 'ready' && journeyRows.length > 0
+            ? ` · ${journeyRows.length} ${journeyRows.length === 1 ? 'place' : 'places'}`
+            : ''}
+        </div>
+        <div role="status" aria-live="polite">
+        {journeyStatusNow.kind === 'unscanned' && (
+          <div className="hint-text">Suggestions appear after the Map scans this route. The Timeline does not start a scan.</div>
+        )}
+        {journeyStatusNow.kind === 'scanning' && (
+          <div className="hint-text">Scanning the route…</div>
+        )}
+        {journeyStatusNow.kind === 'failed' && (
+          <div className="hint-text ts-warn-note">
+            {journeyRows.length > 0
+              ? 'The route scan failed. Showing the places already found.'
+              : 'The route scan failed. These suggestions are unavailable, not empty. Retry on the Map.'}
+          </div>
+        )}
+        {journeyStatusNow.kind === 'quota' && (
+          <div className="hint-text ts-warn-note">
+            {journeyRows.length > 0
+              ? 'Suggestion search is paused at the provider quota. Places already found stay visible.'
+              : 'Suggestion search is paused at the provider quota. No places were returned before the pause.'}
+          </div>
+        )}
+        {journeyStatusNow.kind === 'ready' && journeyRows.length === 0 && (
+          <div className="hint-text">No places matched along this route.</div>
+        )}
+        </div>
+        {journeyRows.length > 0 && (
+          <div className="halt-plan-list">
+            {journeyRows.map(row => {
+              const usable = hasCoords(row.hit)
+              const connected = onAddProjectedRow != null
+              // The typed road reason is the truthful cause of an absent hop.
+              // It wins over the writer-disconnected line, so an unmeasured road
+              // never reads as a lost writer. canAdd keeps its own gate below.
+              const roadUnavailableReason = timelineAddUnavailableCopy(projectedAvailability)
+              const canAdd = editable && row.actions.add && usable && connected && !projectedAddBusy && !previewOpen && !projectedRetryAvailable && !projectedUnresolved
+              const addReason = !editable || !row.actions.add
+                ? null
+                : !usable
+                  ? 'No usable map position for this place.'
+                  : projectedRetryAvailable || projectedUnresolved
+                    ? 'Resolve the unconfirmed save before adding another place.'
+                  : roadUnavailableReason
+                    ? roadUnavailableReason
+                  : !connected
+                    ? 'The shared writer is not connected yet.'
+                    : previewOpen
+                      ? 'Finish or discard the current preview first.'
+                      : projectedAddBusy
+                        ? 'Adding this place…'
+                        : null
+              return (
+                <ProjectedJourneyRow
+                  key={row.key}
+                  row={row}
+                  dayIndex={day.index}
+                  editable={editable}
+                  timeFormat={timeFormat}
+                  canAdd={canAdd}
+                  addReason={addReason}
+                  onAdd={() => onAddProjectedRow?.(row, day.index)}
+                />
+              )
+            })}
+          </div>
+        )}
+        {projectedTerminal && (
+          <div className="hint-text ts-warn-note" role="status">{projectedTerminal}</div>
+        )}
+        {projectedAddError && (
+          <div className="hint-text ts-warn-note" role="status">
+            {projectedAddError}
+            {projectedRetryAvailable && onRetryProjectedRow && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={projectedRetryBlockedReason ? undefined : onRetryProjectedRow}
+                  disabled={!!projectedRetryBlockedReason}
+                  aria-describedby={projectedRetryBlockedReason ? retryReasonId : undefined}
+                >
+                  Retry save
+                </button>
+                {projectedRetryBlockedReason && (
+                  <span id={retryReasonId} className="muted small">{projectedRetryBlockedReason}</span>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
       {editable && (
         <div className={`travel-panel-add halt-planner${plannerOpen ? ' is-open' : ''}${plan.length > 0 ? ' has-plan' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
           {haltStale && (
             <div className="hint-text ts-warn-note">
-              <InlineIcon icon={TriangleAlert} size={12} gap={3} />Party, fuel, budget or the plan itself changed since these halts were tuned — the saved plan was dropped. Review the km points below, then search for spots again.
+              <InlineIcon icon={TriangleAlert} size={12} gap={3} />Party, fuel, budget or the plan itself changed since these halts were tuned. The saved plan was dropped. Review the km points below, then search for spots again.
             </div>
           )}
           {/* The form is a disclosure, opened from the button on the ETA row.
@@ -573,7 +708,7 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
               </div>
               {searched && !plan.some(p => p.hit) && (
                 <span className="small muted">
-                  No good spots found near your km points — the halts will be added as generic breaks on the route itself.
+                  No good spots found near your km points. The halts will be added as generic breaks on the route itself.
                 </span>
               )}
             </>
@@ -595,8 +730,8 @@ export function TravelPanel({ trip, day, editable, journey, onSetDayStart, onAdd
                       locationName: h.description || h.name,
                       lat: h.latitude, lng: h.longitude,
                       description: h.description ?? '',
-                      notes: "Slack pick — fits the day's leftover time",
-                      visitMinutes: visitMinutesForCategory(h.category),
+                      notes: "Slack pick: fits the day's leftover time",
+                      visitMinutes: intendedVisitMinutes(h),
                       openTime: '', closeTime: '',
                       entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
                       priority: 'nice-to-have', sourceUrl: '', status: 'suggested',
@@ -664,6 +799,58 @@ function HaltPlanRow({ item, onRemove, onTogglePin }: {
         <button className="btn btn-ghost btn-sm" onClick={onRemove} title="Remove this planned halt"
           aria-label={`Remove the halt planned at ${Math.round(item.km)} km`}><X size={13} aria-hidden /></button>
       </div>
+    </div>
+  )
+}
+
+/** One covered suggestion row. It reads only the shared JourneyRow. */
+function ProjectedJourneyRow({ row, dayIndex, editable, timeFormat, canAdd, addReason, onAdd }: {
+  row: JourneyRow
+  dayIndex: number
+  editable: boolean
+  timeFormat: TimeFormat
+  canAdd: boolean
+  addReason: string | null
+  onAdd: () => void
+}) {
+  const reasonId = useId()
+  const meta = journeyRowMeta(row, {
+    clock: clock => formatHM(clock, timeFormat),
+    minute: minutes => formatHM(addMinutesToClock(0, minutes), timeFormat),
+  })
+  const purpose = HALT_PURPOSE_META[row.purpose as HaltPurpose]
+  const facts = [meta.arrival, meta.detour, meta.budget, meta.offRoute, meta.window]
+    .filter((part): part is string => part != null)
+  const evidence = [meta.source, meta.freshness]
+    .filter((part): part is string => part != null)
+  return (
+    <div className="ride-spot">
+      <div className="ride-spot-main">
+        <div className="ride-spot-title">
+          <span className={`ride-purpose ride-purpose-${purpose ? row.purpose : 'muted'}`}>
+            {purpose ? <><InlineIcon icon={purpose.Icon} size={11} gap={3} />{purpose.label}</> : cap(row.purpose)}
+          </span>
+          <b>{row.hit.name}</b>
+        </div>
+        <span className="muted small">{facts.join(' · ')}</span>
+        {row.reason && <span className="muted small">Why: {row.reason}</span>}
+        {evidence.length > 0 && <span className="muted small">{evidence.join(' · ')}</span>}
+      </div>
+      {editable && row.actions.add && (
+        <div className="ride-spot-actions">
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={canAdd ? onAdd : undefined}
+            disabled={!canAdd}
+            aria-describedby={addReason ? reasonId : undefined}
+            aria-label={`Add ${row.hit.name} to Day ${dayIndex + 1}`}
+          >
+            + Add
+          </button>
+          {!canAdd && addReason && <span id={reasonId} className="muted small">{addReason}</span>}
+        </div>
+      )}
     </div>
   )
 }

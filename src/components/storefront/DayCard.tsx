@@ -62,7 +62,8 @@ function PaceGlyph(p: { pace: PaceKey }): JSX.Element | null {
 
 export function DayCard(p: DayCardProps): JSX.Element {
   const s = p.summary
-  const drive = driveLine(s.travelMinutes)
+  const drive = p.state === 'locked' ? '' : driveLine(s.travelMinutes)
+  const pace = p.state === 'locked' ? null : s.pace
   const Title = p.headingLevel === 4 ? 'h4' : 'h3'
   const photo = p.state === 'locked' ? undefined : p.photo
   const town = p.state === 'locked' ? undefined : p.town
@@ -96,14 +97,14 @@ export function DayCard(p: DayCardProps): JSX.Element {
           {town ? <span className="sf-day-town">{town}</span> : null}
         </div>
         <Title className="sf-day-title">{p.state === 'locked' ? `Day ${s.index + 1}` : s.title}</Title>
-        {(s.pace !== null || drive !== '') && (
+        {(pace !== null || drive !== '') && (
           <p className="sf-day-meta">
-            {s.pace !== null ? <span className="sf-day-meta-icon"><PaceGlyph pace={s.pace.key} /></span> : null}
-            {s.pace !== null ? <b>{s.pace.label}</b> : null}
-            {drive !== '' ? <span className="sf-day-meta-drive">{s.pace !== null ? '· ' : ''}{drive}</span> : null}
+            {pace !== null ? <span className="sf-day-meta-icon"><PaceGlyph pace={pace.key} /></span> : null}
+            {pace !== null ? <b>{pace.label}</b> : null}
+            {drive !== '' ? <span className="sf-day-meta-drive">{pace !== null ? '· ' : ''}{drive}</span> : null}
           </p>
         )}
-        {p.budget ? <DayBudgetBar budget={p.budget} label={`Day ${s.index + 1}`} stagger={p.stagger} /> : null}
+        {p.state !== 'locked' && p.budget ? <DayBudgetBar budget={p.budget} label={`Day ${s.index + 1}`} stagger={p.stagger} /> : null}
         {p.state === 'locked' ? (
           <>
             <div className="sf-day-chips">

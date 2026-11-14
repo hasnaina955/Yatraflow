@@ -6,7 +6,7 @@ import type { ItineraryStop, Trip } from '../src/data/types'
 import { legKey, originOf, simulateDay } from '../src/lib/engine'
 
 const baseTrip = seedData.trips[0]
-const baseStop = baseTrip.days.flatMap(day => day.stops).find(stop => !stop.auto)
+const baseStop = baseTrip.days.flatMap(day => day.stops).find(stop => !stop.auto)!
 if (!baseStop) throw new Error('The seeded trip needs one active stop for Stage G fixtures.')
 const storage = new Map<string, string>()
 

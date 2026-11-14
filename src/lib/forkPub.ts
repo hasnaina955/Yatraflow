@@ -5,17 +5,22 @@ import { tripById, duplicateTripPersisted, duplicateTripPublicPersisted, registe
 import type { ShareSource } from './shareUrl'
 import { fetchMyEntitlements } from './unlock'
 import { hasUnlock } from './payments'
+import { emptyLockedDay, isWireLocked } from './lockedDay'
 import { toast } from '../components/ui'
 import { finishPendingFork, pendingForkId, rememberFork, type CampaignId } from './growthAttribution'
 
-const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
+// Wire constant: the server's get_public_trip writes this exact notice into a
+// withheld stop (supabase/migrations/*public_trip*.sql), and the match must be
+// byte-exact. It is not UI copy, so it keeps the server's dash. Change it only
+// together with a migration.
+const LOCKED_STOP_DESCRIPTION = `Locked ${String.fromCodePoint(0x2014)} the full plan is on the original itinerary.`
 const inFlight = new Map<string, Promise<boolean>>()
 
-/** Defense-in-depth stub: re-applies the locked-day stub to days NOT in the
- *  publication's free list, EVEN IF the session's copy somehow carries real
- *  content. The server (get_public_trip) already stubs at the wire; this
- *  mirrors it so a stale cached row or a missed RLS update can never turn
- *  into a fork of paid content. Same field shape as buildTripCopy.
+/** Defense-in-depth stub: empties every day NOT in the publication's free
+ *  list, and every day the server locked, EVEN IF the session's copy somehow
+ *  carries real content. The server (get_public_trip) already withholds at the
+ *  wire; this mirrors it so a stale cached row or a missed RLS update can
+ *  never turn into a fork of paid content. Same result as buildTripCopy.
  *
  *  #352 — `stripMoney` empties the trip's expenses and fixed commitments for
  *  the same reason the RPC does: the page's own locked copy promises the
@@ -30,23 +35,9 @@ function restubLockedDays(src: Trip, freeDayIndexes: number[], stripMoney: boole
   return {
     ...src,
     ...(stripMoney ? { expenses: [], fixedCommitments: [] } : {}),
-    days: src.days.map(d => free.has(d.index) ? d : {
-      ...d,
-      stops: d.stops.map(s => ({
-        ...s,
-        description: LOCKED_STOP_DESCRIPTION,
-        notes: '',
-        openTime: undefined,
-        closeTime: undefined,
-        departTime: undefined,
-        arrivalTime: undefined,
-        sourceUrl: undefined,
-        placeId: undefined,
-        entryFeeInrPerPerson: 0,
-        transportCostInrTotal: 0,
-        status: 'confirmed' as const,
-      })),
-    }),
+    // #774 — a locked day is copied as an empty day. The older stub kept each
+    // stop's title and coordinates, so a fork carried the locked places out.
+    days: src.days.map(d => free.has(d.index) && !isWireLocked(d) ? d : emptyLockedDay(d)),
   }
 }
 
@@ -60,8 +51,10 @@ function restubLockedDays(src: Trip, freeDayIndexes: number[], stripMoney: boole
  *  handing a paying buyer an empty day. An unentitled viewer never reaches it. */
 export function wireWithheld(src: Trip, freeDayIndexes: number[]): boolean {
   const free = new Set(freeDayIndexes)
-  return src.days.some(d => !free.has(d.index)
-    && d.stops.some(s => s.description === LOCKED_STOP_DESCRIPTION))
+  // #774 — the server now marks each day it withheld. The notice check stays
+  // for a database that still runs the older function.
+  return src.days.some(d => isWireLocked(d)
+    || (!free.has(d.index) && d.stops.some(s => s.description === LOCKED_STOP_DESCRIPTION)))
 }
 
 /** Fork `pub` into the viewer's trips. Login-gated. The days forked are
@@ -100,7 +93,7 @@ export async function forkPublication(pub: PublishedItinerary, meId: string | nu
   rememberFork(pub.id, { source: source ?? null, campaign: campaign ?? null })
   const operation = performFork(pub, meId, onNavigate, unlockedPresentationOnly, source, campaign)
     .catch(() => {
-      toast('Could not save the forked trip — check your connection and try again.', 'err')
+      toast('Could not save the forked trip. Check your connection and try again.', 'err')
       return false
     })
     .finally(() => inFlight.delete(key))
@@ -118,7 +111,7 @@ async function performFork(pub: PublishedItinerary, meId: string, onNavigate: (r
   // is re-stubbed below: a row that did not come off the wire is not evidence
   // about anything.
   const src = wireRow ?? tripById(pub.tripId)
-  if (!src) { toast('Couldn’t load that itinerary — it may be unpublished now, or the connection dropped.', 'err'); return false }
+  if (!src) { toast('Couldn’t load that itinerary. It may be unpublished now, or the connection dropped.', 'err'); return false }
   // #359 — the entitlement read REJECTS on a failed read, so a rejection is
   // caught HERE and answered as the CONSERVATIVE answer: not entitled. The fork
   // then takes the re-stubbed locked path, which is the direction that withholds
@@ -160,7 +153,7 @@ async function performFork(pub: PublishedItinerary, meId: string, onNavigate: (r
     ? await duplicateTripPersisted(safe, meId, undefined, source, origin)
     : await duplicateTripPublicPersisted(safe, meId, pub.freeDayIndexes, source, origin)
   if (!persisted) {
-    toast('Could not save the forked trip — check your connection and try again.', 'err')
+    toast('Could not save the forked trip. Check your connection and try again.', 'err')
     return false
   }
   finishPendingFork(meId, pub.id)

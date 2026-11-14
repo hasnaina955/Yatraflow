@@ -100,9 +100,9 @@ describe('arrival rows carry the right stop (identity, not index)', () => {
   it('an added stop shows as new, a removed one as gone', () => {
     const added = three(['a', 'b', 'c', 'd'])
     const onAdd = computeImpact(three(['a', 'b', 'c']), added, 'add', 0)
-    expect(onAdd.arrivalChanges.some(r => r.from === '—')).toBe(true)
+    expect(onAdd.arrivalChanges.some(r => r.from === 'Not available')).toBe(true)
     const onRemove = computeImpact(three(['a', 'b', 'c']), three(['a', 'b']), 'remove', 0)
-    expect(onRemove.arrivalChanges.some(r => r.to === '—')).toBe(true)
+    expect(onRemove.arrivalChanges.some(r => r.to === 'Not available')).toBe(true)
   })
 })
 

@@ -57,5 +57,5 @@ export function worstSeverity(warnings: ScheduleWarning[]): Severity | null {
 
 /** Hover text: one line per warning with its detail and recommended fix. */
 export function warningLines(warnings: ScheduleWarning[]): string {
-  return warnings.map(w => `${w.title} — ${w.detail}${w.fix ? ` (${w.fix})` : ''}`).join('\n')
+  return warnings.map(w => `${w.title}: ${w.detail}${w.fix ? ` (${w.fix})` : ''}`).join('\n')
 }

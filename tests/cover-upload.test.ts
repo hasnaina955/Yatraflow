@@ -131,7 +131,7 @@ describe('telling the app\'s own suggestion from a deliberate choice', () => {
     expect(isSuggestedCover(url)).toBe(true)
   })
 
-  it.each([
+  const LEFT_ALONE: Array<[string | null | undefined, string]> = [
     [OUR_BUCKET_URL, 'our own upload — already owned'],
     ['https://images.example.test/cover.jpg', 'a pasted address'],
     ['http://upload.wikimedia.org/x.jpg', 'http, which the preview handler rejects anyway'],
@@ -141,7 +141,8 @@ describe('telling the app\'s own suggestion from a deliberate choice', () => {
     ['', 'empty'],
     [undefined, 'absent'],
     [null, 'null'],
-  ])('leaves %s alone (%s)', url => {
+  ]
+  it.each(LEFT_ALONE)('leaves %s alone (%s)', url => {
     expect(isSuggestedCover(url as string | undefined)).toBe(false)
   })
 })

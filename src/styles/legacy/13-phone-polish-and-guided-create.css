@@ -63,17 +63,7 @@
   mask-image: linear-gradient(90deg, transparent, #000 20px);
 }
 
-/* ---------- #677 - the trip header band and rail on a phone ----------
-   At 390px the band and the rail took about 420px of an 844px screen. The tab
-   panel then started below the fold. The Board tab already ships a compact band
-   (`.container--board .trip-head-card`, near line 1600). A phone now takes that
-   treatment as its default. Two inline margins in TripWorkspace.tsx must yield,
-   so this block uses `!important`. The Board's member-stack rule already does. */
 @media (max-width: 720px) {
-  .trip-head-card { padding: 12px 14px; }
-  .trip-head-card h1 { font-size: 20px; margin-top: 6px !important; }
-  .trip-head-card p { margin-top: 2px !important; }
-  .trip-head-card .member-stack { margin-top: 6px !important; }
   .tabbar { margin-bottom: 10px; }
 }
 
@@ -1319,7 +1309,6 @@ html.native-shell .app-shell:not(:has(> .topnav)) > main {
 .gcf-ticket { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: var(--shadow-card); color: var(--text); }
 .gcf-ticket-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--text); color: var(--card); font-size: 14px; }
 .gcf-ticket-head > span { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
-.gcf-ticket-art { display: block; width: 100%; height: 76px; }
 .gcf-ticket-body { padding: 16px 14px; }
 .gcf-ticket-body h3 { margin: 0 0 16px; font-size: 18px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
 .gcf-route-line { display: block; width: 100%; height: 36px; margin-bottom: 12px; color: var(--teal-deep); }

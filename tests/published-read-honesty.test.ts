@@ -471,7 +471,7 @@ describe('#704 R23 — a publish reports its outcome, and only an accepted write
   const payloadFor = (tripId: string) => ({
     tripId, creatorId: 'u-owner', title: `Plan ${tripId}`, tagline: 'A route',
     coverImageUrl: 'https://images.example.test/k.jpg', routeSummary: ['Kochi', 'Munnar'],
-    durationDays: 3, estimatedBudgetPerPersonInr: 5000, travelStyle: 'balanced',
+    durationDays: 3, estimatedBudgetPerPersonInr: 5000, travelStyle: 'balanced' as const,
     travelTips: [], warningsAndAssumptions: [], freeDayIndexes: [0],
   })
 
@@ -493,7 +493,7 @@ describe('#704 R23 — a publish reports its outcome, and only an accepted write
     state.errors = { published_itineraries: { message: 'write refused' } }
     expect(await store.publishItinerary(payloadFor('tripA'))).toEqual({
       ok: false,
-      error: 'Could not save the publication — nothing was published. Try again.',
+      error: 'Could not save the publication. Nothing was published. Try again.',
     })
     // The optimistic row is gone again: a refused publish changes nothing.
     expect(store.getSnapshot().published.some(p => p.tripId === 'tripA')).toBe(false)

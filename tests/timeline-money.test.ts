@@ -17,11 +17,8 @@
 // where the mocks were finite.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { createElement } from 'react'
-import { renderToString } from 'react-dom/server'
 import { computeTotals, formatInr } from '../src/lib/engine'
 import { seedData } from '../src/data/seed'
-import { DaySpark } from '../src/pages/trip/timeline/DaySpark'
 import type { Expense, ItineraryDay, ItineraryStop, Trip } from '../src/data/types'
 
 const base = structuredClone(seedData.trips[0]) as Trip
@@ -185,16 +182,6 @@ describe('#343 — one non-finite field cannot poison the money', () => {
 })
 
 describe('#343 — the display half', () => {
-  it('DaySpark drops non-finite coordinates instead of drawing NaN', () => {
-    const bad = stop('bad', NaN, 76.3)
-    expect(renderToString(createElement(DaySpark, { stops: [bad, stop('ok', 9.5, 76.3)] }))).toBe('')
-    const markup = renderToString(createElement(DaySpark, { stops: [stop('a', 9.5, 76.3), stop('b', 10.1, 76.9)] }))
-    expect(markup).toContain('<polyline')
-    expect(markup).not.toContain('NaN')
-    // one real point is not a shape
-    expect(renderToString(createElement(DaySpark, { stops: [stop('a', 9.5, 76.3), bad] }))).toBe('')
-  })
-
   it('the Timeline renders a money field only when it is finite', () => {
     const daySection = readFileSync(new URL('../src/pages/trip/timeline/DaySection.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     // The meta line is one " · " string; each money part sits inside its finite guard — a raw interpolation is

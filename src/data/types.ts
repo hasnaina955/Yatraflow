@@ -92,6 +92,11 @@ export interface FixedCommitment {
   type: FixedCommitmentType
   dayIndex: number          // 0-based day of the trip
   time: string              // "HH:MM" 24h
+  /** "HH:MM" 24h — the clock boarding closes, when the booking states one
+   *  (a boat whose gate shuts before it sails). It is the deadline the engine
+   *  checks; `time` is still the departure the ticket names. Absent = `time`.
+   *  The map's Fix line reads it, so the app never invents a boarding clock. */
+  boardingTime?: string
   notes?: string
   /** The day stop this deadline is checked against. Absent = the check
    *  lacks a location and says so (never borrows another stop's clock). */
@@ -273,6 +278,14 @@ export interface ItineraryDay {
    */
   coverImageUrl?: string
   stops: ItineraryStop[]
+  /**
+   * True only on a day the server withheld from this viewer (`get_public_trip`).
+   * Such a day arrives with no title, no time, no image and no stop. No client
+   * writes this field. Read it through `lib/lockedDay`.
+   */
+  locked?: boolean
+  /** The counts of a withheld day. Wire data, so read it through `lib/lockedDay`. */
+  lockedPreview?: { stopCount?: number; categories?: Record<string, number> }
 }
 
 export interface Trip {
@@ -554,7 +567,7 @@ export interface PublishedItinerary {
   travelTips: string[]
   warningsAndAssumptions: string[]
   freeDayIndexes: number[]  // which itinerary days are freely viewable
-  premiumPriceInr?: number  // what the paywall charges; 0/undefined = entirely free
+  premiumPriceInr?: number  // what the paywall charges; undefined = entirely free. The database refuses 0, so writers send 0 as free
   subscriberCta?: string
   publishedAt: number
   /** Last time the creator re-published (synced the page with the itinerary).

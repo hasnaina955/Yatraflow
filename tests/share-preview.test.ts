@@ -845,7 +845,7 @@ describe('a shared link carries its channel', () => {
     const { publicationShareMessage } = await import(shareUrlPath)
     const refd = 'https://app.example.test/i/kerala-trip_1?ref=wa'
     expect(publicationShareMessage('Kerala 10d', refd))
-      .toBe(`The "Kerala 10d" trip plan on YatraFlow — see it here: ${refd}`)
+      .toBe(`The "Kerala 10d" trip plan on YatraFlow, here: ${refd}`)
     const source = read('../src/lib/whatsAppShare.ts')
     expect(source).toMatch(/ref: ShareSource \| null = 'wa'/)
   })
@@ -877,9 +877,9 @@ describe('sending a publication on WhatsApp', () => {
     // The message carries a URL: spaces and query separators must not be
     // eaten, or the chat box opens with half an address.
     const { whatsAppSendUrl } = await import('../src/lib/whatsAppShare')
-    expect(whatsAppSendUrl('The "Kerala 10d" plan — see it here: https://app.test/i/a?x=1&y=2'))
+    expect(whatsAppSendUrl('The "Kerala 10d" plan · see it here: https://app.test/i/a?x=1&y=2'))
       .toBe('https://wa.me/?text=' +
-        encodeURIComponent('The "Kerala 10d" plan — see it here: https://app.test/i/a?x=1&y=2'))
+        encodeURIComponent('The "Kerala 10d" plan · see it here: https://app.test/i/a?x=1&y=2'))
     expect(whatsAppSendUrl('a b')).toBe('https://wa.me/?text=a%20b')
   })
 
@@ -887,7 +887,7 @@ describe('sending a publication on WhatsApp', () => {
     const { publicationShareMessage } = await import(shareUrlPath)
     const url = 'https://app.example.test/i/kerala-trip_1'
     const message = publicationShareMessage('Kerala 10d', url)
-    expect(message).toBe(`The "Kerala 10d" trip plan on YatraFlow — see it here: ${url}`)
+    expect(message).toBe(`The "Kerala 10d" trip plan on YatraFlow, here: ${url}`)
     // One sentence of prose before the link (the URL's own dots are not
     // punctuation), and no claim the sender has not made.
     const prose = message.split(url)[0]

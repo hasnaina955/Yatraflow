@@ -8,6 +8,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { seedData } from '../src/data/seed'
+import type { ItineraryStop } from '../src/data/types'
+
+/** Rows written before the status vocabulary narrowed still carry these. */
+const legacyStopStatus = (status: string) => status as ItineraryStop['status']
 
 const { calls } = vi.hoisted(() => ({
   calls: [] as Array<{ table: string; method: string; payload?: unknown }>,
@@ -32,7 +36,7 @@ vi.mock('../src/lib/supabase', async () => {
     builder.maybeSingle = () => builder
     builder.single = () => builder
     builder.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-      new Promise(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
+      new Promise<{ data: unknown; error: unknown }>(resolve => { if (method) calls.push({ table, method, payload }); resolve({ data: null, error: null }) }).then(res)
     return builder
   }
   return {
@@ -44,7 +48,7 @@ vi.mock('../src/lib/supabase', async () => {
       rpc: (fn: string, params?: unknown) => {
         const qb: Record<string, unknown> = {}
         qb.then = (res: (v: { data: unknown; error: unknown }) => unknown) =>
-          new Promise(resolve => { calls.push({ table: fn, method: 'rpc', payload: params }); resolve({ data: { status: 'applied', tripRevision: 1 }, error: null }) }).then(res)
+          new Promise<{ data: unknown; error: unknown }>(resolve => { calls.push({ table: fn, method: 'rpc', payload: params }); resolve({ data: { status: 'applied', tripRevision: 1 }, error: null }) }).then(res)
         return qb
       },
     }),
@@ -154,7 +158,7 @@ describe('B4 · markExpenseSettled', () => {
     markExpenseUnsettled(trip.id, id, ownerId)
     await flush()
     expect(tripsUpdates().length).toBeGreaterThan(0)
-    const last = tripsUpdates().at(-1)!.payload as { expenses: Array<{ settled?: unknown }> }
+    const last = tripsUpdates().at(-1)!.payload as { expenses: Array<{ id: string; settled?: unknown }> }
     expect(last.expenses.find(e => e.settled)?.id ?? null).toBeNull()
   })
 
@@ -241,7 +245,7 @@ describe('B0 · debounced flush persists the CAPTURED snapshot', () => {
     await flush()
     calls.length = 0
     const stopId = tripById(trip.id)!.days[0].stops[0].id
-    setStopStatus(trip.id, 'done', stopId)
+    setStopStatus(trip.id, legacyStopStatus('done'), stopId)
     await flush()
     const updates = tripsUpdates()
     expect(updates).toHaveLength(1)
@@ -254,13 +258,13 @@ describe('B0 · debounced flush persists the CAPTURED snapshot', () => {
     const trip = singleTrip()
     await flush()
     const stopId = tripById(trip.id)!.days[0].stops[0].id
-    setStopStatus(trip.id, 'skipped', stopId)
+    setStopStatus(trip.id, legacyStopStatus('skipped'), stopId)
     expect(tripById(trip.id)!.days[0].stops[0].status).toBe('skipped')
   })
 })
 
 describe('B2 · stale-update guard vs the SERVER ledger (store level)', () => {
-  type Row = { id: string; updated_at?: number }
+  type Row = { id: string; updated_at?: number; name?: string; expenses?: Array<{ id: string; label: string; category: string; amountInr: number }> }
 
   it('a remote UPDATE carrying an equal timestamp applies (pre-trigger normal case)', async () => {
     const trip = singleTrip()
@@ -344,16 +348,16 @@ describe('#567 — trip_members events route on the composite key, no fabricated
   it('a remote role UPDATE lands on an existing trip', () => {
     const trip = singleTrip()
     feedMembership({ eventType: 'INSERT', new: { trip_id: trip.id, user_id: 'crew-9', role: 'owner', joined_at: 1 } })
-    expect(tripById(trip.id)!.members.some(m => m.userId === 'crew-9' && m.role === 'owner')).toBe(true)
+    expect(tripById(trip.id)!.members!.some(m => m.userId === 'crew-9' && m.role === 'owner')).toBe(true)
     feedMembership({ eventType: 'UPDATE', new: { trip_id: trip.id, user_id: 'crew-9', role: 'editor', joined_at: 1 } })
-    expect(tripById(trip.id)!.members.find(m => m.userId === 'crew-9')?.role).toBe('editor')
+    expect(tripById(trip.id)!.members!.find(m => m.userId === 'crew-9')?.role).toBe('editor')
   })
 
   it('another member\'s DELETE removes just that member, and an unknown trip triggers the fetch', () => {
     const trip = singleTrip()
     feedMembership({ eventType: 'INSERT', new: { trip_id: trip.id, user_id: 'crew-7', role: 'member', joined_at: 1 } })
     feedMembership({ eventType: 'DELETE', old: { trip_id: trip.id, user_id: 'crew-7' } })
-    expect(tripById(trip.id)!.members.some(m => m.userId === 'crew-7')).toBe(false)
+    expect(tripById(trip.id)!.members!.some(m => m.userId === 'crew-7')).toBe(false)
     expect(getSnapshot().trips.find(t => t.id === trip.id)).toBeTruthy()
 
     calls.length = 0
@@ -362,7 +366,7 @@ describe('#567 — trip_members events route on the composite key, no fabricated
     // the event ROUTES — nothing throws out of the dispatch, the known trip
     // is untouched, and no write went out under a trip the session cannot see.
     expect(() => feedMembership({ eventType: 'INSERT', new: { trip_id: 'trip-not-in-cache-567', user_id: 'crew-8', role: 'editor', joined_at: 1 } })).not.toThrow()
-    expect(tripById(trip.id)!.members.some(m => m.userId === 'crew-8')).toBe(false)
+    expect(tripById(trip.id)!.members!.some(m => m.userId === 'crew-8')).toBe(false)
     expect(calls.some(c => c.table === 'trips' && (c.method === 'update' || c.method === 'insert'))).toBe(false)
   })
 })

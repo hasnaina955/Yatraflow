@@ -36,12 +36,14 @@ import {
   type SegmentHit,
 } from './ridePlan'
 import { budgetSharePct, dayDetourBudgetMin } from './detourBudget'
-import { asymmetricDetourMinutes, detourKm, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { asymmetricDetourKm, asymmetricDetourMinutes, type HaltPurpose, type PlaceHit } from './providers/hits'
+import { candidateArrivalMin, type ArrivalContext } from './candidateArrival'
 import { MIN_PURPOSE_FIT } from './haltFit'
 import { type DnaVector } from './tripDna'
 import { clockHM } from './clockOverlay'
 import { haversineKm } from './geo'
-import { buildJourney, MODE_SPEED } from './engine'
+import { buildJourney, hmToMinutes, MODE_SPEED, type DaySchedule } from './engine'
+import { validHM } from './timefmt'
 import type { SlotKind } from './haltFit'
 import type { ItineraryStop, TransportMode, Trip, TripDecision } from '../data/types'
 import { isAlreadyAdded, normalizePlaceName, type PlaceIdentity } from './placeIdentity'
@@ -163,6 +165,8 @@ export interface DaySlotsDeps {
   haltSegments: SegmentHit[]
   /** THIS day's itinerary stops (all statuses; rejected never fill) */
   dayStops: ItineraryStop[]
+  /** The shared engine schedule for each day, when available. */
+  scheduleOf?: (dayIndex: number) => Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | undefined
   /** trip anchors (the corridor scan's own anchor list) */
   anchors: { lat: number; lng: number }[]
   /** OSRM route geometry when measured - makes detours asymmetric */
@@ -234,6 +238,18 @@ export interface DaySlotsDeps {
   /** The day's road-km span (start inclusive, end inclusive) for positioning
    *  synthesized slots on the corridor. Absent = the day's own stops only. */
   daySpanKm?: (dayIndex: number) => { fromKm: number; toKm: number } | null
+  /**
+   * COMPLETE measured-evidence context (active route/generation + origin).
+   * Absent = measured arrival evidence is unknown (fail closed); the unchanged
+   * symmetric estimate applies. Production callers do not supply it yet.
+   */
+  measuredContext?: ArrivalContext
+  /**
+   * Runtime hours (repair of #887): the local ISO date of a trip day. Candidate
+   * scoring uses it so a weekday closure and a full-visit overrun are real
+   * facts. Absent = undated, and the verdict stays unknown rather than guessed.
+   */
+  dayDateOf?: (dayIndex: number) => string | null
 }
 
 const SLOT_LABELS: Record<SlotKey, string> = {
@@ -364,6 +380,36 @@ function windowFor(draft: SlotDraft): [number, number] | null {
   return null // fuel (its hint carries the tank window), stretch, stay
 }
 
+type MealKey = 'breakfast' | 'lunch' | 'dinner'
+
+function isMealKey(key: string): key is MealKey {
+  return key === 'breakfast' || key === 'lunch' || key === 'dinner'
+}
+
+/**
+ * The one meal a stop's title names, or null. A title that names no meal, or
+ * names two different meals, names none: the stop then follows its hours.
+ */
+export function namedMealOf(stop: Pick<ItineraryStop, 'title'>): MealKey | null {
+  const title = typeof stop.title === 'string' ? stop.title : ''
+  const found = new Set<MealKey>()
+  if (/\b(?:breakfast|brunch)\b/i.test(title)) found.add('breakfast')
+  if (/\blunch\b/i.test(title)) found.add('lunch')
+  if (/\b(?:dinner|supper)\b/i.test(title)) found.add('dinner')
+  return found.size === 1 ? [...found][0] : null
+}
+
+function assignedMealOf(stop: ItineraryStop, arrival: string | undefined): MealKey | null {
+  const named = namedMealOf(stop)
+  if (named != null) return named
+  if (stop.slotKey != null && isMealKey(stop.slotKey)) return stop.slotKey
+  if (stop.category !== 'food' && (stop.category as string) !== 'cafe') return null
+  const clock = validHM(arrival)
+  if (clock == null) return null
+  const minute = hmToMinutes(clock)
+  return minute <= BREAKFAST_END_MIN ? 'breakfast' : minute <= LUNCH_END_MIN ? 'lunch' : 'dinner'
+}
+
 /**
  * Which stop fills a slot, if any. Rejected stops never fill. Category
  * claims first (food -> meal slots, hotel -> stay), then a food stop's hours
@@ -378,6 +424,7 @@ function windowFor(draft: SlotDraft): [number, number] | null {
 function fillStopFor(
   drafts: SlotDraft[],
   stops: ItineraryStop[],
+  schedule: Pick<DaySchedule, 'activeStops' | 'arrivalTimes'> | undefined,
 ): Map<SlotKey, ItineraryStop> {
   const claims = new Map<SlotKey, ItineraryStop>()
   const claimed = new Set<string>()
@@ -387,11 +434,19 @@ function fillStopFor(
 
   const foodStops = active.filter(s => s.category === 'food' || (s.category as string) === 'cafe')
   const hotelStops = active.filter(s => s.category === 'hotel')
+  const arrivals = new Map(schedule?.activeStops.map((stop, index) => [String(stop.id), schedule.arrivalTimes[index]]))
+  const mealOf = (stop: ItineraryStop) => assignedMealOf(stop, arrivals.get(String(stop.id)))
   /** A stop that NAMES the part it fills belongs to that part ONLY. Without
    *  this the category and hours passes could re-claim a place the crew filed
    *  as dinner for the LUNCH slot, so the rail showed a dinner pick sitting in
    *  lunch. An unnamed stop stays claimable by anything, as before. */
-  const belongsTo = (key: SlotKey) => (s: ItineraryStop) => s.slotKey == null || s.slotKey === key
+  const belongsTo = (key: SlotKey) => (s: ItineraryStop) => {
+    if (s.slotKey != null && s.slotKey !== key && !(isMealKey(key) && namedMealOf(s) === key)) return false
+    // A stop that names a meal in its title belongs to that meal only. The
+    // hours of a place describe when it is open, not which meal it serves.
+    const named = mealOf(s)
+    return named == null || !isMealKey(key) || named === key
+  }
 
   // Pass 0 - provenance: a stop the day plan itself filled carries the part it
   // filled as DATA (`ItineraryStop.slotKey`), so the rail's Fill always reads
@@ -402,8 +457,21 @@ function fillStopFor(
   // truth for a derived state.
   for (const d of drafts) {
     const pick = takeLatest(active.filter(s =>
-      !claimed.has(String(s.id)) &&
+      !claimed.has(String(s.id)) && belongsTo(d.key)(s) &&
       (s.slotKey === d.key || String(s.notes ?? '').includes(`day plan: ${d.key}`)),
+    ))
+    if (pick) {
+      claims.set(d.key, pick)
+      claimed.add(String(pick.id))
+    }
+  }
+
+  // Named meals win over stale provenance. Other food stops use the shared
+  // schedule. Opening hours apply only when neither fact is available.
+  for (const d of drafts) {
+    if (claims.has(d.key) || !isMealKey(d.key)) continue
+    const pick = takeLatest(active.filter(s =>
+      !claimed.has(String(s.id)) && s.category !== 'hotel' && mealOf(s) === d.key && belongsTo(d.key)(s),
     ))
     if (pick) {
       claims.set(d.key, pick)
@@ -589,12 +657,18 @@ function candidatesFor(
   seg: RideSegment | null,
   segHits: SegmentHit[],
   deps: DaySlotsDeps,
+  dayIndex: number,
 ): SlotCandidate[] {
   const limit = deps.limit ?? 3
   const win = windowFor(draft)
   const speed = speedFor(deps.transportMode)
   const purpose = purposeFor(draft.kind)
   const synth = synthSegment(draft, seg)
+  // Runtime hours (repair of #887): the bench is the day's own calendar date.
+  // Absent date stays unknown in scoring — never today's date, never a guess.
+  const visitDate = deps.dayDateOf?.(dayIndex) ?? null
+  const visitDates: (string | null)[] = []
+  visitDates[synth.index] = visitDate
   // The budget base is THIS day's active stops, derived beside the budget
   // itself so slot and rail cannot disagree about the day's density (#344:
   // the prop existed, was documented, and was passed by nobody).
@@ -605,6 +679,8 @@ function candidatesFor(
     speedKmph: speed,
     ...(deps.dnaVector ? { dnaVector: deps.dnaVector } : {}),
     ...(deps.homeCenter ? { homeCenter: deps.homeCenter } : {}),
+    visitDates,
+    ...(deps.measuredContext ? { measuredContext: deps.measuredContext } : {}),
   }
   const seen = new Set<string>()
   const rows: Array<{ hit: PlaceHit; score: number }> = []
@@ -666,7 +742,10 @@ function candidatesFor(
   let spent = 0
   for (const row of rows) {
     if (out.length >= limit) break
-    const dKm = detourKm(row.hit, deps.anchors)
+    // The road spur km: the same measure the rail prints (MapTab detourKmFor).
+    const dKm = asymmetricDetourKm(row.hit, deps.anchors, deps.routePolyline ?? null)
+    // Return-driving minutes: the budget (and the card) charge the drive out
+    // plus the drive back, once.
     const dMin = asymmetricDetourMinutes(row.hit, deps.anchors, deps.routePolyline ?? null, speed)
     // Unknown position is never free or auto-kept: the candidate needs a
     // measured road position before it can consume the day's finite budget.
@@ -678,7 +757,16 @@ function candidatesFor(
     if (spent + dMin > budget) continue
     spent += dMin
     const eta = seg && minute(seg.etaMinutes) ? (seg.etaMinutes as number) : null
-    const arriveMin = eta != null && dMin != null ? Math.round(eta + dMin) : null
+    // Arrival uses the same clock rule as the scorer and the card: the directed
+    // measured leg at its own departure clock when available, else the symmetric
+    // estimate. Repair (recheck P1) — never a measured total halved as directed.
+    const arrivalMin = candidateArrivalMin({
+      hit: row.hit,
+      etaMinutes: eta,
+      detourMin: dMin,
+      context: deps.measuredContext,
+    })
+    const arriveMin = arrivalMin != null ? Math.round(arrivalMin) : null
     const inWindow = arriveMin != null && win != null && arriveMin >= win[0] && arriveMin <= win[1]
     out.push({
       hit: row.hit,
@@ -716,6 +804,10 @@ function addSkeleton(drafts: SlotDraft[], deps: DaySlotsDeps, dayIndex: number):
   const hasStay = drafts.some(d => d.key === 'stay')
   const hasActivity = drafts.length > 0 || deps.dayStops.some(s => s.status !== 'rejected')
   if (!hasActivity) return
+  const schedule = deps.scheduleOf?.(dayIndex)
+  const arrivals = new Map(schedule?.activeStops.map((stop, index) => [String(stop.id), schedule.arrivalTimes[index]]))
+  const plannedMeals = new Set(deps.dayStops.filter(stop => stop.status !== 'rejected' && stop.category !== 'hotel')
+    .map(stop => assignedMealOf(stop, arrivals.get(String(stop.id)))))
   const span = deps.daySpanKm?.(dayIndex) ?? null
   const midKm = span ? span.fromKm + (span.toKm - span.fromKm) * 0.45 : 0
   const synth = (key: SlotKey, purpose: RideSegment['purpose'], targetKm: number, mealSlot?: MealSlotName): SlotDraft => ({
@@ -740,13 +832,13 @@ function addSkeleton(drafts: SlotDraft[], deps: DaySlotsDeps, dayIndex: number):
         : {}),
     }],
   })
-  if (!drafts.some(d => d.key === 'breakfast') && (hasStay || dayIndex > 0)) {
+  if (!drafts.some(d => d.key === 'breakfast') && (hasStay || dayIndex > 0 || plannedMeals.has('breakfast'))) {
     drafts.push(synth('breakfast', 'meal', span ? span.fromKm : 0))
   }
   if (!drafts.some(d => d.key === 'lunch')) {
     drafts.push(synth('lunch', 'meal', midKm, 'lunch'))
   }
-  if (hasStay && !drafts.some(d => d.key === 'dinner')) {
+  if ((hasStay || plannedMeals.has('dinner')) && !drafts.some(d => d.key === 'dinner')) {
     drafts.push(synth('dinner', 'meal', span ? span.toKm : 0, 'dinner'))
   }
 }
@@ -905,7 +997,7 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
 
   if (drafts.length === 0) return []
 
-  const claims = fillStopFor(drafts, deps.dayStops)
+  const claims = fillStopFor(drafts, deps.dayStops, deps.scheduleOf?.(dayIndex))
   // One day context, shared by every slot: the persisted id (never the array
   // position) and the trip that owns it. Unknown identity stays null.
   const dayId = stableDayIdFor(dayIndex, deps)
@@ -952,7 +1044,7 @@ export function daySlots(dayIndex: number, deps: DaySlotsDeps): DaySlot[] {
       // The day id the vote join and later writers use; null when the caller
       // did not supply stable context.
       ref: slotRefFor(dayIndex, deps, draft.key),
-      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps),
+      candidates: filledStop || auto ? [] : candidatesFor(draft, seg, segHits, deps, dayIndex),
       ...(filledStop ? {} : voteFor(draft, deps, dayIndex, dayId)),
       reason: auto ? 'Engine-managed stretch' : null,
     }

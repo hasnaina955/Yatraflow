@@ -531,7 +531,7 @@ behaviour (`#/join`/`#/invite`) with new cases: `#/access/<valid>` and
 
 ## 11. Phase R1-G — docs & lint sweep
 
-- **`CHANGELOG.md`** — add an `[Unreleased]` bullet: *"Creator invites (R1):
+- **Change fragment.** Add a file in `changelog.d/pending/` with this outcome: *"Creator invites (R1):
   admins mint YF-… invites (member or creator) from the masteradmin console;
   invited creators start clean (no demo seed) with the badge already granted;
   `#/access/<code>` gate handles sign-in/claim/dead-end states."* Keep it one
@@ -584,7 +584,7 @@ Per AGENTS §2.7 — confirm the dev server serves *this* tree before linking
 
 - `git status -sb` first — confirm no foreign unpushed commits (AGENTS §2.4).
 - Branch off `test`, not `main` (§2.8; report branch name + wait explicitly).
-- Packaging: **CHANGELOG entry + `package.json` version bump + lockfile**
+- Packaging: **Checked fragment assembly + receipt + `package.json` version bump + lockfile**
   (AGENTS §2.2) — R1 ships v0.48.0 (re-derive per §4).
 - Merge sequence is C → B → A with R1 first — never ship R2 before R1.
 - Vercel: `vite.config.ts` aborts a build when `VITE_SUPABASE_*` are missing

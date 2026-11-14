@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   saveDraft, loadDraft, clearDraft, draftIsWorthKeeping, draftAgeLabel, maskPhone,
-  DRAFT_KEY, DRAFT_VERSION, type DraftStore,
+  DRAFT_KEY, DRAFT_VERSION, type DraftStore, type StoredDraft,
 } from '../src/lib/createDraft'
 import { CREATE_STEPS } from '../src/lib/createSteps'
 
@@ -117,7 +117,7 @@ describe('create drafts - the unfinished trip that waits', () => {
   })
 
   it('any real progress makes it worth keeping', () => {
-    const base = { v: DRAFT_VERSION, savedAt: 'x', returnCount: 0, dests: [] as const }
+    const base: Omit<StoredDraft, 'form'> = { v: DRAFT_VERSION, savedAt: 'x', returnCount: 0, dests: [] }
     expect(draftIsWorthKeeping({ ...base, form: { name: 'Goa' } })).toBe(true)
     expect(draftIsWorthKeeping({ ...base, form: { startLocation: 'Panaji, Goa' } })).toBe(true)
     expect(draftIsWorthKeeping({ ...base, form: { startDate: '2026-02-14' } })).toBe(true)

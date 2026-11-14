@@ -143,8 +143,8 @@ export function slotSearchScopeKey(tripId: string, dayId: string | undefined): s
 }
 
 export const SLOT_SEARCH_QUOTA_COPY =
-  'Google Places monthly cap reached - text search stays paused until the counter rolls over.'
-export const SLOT_SEARCH_FAILED_COPY = 'Search failed - try again.'
+  'Google Places · Monthly limit reached'
+export const SLOT_SEARCH_FAILED_COPY = 'Search · Failed · Retry'
 
 export interface SlotSearchPatch {
   busy: boolean

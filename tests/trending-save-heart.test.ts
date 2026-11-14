@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { PublishedItinerary, User } from '../src/data/types'
+import type { CachedUser, PublishedItinerary } from '../src/data/types'
 import { TrendingShelf } from '../src/components/explore/TrendingShelf'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
 
@@ -21,9 +21,9 @@ const heartSource = read('../src/components/explore/ExploreSaveHeart.tsx')
 const explorePage = read('../src/pages/Explore.tsx')
 const css = readCssSource('src/styles.css')
 
-const creator: User = {
-  id: 'c1', email: 'c1@example.test', createdAt: 0,
-  profile: { name: 'Arun', languages: ['en'], travelStyles: ['relaxed'], isCreator: true },
+const creator: CachedUser = {
+  id: 'c1', kind: 'private', email: 'c1@example.test', createdAt: 0,
+  profile: { name: 'Arun', languages: ['en'], travelStyles: ['relaxed'], isCreator: true, creatorAvailable: false },
 }
 
 const plan = (id: string): PublishedItinerary => ({

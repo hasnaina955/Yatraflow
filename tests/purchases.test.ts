@@ -13,7 +13,7 @@ import { buildPurchaseShelf, purchaseShareable, unlockRevealStats, findBuyerCopy
 import { computeTotals } from '../src/lib/engine'
 import { seedData } from '../src/data/seed'
 import type { Entitlement, PurchaseOrder } from '../src/lib/payments'
-import type { PublishedItinerary, Trip, User } from '../src/data/types'
+import type { CachedUser, PublishedItinerary, Trip } from '../src/data/types'
 
 const DAY = 86_400_000
 
@@ -27,7 +27,7 @@ function pub(overrides: Partial<PublishedItinerary> = {}): PublishedItinerary {
     routeSummary: ['Shimla', 'Kaza', 'Manali'],
     durationDays: 6,
     estimatedBudgetPerPersonInr: 24000,
-    travelStyle: 'roadtrip',
+    travelStyle: 'balanced',
     travelTips: ['Carry cash'],
     warningsAndAssumptions: [],
     freeDayIndexes: [0],
@@ -51,12 +51,13 @@ function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
   }
 }
 
-function user(id: string, name: string): User {
+function user(id: string, name: string): CachedUser {
   return {
     id,
+    kind: 'private',
     email: `${id}@example.com`,
     createdAt: 0,
-    profile: { name, languages: ['en'], travelStyles: [], isCreator: true },
+    profile: { name, languages: ['en'], travelStyles: [], isCreator: true, creatorAvailable: false },
   }
 }
 
@@ -635,9 +636,9 @@ describe('#407 — a refunded purchase renders as a receipt', () => {
     status: 'paid',
     createdAt: paid,
     paidAt: paid,
+    refundedPaise: 0,
     ...overrides,
   })
-
   it('shows a purchase whose grant is gone as a Refunded row, receipt intact', () => {
     // The entitlement is deleted by the refund, so this row exists ONLY because
     // the order was read. Its amount and date are the order's own figures.
@@ -802,7 +803,7 @@ describe('#570 — rowExists and onSale are different facts', () => {
     // from here (it does — get_public_trip serves entitled holders); the
     // gone-entirely face falls back to the forked copy.
     expect(pageSrc).toContain('!row.refunded && !row.pendingGrant && !row.onSale && (')
-    expect(pageSrc).toContain('it still opens from here')
+    expect(pageSrc).toContain('It still opens from here')
   })
 
   it('keeps Open and Fork working through a withdrawal — the buyer\'s one working path', () => {
@@ -832,6 +833,7 @@ describe('#589 — a paid order whose grant has not landed is its own row kind',
     status: 'paid',
     createdAt: paid,
     paidAt: paid,
+    refundedPaise: 0,
     ...overrides,
   })
 

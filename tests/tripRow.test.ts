@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest'
 import { rowToTrip, tripToRow, tripUpdateRow, isMissingColumnError, sanitizeTankL, sanitizeRentPerDayInr } from '../src/lib/tripRow'
 import { seedData } from '../src/data/seed'
 import type { Trip, TripMember } from '../src/data/types'
+import type { TripRow } from '../src/lib/tripRow'
 import { readFileSync, readdirSync } from 'node:fs'
 
 function tripWithExpenses(): Trip {
@@ -27,6 +28,7 @@ const ALL_COLUMNS = {
   inviteCode: true, deleted: true, stayStyle: true,
   driverCount: true, hasVulnerable: true, driveAfterDinner: true, vehicleProfile: true,
   tankL: true, rentPerDayInr: true, localTrain: true, flights: true,
+  drivesPart: true, ref: true,
 }
 
 /** The bare fixture — no optional fields set. */
@@ -251,7 +253,7 @@ describe('the create-time vehicle estimates are persisted (20260928_trip_vehicle
       vehicleProfile: { vehicleType: 'car' as const, fuelType: 'diesel' as const, capacity: 60, economy: 21 },
       tankL: 60, rentPerDayInr: 1800, localTrain: false, roundTrip: false,
     }
-    const back = rowToTrip(tripToRow(t, 'owner-1', ALL_COLUMNS), MEMBERS)
+    const back = rowToTrip({ ...tripToRow(t, 'owner-1', ALL_COLUMNS), created_at: t.createdAt, updated_at: t.updatedAt }, MEMBERS)
     expect(back.vehicleProfile).toEqual(t.vehicleProfile)
     expect(back.tankL).toBe(60)
     expect(back.rentPerDayInr).toBe(1800)
@@ -428,6 +430,7 @@ describe('flights round-trip through the jsonb column', () => {
   it('drops unplaceable rows and degrades junk fields, rather than planning around either', () => {
     const junk = {
       ...tripToRow(baseTrip(), 'owner-1', ALL_COLUMNS), created_at: 1, updated_at: 1,
+      // Deliberately malformed rows: every entry below is junk the mapper must reject.
       flights: [
         null,
         'nope',
@@ -436,7 +439,7 @@ describe('flights round-trip through the jsonb column', () => {
         { id: 'no-from', dayIndex: 0, toAirport: 'BOM' },
         { id: 'bad-clock', dayIndex: 0, fromAirport: 'DEL', toAirport: 'BOM', departAt: '99:99' },
         { id: 'zero-fare', dayIndex: 0, fromAirport: 'DEL', toAirport: 'BOM', costInrPerPerson: 0 },
-      ],
+      ] as unknown as Trip['flights'],
     }
     const back = rowToTrip(junk, []).flights!
     // the three placeable rows survive; the unplaceable ones do not
@@ -446,7 +449,7 @@ describe('flights round-trip through the jsonb column', () => {
     expect(back[1].departAt).toBeUndefined()
     expect(back[2].costInrPerPerson).toBeUndefined()
     // a non-array drops the whole list
-    expect(rowToTrip({ ...junk, flights: { nope: true } }, []).flights).toBeUndefined()
+    expect(rowToTrip({ ...junk, flights: { nope: true } as unknown as Trip['flights'] }, []).flights).toBeUndefined()
   })
 })
 
@@ -461,7 +464,7 @@ describe('#799 — tripUpdateRow omits owner_id, tripToRow keeps it', () => {
   it('an UPDATE row has no owner_id key at all', () => {
     const row = tripUpdateRow(baseTrip(), 'owner-1', ALL_COLUMNS)
     expect('owner_id' in row).toBe(false)
-    expect(row.owner_id).toBeUndefined()
+    expect((row as Partial<TripRow>).owner_id).toBeUndefined()
   })
 
   it('the INSERT row still carries owner_id, so both insert callers are safe', () => {

@@ -37,11 +37,11 @@ describe('ride presentation', () => {
     const rawSummary = { ...summary, title }
     const art = { publicationId: 'pub', index: 1, planPlaces: ['Spiti'], slotPlaces: [title] }
     const parts = [
-      createElement(DayCard, { state: 'locked', summary: rawSummary }),
+      createElement(DayCard, { state: 'locked', summary: rawSummary, budget: { drive: 90, places: 120, window: 480, from: '09:19', to: '17:49' } }),
       createElement(DayRibbon, { label: 'Days', head: { kicker: 'Plan', figure: '2', sub: 'days' },
         days: [{ ...rawSummary, state: 'locked' }], current: null, lockedWord: 'Locked', onPick: () => {} }),
-      createElement(RideLockedPreview, { ...art, card: { state: 'locked', summary: rawSummary }, lastIndex: 1, action: null }),
-      createElement(RideDayPanel, { ...art, state: 'locked', title, badge: 'Day 2', meta: '90 minutes', budget: null, children: null }),
+      createElement(RideLockedPreview, { ...art, card: { state: 'locked', summary: rawSummary }, lastIndex: 1, facts: ['30 km', '90 minutes'], action: null }),
+      createElement(RideDayPanel, { ...art, state: 'locked', title, badge: 'Day 2', meta: '90 minutes', budget: '09:19 to 17:49', children: null }),
       createElement(RideOtherRow, { ...art, state: 'locked', title, line: '2 places', km: '30 km', drive: '90 minutes', onOpen: () => {} }),
     ]
     for (const part of parts) {
@@ -49,6 +49,7 @@ describe('ride presentation', () => {
       expect(html).toContain('Day 2')
       expect(html).not.toContain('Dhankar')
       expect(html).not.toContain('Pin Valley')
+      expect(html).not.toMatch(/90 minutes|30 km|09:19|17:49|time budget|driving/)
     }
     const panel = (slotPlaces: string[]) => renderToStaticMarkup(createElement(RideDayPanel, {
       ...art, slotPlaces, state: 'locked', title, badge: 'Day 2', meta: '', budget: null, children: null,
@@ -76,6 +77,23 @@ describe('ride presentation', () => {
     expect(JSON.stringify(points)).not.toContain('Hidden place')
     expect(buildRouteHeightPoints(points)[1].breakBefore).toBe(true)
   })
+  it('withholds wire-locked terrain even when its index is listed as free', () => {
+    const points = rideHeightPoints({ ...seedData.trips[0], days: [
+      { id: 'open', index: 0, stops: [stop] },
+      { id: 'locked', index: 1, locked: true, stops: [{ ...stop, title: 'SECRET774', lat: 34.774774 }] },
+    ] }, [0, 1])
+    expect(points).toHaveLength(1)
+    expect(JSON.stringify(points)).not.toMatch(/SECRET774|34\.774774/)
+  })
+  it('keeps a gap when the wire lock has no stops', () => {
+    const points = rideHeightPoints({ ...seedData.trips[0], days: [
+      { id: 'first', index: 0, stops: [stop] },
+      { id: 'locked', index: 1, locked: true, stops: [] },
+      { id: 'last', index: 2, stops: [{ ...stop, id: 'last', lat: 33 }] },
+    ] }, [0, 1, 2])
+    expect(points).toHaveLength(2)
+    expect(buildRouteHeightPoints(points)[1].breakBefore).toBe(true)
+  })
   it('omits missing, invalid and air legs rather than using the engine fallback', () => {
     expect(savedRideLeg({}, leg)).toBeNull()
     expect(savedRideLeg({ legDistanceKm: NaN, legTravelMinutes: 10 }, leg)).toBeNull()
@@ -94,7 +112,7 @@ describe('ride presentation', () => {
   describe('start and end lines beside a locked day', () => {
     // Day 9 follows locked day 8. The engine starts it at day 8's last stop.
     const borrowedStart = { ...journey.points[0], title: 'Chandratal Lake', stop: { ...stop, id: 'day8-last', auto: true } }
-    const borrowedEnd = { ...journey.points[1], kind: 'end', title: 'Secret Camp', synthesized: true, stop: { ...stop, id: 'day10-first', auto: true } }
+    const borrowedEnd = { ...journey.points[1], kind: 'destination', title: 'Secret Camp', synthesized: true, stop: { ...stop, id: 'day10-first', auto: true } } satisfies Journey['points'][number]
     const j = { ...journey, startTitle: 'Chandratal Lake', endTitle: 'Secret Camp', points: [borrowedStart, journey.points[1], borrowedEnd] } satisfies Journey
     const own = new Set(['lake'])
 

@@ -38,7 +38,7 @@ const WMO: Record<number, { icon: string; label: string }> = {
 
 /** Icon + human label for a WMO weather code. */
 export function wmoInfo(code: number): { icon: string; label: string } {
-  return WMO[code] ?? { icon: '🌡️', label: '—' }
+  return WMO[code] ?? { icon: '🌡️', label: 'Not available' }
 }
 
 /** A real, finite number from the API — the honest guard against `?? 0`. */

@@ -45,7 +45,7 @@ const DEFAULT_DRIVE_AFTER_DINNER_MIN = 120
  *  agreeing — one for the edit that dropped the pin, one for the pair a save
  *  refused to persist. "Unpinned" is not an error: the trip still plans, and
  *  the existing degraders measure it honestly without a position. */
-const START_UNPINNED = 'The start pin is off — the text now names a different city. Pick the city to pin it on the map again.'
+const START_UNPINNED = 'The start pin is off. The text now names a different city. Pick the city to pin it on the map again.'
 const START_DROPPED = 'The stored start pin named a different city, so it was not saved. Pick the city to pin it.'
 
 /** Icon per transport mode — the ONE map lives in components/icons (modeIcon);
@@ -148,13 +148,13 @@ export function settingsDryRun(
     if (f.capacity.trim() !== '' && parseCapacityL(f.capacity) === undefined) {
       return {
         ok: false,
-        reason: `Tank or battery capacity must be 1-300 ${f.fuelType === 'electric' ? 'kWh' : 'L'} — clear the box to use the vehicle default.`,
+        reason: `Tank or battery capacity must be 1-300 ${f.fuelType === 'electric' ? 'kWh' : 'L'}. Clear the box to use the vehicle default.`,
       }
     }
     if (f.vehicleEconomy.trim() !== '' && parseVehicleEconomy(f.vehicleEconomy) === undefined) {
       return {
         ok: false,
-        reason: 'Economy must be 2-80 km/L (km/kWh for an EV) — clear the box to use the vehicle default.',
+        reason: 'Economy must be 2-80 km/L (km/kWh for an EV). Clear the box to use the vehicle default.',
       }
     }
   }
@@ -900,7 +900,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             viewer gets it disabled with the reason said out loud. */}
         {!editable && (
           <span className="ts-savebar-note hint-text" role="status">
-            <InlineIcon icon={TriangleAlert} size={12} gap={3} />Only editors can change trip settings — ask an editor on this trip, or duplicate it to edit your own copy.
+            <InlineIcon icon={TriangleAlert} size={12} gap={3} />Only editors can change trip settings. Ask an editor on this trip, or duplicate it to edit your own copy.
           </span>
         )}
         {savingSettings && (
@@ -1162,7 +1162,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
                 />
                 {startNotice && <p className="hint-text set-start-notice" role="status">{startNotice}</p>}
               </Field>
-              <Field label={`Destinations (${routeSummary.destinationCount})`} hint="Search to add — arrows reorder saved stops">
+              <Field label={`Destinations (${routeSummary.destinationCount})`} hint="Search to add. Arrows reorder saved stops">
                 <LocationInput
                   value={destInput}
                   onChange={setDestInput}
@@ -1525,12 +1525,12 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             </div>
             {isImplausibleFuelEconomy(f.transportMode, ecoSet ? ecoNum : undefined) && (
               <p className="hint-text ts-warn-note">
-                <InlineIcon icon={TriangleAlert} size={12} gap={3} />Unusual for a {f.transportMode} — most do far better. Double-check the mileage.
+                <InlineIcon icon={TriangleAlert} size={12} gap={3} />Unusual for a {f.transportMode}. Most do far better. Double-check the mileage.
               </p>
             )}
             {priceIgnored && (
               <p className="hint-text ts-warn-note">
-                <InlineIcon icon={TriangleAlert} size={12} gap={3} />Your fuel price is unused until you set a mileage — the bill is pricing the blended {cap(f.transportMode)} rate instead.
+                <InlineIcon icon={TriangleAlert} size={12} gap={3} />Your fuel price is unused until you set a mileage. The bill is pricing the blended {cap(f.transportMode)} rate instead.
               </p>
             )}
             <div className="vehicle-profile-form">
@@ -1597,7 +1597,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
               <div className="tset-danger-pair">
                 <div className="tset-danger-cell">
                   <b>Archive</b>
-                  <span>Not built yet — the trip stays where it is.</span>
+                  <span>Not built yet. The trip stays where it is.</span>
                   <button type="button" className="tset-danger-btn" disabled title="Archive is not built yet">Archive</button>
                 </div>
                 <div className="tset-danger-cell tset-danger-cell--trash">
@@ -1626,7 +1626,7 @@ export function TripSettingsForm({ trip, editable, onOpenDay, legCorrections, on
             viewer gets it disabled with the reason said out loud. */}
         {!editable && (
           <span className="ts-savebar-note hint-text" role="status">
-            <InlineIcon icon={TriangleAlert} size={12} gap={3} />Only editors can change trip settings — ask an editor on this trip, or duplicate it to edit your own copy.
+            <InlineIcon icon={TriangleAlert} size={12} gap={3} />Only editors can change trip settings. Ask an editor on this trip, or duplicate it to edit your own copy.
           </span>
         )}
         {/* #704: a save in flight is its own answer, so it gets its own block

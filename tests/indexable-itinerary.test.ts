@@ -45,7 +45,7 @@ describe('free-day rules', () => {
     expect([...(freeDaySet({ premium_price_inr: 5, free_day_indexes: [-1, 1.5, '0', 2] }) as Set<number>)]).toEqual([2])
   })
   it('locks a listed day that still carries the database marker, and a day with no index', () => {
-    const open = planBody(priced, trip).map(day => day.open)
+    const open = planBody(priced, trip).map((day: { open: boolean }) => day.open)
     expect(open).toEqual([true, false, false, false])
   })
 })
@@ -57,9 +57,11 @@ describe('the body never prints locked content', () => {
     expect(html).toContain('Tea museum')
     expect(html).toContain('Walk the estate.')
   })
-  it('prints a locked day with a neutral heading and an in-app line only', () => {
+  it('prints a locked day as its number and an in-app line only', () => {
+    // #774 — the day title is the creator's own text, so a locked day hides it.
     expect(html).toContain('<h2>Day 2</h2>')
     expect(html).not.toContain('Thekkady forest')
+    expect(html).not.toContain('Alleppey backwaters')
     expect(html).toContain('The full plan for this day is in the app.')
     expect(html).not.toContain(SECRET)
     expect(html).not.toContain('Houseboat')

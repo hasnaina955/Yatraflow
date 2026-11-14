@@ -23,7 +23,7 @@
 //   `trips.cover_image_url` would have blocked every creator the moment the
 //   code went live — and silently, because the client's own degradation probe
 //   (`probeOptionalColumn`) is designed to hide exactly that failure. Run this
-//   before promoting a release; the CHANGELOG entry for a new migration is the
+//   before promoting a release; the change fragment for a new migration is the
 //   reminder to run it.
 //
 // Safety by construction:
@@ -361,6 +361,17 @@ export const NO_PROBE_SURFACE = {
     // leaves the older RPC working — silent by nature — so the definition is
     // parity-pinned and its behavior executed on PGlite.
     reason: 'submit_collab_command rewrite only — function bodies have no probe surface and the previous definition keeps working without it; pinned by tests/collab-command-parity.test.ts and tests/stage-c/843-exposure-persistence.test.ts',
+  },
+  '20261110_paywall_locked_day_boundary.sql': {
+    // Redefines `get_public_trip` and `get_invite_trip` (#774, #917). Both
+    // exist before and after, so presence answers nothing, and a missing file
+    // is silent: the older function keeps sending locked stop titles and
+    // coordinates. The behaviour is executed, not scanned:
+    // tests/public-trip-paywall-db.test.ts runs this file on PGlite and then
+    // runs supabase/tests/public_trip_paywall.test.sql as each kind of viewer.
+    // The file also adds `published_itineraries_price_not_zero`. A read-only
+    // probe cannot see a CHECK constraint either; the harness proves it.
+    reason: 'redefines `get_public_trip` and `get_invite_trip` — the functions exist before and after, so presence answers nothing; absence is silent (locked place data stays in the response); executed on PGlite by tests/public-trip-paywall-db.test.ts through supabase/tests/public_trip_paywall.test.sql',
   },
 }
 

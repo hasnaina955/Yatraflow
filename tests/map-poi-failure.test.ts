@@ -105,12 +105,14 @@ describe('the Map tab turns the failure into its own note (#704)', () => {
 
   it('the cache hook exposes the failure to the Map tab', () => {
     expect(corridorCache).toMatch(/poisFailed: scanFailed \|\| fractionFailed/)
-    expect(mapTab).toMatch(/loadingPois, poisFailed \} = useCorridorCache\(/)
+    expect(mapTab).toMatch(/loadingPois, poisFailed, scanFailed,/)
   })
 
   it('the failed note comes before the default copy, so a failure never reads as an empty route', () => {
-    const note = mapTab.indexOf('Stops along the route could not be loaded just now.')
-    const blame = mapTab.indexOf('Not enough driving distance yet')
+    const note = mapTab.indexOf('Route stops · Unavailable')
+    // The default copy a too-short route shows. It must never come before the
+    // failure note, or a failed search would read as an empty route.
+    const blame = mapTab.indexOf('Short drive · Explore Around the stay')
     expect(note).toBeGreaterThan(-1)
     expect(mapTab).toMatch(/\) : poisFailed \? \(/)
     expect(blame).toBeGreaterThan(note)

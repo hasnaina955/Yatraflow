@@ -23,9 +23,11 @@
 // Place Details and Text Search Along-Route all return HTTP 200. One fix was
 // applied from that run: routingSummaries paths are legs-scoped
 // (`routingSummaries.legs.distanceMeters`). See scripts/verify-google-places.mjs.
-import { normWords, hasCoords, spurKm, type PlaceHit, type HaltPurpose } from './hits'
+import { normWords, hasCoords, spurKm, type PlaceHit, type PlacePhotoRef, type HaltPurpose } from './hits'
+import { placeHoursFromPeriods, localISODate, type PlaceHours } from './hours'
+import { familyFromType, familyFromName, type PlaceFamily } from './families'
 import { quotaAllows, quotaCount, type QuotaSku } from './quota'
-import { queriesForPurpose } from '../purposeQueries'
+import { queriesForPurpose, familyQueryEntries } from '../purposeQueries'
 import { encodePolyline } from './polyline'
 
 const PLACES = 'https://places.googleapis.com/v1'
@@ -43,7 +45,7 @@ export function googleEnabled(): boolean {
 /** Thrown when the Phase-B soft cap says no more events for a SKU this month. */
 export class QuotaExhaustedError extends Error {
   constructor(sku: QuotaSku) {
-    super(`Google Places quota soft-cap reached for ${sku} — Google-mode suggestions stay paused until the counter rolls over (next UTC month). Remove the key to serve the free stack instead.`)
+    super(`Google Places quota soft-cap reached for ${sku}. Google-mode suggestions stay paused until the counter rolls over (next UTC month). Remove the key to serve the free stack instead.`)
     this.name = 'QuotaExhaustedError'
   }
 }
@@ -188,11 +190,73 @@ interface GooglePlace {
   currentOpeningHours?: { periods?: GooglePeriod[] }
   rating?: number
   userRatingCount?: number
+  photos?: GooglePhoto[]
+}
+
+interface GooglePhoto {
+  /** resource name: "places/ID/photos/REF" */
+  name?: string
+  widthPx?: number
+  heightPx?: number
+  authorAttributions?: { displayName?: string; uri?: string }[]
+}
+
+/** At most this many photo references ride one place. */
+const MAX_PHOTO_REFS = 3
+
+/**
+ * Photo references with attribution. A photo with no author text is dropped,
+ * because Google rules say the text must show with the image.
+ */
+function photoRefsFrom(p: GooglePlace): PlacePhotoRef[] {
+  const out: PlacePhotoRef[] = []
+  for (const photo of p.photos ?? []) {
+    if (out.length >= MAX_PHOTO_REFS) break
+    const name = photo.name?.trim()
+    const author = photo.authorAttributions?.find(a => a.displayName?.trim())
+    if (!name || !author?.displayName) continue
+    out.push({
+      name,
+      widthPx: Number.isFinite(photo.widthPx) ? photo.widthPx ?? null : null,
+      heightPx: Number.isFinite(photo.heightPx) ? photo.heightPx ?? null : null,
+      attribution: { text: author.displayName.trim(), authorUri: author.uri?.trim() || null },
+    })
+  }
+  return out
+}
+
+/**
+ * The photo URL for one reference. Call it only when a card shows the photo.
+ * A scan never calls it. Returns null without a Google key.
+ */
+export function placePhotoUrl(photo: Pick<PlacePhotoRef, 'name'>, maxWidthPx: number): string | null {
+  const key = apiKey()
+  if (!key || !photo.name.startsWith('places/')) return null
+  return `${PLACES}/${photo.name}/media?maxWidthPx=${Math.max(1, Math.round(maxWidthPx))}&key=${encodeURIComponent(key)}`
+}
+
+/**
+ * The references a card may show. Without a Google key the list is empty.
+ * It never reads the Wikipedia thumbnail, so no other source fills the gap.
+ */
+export function cardPhotoRefs(hit: Pick<PlaceHit, 'photos'>): PlacePhotoRef[] {
+  return googleEnabled() ? hit.photos ?? [] : []
 }
 
 interface GooglePeriod {
-  open?: { hour?: number; minute?: number }
-  close?: { hour?: number; minute?: number }
+  /**
+   * day: 0 = Sunday (Google convention), local clock. date: the calendar day a
+   * currentOpeningHours period covers (next ~7 days, closures and holidays).
+   * Both are optional here because the parser must survive their absence
+   * honestly — unattributable periods are dropped, never guessed (ticket 02).
+   */
+  open?: {
+    day?: number
+    hour?: number
+    minute?: number
+    date?: { year?: number; month?: number; day?: number }
+  }
+  close?: { day?: number; hour?: number; minute?: number }
 }
 
 interface RoutingSummary {
@@ -231,6 +295,9 @@ export const NEARBY_FIELD_MASK = [
   'places.currentOpeningHours',
   'places.rating',
   'places.userRatingCount',
+  // Photo references ride the same events: the mask already holds Enterprise
+  // fields, so photos add no SKU. Image bytes load later, on demand only.
+  'places.photos',
   'routingSummaries.legs.distanceMeters',
 ].join(',')
 
@@ -254,6 +321,17 @@ function hoursFrom(p: GooglePlace): { openTime?: string; closeTime?: string } {
   return { openTime: hm(first.open) ?? '00:00', closeTime: hm(first.close) ?? '23:59' }
 }
 
+/**
+ * Structured hours facts (ticket 02): weekday-attributed intervals from both
+ * the weekly pattern and the dated currentOpeningHours observations, stamped
+ * with the local fetch date. Undefined when no period is weekday-attributable —
+ * the legacy open/closeTime pair still rides the hit, but no verdict is ever
+ * invented from it (ambiguous hours stay unknown, not fabricated intervals).
+ */
+function placeHoursFrom(p: GooglePlace): PlaceHours | undefined {
+  return placeHoursFromPeriods(p.regularOpeningHours?.periods, p.currentOpeningHours?.periods, localISODate())
+}
+
 export interface AlongRouteArgs {
   /** OSRM road geometry of the whole route, [lng, lat][] */
   routeCoords: [number, number][]
@@ -261,6 +339,13 @@ export interface AlongRouteArgs {
   includeFuel?: boolean
   /** When provided, searches use purpose-specific queries instead of the static tourist set. */
   purposes?: HaltPurpose[]
+  /**
+   * Ticket 09: family query sets appended to the scan — one Text Search event
+   * per family query, results classified into the family's category. Family
+   * SELECTION per day and operating limits need coordinator agreement
+   * before any live expansion (ticket 10 owns the day-context selection).
+   */
+  families?: readonly PlaceFamily[]
   signal?: AbortSignal
 }
 
@@ -288,35 +373,61 @@ export interface AlongRouteArgs {
  */
 const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
   tourist_attraction: 'sightseeing',
-  aquarium: 'sightseeing', zoo: 'sightseeing', amusement_park: 'sightseeing',
+  aquarium: 'sightseeing',
   museum: 'museum', art_gallery: 'museum', cultural_center: 'museum',
   hindu_temple: 'temple', mosque: 'temple', church: 'temple', synagogue: 'temple',
   place_of_worship: 'temple', gurudwara: 'temple',
-  park: 'nature', natural_feature: 'nature', botanical_garden: 'nature',
+  park: 'nature', botanical_garden: 'nature',
   beach: 'beach',
-  hiking_area: 'adventure', campground: 'adventure',
+  campground: 'adventure',
   restaurant: 'food', cafe: 'cafe', coffee_shop: 'cafe', bar: 'food',
   bakery: 'food', meal_takeaway: 'food', food: 'food',
   hotel: 'hotel', motel: 'hotel', lodge: 'hotel', guest_house: 'hotel',
   hostel: 'hotel', bed_and_breakfast: 'hotel', resort: 'hotel', lodging: 'hotel',
   gas_station: 'transport-hub', fuel: 'transport-hub',
   ev_charging_station: 'transport-hub', charging_station: 'transport-hub',
-  shopping_mall: 'shopping', store: 'shopping', market: 'shopping',
+  shopping_mall: 'shopping', store: 'shopping',
   train_station: 'travel', transit_station: 'travel', airport: 'travel',
+  // Ticket 09: natural_feature, zoo, market, amusement_park and hiking_area
+  // moved out of this table into providers/families.ts — the source's
+  // family rows classify them (with subtype facts) and the family table is
+  // checked right after this one.
 }
 
-/** Category from Google's primaryType (or types), else the query's category hint. */
-function categoryForGooglePlace(
+/**
+ * Category + family facts from provider type, then evidenced name, then the
+ * query's own category hint (ticket 09 AC 1). Name evidence refines ONLY
+ * sight-land contexts — the query asked for sights, or the hit's own machine
+ * type is the generic attraction type; a name word never re-classifies a
+ * food, fuel or hotel hit. A mapping to the GENERIC 'sightseeing' category
+ * is not a specific classification: the chain continues to the family and
+ * name steps before falling back (B1 — real waterfall/fort/viewpoint hits
+ * usually carry `primaryType: tourist_attraction`). Exported for the
+ * classification test seam; hit assembly is its only production caller.
+ */
+export function classifyGooglePlace(
   p: GooglePlace,
   fallback: string,
-): string {
-  const primary = p.primaryType ? GOOGLE_TYPE_TO_CATEGORY[p.primaryType] : undefined
-  if (primary) return primary
+): { category: string; family?: PlaceFamily; subtype?: string | null } {
+  // 1. a SPECIFIC provider type wins immediately
+  const primaryCat = p.primaryType ? GOOGLE_TYPE_TO_CATEGORY[p.primaryType] : undefined
+  if (primaryCat && primaryCat !== 'sightseeing') return { category: primaryCat }
   for (const t of p.types ?? []) {
     const mapped = GOOGLE_TYPE_TO_CATEGORY[t]
-    if (mapped) return mapped
+    if (mapped && mapped !== 'sightseeing') return { category: mapped }
   }
-  return fallback
+  // 2. family types (the source's rows) refine
+  const byType = familyFromType(p.primaryType)
+    ?? (p.types ?? []).map(t => familyFromType(t)).find(m => m != null)
+    ?? null
+  if (byType) return { category: byType.category, family: byType.family, subtype: byType.subtype }
+  // 3. evidenced name, sight-land contexts only
+  if (fallback === 'sightseeing' || primaryCat === 'sightseeing') {
+    const byName = familyFromName(p.displayName?.text)
+    if (byName) return { category: byName.category, family: byName.family, subtype: byName.subtype }
+  }
+  // 4. generic — the tourist_attraction mapping still beats the query hint
+  return { category: primaryCat ?? fallback }
 }
 
 function hitsFromResponses(
@@ -352,6 +463,9 @@ function hitsFromResponses(
       // search ran along — engine-free, so an on-road petrol pump reads ~0
       // regardless of which provider measured the polyline.
       const spur = routePolyline ? spurKm({ latitude: lat, longitude: lng }, routePolyline) : null
+      const hours = placeHoursFrom(p)
+      const classified = classifyGooglePlace(p, queries[qi].cat)
+      const photos = photoRefsFrom(p)
       out.push({
         id: `google_${p.id}`,
         name: p.displayName.text,
@@ -365,10 +479,13 @@ function hitsFromResponses(
         // real category from the place's machine type — NEVER the purpose
         // string that built the query ('meal'/'fuel'/'overnight' are purposes,
         // not categories; they score 0 in PURPOSE_FIT)
-        category: categoryForGooglePlace(p, queries[qi].cat),
+        category: classified.category,
+        ...(classified.family ? { family: classified.family, subtype: classified.subtype ?? undefined } : {}),
         ...hoursFrom(p),
+        ...(hours ? { hours } : {}),
         ...(p.rating != null && Number.isFinite(p.rating) ? { rating: p.rating } : {}),
         ...(p.userRatingCount != null && Number.isFinite(p.userRatingCount) ? { ratingCount: p.userRatingCount } : {}),
+        ...(photos.length > 0 ? { photos } : {}),
         // leg0 = road km from the route origin to this place — its position
         // along the journey (ride-plan segment assignment + card labels)
         ...(l0 != null && Number.isFinite(l0) ? { alongRouteKm: Math.max(0, l0) / 1000 } : {}),
@@ -384,9 +501,12 @@ export async function googleNearbyAlongRoute(args: AlongRouteArgs): Promise<Plac
   if (!encoded) return []
   // Build query list: static tourist set (backward compat) OR purpose-specific dynamic set
   const staticQueries = args.includeFuel ? [...ALONG_ROUTE_QUERIES, FUEL_QUERY] : ALONG_ROUTE_QUERIES
-  const queries = args.purposes && args.purposes.length > 0
+  const purposeQueries = args.purposes && args.purposes.length > 0
     ? args.purposes.flatMap(p => queriesForPurpose(p).googleQueries.map(textQuery => ({ textQuery, cat: p, includedType: queriesForPurpose(p).includedType })))
     : staticQueries
+  // Ticket 09: family scans ride the same event structure — one Text Search
+  // event per family query, results classified into the family's category.
+  const queries = [...purposeQueries, ...familyQueryEntries(args.families ?? [])]
   const responses = await Promise.all(queries.map(qv =>
     placesPost('/places:searchText', 'textSearchPro', {
       textQuery: qv.textQuery,
@@ -418,6 +538,8 @@ const POINT_FIELD_MASK = [
   'places.types',
   'places.regularOpeningHours',
   'places.currentOpeningHours',
+  // Opening hours already set the Enterprise SKU here, so photos add none.
+  'places.photos',
 ].join(',')
 
 // Essentials-only mask for the Nearby Search city layer (places:searchNearby)
@@ -437,6 +559,8 @@ export interface AtPointArgs {
   radiusM: number
   count: number
   includeFuel?: boolean
+  purposes?: HaltPurpose[]
+  families?: readonly PlaceFamily[]
   signal?: AbortSignal
 }
 
@@ -449,7 +573,13 @@ export interface AtPointArgs {
  * distance-to-anchor fallbacks via detourKm).
  */
 export async function googleNearbyAtPoint(args: AtPointArgs): Promise<PlaceHit[]> {
-  const queries = args.includeFuel ? [...ALONG_ROUTE_QUERIES, FUEL_QUERY] : ALONG_ROUTE_QUERIES
+  const staticQueries = args.includeFuel ? [...ALONG_ROUTE_QUERIES, FUEL_QUERY] : ALONG_ROUTE_QUERIES
+  const purposeQueries = args.purposes && args.purposes.length > 0
+    ? args.purposes.flatMap(p => queriesForPurpose(p).googleQueries.map(textQuery => ({ textQuery, cat: p, includedType: queriesForPurpose(p).includedType })))
+    : staticQueries
+  // Ticket 09: family scans ride the same event structure as the along-route
+  // scan — one Text Search event per family query.
+  const queries = [...purposeQueries, ...familyQueryEntries(args.families ?? [])]
   const responses = await Promise.all(queries.map(qv =>
     placesPost('/places:searchText', 'textSearchPro', {
       textQuery: qv.textQuery,

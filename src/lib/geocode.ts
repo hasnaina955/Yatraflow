@@ -18,11 +18,10 @@
 // ("the app behaves exactly as today when the key is absent"). Google picks
 // resolve via one Place Details call instead of OSM Nominatim.
 export { DEBOUNCE_MS } from './providers/free'
-export { mapplsEnabled, parseOpeningHours, fetchOpeningHours, type OpeningHours } from './providers/free'
-export { HOME_ZONE_KM, corridorAnchors, detourKm, detourMinutes, asymmetricDetourKm, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
-export type { NearbyOpts, PlaceHit, PlannedStop } from './providers/hits'
+export { mapplsEnabled, fetchOpeningHours } from './providers/free'
+export { HOME_ZONE_KM, corridorAnchors, detourKm, asymmetricDetourKm, asymmetricDetourMinutes, filterPlannedNearby, anchorHash, routeHash, alongRouteKmOf, directionalKm } from './providers/hits'
+export type { NearbyOpts, PlaceHit } from './providers/hits'
 export { googleEnabled } from './providers/google'
-export { googleSearchText, QuotaExhaustedError } from './providers/google'
 export { googleCitiesAlong } from './providers/google'
 export { searchCitiesAlong } from './providers/free'
 export { planRideSegments, assignSegmentHits, leftoverAsSight, reasonForSegmentHit, reasonForHit, kmFromStartForHit, planDriveDays, planTravelClock, deriveDrivingPlan, effectiveDrivingDays, drivingPlanFingerprint, anchorsForCrew, isSelfDrivenMode, rainFactorFor, DEFER_START, type SegmentHit, type RideSegment, type DriveDaysPlan, type TravelClockVerdict, type DrivingPlan, type DrivingPlanDay, type DrivingPlanInput } from './ridePlan'
@@ -30,7 +29,8 @@ export { hasCoords } from './providers/hits'
 import { plannerDrives } from './transportPolicy'
 import type { TransportMode } from '../data/types'
 
-import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, type NearbyOpts, type PlaceHit } from './providers/hits'
+import { hasCoords, rankAndCap, filterPlannedNearby, kmFromStartForHit, circleCoverage, type HaltPurpose, type NearbyOpts, type PlaceHit } from './providers/hits'
+import type { PlaceFamily } from './providers/families'
 import { haversineKm } from './geo'
 import {
   searchPlacesFree,
@@ -53,6 +53,7 @@ import {
   preferTownGrade,
   type DrivingPlan, type SegmentHit,
 } from './ridePlan'
+import { visitDatesForPlan } from './hoursContext'
 import { resolveVehicleRange } from './vehicleProfile'
 import { addMinutesToClock } from './engine'
 
@@ -177,8 +178,16 @@ export async function requireHitCoords(hit: PlaceHit): Promise<PlaceHit | null> 
   return null
 }
 
+/**
+ * Facade options that may also ask for specific place families (ticket 09).
+ * The family table and its query entries already exist; this is the input the
+ * provider scan consumes. Family SELECTION stays the caller's decision, so an
+ * absent or empty list leaves every request exactly as it was.
+ */
+export type FamilyScanOpts = NearbyOpts & { families?: readonly PlaceFamily[] }
+
 /** Single-anchor convenience wrapper (empty-day chips). */
-export async function searchNearbyPois(lat: number, lng: number, radiusM = 10000, count = 10, opts: NearbyOpts = {}): Promise<PlaceHit[]> {
+export async function searchNearbyPois(lat: number, lng: number, radiusM = 10000, count = 10, opts: FamilyScanOpts = {}): Promise<PlaceHit[]> {
   return searchNearbyPoisMulti([{ lat, lng }], radiusM, count, opts)
 }
 
@@ -201,15 +210,25 @@ async function googlePointScan(
   count: number,
   maxAnchors = 4,
   signal?: AbortSignal,
+  families?: readonly PlaceFamily[],
+  purposes?: HaltPurpose[],
+  onCoverage?: NearbyOpts['onCoverage'],
+  routeCoords?: NearbyOpts['routeCoords'],
 ): Promise<PlaceHit[]> {
   const out: PlaceHit[] = []
   const seen = new Set<string | number>()
   let failedAnchors = 0
   let lastError: unknown = null
+  const scanned: typeof anchors = []
   for (const a of anchors.slice(0, maxAnchors)) {
     try {
       if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
-      const hits = await googleNearbyAtPoint({ lat: a.lat, lng: a.lng, radiusM, count, signal })
+      const hits = await googleNearbyAtPoint({
+        lat: a.lat, lng: a.lng, radiusM, count, signal,
+        ...(purposes && purposes.length > 0 ? { purposes } : {}),
+        ...(families && families.length > 0 ? { families } : {}),
+      })
+      scanned.push(a)
       for (const h of hits) {
         if (!h.id || seen.has(h.id)) continue
         seen.add(h.id)
@@ -225,6 +244,7 @@ async function googlePointScan(
   }
   // No hits and at least one anchor failed: the scan failed, it did not come back empty (#704).
   if (out.length === 0 && failedAnchors > 0) throw lastError
+  onCoverage?.(circleCoverage(routeCoords?.map(([lng, lat]) => ({ lat, lng })) ?? null, scanned, radiusM))
   return out
 }
 
@@ -245,7 +265,7 @@ export async function searchNearbyPoisMulti(
   anchors: { lat: number; lng: number }[],
   radiusM = 10000,
   count = 16,
-  opts: NearbyOpts = {},
+  opts: FamilyScanOpts = {},
 ): Promise<PlaceHit[]> {
   const capped = anchors.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 12)
   if (capped.length === 0) return []
@@ -259,14 +279,19 @@ export async function searchNearbyPoisMulti(
       const hits = await googleNearbyAlongRoute({
         routeCoords: route, count,
         includeFuel: opts.includeFuel, purposes: opts.purposes, signal: opts.signal,
+        // Ticket 09: the provider already turns families into text queries and
+        // classifies their hits. Forward them; an empty list changes nothing.
+        ...(opts.families && opts.families.length > 0 ? { families: opts.families } : {}),
       })
+      const reach = circleCoverage(route.map(([lng, lat]) => ({ lat, lng })), [], radiusM)
+      opts.onCoverage?.({ ...reach, method: 'route-bias', coveredKm: null, complete: false })
       if (hits.length > 0) return rankAndCap(hits, capped, radiusM, count, opts)
       // Round-trip routes (origin ≈ destination) legitimately return zero
       // Search-Along-Route results — the road never leaves the start area.
       // Google-only directive stays intact: supplement with point searches at
       // the first anchors rather than falling back to the free stack.
       if (isRoundTripRoute(route)) {
-        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal)
+        const pointHits = await googlePointScan(capped, radiusM, count, 4, opts.signal, opts.families, opts.purposes, opts.onCoverage, opts.routeCoords)
         return rankAndCap(pointHits, capped, radiusM, count, opts)
       }
       return rankAndCap(hits, capped, radiusM, count, opts)
@@ -283,17 +308,21 @@ export async function searchNearbyPoisMulti(
     // day chips) keep the one-anchor search.
     try {
       const hits = capped.length >= 2
-        ? await googlePointScan(capped, radiusM, count, 6, opts.signal)
+        ? await googlePointScan(capped, radiusM, count, 6, opts.signal, opts.families, opts.purposes, opts.onCoverage, opts.routeCoords)
         : await googleNearbyAtPoint({
-            lat: capped[0].lat, lng: capped[0].lng, radiusM, count, includeFuel: opts.includeFuel, signal: opts.signal,
+            lat: capped[0].lat, lng: capped[0].lng, radiusM, count,
+            includeFuel: opts.includeFuel, signal: opts.signal,
+            ...(opts.purposes && opts.purposes.length > 0 ? { purposes: opts.purposes } : {}),
+            ...(opts.families && opts.families.length > 0 ? { families: opts.families } : {}),
           })
+      if (capped.length === 1) opts.onCoverage?.(circleCoverage(null, capped, radiusM))
       return rankAndCap(hits, capped, radiusM, count, opts)
     } catch (err) {
       if (opts.rejectOnFailure || err instanceof QuotaExhaustedError || opts.signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) throw err
       return [] as PlaceHit[]
     }
   }
-  return searchNearbyPoisMultiFree(capped, radiusM, count, opts, opts.purposes)
+  return searchNearbyPoisMultiFree(capped, radiusM, count, opts, opts.purposes, opts.families)
 }
 
 /**
@@ -311,7 +340,7 @@ export async function planJourneyHalts(
   anchors: { lat: number; lng: number }[],
   totalKm: number,
   driveMinutes: number,
-  opts: NearbyOpts & { plan: DrivingPlan },
+  opts: FamilyScanOpts & { plan: DrivingPlan; tripStartDate?: string },
   radiusM = 35000,
 ): Promise<SegmentHit[]> {
   // 1. Plan segments first so we know which purposes we need to search for
@@ -425,7 +454,15 @@ export async function planJourneyHalts(
     ? filterPlannedNearby(candidates, opts.plannedStops)
     : candidates
   const routePolyline = (opts.routeCoords ?? []).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1])).map(c => ({ lat: c[1], lng: c[0] }))
-  const assignOpts = { homeCenter: opts.homeCenter ?? null, routePolyline: routePolyline.length >= 2 ? routePolyline : null, speedKmph: opts.speedKmph, dnaVector: opts.dnaVector }
+  // Runtime hours (repair of #887): each segment scores against its own trip day
+  // date. Without a start date the entries stay null, so the verdict stays unknown.
+  const assignOpts = {
+    homeCenter: opts.homeCenter ?? null,
+    routePolyline: routePolyline.length >= 2 ? routePolyline : null,
+    speedKmph: opts.speedKmph,
+    dnaVector: opts.dnaVector,
+    visitDates: visitDatesForPlan(segments, opts.tripStartDate),
+  }
   const assigned = assignSegmentHits(unplanned, segments, anchors, assignOpts)
   // Unassigned corridor hits surface as See & do — otherwise the sightseeing
   // column is empty by construction (the planner never makes 'sight' segments).

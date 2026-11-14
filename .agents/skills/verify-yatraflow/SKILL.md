@@ -92,7 +92,6 @@ The feature map is in [`features/`](features/README.md). Start there, pick the f
 
 ## Known defects (found by this skill)
 
-- The landing hero links use hash hrefs, so they do not reach their page on web. This affects the hero "Start a trip plan" and "Explore itineraries" links in `src/pages/Landing.tsx`. The web router reads the pathname and ignores hash-only changes. The URL changes; the page stays on the landing. The header "Start planning free" link is a path and works. Driven in [`features/start-planning.md`](features/start-planning.md) and [`features/explore.md`](features/explore.md). Other hash links exist in `src/pages/Landing.tsx` (footer DMCA, bench sign-up) and `src/components/PlanBench.tsx`. Those are not driven yet.
 - Every landing load logs React duplicate-key warnings. The stack trace points at `PlanBench`.
 
 ## Gaps

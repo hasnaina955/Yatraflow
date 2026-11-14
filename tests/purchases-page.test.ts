@@ -68,7 +68,7 @@ describe('Purchases page: state branches stay separate', () => {
   it('keeps the failed copy and the retry handler', async () => {
     const source = await read(PAGE)
     expect(source).toContain('The request failed, which is not the same as owning nothing')
-    expect(source).toContain('your plans are safe on your account')
+    expect(source).toContain('Your plans are safe on your account')
     expect(source).toContain('onClick={() => setAttempt(n => n + 1)}>Try again</button>')
   })
 })

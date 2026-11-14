@@ -23,8 +23,8 @@ if (!isSupabaseConfigured) {
     '[yatraflow] No Supabase project compiled into this build ' +
     '(missing or placeholder VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). ' +
     'Login and every data call will fail. Locally: copy .env.example to .env.local. ' +
-    'On Vercel: set both variables for Preview as well as Production, then REDEPLOY ' +
-    '— Vite inlines them at build time, so an existing deployment never picks them up.',
+    'On Vercel: set both variables for Preview as well as Production, then REDEPLOY' +
+    ': Vite inlines them at build time, so an existing deployment never picks them up.',
   )
 }
 

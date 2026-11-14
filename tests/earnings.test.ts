@@ -294,7 +294,7 @@ describe('the hub reads the ledger as written (I-9/I-10/I-13)', () => {
     // The wording is now a template, because a run that cleared ON A CARRY must
     // name what it sent (#348) — but the sentence and the one forbidden word
     // are unchanged, and those are what this pins.
-    expect(status).toContain('Owed — not disbursed')
+    expect(status).toContain('Owed: not disbursed')
     expect(status).not.toMatch(/paid/i)
     expect(hub).toMatch(/payoutPeriodStatus\(p\)/)
     expect(hub).toMatch(/<th>Status<\/th>/)
@@ -517,7 +517,7 @@ describe('payout periods actually roll over (#348)', () => {
     expect(payoutPeriodStatus(periods[0]!)).toContain('rolled in')
     // A row with no carry keeps the old wording exactly — the pinned sentence.
     const plain = runsOf(600).periods[0]!
-    expect(payoutPeriodStatus(plain)).toBe('Owed — not disbursed')
+    expect(payoutPeriodStatus(plain)).toBe('Owed: not disbursed')
     expect(payoutPeriodStatus(plain)).not.toMatch(/paid/i)
   })
 })

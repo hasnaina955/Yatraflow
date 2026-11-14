@@ -78,7 +78,7 @@ export function ExploreCard({
           {/* The visible label leads the accessible name, so voice control can
               still act on what the reader sees (WCAG 2.5.3). */}
           <button type="button" className="btn btn-secondary ex-fork"
-            aria-label={`${label} — ${title}${needsLogin && !forkLabel ? ' (log in first)' : ''}`} onClick={onFork}>
+            aria-label={`${label}: ${title}${needsLogin && !forkLabel ? ' (log in first)' : ''}`} onClick={onFork}>
             <GitFork size={14} aria-hidden />{label}
           </button>
         </div>

@@ -113,7 +113,7 @@ describe('Stage 2 P1 regressions', () => {
       legContext: { fromPoint, transportMode: 'flight', dayStart: '08:00' },
       groundAssumptions, hmToMinutes, addMinutesToClock, roadLegBetween,
       set: () => {}, setHoursState: () => {}, setLegState: () => {},
-      setV: update => { values = update(values) }, v: { openTime: '' },
+      setV: (update: (v: typeof values) => typeof values) => { values = update(values) }, v: { openTime: '' },
     })
     await pick({ name: 'Mumbai visit', kind: 'place', latitude: destination.lat, longitude: destination.lng })
     const expected = legBetween(fromPoint, destination, groundAssumptions({ transportMode: 'flight' }))
@@ -183,7 +183,7 @@ describe('Stage 2 P1 regressions', () => {
     // loud (#346), the plan is written empty, and the search's own late write
     // is then dropped by the bump rather than landing over the user's edit.
     commitPlan([])
-    expect(toast).toHaveBeenCalledWith('Plan changed — the spot search was restarted. Press search again when ready.')
+    expect(toast).toHaveBeenCalledWith('Plan changed. The spot search was restarted. Press search again when ready.')
     ++spotRequest.current // the cancel the bump causes
     spots.resolve([])
     await work

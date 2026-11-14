@@ -193,7 +193,7 @@ export function rowToTrip(row: TripRow, members: TripMember[]): Trip {
   const expenses = arrayOrEmpty<Expense>(row.expenses).filter(e => {
     if (e == null || typeof e !== 'object') return false
     if (allowedAmount(e.amountInr) !== null) return true
-    console.warn(`tripRow: dropped expense "${e.label}" — amount ${String(e.amountInr)} is not a finite number of rupees above zero`)
+    console.warn(`tripRow: dropped expense "${e.label}": amount ${String(e.amountInr)} is not a finite number of rupees above zero`)
     return false
   })
   return {

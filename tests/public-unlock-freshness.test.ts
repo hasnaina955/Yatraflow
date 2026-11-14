@@ -25,7 +25,8 @@ import { tripToRow } from '../src/lib/tripRow'
 /** The notice `get_public_trip` stamps on every stop of a withheld day. Written
  *  out here rather than imported: this is the wire's string, and a test that
  *  agrees with the code by construction cannot notice the code drifting. */
-const LOCKED = 'Locked — the full plan is on the original itinerary.'
+// The server's exact notice (get_public_trip). A test that copies the client constant would hide drift.
+const LOCKED = 'Locked \u2014 the full plan is on the original itinerary.'
 
 const { state, toast } = vi.hoisted(() => ({
   state: {
@@ -135,6 +136,12 @@ function wireStub(trip: Trip, freeDayIndexes: number[]): Trip {
 
 function noticeCount(days: Trip['days']): number {
   return days.reduce((n, d) => n + d.stops.filter(s => s.description === LOCKED).length, 0)
+}
+
+/** #774 — the days a fork holds as empty placeholders: every day outside the
+ *  free list, with no stop and no creator title. */
+function emptyLockedCount(days: Trip['days']): number {
+  return days.filter(d => d.index !== 0 && d.stops.length === 0 && d.title === undefined).length
 }
 
 function forkedDays(): Trip['days'] {
@@ -267,9 +274,11 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     const ok = await forkPublication(pubRow, 'visitor-349', vi.fn())
     expect(ok).toBe(true)
     const days = forkedDays()
-    expect(noticeCount(days)).toBeGreaterThan(0)
+    // #774 — a withheld day forks as an empty day: no stop and no title.
+    expect(emptyLockedCount(days)).toBe(trip.days.length - 1)
     // The free day is untouched; only the withheld ones are placeholders.
     expect(noticeCount(days.filter(d => d.index === 0))).toBe(0)
+    expect(days.find(d => d.index === 0)!.stops.length).toBe(trip.days.find(d => d.index === 0)!.stops.length)
     // The withheld days' expenses do not ride into the copy either.
     expect(days.some(d => d.index === 0)).toBe(true)
   })
@@ -283,7 +292,7 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     grant(pubRow.id, 'buyer-349')
     const ok = await forkPublication(pubRow, 'buyer-349', vi.fn(), true)
     expect(ok).toBe(true)
-    expect(noticeCount(forkedDays())).toBeGreaterThan(0)
+    expect(emptyLockedCount(forkedDays())).toBe(trip.days.length - 1)
   })
 
   it('a FAILED read falls back to the cache but re-stubs it anyway', async () => {
@@ -299,7 +308,7 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
 
     const ok = await forkPublication(pubRow, 'buyer-349', vi.fn(), true)
     expect(ok).toBe(true)
-    expect(noticeCount(forkedDays())).toBeGreaterThan(0)
+    expect(emptyLockedCount(forkedDays())).toBe(trip.days.length - 1)
   })
 
   it('wireWithheld reads the server`s own notice, and only for withheld days', () => {
@@ -337,4 +346,11 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     expect(fn).toContain('restubLockedDays(src, pub.freeDayIndexes,')
     expect(fn).toMatch(/duplicateTripPublicPersisted\(safe, meId, pub\.freeDayIndexes, source, origin\)/)
   })
+})
+
+it('#349 — the client notice matches every migration that writes it, byte for byte', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const dir = new URL('../supabase/migrations/', import.meta.url)
+  const notices = new Set(readdirSync(dir).flatMap(name => [...readFileSync(new URL(name, dir), 'utf8').matchAll(/to_jsonb\('(Locked[^']*)'::text\)/g)].map(m => m[1])))
+  expect([...notices]).toEqual([LOCKED])
 })

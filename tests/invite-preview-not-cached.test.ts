@@ -51,7 +51,7 @@ const ALL_COLUMNS = {
   economy: true, price: true, roundTrip: true, cover: true,
   inviteCode: true, deleted: true, stayStyle: true,
   driverCount: true, hasVulnerable: true, driveAfterDinner: true, vehicleProfile: true,
-  tankL: true, rentPerDayInr: true, localTrain: true, flights: true, ref: true,
+  tankL: true, rentPerDayInr: true, localTrain: true, flights: true, ref: true, drivesPart: false,
 } as const
 
 function fullTrip(tank = 55): Trip {
@@ -154,7 +154,7 @@ describe('B2b — every continuation is bound to user and attempt', () => {
   it('a stale reload cannot overwrite the new account failure state', () => {
     // The old reload callback ignored a rejected settlement and wrote the NEW
     // account's state. Here B is in 'failed'; A's late reload must change nothing.
-    const bBegin = drive([{ type: 'begin', userId: B, gen: GEN }])
+    const bBegin = drive([{ type: 'begin', userId: B, gen: GEN, member: false }])
     const bFailed = joinMachine(bBegin.state, { type: 'join-settled', userId: B, gen: GEN, tryId: 1, result: 'failed' })
     const staleReload = joinMachine(bFailed.state, { type: 'reload-settled', userId: A, gen: GEN, tryId: 1, result: 'joined' })
     expect(staleReload.state.phase).toBe('failed')
@@ -185,7 +185,7 @@ describe('B3 — an identity generation change resets the machine', () => {
     expect(joinAllowsNavigation(joined.state)).toBe(true)
     // The same user signs back in: the generation advanced, so the old claim is
     // gone and the flow runs again instead of stalling on 'joined'.
-    const reauth = joinMachine(joined.state, { type: 'begin', userId: A, gen: GEN + 1 })
+    const reauth = joinMachine(joined.state, { type: 'begin', userId: A, gen: GEN + 1, member: false })
     expect(reauth.state.phase).toBe('joining')
     expect(reauth.action).toEqual({ type: 'join', tryId: 2 })
     expect(joinAllowsNavigation(reauth.state)).toBe(false)
@@ -194,7 +194,7 @@ describe('B3 — an identity generation change resets the machine', () => {
   it('a profile gap (gen advances) discards a settled failure', () => {
     const begin = drive([{ type: 'begin', userId: A, gen: GEN, member: false }])
     const failed = joinMachine(begin.state, { type: 'join-settled', userId: A, gen: GEN, tryId: 1, result: 'failed' })
-    const afterGap = joinMachine(failed.state, { type: 'begin', userId: A, gen: GEN + 1 })
+    const afterGap = joinMachine(failed.state, { type: 'begin', userId: A, gen: GEN + 1, member: false })
     expect(afterGap.state.phase).toBe('joining')
     expect(afterGap.action.type).toBe('join')
   })
@@ -212,7 +212,7 @@ describe('B3 — an identity generation change resets the machine', () => {
     const begin = drive([{ type: 'begin', userId: A, gen: GEN, member: false }])
     const joined = joinMachine(begin.state, { type: 'join-settled', userId: A, gen: GEN, tryId: 1, result: 'joined' })
     expect(joinAllowsNavigation(joined.state)).toBe(true)
-    const afterGap = joinMachine(joined.state, { type: 'begin', userId: A, gen: GEN + 1 })
+    const afterGap = joinMachine(joined.state, { type: 'begin', userId: A, gen: GEN + 1, member: false })
     // The new generation MUST issue a join: a stale 'joined' claim would stall.
     expect(afterGap.action).toEqual({ type: 'join', tryId: 2 })
     expect(afterGap.state.gen).toBe(GEN + 1)
@@ -223,7 +223,7 @@ describe('B3 — an identity generation change resets the machine', () => {
     // The same pin for the retry branch, so neither can be removed silently.
     const begin = drive([{ type: 'begin', userId: A, gen: GEN, member: false }])
     const failed = joinMachine(begin.state, { type: 'join-settled', userId: A, gen: GEN, tryId: 1, result: 'failed' })
-    const afterGap = joinMachine(failed.state, { type: 'retry', userId: A, gen: GEN + 1 })
+    const afterGap = joinMachine(failed.state, { type: 'retry', userId: A, gen: GEN + 1, member: false })
     expect(afterGap.action).toEqual({ type: 'join', tryId: 2 })
     expect(afterGap.state.gen).toBe(GEN + 1)
   })

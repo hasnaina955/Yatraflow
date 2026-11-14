@@ -19,6 +19,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { DRIVES_PART_MISSING_REASON, drivesPartWriteVerdict, isMissingColumnError, rowToTrip, tripToRow, tripUpdateRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
+import { emptyLockedDay, isWireLocked, withoutLockMarker } from '../lib/lockedDay'
 import type { ShareSource } from '../lib/shareUrl'
 import { dayCountForRange } from '../lib/dayCount'
 import { validHM } from '../lib/timefmt'
@@ -2201,7 +2202,7 @@ export function addDemoTrips(): void {
   // failed exactly when the trip count is untrustworthy, so this is the same
   // condition under a different name.
   if (cache.sliceReads['trips'] === 'failed') {
-    toast('Your trips could not be loaded — try again once they are back.', 'err')
+    toast('Your trips could not be loaded. Try again once they are back.', 'err')
     return
   }
   // Dedupe: a library already holding the seed's names was seeded before.
@@ -2704,7 +2705,7 @@ export function reconcileDays(
       const blocked = next.slice(target).filter(loadBearing)
       return {
         days,
-        error: `Day ${(blocked[0]?.index ?? target) + 1} still has stops or a fixed commitment or a flight — move or delete them before shortening the trip.`,
+        error: `Day ${(blocked[0]?.index ?? target) + 1} still has stops or a fixed commitment or a flight. Move or delete them before shortening the trip.`,
         blocked: blocked.map(d => d.index),
       }
     }
@@ -2919,7 +2920,7 @@ async function probeOptionalColumns(): Promise<OptionalColumnsProbe> {
   ])
   if (!economy || !price || !roundTrip) {
     if (!optionalColumnsWarned) {
-      console.warn('[yatraflow] trips optional columns missing — run supabase/schema.sql; fuel/round-trip inputs stay session-only until then.')
+      console.warn('[yatraflow] trips optional columns missing: run supabase/schema.sql; fuel/round-trip inputs stay session-only until then.')
       optionalColumnsWarned = true
     }
   }
@@ -3128,11 +3129,6 @@ async function persistTripRows(trip: Trip, ownerId: ID, opts: { retry?: boolean;
   return true
 }
 
-/** Copy text stamped onto every stop of a premium (non-free) day when a
- *  published itinerary is forked. Titles stay so the fork keeps the trip's
- *  shape; every other detail is stripped. */
-const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original itinerary.'
-
 /** Shared body for every trip copy (fork / copy-this-trip / share import).
  *  Strips the fields a copy must NEVER inherit: `inviteCode` would collide with
  *  the source's row on the unique `idx_trips_invite_code` index and fail the
@@ -3141,11 +3137,12 @@ const LOCKED_STOP_DESCRIPTION = 'Locked — the full plan is on the original iti
  *  land the copy straight in the trash.
  *
  *  `freeDayIndexes` (the published-itinerary fork) keeps those days fully
- *  intact and reduces every other day's stops to stubs: title and priority
- *  are kept, the description becomes the locked notice, notes are cleared,
- *  entry/transport costs and open/close times are zeroed, and the stop is
- *  marked confirmed. Expenses tagged with a locked `dayIndex` and fixed
- *  commitments on locked days are dropped (trip-level expenses stay). */
+ *  intact and copies every other day as an EMPTY day (#774): no title, no
+ *  stop and no coordinate. The older stub kept each locked stop's title and
+ *  position, so a fork carried the locked places out. A day the server
+ *  locked is empty too, whatever the free list says. Expenses tagged with a
+ *  locked `dayIndex` and fixed commitments on locked days are dropped
+ *  (trip-level expenses stay). */
 function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; freeDayIndexes?: number[]; keepName?: boolean; ref?: ShareSource | null; origin?: ForkOrigin }): Trip {
   const free = opts.freeDayIndexes ? new Set(opts.freeDayIndexes) : null
   const copy: Trip = structuredClone(source)
@@ -3181,22 +3178,9 @@ function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; 
     stopId: f.stopId != null ? stopIdMap.get(String(f.stopId)) : undefined,
   })
   if (free) {
-    copy.days = copy.days.map(d => ({
-      ...d,
-      id: uid('day'),
-      stops: d.stops.map(s => free.has(d.index)
-        ? freshStopId(s)
-        : {
-            ...freshStopId(s),
-            description: LOCKED_STOP_DESCRIPTION,
-            notes: '',
-            entryFeeInrPerPerson: 0,
-            transportCostInrTotal: 0,
-            openTime: undefined,
-            closeTime: undefined,
-            status: 'confirmed' as const,
-          }),
-    }))
+    copy.days = copy.days.map(d => free.has(d.index) && !isWireLocked(d)
+      ? { ...withoutLockMarker(d), id: uid('day'), stops: d.stops.map(freshStopId) }
+      : { ...emptyLockedDay(d), id: uid('day') })
     copy.expenses = copy.expenses
       .filter(e => e.dayIndex === undefined || free.has(e.dayIndex))
       .map(e => ({ ...e, id: uid('ex') }))
@@ -3204,7 +3188,7 @@ function buildTripCopy(source: Trip, ownerId: ID, opts: { makePublic?: boolean; 
       .filter(f => free.has(f.dayIndex))
       .map(remapCommitment)
   } else {
-    copy.days = copy.days.map(d => ({ ...d, id: uid('day'), stops: d.stops.map(freshStopId) }))
+    copy.days = copy.days.map(d => ({ ...withoutLockMarker(d), id: uid('day'), stops: d.stops.map(freshStopId) }))
     copy.expenses = copy.expenses.map(e => ({ ...e, id: uid('ex') }))
     copy.fixedCommitments = copy.fixedCommitments.map(remapCommitment)
   }
@@ -3342,7 +3326,7 @@ export async function importTripPersisted(source: Trip, ownerId: ID): Promise<{ 
 
 function requireAdmin(): boolean {
   if (!isAdminCached()) {
-    toast('Admin only — this action needs a masteradmin session.', 'err')
+    toast('Admin only. This action needs a masteradmin session.', 'err')
     return false
   }
   return true
@@ -3607,7 +3591,7 @@ export async function adminDeleteUser(userId: ID, force = false): Promise<boolea
     return false
   }
   finishOperation(removed)
-  toast('User deleted — their data is gone (see the audit log).')
+  toast('User deleted. Their data is gone (see the audit log).')
   void refreshAdminAudit()
   return true
 }
@@ -3684,7 +3668,7 @@ export function deleteTrip(id: ID): void {
   // (nothing calls it since the trash landed; kept for the undo suite) refuses
   // too rather than being the one back door around the guard.
   if (cache.published.some(p => p.tripId === id)) {
-    toast('A published trip cannot be deleted — its publication and its buyers’ records stay with it. Move it to trash instead.', 'err')
+    toast('A published trip cannot be deleted. Its publication and its buyers’ records stay with it. Move it to trash instead.', 'err')
     return
   }
   const removed = cache.trips[idx]
@@ -3916,7 +3900,7 @@ export function trashTrip(trip: Trip): void {
   if (onSale.length) {
     const me = cache.sessionUserId
     if (!me || onSale.some(p => p.creatorId !== me)) {
-      toast('Only the trip owner can trash a published trip — its public page has to stop selling with it.', 'err')
+      toast('Only the trip owner can trash a published trip. Its public page has to stop selling with it.', 'err')
       return
     }
   }
@@ -3945,7 +3929,7 @@ export function trashTrip(trip: Trip): void {
       if (pubs.length) {
         cache.trips = [...cache.trips, trip]
         commit()
-        toast('This database has no trash column — a published trip cannot be deleted here without destroying its buyers’ records.', 'err')
+        toast('This database has no trash column. A published trip cannot be deleted here without destroying its buyers’ records.', 'err')
         return
       }
       await supabase.from('trips').delete().eq('id', trip.id)
@@ -3983,7 +3967,7 @@ export function trashTrip(trip: Trip): void {
         cache.published = prevPubs
         cache.trips = [...cache.trips, trip]
         commit()
-        toast('Could not stop the plan from selling — the trip was not moved to trash.', 'err')
+        toast('Could not stop the plan from selling. The trip was not moved to trash.', 'err')
         return
       }
       for (const p of onSale) markLocalWrite('published_itineraries', p.id)
@@ -5798,7 +5782,7 @@ export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']):
         if (dm) dm.role = previousRole
       }, { touch: false })
       commit()
-      toast(`Couldn't change that role — it has been put back. (${res.error.message ?? 'write refused'})`, 'err')
+      toast(`Couldn't change that role. It has been put back. (${res.error.message ?? 'write refused'})`, 'err')
     },
     err => {
       console.error('[yatraflow] trip_members write rejected', err)
@@ -5807,7 +5791,7 @@ export function setMemberRole(tripId: ID, userId: ID, role: TripMember['role']):
         if (dm) dm.role = previousRole
       }, { touch: false })
       commit()
-      toast('Couldn’t change that role — check your connection.', 'err')
+      toast('Couldn’t change that role. Check your connection.', 'err')
     },
   )
 }
@@ -6223,12 +6207,12 @@ export function removeMember(tripId: ID, userId: ID): void {
       if (!res?.error) return
       console.error('[yatraflow] trip_members write failed', res.error)
       restore()
-      toast(`Couldn't remove that traveller — they're still on the trip. (${res.error.message ?? 'write refused'})`, 'err')
+      toast(`Couldn't remove that traveller. They're still on the trip. (${res.error.message ?? 'write refused'})`, 'err')
     },
     err => {
       console.error('[yatraflow] trip_members write rejected', err)
       restore()
-      toast('Couldn’t remove that traveller — check your connection.', 'err')
+      toast('Couldn’t remove that traveller. Check your connection.', 'err')
     },
   )
 }
@@ -7760,7 +7744,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     cover_image_url: p.coverImageUrl, route_summary: p.routeSummary, duration_days: p.durationDays,
     estimated_budget_per_person_inr: p.estimatedBudgetPerPersonInr, travel_style: p.travelStyle,
     best_season: p.bestSeason, travel_tips: p.travelTips, warnings_and_assumptions: p.warningsAndAssumptions,
-    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr, subscriber_cta: p.subscriberCta,
+    free_day_indexes: p.freeDayIndexes, premium_price_inr: p.premiumPriceInr || undefined, subscriber_cta: p.subscriberCta,
     ...(hasRefreshedCol ? { refreshed_at: p.refreshedAt } : {}),
     ...(hasUnpublishedCol ? { unpublished_at: null } : {}),
   })
@@ -7785,7 +7769,7 @@ export async function publishItinerary(pub: Omit<PublishedItinerary, 'id' | 'pub
     if (ownedUrl && tripCoverBefore !== ownedUrl) {
       updateTrip(p.tripId, { coverImageUrl: tripCoverBefore })
     }
-    return { ok: false, error: 'Could not save the publication — nothing was published. Try again.' }
+    return { ok: false, error: 'Could not save the publication. Nothing was published. Try again.' }
   } else {
     markLocalWrite('published_itineraries', p.id)
     // A published itinerary is a public page: flip the trip to visibility
@@ -7922,8 +7906,8 @@ export function unpublishItinerary(tripId: ID): void {
     // refuse and say why. (Checked BEFORE the optimistic stamp, so a refusal
     // changes nothing at all — not even for one frame.)
     if (!(await publishedHaveUnpublishedAt())) {
-      console.warn('[yatraflow] published_itineraries.unpublished_at missing — run supabase/migrations/20260925_publication_soft_unpublish.sql; unpublish is unavailable until then (the row must survive for its buyers).')
-      toast('Unpublish needs the soft-unpublish migration (20260925_publication_soft_unpublish.sql) — it is not applied yet.', 'err')
+      console.warn('[yatraflow] published_itineraries.unpublished_at missing: run supabase/migrations/20260925_publication_soft_unpublish.sql; unpublish is unavailable until then (the row must survive for its buyers).')
+      toast('Unpublish needs the soft-unpublish migration (20260925_publication_soft_unpublish.sql). It is not applied yet.', 'err')
       return
     }
     const stamp = Date.now()
@@ -7944,7 +7928,7 @@ export function unpublishItinerary(tripId: ID): void {
     }
     if (failed) {
       console.error('[yatraflow] unpublish persist failed', failed)
-      toast('Could not unpublish — the plan is still live on Explore. (' + (failed.message ?? 'unknown error') + ')')
+      toast('Could not unpublish. The plan is still live on Explore. (' + (failed.message ?? 'unknown error') + ')')
       // Roll the marker back off; the next refresh would drop it anyway, and
       // until then the UI must not disagree with the server.
       cache.published = cache.published.map(p => (p.id === pub.id ? previous : p))

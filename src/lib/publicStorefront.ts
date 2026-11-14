@@ -1,6 +1,7 @@
-// The Look Inside page sells a plan in counts and plain words.
-// Locked days keep neutral titles and road minutes. They carry no stop names, location names or coordinates.
-// Pace word and cover rules follow the prototype: p7-look-inside (NOTES.md).
+// The Look Inside page sells a plan in counts and plain words. A locked day
+// shows its number and its counts. It carries no creator title, no stop
+// title, no location name and no coordinate (#774, see lib/lockedDay). Pace word and cover rules follow
+// the prototype: p7-look-inside (NOTES.md).
 import type { ItineraryDay, PublishedItinerary } from '../data/types'
 
 export type StorefrontKind =

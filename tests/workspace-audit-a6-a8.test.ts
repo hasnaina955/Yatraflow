@@ -66,7 +66,7 @@ describe('#613 — a driving day with no stored stops still draws its journey', 
     // trailing empty day is a stay: nothing lies past it to drive to.)
     const midway = { lat: 25.6, lng: 82.8 }
     const halt: ItineraryStop = {
-      id: 'hs', title: 'Ghat halt', category: 'sight', locationName: 'Ghat halt',
+      id: 'hs', title: 'Ghat halt', category: 'sightseeing', locationName: 'Ghat halt',
       lat: midway.lat, lng: midway.lng, visitMinutes: 60,
       entryFeeInrPerPerson: 0, transportCostInrTotal: 0,
       priority: 'must-do', status: 'confirmed', orderInDay: 2,

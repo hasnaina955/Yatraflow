@@ -1044,7 +1044,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
               {storefront && storefront.cards.length > 0 && (
                 <section className="pi-inside" id="pi-sec-inside" aria-labelledby="pi-inside-title">
                   <div className="pi-card pi-inside-main">
-                    <span className="pi-kicker">What is inside</span>
+                    <span className="pi-kicker">What’s inside</span>
                     <h2 className="pi-h2" id="pi-inside-title">{storefront.lede ?? pub.title}</h2>
                     <p className="pi-lede">By {creatorName}, for {trip.travellers} {trip.travellers === 1 ? 'traveller' : 'travellers'} by {trip.transportMode}.</p>
                     <b className="pi-sub-h">The {placeTotal} {placeTotal === 1 ? 'place' : 'places'}, by kind</b>
@@ -1087,6 +1087,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                       <span><i className="pi-budget-dot pi-budget-drive" />Driving</span>
                       <span><i className="pi-budget-dot pi-budget-places" />At places</span>
                       <span><i className="pi-budget-dot pi-budget-free" />Free time</span>
+                      <span className="pi-legend-note">Bars run from each day’s start to its planned end</span>
                     </p>
                   </div>
                   <WhatIsInside kinds={[]} days={dayCards} weeks={storefront.weeks} />

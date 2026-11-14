@@ -126,8 +126,18 @@ export function RideElevation({ trip, freeIndexes }: { trip: Trip; freeIndexes: 
   }, [plot, paidIndexes, dayIndexes, measured])
 
   if (result.kind === 'empty') return null
-  if (result.kind === 'loading') return <p className="pi-height-state" role="status">Loading route heights…</p>
-  if (result.kind === 'failed') return <p className="pi-height-state">Route heights are not available.</p>
+  if (result.kind === 'loading') return (
+    <section className="pi-card pi-ride-height pi-height-card" aria-labelledby="pi-ride-height-title">
+      <div className="pi-height-heading"><h3 id="pi-ride-height-title">The road, by height</h3></div>
+      <p className="pi-height-state" role="status">Loading route heights…</p>
+    </section>
+  )
+  if (result.kind === 'failed') return (
+    <section className="pi-card pi-ride-height pi-height-card" aria-labelledby="pi-ride-height-title">
+      <div className="pi-height-heading"><h3 id="pi-ride-height-title">The road, by height</h3></div>
+      <p className="pi-height-state">Route heights are not available.</p>
+    </section>
+  )
   if (!chart || !plot || !measured || !chart.line) return null
 
   const heights = measured.points.map(point => point.elevationM).filter((metres): metres is number => metres != null)

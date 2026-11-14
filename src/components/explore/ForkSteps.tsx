@@ -11,9 +11,9 @@ export function ForkSteps({ signedIn }: { signedIn: boolean }) {
     <section className="ex-panel ex-forksteps" aria-labelledby={titleId}>
       <h2 className="ex-panel-title" id={titleId}>How forking works</h2>
       <ol className="ex-steps">
-        <li><b>Pick</b> a plan you like</li>
-        <li><b>Fork</b> it into your trips</li>
-        <li><b>Change</b> days, stays and stops</li>
+        <li><span><b>Pick</b> a plan you like</span></li>
+        <li><span><b>Fork</b> it into your trips</span></li>
+        <li><span><b>Change</b> days, stays and stops</span></li>
       </ol>
       <p className="ex-forksteps-note">
         The creator’s plan never changes. Paid plans open fully once you buy, then fork the same way.

@@ -5,7 +5,7 @@ import { ClipboardList, Sparkles, X } from 'lucide-react'
 import type { Trip } from '../data/types'
 import type { LegEstimate } from '../lib/engine'
 import { quickPrompts } from '../lib/ai'
-import { askCompanion, type CompanionSource } from '../lib/aiProvider'
+import { askCompanion, createAiSessionId, type CompanionSource } from '../lib/aiProvider'
 import { scrollBehavior } from '../lib/motion'
 import { Chip } from './ui'
 import { Mascot } from './mascot/Mascot'
@@ -32,6 +32,9 @@ export function AiDrawer({ trip, open, onOpen, onClose, legCorrections }: {
     text: `Hi! I’m your YatraFlow companion. I can see “${trip.name}”: ${trip.days.length} days, ${trip.destinations.join(' → ')}. Ask me to lighten a day, check timings against a fixed commitment, find savings or plan for rain.`,
   }])
   const msgIdRef = useRef(1)
+  // The mounted drawer owns one conversation; each submitted question receives
+  // a fresh trace within this session in askCompanion.
+  const [aiSessionId] = useState(createAiSessionId)
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -104,7 +107,7 @@ export function AiDrawer({ trip, open, onOpen, onClose, legCorrections }: {
     // assistant, not a form post; the LLM path takes as long as it takes.
     replyTimer.current = window.setTimeout(() => {
       askAbort.current = new AbortController()
-      askCompanion(trip, q, askAbort.current.signal, legCorrections)
+      askCompanion(trip, q, askAbort.current.signal, legCorrections, aiSessionId)
         .then(reply => {
           setMsgs(m => [...m, { id: ++msgIdRef.current, role: 'bot', text: reply.text, assumptions: reply.assumptions, source: reply.source }])
         })

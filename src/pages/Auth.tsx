@@ -12,6 +12,8 @@ import { authNext } from '../lib/authNext'
 import { MISSING_BACKEND_MESSAGE } from '../lib/authErrors'
 import { Field } from '../components/ui'
 import { DobPicker } from '../components/DobPicker'
+import posthog, { isPostHogConfigured } from '../lib/posthog'
+import { posthogLog } from '../lib/posthogLogs'
 
 /** Post-login destination: the `next` param when the auth page was entered
  *  from a deep link (an invite), else My Trips. The param is
@@ -107,6 +109,8 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
       }
       const r = await login(email, password)
       if (!r.ok) { clearTimeout(failSafe); setError(r.error ?? 'Login failed'); setSaving(false); return }
+      try { if (isPostHogConfigured) posthog.capture('user_logged_in') } catch { /* Analytics must not interrupt login. */ }
+      posthogLog.info('password login accepted', { authentication_method: 'password' })
     } else {
       if (!name.trim()) {
         clearTimeout(failSafe)

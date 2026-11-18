@@ -14,6 +14,7 @@ import type { Trip } from '../data/types'
 import { answerQuestion, answerForIntent, buildAdviceFacts, buildDepartureAdviceFacts, type AiReply } from './ai'
 import type { LegEstimate } from './engine'
 import { INTENT_CRITERIA, INTENT_KEYS, type CompanionIntent } from './jevTaxonomy'
+import posthog, { isPostHogConfigured } from './posthog'
 
 // ---------- config (localStorage-backed, device-local) ----------
 
@@ -234,27 +235,160 @@ function mergeSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortS
 }
 
 
-async function chatCompletion(cfg: AiProviderConfig, messages: { role: string; content: string }[], signal: AbortSignal): Promise<string> {
-  const res = await fetch(endpointUrl(cfg.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cfg.apiKey}`,
-    },
-    body: JSON.stringify({ model: cfg.model, messages, temperature: 0.4, max_tokens: 700 }),
-    signal,
-  })
-  if (!res.ok) {
-    // The body often names the real problem (bad key, wrong model); surface it
-    // briefly without leaking the key.
-    const detail = await res.text().catch(() => '')
-    const brief = detail.length > 160 ? `${detail.slice(0, 160)}…` : detail
-    throw new Error(`HTTP ${res.status}${brief ? `: ${brief}` : ''}`)
+interface AiTraceContext {
+  sessionId: string | null
+  traceId: string
+}
+
+interface AiUsage {
+  inputTokens?: number
+  outputTokens?: number
+}
+
+// Manual capture deliberately sends prompt and completion content by default.
+// Set this to true before prompts or responses must not be stored in PostHog.
+const AI_OBSERVABILITY_PRIVACY_MODE = false
+
+export function createAiSessionId(): string {
+  return `companion-${crypto.randomUUID()}`
+}
+
+function createAiTraceContext(sessionId: string | null = null): AiTraceContext {
+  return { sessionId, traceId: crypto.randomUUID() }
+}
+
+function elapsedSeconds(startedAt: number): number {
+  return (performance.now() - startedAt) / 1000
+}
+
+function providerForOpenAiCompatibleEndpoint(baseUrl: string): string {
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase()
+    if (host === 'api.openai.com') return 'openai'
+    if (host.endsWith('.groq.com')) return 'groq'
+    if (host.endsWith('.openrouter.ai')) return 'openrouter'
+    if (host.endsWith('.together.xyz')) return 'together'
+    if (host.endsWith('.deepseek.com')) return 'deepseek'
+    if (host.endsWith('.mistral.ai')) return 'mistral'
+    if (host.endsWith('.perplexity.ai')) return 'perplexity'
+    if (host.endsWith('.cerebras.ai')) return 'cerebras'
+    if (host.endsWith('.fireworks.ai')) return 'fireworks-ai'
+    if (host.endsWith('.x.ai')) return 'xai'
+  } catch { /* the fetch boundary reports malformed URLs */ }
+  return 'openai-compatible'
+}
+
+function usageFromResponse(data: unknown): AiUsage {
+  if (data === null || typeof data !== 'object') return {}
+  const usage = (data as { usage?: unknown }).usage
+  if (usage === null || typeof usage !== 'object') return {}
+  const record = usage as Record<string, unknown>
+  return {
+    inputTokens: typeof record.prompt_tokens === 'number' ? record.prompt_tokens : undefined,
+    outputTokens: typeof record.completion_tokens === 'number' ? record.completion_tokens : undefined,
   }
-  const data: unknown = await res.json()
-  const text = extractContent(data)
-  if (!text) throw new Error('The endpoint returned no message content.')
-  return text
+}
+
+function stopReasonFromResponse(data: unknown): string | undefined {
+  if (data === null || typeof data !== 'object') return undefined
+  const choices = (data as { choices?: unknown }).choices
+  if (!Array.isArray(choices) || choices.length === 0) return undefined
+  const reason = (choices[0] as { finish_reason?: unknown }).finish_reason
+  return typeof reason === 'string' ? reason : undefined
+}
+
+function captureAiGeneration(input: {
+  context: AiTraceContext
+  model: string
+  provider: string
+  spanName: string
+  messages: { role: string; content: string }[]
+  latency: number
+  httpStatus?: number
+  output?: string
+  usage?: AiUsage
+  stopReason?: string
+  error?: unknown
+}): void {
+  if (!isPostHogConfigured) return
+  const properties: Record<string, unknown> = {
+    $ai_trace_id: input.context.traceId,
+    $ai_session_id: input.context.sessionId,
+    $ai_model: input.model,
+    $ai_provider: input.provider,
+    $ai_span_name: input.spanName,
+    $ai_latency: input.latency,
+  }
+  if (input.httpStatus !== undefined) properties.$ai_http_status = input.httpStatus
+  if (input.usage?.inputTokens !== undefined) properties.$ai_input_tokens = input.usage.inputTokens
+  if (input.usage?.outputTokens !== undefined) properties.$ai_output_tokens = input.usage.outputTokens
+  if (input.stopReason) properties.$ai_stop_reason = input.stopReason
+  if (input.error !== undefined) properties.$ai_is_error = true
+  if (!AI_OBSERVABILITY_PRIVACY_MODE) {
+    properties.$ai_input = input.messages
+    if (input.output) properties.$ai_output_choices = [{ role: 'assistant', content: input.output }]
+    if (input.error !== undefined) properties.$ai_error = input.error instanceof Error ? input.error.message : String(input.error)
+  }
+  try {
+    posthog.capture('$ai_generation', properties)
+  } catch { /* observability must not affect the configured provider call */ }
+}
+
+async function chatCompletion(
+  cfg: AiProviderConfig,
+  messages: { role: string; content: string }[],
+  signal: AbortSignal,
+  context: AiTraceContext = createAiTraceContext(),
+): Promise<string> {
+  const startedAt = performance.now()
+  let httpStatus: number | undefined
+  try {
+    const res = await fetch(endpointUrl(cfg.baseUrl, '/chat/completions'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cfg.apiKey}`,
+      },
+      body: JSON.stringify({ model: cfg.model, messages, temperature: 0.4, max_tokens: 700 }),
+      signal,
+    })
+    httpStatus = res.status
+    if (!res.ok) {
+      // The body often names the real problem (bad key, wrong model); surface it
+      // briefly without leaking the key.
+      const detail = await res.text().catch(() => '')
+      const brief = detail.length > 160 ? `${detail.slice(0, 160)}…` : detail
+      throw new Error(`HTTP ${res.status}${brief ? `: ${brief}` : ''}`)
+    }
+    const data: unknown = await res.json()
+    const text = extractContent(data)
+    if (!text) throw new Error('The endpoint returned no message content.')
+    captureAiGeneration({
+      context,
+      model: cfg.model,
+      provider: providerForOpenAiCompatibleEndpoint(cfg.baseUrl),
+      spanName: 'chat_completion',
+      messages,
+      latency: elapsedSeconds(startedAt),
+      httpStatus,
+      output: text,
+      usage: usageFromResponse(data),
+      stopReason: stopReasonFromResponse(data),
+    })
+    return text
+  } catch (error) {
+    captureAiGeneration({
+      context,
+      model: cfg.model,
+      provider: providerForOpenAiCompatibleEndpoint(cfg.baseUrl),
+      spanName: 'chat_completion',
+      messages,
+      latency: elapsedSeconds(startedAt),
+      httpStatus,
+      error,
+    })
+    throw error
+  }
 }
 
 export function extractContent(data: unknown): string | null {
@@ -282,37 +416,53 @@ export function extractJevIntent(data: unknown): CompanionIntent | null {
 
 /** Ask Jev which capability the question needs. One call, one tiny response.
  *  Throws on transport failure — the caller decides the fallback. */
-async function askJevIntent(cfg: JevConfig, question: string, signal: AbortSignal): Promise<CompanionIntent> {
+async function askJevIntent(
+  cfg: JevConfig,
+  question: string,
+  signal: AbortSignal,
+  context: AiTraceContext = createAiTraceContext(),
+): Promise<CompanionIntent> {
+  const instructions =
+    'A traveller planning a group trip typed the message in the state. ' +
+    'Decide which ONE capability described in the criteria best serves what they actually want. ' +
+    'Judge the intent behind the message, not its surface keywords. ' +
+    'Choose "none" when no listed capability genuinely serves it.'
+  const messages = [
+    { role: 'system', content: instructions },
+    { role: 'user', content: question },
+  ]
   const body = {
     state: question,
     model: 'jev-latest',
-    questions: {
-      intent: {
-        type: 'choice',
-        instructions:
-          'A traveller planning a group trip typed the message in the state. ' +
-          'Decide which ONE capability described in the criteria best serves what they actually want. ' +
-          'Judge the intent behind the message, not its surface keywords. ' +
-          'Choose "none" when no listed capability genuinely serves it.',
-        criteria: INTENT_CRITERIA,
-      },
-    },
+    questions: { intent: { type: 'choice', instructions, criteria: INTENT_CRITERIA } },
   }
   for (let attempt = 0; attempt <= JEV_RETRIES; attempt++) {
-    const res = await fetch(endpointUrl(cfg.baseUrl, '/systemone'), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal,
-    })
-    // Only a rate-limit answer retries, with backoff; every other failure is
-    // final — the caller's fallback chain decides what happens next.
-    if ((res.status === 429 || res.status === 529) && attempt < JEV_RETRIES) {
-      await new Promise(r => setTimeout(r, 500 * 2 ** attempt))
-      continue
+    const startedAt = performance.now()
+    let httpStatus: number | undefined
+    try {
+      const res = await fetch(endpointUrl(cfg.baseUrl, '/systemone'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      })
+      httpStatus = res.status
+      // Only a rate-limit answer retries, with backoff; every other failure is
+      // final — the caller's fallback chain decides what happens next.
+      if ((res.status === 429 || res.status === 529) && attempt < JEV_RETRIES) {
+        captureAiGeneration({ context, model: 'jev-latest', provider: 'typesafe', spanName: 'intent_classification', messages, latency: elapsedSeconds(startedAt), httpStatus, error: new Error(`HTTP ${res.status}`) })
+        await new Promise(r => setTimeout(r, 500 * 2 ** attempt))
+        continue
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const intent = extractJevIntent(await res.json())
+      if (!intent) throw new Error('unclassifiable response')
+      captureAiGeneration({ context, model: 'jev-latest', provider: 'typesafe', spanName: 'intent_classification', messages, latency: elapsedSeconds(startedAt), httpStatus, output: intent })
+      return intent
+    } catch (error) {
+      captureAiGeneration({ context, model: 'jev-latest', provider: 'typesafe', spanName: 'intent_classification', messages, latency: elapsedSeconds(startedAt), httpStatus, error })
+      throw error
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return extractJevIntent(await res.json()) ?? (() => { throw new Error('unclassifiable response') })()
   }
   // Unreachable — the final attempt always returns or throws — but TS can't prove it.
   throw new Error('Jev failed')
@@ -353,12 +503,14 @@ export async function askCompanion(
   question: string,
   signal?: AbortSignal,
   legCorrections?: Record<string, LegEstimate>,
+  aiSessionId: string | null = null,
 ): Promise<CompanionAnswer> {
+  const context = createAiTraceContext(aiSessionId)
   const jev = loadJevConfig()
   if (jev) {
     const merged = mergeSignal(signal, JEV_TIMEOUT_MS)
     try {
-      const intent = await askJevIntent(jev, question, merged)
+      const intent = await askJevIntent(jev, question, merged, context)
       const reply = answerForIntent(trip, intent, question, legCorrections)
       return { ...reply, source: 'jev' }
     } catch {
@@ -369,7 +521,7 @@ export async function askCompanion(
   if (cfg) {
     const merged = mergeSignal(signal, LLM_TIMEOUT_MS)
     try {
-      const text = await chatCompletion(cfg, buildMessages(trip, question, legCorrections), merged)
+      const text = await chatCompletion(cfg, buildMessages(trip, question, legCorrections), merged, context)
       return { text, source: 'llm' }
     } catch {
       // fall through to the deterministic router — deliberately silent: the

@@ -33,6 +33,7 @@ import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
 import { PrintExport } from '../../components/PrintExport'
 import { cap, timeAgo } from './shared'
+import posthog, { isPostHogConfigured } from '../../lib/posthog'
 
 // ================= Snapshot (export / import / URL share) =================
 
@@ -60,6 +61,7 @@ function SnapshotCard({ trip, me, onNavigate, legCorrections, publication }: {
       const payload = await encodeTripSnapshot(trip)
       const url = snapshotUrl(trip, payload)
       setLink(url)
+      try { if (isPostHogConfigured) posthog.capture('snapshot_link_created', { day_count: trip.days.length }) } catch { /* Analytics must not interrupt link creation. */ }
       void nativeCopyText(url)
       toast('Snapshot link copied. Anyone with the link can read the trip, and you cannot revoke it')
     } catch (e) {
@@ -305,6 +307,13 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
         setSaveErr(outcome.error ?? 'Could not save the publication. Nothing was published. Try again.')
         return
       }
+      try {
+        if (isPostHogConfigured) posthog.capture('itinerary_published', {
+          day_count: trip.days.length,
+          free_day_count: entirelyFree ? allIndexes.length : free.size,
+          is_premium: !entirelyFree,
+        })
+      } catch { /* Analytics must not interrupt publishing. */ }
       onDone(Boolean(pub) && live)
     } catch (e) {
       // #354/#389 — a REFUSAL is not a failed write. The writer raises it before

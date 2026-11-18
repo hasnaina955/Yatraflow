@@ -17,6 +17,7 @@ import { STOP_CATEGORIES, STOP_STATUSES } from '../data/types'
 import { seedData, uid } from '../data/seed'
 import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import posthog, { isPostHogConfigured } from '../lib/posthog'
 import { toast } from '../components/ui'
 import { DRIVES_PART_MISSING_REASON, drivesPartWriteVerdict, isMissingColumnError, rowToTrip, tripToRow, tripUpdateRow, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
 import { emptyLockedDay, isWireLocked, withoutLockMarker } from '../lib/lockedDay'
@@ -72,7 +73,7 @@ import {
 } from './fieldIntents'
 
 export { reviewedSocialLinks } from '../lib/publicProfile'
-import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
+import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient, User } from '@supabase/supabase-js'
 
 // In-memory cache — the synchronous snapshot the UI reads. No localStorage.
 interface DB {
@@ -795,6 +796,7 @@ export async function signup(name: string, email: string, password: string): Pro
 }
 
 export async function logout(): Promise<void> {
+  syncPostHogIdentity(null)
   // #393: the sign-out INSTANT used to render the departing account's rows
   // until the async auth event's hydrate(null) landed — Account A's trips (and
   // their Trash) still on screen while signed out, for a frame or a round
@@ -1437,6 +1439,37 @@ function overlayQueuedTrips(trips: Trip[], writes: QueuedWrite[], userId: string
  *  drafts and pending writes belong to that account and survive. */
 let observationSeq = 0
 
+// The Supabase auth user is the client-side identity boundary. Its UUID is the
+// stable PostHog distinct id; email and name are person properties, never event
+// properties. Keeping this state locally means duplicate auth notifications and
+// token refreshes do not re-identify the same browser session.
+let identifiedPostHogUserId: string | null = null
+
+function syncPostHogIdentity(user: User | null | undefined): void {
+  if (!isPostHogConfigured) return
+
+  try {
+    if (!user) {
+      if (!identifiedPostHogUserId) return
+      posthog.reset()
+      identifiedPostHogUserId = null
+      return
+    }
+
+    if (identifiedPostHogUserId === user.id) return
+    if (identifiedPostHogUserId) posthog.reset()
+
+    const properties: Record<string, string> = {}
+    if (user.email) properties.email = user.email
+    const name = user.user_metadata.name
+    if (typeof name === 'string' && name) properties.name = name
+    posthog.identify(user.id, properties)
+    identifiedPostHogUserId = user.id
+  } catch {
+    // Analytics must never interrupt authentication or session restoration.
+  }
+}
+
 function observeSession(session: ObservedSession | null | undefined, reserved?: number): Owner | null {
   if (reserved !== undefined && reserved !== observationSeq) return null
   if (reserved === undefined) ++observationSeq
@@ -1619,6 +1652,7 @@ export function init(): void {
     // result is applied, so a callback that lands while it is in flight can
     // supersede it rather than the response reviving an older session.
     const owner = observeSession(data.session, initialObservation)
+    syncPostHogIdentity(data.session?.user)
     adminFromSession(data.session ?? null)
     observeAdminAuthority()
     void hydrate(data.session?.user?.id ?? null, owner)
@@ -1629,6 +1663,7 @@ export function init(): void {
     // name: a duplicate SIGNED_IN or a TOKEN_REFRESHED for the same session keeps
     // valid work, and a different session id retires it.
     const owner = observeSession(session)
+    syncPostHogIdentity(session?.user)
     adminFromSession(session ?? null)
     observeAdminAuthority()
     // A same-session admin loss or regain moves the authority revision with no

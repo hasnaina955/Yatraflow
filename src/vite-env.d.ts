@@ -9,6 +9,9 @@ interface ImportMetaEnv {
   readonly VITE_MAPPLS_KEY: string
   /** Optional — set to "on" to mount the AI travel companion (locked for the premium milestone). */
   readonly VITE_AI_COMPANION: string
+  /** Optional — public PostHog browser configuration. */
+  readonly VITE_POSTHOG_KEY: string
+  readonly VITE_POSTHOG_HOST: string
 }
 
 interface ImportMeta {

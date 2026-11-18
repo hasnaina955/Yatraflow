@@ -4,6 +4,8 @@ import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { isNative } from './lib/native'
 import { haptic } from './lib/haptics'
+import { posthogLog } from './lib/posthogLogs'
+import './lib/posthog'
 // Brand fonts are self-hosted through @fontsource, so first paint never waits
 // on a font CDN. Sora 500-800 covers display; Plus Jakarta Sans 400-800 covers
 // body text. Those two names match --font-display/--font-body in styles.css.
@@ -53,6 +55,8 @@ if (!isNative && import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   })
 }
+
+posthogLog.info('application started', { runtime: isNative ? 'capacitor-webview' : 'web' })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

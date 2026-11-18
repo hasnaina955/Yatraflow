@@ -34,6 +34,7 @@ import { currentQuery } from '../lib/router'
 import { sharePublicationOnWhatsApp } from '../lib/whatsAppShare'
 import { appLink } from '../lib/appLink'
 import { pageTitle } from '../lib/pageTitle'
+import posthog, { isPostHogConfigured } from '../lib/posthog'
 import { sizedCoverUrl } from '../lib/tripThumb'
 import { Avatar, Chip, EmptyState, toast, CopyButton } from '../components/ui'
 import { SegmentedTabs } from '../components/page/SegmentedTabs'
@@ -705,7 +706,15 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
         setTripReReadFailedFor(null)
         // The reveal opens only on a real trip: its numbers ARE the point, and
         // stats read from the stubbed copy would describe an empty plan.
-        if (outcome === 'unlocked') setRevealTrip(fresh)
+        if (outcome === 'unlocked') {
+          try {
+            if (isPostHogConfigured) posthog.capture('itinerary_unlocked', {
+              day_count: fresh.days.length,
+              premium_day_count: Math.max(0, fresh.days.length - pub!.freeDayIndexes.length),
+            })
+          } catch { /* Analytics must not interrupt a completed unlock. */ }
+          setRevealTrip(fresh)
+        }
       } else {
         setTripReReadFailedFor(pub!.id)
       }

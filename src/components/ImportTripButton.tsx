@@ -17,6 +17,7 @@ import { stashPublishDraft } from '../lib/publishDraft'
 import { useResolvePick } from './ResolvePickDialog'
 import { unnamedPick } from '../lib/resolvePick'
 import { toast, ConfirmDialog } from './ui'
+import posthog, { isPostHogConfigured } from '../lib/posthog'
 
 /** How many dropped rows get the pin prompt. A hand-edited file drops a stop
  *  or two; a corrupt one could drop dozens, and stacking dialogs past this
@@ -48,6 +49,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
 
   /** The success side of both paths, in the order the two toasts must read. */
   function announceImported(done: { trip: Trip; summary: string; note: string; digest: ImportReportDigest | null }) {
+    try { if (isPostHogConfigured) posthog.capture('trip_imported', { day_count: done.trip.days.length, has_publication_draft: false }) } catch { /* Analytics must not interrupt importing. */ }
     toast(`Imported “${done.trip.name}”: ${done.summary}.${done.note}`)
     if (done.digest) toast(done.digest.message, done.digest.kind)
     onNavigate('/trips')
@@ -56,6 +58,7 @@ export function ImportTripButton({ ownerId, onNavigate, className = 'btn btn-out
   /** The offer path toasts the import but leaves navigation to the dialog.
    *  Confirm opens the prefilled Share tab; cancel goes to My Trips. */
   function offerPrefill(trip: Trip, draft: PublicationDraft, digest: ImportReportDigest | null, summary: string) {
+    try { if (isPostHogConfigured) posthog.capture('trip_imported', { day_count: trip.days.length, has_publication_draft: true }) } catch { /* Analytics must not interrupt importing. */ }
     toast(`Imported “${trip.name}”: ${summary}.`)
     if (digest) toast(digest.message, digest.kind)
     setOffer({ trip, draft })

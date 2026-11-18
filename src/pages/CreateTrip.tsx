@@ -40,6 +40,8 @@ import { currentQuery, navigate, onRouteChange } from '../lib/router'
 import { budgetTargetMessage, suggestedBudgetTarget, fuelFallbackNotice, revalidateCommitments, commitmentMoveMessage, composerRowError, ticketFuelSegments } from '../lib/createHonesty'
 import { addCrewFields, isMaskedLabel, normalizeIndianMobile, type CrewEntry } from '../lib/crewInvite'
 import { recordCreateEvent } from '../lib/createEvents'
+import posthog, { isPostHogConfigured } from '../lib/posthog'
+import { posthogLog } from '../lib/posthogLogs'
 import { stashHandoff } from '../lib/createHandoff'
 import { routeIq, routeIqLine, type RoutePoint } from '../lib/routeIq'
 import { seasonNoteFor, monthOfIso } from '../lib/seasonality'
@@ -890,6 +892,18 @@ driveAfterDinnerMin: f.driveAfterDinnerMin,
    *  workspace opened over a failed write is a trip that vanishes on reload. */
   function finishCreate(trip: Trip) {
     recordCreateEvent('submitted', { days: trip.days.length, travellers: trip.travellers, mode: trip.transportMode }, { tripId: trip.id, userId: me?.id })
+    try {
+      if (isPostHogConfigured) posthog.capture('trip_created', {
+        day_count: trip.days.length,
+        traveller_count: trip.travellers,
+        transport_mode: trip.transportMode,
+      })
+    } catch { /* Analytics must not interrupt a successful trip creation. */ }
+    posthogLog.info('trip creation persisted', {
+      day_count: trip.days.length,
+      traveller_count: trip.travellers,
+      transport_mode: trip.transportMode,
+    })
     haptic(HAPTIC.success)
     clearDraft()
     if (createFunnelOn('moment')) {

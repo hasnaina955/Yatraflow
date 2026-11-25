@@ -170,6 +170,10 @@ describe('the invite preview projects a first name and the link role', () => {
     expect(await nameFor('+91.98765.43210')).toBeNull()
     expect(await nameFor('(022).123.4567')).toBeNull()
     expect(await nameFor('+91-98765-43210')).toBeNull()
+    // A name has a letter in it, so a stray separator is not a name either.
+    expect(await nameFor('-')).toBeNull()
+    expect(await nameFor('(')).toBeNull()
+    expect(await nameFor('()')).toBeNull()
     // A trailing full stop is punctuation, not a domain.
     expect(await nameFor('Riya.')).toBe('Riya')
     expect(await nameFor('Riya')).toBe('Riya')

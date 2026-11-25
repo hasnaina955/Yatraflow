@@ -130,7 +130,7 @@ describe('the inviter name the preview projects', () => {
   })
 
   it('refuses a schemeless web address or a dotted phone number, which carry no @ or /', () => {
-    for (const contact of ['www.example.com', 'example.com', '98765.43210', 'shubham.k', '+91.98765.43210', '(022).123.4567']) {
+    for (const contact of ['www.example.com', 'example.com', '98765.43210', 'shubham.k', '+91.98765.43210', '(022).123.4567', '-', '(', '()']) {
       expect(inviteFirstName(contact), contact).toBeNull()
       expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: contact }).headline)
         .toBe('You were added to Goa 2026.')

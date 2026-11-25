@@ -28,11 +28,10 @@
 -- no client can be the only thing standing between a display name and an
 -- anonymous page: first token only, a leading '@' stripped, control and
 -- whitespace characters removed, and 24 characters at most. A token that still
--- carries '@', '/' or ':' is an address or a URL rather than a name, a dotted
--- alphanumeric token (`www.example.com`) is a web address, and a token whose
--- only digits remain once spaces, brackets, '+', '.' and '-' come out is a
--- phone number (`+91.98765.43210`, `(022).123.4567`): all answer NULL, which the
--- client renders
+-- carries '@', '/' or ':' is an address or a URL rather than a name, a token
+-- with no letter in it is a phone number in any shape (`+91.98765.43210`,
+-- `(022).123.4567`, `-`), and a dotted alphanumeric token is a web address
+-- (`www.example.com`): all answer NULL, which the client renders
 -- with the anonymous wording it already has. `src/lib/inviteLandingCopy.ts`
 -- keeps the same rule on the render side.
 --
@@ -51,7 +50,7 @@ as $$
   select case
     when v.tok is null then null
     when v.tok ~ '[@/:]' then null
-    when regexp_replace(v.tok, '[ ()+.-]', '', 'g') ~ '^[0-9]+$' then null
+    when v.tok !~ '[A-Za-z]' then null
     when v.tok ~* '^[a-z0-9-]+(\.[a-z0-9-]+)+$' then null
     when length(v.tok) > 24 then left(v.tok, 23) || '…'
     else v.tok

@@ -28,33 +28,37 @@ describe('footer route mark (P1)', () => {
     expect(footer).toMatch(/<svg\b[^>]*focusable="false"/)
   })
 
-  it('keeps the about, copy-page, feedback, calculator and creator links, and adds no other anchor', () => {
+  it('keeps the about, copy-page, feedback, calculator, Ladakh and creator links, and adds no other anchor', () => {
     expect(footer).toContain('href={feedbackHref()}')
     expect(footer).toContain('Send feedback')
-    // The hub is the discovery path for all four calculators, so the footer
-    // names the hub only. The Ladakh link went: the hub already lists Ladakh.
+    // The hub is the discovery path for all four calculators. The footer also
+    // keeps a plain link to the Ladakh page. That page already ranks in search.
+    // A sitewide internal link helps it.
     expect(footer).toContain('href="/trip-cost-calculators/"')
-    expect(footer).not.toContain('href="/ladakh-trip-cost-calculator/"')
+    expect(footer).toContain('href="/ladakh-trip-cost-calculator/"')
     expect(footer).toContain('How it works')
     expect(footer).toContain('FAQ')
     expect(footer).toContain('appLink(\'/about\')')
     // The creator page is also an in-app route, so it renders through appLink
-    // and keeps a real path in href. Six anchors: four internal routes, one
-    // feedback and one static calculator hub. The count fell from seven with Ladakh.
+    // and keeps a real path in href. Seven anchors: four internal routes, one
+    // feedback and two static calculator pages, the hub and Ladakh.
     expect(footer).toContain("appLink('/for-creators')")
-    expect(footer.match(/<a\s/g)?.length).toBe(6)
+    expect(footer.match(/<a\s/g)?.length).toBe(7)
   })
 
-  it('groups the links under four labelled navs, with a real heading on each', () => {
-    const groups = [...footer.matchAll(/<nav className="footer-group" aria-label="([^"]+)">/g)].map(match => match[1])
-    expect(groups).toEqual(['Plan', 'Help', 'Creators', 'Company'])
+  it('groups the links under one labelled footer nav, with a real heading on each group', () => {
+    expect(footer.match(/<nav\b/g)?.length).toBe(1)
+    expect(footer).toContain('<nav className="footer-groups" aria-label="Footer">')
+    const titles = [...footer.matchAll(/<div className="footer-group">\s*<h2 className="footer-group-title">([^<]+)<\/h2>/g)].map(match => match[1])
+    expect(titles).toEqual(['Plan', 'Help', 'Creators', 'Company'])
     expect(footer.match(/<h2 className="footer-group-title">/g)?.length).toBe(4)
     // The disclaimer keeps its text and its own line, outside the groups.
     expect(footer).toContain('All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks.')
   })
 
-  it('hides the static calculator hub from the installed shell, as How it works hides its own', () => {
+  it('hides the static calculator pages from the installed shell, as they cannot route there', () => {
     expect(footer).toMatch(/\{!isNative && <li><a className="footer-link" href="\/trip-cost-calculators\/">Trip cost calculators<\/a><\/li>\}/)
+    expect(footer).toMatch(/\{!isNative && <li><a className="footer-link" href="\/ladakh-trip-cost-calculator\/">Ladakh trip cost calculator<\/a><\/li>\}/)
   })
 
   it('lays the groups out as four columns from 721px, and stacks them below that', () => {

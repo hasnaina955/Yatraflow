@@ -106,16 +106,30 @@ describe('bottom navigation is a shell-only primary nav', () => {
     // The topnav pair sits behind the signed-out gate and the web gate. The
     // hub is a static page, so it is a plain href with no pill key.
     const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
-    expect(pill).toContain('!me && !sessionUserId && !isNative')
+    expect(pill).toContain('{ready && !me && !sessionUserId && !isNative && <>')
     expect(pill).toContain('data-pill-key="/how-it-works"')
     expect(pill).toMatch(/<a className="nav-link topnav-extra" href="\/trip-cost-calculators\/">Calculators<\/a>/)
     expect(pill).not.toMatch(/data-pill-key="\/trip-cost-calculators/)
     // The tray is web-only already, so its pair needs only the signed-out gate.
     const trayAt = app.indexOf('<div className="mobile-menu"')
     const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
-    expect(tray).toContain('{!me && !sessionUserId && <>')
+    expect(tray).toContain('{ready && !me && !sessionUserId && <>')
     expect(tray).toContain("{...appLink('/how-it-works')}")
     expect(tray).toMatch(/<a className="nav-link" href="\/trip-cost-calculators\/">/)
+  })
+
+  it('waits for hydrate before the signed-out items show, so a reload does not flash them', () => {
+    // A reload reads sessionUserId as null until the store hydrates. Both gates
+    // read `ready` from the store, so a signed-in visitor never sees these items.
+    expect(app).toMatch(/const ready = useStoreReady\(\)/)
+    const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
+    expect(pill).toMatch(/\{ready && !me && !sessionUserId && !isNative && <>/)
+    const trayAt = app.indexOf('<div className="mobile-menu"')
+    const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
+    expect(tray).toMatch(/\{ready && !me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
+    // The unguarded form must be gone from both places.
+    expect(pill).not.toMatch(/\{!me && !sessionUserId && !isNative && <>/)
+    expect(tray).not.toMatch(/\{!me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
   })
 
   it('moves the two added topnav items into the tray between 721px and 860px, where they would overflow', () => {

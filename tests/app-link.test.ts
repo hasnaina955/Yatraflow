@@ -107,6 +107,13 @@ describe('publication-reachable anchor wiring', () => {
     const source = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     expect(source.match(/\{\.\.\.appLink\(/g)).toHaveLength(count)
   })
+
+  it('links the creator hub to the for-creators page through appLink, under the agreed label', () => {
+    // Shown to every creator, so the label names the page and makes no claim about the reader.
+    const hub = readFileSync(new URL('../src/pages/CreatorHubPage.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+    expect(hub).toMatch(/<a className="text-link" \{\.\.\.appLink\('\/for-creators'\)\}>About YatraFlow for creators<\/a>/)
+    expect(hub).not.toContain('New to publishing?')
+  })
 })
 
 // The hash-route ban covers every src component. Source is read with CRLF
@@ -186,10 +193,11 @@ describe('no component links to a hash route', () => {
 // A plain href to an app route reloads the whole document and drops the store,
 // so every in-app route is an appLink. The static calculator pages sit outside
 // the router: they are not in ROUTED_SEGMENTS, so their plain hrefs stay legal.
+// A brace may open the value, as in href={'/faq'} or href={`/faq`}, so the pattern allows one.
 describe('no component links to an in-app route with a plain href', () => {
   const routeNames = routeTable.ROUTED_SEGMENTS.filter(name => name.length > 0)
   const escapedNames = routeNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const plainRouteHref = new RegExp('\\bhref\\s*=\\s*["\'`]/(?:' + escapedNames.join('|') + ')(?=[/?#"\'`])')
+  const plainRouteHref = new RegExp('\\bhref\\s*=\\s*\\{?\\s*["\'`]/(?:' + escapedNames.join('|') + ')(?=[/?#"\'`])')
 
   it('scans the real route list, so the pattern cannot pass on an empty list', () => {
     expect(routeNames).toContain('faq')

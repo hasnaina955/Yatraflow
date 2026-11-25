@@ -45,12 +45,12 @@ describe('app shell error boundary (P1)', () => {
 })
 
 describe('app shell footer (P1)', () => {
-  it('keeps the footer element, the feedback link and the calculator hub link', () => {
+  it('keeps the footer element, the feedback link, the calculator hub link and the Ladakh link', () => {
     expect(app).toContain('<footer className="footer">')
     expect(app).toContain('Send feedback')
-    // The footer names the hub, not Ladakh: the hub lists all four destinations,
-    // so the single Ladakh link was dropped when the footer regrouped into four groups.
+    // The footer names the hub and the Ladakh page. The Ladakh link stays on purpose:
+    // that page already ranks in search, and a sitewide internal link helps it.
     expect(app).toContain('href="/trip-cost-calculators/"')
-    expect(app).not.toContain('href="/ladakh-trip-cost-calculator/"')
+    expect(app).toContain('href="/ladakh-trip-cost-calculator/"')
   })
 })

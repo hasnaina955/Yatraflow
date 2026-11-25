@@ -138,6 +138,15 @@ describe('the inviter name the preview projects', () => {
     // A trailing full stop is punctuation, not a domain: the word survives it.
     expect(inviteFirstName('Riya.')).toBe('Riya')
   })
+
+  it('keeps a name in any script, because the rule names shapes that cannot be one', () => {
+    for (const name of ['प्रिया', 'Анна', '田中', 'प्रिया शर्मा']) {
+      expect(inviteFirstName(name), name).not.toBeNull()
+    }
+    expect(inviteFirstName('प्रिया शर्मा')).toBe('प्रिया')
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'प्रिया' }).headline)
+      .toBe('प्रिया added you to Goa 2026.')
+  })
 })
 
 describe('the preview role, and the paid guide alongside it', () => {

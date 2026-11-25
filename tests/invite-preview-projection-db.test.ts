@@ -174,6 +174,10 @@ describe('the invite preview projects a first name and the link role', () => {
     expect(await nameFor('-')).toBeNull()
     expect(await nameFor('(')).toBeNull()
     expect(await nameFor('()')).toBeNull()
+    // A name in any script passes: the rule lists shapes that cannot be a name.
+    expect(await nameFor('प्रिया')).toBe('प्रिया')
+    expect(await nameFor('Анна Шарма')).toBe('Анна')
+    expect(await nameFor('田中')).toBe('田中')
     // A trailing full stop is punctuation, not a domain.
     expect(await nameFor('Riya.')).toBe('Riya')
     expect(await nameFor('Riya')).toBe('Riya')

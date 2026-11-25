@@ -104,9 +104,10 @@ export function inviteFirstName(name: string | null | undefined): string | null 
   const first = token.replace(/^@+/, '').replace(/\.+$/, '')
   if (!first) return null
   if (/[@/:]/.test(first)) return null
-  // A name has a letter in it. A token without one is a phone number in any
-  // shape (+91.98765.43210, (022).123.4567) or a stray separator ("-", "(").
-  if (!/[A-Za-z]/.test(first)) return null
+  // Digits and phone separators alone are a phone number in any shape
+  // (+91.98765.43210, (022).123.4567) or a stray separator ("-", "("). The test
+  // names the shapes that cannot be a name, so a name in any script passes.
+  if (/^[0-9 ()+.-]+$/.test(first)) return null
   // A dotted alphanumeric token is a web address or a dotted phone number, not a
   // first name: "www.example.com" and "98765.43210" both answer no name.
   if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(first)) return null

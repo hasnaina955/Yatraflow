@@ -998,7 +998,7 @@ as $$
   select case
     when v.tok is null then null
     when v.tok ~ '[@/:]' then null
-    when v.tok !~ '[A-Za-z]' then null
+    when v.tok ~ '^[0-9 ()+.-]+$' then null
     when v.tok ~* '^[a-z0-9-]+(\.[a-z0-9-]+)+$' then null
     when length(v.tok) > 24 then left(v.tok, 23) || '…'
     else v.tok

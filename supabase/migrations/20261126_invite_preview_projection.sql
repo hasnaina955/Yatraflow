@@ -29,9 +29,12 @@
 -- anonymous page: first token only, a leading '@' stripped, control and
 -- whitespace characters removed, and 24 characters at most. A token that still
 -- carries '@', '/' or ':' is an address or a URL rather than a name, a token
--- with no letter in it is a phone number in any shape (`+91.98765.43210`,
--- `(022).123.4567`, `-`), and a dotted alphanumeric token is a web address
--- (`www.example.com`): all answer NULL, which the client renders
+-- made only of digits and phone separators is a phone number in any shape
+-- (`+91.98765.43210`, `(022).123.4567`, `-`), and a dotted alphanumeric token is
+-- a web address (`www.example.com`): all answer NULL, which the client renders.
+-- The refusal is a list of shapes that cannot be a name, never a list of letters
+-- a name must use: a name in any script passes (`प्रिया`, `Анна`, `田中`), and the
+-- ARE engine has no script-independent letter class to test with.
 -- with the anonymous wording it already has. `src/lib/inviteLandingCopy.ts`
 -- keeps the same rule on the render side.
 --
@@ -50,7 +53,7 @@ as $$
   select case
     when v.tok is null then null
     when v.tok ~ '[@/:]' then null
-    when v.tok !~ '[A-Za-z]' then null
+    when v.tok ~ '^[0-9 ()+.-]+$' then null
     when v.tok ~* '^[a-z0-9-]+(\.[a-z0-9-]+)+$' then null
     when length(v.tok) > 24 then left(v.tok, 23) || '…'
     else v.tok

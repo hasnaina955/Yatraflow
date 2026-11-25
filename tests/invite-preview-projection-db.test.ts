@@ -30,7 +30,7 @@ const CODE = 'GOA-K7QF'
 const PRICED_CODE = 'MUN-N3RT'
 const ORPHAN_CODE = 'COO-R8DK'
 
-/** The 33 approved trip columns plus the two this migration adds, in order. */
+/** The 33 approved trip columns, then the two this migration adds. This is the order the RPC answers in. */
 const SHAPE = [
   'id', 'owner_id', 'name', 'start_location', 'destinations', 'start_date', 'end_date',
   'travellers', 'transport_mode', 'budget_per_person_inr', 'travel_style',
@@ -164,6 +164,11 @@ describe('the invite preview projects a first name and the link role', () => {
     expect(await nameFor('Shubham@Example.com')).toBeNull()
     expect(await nameFor('https://instagram.com/shubham')).toBeNull()
     expect(await nameFor('+91 98765 43210')).toBeNull()
+    // Schemeless: a dotted alphanumeric token is a web address or a dotted phone.
+    expect(await nameFor('www.example.com')).toBeNull()
+    expect(await nameFor('98765.43210')).toBeNull()
+    // A trailing full stop is punctuation, not a domain.
+    expect(await nameFor('Riya.')).toBe('Riya')
     expect(await nameFor('Riya')).toBe('Riya')
     // 24 characters at most, and the ellipsis is part of the 24.
     const long = await nameFor('Bartholomewmaximilianjones')
@@ -210,8 +215,8 @@ describe('the invite preview projects a first name and the link role', () => {
       role: preview.inviteRole,
     })
     expect(copy.headline).toBe('Shubham added you to Goa 2026.')
-    expect(copy.roleLine).toContain('No editing, no notifications.')
-    expect(copy.roleLine).not.toContain('vote')
+    expect(copy.roleLine).toContain('You can’t edit it, comment or vote.')
+    expect(copy.roleLine).not.toContain('you can vote')
   })
 
   it('a row without the projection keeps the anonymous wording the client already has', async () => {

@@ -100,10 +100,14 @@ export const INVITE_LOOK_FIRST = 'Just look at it first'
 export function inviteFirstName(name: string | null | undefined): string | null {
   if (typeof name !== 'string') return null
   const token = name.trim().split(/\s+/)[0]
-  const first = token.replace(/^@+/, '')
+  // A trailing full stop is the end of a sentence, not part of a name.
+  const first = token.replace(/^@+/, '').replace(/\.+$/, '')
   if (!first) return null
   if (/[@/:]/.test(first)) return null
   if (/^\+?[0-9 ()-]+$/.test(first)) return null
+  // A dotted alphanumeric token is a web address or a dotted phone number, not a
+  // first name: "www.example.com" and "98765.43210" both answer no name.
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(first)) return null
   return first.length > 24 ? `${first.slice(0, 23)}…` : first
 }
 
@@ -175,7 +179,10 @@ export function recipientInviteCopy(facts: InviteFacts): InviteRecipientCopy {
     roleLine: facts.role === 'editor'
       ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split, and you can vote on the open decisions.'
       : facts.role === 'viewer'
-        ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split. No editing, no notifications.'
+        // The role the server enforces (can_comment, is_editor): a viewer reads
+        // the plan but cannot edit it, comment on it or vote. The line promises
+        // no more than that — notifications reach every member, viewers included.
+        ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split. You can’t edit it, comment or vote.'
         : 'You’ll see the whole plan: days, stops, drive times and the ₹ split.',
     primary: 'Join the plan',
     underPrimary: 'Free. We’ll ask you to sign in or create an account first. That’s how we tell your vote from someone else’s.',

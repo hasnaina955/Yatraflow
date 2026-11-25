@@ -68,10 +68,12 @@ describe('recipient copy with no facts', () => {
 })
 
 describe('role wording', () => {
-  it('promises no editing or notifications to a viewer', () => {
+  it('promises a viewer only what the server enforces: no edit, comment or vote', () => {
     const copy = recipientInviteCopy({ tripTitle: 'Goa', role: 'viewer' })
-    expect(copy.roleLine).toContain('No editing, no notifications.')
-    expect(copy.roleLine).not.toContain('vote')
+    expect(copy.roleLine).toContain('You can’t edit it, comment or vote.')
+    // Notifications reach every member, viewers included (20261120 sends one to
+    // every trip_members row), so the line must not claim silence.
+    expect(copy.roleLine).not.toContain('notification')
   })
 
   it('says what the link gives, in both the headline sentence and the role line', () => {
@@ -80,7 +82,7 @@ describe('role wording', () => {
     expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham', role: 'editor' }).roleLine)
       .toContain('you can vote on the open decisions')
     expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham', role: 'viewer' }).roleLine)
-      .not.toContain('vote')
+      .not.toContain('you can vote')
   })
 })
 
@@ -126,6 +128,16 @@ describe('the inviter name the preview projects', () => {
     expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham@Example.com' }).headline)
       .toBe('You were added to Goa 2026.')
   })
+
+  it('refuses a schemeless web address or a dotted phone number, which carry no @ or /', () => {
+    for (const contact of ['www.example.com', 'example.com', '98765.43210', 'shubham.k']) {
+      expect(inviteFirstName(contact), contact).toBeNull()
+      expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: contact }).headline)
+        .toBe('You were added to Goa 2026.')
+    }
+    // A trailing full stop is punctuation, not a domain: the word survives it.
+    expect(inviteFirstName('Riya.')).toBe('Riya')
+  })
 })
 
 describe('the preview role, and the paid guide alongside it', () => {
@@ -133,7 +145,7 @@ describe('the preview role, and the paid guide alongside it', () => {
     const base = { tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }
     expect(recipientInviteCopy({ ...base, role: 'editor' }).roleLine).toContain('you can vote')
     expect(recipientInviteCopy({ ...base, role: 'viewer' }).roleLine).toBe(
-      'You’ll see the whole plan: days, stops, drive times and the ₹ split. No editing, no notifications.',
+      'You’ll see the whole plan: days, stops, drive times and the ₹ split. You can’t edit it, comment or vote.',
     )
   })
 
@@ -149,7 +161,7 @@ describe('the preview role, and the paid guide alongside it', () => {
     })
     expect(copy.headline).toBe('Shubham added you to Goa 2026.')
     expect(copy.paidGuideNote).toBe('Part of this plan is a paid guide (₹499). Joining the crew is free; you only pay if you want the locked days.')
-    expect(copy.roleLine).not.toContain('vote')
+    expect(copy.roleLine).not.toContain('you can vote')
   })
 })
 

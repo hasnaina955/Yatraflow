@@ -1112,7 +1112,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
                       {pub.travelTips.length > 0 && <li><span className="pi-get-icon"><MessageCircle size={18} aria-hidden /></span>{pub.travelTips.length} {pub.travelTips.length === 1 ? 'tip' : 'tips'} before you go</li>}
                       <li><span className="pi-get-icon"><GitFork size={18} aria-hidden /></span>A copy in your trips that you can change</li>
                     </ul>
-                    {showUnlockCta && <p className="pi-get-foot">One payment. The paid days open on this page, and the plan stays in your library.</p>}
+                    {showUnlockCta && <p className="pi-get-foot">One payment. The paid days open on this page, and the plan stays in your library. <a className="text-link" {...appLink('/faq?section=creators-and-paid-guides')}>Questions about paid guides? See the FAQ</a></p>}
                   </div>
                 </section>
               )}

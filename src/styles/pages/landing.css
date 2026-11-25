@@ -65,3 +65,18 @@
   }
 }
 
+/* One quiet text-link row under the hero buttons. */
+.hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5) var(--space-9);
+  margin: var(--space-7) 0 0;
+}
+
+/* The one line that links the destination calculators, under the Plan Bench. */
+.landing-hub-link {
+  margin: var(--space-7) auto 0;
+  padding: 0 var(--space-7);
+  text-align: center;
+}
+

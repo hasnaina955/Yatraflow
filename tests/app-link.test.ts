@@ -99,8 +99,12 @@ describe('native links stay fragments until slice 4', () => {
 describe('publication-reachable anchor wiring', () => {
   // App.tsx: the older route anchors, the footer links to /about, /how-it-works
   // and /faq (#1033, #1036), and the footer link to /for-creators (#1035).
-  it.each([['../src/App.tsx', 18], ['../src/pages/PublicItinerary.tsx', 1]] as const)('uses the shared pattern on every route anchor in %s', (path, count) => {
-    const source = readFileSync(new URL(path, import.meta.url), 'utf8')
+  // The counts rose by the discovery links: 18 to 21 in App.tsx, one each for
+  // the signed-out topnav and tray "How it works" links and the invite FAQ link,
+  // and 1 to 2 in PublicItinerary.tsx for the paid-guide FAQ link.
+  it.each([['../src/App.tsx', 21], ['../src/pages/PublicItinerary.tsx', 2]] as const)('uses the shared pattern on every route anchor in %s', (path, count) => {
+    // CRLF folds to LF first, so a Windows checkout reads the same source.
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     expect(source.match(/\{\.\.\.appLink\(/g)).toHaveLength(count)
   })
 })
@@ -176,6 +180,31 @@ describe('no component links to a hash route', () => {
 
   it('bans hash-route anchors, string links and computed hrefs in src', () => {
     expect(hashRouteOffenders()).toEqual([])
+  })
+})
+
+// A plain href to an app route reloads the whole document and drops the store,
+// so every in-app route is an appLink. The static calculator pages sit outside
+// the router: they are not in ROUTED_SEGMENTS, so their plain hrefs stay legal.
+describe('no component links to an in-app route with a plain href', () => {
+  const routeNames = routeTable.ROUTED_SEGMENTS.filter(name => name.length > 0)
+  const escapedNames = routeNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const plainRouteHref = new RegExp('\\bhref\\s*=\\s*["\'`]/(?:' + escapedNames.join('|') + ')(?=[/?#"\'`])')
+
+  it('scans the real route list, so the pattern cannot pass on an empty list', () => {
+    expect(routeNames).toContain('faq')
+    expect(routeNames).toContain('for-creators')
+    expect(routeNames).toContain('how-it-works')
+  })
+
+  it('routes every in-app link through appLink, in every component', () => {
+    const offenders: string[] = []
+    for (const file of componentFiles) {
+      readComponent(file).split('\n').forEach((line, index) => {
+        if (!isCommentLine(line) && plainRouteHref.test(line)) offenders.push(`${file}:${index + 1}: ${line.trim()}`)
+      })
+    }
+    expect(offenders).toEqual([])
   })
 })
 

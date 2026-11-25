@@ -1,5 +1,6 @@
-// Source pins for the footer route mark (consistency P1).
-// The mark is a decorative svg. It is hidden from assistive tech, it is not a link, and it does not move.
+// Source pins for the footer route mark (consistency P1), and for the footer's
+// four labelled link groups. The mark is a decorative svg. It is hidden from
+// assistive tech, it is not a link, and it does not move.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
@@ -7,6 +8,8 @@ import { readCssSource } from '../scripts/css-source-graph.mjs'
 const read = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const app = read('src/App.tsx')
 const css = readCssSource('src/styles.css')
+// The group rules live in the footer's owner file, so the token and layout pins read it directly.
+const siteFooterCss = read('src/styles/components/site-footer.css')
 
 const footerOpen = app.indexOf('<footer className="footer">')
 const footerClose = app.indexOf('</footer>', footerOpen)
@@ -28,18 +31,42 @@ describe('footer route mark (P1)', () => {
   it('keeps the about, copy-page, feedback, calculator and creator links, and adds no other anchor', () => {
     expect(footer).toContain('href={feedbackHref()}')
     expect(footer).toContain('Send feedback')
-    // The hub is the discovery path for all four calculators; Ladakh stays
-    // named because it is the page that already ranks.
+    // The hub is the discovery path for all four calculators, so the footer
+    // names the hub only. The Ladakh link went: the hub already lists Ladakh.
     expect(footer).toContain('href="/trip-cost-calculators/"')
-    expect(footer).toContain('href="/ladakh-trip-cost-calculator/"')
+    expect(footer).not.toContain('href="/ladakh-trip-cost-calculator/"')
     expect(footer).toContain('How it works')
     expect(footer).toContain('FAQ')
     expect(footer).toContain('appLink(\'/about\')')
     // The creator page is also an in-app route, so it renders through appLink
-    // and keeps a real path in href. Seven anchors: four internal routes, one
-    // feedback and two static calculator pages.
+    // and keeps a real path in href. Six anchors: four internal routes, one
+    // feedback and one static calculator hub. The count fell from seven with Ladakh.
     expect(footer).toContain("appLink('/for-creators')")
-    expect(footer.match(/<a\s/g)?.length).toBe(7)
+    expect(footer.match(/<a\s/g)?.length).toBe(6)
+  })
+
+  it('groups the links under four labelled navs, with a real heading on each', () => {
+    const groups = [...footer.matchAll(/<nav className="footer-group" aria-label="([^"]+)">/g)].map(match => match[1])
+    expect(groups).toEqual(['Plan', 'Help', 'Creators', 'Company'])
+    expect(footer.match(/<h2 className="footer-group-title">/g)?.length).toBe(4)
+    // The disclaimer keeps its text and its own line, outside the groups.
+    expect(footer).toContain('All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks.')
+  })
+
+  it('hides the static calculator hub from the installed shell, as How it works hides its own', () => {
+    expect(footer).toMatch(/\{!isNative && <li><a className="footer-link" href="\/trip-cost-calculators\/">Trip cost calculators<\/a><\/li>\}/)
+  })
+
+  it('lays the groups out as four columns from 721px, and stacks them below that', () => {
+    expect(siteFooterCss).toMatch(/\.footer-groups \{\s*display: grid;/)
+    expect(siteFooterCss).toMatch(/@media \(min-width: 721px\) \{\s*\.footer-groups \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/)
+    expect(css).toMatch(/@media \(min-width: 721px\) \{\s*\.footer-groups \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/)
+  })
+
+  it('paints the footer groups with tokens only, so both themes follow the token blocks', () => {
+    expect(siteFooterCss).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(siteFooterCss).not.toMatch(/\b(rgb|hsl)a?\(/)
+    expect(siteFooterCss).not.toMatch(/\d\s*ms\b/)
   })
 
   it('positions the mark against the footer itself, not against its padding', () => {

@@ -2,7 +2,7 @@
 // The page and the FAQPage schema must never disagree: one crawler reading a
 // question the reader cannot see is a broken promise in the search result. Both
 // read lib/faqContent, and this file proves it from the rendered markup.
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -101,5 +101,29 @@ describe('FAQ page metadata', () => {
   it('renders for a signed-out reader: no store or session is read', () => {
     expect(visible).toContain('Frequently asked questions')
     expect(visible).toContain('The questions people ask before they invite their friends.')
+  })
+})
+
+// Every cross-page link into the FAQ names a section this page renders. A
+// link to a missing id would land at the top of the page, and nothing else
+// would fail. The scan reads every src file, so a new link is checked too.
+describe('FAQ deep links name sections that exist', () => {
+  const srcRoot = new URL('../src/', import.meta.url)
+  const sourceFiles = readdirSync(srcRoot, { recursive: true })
+    .map(file => String(file).split('\\').join('/'))
+    .filter(file => /\.(ts|tsx)$/.test(file))
+  const targets = sourceFiles.flatMap(file => {
+    const text = readFileSync(new URL(file, srcRoot), 'utf8').replace(/\r\n/g, '\n')
+    return [...text.matchAll(/\/faq\?section=([a-z-]+)/g)].map(match => match[1])
+  })
+  const ids = new Set(FAQ_SECTIONS.map(section => section.id))
+
+  it('finds the links it must check, so the scan cannot pass on nothing', () => {
+    // The discovery links point at these three sections; the invite screen and the Share tab at codes.
+    expect(new Set(targets)).toEqual(new Set(['codes', 'getting-started', 'creators-and-paid-guides']))
+  })
+
+  it('names only sections the page renders', () => {
+    for (const id of targets) expect(ids.has(id), `/faq?section=${id} names no FAQ section`).toBe(true)
   })
 })

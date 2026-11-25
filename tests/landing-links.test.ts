@@ -53,6 +53,21 @@ describe('landing links open their pages through appLink', () => {
     expect(linksTo(planBench, '/explore', 'Or browse ready itineraries')).toBe(true)
   })
 
+  it('sends See how it works to /how-it-works', () => {
+    expect(linksTo(landing, '/how-it-works', 'See how it works')).toBe(true)
+  })
+
+  it('keeps the calculator hub a plain href behind the web-only gate, in the hero and under the Plan Bench', () => {
+    // The hub is a static page outside the router, so it cannot be an appLink.
+    expect(landing).toMatch(/const showCalculator = !isNative/)
+    expect(landing).toMatch(/\{showCalculator && <a className="text-link" href="\/trip-cost-calculators\/">Price a trip first<\/a>\}/)
+    expect(landing).toMatch(/\{showCalculator && \(\s*<p className="small muted landing-hub-link">[\s\S]*?<a className="text-link" href="\/trip-cost-calculators\/">Try the destination calculators\.<\/a>/)
+  })
+
+  it('imports the native flag that the calculator gate reads', () => {
+    expect(landing).toMatch(/import \{ isNative \} from '\.\.\/lib\/native'/)
+  })
+
   it('imports the shared helper in both files', () => {
     expect(landing).toMatch(/import \{ appLink \} from '\.\.\/lib\/appLink'/)
     expect(planBench).toMatch(/import \{ appLink \} from '\.\.\/lib\/appLink'/)

@@ -10,14 +10,14 @@ import { navDestinations } from '../src/components/BottomNav'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const css = readCssSource('src/styles.css')
-const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 /** `app` with the route constants spelled out — the create route is an imported
  *  constant since #398, and the reachability checks below look for the
  *  destinations themselves. */
 const appResolved = app.split('CREATE_ROUTE').join(CREATE_ROUTE).split('CREATE_PATH').join(CREATE_PATH)
 const manifest = readFileSync(new URL('../android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8')
 
-const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
+const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** Every declaration block in `cssText` whose selector is exactly `selector`. */
 function rules(cssText: string, selector: string): string[] {
@@ -100,6 +100,32 @@ describe('bottom navigation is a shell-only primary nav', () => {
     for (const dest of ['/trips', '/new', '/explore', '/creator-hub', '/profile']) {
       expect(appResolved, `${dest} must stay reachable`).toContain(dest)
     }
+  })
+
+  it('offers How it works and the calculator hub to a signed-out web visitor, in the topnav and the tray', () => {
+    // The topnav pair sits behind the signed-out gate and the web gate. The
+    // hub is a static page, so it is a plain href with no pill key.
+    const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
+    expect(pill).toContain('!me && !sessionUserId && !isNative')
+    expect(pill).toContain('data-pill-key="/how-it-works"')
+    expect(pill).toMatch(/<a className="nav-link topnav-extra" href="\/trip-cost-calculators\/">Calculators<\/a>/)
+    expect(pill).not.toMatch(/data-pill-key="\/trip-cost-calculators/)
+    // The tray is web-only already, so its pair needs only the signed-out gate.
+    const trayAt = app.indexOf('<div className="mobile-menu"')
+    const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
+    expect(tray).toContain('{!me && !sessionUserId && <>')
+    expect(tray).toContain("{...appLink('/how-it-works')}")
+    expect(tray).toMatch(/<a className="nav-link" href="\/trip-cost-calculators\/">/)
+  })
+
+  it('moves the two added topnav items into the tray between 721px and 860px, where they would overflow', () => {
+    // Measured in the browser: beside Explore, the pair overflowed the bar by 18px at 721px,
+    // and "How it works" wrapped onto three lines. Explore stays inline in that band.
+    const collapse = source('src/styles/components/topnav-collapse.css')
+    expect(collapse).toMatch(/@media \(min-width: 721px\) and \(max-width: 860px\) \{\s*\.topnav-extra \{\s*display: none;/)
+    expect(collapse).toMatch(/\.topnav:has\(\.topnav-extra\) \.mobile-nav-btn \{\s*display: inline-flex;/)
+    // The stylesheet graph carries the rule, so the owner file is imported.
+    expect(css).toMatch(/@media \(min-width: 721px\) and \(max-width: 860px\) \{\s*\.topnav-extra \{/)
   })
 })
 

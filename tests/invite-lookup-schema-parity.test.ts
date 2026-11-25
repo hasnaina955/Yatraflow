@@ -24,7 +24,7 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
-const MIGRATION = '20261124c_invite_preview_write_version.sql'
+const MIGRATION = '20261126_invite_preview_projection.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
 const schema = read('supabase/schema.sql')
 
@@ -50,7 +50,7 @@ function projection(sql: string): string[] {
   const start = body.indexOf('jsonb_build_object(')
   const end = body.indexOf(') as projected', start)
   if (start < 0 || end < 0) return []
-  return [...body.slice(start, end).matchAll(/'([a-z_]+)', (?:t|v_row)\.[a-z_]+/g)].map(match => match[1])
+  return [...body.slice(start, end).matchAll(/'([a-z_]+)', /g)].map(match => match[1])
 }
 
 const liveBody = definition(migration)
@@ -70,18 +70,28 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     expect(schemaBody).not.toBe('')
     for (const [label, body] of [['the migration', liveBody], ['schema.sql', schemaBody]] as const) {
       const text = flat(body)
-      expect(text, label).toContain('returns setof public.trips')
+      expect(text, label).toContain('returns setof public.trip_invite_preview')
       expect(text, label).toContain('security definer')
       expect(text, label).toContain('set search_path = public')
       expect(text, label).toContain(' stable ')
     }
   })
 
-  it('both copies project the same 33 columns in the same order', () => {
+  it('both copies project the same 35 columns in the same order', () => {
     const live = projection(migration)
-    expect(live).toHaveLength(33)
-    expect(new Set(live).size).toBe(33)
+    // 33 approved trip columns (#1020) plus the inviter's first name and the
+    // link's role. An added column is a disclosure change, not a style change.
+    expect(live).toHaveLength(35)
+    expect(new Set(live).size).toBe(35)
+    expect(live.slice(-2)).toEqual(['owner_first_name', 'invite_role'])
     expect(projection(schema)).toEqual(live)
+  })
+
+  it('both copies normalise the projected name on the server', () => {
+    for (const [label, source] of [['the migration', migration], ['schema.sql', schema]] as const) {
+      expect(source, label).toContain('public.invite_first_name(pc.name)')
+      expect(source, label).toContain('revoke all on function public.invite_first_name(text) from public, anon, authenticated;')
+    }
   })
 
   it('both copies hold the same gates', () => {

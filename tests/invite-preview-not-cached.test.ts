@@ -542,7 +542,9 @@ describe('the preview stays out of the cache', () => {
     // inviteLookup.test.ts pins row by row. The store only delegates to it.
     expect(body).toContain('const verdict = classifyInviteRows(rpc.data)')
     expect(body).toContain("if (verdict.kind !== 'found') return verdict")
-    expect(body).toMatch(/return \{ kind: 'found', trip: rowToTrip\(verdict\.row, \[\]\) \}/)
+    // #HAS-9 — the two preview fields travel beside the trip, from the same row,
+    // and never inside it: a Trip must not carry a role claim (#1012).
+    expect(body).toMatch(/return \{ kind: 'found', trip: rowToTrip\(verdict\.row, \[\]\), preview: invitePreviewIdentity\(verdict\.row\) \}/)
   })
 
   it('the marker machinery is gone', () => {
@@ -640,7 +642,7 @@ describe('B2 — a resolved link leaves the loading status', () => {
     // The set must be inside the success branch, next to the trip it returns.
     // The gate stores the trip with the target and account generation.
     const at = APP.indexOf("setStatus('ready')")
-    expect(APP.slice(Math.max(0, at - 160), at)).toContain('setResolved({ target: linkTarget, identityGen, trip: result.trip })')
+    expect(APP.slice(Math.max(0, at - 160), at)).toContain('setResolved({ target: linkTarget, identityGen, trip: result.trip, preview })')
   })
 
   it('the loading render is only for a genuinely unread link', () => {

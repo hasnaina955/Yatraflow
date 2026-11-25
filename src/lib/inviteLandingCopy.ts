@@ -92,12 +92,19 @@ export function inviteReadOnlyFacts(facts: InviteFacts): { label: string; value:
 /** The quiet secondary path. It is always present and always quieter than joining. */
 export const INVITE_LOOK_FIRST = 'Just look at it first'
 
-/** Only the head of a name reaches this screen: first name or handle, never a full name. */
+/** Only the head of a name reaches this screen: first name or handle, never a full name.
+ *  The server normalises the same way (20261126_invite_preview_projection.sql), so this
+ *  is the render-side half of one rule and not the only guard: a leading '@' comes off a
+ *  handle, and a token that still reads as an address, a URL or a phone number is not a
+ *  name, so the screen keeps its anonymous wording instead of printing it. */
 export function inviteFirstName(name: string | null | undefined): string | null {
   if (typeof name !== 'string') return null
-  const first = name.trim().split(/\s+/)[0]
+  const token = name.trim().split(/\s+/)[0]
+  const first = token.replace(/^@+/, '')
   if (!first) return null
-  return first.length > 24 ? `${first.slice(0, 24)}…` : first
+  if (/[@/:]/.test(first)) return null
+  if (/^\+?[0-9 ()-]+$/.test(first)) return null
+  return first.length > 24 ? `${first.slice(0, 23)}…` : first
 }
 
 /** The stated per-person budget, or null. `budgetPerPersonInr` is what the crew

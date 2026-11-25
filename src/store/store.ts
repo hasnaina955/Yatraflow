@@ -19,7 +19,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { DRIVES_PART_MISSING_REASON, drivesPartWriteVerdict, isMissingColumnError, rowToTrip, tripToRow, tripUpdateRow, validWriteVersion, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
-import { classifyInviteRows } from '../lib/inviteLookup'
+import { classifyInviteRows, invitePreviewIdentity, type InvitePreviewIdentity } from '../lib/inviteLookup'
 import { emptyLockedDay, isWireLocked, withoutLockMarker } from '../lib/lockedDay'
 import type { ShareSource } from '../lib/shareUrl'
 import { dayCountForRange } from '../lib/dayCount'
@@ -2561,7 +2561,7 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
  * means the account changed while the read was in flight.
  */
 export type InviteLookup =
-  | { kind: 'found'; trip: Trip }
+  | { kind: 'found'; trip: Trip; preview: InvitePreviewIdentity | null }
   | { kind: 'dead' }
   | { kind: 'failed' }
   | { kind: 'cancelled' }
@@ -2584,7 +2584,9 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
   // The preview RPC's own answer is never cached, so this can only hit a
   // complete row.
   const cached = cache.trips.find(t => t.inviteCode === normalized)
-  if (cached) return { kind: 'found', trip: cached }
+  // No preview identity: this row came from a full read, so the gate is in the
+  // already-a-member or signed-in path and every invite fact on it is real.
+  if (cached) return { kind: 'found', trip: cached, preview: null }
   let rpc: { data: unknown; error: unknown }
   try {
     rpc = await supabase.rpc('get_trip_by_invite_code', { p_code: normalized })
@@ -2615,7 +2617,9 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
   // B3 provenance and the dead-or-failed split live in classifyInviteRows (#1019).
   const verdict = classifyInviteRows(rpc.data)
   if (verdict.kind !== 'found') return verdict
-  return { kind: 'found', trip: rowToTrip(verdict.row, []) }
+  // The preview's name and role travel beside the trip, never inside it: a Trip
+  // must not carry a role claim (#1012), and this row is never cached.
+  return { kind: 'found', trip: rowToTrip(verdict.row, []), preview: invitePreviewIdentity(verdict.row) }
 }
 
 const accessReceipts = new Map<ID, { owner: string; epoch: number; version: number }>()

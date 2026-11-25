@@ -148,6 +148,9 @@ export function deriveProbes(sql) {
  *  errors at call time) or covered by another live suite. A silent failure to
  *  apply is the one thing this check refuses to wave through. */
 export const NO_PROBE_SURFACE = {
+  '20261126_invite_preview_projection.sql': {
+    reason: 'a function body, a named composite type and one helper function only (`get_trip_by_invite_code` now returns owner_first_name and invite_role). A missing file is not silent: the invite preview keeps its anonymous wording, which is the fallback, so the cover is tests/invite-preview-projection-db.test.ts, which runs the file on PGlite and reads the row as anon.',
+  },
   '20261125_calculator_share_source.sql': {
     reason: 'CHECK constraints only — the two share-attribution lists grow from seven values to eight. A constraint cannot be probed, and a missing file is not silent: the trip create fails on an unknown ref. The cover is the three-way vocabulary pin in tests/share-attribution.test.ts, which reads the newest definer.',
   },

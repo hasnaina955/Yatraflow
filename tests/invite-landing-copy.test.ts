@@ -73,6 +73,98 @@ describe('role wording', () => {
     expect(copy.roleLine).toContain('No editing, no notifications.')
     expect(copy.roleLine).not.toContain('vote')
   })
+
+  it('says what the link gives, in both the headline sentence and the role line', () => {
+    expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham' }).headline)
+      .toBe('Shubham added you to Goa.')
+    expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham', role: 'editor' }).roleLine)
+      .toContain('you can vote on the open decisions')
+    expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham', role: 'viewer' }).roleLine)
+      .not.toContain('vote')
+  })
+})
+
+// The two fields the preview RPC projects (20261126_invite_preview_projection.sql).
+// Each one degrades on its own: a name without a role, or a role without a name,
+// still reads as a complete sentence.
+describe('the inviter name the preview projects', () => {
+  it('names the friend when the preview carries one', () => {
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }).headline)
+      .toBe('Shubham added you to Goa 2026.')
+    expect(inviteConfirmCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }).sub)
+      .toBe('Shubham invited you.')
+  })
+
+  it('keeps today’s anonymous wording when the preview carries none', () => {
+    const anonymous = 'You were added to Goa 2026.'
+    for (const inviterFirstName of [null, undefined, '', '   ']) {
+      expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName }).headline).toBe(anonymous)
+    }
+    expect(inviteConfirmCopy({ tripTitle: 'Goa 2026' }).sub).toBe('You were invited.')
+  })
+
+  it('strips a leading @ from a handle', () => {
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: '@shubham_k' }).headline)
+      .toBe('shubham_k added you to Goa 2026.')
+    expect(inviteFirstName('@shubham_k')).toBe('shubham_k')
+    expect(inviteFirstName('@@riya')).toBe('riya')
+  })
+
+  it('caps a long name at 24 characters, ellipsis included', () => {
+    const long = 'Bartholomewmaximilianjones'
+    const copy = recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: long })
+    expect(copy.headline).toBe('Bartholomewmaximilianjo… added you to Goa 2026.')
+    expect(inviteFirstName(long)).toHaveLength(24)
+    // A name the server already capped comes through unchanged, never re-cut.
+    expect(inviteFirstName('Bartholomewmaximilianjo…')).toBe('Bartholomewmaximilianjo…')
+  })
+
+  it('refuses a token that is an address, a URL or a phone number instead of printing it', () => {
+    expect(inviteFirstName('Shubham@Example.com')).toBeNull()
+    expect(inviteFirstName('https://instagram.com/shubham')).toBeNull()
+    expect(inviteFirstName('+91 98765 43210')).toBeNull()
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham@Example.com' }).headline)
+      .toBe('You were added to Goa 2026.')
+  })
+})
+
+describe('the preview role, and the paid guide alongside it', () => {
+  it('states an editor link and a viewer link differently, with the same name', () => {
+    const base = { tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }
+    expect(recipientInviteCopy({ ...base, role: 'editor' }).roleLine).toContain('you can vote')
+    expect(recipientInviteCopy({ ...base, role: 'viewer' }).roleLine).toBe(
+      'You’ll see the whole plan: days, stops, drive times and the ₹ split. No editing, no notifications.',
+    )
+  })
+
+  it('keeps the role line when the preview carried no name, and the name when it carried no role', () => {
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', role: 'viewer' }).headline).toBe('You were added to Goa 2026.')
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }).roleLine)
+      .toBe('You’ll see the whole plan: days, stops, drive times and the ₹ split.')
+  })
+
+  it('names the friend and still says the guide is a paid extra', () => {
+    const copy = recipientInviteCopy({
+      tripTitle: 'Goa 2026', inviterFirstName: 'Shubham', role: 'viewer', paidGuidePrice: 499,
+    })
+    expect(copy.headline).toBe('Shubham added you to Goa 2026.')
+    expect(copy.paidGuideNote).toBe('Part of this plan is a paid guide (₹499). Joining the crew is free; you only pay if you want the locked days.')
+    expect(copy.roleLine).not.toContain('vote')
+  })
+})
+
+describe('a failed preview read', () => {
+  // The gate's `broken` state renders the same recipient copy from an empty
+  // fact set, so a failed or unapplied read must read exactly like today's
+  // anonymous screen rather than as an error.
+  it('renders today’s anonymous wording from no facts at all', () => {
+    const copy = recipientInviteCopy({})
+    expect(copy.headline).toBe('You were added to a trip.')
+    expect(copy.facts).toBe('A group trip on YatraFlow.')
+    expect(copy.roleLine).toBe('You’ll see the whole plan: days, stops, drive times and the ₹ split.')
+    expect(copy.paidGuideNote).toBeNull()
+    expect(inviteReadOnlyFacts({})).toEqual([])
+  })
 })
 
 describe('the signed-in confirm', () => {

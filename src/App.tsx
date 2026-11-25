@@ -14,6 +14,7 @@ import {
 } from './lib/browserNotifications'
 import type { Notification, Trip } from './data/types'
 import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import type { InvitePreviewIdentity } from './lib/inviteLookup'
 import { authNext } from './lib/authNext'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
@@ -1114,7 +1115,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // membership-scoped hydration never loaded it - fetch it on demand. The
   // RPC fallback covers private trips: holding the link (the trip's UUID)
   // is the capability to preview it.
-  const [resolved, setResolved] = useState<{ target: string; identityGen: number; trip: Trip | null } | null>(null)
+  const [resolved, setResolved] = useState<{ target: string; identityGen: number; trip: Trip | null; preview: InvitePreviewIdentity | null } | null>(null)
   // #804 (B1) — 'joined-unloaded' and 'join-failed' are distinct outcomes of a
   // join, kept apart from 'broken' (the link read failed) and 'retired' (a
   // trip-id link for a non-member). Each offers a different remedy.
@@ -1201,6 +1202,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   const identityGen = useIdentityGeneration()
   const currentRead = resolved?.target === linkTarget && resolved.identityGen === identityGen ? resolved : null
   const shownTrip = currentRead?.trip ?? null
+  // The preview's name and role, when the code read carried them. They are not
+  // fields of the trip on purpose (#1012), so they travel beside it.
+  const preview = currentRead?.preview ?? null
   const currentStatus = currentRead ? status : 'loading'
   // Membership is a fact of the row the gate holds. When it is true the screen
   // offers the plan itself instead of a join.
@@ -1216,7 +1220,11 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     days: shownTrip?.days?.length ?? null,
     stops: invitesStopCount(shownTrip?.days),
     perPersonBudget: shownTrip?.budgetPerPersonInr ?? null,
-    role: shownTrip?.inviteRole ?? null,
+    // Both come from the preview RPC (20261126_invite_preview_projection.sql).
+    // Before that migration is applied the row carries neither, and the copy
+    // falls back to its anonymous wording.
+    inviterFirstName: preview?.ownerFirstName ?? null,
+    role: preview?.inviteRole ?? null,
     paidGuidePrice,
   }
 
@@ -1241,9 +1249,13 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       // was unreachable. The read succeeded, so the gate says ready and the join
       // machine drives from there.
       if (result.kind === 'cancelled') return
-      if (result.kind === 'found') { setResolved({ target: linkTarget, identityGen, trip: result.trip }); setStatus('ready') }
-      else {
-        setResolved({ target: linkTarget, identityGen, trip: null })
+      if (result.kind === 'found') {
+        // Only the code read carries the inviter's name and the link's role; a
+        // trip-id link answers with a full shared read, which has neither.
+        const preview = 'preview' in result ? result.preview : null
+        setResolved({ target: linkTarget, identityGen, trip: result.trip, preview }); setStatus('ready')
+      } else {
+        setResolved({ target: linkTarget, identityGen, trip: null, preview: null })
         setStatus(result.kind === 'unavailable' ? 'retired' : result.kind === 'dead' ? 'dead' : 'broken')
       }
     })

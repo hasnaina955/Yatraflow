@@ -115,6 +115,20 @@ create table if not exists public.trip_members (
   primary key (trip_id, user_id)
 );
 
+-- ---------- trip_invite_role ----------
+-- Mirrors migrations/20261124b_invite_role_and_reset.sql: the owner's choice of
+-- what the invite link admits. A missing row means editor. The table is
+-- private — RLS on, no policies, no client privilege — and only the security
+-- definer commands read it. The invite preview projects the role through one of
+-- those commands, never by granting a client a read here.
+create table if not exists public.trip_invite_role (
+  trip_id    uuid primary key references public.trips (id) on delete cascade,
+  role       text not null check (role in ('editor', 'viewer')),
+  changed_at bigint not null
+);
+alter table public.trip_invite_role enable row level security;
+revoke all on public.trip_invite_role from public, anon, authenticated, service_role;
+
 -- ---------- suggestions ----------
 create table if not exists public.suggestions (
   id          uuid primary key default gen_random_uuid(),
@@ -946,7 +960,7 @@ grant execute on function public.prune_pub_events(integer) to service_role;
 --   select public.prune_pub_events();
 
 -- ============================================================
--- Invite-code lookup (mirrors migrations/20261124c_invite_preview_write_version.sql)
+-- Invite-code lookup (mirrors migrations/20261126_invite_preview_projection.sql)
 -- ============================================================
 -- The code is the capability — same trust model as get_invite_trip: a
 -- private trip must be previewable by whoever holds its invite code, and RLS
@@ -966,21 +980,90 @@ grant execute on function public.prune_pub_events(integer) to service_role;
 -- so a new column is not exposed by accident. `write_version` is the row
 -- revision the app checks before it renders a preview, `deleted_at is null`
 -- hides trashed trips, and the gates hold the paywall.
+--
+-- `owner_first_name` and `invite_role` mirror
+-- migrations/20261126_invite_preview_projection.sql: the invite screen names the
+-- friend who sent the link and says what the link gives. The return type is a
+-- named composite so the shape IS the allowlist, and `invite_first_name` is the
+-- server half of the normalisation, since an anonymous caller reads this row.
+drop function if exists public.get_trip_by_invite_code(text);
+drop type if exists public.trip_invite_preview;
+
+create or replace function public.invite_first_name(p_name text)
+returns text
+language sql
+immutable
+set search_path = pg_catalog
+as $$
+  select case
+    when v.tok is null then null
+    when v.tok ~ '[@/:]' then null
+    when v.tok ~ '^\+?[0-9 ()-]+$' then null
+    when length(v.tok) > 24 then left(v.tok, 23) || '…'
+    else v.tok
+  end
+  from (
+    select nullif(left(ltrim(substring(btrim(coalesce(p_name, '')) from '^[^[:space:]]+'), '@'), 120), '') as tok
+  ) as v
+$$;
+
+revoke all on function public.invite_first_name(text) from public, anon, authenticated;
+
+create type public.trip_invite_preview as (
+  id uuid,
+  owner_id uuid,
+  name text,
+  start_location text,
+  destinations jsonb,
+  start_date text,
+  end_date text,
+  travellers integer,
+  transport_mode text,
+  budget_per_person_inr integer,
+  travel_style text,
+  fixed_commitments jsonb,
+  days jsonb,
+  expenses jsonb,
+  cover_emoji text,
+  visibility text,
+  created_at bigint,
+  updated_at bigint,
+  start_location_coords jsonb,
+  destination_coords jsonb,
+  fuel_economy_km_per_l numeric,
+  fuel_price_per_l numeric,
+  round_trip boolean,
+  invite_code text,
+  deleted_at timestamptz,
+  driver_count integer,
+  has_vulnerable boolean,
+  drive_after_dinner_min integer,
+  vehicle_profile jsonb,
+  cover_image_url text,
+  stay_style text,
+  drives_part boolean,
+  write_version bigint,
+  owner_first_name text,
+  invite_role text
+);
+
 create or replace function public.get_trip_by_invite_code(p_code text)
-returns setof public.trips
+returns setof public.trip_invite_preview
 language plpgsql
 security definer
 set search_path = public
 stable
 as $$
 declare
-  v_row public.trips;
+  v_row public.trip_invite_preview;
 begin
   for v_row in
     select projected.*
     from public.trips t
+    left join public.profile_cards pc on pc.id = t.owner_id
+    left join public.trip_invite_role r on r.trip_id = t.id
     cross join lateral jsonb_populate_record(
-      null::public.trips,
+      null::public.trip_invite_preview,
       jsonb_build_object(
         'id', t.id,
         'owner_id', t.owner_id,
@@ -1014,7 +1097,9 @@ begin
         'cover_image_url', t.cover_image_url,
         'stay_style', t.stay_style,
         'drives_part', t.drives_part,
-        'write_version', t.write_version
+        'write_version', t.write_version,
+        'owner_first_name', public.invite_first_name(pc.name),
+        'invite_role', coalesce(r.role, 'editor')
       )
     ) as projected
     where upper(t.invite_code) = upper(trim(p_code))

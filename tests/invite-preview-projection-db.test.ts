@@ -167,6 +167,9 @@ describe('the invite preview projects a first name and the link role', () => {
     // Schemeless: a dotted alphanumeric token is a web address or a dotted phone.
     expect(await nameFor('www.example.com')).toBeNull()
     expect(await nameFor('98765.43210')).toBeNull()
+    expect(await nameFor('+91.98765.43210')).toBeNull()
+    expect(await nameFor('(022).123.4567')).toBeNull()
+    expect(await nameFor('+91-98765-43210')).toBeNull()
     // A trailing full stop is punctuation, not a domain.
     expect(await nameFor('Riya.')).toBe('Riya')
     expect(await nameFor('Riya')).toBe('Riya')

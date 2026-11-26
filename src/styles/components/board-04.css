@@ -92,14 +92,16 @@
   .board-topbar .board-info, .board-topbar .board-pulse { flex: 0 0 auto; }
   /* No side padding: the first column lines up with the panels above it. */
   .board-cols { position: static; inset: auto; margin-top: 4px; padding-bottom: 10px; padding-left: 0; padding-right: 0; }
-  .board-stop-actions { margin-top: 6px; padding-top: 4px; border-top: 1px dashed var(--line); }
-  .board-col { flex: 0 0 264px; height: auto; min-height: 0; }
+
+  .board-col { flex: 0 0 206px; height: auto; min-height: 0; }
   .board-col-head { min-height: 52px; }
   .board-col-zone { min-height: 48px; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .board-stop, .board-row { transition: none; }
+  .board-stop-actions, .board-load-fill { transition: none; }
+  .board-load-fill { animation: none; }
   .board-row.is-carried .board-stop { transform: none; }
 }
 
@@ -108,6 +110,7 @@
    text sits above it). The stop title grows only up and down, so it stays
    clear of the move and status buttons at its right. */
 @media (pointer: coarse) {
+  .board-actions-toggle { display: inline-flex; align-items: center; justify-content: center; flex: none; border: 0; background: transparent; color: var(--text-2); min-width: 32px; min-height: 32px; }
   .board-fit, .board-stop-title-btn { position: relative; }
   .board-fit::after, .board-stop-title-btn::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;

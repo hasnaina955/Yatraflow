@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   BOARD_FULL_MIN_HOURS,
   BOARD_FULL_MIN_KM,
@@ -60,4 +61,9 @@ describe('boardLoadWord', () => {
   ])('omits the word when a required value is invalid: %s, %s, %s', (distanceKm, stopCount, hours) => {
     expect(boardLoadWord({ distanceKm, stopCount, hours })).toBeNull()
   })
+})
+
+it('uses drive time for the board load', () => {
+  const board = readFileSync('src/components/BoardView.tsx', 'utf8')
+  expect(board).toContain('hours: journey ? journey.driveMinutes / 60 : undefined')
 })

@@ -119,9 +119,9 @@ describe('Board mockup parity', () => {
     expect(board).toMatch(/const journeys = useMemo\(\s*\(\) => new Map\(days\.map\(day => \[day\.index, buildJourney\(trip, day, legCorrections\)\]\)\),/)
     expect(board).toMatch(/distanceKm: journey\?\.distanceKm/)
     expect(board).toMatch(/stopCount: activeStopsInOrder\(day\)\.length/)
-    expect(board).toMatch(/hours: journey \? journey\.totalMinutes \/ 60 : undefined/)
+    expect(board).toMatch(/hours: journey \? journey\.driveMinutes \/ 60 : undefined/)
     expect(board).toMatch(/loadLabel=\{loadLabel\}/)
-    expect(board).toMatch(/className="board-col-load">\{loadLabel\}/)
+    expect(board).toContain('board-load-fill')
   })
 
   it('names the map-focus return action Show days', () => {

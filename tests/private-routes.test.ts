@@ -99,10 +99,12 @@ describe('the shell and the headers carry no homepage canonical on app routes', 
     }
   })
 
-  it('keeps the robots file disallowing the id-bearing prefixes, as before', () => {
+  it('keeps the robots file disallowing the id-bearing prefixes, and leaves /join open to the preview bots', () => {
     const robots = read('public/robots.txt')
-    for (const prefix of ['/trip/', '/join/', '/share/', '/pub/', '/creator/', '/created/']) {
+    for (const prefix of ['/trip/', '/share/', '/pub/', '/creator/', '/created/']) {
       expect(robots, prefix).toMatch(new RegExp(`^Disallow: ${prefix}$`, 'm'))
     }
+    // The preview bots must fetch the invite card. Its noindex keeps it out of search.
+    expect(robots).not.toMatch(/^Disallow: \/join\/?$/m)
   })
 })

@@ -940,6 +940,32 @@ const metaContent = (page: string, attr: 'property' | 'name', key: string): stri
   return end < 0 ? undefined : page.slice(from, end)
 }
 
+describe('the title budget cuts at a whole character (shared by /i, /c and /join)', () => {
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
+  it('cuts before a surrogate pair rather than through it', async () => {
+    const { fitOg } = await import('../api/_shareCard.js')
+    // The emoji starts on the last unit the budget keeps, so a plain slice would leave a lone high surrogate.
+    const out = fitOg('x'.repeat(8) + '🌊' + 'yyyy', 10)
+    expect(out).toBe('x'.repeat(8) + '…')
+    expect(LONE_SURROGATE.test(out)).toBe(false)
+  })
+
+  it('keeps an emoji that fits inside the budget whole', async () => {
+    const { fitOg } = await import('../api/_shareCard.js')
+    expect(fitOg('Goa 🌊 trip', 20)).toBe('Goa 🌊 trip')
+  })
+
+  it('never leaves a lone surrogate, nor exceeds the budget, at any cut point', async () => {
+    const { fitOg } = await import('../api/_shareCard.js')
+    for (let max = 2; max <= 30; max++) {
+      const out = fitOg('ab🌊cd🏝️ef🌊🌊gh', max)
+      expect(LONE_SURROGATE.test(out), `budget ${max}`).toBe(false)
+      expect(out.length, `budget ${max}`).toBeLessThanOrEqual(max)
+    }
+  })
+})
+
 describe('the default share card agrees everywhere it is written', () => {
   const tag = (page: string, attr: 'property' | 'name', key: string) => metaContent(page, attr, key)
 

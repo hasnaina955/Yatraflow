@@ -51,7 +51,7 @@ function stubFetch(options: { rpc?: Rpc | 'network'; shell?: 'ok' | 'fail' } = {
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL, init?: RequestInit) => {
     const url = String(input)
     calls.push({ url, init })
-    if (url.endsWith('/rest/v1/rpc/get_trip_by_invite_code')) {
+    if (url.includes('/rest/v1/rpc/get_trip_by_invite_code')) {
       if (options.rpc === 'network') throw new TypeError('fetch failed')
       const rpc = options.rpc ?? { status: 200, body: [] }
       return new Response(JSON.stringify(rpc.body ?? []), {
@@ -353,9 +353,9 @@ describe('the anonymous read is the one the invite screen makes', () => {
   it('posts the code to the invite RPC with the anonymous key, and no other key', async () => {
     const calls = stubFetch({ rpc: { body: [trip()] } })
     await readInvite(CODE)
-    const rpc = calls.find(call => call.url.endsWith('/rest/v1/rpc/get_trip_by_invite_code'))
+    const rpc = calls.find(call => call.url.includes('/rest/v1/rpc/get_trip_by_invite_code'))
     expect(rpc).toBeDefined()
-    expect(rpc?.url).toBe('https://db.example.test/rest/v1/rpc/get_trip_by_invite_code')
+    expect(rpc?.url).toBe('https://db.example.test/rest/v1/rpc/get_trip_by_invite_code?select=name,days,start_date,end_date')
     expect(JSON.parse(String(rpc?.init?.body))).toEqual({ p_code: CODE })
     const headers = rpc?.init?.headers as Record<string, string>
     expect(headers.apikey).toBe('anon-test-key')
@@ -409,10 +409,148 @@ describe('the rewrite and the cache for /join', () => {
     expect(index).toBeLessThan(catchAll)
   })
 
-  it('keeps /join/ out of the index in robots.txt, and never stores an invite response as the shell', () => {
-    expect(read('public/robots.txt')).toMatch(/^Disallow: \/join\/$/m)
+  it('lets crawlers read an invite link: robots.txt does not disallow it, and the response is noindex', () => {
+    expect(read('public/robots.txt')).not.toMatch(/^Disallow: \/join\/?$/m)
+    const vercel = JSON.parse(read('vercel.json')) as { headers: { source: string; headers: { key: string; value: string }[] }[] }
+    const rule = vercel.headers.find(entry => entry.source.startsWith('/(trip|'))
+    expect(rule?.headers).toContainEqual({ key: 'X-Robots-Tag', value: 'noindex' })
+    expect(new RegExp(`^${rule?.source}$`).test('/join/GOA-K7QFH3WT')).toBe(true)
+  })
+
+  it('never stores an invite response as the shell', () => {
     const sw = read('public/sw.js')
     expect(sw).toContain("pathname.startsWith('/join/')")
     expect(sw).toContain('!isOwnDocument(url.pathname)')
+  })
+})
+
+describe('the card is for the link-preview bots, and every other visitor gets the app', () => {
+  const vercel = JSON.parse(read('vercel.json')) as {
+    rewrites: { source: string; destination: string; has?: { type: string; key: string; value: string }[] }[]
+  }
+  const join = vercel.rewrites.find(rule => rule.source === '/join/:code')
+  const pub = vercel.rewrites.find(rule => rule.source === '/pub/:slug')
+  const pattern = new RegExp(join?.has?.[0]?.value ?? '(?!)')
+
+  it('gates the rewrite on the same user-agent condition as /pub/:slug, copied exactly', () => {
+    expect(join?.has).toEqual(pub?.has)
+    expect(join?.has).toHaveLength(1)
+    expect(join?.has?.[0]).toMatchObject({ type: 'header', key: 'user-agent' })
+    expect(join?.destination).toBe('/api/join?code=:code')
+  })
+
+  it.each([
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'facebookcatalog/1.0',
+    'meta-externalagent/1.1',
+    'meta-externalfetcher/1.1',
+    'WhatsApp/2.23.20.0',
+    'Twitterbot/1.0',
+    'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+    'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)',
+    'Slack-ImgProxy (+https://api.slack.com/robots)',
+    'Discordbot/2.0; +https://discordapp.com/',
+    'TelegramBot (like TwitterBot)',
+    'SkypeUriPreview Preview/0.5',
+    'Applebot/0.1',
+    'Pinterestbot/1.0',
+    'Pinterest/0.2 (+https://www.pinterest.com/bot.html)',
+    'redditbot/1.0',
+    'Embedly/0.2 (+https://embed.ly/)',
+  ])('answers the preview bot %s with the card', agent => {
+    expect(pattern.test(agent)).toBe(true)
+  })
+
+  it.each([
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+    'Googlebot/2.1 (+http://www.google.com/bot.html)',
+    'bingbot/2.0',
+    'curl/8.4.0',
+    '',
+  ])('sends %j to the app, not the card', agent => {
+    expect(pattern.test(agent)).toBe(false)
+  })
+})
+
+describe('the card never fails: a throw answers the generic card with the same headers', () => {
+  afterEach(() => {
+    vi.doUnmock('../api/_shareCard.js')
+    vi.doUnmock('../api/_headTemplate.js')
+    vi.resetModules()
+  })
+
+  /** A title budget that throws, so a named trip makes inviteHead throw. */
+  function titleBudgetThrows() {
+    vi.doMock('../api/_shareCard.js', async importOriginal => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      fitOg: () => { throw new Error('title budget unavailable') },
+    }))
+  }
+
+  it('answers 200 with the generic title and the same headers when the named head throws', async () => {
+    vi.resetModules()
+    titleBudgetThrows()
+    const { default: guarded } = await import('../api/join.js')
+    stubFetch({ rpc: { body: [trip()] } })
+    const res = makeRes()
+    await guarded({ method: 'GET', query: { code: CODE } }, res)
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toContain('<title>You&#39;re invited to plan a trip</title>')
+    expect(res.body).toContain('<main><p>Open <a href="/">YatraFlow</a> to join the trip together.</p></main>')
+    expect(res.body).not.toContain('Rajasthan')
+    expect(res.headers['cache-control']).toBe('no-store')
+    expect(res.headers['x-robots-tag']).toBe('noindex')
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+  })
+
+  it('answers the static generic page, with the same headers, when even the fallback cannot be written', async () => {
+    vi.resetModules()
+    titleBudgetThrows()
+    vi.doMock('../api/_headTemplate.js', async importOriginal => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      applyHead: () => { throw new Error('template unavailable') },
+    }))
+    const { default: guarded } = await import('../api/join.js')
+    stubFetch({ rpc: { body: [trip()] } })
+    const res = makeRes()
+    await guarded({ method: 'GET', query: { code: CODE } }, res)
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toContain('<meta name="robots" content="noindex" />')
+    expect(res.body).toContain('<title>You&#39;re invited to plan a trip</title>')
+    expect(res.body).toContain('<div id="root"><main>')
+    expect(res.headers['cache-control']).toBe('no-store')
+    expect(res.headers['x-robots-tag']).toBe('noindex')
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+  })
+})
+
+describe('the trip read and the shell read run together', () => {
+  it('starts the shell read while the trip read is still open, so a bot waits one timeout at most', async () => {
+    let shellAsked: () => void = () => {}
+    const shellSeen = new Promise<void>(resolve => { shellAsked = resolve })
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.endsWith('/index.html')) {
+        shellAsked()
+        return new Response(SHELL, { status: 200 })
+      }
+      // The RPC answers only after the shell has been asked for, so the two reads must overlap.
+      await shellSeen
+      return new Response(JSON.stringify([trip()]), { status: 200, headers: { 'content-type': 'application/json' } })
+    }))
+    const res = await run('GET', CODE)
+    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop» · 4 days</title>')
+  })
+})
+
+describe('the title cut never leaves half an emoji', () => {
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
+  it('cuts a name made of emoji at the budget without a broken character', () => {
+    const title = namedTitle('🌊'.repeat(40), 4)
+    expect(LONE_SURROGATE.test(title)).toBe(false)
+    expect(title.length).toBeLessThanOrEqual(OG_TITLE_MAX)
+    expect(title.endsWith('…» · 4 days')).toBe(true)
   })
 })

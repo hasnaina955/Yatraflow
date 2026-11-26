@@ -1,24 +1,28 @@
 // ============ /join/<code>: the invite link card (#1042) ============
-// vercel.json rewrites `/join/:code` to `/api/join?code=:code`. A link preview
-// (WhatsApp, Slack, iMessage and the rest) reads the head of the page and does not
-// run the app, so this handler answers with the app's own shell, with an invite
-// head. A person gets the app; the app then boots as usual (createRoot replaces the
-// body).
+// vercel.json rewrites `/join/:code` to this handler only for a link-preview bot.
+// The condition is the user-agent list of the /pub/:slug rewrite, copied exactly.
+// A bot reads the head of the page and does not run the app. So it gets the app's
+// shell with an invite head. Every other visitor, and every other crawler, gets the
+// static app from the catch-all. The app boots as usual, and createRoot replaces the
+// body.
 //
-// What it reads: the one read the invite screen makes for a signed-out visitor,
-// the anonymous RPC get_trip_by_invite_code. The code is the capability. For an
-// anonymous caller that RPC returns a trip only when the trip is private or has no
-// paid published guide (supabase/migrations/20261124c_invite_preview_write_version.sql),
-// so a priced trip answers nothing and gets the generic card. No migration is added.
+// What it reads: the one read the invite screen makes for a signed-out visitor.
+// It is the anonymous RPC get_trip_by_invite_code, narrowed with `select` to the
+// columns the card uses. The code is the capability. For an anonymous caller, that
+// RPC returns a trip only when it is private or has no paid published guide. So a
+// priced trip answers nothing and gets the generic card. The rule is in
+// supabase/migrations/20261124c_invite_preview_write_version.sql, and no migration
+// is added.
 //
 // What it shows: the trip's name, and its day count, counted as the invite screen
 // counts it (see dayCountOf). Nothing else: no members, budget, destination, dates
-// or days. A code no trip has, a malformed code, and every failed read all get the
-// generic card. The response is noindex and no-store, and it is never an error page.
+// or days. A code no trip has, a malformed code, every failed read, and any throw all
+// get the generic card. The response is noindex and no-store, and it is never an error
+// page.
 import { applyHead } from './_headTemplate.js'
 import { dayCountForRange } from './_dayCount.js'
 import { looksLikeInviteCode, normalizeInviteCode } from './_inviteCode.js'
-import { resolveOrigin } from './_origin.js'
+import { DEFAULT_ORIGIN, resolveOrigin } from './_origin.js'
 import { fitOg, OG_TITLE_MAX } from './_shareCard.js'
 import { supabaseAnonHeaders } from './_supabase-headers.js'
 import pageCards from '../scripts/page-cards.json' with { type: 'json' }
@@ -28,6 +32,11 @@ const GENERIC_TITLE = "You're invited to plan a trip"
 const GENERIC_DESCRIPTION = 'Open the link to join a trip plan on YatraFlow.'
 const NAMED_DESCRIPTION = 'Open the link to join this trip plan on YatraFlow.'
 const READ_TIMEOUT_MS = 4000
+// The columns the card reads. The RPC returns the whole trip row otherwise.
+// PostgREST applies `select` to the rows of a set-returning function, and this one
+// returns setof trips. The read narrows to these columns, so it cannot widen the
+// anonymous view.
+const INVITE_COLUMNS = 'name,days,start_date,end_date'
 
 // The page used when the built shell cannot be read. It carries the same head, and
 // a link into the app, so a person still reaches YatraFlow.
@@ -44,6 +53,24 @@ const FALLBACK_SHELL = [
   '</html>',
 ].join('\n')
 const FALLBACK_BODY = '<main><p>Open <a href="/">YatraFlow</a> to join the trip together.</p></main>'
+
+// The last resort: a complete page with the generic card's title, description and noindex,
+// and a link into the app. It needs no module, no origin and no read.
+const STATIC_GENERIC_PAGE = [
+  '<!doctype html>',
+  '<html lang="en-IN">',
+  '<head>',
+  '<meta charset="UTF-8" />',
+  '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+  '<meta name="robots" content="noindex" />',
+  '<meta name="description" content="Open the link to join a trip plan on YatraFlow." />',
+  '<title>You&#39;re invited to plan a trip</title>',
+  '</head>',
+  '<body>',
+  `<div id="root">${FALLBACK_BODY}</div>`,
+  '</body>',
+  '</html>',
+].join('\n')
 
 /** The title of a named invite: `Join «name» · N days`. The day part is left out
  *  when the dates give no count. The name is cut to the card's title budget, at a
@@ -99,7 +126,7 @@ export async function readInvite(code, env = process.env) {
   const key = env.SUPABASE_ANON_KEY
   if (!url || !key) return null
   try {
-    const response = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/get_trip_by_invite_code`, {
+    const response = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/get_trip_by_invite_code?select=${INVITE_COLUMNS}`, {
       method: 'POST',
       headers: supabaseAnonHeaders(key, { 'content-type': 'application/json' }),
       body: JSON.stringify({ p_code: code }),
@@ -147,25 +174,49 @@ export function renderInvitePage(shell, head) {
   return applyHead(FALLBACK_SHELL, head, FALLBACK_BODY)
 }
 
-export default async function handler(req, res) {
+/** The generic card, for a request whose named head could not be built. It takes the
+ *  production origin, so no request-time lookup can fail a second time. The static
+ *  page is the last resort, for a shell that cannot be written at all. */
+function genericPage() {
+  try {
+    return applyHead(FALLBACK_SHELL, inviteHead({ origin: DEFAULT_ORIGIN }), FALLBACK_BODY)
+  } catch {
+    return STATIC_GENERIC_PAGE
+  }
+}
+
+/** The headers every answer carries. A card is never indexed and never cached. */
+function setCardHeaders(res) {
   res.setHeader('content-type', 'text/html; charset=utf-8')
   res.setHeader('cache-control', 'no-store')
   res.setHeader('x-robots-tag', 'noindex')
   res.setHeader('x-content-type-options', 'nosniff')
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.setHeader('allow', 'GET, HEAD')
-    return res.status(405).end()
-  }
-  // A HEAD request has no body, so it makes no read.
-  if (req.method === 'HEAD') return res.status(200).end()
+}
 
-  const origin = resolveOrigin()
-  const raw = req.query?.code
-  // A malformed code makes no read at all: it has no trip to find.
-  const code = typeof raw === 'string' && looksLikeInviteCode(raw) ? normalizeInviteCode(raw) : null
-  const trip = code ? await readInvite(code) : null
-  const head = inviteHead({ name: trip?.name ?? null, days: trip?.days ?? 0, code, origin })
-  const shell = await readShell(origin)
-  res.status(200)
-  return res.send(renderInvitePage(shell, head))
+export default async function handler(req, res) {
+  setCardHeaders(res)
+  try {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.setHeader('allow', 'GET, HEAD')
+      return res.status(405).end()
+    }
+    // A HEAD request has no body, so it makes no read.
+    if (req.method === 'HEAD') return res.status(200).end()
+
+    const origin = resolveOrigin()
+    const raw = req.query?.code
+    // A malformed code makes no read at all: it has no trip to find.
+    const code = typeof raw === 'string' && looksLikeInviteCode(raw) ? normalizeInviteCode(raw) : null
+    // The trip read and the shell read run together, so the wait is one timeout at most.
+    const [trip, shell] = await Promise.all([code ? readInvite(code) : null, readShell(origin)])
+    const head = inviteHead({ name: trip?.name ?? null, days: trip?.days ?? 0, code, origin })
+    res.status(200)
+    return res.send(renderInvitePage(shell, head))
+  } catch {
+    // A throw of any kind answers the generic card, never an error page (#1042).
+    if (res.headersSent) return res.end()
+    res.status(200)
+    if (req?.method === 'HEAD') return res.end()
+    return res.send(genericPage())
+  }
 }

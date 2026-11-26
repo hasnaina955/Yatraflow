@@ -18,7 +18,7 @@ Disallow: /api/
 Disallow: /mappls/
 
 # The app's own routes behind the cards. Each of these prefixes serves the one
-# shell for an unbounded set of ids (`/pub/<id>`, `/join/<code>`, …), so a
+# shell for an unbounded set of ids (`/pub/<id>`, `/trip/<id>`, …), so a
 # crawler that followed a card's redirect here would index a duplicate of the
 # shell per id and learn nothing per page. A visitor is unaffected: robots
 # binds crawlers, not people, and the cards' redirects still hand browsers
@@ -26,8 +26,10 @@ Disallow: /mappls/
 Disallow: /pub/
 Disallow: /creator/
 Disallow: /trip/
-Disallow: /join/
 Disallow: /created/
 Disallow: /share/
+
+# /join/<code> is not listed. Link-preview bots must fetch its card, and the
+# response is noindex in its header and its head, so search still leaves it out.
 
 Sitemap: https://www.yatraflow.in/sitemap.xml

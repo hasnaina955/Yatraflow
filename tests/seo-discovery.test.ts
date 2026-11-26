@@ -77,9 +77,11 @@ describe('robots.txt', () => {
     // Exact-line membership, not a built RegExp: the rules are literals and
     // the guard must read them as bytes, the way a crawler does.
     const rules = read('../public/robots.txt').split('\n').map(l => l.trim())
-    for (const prefix of ['/pub/', '/creator/', '/trip/', '/join/', '/created/', '/share/']) {
+    for (const prefix of ['/pub/', '/creator/', '/trip/', '/created/', '/share/']) {
       expect(rules).toContain(`Disallow: ${prefix}`)
     }
+    // /join stays open: the preview bots fetch its card, and its noindex keeps it out of search.
+    expect(rules).not.toContain('Disallow: /join/')
   })
 
   it('does not try to disallow hash routes, which a crawler never sends', () => {

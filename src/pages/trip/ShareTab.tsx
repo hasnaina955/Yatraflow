@@ -32,6 +32,7 @@ import { sliceState, rowsView, type ReadState, type RowsView } from '../../lib/r
 import type { PublicationDraft } from '../../lib/itinerarySpec'
 import { Avatar, Chip, ConfirmDialog, CopyButton, Field, FormErrorSummary, Modal, toast, undoToast, useMedia } from '../../components/ui'
 import { StateBlock } from '../../components/page/StateBlock'
+import { JoinRequests } from './JoinRequests'
 import { Surface } from '../../components/page/Surface'
 import { PrintExport } from '../../components/PrintExport'
 import { SegmentedTabs } from '../../components/page/SegmentedTabs'
@@ -998,6 +999,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           {pub && isOwner && pubLive && (
             <button className="btn btn-ghost btn-sm shr-unpublish-action" onClick={() => setPendingUnpublish(true)}>Unpublish</button>
           )}
+          {isOwner && <JoinRequests tripId={trip.id} />}
           {pubLink && <div className="share-link-box shr-publication-link"><code title={pubLink}>{pubLink}</code><CopyButton text={pubLink} label="Copy" /></div>}
         </Surface>
       </>

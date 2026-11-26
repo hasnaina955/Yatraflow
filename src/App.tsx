@@ -1182,7 +1182,7 @@ function ApprovalAsk({ code, signedIn, onNavigate }: { code: string; signedIn: b
           art={<Link2 size={38} aria-hidden />}
           title="Owner approval needed"
           body="Sign in, then ask the trip owner to let you in."
-          actions={<a className="btn btn-primary" {...appLink('/auth')}>Sign in</a>}
+          actions={<a className="btn btn-primary" {...appLink(`/auth?next=${encodeURIComponent(`/join/${code}`)}`)}>Sign in</a>}
         />
       </div>
     )

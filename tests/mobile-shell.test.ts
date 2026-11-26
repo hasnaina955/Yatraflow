@@ -87,6 +87,25 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(profile).toContain('logout()')
   })
 
+  it('hides the website footer for the signed-in shell, beside the top bar and the bottom bar', () => {
+    // #1055: the footer had no platform gate, so the native Day view ended
+    // with the website's Plan, Help, Creators and Company groups. The
+    // signed-in shell keeps the bottom bar and no website chrome.
+    expect(app).toContain('(!isNative || !me) &&')
+    expect(app).toContain('{isNative && me && <BottomNav')
+    const at = app.indexOf('<footer className="footer">')
+    expect(at).toBeGreaterThan(-1)
+    // The gate opens directly above the element, so the footer is its first
+    // and only child.
+    const gate = app.lastIndexOf('{!isNative && (', at)
+    expect(gate, 'the footer needs a !isNative gate').toBeGreaterThan(-1)
+    expect(app.slice(gate + '{!isNative && ('.length, at).trim()).toBe('')
+    // The gate closes after the element, so no part of the footer leaks out.
+    const elementEnd = app.indexOf('</footer>', at)
+    expect(elementEnd).toBeGreaterThan(at)
+    expect(app.slice(elementEnd, elementEnd + 40)).toMatch(/<\/footer>\s*\)/)
+  })
+
   it('gates the hamburger and its tray identically — no dead control in the shell', () => {
     expect(css).toContain('html.native-shell .nav-links { display: none; }')
     // The tray renders only on the web (`mobileNav && !isNative`); the button

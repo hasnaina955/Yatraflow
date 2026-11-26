@@ -980,49 +980,54 @@ export default function App() {
         <div className="route-panel" key={routePanelKey}>{page}</div>
       </main>
 
-      <footer className="footer">
-        <svg className="footer-route-mark" viewBox="0 0 120 14" aria-hidden="true" focusable="false">
-          <path d="M3 5.5C9 2 16 2 22 5.5S35 9 41 5.5S54 2 60 5.5S73 9 79 5.5S92 2 98 5.5S111 9 117 5.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="3 3" />
-          <circle cx="3" cy="5.5" r="3" fill="currentColor" />
-          <circle cx="117" cy="5.5" r="3" fill="currentColor" />
-        </svg>
-        <div className="container footer-inner footer-layout">
-          <div className="footer-brand">
-            <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
-            <span className="small muted">All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks.</span>
+      {/* Website chrome is web-only, on the same rule as the topnav above
+          and the bottom bar below: the installed app keeps no marketing
+          footer, so the native Day view ends at the page. */}
+      {!isNative && (
+        <footer className="footer">
+          <svg className="footer-route-mark" viewBox="0 0 120 14" aria-hidden="true" focusable="false">
+            <path d="M3 5.5C9 2 16 2 22 5.5S35 9 41 5.5S54 2 60 5.5S73 9 79 5.5S92 2 98 5.5S111 9 117 5.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="3 3" />
+            <circle cx="3" cy="5.5" r="3" fill="currentColor" />
+            <circle cx="117" cy="5.5" r="3" fill="currentColor" />
+          </svg>
+          <div className="container footer-inner footer-layout">
+            <div className="footer-brand">
+              <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
+              <span className="small muted">All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks.</span>
+            </div>
+            <nav className="footer-groups" aria-label="Footer">
+              <div className="footer-group">
+                <h2 className="footer-group-title">Plan</h2>
+                <ul className="footer-group-list">
+                  {/* The calculator hub and the Ladakh page are static pages, so they are plain hrefs and web-only. */}
+                  {!isNative && <li><a className="footer-link" href="/trip-cost-calculators/">Trip cost calculators</a></li>}
+                  {!isNative && <li><a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh trip cost calculator</a></li>}
+                  <li><a className="footer-link" {...appLink('/how-it-works')}>How it works</a></li>
+                </ul>
+              </div>
+              <div className="footer-group">
+                <h2 className="footer-group-title">Help</h2>
+                <ul className="footer-group-list">
+                  <li><a className="footer-link" {...appLink('/faq')}>FAQ</a></li>
+                  <li><a className="footer-link" href={feedbackHref()}>Send feedback</a></li>
+                </ul>
+              </div>
+              <div className="footer-group">
+                <h2 className="footer-group-title">Creators</h2>
+                <ul className="footer-group-list">
+                  <li><a className="footer-link" {...appLink('/for-creators')}>For travel creators</a></li>
+                </ul>
+              </div>
+              <div className="footer-group">
+                <h2 className="footer-group-title">Company</h2>
+                <ul className="footer-group-list">
+                  <li><a className="footer-link" {...appLink('/about')}>About YatraFlow</a></li>
+                </ul>
+              </div>
+            </nav>
           </div>
-          <nav className="footer-groups" aria-label="Footer">
-            <div className="footer-group">
-              <h2 className="footer-group-title">Plan</h2>
-              <ul className="footer-group-list">
-                {/* The calculator hub and the Ladakh page are static pages, so they are plain hrefs and web-only. */}
-                {!isNative && <li><a className="footer-link" href="/trip-cost-calculators/">Trip cost calculators</a></li>}
-                {!isNative && <li><a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh trip cost calculator</a></li>}
-                <li><a className="footer-link" {...appLink('/how-it-works')}>How it works</a></li>
-              </ul>
-            </div>
-            <div className="footer-group">
-              <h2 className="footer-group-title">Help</h2>
-              <ul className="footer-group-list">
-                <li><a className="footer-link" {...appLink('/faq')}>FAQ</a></li>
-                <li><a className="footer-link" href={feedbackHref()}>Send feedback</a></li>
-              </ul>
-            </div>
-            <div className="footer-group">
-              <h2 className="footer-group-title">Creators</h2>
-              <ul className="footer-group-list">
-                <li><a className="footer-link" {...appLink('/for-creators')}>For travel creators</a></li>
-              </ul>
-            </div>
-            <div className="footer-group">
-              <h2 className="footer-group-title">Company</h2>
-              <ul className="footer-group-list">
-                <li><a className="footer-link" {...appLink('/about')}>About YatraFlow</a></li>
-              </ul>
-            </div>
-          </nav>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* The shell's primary navigation - same platform gate as the shell home
           above (isNative && me), so the website never renders it. It replaces

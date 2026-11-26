@@ -19,6 +19,7 @@ const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
 const MIGRATION = '20261126c_invite_preview_projection.sql'
+const PUBLIC_TRIP_MIGRATION = '20261126d_public_trip_trash_order.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
 const hotfix = read('supabase/migrations/20261126b_paywall_visibility_authorship.sql')
 const schema = read('supabase/schema.sql')
@@ -112,14 +113,23 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     }
   })
 
-  it('uses the same public trip reader in the migration and bootstrap schema', () => {
+  it('the newest migration that defines get_public_trip is the one this test reads', () => {
+    const defining = readdirSync('supabase/migrations')
+      .filter(name => name.endsWith('.sql'))
+      .sort()
+      .filter(name => read(`supabase/migrations/${name}`).includes('function public.get_public_trip('))
+    expect(defining.at(-1), 'a newer migration redefines get_public_trip: update PUBLIC_TRIP_MIGRATION').toBe(PUBLIC_TRIP_MIGRATION)
+  })
+
+  it('uses the same public trip reader in the newest migration and bootstrap schema', () => {
     const readPublicTrip = (source: string) => {
       const start = source.indexOf('drop function if exists public.get_public_trip(text);')
       expect(start).toBeGreaterThan(-1)
       const grant = 'grant execute on function public.get_public_trip(text) to anon, authenticated;'
       return source.slice(start, source.indexOf(grant, start) + grant.length)
     }
-    expect(readPublicTrip(schema)).toBe(readPublicTrip(hotfix))
+    const newest = read(`supabase/migrations/${PUBLIC_TRIP_MIGRATION}`)
+    expect(readPublicTrip(schema)).toBe(readPublicTrip(newest))
   })
 
   it('both copies carry the same grants and revokes', () => {
@@ -161,6 +171,19 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
       [code],
     )
     return result.rows.map(row => JSON.parse(row.row) as Record<string, unknown>)
+  }
+
+  async function seedEntitlement(pub: string, user: string) {
+    await db.query(`
+      with paid_order as (
+        insert into public.purchase_orders
+          (user_id, pub_id, razorpay_order_id, amount_inr, status, price_snapshot_inr)
+        values ($1, $2, $2, 499, 'paid', 499)
+        returning id, user_id, pub_id
+      )
+      insert into public.entitlements(order_id, user_id, pub_id, amount_paid_inr)
+        select id, user_id, pub_id, 499 from paid_order
+    `, [user, pub])
   }
 
   beforeAll(async () => {
@@ -272,8 +295,8 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
   it('a buyer resolves it once the payments rail exists, and a stranger still does not', async () => {
     // The rail arrives after the bootstrap, as a migration would. This is the
     // branch the to_regclass guard defers, so it must work once it is reached.
-    await db.exec('create table public.entitlements(pub_id text, user_id uuid)')
-    await db.query('insert into public.entitlements(pub_id,user_id) values($1,$2)', [PUB, BUYER])
+    await db.exec(read('supabase/migrations/20260918_payments_rail.sql'))
+    await seedEntitlement(PUB, BUYER)
     expect(await rowsFor(BUYER, codes[PRICED_TRIP])).toHaveLength(1)
     expect(await rowsFor(STRANGER, codes[PRICED_TRIP])).toEqual([])
   })
@@ -294,7 +317,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
       'insert into public.published_itineraries(id,trip_id,creator_id) values($1,$2,$3)',
       ['legacy_publication', PRICED_TRIP, STRANGER],
     )
-    await db.query('insert into public.entitlements values($1,$2)', ['legacy_publication', STRANGER])
+    await seedEntitlement('legacy_publication', STRANGER)
     await db.query('update public.published_itineraries set premium_price_inr=0 where id=$1', [PUB])
     expect(await rowsFor('', code)).toEqual([])
     expect(await rowsFor(STRANGER, code)).toEqual([])

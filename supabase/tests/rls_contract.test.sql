@@ -507,14 +507,22 @@ begin
     raise exception 'publication updates must check the owner of both the old and new trip';
   end if;
 
-  if has_table_privilege('anon', 'public.published_itineraries', 'delete') or not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'published_itineraries'
-      and policyname = 'published delete owns trip' and cmd = 'DELETE'
-      and permissive = 'RESTRICTIVE' and roles = array['public']::name[]
-      and qual like '%owner_id%auth.uid()%'
-  ) then
-    raise exception 'a client may delete a publication only when they own the linked trip';
+  if has_table_privilege('anon', 'public.published_itineraries', 'delete')
+    or has_table_privilege('authenticated', 'public.published_itineraries', 'delete')
+    or exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'published_itineraries' and cmd = 'DELETE'
+    ) then
+    raise exception 'clients cannot delete publications';
+  end if;
+  if (
+    select count(*) from pg_constraint
+    where confrelid = 'public.published_itineraries'::regclass
+      and contype = 'f' and confdeltype = 'r'
+      and ((conrelid = 'public.purchase_orders'::regclass and conname = 'purchase_orders_pub_id_fkey')
+        or (conrelid = 'public.entitlements'::regclass and conname = 'entitlements_pub_id_fkey'))
+  ) <> 2 then
+    raise exception 'purchase orders and entitlements must restrict publication deletes';
   end if;
   if not exists (
     select 1 from pg_trigger
@@ -1803,6 +1811,11 @@ begin
   select pg_get_functiondef('public.trips_owner_id_immutable()'::regprocedure) into v_src;
   if position('current_user not in' in v_src) = 0 then
     raise exception '#936: trips_owner_id_immutable must not exempt anon or authenticated callers that have no JWT subject';
+  end if;
+  if position('public.trip_has_publication_money(old.id)' in v_src) = 0
+    or position('public.trip_has_publication_money(old.id)' in v_src)
+       > position('current_user not in' in v_src) then
+    raise exception 'published trips cannot change owner, including through the operator path';
   end if;
 end $$;
 

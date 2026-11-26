@@ -130,7 +130,9 @@ function renderSitemap(rows, creators, origin) {
     // toLastmod), and the pages' own JSON-LD carries dateModified.
     ...CALCULATOR_PATHS.map((path) => `  <url>\n    <loc>${escapeXml(`${origin}${path}`)}</loc>\n  </url>`),
     // Static copy pages: real crawlable text with their own titles. No lastmod,
-    // for the same reason as the calculators above.
+    // for the same reason as the calculators above. Each is prerendered at build
+    // time, so its text is in the HTML a crawler receives.
+    `  <url>\n    <loc>${escapeXml(`${origin}/about`)}</loc>\n  </url>`,
     `  <url>\n    <loc>${escapeXml(`${origin}/faq`)}</loc>\n  </url>`,
     `  <url>\n    <loc>${escapeXml(`${origin}/how-it-works`)}</loc>\n  </url>`,
     `  <url>\n    <loc>${escapeXml(`${origin}/for-creators`)}</loc>\n  </url>`,

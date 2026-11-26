@@ -379,6 +379,7 @@ create index if not exists idx_published_creator on public.published_itineraries
 -- of them and is refused with 42501. Mirrored for existing installs by
 -- supabase/migrations/20261020_trip_owner_and_delete_guards.sql, then
 -- supabase/migrations/20261124a_member_consent_boundary.sql.
+-- Trips with publications cannot change owner.
 create or replace function public.trips_owner_id_immutable()
 returns trigger
 language plpgsql
@@ -386,18 +387,34 @@ security invoker
 set search_path = public
 as $$
 begin
+  -- Unchanged owner: every ordinary content update takes this branch, including
+  -- the tombstone UPDATE that sets deleted_at, which is how trash works.
   if new.owner_id is not distinct from old.owner_id then
     return new;
   end if;
+
+  if public.trip_has_publication_money(old.id) then
+    raise exception 'A trip with a published guide cannot change owner.' using errcode = '42501';
+  end if;
+
+  -- No JWT subject, and not the anon or authenticated role: the service role,
+  -- the SQL editor, or a migration. An anon or authenticated caller falls
+  -- through to the checks below.
   if auth.uid() is null and current_user not in ('anon','authenticated') then
     return new;
   end if;
+
+  -- The current owner may hand the trip over.
   if old.owner_id = auth.uid() then
     return new;
   end if;
+
+  -- The admin console may correct ownership.
   if public.is_admin() then
     return new;
   end if;
+
+  -- Fail closed: an editor, a viewer, an outsider, or any shape not named above.
   raise exception
     'trip ownership cannot be changed by this caller (trip %, caller %)',
     old.id, auth.uid()
@@ -723,7 +740,7 @@ end;
 $$;
 
 revoke all on function public.trip_has_publication_money(uuid) from public, anon, authenticated;
-grant execute on function public.trip_has_publication_money(uuid) to authenticated;
+grant execute on function public.trip_has_publication_money(uuid) to authenticated, service_role;
 
 create policy "trips delete guard" on public.trips
   as restrictive for delete to authenticated using (
@@ -820,24 +837,21 @@ create policy "published update owns trip" on public.published_itineraries
     )
   );
 
--- Direct deletion is reserved for the linked trip owner.
-revoke delete on public.published_itineraries from public, anon;
+-- Preserve publications for buyers. Unpublish with the timestamp.
+revoke delete on public.published_itineraries from public, anon, authenticated;
 drop policy if exists "published delete owns trip" on public.published_itineraries;
-create policy "published delete owns trip" on public.published_itineraries
-  as restrictive for delete to public using (
-    exists (
-      select 1 from public.trips t
-      where t.id = published_itineraries.trip_id and t.owner_id = auth.uid()
-    )
-  );
 drop policy if exists "published owner delete" on public.published_itineraries;
-create policy "published owner delete" on public.published_itineraries
-  for delete to authenticated using (
-    exists (
-      select 1 from public.trips t
-      where t.id = published_itineraries.trip_id and t.owner_id = auth.uid()
-    )
-  );
+
+-- The payments rail creates these tables outside the base schema.
+alter table if exists public.purchase_orders
+  drop constraint if exists purchase_orders_pub_id_fkey,
+  add constraint purchase_orders_pub_id_fkey
+    foreign key (pub_id) references public.published_itineraries (id) on delete restrict;
+
+alter table if exists public.entitlements
+  drop constraint if exists entitlements_pub_id_fkey,
+  add constraint entitlements_pub_id_fkey
+    foreign key (pub_id) references public.published_itineraries (id) on delete restrict;
 
 create or replace function public.guard_publication_trip_id()
 returns trigger language plpgsql set search_path = '' as $$
@@ -1167,7 +1181,9 @@ begin
     return;
   end if;
 
-  if v_trip.owner_id = auth.uid() or public.is_member(v_trip.id) or public.is_admin() then
+  -- This condition mirrors the trips read hide trashed policy.
+  if v_trip.owner_id = auth.uid() or public.is_admin() or public.is_editor(v_trip.id)
+    or (v_trip.deleted_at is null and public.is_member(v_trip.id)) then
     return next v_trip;
     return;
   end if;
@@ -3215,7 +3231,8 @@ begin
   end if;
   if exists(select 1 from public.trip_members where trip_id=v_id and user_id=v_actor) then return v_id; end if;
   -- A new member could read the full row through the trips policy.
-  if v_actor <> v_trip.owner_id and public.trip_has_priced_publication(v_id) then
+  if v_actor <> v_trip.owner_id and coalesce(v_access.state, '') <> 'active'
+    and public.trip_has_priced_publication(v_id) then
     raise exception 'Owner approval needed.' using errcode='PT403';
   end if;
   -- The owner stays owner. A new member gets the link role. A repaired active

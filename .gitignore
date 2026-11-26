@@ -105,3 +105,5 @@ docs/consistency/handoff-*.md
 # The Gate probe writes its evidence beside itself; it is a log, not a source file.
 tests/probe-result.json
 
+# The prerender driver's Vite SSR bundle (scripts/prerender-static-pages.mjs); removed after each run.
+.prerender-tmp/

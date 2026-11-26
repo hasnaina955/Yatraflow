@@ -46,6 +46,24 @@
           "value": "public, max-age=3600"
         }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://www.yatraflow.in/>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/(trip|trips|new|profile|purchases|creator-hub|admin|auth|created|share|join|invite)(/.*)?",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ],
   "redirects": [
@@ -114,6 +132,49 @@
         }
       ],
       "destination": "/api/i?id=:slug&via=pub"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/faq/",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/how-it-works/index.html"
+    },
+    {
+      "source": "/how-it-works/",
+      "destination": "/how-it-works/index.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/about/",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/for-creators",
+      "destination": "/for-creators/index.html"
+    },
+    {
+      "source": "/for-creators/",
+      "destination": "/for-creators/index.html"
+    },
+    {
+      "source": "/join/:code",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|facebookcatalog|meta-externalagent|meta-externalfetcher|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Slack-ImgProxy|Discordbot|TelegramBot|SkypeUriPreview|Applebot|Pinterestbot|Pinterest/0\\.|redditbot|Embedly).*"
+        }
+      ],
+      "destination": "/api/join?code=:code"
     },
     {
       "source": "/((?!api/|i/|c/|sitemap.xml|calculators/|og/|trip-cost-calculators/|goa-trip-cost-calculator/|rajasthan-trip-cost-calculator/|meghalaya-trip-cost-calculator/|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",

@@ -105,7 +105,7 @@ describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
   const assetsBranch = () => sw.slice(sw.indexOf("startsWith('/assets/')"))
 
   it('bumps the version — the policy changed, so activate sweeps poisoned v1 caches', () => {
-    expect(sw).toContain("const SW_VERSION = 'v3'")
+    expect(sw).toContain("const SW_VERSION = 'v4'")
   })
 
   it('refuses to cache a text/html response under an asset URL', () => {
@@ -115,5 +115,28 @@ describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
 
   it('resolves an offline asset miss as a network error, not a rejected respondWith', () => {
     expect(assetsBranch()).toContain('.catch(() => Response.error())')
+  })
+})
+
+describe('the prerendered copy pages never take the shell key (#1042)', () => {
+  // Each copy page is its own HTML document. A navigation to one that wrote the
+  // SHELL key would make that page the offline fallback for every route.
+  const code = sw
+    .split('\n')
+    .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .join('\n')
+
+  it('lists the four pages with and without the trailing slash', () => {
+    for (const slug of ['faq', 'how-it-works', 'about', 'for-creators']) {
+      expect(code, `'/${slug}'`).toContain(`'/${slug}'`)
+      expect(code, `'/${slug}/'`).toContain(`'/${slug}/'`)
+    }
+  })
+
+  it('skips the SHELL write for those pages, and keeps the network-first navigation', () => {
+    expect(code).toContain('!isOwnDocument(url.pathname)')
+    expect(code).toContain("OWN_HTML.has(pathname) || pathname.startsWith('/join/')")
+    expect(code).toContain('cache.put(SHELL, copy)')
+    expect(code).toContain('fetch(request)')
   })
 })

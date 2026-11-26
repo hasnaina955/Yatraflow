@@ -748,9 +748,13 @@ describe('the production origin agrees everywhere it is written', () => {
     expect(inClient).toBe(inHandler)
   })
 
-  it('is what the shell advertises as its own url, canonical and card image', () => {
+  it('is what the shell advertises as its own url and card image (#1042: the shell names no canonical)', () => {
     expect(shell).toContain(`<meta property="og:url" content="${inHandler}/" />`)
-    expect(shell).toContain(`<link rel="canonical" href="${inHandler}/" />`)
+    // Every app route is served this shell, so a canonical here would name the home
+    // page for all of them. The home page's canonical is an HTTP Link header instead
+    // (vercel.json), and each route sets its own in App.
+    expect(shell).not.toContain('rel="canonical"')
+    expect(read('../vercel.json')).toContain(`"value": "<${inHandler}/>; rel=\\"canonical\\""`)
     // The handler builds its fallback image from this same constant, so a domain
     // move must not leave one of the two pointing at the old host.
     expect(shell).toContain(`<meta property="og:image" content="${inHandler}/og-default.png" />`)
@@ -935,6 +939,32 @@ const metaContent = (page: string, attr: 'property' | 'name', key: string): stri
   const end = page.indexOf('"', from)
   return end < 0 ? undefined : page.slice(from, end)
 }
+
+describe('the title budget cuts at a whole character (shared by /i, /c and /join)', () => {
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
+  it('cuts before a surrogate pair rather than through it', async () => {
+    const { fitOg } = await import('../api/_shareCard.js')
+    // The emoji starts on the last unit the budget keeps, so a plain slice would leave a lone high surrogate.
+    const out = fitOg('x'.repeat(8) + '🌊' + 'yyyy', 10)
+    expect(out).toBe('x'.repeat(8) + '…')
+    expect(LONE_SURROGATE.test(out)).toBe(false)
+  })
+
+  it('keeps an emoji that fits inside the budget whole', async () => {
+    const { fitOg } = await import('../api/_shareCard.js')
+    expect(fitOg('Goa 🌊 trip', 20)).toBe('Goa 🌊 trip')
+  })
+
+  it('never leaves a lone surrogate, nor exceeds the budget, at any cut point', async () => {
+    const { fitOg } = await import('../api/_shareCard.js')
+    for (let max = 2; max <= 30; max++) {
+      const out = fitOg('ab🌊cd🏝️ef🌊🌊gh', max)
+      expect(LONE_SURROGATE.test(out), `budget ${max}`).toBe(false)
+      expect(out.length, `budget ${max}`).toBeLessThanOrEqual(max)
+    }
+  })
+})
 
 describe('the default share card agrees everywhere it is written', () => {
   const tag = (page: string, attr: 'property' | 'name', key: string) => metaContent(page, attr, key)

@@ -61,16 +61,18 @@
 
 .toast.ok .toast-icon { background: var(--pw-lagoon-400); color: var(--pw-on-cover); }
 
-/* At night the neutral pill flips to paper so it stands out from dark cards.
-   The ok and err variants keep their own fills and take dark ink, which clears
-   AA: 7.53:1 on the teal and 7.49:1 on the soft red. */
+/* At night the ok/undo pill flips to paper, as the night-sky artboard draws it:
+   a teal check on paper and plain teal Undo text. The neutral pill uses the
+   same paper. Err keeps the danger fill: paper with only a red icon is a quieter
+   signal, and an error must stay unmistakable. Measured: paper/ink 13.90:1,
+   paper/teal Undo 5.49:1, danger/dark ink 7.49:1. */
 [data-theme='dark'] .toast { background: var(--toast-night-paper); color: var(--toast-night-ink); }
 
-[data-theme='dark'] .toast.ok { background: var(--teal-deep); color: var(--pw-on-sea); }
+[data-theme='dark'] .toast.ok { background: var(--toast-night-paper); color: var(--toast-night-ink); }
 
 [data-theme='dark'] .toast.err { background: var(--danger); color: var(--pw-on-sea); }
 
-[data-theme='dark'] .toast.ok .toast-icon { background: var(--pw-lagoon-400); color: var(--pw-on-cover); }
+[data-theme='dark'] .toast.ok .toast-icon { background: var(--toast-night-action); color: var(--pw-on-cover); }
 
 .toast-action {
   border: none; background: rgba(255,255,255,.18); color: inherit;
@@ -82,12 +84,13 @@
 
 .toast-action:hover { background: rgba(255,255,255,.32); }
 
-/* The night-sky artboard draws Undo as plain teal text on the paper pill. */
-[data-theme='dark'] .toast:not(.ok):not(.err) .toast-action {
+/* The night-sky artboard draws Undo as plain teal text on the paper pill.
+   This covers ok (every undoToast) and neutral, but not the red error pill. */
+[data-theme='dark'] .toast:not(.err) .toast-action {
   background: transparent; color: var(--toast-night-action);
 }
 
-[data-theme='dark'] .toast:not(.ok):not(.err) .toast-action:hover {
+[data-theme='dark'] .toast:not(.err) .toast-action:hover {
   background: rgba(11,107,99,.1);
 }
 

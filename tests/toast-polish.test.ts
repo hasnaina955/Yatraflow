@@ -93,11 +93,16 @@ describe('#1053 — the toast surface', () => {
     expect(css).not.toMatch(/animation:[^;]*\b\d+ms/)
   })
 
-  it('flips the neutral pill to paper at night and keeps the semantic fills', () => {
+  it('gives an ok toast the paper fill in dark mode', () => {
+    expect(css).toContain("[data-theme='dark'] .toast.ok { background: var(--toast-night-paper); color: var(--toast-night-ink); }")
+    expect(css).toContain("[data-theme='dark'] .toast.ok .toast-icon { background: var(--toast-night-action); color: var(--pw-on-cover); }")
+    expect(css).toContain("[data-theme='dark'] .toast:not(.err) .toast-action {")
+    expect(css).toContain('background: transparent; color: var(--toast-night-action);')
+  })
+
+  it('keeps the error fill at night and the paper tokens in the token file', () => {
     expect(tokens).toContain('--toast-night-paper: #E8EFF5')
     expect(tokens).toContain('--toast-night-ink: #142329')
-    expect(css).toContain("[data-theme='dark'] .toast { background: var(--toast-night-paper); color: var(--toast-night-ink); }")
-    expect(css).toContain("[data-theme='dark'] .toast.ok { background: var(--teal-deep); color: var(--pw-on-sea); }")
     expect(css).toContain("[data-theme='dark'] .toast.err { background: var(--danger); color: var(--pw-on-sea); }")
   })
 

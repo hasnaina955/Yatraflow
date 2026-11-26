@@ -63,7 +63,9 @@ describe('POST /api/checkout', () => {
     return res
   }
 
-  const pubRow = { id: 'kerala-trip_1', trip_id: 'trip-1', creator_id: 'creator-1', premium_price_inr: 500 }
+  const pubRow = {
+    id: 'kerala-trip_1', creator_id: 'creator-1', premium_price_inr: 500, trips: { owner_id: 'creator-1' },
+  }
 
   function stubHappyPath() {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
@@ -154,7 +156,7 @@ describe('POST /api/checkout', () => {
 
   it.each([
     ['an unpriced publication', { ...pubRow, premium_price_inr: null }, 403],
-    ['the creator buying their own plan', { ...pubRow, creator_id: 'buyer-1' }, 403],
+    ['the creator buying their own plan', { ...pubRow, creator_id: 'buyer-1', trips: { owner_id: 'buyer-1' } }, 403],
   ])('returns 403 for %s', async (_name, row, status) => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
@@ -162,6 +164,22 @@ describe('POST /api/checkout', () => {
       throw new Error('unexpected')
     })
     expect((await run({ pubId: 'kerala-trip_1' })).statusCode).toBe(status)
+  })
+
+  it.each([{ owner_id: 'other-owner' }, null])('refuses checkout without a matching owner %j', async trips => {
+    fetchMock.mockImplementation(async input => {
+      const url = new URL(String(input))
+      if (url.pathname === '/auth/v1/user') return jsonResponse({ id: 'buyer-1' })
+      if (url.pathname === '/rest/v1/published_itineraries') return jsonResponse([{ ...pubRow, trips }])
+      throw new Error('unexpected fetch')
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(403)
+    expect(JSON.parse(res.body)).toEqual({ error: 'this itinerary is not available for purchase' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const [url, options] = fetchMock.mock.calls[1]
+    expect(new URL(String(url)).searchParams.get('select')).toContain('trips!inner(owner_id)')
+    expect(options?.headers).toMatchObject({ authorization: 'Bearer service-key' })
   })
 
   it('returns 409 when an entitlement already exists', async () => {

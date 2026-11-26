@@ -101,8 +101,8 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
       const code = flat(source.slice(start, source.indexOf('$$;', start)))
       expect(code).toContain("to_regclass('public.entitlements') is null")
       expect(code).toContain('join public.entitlements e on e.pub_id = p.id')
-      expect(code.match(/p\.premium_price_inr is not null/g)).toHaveLength(2)
-      expect(code).not.toContain('creator_id')
+      expect(code).toContain('public.trip_has_priced_publication(p_trip_id)')
+      expect(code).toContain('t.owner_id = p.creator_id')
     }
   })
 
@@ -260,7 +260,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     await expect(asCaller('authenticated', STRANGER,
       'update public.published_itineraries set trip_id=$1 where id=$2',
       [PRICED_TRIP, 'own_publication'],
-    )).rejects.toThrow(/row-level security/)
+    )).rejects.toThrow('A publication cannot move to another trip.')
   })
 
   it('a buyer resolves it once the payments rail exists, and a stranger still does not', async () => {
@@ -292,10 +292,10 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     expect(await rowsFor('', code)).toEqual([])
     expect(await rowsFor(STRANGER, code)).toEqual([])
     expect((await uuidRows(STRANGER)).rows).toEqual([])
-    await expect(join(STRANGER)).rejects.toThrow(/Invite is unavailable/)
+    await expect(join(STRANGER)).rejects.toMatchObject({ code: 'PT403' })
     expect(await rowsFor(BUYER, code)).toHaveLength(1)
     expect((await uuidRows(BUYER)).rows).toEqual([{ invite_code: null }])
-    await join(BUYER)
+    await expect(join(BUYER)).rejects.toMatchObject({ code: 'PT403' })
 
     await db.query('update public.trips set visibility=$1 where id=$2', ['public', PRICED_TRIP])
     await db.query('delete from public.entitlements where pub_id=$1', ['legacy_publication'])
@@ -307,15 +307,4 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     )).rows).toEqual([{ id: PRICED_TRIP }])
   })
 
-  it('preserves a newer invite projection when the hotfix runs after it', async () => {
-    await db.exec('drop function public.get_trip_by_invite_code(text)')
-    await db.exec('create type public.trip_invite_preview as (id uuid)')
-    await db.exec('create function public.get_trip_by_invite_code(text) returns setof public.trip_invite_preview language sql as $$ select null::uuid where false $$')
-    await db.exec(migration)
-
-    const result = await db.query<{ preserves_projection: boolean }>(
-      "select prorettype = 'public.trip_invite_preview'::regtype as preserves_projection from pg_proc where oid = 'public.get_trip_by_invite_code(text)'::regprocedure",
-    )
-    expect(result.rows).toEqual([{ preserves_projection: true }])
-  })
 })

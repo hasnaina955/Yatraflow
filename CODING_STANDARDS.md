@@ -1474,6 +1474,7 @@ process.
 - **A paywall must build the withheld shape, and never clear fields from the stored row (learned 2026-11-10, #774).** `get_public_trip` cleared the description, the notes and the times of each locked stop. It kept every field it did not name, so the title and the coordinates stayed in the response. A list of fields to remove fails open for each new field. Build the locked value from counts, and copy no stored field into it. Apply the same rule to every function that returns the same row: `get_invite_trip` served the full row by trip id. A blur in the browser is not a lock. Prove the boundary by execution. `tests/public-trip-paywall-db.test.ts` runs the migration on PGlite and calls the function as each kind of viewer. A source scan cannot show what a function returns. On the client, read the locked shape in one module (`src/lib/lockedDay.ts`), and keep an unknown count apart from zero.
 
 - **A linked publication does not prove trip ownership.** A paywall must verify the publisher with the trip's owner ID.
+- **A price applies to every alias of the trip.** Use the same trip-level price check for public and invite links. Check crew consent before a join. An entitlement gives read access.
   Check an entitlement against the priced publication. Apply the same check before an invite grants trip membership.
 
 ## 3. Scripted edits

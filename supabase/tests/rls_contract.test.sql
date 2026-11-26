@@ -506,6 +506,24 @@ begin
   ) then
     raise exception 'publication updates must check the owner of both the old and new trip';
   end if;
+
+  if has_table_privilege('anon', 'public.published_itineraries', 'delete') or not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published delete owns trip' and cmd = 'DELETE'
+      and permissive = 'RESTRICTIVE' and roles = array['public']::name[]
+      and qual like '%owner_id%auth.uid()%'
+  ) then
+    raise exception 'a client may delete a publication only when they own the linked trip';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.published_itineraries'::regclass
+      and tgname = 'publication_trip_id_immutable' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_trip_id()'::regprocedure
+  ) then
+    raise exception 'a publication must keep its original trip';
+  end if;
 end $$;
 
 -- ------------------------------------------------------------ 6. trash wiring
@@ -591,7 +609,7 @@ begin
   end if;
 end $$;
 
--- Invite reads and joins must reject callers without access to a priced trip.
+-- Invite reads check payment. Crew access to a priced trip needs owner approval.
 do $$
 declare
   rpc regprocedure;
@@ -599,23 +617,33 @@ declare
 begin
   foreach rpc in array array[
     'public.get_trip_by_invite_code(text)'::regprocedure,
-    'public.get_invite_trip(uuid)'::regprocedure,
-    'public.join_trip(text)'::regprocedure
+    'public.get_invite_trip(uuid)'::regprocedure
   ] loop
     body := pg_get_functiondef(rpc);
     if body not like '%public.is_disabled()%'
       or body like '%visibility = ''private''%'
       or body like '%p.creator_id = auth.uid()%'
-      or (body not like '%public.invite_trip_payment_allows(%'
-          and body not like '%premium_price_inr is not null%') then
+      or body not like '%public.invite_trip_payment_allows(%' then
       raise exception '% lost the priced invite access check', rpc;
     end if;
   end loop;
 
   body := pg_get_functiondef('public.invite_trip_payment_allows(uuid)'::regprocedure);
   if body not like '%join public.entitlements e on e.pub_id = p.id%'
+    or body not like '%t.owner_id = p.creator_id%'
     or body not like '%p.premium_price_inr is not null%and e.user_id = auth.uid()%' then
-    raise exception 'invite payments must use an entitlement for a priced publication';
+    raise exception 'invite payments must use an entitlement for a priced publication from the trip owner';
+  end if;
+
+  body := pg_get_functiondef('public.join_trip(text)'::regprocedure);
+  if body not like '%public.trip_has_priced_publication(v_id)%'
+    or body not like '%PT403%' or body like '%public.invite_trip_payment_allows(%' then
+    raise exception 'paid invite joins need approval even for buyers';
+  end if;
+
+  if (select count(*) from pg_proc where pronamespace = 'public'::regnamespace
+      and proname = 'get_trip_by_invite_code') <> 1 then
+    raise exception 'get_trip_by_invite_code must have one signature';
   end if;
 end $$;
 

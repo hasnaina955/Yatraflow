@@ -149,7 +149,7 @@ export function deriveProbes(sql) {
  *  apply is the one thing this check refuses to wave through. */
 export const NO_PROBE_SURFACE = {
   '20261126b_paywall_visibility_authorship.sql': {
-    reason: 'Updates publication policies and invite and public trip functions. The RLS contract and tests/invite-lookup-schema-parity.test.ts cover access.',
+    reason: 'Updates publication policies, a trigger, and trip readers. The RLS contract and tests/paywall-visibility-authorship-db.test.ts cover access.',
   },
   '20261125_calculator_share_source.sql': {
     reason: 'CHECK constraints only — the two share-attribution lists grow from seven values to eight. A constraint cannot be probed, and a missing file is not silent: the trip create fails on an unknown ref. The cover is the three-way vocabulary pin in tests/share-attribution.test.ts, which reads the newest definer.',

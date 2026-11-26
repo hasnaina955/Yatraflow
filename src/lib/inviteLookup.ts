@@ -6,6 +6,7 @@
 import { EXPENSE_CATEGORIES, PLACE_EXPOSURES, STOP_CATEGORIES, STOP_STATUSES, TRANSPORT_MODES, TRAVEL_STYLES } from '../data/types'
 import { validWriteVersion, type TripRow } from './tripRow'
 import type { InviteRole } from './inviteLandingCopy'
+import { PLACE_SOURCES } from './itinerarySpec'
 import { normalizeVehicleProfile } from './vehicleProfile'
 
 export type InviteRowVerdict =
@@ -77,7 +78,7 @@ function isStop(stop: unknown): boolean {
     ], isText)
     && optionalFields(stop, ['auto', 'weatherSensitive'], isBoolean)
     && optionalFields(stop, ['legDistanceKm', 'legTravelMinutes'], isFiniteNumber)
-    && optionalFields(stop, ['placeSource'], value => ['google', 'mappls', 'osm', 'wikipedia'].some(source => source === value))
+    && optionalFields(stop, ['placeSource'], value => PLACE_SOURCES.some(source => source === value))
     && optionalFields(stop, ['exposure'], value => PLACE_EXPOSURES.some(exposure => exposure === value))
 }
 

@@ -11,6 +11,10 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+// Imported up front, so module load is not counted against the 5s test timeout.
+// The validator pulls in the itinerary importer, which is slow under four workers.
+import { classifyInviteRows } from '../src/lib/inviteLookup'
+import { rowToTrip } from '../src/lib/tripRow'
 
 const MIGRATION = 'supabase/migrations/20261124c_invite_preview_write_version.sql'
 const OWNER = '1019a000-0000-4000-8000-000000000001'
@@ -77,8 +81,6 @@ describe('#1019 get_trip_by_invite_code returns write_version on a real database
   })
 
   it('the client admission accepts the real RPC row and returns the trip', async () => {
-    const { classifyInviteRows } = await import('../src/lib/inviteLookup')
-    const { rowToTrip } = await import('../src/lib/tripRow')
     const rows = await rpcRowsAsJson(CODE)
     const verdict = classifyInviteRows(rows, CODE)
     expect(verdict.kind).toBe('found')

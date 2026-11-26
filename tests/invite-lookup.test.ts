@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { classifyInviteRows } from '../src/lib/inviteLookup'
+import { PLACE_SOURCES } from '../src/lib/itinerarySpec'
 
 const APP = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
@@ -41,6 +42,19 @@ describe('classifyInviteRows', () => {
     ]) {
       expect(classifyInviteRows([row], ROW.invite_code)).toEqual({ kind: 'found', row })
     }
+  })
+
+  it('accepts a stop from every place source the importer accepts', () => {
+    expect([...PLACE_SOURCES].sort()).toEqual(['google', 'mappls', 'open-meteo', 'osm', 'wikipedia'])
+    for (const placeSource of PLACE_SOURCES) {
+      const row = { ...ROW, days: [{ ...ROW.days[0], stops: [{ ...ROW.days[0].stops[0], placeSource }] }] }
+      expect(classifyInviteRows([row], ROW.invite_code), placeSource).toEqual({ kind: 'found', row })
+    }
+  })
+
+  it('refuses a stop whose place source the importer does not accept', () => {
+    const row = { ...ROW, days: [{ ...ROW.days[0], stops: [{ ...ROW.days[0].stops[0], placeSource: 'bing' }] }] }
+    expect(classifyInviteRows([row], ROW.invite_code)).toEqual({ kind: 'failed' })
   })
 
   it('refuses duplicate rows or a valid row beside a malformed row', () => {

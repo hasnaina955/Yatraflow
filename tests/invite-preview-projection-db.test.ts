@@ -84,6 +84,12 @@ describe('the invite preview projects a first name and the link role', () => {
         id text primary key, trip_id uuid, creator_id uuid, premium_price_inr integer,
         free_day_indexes jsonb, unpublished_at bigint
       );
+      -- The hotfix (20261126b) re-points both payment tables at published_itineraries,
+      -- so both must exist before it runs. Empty: no buyer is seeded.
+      create table public.purchase_orders (
+        id text primary key, pub_id text
+      );
+      create table public.entitlements (pub_id text, user_id uuid);
       create table public.trip_members (
         trip_id uuid, user_id uuid, role text, joined_at bigint
       );
@@ -92,6 +98,9 @@ describe('the invite preview projects a first name and the link role', () => {
       );
       create function public.is_member(trip uuid) returns boolean language sql stable as $$ select false $$;
       create function public.is_admin() returns boolean language sql stable as $$ select false $$;
+      -- 20261126b grants on this helper and calls it, but 20261020 defines it.
+      -- The placeholder only has to exist for the grant; the trigger that calls it is not run here.
+      create function public.trip_has_publication_money(p_trip uuid) returns boolean language sql stable as $$ select false $$;
       create function public.is_disabled() returns boolean language sql stable as $$
         select coalesce(current_setting('test.disabled', true) = 'true', false)
       $$;
@@ -104,7 +113,9 @@ describe('the invite preview projects a first name and the link role', () => {
       insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr)
         values ('${PUB}', '${PRICED_TRIP}', '${OWNER}', 0);
     `)
-    for (const file of [HOTFIX, MIGRATION]) {
+    // The migration runs twice. A database that already has it must accept a re-run,
+    // and every test below reads the function as the second run left it.
+    for (const file of [HOTFIX, MIGRATION, MIGRATION]) {
       await db.exec(readFileSync(resolve(process.cwd(), file), 'utf8'))
     }
   }, 60_000)
@@ -167,7 +178,6 @@ describe('the invite preview projects a first name and the link role', () => {
     expect(await rowsFor(PRICED_CODE)).toEqual([])
     expect(await rowsFor(PRICED_CODE, STRANGER)).toEqual([])
     expect(await rowsFor(PRICED_CODE, OWNER)).toHaveLength(1)
-    await db.exec('create table public.entitlements (pub_id text, user_id uuid)')
     await db.query(
       'insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr) values ($1, $2, $3, 499)',
       ['different-creator', PRICED_TRIP, STRANGER],

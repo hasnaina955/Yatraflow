@@ -111,6 +111,10 @@
    clear of the move and status buttons at its right. */
 @media (pointer: coarse) {
   .board-actions-toggle { display: inline-flex; align-items: center; justify-content: center; flex: none; border: 0; background: transparent; color: var(--text-2); min-width: 32px; min-height: 32px; }
+  .board-stop.stop-card { flex-wrap: wrap; }
+  .board-stop .board-stop-actions { display: none; position: static; flex: 0 0 100%; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 0; transform: none; }
+  .board-stop.actions-open .board-stop-actions { display: flex; }
+  .board-stop-actions .move-btn { width: 40px; height: 40px; }
   .board-fit, .board-stop-title-btn { position: relative; }
   .board-fit::after, .board-stop-title-btn::after {
     content: ''; position: absolute; inset: -6px; border-radius: inherit;

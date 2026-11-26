@@ -145,7 +145,7 @@
 .board-col {
   flex: 0 0 206px; width: 206px; max-height: 760px; min-height: 0;
   display: flex; flex-direction: column;
-  border-radius: var(--radius-lg); overflow: hidden;
+  border-radius: var(--radius); overflow: hidden;
   background: color-mix(in srgb, var(--card) 97%, transparent);
   border: 1px solid var(--yf-glass-border);
   box-shadow: var(--shadow-soft);
@@ -231,7 +231,7 @@
 }
 
 .board-stop-meta {
-  display: block; margin-top: 0; font-size: 11px; color: var(--text-3); font-weight: 500;
+  display: block; margin-top: 0; font-size: 11px; line-height: 1.2; color: var(--text-3); font-weight: 500;
   /* Duration and cost share this line — the same data role already uses tabular
      figures in .stop-meta, so the board's columns should line up too. */
   font-variant-numeric: tabular-nums;

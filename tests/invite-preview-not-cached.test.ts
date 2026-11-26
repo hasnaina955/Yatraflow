@@ -540,7 +540,7 @@ describe('the preview stays out of the cache', () => {
   it('classifies the answer with one provenance check, then returns the row', () => {
     // #1019 — the B3 provenance check moved into classifyInviteRows, which
     // inviteLookup.test.ts pins row by row. The store only delegates to it.
-    expect(body).toContain('const verdict = classifyInviteRows(rpc.data)')
+    expect(body).toContain('const verdict = classifyInviteRows(rpc.data, normalized)')
     expect(body).toContain("if (verdict.kind !== 'found') return verdict")
     // #HAS-9 — the two preview fields travel beside the trip, from the same row,
     // and never inside it: a Trip must not carry a role claim (#1012).
@@ -598,7 +598,7 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
     // get_trip_by_invite_code DOES return invite_code (it must: the caller
     // presented the code). Its guard is the row filter, which is why the code is
     // a capability rather than a secret: without the code there is no row.
-    const files = readdirSync(new URL('../supabase/migrations', import.meta.url), 'utf8').filter(f => f.endsWith('.sql'))
+    const files = readdirSync(new URL('../supabase/migrations', import.meta.url), 'utf8').filter(f => f.endsWith('.sql')).sort()
     let src = ''
     for (const f of files) {
       const text = readFileSync(new URL(`../supabase/migrations/${f}`, import.meta.url), 'utf8')
@@ -608,8 +608,8 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
     const body = src.slice(src.indexOf('function public.get_trip_by_invite_code'))
     expect(body).toMatch(/owner_id = auth\.uid\(\)/)
     expect(body).toContain('public.is_member(t.id)')
+    expect(body).toContain('public.invite_trip_payment_allows(t.id)')
     expect(body).not.toContain("t.visibility = 'private'")
-    expect(body).toMatch(/public\.invite_trip_payment_allows\(t\.id\)|p\.premium_price_inr is not null/)
   })
 })
 // ============ round 7 — the four mutations that initially escaped ============

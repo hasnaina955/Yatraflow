@@ -14,12 +14,13 @@
 //
 // Only the hosted pieces are stubbed: the roles, auth.uid(), and the tables the
 // function reads.
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const MIGRATION = 'supabase/migrations/20261126_invite_preview_projection.sql'
+const MIGRATION = 'supabase/migrations/20261126c_invite_preview_projection.sql'
+const HOTFIX = 'supabase/migrations/20261126b_paywall_visibility_authorship.sql'
 const OWNER = '1126a000-0000-4000-8000-000000000001'
 const STRANGER = '1126a000-0000-4000-8000-000000000002'
 const NAMED_TRIP = '1126a000-0000-4000-8000-000000000011'
@@ -49,6 +50,7 @@ describe('the invite preview projects a first name and the link role', () => {
     await db.exec(`
       create role anon nologin;
       create role authenticated nologin;
+      create role service_role nologin;
       create schema auth;
       create function auth.uid() returns uuid language sql stable as $$
         select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
@@ -66,7 +68,7 @@ describe('the invite preview projects a first name and the link role', () => {
         fuel_economy_km_per_l numeric, fuel_price_per_l numeric, round_trip boolean, invite_code text,
         deleted_at timestamptz, driver_count integer, has_vulnerable boolean,
         drive_after_dinner_min integer, vehicle_profile jsonb, cover_image_url text,
-        stay_style text, drives_part boolean, write_version bigint not null default 0
+        stay_style text, drives_part boolean, write_version bigint not null default 0, access_version bigint not null default 0
       );
       create table public.profile_cards (
         id uuid primary key, name text not null default 'Traveller', avatar_url text,
@@ -79,9 +81,15 @@ describe('the invite preview projects a first name and the link role', () => {
         changed_at bigint not null
       );
       create table public.published_itineraries (
-        id text primary key, trip_id uuid, creator_id uuid, premium_price_inr integer
+        id text primary key, trip_id uuid, creator_id uuid, premium_price_inr integer,
+        free_day_indexes jsonb, unpublished_at bigint
       );
-      create table public.entitlements (pub_id text, user_id uuid);
+      create table public.trip_members (
+        trip_id uuid, user_id uuid, role text, joined_at bigint
+      );
+      create table public.trip_member_access (
+        trip_id uuid, user_id uuid, owner_id uuid, state text, role text, joined_at bigint, revision bigint
+      );
       create function public.is_member(trip uuid) returns boolean language sql stable as $$ select false $$;
       create function public.is_admin() returns boolean language sql stable as $$ select false $$;
       create function public.is_disabled() returns boolean language sql stable as $$
@@ -96,8 +104,12 @@ describe('the invite preview projects a first name and the link role', () => {
       insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr)
         values ('${PUB}', '${PRICED_TRIP}', '${OWNER}', 0);
     `)
-    await db.exec(readFileSync(resolve(process.cwd(), MIGRATION), 'utf8'))
-  })
+    for (const file of [HOTFIX, MIGRATION]) {
+      await db.exec(readFileSync(resolve(process.cwd(), file), 'utf8'))
+    }
+  }, 60_000)
+
+  afterAll(async () => db?.close())
 
   /** The row as PostgREST sends it: one JSON object per trip, read as anon. */
   async function rowsFor(code: string, actor = ''): Promise<Array<Record<string, unknown>>> {
@@ -152,14 +164,16 @@ describe('the invite preview projects a first name and the link role', () => {
   })
 
   it('keeps a priced private trip behind its publication entitlement', async () => {
-    await db.query(
-      'insert into public.published_itineraries (id, trip_id, creator_id) values ($1, $2, $3)',
-      ['unpriced', PRICED_TRIP, STRANGER],
-    )
-    await db.query('insert into public.entitlements values ($1, $2)', ['unpriced', STRANGER])
     expect(await rowsFor(PRICED_CODE)).toEqual([])
     expect(await rowsFor(PRICED_CODE, STRANGER)).toEqual([])
     expect(await rowsFor(PRICED_CODE, OWNER)).toHaveLength(1)
+    await db.exec('create table public.entitlements (pub_id text, user_id uuid)')
+    await db.query(
+      'insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr) values ($1, $2, $3, 499)',
+      ['different-creator', PRICED_TRIP, STRANGER],
+    )
+    await db.query('insert into public.entitlements values ($1, $2)', ['different-creator', STRANGER])
+    expect(await rowsFor(PRICED_CODE, STRANGER)).toEqual([])
     await db.query('insert into public.entitlements values ($1, $2)', [PUB, STRANGER])
     expect(await rowsFor(PRICED_CODE, STRANGER)).toHaveLength(1)
   })
@@ -233,7 +247,7 @@ describe('the invite preview projects a first name and the link role', () => {
     await db.query("insert into public.profile_cards (id, name) values ($1, $2) on conflict (id) do update set name = excluded.name", [OWNER, 'Shubham Kulkarni'])
     await db.query("insert into public.trip_invite_role(trip_id,role,changed_at) values($1,'viewer',1) on conflict(trip_id) do update set role='viewer'", [NAMED_TRIP])
 
-    const verdict = classifyInviteRows(await rowsFor(CODE))
+    const verdict = classifyInviteRows(await rowsFor(CODE), CODE)
     expect(verdict.kind).toBe('found')
     if (verdict.kind !== 'found') return
     const preview = invitePreviewIdentity(verdict.row)

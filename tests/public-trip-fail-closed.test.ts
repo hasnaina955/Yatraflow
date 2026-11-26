@@ -42,7 +42,7 @@ const body = () => bodyOf(read(`../supabase/migrations/${NEWEST}`), 'get_public_
 describe('#353 — a poisoned free-day list must not take the page down', () => {
   it('type-checks the column before iterating it', () => {
     const fn = body()
-    const guard = fn.indexOf("if jsonb_typeof(v_pub.free_day_indexes) = 'array' then")
+    const guard = fn.indexOf("if v_pub.premium_price_inr is not null and jsonb_typeof(v_pub.free_day_indexes) = 'array' then")
     const iterate = fn.indexOf('jsonb_array_elements_text(v_pub.free_day_indexes)')
     expect(guard, 'the array guard is gone — a scalar in this column 500s the RPC').toBeGreaterThan(-1)
     expect(iterate).toBeGreaterThan(guard)
@@ -59,7 +59,7 @@ describe('#353 — a poisoned free-day list must not take the page down', () => 
   it('resolves every unexpected shape to "no free days", never to "no lock"', () => {
     const fn = body()
     const init = fn.indexOf("v_free := '{}'")
-    const guard = fn.indexOf("if jsonb_typeof(v_pub.free_day_indexes) = 'array' then")
+    const guard = fn.indexOf("if v_pub.premium_price_inr is not null and jsonb_typeof(v_pub.free_day_indexes) = 'array' then")
     // The default is the locked answer, and it is replaced only inside the guard.
     expect(init).toBeGreaterThan(-1)
     expect(init).toBeLessThan(guard)
@@ -77,7 +77,7 @@ describe('#352 — the money follows the same decision as the days', () => {
 
   it('runs after the buyer/unpriced exits and before any exit that could skip it', () => {
     const fn = body()
-    const unpriced = fn.indexOf('v_pub.premium_price_inr is null')
+    const unpriced = fn.indexOf('if v_buyer or not v_priced then')
     const strip = fn.indexOf("v_trip.expenses := '[]'::jsonb")
     const corruptDays = fn.indexOf("v_trip.days := '[]'::jsonb")
     expect(unpriced).toBeGreaterThan(-1)
@@ -134,7 +134,7 @@ describe('#352 — the client cannot fork what the server withheld', () => {
 describe('every redefinition keeps what the previous three fixes added', () => {
   it('the newest body still carries #350, #351, #352 and #353', () => {
     const fn = body()
-    expect(fn, '#350 (soft unpublish) was dropped').toMatch(/if v_pub\.unpublished_at is not null then/)
+    expect(fn, '#350 (soft unpublish) was dropped').toMatch(/if \(v_pub\.unpublished_at is not null or v_trip\.deleted_at is not null\) and not v_buyer then/)
     expect(fn, '#351 (invite_code) was dropped').toMatch(/null::text as invite_code|'invite_code', null::text/)
     expect(fn, '#351 (invite_code) must not read the secret').not.toMatch(/\bt\.invite_code\b/)
     expect(fn, '#351 (whole-row select) came back').not.toMatch(/select\s+\*\s+into v_trip/i)
@@ -170,18 +170,14 @@ describe('#566 — a trashed trip keeps serving its creator and buyers', () => {
 
   it('gates on the tombstone instead — creator and entitled buyers pass', () => {
     const fn = body()
-    expect(fn, 'the trash gate is gone').toMatch(/if v_trip\.deleted_at is not null and not \(/)
-    const gate = fn.slice(fn.indexOf('if v_trip.deleted_at is not null and not ('))
-    const claimants = gate.slice(0, gate.indexOf('then'))
-    expect(claimants).toContain('v_pub.creator_id = auth.uid()')
-    expect(claimants).toContain('from public.entitlements e')
+    expect(fn, 'the trash gate is gone').toMatch(/if \(v_pub\.unpublished_at is not null or v_trip\.deleted_at is not null\) and not v_buyer then/)
+    expect(fn).toMatch(/if v_trip\.owner_id = auth\.uid\(\) or public\.is_member\(v_trip\.id\) or public\.is_admin\(\) then\s+return next v_trip/)
   })
 
-  it('runs the gate before any path that could serve the trip', () => {
+  it('runs the gate before any path that could serve the trip to a visitor', () => {
     const fn = body()
-    const gate = fn.indexOf('if v_trip.deleted_at is not null and not (')
+    const gate = fn.indexOf('or v_trip.deleted_at is not null) and not v_buyer')
     expect(gate).toBeGreaterThan(-1)
-    // Before the first `return next`, so no branch can skip it.
-    expect(gate).toBeLessThan(fn.indexOf('return next v_trip'))
+    expect(gate).toBeLessThan(fn.indexOf('if v_buyer or not v_priced then'))
   })
 })

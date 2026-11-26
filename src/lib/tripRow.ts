@@ -47,7 +47,7 @@ export interface TripRow {
   cover_image_url?: string | null;
   /** present only after the invite-code migration (see supabase/schema.sql) */
   invite_code?: string | null; visibility: 'private' | 'public';
-  /** present only on the invite-preview RPC (20261126_invite_preview_projection.sql):
+  /** present only on the invite-preview RPC (20261126c_invite_preview_projection.sql):
    *  the owner's first name or handle, already normalised server-side, or null */
   owner_first_name?: string | null;
   /** present only on the invite-preview RPC: the role the link admits */

@@ -95,7 +95,7 @@ describe('role wording', () => {
   })
 })
 
-// The two fields the preview RPC projects (20261126_invite_preview_projection.sql).
+// The two fields the preview RPC projects (20261126c_invite_preview_projection.sql).
 // Each one degrades on its own: a name without a role, or a role without a name,
 // still reads as a complete sentence.
 describe('the owner name the preview projects', () => {

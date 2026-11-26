@@ -66,6 +66,16 @@ revoke all on function public.invite_first_name(text) from public, anon, authent
 -- are the trips columns #1020 approved, unchanged and in the same order; the
 -- last two are the fields this migration adds.
 drop function if exists public.get_trip_by_invite_code(text);
+do $migration$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_trip_by_invite_code'
+  ) then
+    raise exception 'Unexpected get_trip_by_invite_code overload.';
+  end if;
+end;
+$migration$;
 drop type if exists public.trip_invite_preview;
 
 create type public.trip_invite_preview as (
@@ -168,17 +178,7 @@ as $$
       or public.is_member(t.id)
       or public.is_admin()
 
-      or not exists (
-        select 1 from public.published_itineraries p
-        where p.trip_id = t.id and p.premium_price_inr is not null
-      )
-
-      or exists (
-        select 1 from public.published_itineraries p
-        join public.entitlements e on e.pub_id = p.id
-        where p.trip_id = t.id and p.premium_price_inr is not null
-          and e.user_id = auth.uid()
-      )
+      or public.invite_trip_payment_allows(t.id)
     );
 $$;
 

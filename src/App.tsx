@@ -1275,7 +1275,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     days: shownTrip?.days?.length ?? null,
     stops: invitesStopCount(shownTrip?.days),
     perPersonBudget: shownTrip?.budgetPerPersonInr ?? null,
-    // Both come from the preview RPC (20261126_invite_preview_projection.sql).
+    // Both come from the preview RPC (20261126c_invite_preview_projection.sql).
     // Before that migration is applied the row carries neither, and the copy
     // falls back to its anonymous wording.
     ownerFirstName: preview?.ownerFirstName ?? null,
@@ -1577,6 +1577,20 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
               <button className="btn btn-outline" onClick={() => onNavigate('/trips')}>Go to My trips</button>
             </div>
           )}
+        />
+      </div>
+    )
+  }
+
+  if (phase === 'failed' && machine.reason === 'owner-approval') {
+    return (
+      <div className="container yf-page page-enter">
+        <StateBlock
+          kind="failed"
+          art={<Link2 size={38} aria-hidden />}
+          title="Owner approval needed"
+          body="Contact the trip owner about crew access."
+          actions={<button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>}
         />
       </div>
     )

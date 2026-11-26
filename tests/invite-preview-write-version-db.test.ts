@@ -80,7 +80,7 @@ describe('#1019 get_trip_by_invite_code returns write_version on a real database
     const { classifyInviteRows } = await import('../src/lib/inviteLookup')
     const { rowToTrip } = await import('../src/lib/tripRow')
     const rows = await rpcRowsAsJson(CODE)
-    const verdict = classifyInviteRows(rows)
+    const verdict = classifyInviteRows(rows, CODE)
     expect(verdict.kind).toBe('found')
     if (verdict.kind !== 'found') return
     expect(rowToTrip(verdict.row, []).name).toBe('Goa Beach Week')

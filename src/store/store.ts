@@ -2615,7 +2615,7 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
   // The caller cannot write this trip anyway: it is not a member yet, so RLS
   // refuses. After joinViaInvite the full row is fetched into the cache.
   // B3 provenance and the dead-or-failed split live in classifyInviteRows (#1019).
-  const verdict = classifyInviteRows(rpc.data)
+  const verdict = classifyInviteRows(rpc.data, normalized)
   if (verdict.kind !== 'found') return verdict
   // The preview's name and role travel beside the trip, never inside it: a Trip
   // must not carry a role claim (#1012), and this row is never cached.
@@ -5902,7 +5902,7 @@ export async function setMemberRole(tripId: ID, userId: ID, role: TripMember['ro
  *   'failed'           no membership was created. A retry must join again.
  */
 export type JoinResult = 'joined' | 'joined-unloaded' | 'joined-unloaded-incomplete' | 'joined-unloaded-failed'
-  | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
+  | 'owner-approval' | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
 
 /**
  * Join a trip through its invite code, then fetch the full row into the cache.
@@ -6001,6 +6001,7 @@ async function joinAfterScope(
     return 'abandoned'
   }
   if (error) {
+    if (error.code === 'PT403') return 'owner-approval'
     console.error('[yatraflow] join write failed', error)
     return 'failed'
   }

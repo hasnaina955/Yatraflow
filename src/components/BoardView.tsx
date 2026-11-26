@@ -27,6 +27,7 @@ import { setStopStatus, useDb } from '../store/store'
 import { useReorder, Modal, toast } from './ui'
 import { refuseWhileStaged, removeStopWithUndo } from '../lib/mutationLifecycle'
 import { healthBandClass } from '../lib/healthBand'
+import { boardLoadWord } from '../lib/boardLoad'
 import { warningDigest, warningLines, worstSeverity } from '../lib/warningDigest'
 import { isAlreadyAdded, placeIdentity } from '../lib/placeIdentity'
 import { kmFromStartForHit } from '../lib/providers/hits'
@@ -150,10 +151,8 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
     () => (isAirMode(trip.transportMode) ? tripJourneyGeometry(trip, legCorrections).geometry : null),
     [trip, legCorrections],
   )
-  const airJourneys = useMemo(
-    () => isAirMode(trip.transportMode)
-      ? new Map(days.map(day => [day.index, buildJourney(trip, day, legCorrections)]))
-      : null,
+  const journeys = useMemo(
+    () => new Map(days.map(day => [day.index, buildJourney(trip, day, legCorrections)])),
     [trip, days, legCorrections],
   )
   /** The road did not resolve (or is being re-measured after a failed attempt)
@@ -288,7 +287,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
               onClick={() => setMapFocus(f => !f)} aria-pressed={mapFocus}
               title={mapFocus ? 'Bring the day columns back' : 'Slide the columns aside and read the map full-bleed (Esc)'}>
               {mapFocus
-                ? <><InlineIcon icon={ArrowLeft} size={13} gap={4} />Back to cards</>
+                ? <><InlineIcon icon={ArrowLeft} size={13} gap={4} />Show days</>
                 : <><InlineIcon icon={MapIcon} size={13} gap={4} />View map</>}
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => handleAdd(focusedDay === 'all' ? 0 : focusedDay)}>
@@ -371,19 +370,28 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
 
         {/* floating day columns — near-opaque so cards stay readable (§3.1) */}
         <div className="board-cols" role="list" aria-label="Trip days">
-          {days.map(day => (
-            <BoardColumn key={day.id} day={day} allDays={days} editable={editable} transportMode={trip.transportMode}
-              flightJourney={airJourneys?.get(day.index)} flight={flightForDay(trip, day.index)}
-              warnings={warn.byDay.get(day.index) ?? NO_WARNINGS}
-              focused={focusedDay === day.index}
-              onToggleFocus={toggleDayFocus}
-              onMoveStopIn={handleMoveStopInto}
-              onReorder={reorderWithinDay}
-              onDelete={handleDelete}
-              onStatus={handleStatus}
-              onAdd={handleAdd}
-              onEdit={handleEdit} />
-          ))}
+          {days.map(day => {
+            const journey = journeys.get(day.index)
+            const loadLabel = boardLoadWord({
+              distanceKm: journey?.distanceKm,
+              stopCount: activeStopsInOrder(day).length,
+              hours: journey ? journey.totalMinutes / 60 : undefined,
+            })
+            return (
+              <BoardColumn key={day.id} day={day} allDays={days} editable={editable} transportMode={trip.transportMode}
+                flightJourney={isAirMode(trip.transportMode) ? journey : undefined} flight={flightForDay(trip, day.index)}
+                loadLabel={loadLabel}
+                warnings={warn.byDay.get(day.index) ?? NO_WARNINGS}
+                focused={focusedDay === day.index}
+                onToggleFocus={toggleDayFocus}
+                onMoveStopIn={handleMoveStopInto}
+                onReorder={reorderWithinDay}
+                onDelete={handleDelete}
+                onStatus={handleStatus}
+                onAdd={handleAdd}
+                onEdit={handleEdit} />
+            )
+          })}
         </div>
       </div>
 
@@ -416,13 +424,14 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
 // handlers, booleans and the day object itself (immutable between writes) — so
 // a column bails out unless ITS day, focus or warnings changed. The map is
 // memoized separately above.
-const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, transportMode, flightJourney, flight, warnings, focused, onToggleFocus, onMoveStopIn, onReorder, onDelete, onStatus, onAdd, onEdit }: {
+const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, transportMode, flightJourney, flight, loadLabel, warnings, focused, onToggleFocus, onMoveStopIn, onReorder, onDelete, onStatus, onAdd, onEdit }: {
   day: Trip['days'][number]
   allDays: Trip['days']
   editable: boolean
   transportMode: Trip['transportMode']
   flightJourney?: Journey
   flight: FlightLeg | null
+  loadLabel: string | null
   warnings: ScheduleWarning[]
   focused: boolean
   onToggleFocus: (dayIndex: number) => void
@@ -517,7 +526,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
    *  origin, so the gap reopens under the cursor. The sign math lives in the
    *  pure glideOffsetPx (lib/touchDnd.ts) so tests can pin it. */
   function glideOffset(i: number): number | null {
-    if (dragging === null || insertIdx === null) return null
+    if (prefersReducedMotion() || dragging === null || insertIdx === null) return null
     const card = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')[dragging]
     const h = card ? card.offsetHeight + 8 : 0
     return glideOffsetPx(dragging, insertIdx, i, h)
@@ -575,6 +584,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
         <span className="board-col-day">Day {day.index + 1}</span>
         <span className="board-col-count">{focused ? 'Focused · ' : ''}{totalStops} stop{totalStops === 1 ? '' : 's'}</span>
         <span className="board-col-subtitle" title={day.title || `Day ${day.index + 1}`}>{day.title || `Day ${day.index + 1}`}</span>
+        {loadLabel && <span className="board-col-load">{loadLabel}</span>}
         {sev && <span className={`day-warn-pill sev-${sev}`} title={warningLines(warnings)}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}</span>}
       </button>
 

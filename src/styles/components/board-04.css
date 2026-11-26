@@ -25,6 +25,8 @@
 
 .board-row { transition: transform var(--motion-fast) var(--ease-glide); min-width: 0; }
 
+.board-row.is-carried .board-stop { transform: rotate(-2.5deg); }
+
 .board-col {
   transition:
     background-color var(--motion-slow) var(--ease-paper),
@@ -97,7 +99,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .board-stop { transition: none; }
+  .board-stop, .board-row { transition: none; }
+  .board-row.is-carried .board-stop { transform: none; }
 }
 
 /* Coarse pointers: extend the hit area of the two compact Board controls

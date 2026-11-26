@@ -7,6 +7,7 @@ import { PlanBench } from '../components/PlanBench'
 import { appLink } from '../lib/appLink'
 import { HERO_HEADLINE, HERO_SUPPORT } from '../lib/positioning'
 import { scrollBehavior } from '../lib/motion'
+import { isNative } from '../lib/native'
 import { CREATE_PATH, signupThenCreatePath } from '../lib/routes'
 import { useReveal } from '../hooks/useReveal'
 import { useDb, currentUser } from '../store/store'
@@ -26,6 +27,9 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
   // CTA's name — three identical link names on one page pointing at two
   // different targets made every link list ambiguous.
   const heroCtaLabel = me ? 'Plan a new trip' : 'Start a trip plan'
+  // The calculator hub is a static page outside the router, so its links are
+  // plain hrefs, and the installed app has no calculator surface to link to.
+  const showCalculator = !isNative
   return (
     <div className="page-enter">
       {/* ---------- Hero (split layout, per CTI homepage mockup) ---------- */}
@@ -50,6 +54,11 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
               </a>
               <a className="btn btn-saffron btn-lg" {...appLink('/explore')}>Explore itineraries</a>
             </div>
+            {/* One quiet text-link row under the two buttons. */}
+            <p className="hero-links hero-rise rise-d3">
+              <a className="text-link" {...appLink('/how-it-works')}>See how it works</a>
+              {showCalculator && <a className="text-link" href="/trip-cost-calculators/">Price a trip first</a>}
+            </p>
           </div>
 
           {/* Adventure preview card (dark navy, animated multi-trip route, mockup) */}

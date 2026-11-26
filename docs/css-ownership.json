@@ -660,6 +660,23 @@
       ],
       "configClasses": [],
       "variables": []
+    },
+    {
+      "id": "site-footer",
+      "file": "src/styles/components/site-footer.css",
+      "owned": [
+        "footer-layout", "footer-brand", "footer-groups", "footer-group",
+        "footer-group-title", "footer-group-list", "footer-link"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
+      "id": "topnav-collapse",
+      "file": "src/styles/components/topnav-collapse.css",
+      "owned": ["topnav-extra"],
+      "configClasses": [],
+      "variables": []
     }
   ],
   "legacy": [

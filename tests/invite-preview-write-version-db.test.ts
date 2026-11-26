@@ -11,6 +11,10 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+// Imported up front, so module load is not counted against the 5s test timeout.
+// The validator pulls in the itinerary importer, which is slow under four workers.
+import { classifyInviteRows } from '../src/lib/inviteLookup'
+import { rowToTrip } from '../src/lib/tripRow'
 
 const MIGRATION = 'supabase/migrations/20261124c_invite_preview_write_version.sql'
 const OWNER = '1019a000-0000-4000-8000-000000000001'
@@ -33,10 +37,12 @@ describe('#1019 get_trip_by_invite_code returns write_version on a real database
       $$;
       create table public.trips (
         id uuid primary key, owner_id uuid not null, name text not null default '',
-        start_location text, destinations jsonb, start_date text, end_date text, travellers integer,
-        transport_mode text, budget_per_person_inr integer, travel_style text,
+        start_location text not null default '', destinations jsonb not null default '[]',
+        start_date text not null default '', end_date text not null default '', travellers integer not null default 1,
+        transport_mode text not null default 'car', budget_per_person_inr integer not null default 0,
+        travel_style text not null default 'balanced',
         fixed_commitments jsonb not null default '[]', days jsonb not null default '[]',
-        expenses jsonb not null default '[]', cover_emoji text, visibility text not null default 'private',
+        expenses jsonb not null default '[]', cover_emoji text not null default '', visibility text not null default 'private',
         created_at bigint, updated_at bigint, start_location_coords jsonb, destination_coords jsonb,
         fuel_economy_km_per_l numeric, fuel_price_per_l numeric, round_trip boolean, invite_code text,
         deleted_at timestamptz, driver_count integer, has_vulnerable boolean, drive_after_dinner_min integer,
@@ -75,10 +81,8 @@ describe('#1019 get_trip_by_invite_code returns write_version on a real database
   })
 
   it('the client admission accepts the real RPC row and returns the trip', async () => {
-    const { classifyInviteRows } = await import('../src/lib/inviteLookup')
-    const { rowToTrip } = await import('../src/lib/tripRow')
     const rows = await rpcRowsAsJson(CODE)
-    const verdict = classifyInviteRows(rows)
+    const verdict = classifyInviteRows(rows, CODE)
     expect(verdict.kind).toBe('found')
     if (verdict.kind !== 'found') return
     expect(rowToTrip(verdict.row, []).name).toBe('Goa Beach Week')

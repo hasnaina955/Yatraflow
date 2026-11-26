@@ -1192,6 +1192,8 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    `tests/trip-owner-delete-guards.test.ts`), and `trips.write_version`, which the
    file adds further down. Write the schema copy in plpgsql and guard the rail
    table with `to_regclass`, the pattern `trip_has_publication_money` uses.
+
+ 6bu. **Stub every object a migration names before the migration runs (learned 2026-11-26, #1039).** `20261126b` alters `public.purchase_orders` and grants execute on `trip_has_publication_money`, which `20261020` defines. A PGlite test on stub tables fails at the first name it cannot find. Give each stub the shape of the test's own inserts. Import the module under test at the top of its file. A dynamic import inside an `it` counts against the five-second timeout under four workers.
    plpgsql resolves a relation when the statement is reached. So the bootstrap
    stays valid, and the guarded branch answers fail-closed. Pin the parity by
    meaning: the same projection and key order, the same gates, the same grants,

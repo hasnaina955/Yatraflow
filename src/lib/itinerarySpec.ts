@@ -90,7 +90,7 @@ export const STOP_KEYS = new Set([
  *  free stack's city geocoder), so a stop or suggestion picked from it keeps its
  *  provenance through an export/import round-trip instead of being repaired away
  *  (#839). Anything outside this list is still dropped and named. */
-const PLACE_SOURCES = ['google', 'mappls', 'open-meteo', 'wikipedia', 'osm'] as const
+export const PLACE_SOURCES = ['google', 'mappls', 'open-meteo', 'wikipedia', 'osm'] as const
 export const EXPENSE_KEYS = new Set([
   'id', 'label', 'category', 'amountInr', 'perPerson', 'optional', 'stopId', 'dayIndex', 'paidBy', 'settled',
 ])

@@ -540,9 +540,11 @@ describe('the preview stays out of the cache', () => {
   it('classifies the answer with one provenance check, then returns the row', () => {
     // #1019 — the B3 provenance check moved into classifyInviteRows, which
     // inviteLookup.test.ts pins row by row. The store only delegates to it.
-    expect(body).toContain('const verdict = classifyInviteRows(rpc.data)')
+    expect(body).toContain('const verdict = classifyInviteRows(rpc.data, normalized)')
     expect(body).toContain("if (verdict.kind !== 'found') return verdict")
-    expect(body).toMatch(/return \{ kind: 'found', trip: rowToTrip\(verdict\.row, \[\]\) \}/)
+    // #HAS-9 — the two preview fields travel beside the trip, from the same row,
+    // and never inside it: a Trip must not carry a role claim (#1012).
+    expect(body).toMatch(/return \{ kind: 'found', trip: rowToTrip\(verdict\.row, \[\]\), preview: invitePreviewIdentity\(verdict\.row\) \}/)
   })
 
   it('the marker machinery is gone', () => {
@@ -596,7 +598,7 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
     // get_trip_by_invite_code DOES return invite_code (it must: the caller
     // presented the code). Its guard is the row filter, which is why the code is
     // a capability rather than a secret: without the code there is no row.
-    const files = readdirSync(new URL('../supabase/migrations', import.meta.url), 'utf8').filter(f => f.endsWith('.sql'))
+    const files = readdirSync(new URL('../supabase/migrations', import.meta.url), 'utf8').filter(f => f.endsWith('.sql')).sort()
     let src = ''
     for (const f of files) {
       const text = readFileSync(new URL(`../supabase/migrations/${f}`, import.meta.url), 'utf8')
@@ -641,7 +643,7 @@ describe('B2 — a resolved link leaves the loading status', () => {
     // The set must be inside the success branch, next to the trip it returns.
     // The gate stores the trip with the target and account generation.
     const at = APP.indexOf("setStatus('ready')")
-    expect(APP.slice(Math.max(0, at - 160), at)).toContain('setResolved({ target: linkTarget, identityGen, trip: result.trip })')
+    expect(APP.slice(Math.max(0, at - 160), at)).toContain('setResolved({ target: linkTarget, identityGen, trip: result.trip, preview })')
   })
 
   it('the loading render is only for a genuinely unread link', () => {

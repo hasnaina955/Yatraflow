@@ -18,9 +18,10 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
-const MIGRATION = '20261126b_paywall_visibility_authorship.sql'
+const MIGRATION = '20261126c_invite_preview_projection.sql'
 const PUBLIC_TRIP_MIGRATION = '20261126d_public_trip_trash_order.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
+const hotfix = read('supabase/migrations/20261126b_paywall_visibility_authorship.sql')
 const schema = read('supabase/schema.sql')
 
 /** The definition of the function in a source file, comments included. */
@@ -45,7 +46,7 @@ function projection(sql: string): string[] {
   const start = body.indexOf('jsonb_build_object(')
   const end = body.indexOf(') as projected', start)
   if (start < 0 || end < 0) return []
-  return [...body.slice(start, end).matchAll(/'([a-z_]+)', (?:t|v_row)\.[a-z_]+/g)].map(match => match[1])
+  return [...body.slice(start, end).matchAll(/'([a-z_]+)', /g)].map(match => match[1])
 }
 
 const liveBody = definition(migration)
@@ -65,21 +66,23 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     expect(schemaBody).not.toBe('')
     for (const [label, body] of [['the migration', liveBody], ['schema.sql', schemaBody]] as const) {
       const text = flat(body)
-      expect(text, label).toContain('returns setof public.trips')
+      expect(text, label).toContain('returns setof public.trip_invite_preview')
       expect(text, label).toContain('security definer')
       expect(text, label).toContain('set search_path = public')
       expect(text, label).toContain(' stable ')
     }
   })
 
-  it('both copies project the same 33 columns in the same order', () => {
+  it('both copies project the same 35 columns in the same order', () => {
     const live = projection(liveBody)
-    expect(live).toHaveLength(33)
-    expect(new Set(live).size).toBe(33)
+    expect(live).toHaveLength(35)
+    expect(new Set(live).size).toBe(35)
+    expect(live.slice(-2)).toEqual(['owner_first_name', 'invite_role'])
     expect(projection(schemaBody)).toEqual(live)
   })
 
   it('both copies hold the same gates', () => {
+    expect(flat(schemaBody)).toBe(flat(liveBody))
     const gates = [
       'upper(t.invite_code) = upper(trim(p_code))',
       't.deleted_at is null',
@@ -91,13 +94,16 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     ]
     for (const gate of gates) {
       expect(flat(liveBody), `the migration must keep: ${gate}`).toContain(gate)
-      expect(flat(schemaBody), `schema.sql must keep: ${gate}`).toContain(gate)
     }
+    expect(flat(liveBody)).not.toMatch(/public\.entitlements|premium_price_inr/)
+    expect(flat(liveBody)).toContain('public.invite_first_name(pc.name)')
+    expect(flat(liveBody)).toContain("coalesce(r.role, 'editor')")
+    expect(schema).toContain('revoke all on function public.invite_first_name(text) from public, anon, authenticated;')
   })
 
   it('both build paths apply the same payment check', () => {
     const helper = 'create or replace function public.invite_trip_payment_allows('
-    for (const source of [migration, schema]) {
+    for (const source of [hotfix, schema]) {
       const start = source.indexOf(helper)
       const code = flat(source.slice(start, source.indexOf('$$;', start)))
       expect(code).toContain("to_regclass('public.entitlements') is null")
@@ -296,6 +302,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
   })
 
   it('keeps both preview RPCs and joining locked on the migrated database', async () => {
+    await db.exec(hotfix)
     await db.exec(migration)
     await db.exec(migration)
 

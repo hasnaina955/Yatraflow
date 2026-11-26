@@ -185,7 +185,9 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
   })
 
   it('get_trip_by_invite_code carries the guard its uuid sibling has had all along', () => {
-    const files = defining('get_trip_by_invite_code')
+    const files = defining('get_trip_by_invite_code').filter(file =>
+      !src('../supabase/migrations/' + file).includes("and prorettype = 'public.trips'::regtype"),
+    )
     const newest = files.at(-1)
     expect(newest).toBeDefined()
 

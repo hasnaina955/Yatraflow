@@ -1292,90 +1292,6 @@ $$;
 revoke execute on function public.get_public_trip(text) from public, anon;
 grant execute on function public.get_public_trip(text) to anon, authenticated;
 
--- The trips and trip_invite_preview returns share the same text signature.
-drop function if exists public.get_trip_by_invite_code(text);
-do $migration$
-begin
-  if exists (
-    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname = 'get_trip_by_invite_code'
-  ) then
-    raise exception 'Unexpected get_trip_by_invite_code overload.';
-  end if;
-end;
-$migration$;
-
-create or replace function public.get_trip_by_invite_code(p_code text)
-returns setof public.trips
-language plpgsql
-security definer
-set search_path = public
-stable
-as $$
-declare
-  v_row public.trips;
-begin
-  for v_row in
-    select projected.*
-    from public.trips t
-    cross join lateral jsonb_populate_record(
-      null::public.trips,
-      jsonb_build_object(
-        'id', t.id,
-        'owner_id', t.owner_id,
-        'name', t.name,
-        'start_location', t.start_location,
-        'destinations', t.destinations,
-        'start_date', t.start_date,
-        'end_date', t.end_date,
-        'travellers', t.travellers,
-        'transport_mode', t.transport_mode,
-        'budget_per_person_inr', t.budget_per_person_inr,
-        'travel_style', t.travel_style,
-        'fixed_commitments', t.fixed_commitments,
-        'days', t.days,
-        'expenses', t.expenses,
-        'cover_emoji', t.cover_emoji,
-        'visibility', t.visibility,
-        'created_at', t.created_at,
-        'updated_at', t.updated_at,
-        'start_location_coords', t.start_location_coords,
-        'destination_coords', t.destination_coords,
-        'fuel_economy_km_per_l', t.fuel_economy_km_per_l,
-        'fuel_price_per_l', t.fuel_price_per_l,
-        'round_trip', t.round_trip,
-        'invite_code', t.invite_code,
-        'deleted_at', t.deleted_at,
-        'driver_count', t.driver_count,
-        'has_vulnerable', t.has_vulnerable,
-        'drive_after_dinner_min', t.drive_after_dinner_min,
-        'vehicle_profile', t.vehicle_profile,
-        'cover_image_url', t.cover_image_url,
-        'stay_style', t.stay_style,
-        'drives_part', t.drives_part,
-        'write_version', t.write_version
-      )
-    ) as projected
-    where upper(t.invite_code) = upper(trim(p_code))
-      and t.deleted_at is null
-      and not public.is_disabled()
-      and (
-        t.owner_id = auth.uid()
-        or public.is_member(t.id)
-        or public.is_admin()
-        or public.invite_trip_payment_allows(t.id)
-      )
-  loop
-    return next v_row;
-  end loop;
-
-  return;
-end;
-$$;
-
-revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
-grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
-
 -- ============================================================
 -- join_trip(p_code): the server path for joining a trip.
 --
@@ -3344,6 +3260,155 @@ end;
 $$;
 revoke all on function public.join_trip(text) from public, anon, authenticated, service_role;
 grant execute on function public.join_trip(text) to authenticated;
+
+-- Invite-code lookup mirrors migrations/20261126c_invite_preview_projection.sql.
+-- ------------------------------------------------------- 1. the name normaliser
+create or replace function public.invite_first_name(p_name text)
+returns text
+language sql
+immutable
+set search_path = pg_catalog
+as $$
+  select case
+    when v.tok is null then null
+    when v.tok ~ '[@/:]' then null
+    when v.tok ~ '^[0-9 ()+.-]+$' then null
+    when v.tok ~* '^[a-z0-9-]+(\.[a-z0-9-]+)+$' then null
+    when length(v.tok) > 24 then left(v.tok, 23) || '…'
+    else v.tok
+  end
+  from (
+    select nullif(rtrim(left(ltrim(substring(btrim(coalesce(p_name, '')) from '^[^[:space:]]+'), '@'), 120), '.'), '') as tok
+  ) as v
+$$;
+
+revoke all on function public.invite_first_name(text) from public, anon, authenticated;
+
+-- --------------------------------------------------- 2. the projection's shape
+-- A named composite type, so the shape the function returns IS the allowlist
+-- and no caller can ask for a column that is not in it. The first 33 members
+-- are the trips columns #1020 approved, unchanged and in the same order; the
+-- last two are the fields this migration adds.
+drop function if exists public.get_trip_by_invite_code(text);
+do $migration$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_trip_by_invite_code'
+  ) then
+    raise exception 'Unexpected get_trip_by_invite_code overload.';
+  end if;
+end;
+$migration$;
+drop type if exists public.trip_invite_preview;
+
+create type public.trip_invite_preview as (
+  id uuid,
+  owner_id uuid,
+  name text,
+  start_location text,
+  destinations jsonb,
+  start_date text,
+  end_date text,
+  travellers integer,
+  transport_mode text,
+  budget_per_person_inr integer,
+  travel_style text,
+  fixed_commitments jsonb,
+  days jsonb,
+  expenses jsonb,
+  cover_emoji text,
+  visibility text,
+  created_at bigint,
+  updated_at bigint,
+  start_location_coords jsonb,
+  destination_coords jsonb,
+  fuel_economy_km_per_l numeric,
+  fuel_price_per_l numeric,
+  round_trip boolean,
+  invite_code text,
+  deleted_at timestamptz,
+  driver_count integer,
+  has_vulnerable boolean,
+  drive_after_dinner_min integer,
+  vehicle_profile jsonb,
+  cover_image_url text,
+  stay_style text,
+  drives_part boolean,
+  write_version bigint,
+  owner_first_name text,
+  invite_role text
+);
+
+-- --------------------------------------------------------------- 3. the read
+-- A priced trip needs an entitlement or existing access.
+-- The link does not identify who shared it.
+create or replace function public.get_trip_by_invite_code(p_code text)
+returns setof public.trip_invite_preview
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select projected.*
+  from public.trips t
+  left join public.profile_cards pc on pc.id = t.owner_id
+  left join public.trip_invite_role r on r.trip_id = t.id
+  cross join lateral jsonb_populate_record(
+    null::public.trip_invite_preview,
+    jsonb_build_object(
+      'id', t.id,
+      'owner_id', t.owner_id,
+      'name', t.name,
+      'start_location', t.start_location,
+      'destinations', t.destinations,
+      'start_date', t.start_date,
+      'end_date', t.end_date,
+      'travellers', t.travellers,
+      'transport_mode', t.transport_mode,
+      'budget_per_person_inr', t.budget_per_person_inr,
+      'travel_style', t.travel_style,
+      'fixed_commitments', t.fixed_commitments,
+      'days', t.days,
+      'expenses', t.expenses,
+      'cover_emoji', t.cover_emoji,
+      'visibility', t.visibility,
+      'created_at', t.created_at,
+      'updated_at', t.updated_at,
+      'start_location_coords', t.start_location_coords,
+      'destination_coords', t.destination_coords,
+      'fuel_economy_km_per_l', t.fuel_economy_km_per_l,
+      'fuel_price_per_l', t.fuel_price_per_l,
+      'round_trip', t.round_trip,
+      'invite_code', t.invite_code,
+      'deleted_at', t.deleted_at,
+      'driver_count', t.driver_count,
+      'has_vulnerable', t.has_vulnerable,
+      'drive_after_dinner_min', t.drive_after_dinner_min,
+      'vehicle_profile', t.vehicle_profile,
+      'cover_image_url', t.cover_image_url,
+      'stay_style', t.stay_style,
+      'drives_part', t.drives_part,
+      'write_version', t.write_version,
+      'owner_first_name', public.invite_first_name(pc.name),
+      'invite_role', coalesce(r.role, 'editor')
+    )
+  ) as projected
+  where upper(t.invite_code) = upper(trim(p_code))
+    and t.deleted_at is null
+    and not public.is_disabled()
+    and (
+      t.owner_id = auth.uid()
+      or public.is_member(t.id)
+      or public.is_admin()
+
+      or public.invite_trip_payment_allows(t.id)
+    );
+$$;
+
+revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
+grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
+
 
 create or replace function public.admin_remove_member(p_trip_id uuid,p_user_id uuid)
 returns void language plpgsql security definer set search_path=public as $$

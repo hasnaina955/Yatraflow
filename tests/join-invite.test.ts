@@ -188,6 +188,16 @@ describe('fetchTripByInviteCode', () => {
     expect((rpcWrite.payload as { p_code: string }).p_code).toBe(CODE)
   })
 
+  it('refuses an RPC row for a different code than the normalized request', async () => {
+    const id = '44444444-4444-4444-8444-444444444444'
+    state.rpcRows = [row({ id, invite_code: 'GOA-K7QF' })]
+
+    expect(await fetchTripByInviteCode(' wayanad n3rt ')).toEqual({ kind: 'failed' })
+    expect(writes.filter(write => write.table === 'rpc:get_trip_by_invite_code').at(-1)?.payload)
+      .toEqual({ p_code: 'WAYANAD-N3RT' })
+    expect(tripById(id)).toBeUndefined()
+  })
+
   it('answers dead for an unknown code: the RPC succeeded with no rows', async () => {
     // #1019 — "no trip has this code" is a dead link, not a failed read.
     state.rpcRows = []

@@ -73,6 +73,10 @@
 
 /* ---------- Invite screen ---------- */
 .inv-screen { max-width: 720px; padding-top: 24px; padding-bottom: 32px; }
+/* The headline carries a friend's name, and the server caps that name at 24
+   characters. At display size such a name is one unbreakable token, so the
+   heading may break inside it instead of widening the page at phone width. */
+.inv-screen .yf-header-title { overflow-wrap: anywhere; }
 .inv-body { display: flex; flex-direction: column; gap: 14px; }
 .inv-role { margin: 0; max-width: 62ch; color: var(--text); font-size: 16px; line-height: 1.5; }
 .inv-reassure { margin: 0; max-width: 62ch; }

@@ -39,7 +39,12 @@
    as one continuous motion instead of two backgrounds cross-fading.
    `--pill-gap` is the row's own gap, named so the clipped ink copy (`.pill-ink-row`)
    can lay out with the SAME spacing instead of restating the number. */
-.pill-nav { position: relative; display: flex; gap: 2px; --pill-gap: 2px; }
+.pill-nav { position: relative; display: flex; flex-wrap: nowrap; gap: 2px; --pill-gap: 2px; max-width: 100%; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.pill-nav::-webkit-scrollbar { display: none; }
+.pill-nav > [data-pill-key] { flex: none; white-space: nowrap; scroll-snap-align: start; }
+.pill-nav[data-overflow='start'] { mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.pill-nav[data-overflow='middle'] { mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 28px), transparent); }
+.pill-nav[data-overflow='end'] { mask-image: linear-gradient(90deg, transparent, #000 20px); }
 .pill-nav > * { position: relative; z-index: 1; }
 .pill-glider {
   position: absolute; left: 0; top: 0; width: 0; z-index: 0;

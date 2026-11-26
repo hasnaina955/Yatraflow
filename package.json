@@ -18,6 +18,7 @@
     "check:css": "node scripts/css-ownership.mjs",
     "art:build": "node scripts/build-art.mjs",
     "calculators:build": "node scripts/build-calculators.mjs",
+    "og:pages": "node scripts/build-page-cards.mjs",
     "check:motion": "npm run build && node scripts/browser-motion-check.mjs",
     "probe:landing-overflow": "node scripts/landing-overflow-probe.mjs",
     "probe:next-step": "node scripts/next-step-probe.mjs",

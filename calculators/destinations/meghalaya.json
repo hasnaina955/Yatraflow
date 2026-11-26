@@ -218,17 +218,37 @@
     },
     {
       "key": "entries",
-      "name": "Entry fees and boating",
+      "name": "Entry fees",
       "kind": "person",
       "rateLabel": "Entry fees, per person",
       "rate": {
-        "low": 200,
-        "high": 500
+        "low": 100,
+        "high": 300
       },
-      "hint": "Mawsmai cave ₹20–₹50, the eco parks ₹20, the Nongriat entry ₹20 and the Dawki boat at ₹500–₹1,200 a boat, split across four. A couple of extra sites sit inside this allowance.",
+      "hint": "Mawsmai cave ₹20–₹50, the eco parks ₹20 and the Nongriat entry ₹20. A couple of extra sites sit inside this allowance.",
       "params": {
         "low": "en",
         "high": "eN"
+      },
+      "source": {
+        "label": "sourced",
+        "href": "#src-tourism"
+      }
+    },
+    {
+      "key": "boat",
+      "name": "Dawki boat",
+      "kind": "flat",
+      "units": "per-four",
+      "rateLabel": "Boat, per boat",
+      "rate": {
+        "low": 500,
+        "high": 1200
+      },
+      "hint": "One boat on the Umngot river at Dawki, ₹500–₹1,200. A boat seats about four, so the count goes up by one boat for each four travellers.",
+      "params": {
+        "low": "bt",
+        "high": "bT"
       },
       "source": {
         "label": "sourced",
@@ -317,7 +337,7 @@
     },
     {
       "q": "Do I need a permit or registration for Meghalaya?",
-      "a": "No. Indian nationals need no permit or paid registration for Meghalaya. Foreign nationals have their own registration rule, so check that with the state tourism site. Some individual sights, such as the Double Decker root bridge and Dawki boating, charge their own fees and are covered by the entry line. The East Khasi Hills advisory asks for a registered guide on the Nongriat treks, and the optional guide line prices that for the whole group."
+      "a": "No. Indian nationals need no permit or paid registration for Meghalaya. Foreign nationals have their own registration rule, so check that with the state tourism site. Some individual sights, such as the Double Decker root bridge and Dawki boating, charge their own fees. The entry line and the boat line cover them. The East Khasi Hills advisory asks for a registered guide on the Nongriat treks, and the optional guide line prices that for the whole group."
     },
     {
       "q": "Should we rent bikes or take a cab in Meghalaya?",

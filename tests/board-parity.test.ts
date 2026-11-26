@@ -30,8 +30,10 @@ describe('#369 — the pulse and the pills read the engine, not a regex', () => 
     expect(board).not.toMatch(/health\.score >= 40/)
   })
 
-  it('gives a low-only day its quiet class and keeps every warning in a title', () => {
-    expect(board).toMatch(/className=\{`day-warn-pill sev-\$\{sev\}`\} title=\{warningLines\(warnings\)\}/)
+  it('exposes each warning in the expandable day control', () => {
+    expect(board).toContain('aria-expanded={warningsOpen}')
+    expect(board).toContain('{warning.title}: {warning.detail} {warning.fix}')
+    expect(board).toContain('board-warning-toggle sev-${sev}')
   })
 
   it('shows trip-wide warnings instead of dropping them', () => {

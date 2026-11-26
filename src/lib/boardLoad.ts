@@ -1,3 +1,5 @@
+import type { ItineraryStop } from '../data/types'
+
 export const BOARD_STAY_MAX_KM = 0.5
 export const BOARD_FULL_MIN_KM = 80
 export const BOARD_LONG_MIN_KM = 150
@@ -24,4 +26,8 @@ export function boardLoadWord({ distanceKm, stopCount, hours }: BoardLoadInput):
       ? 'full'
       : 'light'
   return `${Math.round(distanceKm)} km · ${level}`
+}
+
+export function hasBoardLoadLocation(stops: Pick<ItineraryStop, 'lat' | 'lng' | 'status'>[]): boolean {
+  return stops.some(stop => stop.status !== 'rejected' && Number.isFinite(stop.lat) && Number.isFinite(stop.lng) && Math.abs(stop.lat) <= 90 && Math.abs(stop.lng) <= 180 && (stop.lat !== 0 || stop.lng !== 0))
 }

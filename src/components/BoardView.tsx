@@ -27,7 +27,7 @@ import { setStopStatus, useDb } from '../store/store'
 import { useReorder, Modal, toast } from './ui'
 import { refuseWhileStaged, removeStopWithUndo } from '../lib/mutationLifecycle'
 import { healthBandClass } from '../lib/healthBand'
-import { boardLoadWord } from '../lib/boardLoad'
+import { boardLoadWord, hasBoardLoadLocation } from '../lib/boardLoad'
 import { dayColor } from '../lib/mapStyles/dayColors'
 import { visitDateForDay } from '../lib/hoursContext'
 import { warningDigest, warningLines, worstSeverity } from '../lib/warningDigest'
@@ -374,11 +374,11 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
         <div className="board-cols" role="list" aria-label="Trip days">
           {days.map(day => {
             const journey = journeys.get(day.index)
-            const loadLabel = boardLoadWord({
+            const loadLabel = hasBoardLoadLocation(day.stops) ? boardLoadWord({
               distanceKm: journey?.distanceKm,
               stopCount: activeStopsInOrder(day).length,
               hours: journey ? journey.driveMinutes / 60 : undefined,
-            })
+            }) : null
             return (
               <BoardColumn key={day.id} day={day} allDays={days} editable={editable} transportMode={trip.transportMode}
                 flightJourney={isAirMode(trip.transportMode) ? journey : undefined} flight={flightForDay(trip, day.index)}
@@ -447,6 +447,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
 }) {
   // Keyboard/touch alternative to dragging: ▲▼ reorders within the day, the
   // ↔ button opens a move-to-day modal (UI audit: Board was drag-only).
+  const [warningsOpen, setWarningsOpen] = useState(false)
   const [openActions, setOpenActions] = useState<string | null>(null)
   const [moveStop, setMoveStop] = useState<ItineraryStop | null>(null)
   const ordered = useMemo(() => activeStopsInOrder(day), [day])
@@ -535,10 +536,6 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
     return glideOffsetPx(dragging, insertIdx, i, h)
   }
 
-  /** The pill's class comes from the warnings' OWN worst severity (#369) — and
-   *  a low-only day gets `sev-low`, the quiet variant, instead of the base
-   *  amber tint that made a route-backtracking note as loud as an over-packed
-   *  day. The title carries every warning, so none is silently dropped. */
   const sev = worstSeverity(warnings)
   const totalStops = ordered.length
 
@@ -581,15 +578,18 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
   useLayoutEffect(() => () => cancelListSettles(listId), [listId])
 
   return (
-    <div className={`board-col${focused ? ' board-col--focused' : ''}${dragging !== null ? ' drag-live' : ''}`} role="listitem">
+    <div style={{ "--board-day-color": dayColor(day.index) } as React.CSSProperties} className={`board-col${focused ? ' board-col--focused' : ''}${dragging !== null ? ' drag-live' : ''}`} role="listitem">
+      <div className="board-col-header">
       <button type="button" className="board-col-head" onClick={() => onToggleFocus(day.index)}
         aria-pressed={focused} title={focused ? `Show the whole route again` : `Focus the map on Day ${day.index + 1}`}>
         <span className="board-col-day"><i style={{ backgroundColor: dayColor(day.index) }} />Day {day.index + 1}{date && <span className="board-col-date">{new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })}</span>}</span>
         <span className="board-col-count">{focused ? 'Focused · ' : ''}{totalStops} stop{totalStops === 1 ? '' : 's'}</span>
         {day.title && <span className="board-col-subtitle" title={day.title}>{day.title}</span>}
         {loadLabel && <span className={`board-col-load load-${loadLabel.includes('long') ? 'long' : loadLabel.includes('full') ? 'full' : loadLabel.includes('light') ? 'light' : 'stay'}`}><span className="board-load-track"><span className="board-load-fill" /></span>{loadLabel}</span>}
-        {sev && <span className={`day-warn-pill sev-${sev}`} title={warningLines(warnings)}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}</span>}
       </button>
+      {sev && <button type="button" className={`board-warning-toggle sev-${sev}`} aria-expanded={warningsOpen} aria-controls={`board-warnings-${day.id}`} aria-label={`${warnings.length} warning${warnings.length === 1 ? '' : 's'} for Day ${day.index + 1}`} onClick={() => setWarningsOpen(open => !open)}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings.length}</button>}
+      <div id={`board-warnings-${day.id}`} className={`board-warnings${warningsOpen ? ' is-open' : ''}`} aria-hidden={!warningsOpen}><div>{warnings.map((warning, index) => <p key={index}>{warning.title}: {warning.detail} {warning.fix}</p>)}</div></div>
+      </div>
 
       <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}${dragging !== null && keepsScroll ? ' keeps-scroll' : ''}`}
         ref={stopsRef} data-yf-list={listId} onPointerDownCapture={measureListScroll}>

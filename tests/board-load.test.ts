@@ -10,6 +10,7 @@ import {
   BOARD_LONG_MIN_STOPS,
   BOARD_STAY_MAX_KM,
   boardLoadWord,
+  hasBoardLoadLocation,
 } from '../src/lib/boardLoad'
 
 const word = (distanceKm: number, stopCount: number, hours: number) =>
@@ -66,4 +67,10 @@ describe('boardLoadWord', () => {
 it('uses drive time for the board load', () => {
   const board = readFileSync('src/components/BoardView.tsx', 'utf8')
   expect(board).toContain('hours: journey ? journey.driveMinutes / 60 : undefined')
+})
+
+it('omits load for empty and unlocated days', () => {
+  expect(hasBoardLoadLocation([])).toBe(false)
+  expect(hasBoardLoadLocation([{ lat: 0, lng: 0, status: 'confirmed' }])).toBe(false)
+  expect(hasBoardLoadLocation([{ lat: 9.9, lng: 76.2, status: 'confirmed' }])).toBe(true)
 })

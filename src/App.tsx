@@ -36,6 +36,8 @@ import { currentQuery, currentRoute, navigate as navigateRoute, onRouteChange, r
 import { appLink } from './lib/appLink'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
+import { supabaseSessionKey } from './lib/supabase'
+import { browserLocalStorage, storedSessionHint } from './lib/storedSession'
 import { apkUpdateCheck, bootApkUpdates } from './lib/apkUpdateRuntime'
 import { feedbackHref } from './lib/feedback'
 import { setTheme, useTheme } from './lib/theme'
@@ -582,6 +584,13 @@ export default function App() {
   // exactly what the post-gate frame would be, instead of a spinner that
   // swaps to the full page (the landing load shift, Lighthouse CLS 0.997).
   const ready = useStoreReady()
+  // Two paths show the signed-out nav, and both are needed. With no stored session,
+  // the reader is signed out for certain, so the items show at once. With a stored
+  // session, the reader may be signed in. A reload would show the items before
+  // hydrate reads the session, so they wait for `ready`, and then show only when no
+  // user is signed in. The hint is read once at mount.
+  const [storedSession] = useState(() => storedSessionHint(browserLocalStorage(), supabaseSessionKey ?? ''))
+  const showSignedOutNav = storedSession === 'absent' || ready
 
   // A signed-out visitor who opens the create route goes to signup and comes
   // back to it once the account exists. This route used to render the landing
@@ -813,10 +822,9 @@ export default function App() {
               <a className={`nav-link ${route === CREATE_PATH ? 'active' : ''}`} data-pill-key={CREATE_PATH} {...appLink(CREATE_PATH)}>Plan a trip</a>
             </>}
             <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" {...appLink('/explore')}>Explore</a>
-            {/* Signed-out web only, and only after hydrate. The gate matches the Log in
-                buttons below. Before hydrate, a reload still reads sessionUserId as null.
-                Without `ready`, a signed-in visitor would see these items flash. */}
-            {ready && !me && !sessionUserId && !isNative && <>
+            {/* Signed-out web only. showSignedOutNav decides when these items may show.
+                The rest of the gate matches the Log in buttons below. */}
+            {showSignedOutNav && !me && !sessionUserId && !isNative && <>
               <a className={`nav-link topnav-extra ${route === '/how-it-works' ? 'active' : ''}`} data-pill-key="/how-it-works" {...appLink('/how-it-works')}>How it works</a>
               {/* The calculator hub is a static page outside the router. A plain href
                   has no pill key, so the glider never measures it. The topnav-extra
@@ -932,7 +940,7 @@ export default function App() {
           }
           <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>
           {/* The same two signed-out items as the topnav. The tray is web-only already. */}
-          {ready && !me && !sessionUserId && <>
+          {showSignedOutNav && !me && !sessionUserId && <>
             <a className={`nav-link ${route === '/how-it-works' ? 'active' : ''}`} {...appLink('/how-it-works')}><InlineIcon icon={CircleHelp} size={15} gap={6} />How it works</a>
             <a className="nav-link" href="/trip-cost-calculators/"><InlineIcon icon={Calculator} size={15} gap={6} />Calculators</a>
           </>}

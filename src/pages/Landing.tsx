@@ -123,11 +123,6 @@ export function LandingPage({ onNavigate }: { onNavigate: (r: string) => void })
 
       {/* ---------- Plan Bench (interactive cost calculator) - the showpiece, one scroll from the fold ---------- */}
       <PlanBench />
-      {showCalculator && (
-        <p className="small muted landing-hub-link">
-          Planning Goa, Rajasthan, Meghalaya or Ladakh? <a className="text-link" href="/trip-cost-calculators/">Try the destination calculators.</a>
-        </p>
-      )}
 
       {/* ---------- What changes for you ---------- */}
       <section className="container" style={{ paddingBottom: 8, position: 'relative' }}>

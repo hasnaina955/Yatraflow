@@ -1,5 +1,6 @@
 /* Site footer navigation: four labelled groups under the disclaimer.
-   The groups stack on a phone and sit in four columns from 721px up.
+   On a phone the groups sit in two columns: Plan and Help, then Creators and
+   Company. From 721px up they sit in four columns.
    The base .footer, .footer-inner and .footer-route-mark rules stay in their
    legacy files. This owner answers for the group classes only. Every colour
    comes from a token, so both themes follow the token blocks. */
@@ -18,7 +19,8 @@
 
 .footer-groups {
   display: grid;
-  gap: var(--space-7);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-7) var(--space-6);
 }
 
 .footer-group {

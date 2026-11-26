@@ -106,28 +106,34 @@ describe('bottom navigation is a shell-only primary nav', () => {
     // The topnav pair sits behind the signed-out gate and the web gate. The
     // hub is a static page, so it is a plain href with no pill key.
     const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
-    expect(pill).toContain('{ready && !me && !sessionUserId && !isNative && <>')
+    expect(pill).toContain('{showSignedOutNav && !me && !sessionUserId && !isNative && <>')
     expect(pill).toContain('data-pill-key="/how-it-works"')
     expect(pill).toMatch(/<a className="nav-link topnav-extra" href="\/trip-cost-calculators\/">Calculators<\/a>/)
     expect(pill).not.toMatch(/data-pill-key="\/trip-cost-calculators/)
     // The tray is web-only already, so its pair needs only the signed-out gate.
     const trayAt = app.indexOf('<div className="mobile-menu"')
     const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
-    expect(tray).toContain('{ready && !me && !sessionUserId && <>')
+    expect(tray).toContain('{showSignedOutNav && !me && !sessionUserId && <>')
     expect(tray).toContain("{...appLink('/how-it-works')}")
     expect(tray).toMatch(/<a className="nav-link" href="\/trip-cost-calculators\/">/)
   })
 
-  it('waits for hydrate before the signed-out items show, so a reload does not flash them', () => {
-    // A reload reads sessionUserId as null until the store hydrates. Both gates
-    // read `ready` from the store, so a signed-in visitor never sees these items.
-    expect(app).toMatch(/const ready = useStoreReady\(\)/)
+  it('shows the signed-out items at once with no stored session, and waits for hydrate when one may be stored', () => {
+    // The hint is read once at mount. With no stored session, the reader is signed
+    // out for certain. Otherwise the items wait for `ready`, then show only when no
+    // user is signed in. Both gates read the same flag.
+    expect(app).toMatch(/import \{ supabaseSessionKey \} from '\.\/lib\/supabase'/)
+    expect(app).toMatch(/import \{ browserLocalStorage, storedSessionHint \} from '\.\/lib\/storedSession'/)
+    expect(app).toMatch(/const \[storedSession\] = useState\(\(\) => storedSessionHint\(browserLocalStorage\(\), supabaseSessionKey \?\? ''\)\)/)
+    expect(app).toMatch(/const showSignedOutNav = storedSession === 'absent' \|\| ready/)
     const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
-    expect(pill).toMatch(/\{ready && !me && !sessionUserId && !isNative && <>/)
+    expect(pill).toMatch(/\{showSignedOutNav && !me && !sessionUserId && !isNative && <>/)
     const trayAt = app.indexOf('<div className="mobile-menu"')
     const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
-    expect(tray).toMatch(/\{ready && !me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
-    // The unguarded form must be gone from both places.
+    expect(tray).toMatch(/\{showSignedOutNav && !me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
+    // The older forms are gone from both places: the ready-only gate and the unguarded gate.
+    expect(pill).not.toMatch(/\{ready && !me/)
+    expect(tray).not.toMatch(/\{ready && !me/)
     expect(pill).not.toMatch(/\{!me && !sessionUserId && !isNative && <>/)
     expect(tray).not.toMatch(/\{!me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
   })

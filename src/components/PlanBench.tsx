@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { formatInr, MODE_SPEED, MODE_COST_PER_KM } from '../lib/engine'
 import { InlineIcon, modeIcon } from './icons'
-import { nativeCopyText } from '../lib/native'
+import { isNative, nativeCopyText } from '../lib/native'
 import { cap } from '../lib/labels'
 import { appLink } from '../lib/appLink'
 import { navigate } from '../lib/router'
@@ -533,6 +533,12 @@ export function PlanBench() {
             </button>
             <a className="bench-alt-link" {...appLink('/explore')}>Or browse ready itineraries →</a>
           </div>
+          {/* The calculator hub is a static page, so it is a plain href. The installed shell has no calculator surface. */}
+          {!isNative && (
+            <p className="bench-hub-link small muted">
+              Planning Goa, Rajasthan, Meghalaya or Ladakh? <a className="text-link" href="/trip-cost-calculators/">Try the destination calculators.</a>
+            </p>
+          )}
           <div className="bench-receipt-actions">
             <button type="button" className={`chip chip-outline${copied ? ' chip-copied' : ''}`} onClick={copyBill}>
               {copied

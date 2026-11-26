@@ -61,10 +61,13 @@ describe('footer route mark (P1)', () => {
     expect(footer).toMatch(/\{!isNative && <li><a className="footer-link" href="\/ladakh-trip-cost-calculator\/">Ladakh trip cost calculator<\/a><\/li>\}/)
   })
 
-  it('lays the groups out as four columns from 721px, and stacks them below that', () => {
-    expect(siteFooterCss).toMatch(/\.footer-groups \{\s*display: grid;/)
+  it('lays the groups out in two columns on a phone, Plan and Help then Creators and Company, and four from 721px up', () => {
+    // The base rule is the phone layout: two tracks, so the DOM order fills row one with Plan and Help.
+    expect(siteFooterCss).toMatch(/\.footer-groups \{\s*display: grid;\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
     expect(siteFooterCss).toMatch(/@media \(min-width: 721px\) \{\s*\.footer-groups \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/)
     expect(css).toMatch(/@media \(min-width: 721px\) \{\s*\.footer-groups \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/)
+    // Each phone link keeps a 44px tap row: 12px of padding above and below the line.
+    expect(siteFooterCss).toMatch(/\.footer-link \{\s*display: block;\s*padding-block: var\(--space-5\);/)
   })
 
   it('paints the footer groups with tokens only, so both themes follow the token blocks', () => {

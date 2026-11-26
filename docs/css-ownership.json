@@ -171,7 +171,8 @@
       "configClasses": [
         "toast",
         "toast-zone",
-        "toast-action"
+        "toast-action",
+        "toast-icon"
       ],
       "variables": [
         "--toast-radius"

@@ -374,7 +374,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
         <div className="board-cols" role="list" aria-label="Trip days">
           {days.map(day => {
             const journey = journeys.get(day.index)
-            const loadLabel = hasBoardLoadLocation(day.stops) ? boardLoadWord({
+            const loadLabel = (hasBoardLoadLocation(day.stops) || (isAirMode(trip.transportMode) && flightForDay(trip, day.index))) ? boardLoadWord({
               distanceKm: journey?.distanceKm,
               stopCount: activeStopsInOrder(day).length,
               hours: journey ? journey.driveMinutes / 60 : undefined,

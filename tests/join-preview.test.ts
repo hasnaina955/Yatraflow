@@ -1,22 +1,20 @@
-// ============ /join/<code>: the invite link card (#1042) ============
-// The handler answers a link preview with the app's shell and an invite head: the
-// trip's name and day count, and nothing else. These tests pin what it shows, what
-// it reads, the headers, the fallback, and the rules its server copies share with
-// the client (src/lib/inviteCode.ts and src/lib/dayCount.ts).
+// ============ /join/<code>: the private invite card (#1042, #1045) ============
+// Every anonymous request gets one generic card. The card names no trip.
+// It shows no title, no day count and no names. The og:url carries no code.
+// These tests pin the card, the headers, the fallback, and the shared rules.
+// The server copies of the invite-code rules agree with src/lib/inviteCode.ts.
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import handler, { dayCountOf, inviteHead, namedTitle, readInvite, renderInvitePage } from '../api/join.js'
+import handler, { inviteHead, renderInvitePage } from '../api/join.js'
 import { headTags } from '../api/_headTemplate.js'
 import { dayCountForRange as serverDayCount } from '../api/_dayCount.js'
 import { looksLikeInviteCode as serverLooks, normalizeInviteCode as serverNormalize } from '../api/_inviteCode.js'
-import { OG_TITLE_MAX } from '../api/_shareCard.js'
 import { dayCountForRange } from '../src/lib/dayCount'
 import { looksLikeInviteCode, normalizeInviteCode } from '../src/lib/inviteCode'
 
 const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
-/** A stand-in for the built shell: the managed head tags, the hashed app assets and
- *  the #root the build writes. */
+/** A stand-in for the built shell: the managed head tags, hashed assets and root. */
 const SHELL = [
   '<!doctype html>',
   '<html lang="en-IN">',
@@ -38,27 +36,15 @@ const SHELL = [
 
 const ORIGIN = 'https://www.yatraflow.in'
 const CODE = 'RAJASTHAN-XM9P4KTN'
+const TITLE = '<title>You&#39;re invited to a trip on YatraFlow</title>'
+const DESCRIPTION = '<meta name="description" content="Open the link to see the trip and join." />'
 
-interface Rpc {
-  status?: number
-  body?: unknown
-}
-
-/** Stubs fetch for the two reads the handler makes: the RPC and the shell. Returns the
- *  URLs fetched, so a test can say which reads ran. */
-function stubFetch(options: { rpc?: Rpc | 'network'; shell?: 'ok' | 'fail' } = {}) {
-  const calls: { url: string; init?: RequestInit }[] = []
-  vi.stubGlobal('fetch', vi.fn(async (input: string | URL, init?: RequestInit) => {
+/** Stubs the shell read. The handler must make no other read. Returns the URLs fetched. */
+function stubFetch(options: { shell?: 'ok' | 'fail' } = {}) {
+  const calls: string[] = []
+  vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
     const url = String(input)
-    calls.push({ url, init })
-    if (url.includes('/rest/v1/rpc/get_trip_by_invite_code')) {
-      if (options.rpc === 'network') throw new TypeError('fetch failed')
-      const rpc = options.rpc ?? { status: 200, body: [] }
-      return new Response(JSON.stringify(rpc.body ?? []), {
-        status: rpc.status ?? 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
+    calls.push(url)
     if (url.endsWith('/index.html')) {
       if (options.shell === 'fail') return new Response('down', { status: 503 })
       return new Response(SHELL, { status: 200, headers: { 'content-type': 'text/html' } })
@@ -87,30 +73,6 @@ async function run(method: string, code: string | undefined) {
   return res
 }
 
-/** The trip row the anonymous RPC returns, with every field a link preview must NOT show. */
-function trip(overrides: Record<string, unknown> = {}) {
-  return {
-    id: '11111111-2222-3333-4444-555555555555',
-    name: 'Rajasthan Winter Loop',
-    owner_id: 'owner-private-id',
-    start_location: 'Delhi',
-    destinations: ['Jaipur', 'Jodhpur'],
-    start_date: '2026-12-01',
-    end_date: '2026-12-04',
-    travellers: 6,
-    budget_per_person_inr: 45000,
-    invite_code: CODE,
-    write_version: 3,
-    days: dayRows(4, [{ name: 'Amber Fort' }]),
-    ...overrides,
-  }
-}
-
-/** A plan of `count` days. Day one has the given stops, which must stay out of the HTML. */
-function dayRows(count: number, firstStops: { name: string }[] = []) {
-  return Array.from({ length: count }, (_, index) => ({ index, stops: index === 0 ? firstStops : [] }))
-}
-
 beforeEach(() => {
   vi.stubEnv('SUPABASE_URL', 'https://db.example.test')
   vi.stubEnv('SUPABASE_ANON_KEY', 'anon-test-key')
@@ -124,103 +86,64 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('the invite card names the trip and its day count, and nothing else', () => {
-  it('shows the name and the day count in the title', async () => {
-    stubFetch({ rpc: { body: [trip()] } })
+describe('every anonymous request gets the same private-invite card', () => {
+  it('shows the generic title and description, and no trip data', async () => {
+    stubFetch()
     const res = await run('GET', CODE)
     expect(res.statusCode).toBe(200)
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop» · 4 days</title>')
-    expect(res.body).toContain('<meta property="og:title" content="Join «Rajasthan Winter Loop» · 4 days" />')
+    expect(res.body).toContain(TITLE)
+    expect(res.body).toContain(DESCRIPTION)
+    expect(res.body).toContain(`<meta property="og:title" content="You&#39;re invited to a trip on YatraFlow" />`)
   })
 
-  it('shows none of the other fields the row carries', async () => {
-    stubFetch({ rpc: { body: [trip()] } })
+  it('shows no trip title, day count, name, date or member', async () => {
+    stubFetch()
     const res = await run('GET', CODE)
-    for (const secret of ['Delhi', 'Jaipur', 'Jodhpur', '45000', 'owner-private-id', 'Amber Fort', '2026-12-01', 'travellers', 'write_version']) {
+    for (const secret of ['Rajasthan', 'Winter', '4 days', 'Delhi', 'Jaipur', 'Jodhpur', 'owner-private-id', 'Amber Fort', '2026-12-01']) {
       expect(res.body, secret).not.toContain(secret)
     }
   })
 
-  it('writes the day part as "1 day" for a single date', () => {
-    expect(namedTitle('Goa Weekend', 1)).toBe('Join «Goa Weekend» · 1 day')
-  })
-
-  it('leaves the day part out when neither the days nor the dates give a count', async () => {
-    stubFetch({ rpc: { body: [trip({ days: undefined, start_date: null, end_date: null })] } })
+  it('names /join in og:url, with no code in any meta tag', async () => {
+    stubFetch()
     const res = await run('GET', CODE)
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop»</title>')
-    expect(res.body).not.toContain(' days</title>')
+    expect(res.body).toContain(`<meta property="og:url" content="${ORIGIN}/join" />`)
+    expect(res.body).not.toContain(CODE)
+    expect(res.body).not.toContain('/join/')
   })
 
-  it('leaves the day part out for an inverted date range', async () => {
-    stubFetch({ rpc: { body: [trip({ days: undefined, start_date: '2026-12-04', end_date: '2026-12-01' })] } })
-    const res = await run('GET', CODE)
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop»</title>')
+  it('gives byte-identical output for a valid, an invalid and a malformed code', async () => {
+    const bodies: string[] = []
+    for (const code of [CODE, 'GOA-XXXX', '<script>alert(1)</script>', '', 'not a code at all']) {
+      stubFetch()
+      const res = await run('GET', code)
+      bodies.push(res.body)
+    }
+    expect(new Set(bodies).size).toBe(1)
+    expect(bodies[0]).toContain(TITLE)
+    expect(bodies[0]).toContain(DESCRIPTION)
   })
 
-  it('cuts a long name at a word boundary, so the title stays inside the chat budget', () => {
-    const title = namedTitle('A very long trip name that keeps going well past any chat preview budget at all', 12)
-    expect(title.length).toBeLessThanOrEqual(OG_TITLE_MAX)
-    expect(title.endsWith('» · 12 days')).toBe(true)
-    expect(title).toContain('…')
-  })
-})
-
-describe('the trip name is escaped everywhere it is written', () => {
-  it('writes markup and quotes in the name as text, and a $& or $$ as literal text', async () => {
-    // Short enough to fit the title budget, so the whole name is checked.
-    const hostile = 'Goa <script>x</script> "q" $& $$'
-    stubFetch({ rpc: { body: [trip({ name: hostile })] } })
-    const res = await run('GET', CODE)
-    expect(res.body).not.toContain('<script>x')
-    expect(res.body).toContain('Goa &lt;script&gt;x&lt;/script&gt; &quot;q&quot; $&amp; $$')
-    // The shell's own module script is the only script the page carries.
-    expect(res.body.match(/<script\b/g)?.length).toBe(1)
-  })
-})
-
-describe('the generic card: a code that resolves to nothing, and every failed read', () => {
-  it.each([
-    ['an empty list (no trip has the code)', { rpc: { body: [] } }],
-    ['a non-OK answer', { rpc: { status: 500, body: { message: 'boom' } } }],
-    ['a network error', { rpc: 'network' as const }],
-    ['a row with no usable name', { rpc: { body: [trip({ name: '   ' })] } }],
-    ['a non-array answer', { rpc: { body: { not: 'a list' } } }],
-  ])('gives the generic card for %s', async (_label, options) => {
-    stubFetch(options)
-    const res = await run('GET', CODE)
-    expect(res.statusCode).toBe(200)
-    expect(res.body).toContain("<title>You&#39;re invited to plan a trip</title>")
-    expect(res.body).not.toContain('Join «')
-    expect(res.body).not.toContain('Rajasthan')
-  })
-
-  it('makes no trip read for a malformed code, and gives the generic card', async () => {
-    const calls = stubFetch({ rpc: { body: [trip()] } })
-    const res = await run('GET', '<script>alert(1)</script>')
-    expect(calls.some(call => call.url.includes('/rpc/'))).toBe(false)
-    expect(res.body).toContain("<title>You&#39;re invited to plan a trip</title>")
-  })
-
-  it('makes no trip read when the server has no database settings', async () => {
-    vi.stubEnv('SUPABASE_URL', '')
-    const calls = stubFetch({ rpc: { body: [trip()] } })
-    const res = await run('GET', CODE)
-    expect(calls.some(call => call.url.includes('/rpc/'))).toBe(false)
-    expect(res.body).toContain("<title>You&#39;re invited to plan a trip</title>")
+  it('makes no trip read for a code of any shape', async () => {
+    for (const code of [CODE, 'GOA-XXXX', '<script>alert(1)</script>']) {
+      const calls = stubFetch()
+      await run('GET', code)
+      expect(calls).toEqual([`${ORIGIN}/index.html`])
+      expect(calls.some(url => url.includes('/rpc/'))).toBe(false)
+    }
   })
 })
 
 describe('the response is noindex, uncached, and never an error page', () => {
-  it('sets no-store and noindex on a named card, a generic card and a refusal', async () => {
-    stubFetch({ rpc: { body: [trip()] } })
+  it('sets no-store and noindex on a card and a refusal', async () => {
+    stubFetch()
     for (const res of [await run('GET', CODE), await run('POST', CODE)]) {
       expect(res.headers['cache-control']).toBe('no-store')
       expect(res.headers['x-robots-tag']).toBe('noindex')
       expect(res.headers['x-content-type-options']).toBe('nosniff')
     }
-    const named = await run('GET', CODE)
-    expect(named.body).toContain('<meta name="robots" content="noindex" />')
+    const card = await run('GET', CODE)
+    expect(card.body).toContain('<meta name="robots" content="noindex" />')
   })
 
   it('refuses a method other than GET or HEAD with 405, and allows GET and HEAD', async () => {
@@ -230,7 +153,7 @@ describe('the response is noindex, uncached, and never an error page', () => {
   })
 
   it('answers HEAD with headers only, and makes no read', async () => {
-    const calls = stubFetch({ rpc: { body: [trip()] } })
+    const calls = stubFetch()
     const res = await run('HEAD', CODE)
     expect(res.statusCode).toBe(200)
     expect(res.ended).toBe(true)
@@ -238,29 +161,20 @@ describe('the response is noindex, uncached, and never an error page', () => {
     expect(calls).toEqual([])
   })
 
-  it('keeps the invite head and links into the app when the shell cannot be read', async () => {
-    stubFetch({ rpc: { body: [trip()] }, shell: 'fail' })
+  it('keeps the generic card and a link into the app when the shell cannot be read', async () => {
+    stubFetch({ shell: 'fail' })
     const res = await run('GET', CODE)
     expect(res.statusCode).toBe(200)
-    // The trip is named in the head even when the shell is unavailable. Only the
-    // generic body is shown, and the page still links into the app.
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop» · 4 days</title>')
+    expect(res.body).toContain(TITLE)
     expect(res.body).toContain('<main><p>Open <a href="/">YatraFlow</a> to join the trip together.</p></main>')
     expect(res.body).toContain('<div id="root"><main>')
     expect(res.body).not.toContain('<h1')
-  })
-
-  it('answers the generic card, not an error, when the trip read throws', async () => {
-    stubFetch({ rpc: 'network', shell: 'fail' })
-    const res = await run('GET', CODE)
-    expect(res.statusCode).toBe(200)
-    expect(res.body).toContain("<title>You&#39;re invited to plan a trip</title>")
   })
 })
 
 describe('the page keeps the app shell, with the invite head in place of the homepage head', () => {
   it('keeps the hashed app assets and the root the app boots into', async () => {
-    stubFetch({ rpc: { body: [trip()] } })
+    stubFetch()
     const res = await run('GET', CODE)
     expect(res.body).toContain('<script type="module" crossorigin src="/assets/index-abc123.js"></script>')
     expect(res.body).toContain('<link rel="stylesheet" crossorigin href="/assets/index-def456.css">')
@@ -268,18 +182,18 @@ describe('the page keeps the app shell, with the invite head in place of the hom
   })
 
   it('carries one title, one description and one og:url, and no canonical', async () => {
-    stubFetch({ rpc: { body: [trip()] } })
+    stubFetch()
     const res = await run('GET', CODE)
     expect(res.body.match(/<title>/g)?.length).toBe(1)
     expect(res.body.match(/<meta name="description"/g)?.length).toBe(1)
     expect(res.body.match(/<meta property="og:url"/g)?.length).toBe(1)
-    expect(res.body).toContain(`<meta property="og:url" content="${ORIGIN}/join/${CODE}" />`)
+    expect(res.body).toContain(`<meta property="og:url" content="${ORIGIN}/join" />`)
     expect(res.body).not.toContain('rel="canonical"')
     expect(res.body).not.toContain('Site title')
   })
 
   it('uses the invite card at its real size, for the image and the X card alike', async () => {
-    stubFetch({ rpc: { body: [trip()] } })
+    stubFetch()
     const res = await run('GET', CODE)
     expect(res.body).toContain(`<meta property="og:image" content="${ORIGIN}/og/invite.png" />`)
     expect(res.body).toContain('<meta property="og:image:width" content="1200" />')
@@ -287,93 +201,19 @@ describe('the page keeps the app shell, with the invite head in place of the hom
     expect(res.body).toContain(`<meta name="twitter:image" content="${ORIGIN}/og/invite.png" />`)
   })
 
-  it('omits og:url for a malformed code, since there is no address to name', () => {
+  it('names /join in the head, with no code', () => {
     const head = inviteHead({ origin: ORIGIN })
-    expect(head).not.toHaveProperty('url')
-    const page = renderInvitePage(SHELL, head)
-    expect(page).not.toContain('og:url" content="https://www.yatraflow.in/join/')
+    expect(head.url).toBe(`${ORIGIN}/join`)
+    expect(head.title).toBe("You're invited to a trip on YatraFlow")
+    expect(head.description).toBe('Open the link to see the trip and join.')
+    expect(head).not.toHaveProperty('name')
+    expect(head).not.toHaveProperty('days')
   })
 
   it('writes the same invite head into the shell and into the fallback', () => {
-    const head = inviteHead({ name: 'Goa', days: 2, code: 'GOA-K7QFH3WT', origin: ORIGIN })
+    const head = inviteHead({ origin: ORIGIN })
     expect(renderInvitePage(SHELL, head)).toContain(headTags(head))
     expect(renderInvitePage(null, head)).toContain(headTags(head))
-  })
-})
-
-describe('the day count is the one the invite screen shows (App.tsx inviteFacts.days)', () => {
-  it.each([
-    ['the plan has four days, and the dates span four', 4, 4],
-    ['the plan has three days, and the dates span four: the screen rule wins', 3, 3],
-    ['the plan has five days, and the dates span four: the screen rule wins', 5, 5],
-    ['the plan has one day', 1, 1],
-  ])('%s', async (_label, planDays, expected) => {
-    stubFetch({ rpc: { body: [trip({ days: dayRows(planDays), start_date: '2026-12-01', end_date: '2026-12-04' })] } })
-    const res = await run('GET', CODE)
-    const word = expected === 1 ? 'day' : 'days'
-    expect(res.body).toContain(`<title>Join «Rajasthan Winter Loop» · ${expected} ${word}</title>`)
-  })
-
-  it('shows no day part for an empty plan, even when the dates span days, as the screen shows none', async () => {
-    stubFetch({ rpc: { body: [trip({ days: [] })] } })
-    const res = await run('GET', CODE)
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop»</title>')
-    expect(res.body).not.toContain(' days</title>')
-  })
-
-  it.each([
-    ['missing', undefined],
-    ['null', null],
-    ['a string', 'four days'],
-    ['an object', { length: 4 }],
-  ])('falls back to the dates when the row has no days array (%s)', async (_label, days) => {
-    stubFetch({ rpc: { body: [trip({ days, start_date: '2026-12-01', end_date: '2026-12-04' })] } })
-    const res = await run('GET', CODE)
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop» · 4 days</title>')
-  })
-
-  it('applies the same rule to a row: the days array first, the dates only without one', () => {
-    const dates = { start_date: '2026-12-01', end_date: '2026-12-04' }
-    expect(dayCountOf({ days: [1, 2, 3], ...dates })).toBe(3)
-    expect(dayCountOf({ days: [1, 2, 3, 4, 5], ...dates })).toBe(5)
-    expect(dayCountOf({ days: [], ...dates })).toBe(0)
-    expect(dayCountOf({ days: null, ...dates })).toBe(4)
-    expect(dayCountOf({ ...dates })).toBe(4)
-    expect(dayCountOf({ days: undefined, start_date: null, end_date: null })).toBe(0)
-    expect(dayCountOf({ days: undefined, start_date: '2026-12-04', end_date: '2026-12-01' })).toBe(0)
-  })
-
-  it('reads only the count from the row, with no other field of the plan', async () => {
-    stubFetch({ rpc: { body: [trip({ days: dayRows(3) })] } })
-    expect(await readInvite(CODE)).toEqual({ name: 'Rajasthan Winter Loop', days: 3 })
-  })
-})
-
-describe('the anonymous read is the one the invite screen makes', () => {
-  it('posts the code to the invite RPC with the anonymous key, and no other key', async () => {
-    const calls = stubFetch({ rpc: { body: [trip()] } })
-    await readInvite(CODE)
-    const rpc = calls.find(call => call.url.includes('/rest/v1/rpc/get_trip_by_invite_code'))
-    expect(rpc).toBeDefined()
-    expect(rpc?.url).toBe('https://db.example.test/rest/v1/rpc/get_trip_by_invite_code?select=name,days,start_date,end_date')
-    expect(JSON.parse(String(rpc?.init?.body))).toEqual({ p_code: CODE })
-    const headers = rpc?.init?.headers as Record<string, string>
-    expect(headers.apikey).toBe('anon-test-key')
-    expect(JSON.stringify(headers)).not.toContain('sb_secret')
-  })
-
-  it('reads the day count from the days the RPC returns, and from the dates only without a days array', async () => {
-    stubFetch({ rpc: { body: [trip({ days: dayRows(10), start_date: '2026-03-01', end_date: '2026-03-03' })] } })
-    expect(await readInvite(CODE)).toEqual({ name: 'Rajasthan Winter Loop', days: 10 })
-    stubFetch({ rpc: { body: [trip({ days: undefined, start_date: '2026-03-01', end_date: '2026-03-10' })] } })
-    expect(await readInvite(CODE)).toEqual({ name: 'Rajasthan Winter Loop', days: 10 })
-  })
-
-  it('keeps a priced trip out of the anonymous answer, so its card stays generic (see the migration)', () => {
-    // The migration's anonymous branch returns no row for a trip with a paid published guide.
-    const migration = read('supabase/migrations/20261124c_invite_preview_write_version.sql')
-    expect(migration).toContain("coalesce(p.premium_price_inr, 0) > 0")
-    expect(migration).toContain('grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;')
   })
 })
 
@@ -473,84 +313,29 @@ describe('the card is for the link-preview bots, and every other visitor gets th
   })
 })
 
-describe('the card never fails: a throw answers the generic card with the same headers', () => {
+describe('the card never fails: a throw answers the static generic page with the same headers', () => {
   afterEach(() => {
-    vi.doUnmock('../api/_shareCard.js')
     vi.doUnmock('../api/_headTemplate.js')
     vi.resetModules()
   })
 
-  /** A title budget that throws, so a named trip makes inviteHead throw. */
-  function titleBudgetThrows() {
-    vi.doMock('../api/_shareCard.js', async importOriginal => ({
-      ...(await importOriginal<Record<string, unknown>>()),
-      fitOg: () => { throw new Error('title budget unavailable') },
-    }))
-  }
-
-  it('answers 200 with the generic title and the same headers when the named head throws', async () => {
+  it('answers 200 with the static generic page when the head writer throws', async () => {
+    // A throw in the head writer, so the handler falls back to the static page.
     vi.resetModules()
-    titleBudgetThrows()
-    const { default: guarded } = await import('../api/join.js')
-    stubFetch({ rpc: { body: [trip()] } })
-    const res = makeRes()
-    await guarded({ method: 'GET', query: { code: CODE } }, res)
-    expect(res.statusCode).toBe(200)
-    expect(res.body).toContain('<title>You&#39;re invited to plan a trip</title>')
-    expect(res.body).toContain('<main><p>Open <a href="/">YatraFlow</a> to join the trip together.</p></main>')
-    expect(res.body).not.toContain('Rajasthan')
-    expect(res.headers['cache-control']).toBe('no-store')
-    expect(res.headers['x-robots-tag']).toBe('noindex')
-    expect(res.headers['x-content-type-options']).toBe('nosniff')
-  })
-
-  it('answers the static generic page, with the same headers, when even the fallback cannot be written', async () => {
-    vi.resetModules()
-    titleBudgetThrows()
     vi.doMock('../api/_headTemplate.js', async importOriginal => ({
       ...(await importOriginal<Record<string, unknown>>()),
       applyHead: () => { throw new Error('template unavailable') },
     }))
     const { default: guarded } = await import('../api/join.js')
-    stubFetch({ rpc: { body: [trip()] } })
+    stubFetch()
     const res = makeRes()
     await guarded({ method: 'GET', query: { code: CODE } }, res)
     expect(res.statusCode).toBe(200)
     expect(res.body).toContain('<meta name="robots" content="noindex" />')
-    expect(res.body).toContain('<title>You&#39;re invited to plan a trip</title>')
+    expect(res.body).toContain(TITLE)
     expect(res.body).toContain('<div id="root"><main>')
     expect(res.headers['cache-control']).toBe('no-store')
     expect(res.headers['x-robots-tag']).toBe('noindex')
     expect(res.headers['x-content-type-options']).toBe('nosniff')
-  })
-})
-
-describe('the trip read and the shell read run together', () => {
-  it('starts the shell read while the trip read is still open, so a bot waits one timeout at most', async () => {
-    let shellAsked: () => void = () => {}
-    const shellSeen = new Promise<void>(resolve => { shellAsked = resolve })
-    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
-      const url = String(input)
-      if (url.endsWith('/index.html')) {
-        shellAsked()
-        return new Response(SHELL, { status: 200 })
-      }
-      // The RPC answers only after the shell has been asked for, so the two reads must overlap.
-      await shellSeen
-      return new Response(JSON.stringify([trip()]), { status: 200, headers: { 'content-type': 'application/json' } })
-    }))
-    const res = await run('GET', CODE)
-    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop» · 4 days</title>')
-  })
-})
-
-describe('the title cut never leaves half an emoji', () => {
-  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
-
-  it('cuts a name made of emoji at the budget without a broken character', () => {
-    const title = namedTitle('🌊'.repeat(40), 4)
-    expect(LONE_SURROGATE.test(title)).toBe(false)
-    expect(title.length).toBeLessThanOrEqual(OG_TITLE_MAX)
-    expect(title.endsWith('…» · 4 days')).toBe(true)
   })
 })

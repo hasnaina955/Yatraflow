@@ -14,7 +14,7 @@ import { SocialIcon } from '../components/creator/SocialIcon'
 import { nativeCopyText, openExternal } from '../lib/native'
 import type { Trip, PublishedItinerary } from '../data/types'
 import type { Entitlement } from '../lib/payments'
-import { useDb, currentUser, tripById, userById, registerPubView, fetchPublicTrip } from '../store/store'
+import { useDb, currentUser, userById, registerPubView, fetchPublicTrip } from '../store/store'
 import { forkPublication } from '../lib/forkPub'
 import { emptyLockedDay, fullPlanRead, hasWireLockedDay, isWireLocked, lockedDayCounts, lockedDayTitle, numberedSummary, planStopCount, readableDayStart, wireLockedSummary } from '../lib/lockedDay'
 import { describePreviewSplit } from '../lib/previewSplit'
@@ -134,7 +134,6 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
   // own session. A public viewer must read through fetchPublicTrip (the
   // get_public_trip RPC stubs locked days at the wire), never through a
   // cached row they didn't fetch themselves.
-  const cachedTrip = pub ? tripById(pub.tripId) : undefined
   const [fetched, setFetched] = useState<Trip | null>(null)
   const [miss, setMiss] = useState(false)
   // #552 — the arrival ref is read ONCE, here at first render, and then taken
@@ -231,13 +230,11 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
     for (const el of visible.keys()) io.observe(el)
     return () => io.disconnect()
   }, [heroEl, view])
-  // #349 — which of the two wins is settled in the STORE, not here: every
-  // fetchPublicTrip REPLACES the cached row for that id, so `cachedTrip` is the
-  // wire's row for this viewer as of the last read and cannot shadow a fresher
-  // one. Rendering the cached copy first is therefore not a preference between
-  // stale and fresh — after a paid unlock both are the real days. (Preferring
-  // `fetched` here as well would be a second mechanism for one question.)
-  const trip: Trip | undefined = cachedTrip ?? fetched ?? undefined
+  // #349 — the page renders the row fetchPublicTrip returned for this viewer.
+  // Every read after an unlock sets `fetched` again, so the page converges
+  // without reading the cache. A guide row never enters the cache for a viewer
+  // who does not own the trip (spec 3.7), so the cache is not a source here.
+  const trip: Trip | undefined = fetched ?? undefined
   const { isSaved, toggleSaved } = useSavedPubs()
   // #360 — there is deliberately NO live-suggestion fallback for the hero.
   // It used to read the destination-cover hook over the shared candidates,

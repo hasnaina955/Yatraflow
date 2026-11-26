@@ -60,8 +60,8 @@ export function JoinRequests({ tripId }: { tripId: string }) {
               </div>
               <Chip tone="info">{ROLE_NAME[r.role]}</Chip>
               <span className="share-join-actions">
-                <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => decide(r.id, true)}>Approve</button>
-                <button type="button" className="btn btn-outline btn-sm" disabled={busy === r.id} onClick={() => decide(r.id, false)}>Decline</button>
+                <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => { decide(r.id, true) }}>Approve</button>
+                <button type="button" className="btn btn-outline btn-sm" disabled={busy === r.id} onClick={() => { decide(r.id, false) }}>Decline</button>
               </span>
               {failedDecision === r.id && <span className="share-join-error" role="alert">Couldn’t save that decision. Try again.</span>}
             </li>

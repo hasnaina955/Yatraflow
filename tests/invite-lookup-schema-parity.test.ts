@@ -169,7 +169,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
   let db: PGlite
 
   /** Runs one statement as a caller, so RLS and the JWT subject behave as they do in the app. */
-  async function asCaller<T>(role: 'anon' | 'authenticated', actor: string, sql: string, args: unknown[] = []) {
+  async function asCaller<T>(role: 'anon' | 'authenticated' | 'service_role', actor: string, sql: string, args: unknown[] = []) {
     await db.exec('reset role')
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [actor])
     await db.exec(`set role ${role}`)

@@ -148,6 +148,10 @@
       "destination": "/for-creators/index.html"
     },
     {
+      "source": "/join/:code",
+      "destination": "/api/join?code=:code"
+    },
+    {
       "source": "/((?!api/|i/|c/|sitemap.xml|calculators/|og/|trip-cost-calculators/|goa-trip-cost-calculator/|rajasthan-trip-cost-calculator/|meghalaya-trip-cost-calculator/|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",
       "destination": "/index.html"
     }

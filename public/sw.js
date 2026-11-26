@@ -17,7 +17,7 @@
 //      and phase 2 decides deliberately which cross-origin data may be kept.
 //
 // The cached shell is refreshed on every successful navigation (except the
-// prerendered copy pages, OWN_HTML below), and any cache
+// prerendered copy pages and invite links, see isOwnDocument below), and any cache
 // that is not this version's is dropped on activate — so a deploy rolls the
 // offline copy forward without a version bump. Bump SW_VERSION only to force a
 // full drop (e.g. when the caching policy itself changes).
@@ -35,6 +35,13 @@ const OWN_HTML = new Set([
   '/faq', '/faq/', '/how-it-works', '/how-it-works/',
   '/about', '/about/', '/for-creators', '/for-creators/',
 ])
+
+/** True for a navigation whose response is that page's own HTML, not the shell:
+ *  a copy page, or an invite link. An invite response names a trip (#1042), so it
+ *  must never become the offline fallback for every route. */
+function isOwnDocument(pathname) {
+  return OWN_HTML.has(pathname) || pathname.startsWith('/join/')
+}
 
 /** Paths that must never be cached or served from cache. `/i/` and `/c/` are
  *  the tag-bearing card endpoints: a navigation to one must reach the network
@@ -82,9 +89,9 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          // Only the app's own document may take the SHELL key. A prerendered copy
-          // page is HTML of its own (see OWN_HTML above).
-          if (response.ok && !OWN_HTML.has(url.pathname)) {
+          // Only the app's own document may take the SHELL key. A copy page or an
+          // invite link is HTML of its own (see isOwnDocument above).
+          if (response.ok && !isOwnDocument(url.pathname)) {
             const copy = response.clone()
             caches.open(CACHE).then(cache => cache.put(SHELL, copy))
           }

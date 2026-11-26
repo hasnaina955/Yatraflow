@@ -1,0 +1,159 @@
+// ============ /join/<code>: the invite link card (#1042) ============
+// vercel.json rewrites `/join/:code` to `/api/join?code=:code`. A link preview
+// (WhatsApp, Slack, iMessage and the rest) reads the head of the page and does not
+// run the app, so this handler answers with the app's own shell, with an invite
+// head. A person gets the app; the app then boots as usual (createRoot replaces the
+// body).
+//
+// What it reads: the one read the invite screen makes for a signed-out visitor,
+// the anonymous RPC get_trip_by_invite_code. The code is the capability. For an
+// anonymous caller that RPC returns a trip only when the trip is private or has no
+// paid published guide (supabase/migrations/20261124c_invite_preview_write_version.sql),
+// so a priced trip answers nothing and gets the generic card. No migration is added.
+//
+// What it shows: the trip's name, and its day count from the start and end dates.
+// Nothing else: no members, budget, destination or dates. A code no trip has, a
+// malformed code, and every failed read all get the generic card. The response is
+// noindex and no-store, and it is never an error page.
+import { applyHead } from './_headTemplate.js'
+import { dayCountForRange } from './_dayCount.js'
+import { looksLikeInviteCode, normalizeInviteCode } from './_inviteCode.js'
+import { resolveOrigin } from './_origin.js'
+import { fitOg, OG_TITLE_MAX } from './_shareCard.js'
+import { supabaseAnonHeaders } from './_supabase-headers.js'
+import pageCards from '../scripts/page-cards.json' with { type: 'json' }
+
+const CARD = pageCards.invite
+const GENERIC_TITLE = "You're invited to plan a trip"
+const GENERIC_DESCRIPTION = 'Open the link to join a trip plan on YatraFlow.'
+const NAMED_DESCRIPTION = 'Open the link to join this trip plan on YatraFlow.'
+const READ_TIMEOUT_MS = 4000
+
+// The page used when the built shell cannot be read. It carries the same head, and
+// a link into the app, so a person still reaches YatraFlow.
+const FALLBACK_SHELL = [
+  '<!doctype html>',
+  '<html lang="en-IN">',
+  '  <head>',
+  '    <meta charset="UTF-8" />',
+  '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+  '  </head>',
+  '  <body>',
+  '    <div id="root"></div>',
+  '  </body>',
+  '</html>',
+].join('\n')
+const FALLBACK_BODY = '<main><p>Open <a href="/">YatraFlow</a> to join the trip together.</p></main>'
+
+/** The title of a named invite: `Join «name» · N days`. The day part is left out
+ *  when the dates give no count. The name is cut to the card's title budget, at a
+ *  word boundary, so the whole title stays readable in a chat preview. */
+export function namedTitle(name, days) {
+  const tail = days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''
+  const open = 'Join «'
+  const room = Math.max(1, OG_TITLE_MAX - open.length - '»'.length - tail.length)
+  return `${open}${fitOg(name, room)}»${tail}`
+}
+
+/** The head one invite page carries. `name` and `days` come only from the anonymous
+ *  read, and a missing name gives the generic card. `code` is set only for a code
+ *  shaped like an invite, and it names the og:url.
+ *
+ *  @param {{ name?: string | null, days?: number, code?: string | null, origin: string }} fields
+ */
+export function inviteHead({ name = null, days = 0, code = null, origin }) {
+  const named = typeof name === 'string' && name.trim() !== ''
+  return {
+    title: named ? namedTitle(name, days) : GENERIC_TITLE,
+    description: named ? NAMED_DESCRIPTION : GENERIC_DESCRIPTION,
+    robots: 'noindex',
+    ...(code ? { url: `${origin}/join/${code}` } : {}),
+    image: {
+      url: `${origin}/og/${CARD.file}`,
+      width: 1200,
+      height: 630,
+      type: 'image/png',
+      alt: CARD.headline,
+    },
+  }
+}
+
+/** The name and day count of the trip behind a code, or null. Null covers every
+ *  answer that is not a trip: an empty list (no trip has the code), a row with no
+ *  usable name, a non-OK status, a timeout and a network error. Each one gets the
+ *  generic card, so none of them can show the wrong trip. */
+export async function readInvite(code, env = process.env) {
+  const url = env.SUPABASE_URL
+  const key = env.SUPABASE_ANON_KEY
+  if (!url || !key) return null
+  try {
+    const response = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/get_trip_by_invite_code`, {
+      method: 'POST',
+      headers: supabaseAnonHeaders(key, { 'content-type': 'application/json' }),
+      body: JSON.stringify({ p_code: code }),
+      signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+    })
+    if (!response.ok) return null
+    const rows = await response.json()
+    if (!Array.isArray(rows) || !rows[0] || typeof rows[0] !== 'object') return null
+    const row = rows[0]
+    if (typeof row.name !== 'string' || row.name.trim() === '') return null
+    return { name: row.name, days: dayCountForRange(row.start_date, row.end_date) }
+  } catch {
+    return null
+  }
+}
+
+/** This deployment's own shell. The host is the one Vercel names for this build, so
+ *  a preview reads its own app; a local run reads the canonical origin. */
+export async function readShell(origin, env = process.env) {
+  const base = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : origin
+  try {
+    const response = await fetch(`${base}/index.html`, { signal: AbortSignal.timeout(READ_TIMEOUT_MS) })
+    if (!response.ok) return null
+    return await response.text()
+  } catch {
+    return null
+  }
+}
+
+/** The page for one request: the shell with the invite head. A shell that cannot be
+ *  read, or is not the shape the build writes, falls back to the same head with a
+ *  link into the app. Never an error page.
+ *
+ *  @param {string | null} shell the built index.html, or null when it could not be read
+ *  @param {ReturnType<typeof inviteHead>} head
+ */
+export function renderInvitePage(shell, head) {
+  if (typeof shell === 'string') {
+    try {
+      return applyHead(shell, head, null)
+    } catch {
+      // The shell is not the shape the build writes. The fallback below still serves the card.
+    }
+  }
+  return applyHead(FALLBACK_SHELL, head, FALLBACK_BODY)
+}
+
+export default async function handler(req, res) {
+  res.setHeader('content-type', 'text/html; charset=utf-8')
+  res.setHeader('cache-control', 'no-store')
+  res.setHeader('x-robots-tag', 'noindex')
+  res.setHeader('x-content-type-options', 'nosniff')
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.setHeader('allow', 'GET, HEAD')
+    return res.status(405).end()
+  }
+  // A HEAD request has no body, so it makes no read.
+  if (req.method === 'HEAD') return res.status(200).end()
+
+  const origin = resolveOrigin()
+  const raw = req.query?.code
+  // A malformed code makes no read at all: it has no trip to find.
+  const code = typeof raw === 'string' && looksLikeInviteCode(raw) ? normalizeInviteCode(raw) : null
+  const trip = code ? await readInvite(code) : null
+  const head = inviteHead({ name: trip?.name ?? null, days: trip?.days ?? 0, code, origin })
+  const shell = await readShell(origin)
+  res.status(200)
+  return res.send(renderInvitePage(shell, head))
+}

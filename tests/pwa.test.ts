@@ -134,7 +134,8 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
   })
 
   it('skips the SHELL write for those pages, and keeps the network-first navigation', () => {
-    expect(code).toContain('OWN_HTML.has(url.pathname)')
+    expect(code).toContain('!isOwnDocument(url.pathname)')
+    expect(code).toContain("OWN_HTML.has(pathname) || pathname.startsWith('/join/')")
     expect(code).toContain('cache.put(SHELL, copy)')
     expect(code).toContain('fetch(request)')
   })

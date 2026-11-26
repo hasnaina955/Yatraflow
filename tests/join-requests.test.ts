@@ -1,13 +1,15 @@
-// Join requests (D4) on the client. The module only calls the two RPCs and reads
-// the owner's pending rows. These tests pin the three things that matter: a
-// failed call is never reported as success, a failed read is never an empty
-// list, and only pending rows are asked for.
+// Join requests (D4) on the client. The module calls the two RPCs, reads the
+// owner's pending rows and names each requester from the public card. These
+// tests pin four things: a failed call is never reported as success, a failed
+// read is never an empty list, only pending rows are asked for, and a name comes
+// from the card, falling back only when no card exists.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { rpc, selectResult, eqCalls } = vi.hoisted(() => ({
+const { rpc, selectResult, eqCalls, cardResult } = vi.hoisted(() => ({
   rpc: vi.fn(),
   selectResult: { value: { data: [] as unknown, error: null as unknown } },
   eqCalls: [] as Array<[string, string]>,
+  cardResult: { value: { data: [] as unknown, error: null as unknown } },
 }))
 
 vi.mock('../src/lib/supabase', () => {
@@ -26,10 +28,18 @@ vi.mock('../src/lib/supabase', () => {
 
 import { requestTripJoin, listPendingJoinRequests, decideTripJoin } from '../src/lib/joinRequests'
 
+// Each RPC answers on its own: the card read has its own result, and the other
+// calls answer success unless a test overrides them.
+function answerRpcs() {
+  rpc.mockImplementation(async (fn: string) => (fn === 'get_public_profile_cards' ? cardResult.value : { error: null }))
+}
+const cardCalls = () => rpc.mock.calls.filter(([fn]) => fn === 'get_public_profile_cards')
+
 beforeEach(() => {
   rpc.mockReset()
-  rpc.mockResolvedValue({ error: null })
+  answerRpcs()
   selectResult.value = { data: [], error: null }
+  cardResult.value = { data: [], error: null }
   eqCalls.length = 0
 })
 
@@ -51,17 +61,63 @@ describe('requestTripJoin', () => {
 })
 
 describe('listPendingJoinRequests', () => {
-  it('asks only for pending rows of this trip and maps them', async () => {
+  it('asks only for pending rows of this trip and maps them with the card name', async () => {
     selectResult.value = {
       data: [{ id: 'req-1', user_id: 'u-1', role: 'editor', created_at: '2026-11-26T10:00:00Z' }],
       error: null,
     }
+    cardResult.value = { data: [{ id: 'u-1', name: 'Asha Rao' }], error: null }
     const out = await listPendingJoinRequests('trip-1')
     expect(out).toEqual({
       kind: 'ok',
-      requests: [{ id: 'req-1', userId: 'u-1', role: 'editor', createdAt: '2026-11-26T10:00:00Z' }],
+      requests: [{ id: 'req-1', userId: 'u-1', name: 'Asha Rao', role: 'editor', createdAt: '2026-11-26T10:00:00Z' }],
     })
     expect(eqCalls).toEqual([['trip_id', 'trip-1'], ['status', 'pending']])
+  })
+
+  it('names each requester from the public card by user id, one card read for the list', async () => {
+    selectResult.value = {
+      data: [
+        { id: 'req-1', user_id: 'u-1', role: 'editor', created_at: '2026-11-25T09:00:00Z' },
+        { id: 'req-2', user_id: 'u-2', role: 'viewer', created_at: '2026-11-26T08:30:00Z' },
+      ],
+      error: null,
+    }
+    cardResult.value = { data: [{ id: 'u-1', name: 'Asha Rao' }], error: null }
+    const out = await listPendingJoinRequests('trip-1')
+    expect(out).toEqual({
+      kind: 'ok',
+      requests: [
+        { id: 'req-1', userId: 'u-1', name: 'Asha Rao', role: 'editor', createdAt: '2026-11-25T09:00:00Z' },
+        { id: 'req-2', userId: 'u-2', name: 'Unnamed traveller', role: 'viewer', createdAt: '2026-11-26T08:30:00Z' },
+      ],
+    })
+    expect(cardCalls()).toHaveLength(1)
+    expect(rpc).toHaveBeenCalledWith('get_public_profile_cards', { p_ids: ['u-1', 'u-2'] })
+  })
+
+  it('shows the card name even when it is the default, because the card exists', async () => {
+    selectResult.value = { data: [{ id: 'req-1', user_id: 'u-1', role: 'viewer', created_at: '2026-11-26T10:00:00Z' }], error: null }
+    cardResult.value = { data: [{ id: 'u-1', name: 'Traveller' }], error: null }
+    const out = await listPendingJoinRequests('trip-1')
+    expect(out).toMatchObject({ kind: 'ok', requests: [{ name: 'Traveller' }] })
+  })
+
+  it('reports failed when the card read errors, never a fallback name for a known requester', async () => {
+    selectResult.value = { data: [{ id: 'req-1', user_id: 'u-1', role: 'viewer', created_at: '2026-11-26T10:00:00Z' }], error: null }
+    cardResult.value = { data: null, error: { message: 'denied' } }
+    expect(await listPendingJoinRequests('trip-1')).toEqual({ kind: 'failed' })
+  })
+
+  it('reports failed when the card rows are not an array', async () => {
+    selectResult.value = { data: [{ id: 'req-1', user_id: 'u-1', role: 'viewer', created_at: '2026-11-26T10:00:00Z' }], error: null }
+    cardResult.value = { data: { oops: true }, error: null }
+    expect(await listPendingJoinRequests('trip-1')).toEqual({ kind: 'failed' })
+  })
+
+  it('makes no card read when there are no pending requests', async () => {
+    expect(await listPendingJoinRequests('trip-1')).toEqual({ kind: 'ok', requests: [] })
+    expect(cardCalls()).toHaveLength(0)
   })
 
   it('reports failed on a read error, never an empty list', async () => {

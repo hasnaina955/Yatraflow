@@ -3,7 +3,6 @@
 // not load is never shown as "No one is waiting to join".
 import { useEffect, useState } from 'react'
 import { decideTripJoin, listPendingJoinRequests, type PendingJoinRequest } from '../../lib/joinRequests'
-import { userById } from '../../store/store'
 
 const ROLE_NAME = { editor: 'Editor', viewer: 'Viewer' } as const
 
@@ -53,7 +52,7 @@ export function JoinRequests({ tripId }: { tripId: string }) {
         <ul className="share-join-list">
           {list.requests.map(r => (
             <li key={r.id} className="share-join-row">
-              <span className="share-join-who">{userById(r.userId)?.profile?.name ?? 'Someone'} asked to join as {ROLE_NAME[r.role]}</span>
+              <span className="share-join-who">{r.name} asked to join as {ROLE_NAME[r.role]}</span>
               <span className="share-join-actions">
                 <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => decide(r.id, true)}>Approve</button>
                 <button type="button" className="btn btn-outline btn-sm" disabled={busy === r.id} onClick={() => decide(r.id, false)}>Decline</button>

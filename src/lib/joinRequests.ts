@@ -9,6 +9,8 @@ export type JoinRole = 'editor' | 'viewer'
 export interface PendingJoinRequest {
   id: string
   userId: string
+  /** The requester's name from their public card, or the fallback when no card exists. */
+  name: string
   role: JoinRole
   createdAt: string
 }
@@ -27,7 +29,7 @@ interface SelectBuilder extends PromiseLike<{ data: unknown; error: unknown }> {
   order(column: string, options: { ascending: boolean }): SelectBuilder
 }
 interface LooseClient {
-  rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ error: unknown }>
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data?: unknown; error: unknown }>
   from(table: string): { select(columns: string): SelectBuilder }
 }
 const client = supabase as unknown as LooseClient
@@ -42,6 +44,20 @@ export async function requestTripJoin(code: string): Promise<JoinWrite> {
   }
 }
 
+/** Shown only for a requester who has no public card. A failed card read shows nothing. */
+export const UNNAMED_TRAVELLER = 'Unnamed traveller'
+
+/** Display names from the public cards, keyed by user id. Null when the read fails. */
+async function readCardNames(ids: string[]): Promise<Map<string, string> | null> {
+  const { data, error } = await client.rpc('get_public_profile_cards', { p_ids: ids })
+  if (error || !Array.isArray(data)) return null
+  const names = new Map<string, string>()
+  for (const card of data as Array<{ id?: unknown; name?: unknown }>) {
+    if (typeof card.id === 'string' && typeof card.name === 'string') names.set(card.id, card.name)
+  }
+  return names
+}
+
 /** The owner's pending requests for one trip, oldest first. */
 export async function listPendingJoinRequests(tripId: string): Promise<PendingRead> {
   try {
@@ -53,9 +69,20 @@ export async function listPendingJoinRequests(tripId: string): Promise<PendingRe
       .order('created_at', { ascending: true })
     if (error || !Array.isArray(data)) return { kind: 'failed' }
     const rows = data as Array<{ id: string; user_id: string; role: JoinRole; created_at: string }>
+    if (rows.length === 0) return { kind: 'ok', requests: [] }
+    // One card read for every requester. A failed read fails the whole list,
+    // so a name is never invented while the cards cannot be read.
+    const names = await readCardNames([...new Set(rows.map(r => r.user_id))])
+    if (names === null) return { kind: 'failed' }
     return {
       kind: 'ok',
-      requests: rows.map(r => ({ id: r.id, userId: r.user_id, role: r.role, createdAt: r.created_at })),
+      requests: rows.map(r => ({
+        id: r.id,
+        userId: r.user_id,
+        name: names.get(r.user_id) ?? UNNAMED_TRAVELLER,
+        role: r.role,
+        createdAt: r.created_at,
+      })),
     }
   } catch {
     return { kind: 'failed' }

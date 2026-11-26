@@ -72,10 +72,10 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
   })
 
   it('both copies project the same 33 columns in the same order', () => {
-    const live = projection(migration)
+    const live = projection(liveBody)
     expect(live).toHaveLength(33)
     expect(new Set(live).size).toBe(33)
-    expect(projection(schema)).toEqual(live)
+    expect(projection(schemaBody)).toEqual(live)
   })
 
   it('both copies hold the same gates', () => {
@@ -104,6 +104,16 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
       expect(code.match(/p\.premium_price_inr is not null/g)).toHaveLength(2)
       expect(code).not.toContain('creator_id')
     }
+  })
+
+  it('uses the same public trip reader in the migration and bootstrap schema', () => {
+    const readPublicTrip = (source: string) => {
+      const start = source.indexOf('drop function if exists public.get_public_trip(text);')
+      expect(start).toBeGreaterThan(-1)
+      const grant = 'grant execute on function public.get_public_trip(text) to anon, authenticated;'
+      return source.slice(start, source.indexOf(grant, start) + grant.length)
+    }
+    expect(readPublicTrip(schema)).toBe(readPublicTrip(migration))
   })
 
   it('both copies carry the same grants and revokes', () => {
@@ -263,7 +273,6 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
   })
 
   it('keeps both preview RPCs and joining locked on the migrated database', async () => {
-    await db.exec('alter table public.published_itineraries add column unpublished_at timestamptz')
     await db.exec(migration)
     await db.exec(migration)
 

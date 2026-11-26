@@ -66,6 +66,7 @@ begin
     where oid = to_regprocedure('public.get_trip_by_invite_code(text)')
       and prorettype = 'public.trips'::regtype
   ) then
+    drop function if exists public.get_trip_by_invite_code(text);
     create or replace function public.get_trip_by_invite_code(p_code text)
     returns setof public.trips
     language sql
@@ -130,6 +131,7 @@ $migration$;
 revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
 grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
 
+drop function if exists public.get_invite_trip(uuid);
 create or replace function public.get_invite_trip(p_trip_id uuid)
 returns setof public.trips
 language plpgsql
@@ -219,6 +221,7 @@ $$;
 revoke all on function public.join_trip(text) from public, anon, authenticated, service_role;
 grant execute on function public.join_trip(text) to authenticated;
 
+drop function if exists public.get_public_trip(text);
 create or replace function public.get_public_trip(p_pub_id text)
 returns setof public.trips
 language plpgsql
@@ -229,7 +232,7 @@ as $$
 declare
   v_pub public.published_itineraries;
   v_trip public.trips;
-  v_buyer boolean;
+  v_buyer boolean := false;
   v_free int[];
   v_days jsonb;
   v_day jsonb;
@@ -302,10 +305,12 @@ begin
     return;
   end if;
 
-  v_buyer := exists (
-    select 1 from public.entitlements e
-    where e.pub_id = v_pub.id and e.user_id = auth.uid()
-  );
+  if auth.uid() is not null and to_regclass('public.entitlements') is not null then
+    v_buyer := exists (
+      select 1 from public.entitlements e
+      where e.pub_id = v_pub.id and e.user_id = auth.uid()
+    );
+  end if;
 
   -- A legacy publication can name a creator who does not own the trip.
   -- Keep existing purchases valid if the trip changed owners.

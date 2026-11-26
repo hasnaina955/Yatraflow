@@ -853,21 +853,39 @@ alter table if exists public.entitlements
   add constraint entitlements_pub_id_fkey
     foreign key (pub_id) references public.published_itineraries (id) on delete restrict;
 
-create or replace function public.guard_publication_trip_id()
-returns trigger language plpgsql set search_path = '' as $$
+create or replace function public.guard_publication_link()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
 begin
-  if old.trip_id is not null and new.trip_id is distinct from old.trip_id then
-    raise exception 'A publication cannot move to another trip.' using errcode = '23514';
+  if tg_op = 'UPDATE' then
+    if new.trip_id is distinct from old.trip_id then
+      raise exception 'A publication cannot move to another trip.' using errcode = '23514';
+    end if;
+    if new.creator_id is distinct from old.creator_id then
+      raise exception 'A publication cannot change its creator.' using errcode = '23514';
+    end if;
+  end if;
+  if new.trip_id is not null then
+    select t.owner_id into v_owner from public.trips t where t.id = new.trip_id;
+    if new.creator_id is distinct from v_owner then
+      raise exception 'Only the trip owner can publish this trip.' using errcode = '42501';
+    end if;
   end if;
   return new;
 end;
 $$;
-revoke all on function public.guard_publication_trip_id() from public, anon, authenticated;
 
-drop trigger if exists publication_trip_id_immutable on public.published_itineraries;
-create trigger publication_trip_id_immutable
-  before update on public.published_itineraries
-  for each row execute function public.guard_publication_trip_id();
+revoke all on function public.guard_publication_link() from public, anon, authenticated;
+
+drop trigger if exists publication_link_guard on public.published_itineraries;
+create trigger publication_link_guard
+  before insert or update on public.published_itineraries
+  for each row execute function public.guard_publication_link();
 
 -- ---------- pub_events ----------
 -- Read your own publications' funnel. NO write policy for anon/authenticated:
@@ -1038,32 +1056,89 @@ as $$
 $$;
 revoke all on function public.trip_has_priced_publication(uuid) from public, anon, authenticated;
 
-create or replace function public.invite_trip_payment_allows(p_trip_id uuid)
-returns boolean
+create or replace function public.trip_access_level(p_trip_id uuid)
+returns text
 language plpgsql
 stable
+security definer
 set search_path = public
 as $$
+declare
+  v_owner uuid;
+  v_deleted timestamptz;
+  v_buyer boolean := false;
 begin
-  if not public.trip_has_priced_publication(p_trip_id) then
-    return true;
+  if public.is_disabled() then
+    return 'none';
   end if;
 
-  if auth.uid() is null or to_regclass('public.entitlements') is null then
-    return false;
+  select t.owner_id, t.deleted_at
+    into v_owner, v_deleted
+    from public.trips t
+    where t.id = p_trip_id;
+  if not found then
+    return 'none';
   end if;
 
-  return exists (
-    select 1 from public.published_itineraries p
-    join public.trips t on t.id = p.trip_id and t.owner_id = p.creator_id
-    join public.entitlements e on e.pub_id = p.id
-    where p.trip_id = p_trip_id and p.premium_price_inr is not null
-      and e.user_id = auth.uid()
-  );
+  if v_owner = auth.uid() or public.is_admin() then
+    return 'crew';
+  end if;
+  -- 20261126d: a trashed trip is hidden from members who are not editors.
+  if public.is_editor(p_trip_id) then
+    return 'crew';
+  end if;
+  if v_deleted is null and public.is_member(p_trip_id) then
+    return 'crew';
+  end if;
+
+  -- The payments tables come from a separate migration. A schema-only install
+  -- has neither, so the buyer branch is skipped until they exist. The query
+  -- sits inside the guard, so plpgsql never plans it against a missing table.
+  if auth.uid() is not null
+    and to_regclass('public.entitlements') is not null
+    and to_regclass('public.purchase_orders') is not null then
+    select exists (
+      select 1
+      from public.entitlements e
+      join public.published_itineraries p on p.id = e.pub_id and p.trip_id = p_trip_id
+      join public.purchase_orders o on o.id = e.order_id
+      where e.user_id = auth.uid()
+        and o.status = 'paid'
+        and o.refunded_paise < o.amount_inr * 100
+    ) into v_buyer;
+    if v_buyer then
+      return 'buyer';
+    end if;
+  end if;
+
+  return 'outsider';
 end;
 $$;
-revoke all on function public.invite_trip_payment_allows(uuid) from public, anon, authenticated;
 
+revoke all on function public.trip_access_level(uuid) from public, anon, authenticated;
+
+create or replace function public.publication_is_listed(p_pub_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.published_itineraries p
+    join public.trips t on t.id = p.trip_id
+    where p.id = p_pub_id
+      and p.unpublished_at is null
+      and t.visibility = 'public'
+      and t.deleted_at is null
+      and p.creator_id = t.owner_id
+  )
+$$;
+
+revoke all on function public.publication_is_listed(text) from public, anon, authenticated;
+
+drop function if exists public.get_invite_trip(uuid);
 create or replace function public.get_invite_trip(p_trip_id uuid)
 returns setof public.trips
 language plpgsql
@@ -1073,26 +1148,31 @@ stable
 as $$
 declare
   v_trip public.trips;
+  v_level text;
 begin
-  for v_trip in
-    select t.* from public.trips t
-    where t.id = p_trip_id
-      and t.deleted_at is null
-      and not public.is_disabled()
-      and (
-        t.owner_id = auth.uid()
-        or public.is_member(t.id)
-        or public.is_admin()
-        or public.invite_trip_payment_allows(t.id)
-      )
-  loop
-    -- The code joins the trip. A caller with only the trip id never gets it.
-    v_trip.invite_code := null;
-    return next v_trip;
-  end loop;
+  select t.* into v_trip
+  from public.trips t
+  where t.id = p_trip_id
+    and t.deleted_at is null;
+  if not found then
+    return;
+  end if;
+
+  v_level := public.trip_access_level(v_trip.id);
+  if v_level = 'none' then
+    return;
+  end if;
+  if v_level <> 'crew' and public.trip_has_publication_money(v_trip.id) then
+    return;
+  end if;
+
+  -- The code joins the trip. A caller with only the trip id never gets it.
+  v_trip.invite_code := null;
+  return next v_trip;
   return;
 end;
 $$;
+
 revoke execute on function public.get_invite_trip(uuid) from public, anon;
 grant execute on function public.get_invite_trip(uuid) to anon, authenticated;
 
@@ -1107,7 +1187,7 @@ as $$
 declare
   v_pub public.published_itineraries;
   v_trip public.trips;
-  v_buyer boolean := false;
+  v_level text;
   v_priced boolean;
   v_free int[];
   v_days jsonb;
@@ -1124,13 +1204,9 @@ declare
     'shopping', 'museum', 'travel', 'hotel', 'rest', 'event', 'transport-hub'
   ];
 begin
-  if public.is_disabled() then
-    return;
-  end if;
-
   select * into v_pub from public.published_itineraries
     where id = p_pub_id limit 1;
-  if not found then
+  if not found or v_pub.trip_id is null then
     return;
   end if;
 
@@ -1174,43 +1250,58 @@ begin
       'drives_part', t.drives_part
     )
   ) as projected
-  where t.id = v_pub.trip_id
-    and t.visibility = 'public'
-  limit 1;
+  where t.id = v_pub.trip_id;
   if not found then
     return;
   end if;
 
-  -- This condition mirrors the trips read hide trashed policy.
-  if v_trip.owner_id = auth.uid() or public.is_admin() or public.is_editor(v_trip.id)
-    or (v_trip.deleted_at is null and public.is_member(v_trip.id)) then
+  v_level := public.trip_access_level(v_trip.id);
+  if v_level = 'none' then
+    return;
+  end if;
+
+  if v_level = 'crew' then
     return next v_trip;
     return;
   end if;
 
-  if v_pub.creator_id is distinct from v_trip.owner_id then
+  -- A guide that is not listed serves no outsider. A buyer keeps reading (D1).
+  if v_level = 'outsider' and not public.publication_is_listed(v_pub.id) then
     return;
   end if;
 
   v_priced := public.trip_has_priced_publication(v_trip.id);
-  if v_priced then
-    v_buyer := public.invite_trip_payment_allows(v_trip.id);
-  elsif auth.uid() is not null and to_regclass('public.entitlements') is not null then
-    v_buyer := exists (
-      select 1 from public.entitlements e
-      where e.pub_id = v_pub.id and e.user_id = auth.uid()
-    );
+
+  -- The crew ledger never leaves. Fixed commitments keep only the fields that
+  -- a buyer needs to plan the day; notes and references are dropped.
+  v_trip.expenses := '[]'::jsonb;
+  if v_level = 'buyer' or not v_priced then
+    select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+        'id', e.elem -> 'id',
+        'title', e.elem -> 'title',
+        'type', e.elem -> 'type',
+        'dayIndex', e.elem -> 'dayIndex',
+        'time', e.elem -> 'time',
+        'boardingTime', e.elem -> 'boardingTime',
+        'stopId', e.elem -> 'stopId'
+      ))), '[]'::jsonb)
+    into v_trip.fixed_commitments
+    from jsonb_array_elements(
+      case when jsonb_typeof(v_trip.fixed_commitments) = 'array'
+        then v_trip.fixed_commitments else '[]'::jsonb end
+    ) as e(elem)
+    where jsonb_typeof(e.elem) = 'object';
+  else
+    v_trip.fixed_commitments := '[]'::jsonb;
   end if;
 
-  if (v_pub.unpublished_at is not null or v_trip.deleted_at is not null) and not v_buyer then
-    return;
-  end if;
-
-  if v_buyer or not v_priced then
+  -- A buyer, or a free guide, reads every day as the creator wrote it.
+  if v_level = 'buyer' or not v_priced then
     return next v_trip;
     return;
   end if;
 
+  -- A priced guide, for an outsider: free days open, the other days are counted.
   v_free := '{}';
   if v_pub.premium_price_inr is not null and jsonb_typeof(v_pub.free_day_indexes) = 'array' then
     select coalesce(array_agg(value::int), '{}') into v_free
@@ -1218,9 +1309,6 @@ begin
       where value ~ '^[0-9]+$'
         and length(value) <= 4;
   end if;
-
-  v_trip.expenses := '[]'::jsonb;
-  v_trip.fixed_commitments := '[]'::jsonb;
 
   v_days := to_jsonb(v_trip.days);
 
@@ -3345,65 +3433,74 @@ create type public.trip_invite_preview as (
 -- The link does not identify who shared it.
 create or replace function public.get_trip_by_invite_code(p_code text)
 returns setof public.trip_invite_preview
-language sql
+language plpgsql
 security definer
 set search_path = public
 stable
 as $$
-  select projected.*
-  from public.trips t
-  left join public.profile_cards pc on pc.id = t.owner_id
-  left join public.trip_invite_role r on r.trip_id = t.id
-  cross join lateral jsonb_populate_record(
-    null::public.trip_invite_preview,
-    jsonb_build_object(
-      'id', t.id,
-      'owner_id', t.owner_id,
-      'name', t.name,
-      'start_location', t.start_location,
-      'destinations', t.destinations,
-      'start_date', t.start_date,
-      'end_date', t.end_date,
-      'travellers', t.travellers,
-      'transport_mode', t.transport_mode,
-      'budget_per_person_inr', t.budget_per_person_inr,
-      'travel_style', t.travel_style,
-      'fixed_commitments', t.fixed_commitments,
-      'days', t.days,
-      'expenses', t.expenses,
-      'cover_emoji', t.cover_emoji,
-      'visibility', t.visibility,
-      'created_at', t.created_at,
-      'updated_at', t.updated_at,
-      'start_location_coords', t.start_location_coords,
-      'destination_coords', t.destination_coords,
-      'fuel_economy_km_per_l', t.fuel_economy_km_per_l,
-      'fuel_price_per_l', t.fuel_price_per_l,
-      'round_trip', t.round_trip,
-      'invite_code', t.invite_code,
-      'deleted_at', t.deleted_at,
-      'driver_count', t.driver_count,
-      'has_vulnerable', t.has_vulnerable,
-      'drive_after_dinner_min', t.drive_after_dinner_min,
-      'vehicle_profile', t.vehicle_profile,
-      'cover_image_url', t.cover_image_url,
-      'stay_style', t.stay_style,
-      'drives_part', t.drives_part,
-      'write_version', t.write_version,
-      'owner_first_name', public.invite_first_name(pc.name),
-      'invite_role', coalesce(r.role, 'editor')
-    )
-  ) as projected
-  where upper(t.invite_code) = upper(trim(p_code))
-    and t.deleted_at is null
-    and not public.is_disabled()
-    and (
-      t.owner_id = auth.uid()
-      or public.is_member(t.id)
-      or public.is_admin()
-
-      or public.invite_trip_payment_allows(t.id)
-    );
+declare
+  v_row public.trip_invite_preview;
+  v_level text;
+begin
+  for v_row in
+    select projected.*
+    from public.trips t
+    left join public.profile_cards pc on pc.id = t.owner_id
+    left join public.trip_invite_role r on r.trip_id = t.id
+    cross join lateral jsonb_populate_record(
+      null::public.trip_invite_preview,
+      jsonb_build_object(
+        'id', t.id,
+        'owner_id', t.owner_id,
+        'name', t.name,
+        'start_location', t.start_location,
+        'destinations', t.destinations,
+        'start_date', t.start_date,
+        'end_date', t.end_date,
+        'travellers', t.travellers,
+        'transport_mode', t.transport_mode,
+        'budget_per_person_inr', t.budget_per_person_inr,
+        'travel_style', t.travel_style,
+        'fixed_commitments', t.fixed_commitments,
+        'days', t.days,
+        'expenses', t.expenses,
+        'cover_emoji', t.cover_emoji,
+        'visibility', t.visibility,
+        'created_at', t.created_at,
+        'updated_at', t.updated_at,
+        'start_location_coords', t.start_location_coords,
+        'destination_coords', t.destination_coords,
+        'fuel_economy_km_per_l', t.fuel_economy_km_per_l,
+        'fuel_price_per_l', t.fuel_price_per_l,
+        'round_trip', t.round_trip,
+        'invite_code', t.invite_code,
+        'deleted_at', t.deleted_at,
+        'driver_count', t.driver_count,
+        'has_vulnerable', t.has_vulnerable,
+        'drive_after_dinner_min', t.drive_after_dinner_min,
+        'vehicle_profile', t.vehicle_profile,
+        'cover_image_url', t.cover_image_url,
+        'stay_style', t.stay_style,
+        'drives_part', t.drives_part,
+        'write_version', t.write_version,
+        'owner_first_name', public.invite_first_name(pc.name),
+        'invite_role', coalesce(r.role, 'editor')
+      )
+    ) as projected
+    where upper(t.invite_code) = upper(trim(p_code))
+      and t.deleted_at is null
+  loop
+    v_level := public.trip_access_level(v_row.id);
+    if v_level = 'none' then
+      continue;
+    end if;
+    if v_level <> 'crew' and public.trip_has_priced_publication(v_row.id) then
+      raise exception 'Owner approval needed.' using errcode = 'PT403';
+    end if;
+    return next v_row;
+  end loop;
+  return;
+end;
 $$;
 
 revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
@@ -3527,5 +3624,199 @@ create policy "decisions read" on public.decisions
 drop policy if exists "activity read" on public.activity;
 create policy "activity read" on public.activity
   for select to authenticated using(public.is_member(trip_id) or public.is_admin());
+
+-- ---------- approve-request flow (D4) ----------
+create table if not exists public.trip_join_requests (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references public.trips (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  role text not null check (role in ('editor', 'viewer')),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'declined')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz,
+  unique (trip_id, user_id)
+);
+
+alter table public.trip_join_requests enable row level security;
+
+drop policy if exists "join requests read own" on public.trip_join_requests;
+create policy "join requests read own" on public.trip_join_requests
+  for select to authenticated using (user_id = auth.uid());
+
+drop policy if exists "join requests read owner" on public.trip_join_requests;
+create policy "join requests read owner" on public.trip_join_requests
+  for select to authenticated using (
+    exists (
+      select 1 from public.trips t
+      where t.id = trip_join_requests.trip_id and t.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "deny disabled" on public.trip_join_requests;
+create policy "deny disabled" on public.trip_join_requests
+  as restrictive for select to authenticated using (not public.is_disabled());
+
+revoke all on public.trip_join_requests from public, anon, authenticated;
+grant select on public.trip_join_requests to authenticated;
+
+create or replace function public.request_trip_join(p_code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_trip public.trips;
+  v_access public.trip_member_access;
+  v_link text;
+  v_id uuid;
+begin
+  if v_actor is null or public.is_disabled() then
+    raise exception 'Sign in with an enabled account.' using errcode = '42501';
+  end if;
+
+  -- The same predicate as the invite reader. A trashed trip has no live code.
+  select t.* into v_trip
+  from public.trips t
+  where upper(t.invite_code) = upper(trim(p_code))
+    and t.deleted_at is null
+  limit 1;
+  if v_trip.id is null then
+    raise exception 'Invite is unavailable.' using errcode = '42501';
+  end if;
+  if v_trip.owner_id = v_actor then
+    raise exception 'You already own this trip.' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.trip_members m where m.trip_id = v_trip.id and m.user_id = v_actor) then
+    raise exception 'You are already a member of this trip.' using errcode = '42501';
+  end if;
+
+  select a.* into v_access
+  from public.trip_member_access a
+  where a.trip_id = v_trip.id and a.user_id = v_actor;
+  if v_access.state = 'removed' or (v_access.owner_id is not null and v_access.owner_id <> v_trip.owner_id) then
+    raise exception 'Ask the owner to restore your access.' using errcode = '42501';
+  end if;
+
+  -- The role the link gives now. A missing row means editor, as join_trip reads it.
+  v_link := coalesce((select r.role from public.trip_invite_role r where r.trip_id = v_trip.id), 'editor');
+
+  -- A pending request stays pending. A declined request, or one whose member has
+  -- since left, opens again. The role is the link role at this moment.
+  insert into public.trip_join_requests (trip_id, user_id, role, status, decided_at)
+    values (v_trip.id, v_actor, v_link, 'pending', null)
+  on conflict (trip_id, user_id) do update
+    set role = excluded.role, status = 'pending', decided_at = null
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function public.request_trip_join(text) from public, anon;
+grant execute on function public.request_trip_join(text) to authenticated;
+
+create or replace function public.decide_trip_join(p_request uuid, p_approve boolean)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_req public.trip_join_requests;
+  v_trip public.trips;
+  v_access public.trip_member_access;
+  v_link text;
+  v_cap text;
+  v_role text;
+begin
+  if v_actor is null or public.is_disabled() then
+    raise exception 'Sign in with an enabled account.' using errcode = '42501';
+  end if;
+
+  select r.* into v_req
+  from public.trip_join_requests r
+  where r.id = p_request
+  for update;
+  if v_req.id is null then
+    raise exception 'Request not found.' using errcode = '42501';
+  end if;
+
+  select t.* into v_trip
+  from public.trips t
+  where t.id = v_req.trip_id
+  for update;
+
+  -- Only the owner decides. Anyone else gets the answer for a missing row.
+  if v_trip.owner_id is distinct from v_actor then
+    raise exception 'Request not found.' using errcode = '42501';
+  end if;
+
+  -- A decided request does not change. The same decision again is a no-op.
+  if v_req.status <> 'pending' then
+    if (v_req.status = 'approved') = p_approve then
+      return v_req.status;
+    end if;
+    raise exception 'This request was already decided.' using errcode = '42501';
+  end if;
+
+  if not p_approve then
+    update public.trip_join_requests
+      set status = 'declined', decided_at = now()
+      where id = v_req.id;
+    return 'declined';
+  end if;
+
+  if v_trip.deleted_at is not null then
+    raise exception 'Restore the trip before you approve a request.' using errcode = '42501';
+  end if;
+
+  -- The member gets the lower of the stored role and the link role now (1124b).
+  v_link := coalesce((select r.role from public.trip_invite_role r where r.trip_id = v_trip.id), 'editor');
+  v_cap := case when v_req.role = 'viewer' or v_link = 'viewer' then 'viewer' else 'editor' end;
+
+  select a.* into v_access
+  from public.trip_member_access a
+  where a.trip_id = v_trip.id and a.user_id = v_req.user_id
+  for update;
+
+  v_role := case
+    when v_access.user_id is null then v_cap
+    when v_access.state = 'active' then v_access.role
+    when array_position(array['viewer', 'commenter', 'editor', 'owner'], v_access.role)
+      <= array_position(array['viewer', 'commenter', 'editor', 'owner'], v_cap) then v_access.role
+    else v_cap
+  end;
+
+  -- The same member writes join_trip makes.
+  insert into public.trip_member_access (trip_id, user_id, owner_id, state, role, joined_at)
+    values (v_trip.id, v_req.user_id, v_trip.owner_id, 'active', v_role,
+      floor(extract(epoch from clock_timestamp()) * 1000))
+    on conflict (trip_id, user_id) do update
+      set state = 'active', role = excluded.role,
+          revision = public.trip_member_access.revision + 1;
+
+  insert into public.trip_members (trip_id, user_id, role, joined_at)
+    select trip_id, user_id, role, joined_at
+    from public.trip_member_access
+    where trip_id = v_trip.id and user_id = v_req.user_id
+    on conflict (trip_id, user_id) do nothing;
+
+  update public.trips
+    set access_version = access_version + 1
+    where id = v_trip.id;
+
+  update public.trip_join_requests
+    set status = 'approved', decided_at = now()
+    where id = v_req.id;
+
+  return 'approved';
+end;
+$$;
+
+revoke all on function public.decide_trip_join(uuid, boolean) from public, anon;
+grant execute on function public.decide_trip_join(uuid, boolean) to authenticated;
 
 commit;

@@ -176,8 +176,10 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
     const code = sqlCode(sqlFunction(src(`../supabase/migrations/${NEWEST}`), 'get_public_trip'))
     // Trade one hole for another? The soft-unpublish gate has to survive the
     // rewrite that removes the `select *`.
-    expect(code).toMatch(/if \(v_pub\.unpublished_at is not null or v_trip\.deleted_at is not null\) and not v_buyer then/)
-    expect(code).toMatch(/from public\.entitlements e\s+where e\.pub_id = v_pub\.id and e\.user_id = auth\.uid\(\)/)
+    // #350 now lives in the listing rule (publication_is_listed), and the buyer
+    // check lives in the one access function the reader asks.
+    expect(code).toMatch(/public\.publication_is_listed\(v_pub\.id\)/)
+    expect(code).toMatch(/v_level := public\.trip_access_level\(v_trip\.id\)/)
     // …and the withholding the paywall itself depends on. Since #774 the
     // function builds each locked day itself and edits no stored stop.
     expect(code).toMatch(/'locked', true/)
@@ -194,10 +196,13 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
     const code = sqlCode(sqlFunction(src(`../supabase/migrations/${newest}`), 'get_trip_by_invite_code'))
     // The gate: a priced publication locks the code path for everyone without a
     // claim on it — the same clause shape as get_invite_trip.
-    expect(code).toMatch(/public\.invite_trip_payment_allows\(t\.id\)/)
+    expect(code).toMatch(/public\.trip_access_level\(v_row\.id\)/)
+    expect(code).toMatch(/if v_level <> 'crew' and public\.trip_has_priced_publication\(v_row\.id\) then/)
     expect(code).not.toMatch(/t\.visibility = 'private'|p\.creator_id = auth\.uid\(\)/)
-    expect(code).toMatch(/public\.is_member\(t\.id\)/)
-    expect(code).toMatch(/public\.is_admin\(\)/)
+    // The membership and admin gates moved into the one access function.
+    const access = sqlCode(sqlFunction(src(`../supabase/migrations/${newest}`), 'trip_access_level'))
+    expect(access).toMatch(/public\.is_member\(p_trip_id\)/)
+    expect(access).toMatch(/public\.is_admin\(\)/)
     // Trashed trips stop resolving through the code, as they already do through
     // the uuid.
     expect(code).toMatch(/t\.deleted_at is null/)

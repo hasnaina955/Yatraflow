@@ -18,8 +18,10 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
-const MIGRATION = '20261126c_invite_preview_projection.sql'
-const PUBLIC_TRIP_MIGRATION = '20261126d_public_trip_trash_order.sql'
+// 20261127a redefines both readers and adds trip_access_level. It is the newest
+// definition of each, and the parity checks below read it.
+const MIGRATION = '20261127a_paid_access_boundary.sql'
+const PUBLIC_TRIP_MIGRATION = '20261127a_paid_access_boundary.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
 const hotfix = read('supabase/migrations/20261126b_paywall_visibility_authorship.sql')
 const schema = read('supabase/schema.sql')
@@ -47,6 +49,14 @@ function projection(sql: string): string[] {
   const end = body.indexOf(') as projected', start)
   if (start < 0 || end < 0) return []
   return [...body.slice(start, end).matchAll(/'([a-z_]+)', /g)].map(match => match[1])
+}
+
+/** The definition of any function in a source file, ending at its `$$;`. */
+function fnDefinition(source: string, name: string): string {
+  const start = source.indexOf(`create or replace function public.${name}(`)
+  if (start < 0) return ''
+  const end = source.indexOf('$$;', start)
+  return end < 0 ? '' : source.slice(start, end + 3)
 }
 
 const liveBody = definition(migration)
@@ -81,36 +91,44 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     expect(projection(schemaBody)).toEqual(live)
   })
 
-  it('both copies hold the same gates', () => {
+  it('the invite reader carries the access-level gate and the owner-approval refusal', () => {
     expect(flat(schemaBody)).toBe(flat(liveBody))
     const gates = [
       'upper(t.invite_code) = upper(trim(p_code))',
       't.deleted_at is null',
-      'owner_id = auth.uid()',
-      'public.is_member(',
-      'public.is_admin()',
-      'not public.is_disabled()',
-      'public.invite_trip_payment_allows(t.id)',
+      'v_level := public.trip_access_level(v_row.id)',
+      "if v_level <> 'crew' and public.trip_has_priced_publication(v_row.id) then",
+      "raise exception 'Owner approval needed.' using errcode = 'PT403'",
     ]
     for (const gate of gates) {
       expect(flat(liveBody), `the migration must keep: ${gate}`).toContain(gate)
     }
-    expect(flat(liveBody)).not.toMatch(/public\.entitlements|premium_price_inr/)
+    expect(flat(liveBody)).not.toMatch(/public\.entitlements|premium_price_inr|owner_id = auth\.uid\(\)/)
     expect(flat(liveBody)).toContain('public.invite_first_name(pc.name)')
     expect(flat(liveBody)).toContain("coalesce(r.role, 'editor')")
     expect(schema).toContain('revoke all on function public.invite_first_name(text) from public, anon, authenticated;')
   })
 
-  it('both build paths apply the same payment check', () => {
-    const helper = 'create or replace function public.invite_trip_payment_allows('
-    for (const source of [hotfix, schema]) {
-      const start = source.indexOf(helper)
-      const code = flat(source.slice(start, source.indexOf('$$;', start)))
-      expect(code).toContain("to_regclass('public.entitlements') is null")
-      expect(code).toContain('join public.entitlements e on e.pub_id = p.id')
-      expect(code).toContain('public.trip_has_priced_publication(p_trip_id)')
-      expect(code).toContain('t.owner_id = p.creator_id')
+  it('the one access function keeps the membership, admin and trash gates in both build paths', () => {
+    // The gates the invite reader used to carry now live here.
+    const gates = [
+      'public.is_disabled()',
+      'v_owner = auth.uid() or public.is_admin()',
+      'public.is_editor(p_trip_id)',
+      'v_deleted is null and public.is_member(p_trip_id)',
+      "to_regclass('public.entitlements') is not null",
+    ]
+    for (const [label, source] of [['the migration', migration], ['schema.sql', schema]] as const) {
+      const access = flat(fnDefinition(source, 'trip_access_level'))
+      expect(access, `${label} defines trip_access_level`).not.toBe('')
+      for (const gate of gates) {
+        expect(access, `${label} must keep: ${gate}`).toContain(gate)
+      }
     }
+  })
+
+  it('schema.sql no longer carries the dropped payment helper', () => {
+    expect(schema).not.toContain('invite_trip_payment_allows')
   })
 
   it('the newest migration that defines get_public_trip is the one this test reads', () => {
@@ -266,10 +284,11 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     expect(await rowsFor('', codes[PRIVATE_TRIP])).toHaveLength(1)
   })
 
-  it('a priced publication hides the trip from a caller who cannot be a buyer', async () => {
+  it('a priced publication asks a caller who cannot be a buyer for owner approval', async () => {
     // No payments rail exists in this build, so no entitlement row can exist.
-    expect(await rowsFor('', codes[PRICED_TRIP])).toEqual([])
-    expect(await rowsFor(STRANGER, codes[PRICED_TRIP])).toEqual([])
+    // The reader raises PT403 for these callers. It never returns the trip.
+    await expect(rowsFor('', codes[PRICED_TRIP])).rejects.toThrow('Owner approval needed.')
+    await expect(rowsFor(STRANGER, codes[PRICED_TRIP])).rejects.toThrow('Owner approval needed.')
     // The owner and the publication's creator still resolve it.
     expect(await rowsFor(OWNER, codes[PRICED_TRIP])).toHaveLength(1)
   })
@@ -280,7 +299,9 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
       'insert into public.published_itineraries(id, trip_id, creator_id) values($1,$2,$3)',
       [pub, trip, actor],
     )
-    await expect(insert(STRANGER, 'other_owner', PRICED_TRIP)).rejects.toThrow(/row-level security/)
+    // The link guard refuses a creator who is not the trip owner. It runs before
+    // RLS on insert, so either refusal is correct; the guard's is the one that fires.
+    await expect(insert(STRANGER, 'other_owner', PRICED_TRIP)).rejects.toThrow(/Only the trip owner can publish this trip|row-level security/)
     await insert(OWNER, 'owner_publication', PRIVATE_TRIP)
 
     const otherTrip = '20000000-0000-4000-8000-000000000003'
@@ -292,13 +313,21 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     )).rejects.toThrow('A publication cannot move to another trip.')
   })
 
-  it('a buyer resolves it once the payments rail exists, and a stranger still does not', async () => {
+  it('a buyer reaches the buyer level once the payments rail exists, and a stranger does not', async () => {
     // The rail arrives after the bootstrap, as a migration would. This is the
     // branch the to_regclass guard defers, so it must work once it is reached.
     await db.exec(read('supabase/migrations/20260918_payments_rail.sql'))
+    await db.exec(read('supabase/migrations/20260918_payments_security.sql'))
+    // The buyer branch reads refunded_paise, which 20261003 adds to the rail.
+    await db.exec(read('supabase/migrations/20261003_partial_refund_record.sql'))
     await seedEntitlement(PUB, BUYER)
-    expect(await rowsFor(BUYER, codes[PRICED_TRIP])).toHaveLength(1)
-    expect(await rowsFor(STRANGER, codes[PRICED_TRIP])).toEqual([])
+    const levelFor = async (actor: string) => (await asCaller<{ level: string }>(
+      'service_role', actor, 'select public.trip_access_level($1) as level', [PRICED_TRIP],
+    )).rows[0].level
+    expect(await levelFor(BUYER)).toBe('buyer')
+    expect(await levelFor(STRANGER)).toBe('outsider')
+    // A buyer joins by request, not by code. The code reader refuses a buyer too (D4).
+    await expect(rowsFor(BUYER, codes[PRICED_TRIP])).rejects.toThrow('Owner approval needed.')
   })
 
   it('keeps both preview RPCs and joining locked on the migrated database', async () => {
@@ -313,18 +342,24 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     const join = (actor: string) => asCaller(
       'authenticated', actor, 'select public.join_trip($1)', [code],
     )
+    // A pre-guard row: its creator is not the trip owner. The link guard refuses
+    // that on write, so replica mode writes it the way old data was written.
+    await db.query('set session_replication_role = replica')
     await db.query(
       'insert into public.published_itineraries(id,trip_id,creator_id) values($1,$2,$3)',
       ['legacy_publication', PRICED_TRIP, STRANGER],
     )
+    await db.query('set session_replication_role = origin')
     await seedEntitlement('legacy_publication', STRANGER)
     await db.query('update public.published_itineraries set premium_price_inr=0 where id=$1', [PUB])
-    expect(await rowsFor('', code)).toEqual([])
-    expect(await rowsFor(STRANGER, code)).toEqual([])
+    // The code reader refuses every non-crew caller on a priced trip, buyer included.
+    await expect(rowsFor('', code)).rejects.toThrow('Owner approval needed.')
+    await expect(rowsFor(STRANGER, code)).rejects.toThrow('Owner approval needed.')
+    await expect(rowsFor(BUYER, code)).rejects.toThrow('Owner approval needed.')
+    // The UUID reader returns no trip to a non-crew caller on a priced trip.
     expect((await uuidRows(STRANGER)).rows).toEqual([])
+    expect((await uuidRows(BUYER)).rows).toEqual([])
     await expect(join(STRANGER)).rejects.toMatchObject({ code: 'PT403' })
-    expect(await rowsFor(BUYER, code)).toHaveLength(1)
-    expect((await uuidRows(BUYER)).rows).toEqual([{ invite_code: null }])
     await expect(join(BUYER)).rejects.toMatchObject({ code: 'PT403' })
 
     await db.query('update public.trips set visibility=$1 where id=$2', ['public', PRICED_TRIP])

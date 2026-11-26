@@ -46,6 +46,24 @@
           "value": "public, max-age=3600"
         }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://www.yatraflow.in/>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/(trip|trips|new|profile|purchases|creator-hub|admin|auth|created|share|join|invite)(/.*)?",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ],
   "redirects": [

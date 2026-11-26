@@ -748,9 +748,13 @@ describe('the production origin agrees everywhere it is written', () => {
     expect(inClient).toBe(inHandler)
   })
 
-  it('is what the shell advertises as its own url, canonical and card image', () => {
+  it('is what the shell advertises as its own url and card image (#1042: the shell names no canonical)', () => {
     expect(shell).toContain(`<meta property="og:url" content="${inHandler}/" />`)
-    expect(shell).toContain(`<link rel="canonical" href="${inHandler}/" />`)
+    // Every app route is served this shell, so a canonical here would name the home
+    // page for all of them. The home page's canonical is an HTTP Link header instead
+    // (vercel.json), and each route sets its own in App.
+    expect(shell).not.toContain('rel="canonical"')
+    expect(read('../vercel.json')).toContain(`"value": "<${inHandler}/>; rel=\\"canonical\\""`)
     // The handler builds its fallback image from this same constant, so a domain
     // move must not leave one of the two pointing at the old host.
     expect(shell).toContain(`<meta property="og:image" content="${inHandler}/og-default.png" />`)

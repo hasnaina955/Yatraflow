@@ -56,6 +56,29 @@ const DESCRIPTIONS: Record<string, string> = {
   'for-creators': FOR_CREATORS_DESCRIPTION,
 }
 
+/** The app's own pages: a signed-in account's screens, and the share, invite and
+ *  creation pages of one record. They are not for search, so they carry noindex and
+ *  no canonical (#1042). A public page such as /explore or /pub/<id> is not listed. */
+const PRIVATE_ROUTES: ReadonlySet<string> = new Set([
+  'trip', 'trips', 'new', 'profile', 'purchases', 'creator-hub', 'admin', 'auth',
+  'created', 'share', 'join', 'invite',
+])
+
+/** Whether a route is one of the app's own private pages. */
+export function isPrivateRoute(parts: string[]): boolean {
+  return PRIVATE_ROUTES.has(parts[0] ?? '')
+}
+
+/** The path a route names as its own canonical address, or null when the route
+ *  names none. The home page and the copy pages name themselves. Every other route
+ *  names none, so no page inherits the home page's canonical (#1042). */
+export function canonicalPath(parts: string[]): string | null {
+  const head = parts[0] ?? ''
+  if (!head) return '/'
+  if (Object.prototype.hasOwnProperty.call(DESCRIPTIONS, head)) return `/${head}`
+  return null
+}
+
 /** Routes whose title is the record's own name when we have it. */
 const NAMED: Record<string, string> = {
   pub: 'Itinerary',

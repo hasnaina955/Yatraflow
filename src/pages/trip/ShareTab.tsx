@@ -861,6 +861,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
             </div>
           )}
           <hr className="divider" />
+          {isOwner && <JoinRequests tripId={trip.id} />}
           <h3 className="shr-card-title">Members and roles · {(trip.members ?? []).length}</h3>
           <div className="shr-members" ref={attachMembers}>
             {memberEntries.length === 0 ? (
@@ -999,7 +1000,6 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           {pub && isOwner && pubLive && (
             <button className="btn btn-ghost btn-sm shr-unpublish-action" onClick={() => setPendingUnpublish(true)}>Unpublish</button>
           )}
-          {isOwner && <JoinRequests tripId={trip.id} />}
           {pubLink && <div className="share-link-box shr-publication-link"><code title={pubLink}>{pubLink}</code><CopyButton text={pubLink} label="Copy" /></div>}
         </Surface>
       </>

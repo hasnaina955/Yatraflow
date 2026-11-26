@@ -210,6 +210,40 @@ begin
   end if;
 end $$;
 
+-- Invite preview type, reader signature and client grants.
+do $$
+declare
+  v_type oid := to_regtype('public.trip_invite_preview');
+  v_reader oid := to_regprocedure('public.get_trip_by_invite_code(text)');
+  v_helper oid := to_regprocedure('public.invite_first_name(text)');
+begin
+  if v_type is null or not exists (
+    select 1 from pg_type t
+    where t.oid = v_type and t.typtype = 'c'
+      and (select count(*) from pg_attribute a
+        where a.attrelid = t.typrelid and a.attnum > 0 and not a.attisdropped) = 35
+  ) then
+    raise exception 'trip_invite_preview must be a composite type with 35 members';
+  end if;
+  if v_reader is null or not exists (
+    select 1 from pg_proc p where p.oid = v_reader and p.proretset and p.prorettype = v_type
+  ) or (select count(*) from pg_proc p
+    where p.pronamespace = 'public'::regnamespace and p.proname = 'get_trip_by_invite_code') <> 1 then
+    raise exception 'get_trip_by_invite_code(text) must be the only overload and return setof trip_invite_preview';
+  end if;
+  if v_helper is null then
+    raise exception 'invite_first_name(text) must exist';
+  end if;
+  if has_function_privilege('anon', v_helper, 'execute')
+    or has_function_privilege('authenticated', v_helper, 'execute') then
+    raise exception 'clients must not execute invite_first_name';
+  end if;
+  if not has_function_privilege('anon', v_reader, 'execute')
+    or not has_function_privilege('authenticated', v_reader, 'execute') then
+    raise exception 'clients must execute get_trip_by_invite_code';
+  end if;
+end $$;
+
 -- ------------------------------------------------------------ 2. trip_members
 do $$
 begin

@@ -8,7 +8,7 @@ const sitemapPath = '../api/sitemap.js'
 // their hub. Derived from the manifest so adding a destination moves these
 // counts with it instead of failing three unrelated assertions.
 const CALCULATOR_URLS = JSON.parse(readFileSync(new URL('../calculators/manifest.json', import.meta.url), 'utf8')).calculators.length + 1
-const STATIC_URLS = 1 + CALCULATOR_URLS + 3 // shell + hub + calculators + FAQ + how it works + for creators
+const STATIC_URLS = 1 + CALCULATOR_URLS + 4 // shell + hub + calculators + about + FAQ + how it works + for creators
 const fetchMock = vi.fn<typeof fetch>()
 
 // 2026-09-17T00:00:00Z — a fixed instant so the expected <lastmod> is a literal
@@ -77,9 +77,11 @@ describe('robots.txt', () => {
     // Exact-line membership, not a built RegExp: the rules are literals and
     // the guard must read them as bytes, the way a crawler does.
     const rules = read('../public/robots.txt').split('\n').map(l => l.trim())
-    for (const prefix of ['/pub/', '/creator/', '/trip/', '/join/', '/created/', '/share/']) {
+    for (const prefix of ['/pub/', '/creator/', '/trip/', '/created/', '/share/']) {
       expect(rules).toContain(`Disallow: ${prefix}`)
     }
+    // /join stays open: the preview bots fetch its card, and its noindex keeps it out of search.
+    expect(rules).not.toContain('Disallow: /join/')
   })
 
   it('does not try to disallow hash routes, which a crawler never sends', () => {
@@ -133,6 +135,7 @@ describe('sitemap handler in node', () => {
     expect(res.body).toContain('<loc>https://www.yatraflow.in/ladakh-trip-cost-calculator/</loc>')
     expect(res.body).toContain('<loc>https://www.yatraflow.in/goa-trip-cost-calculator/</loc>')
     expect(res.body).toContain('<loc>https://www.yatraflow.in/trip-cost-calculators/</loc>')
+    expect(res.body).toContain('<loc>https://www.yatraflow.in/about</loc>')
     expect(res.body).toContain('<loc>https://www.yatraflow.in/faq</loc>')
     expect(res.body).toContain('<loc>https://www.yatraflow.in/how-it-works</loc>')
     expect(res.body).toContain('<loc>https://www.yatraflow.in/for-creators</loc>')

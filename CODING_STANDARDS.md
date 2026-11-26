@@ -1197,6 +1197,10 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    meaning: the same projection and key order, the same gates, the same grants,
    and one run on a schema-only PGlite database.
    `tests/invite-lookup-schema-parity.test.ts` is the model.
+- **A store hook that renders at build time needs a server snapshot (learned 2026-11-26, #1042).** `useSyncExternalStore(subscribe, get)` throws "Missing getServerSnapshot" in the prerender. Pass the same getter as the third argument. `tests/use-sync-server-snapshot.test.ts` parses every call under `src`, so a hook split over several lines is still counted.
+- **Every route gets the same shell, so the shell cannot hold a per-route canonical or robots tag (learned 2026-11-26, #1042).** A canonical in `index.html` names the home page for every app route. Set per-route values in the app after boot, and send the home page's canonical as a header, as `vercel.json` does.
+- **Run `npm run lint:ste` after `git add -N` on each new file (learned 2026-11-26, #1042).** The default run reads tracked changes only. Two STE faults in a new file passed unchecked and reached a commit.
+- **`vite preview` does not read `vercel.json`, so it serves no rewrite or header from that file (learned 2026-11-26, #1042).** Test a rewrite against the file's own order and matcher. Check the deployed headers on a preview deployment.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

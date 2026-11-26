@@ -16,14 +16,32 @@
 //      is left alone here — a cached auth/rest response is a correctness bug,
 //      and phase 2 decides deliberately which cross-origin data may be kept.
 //
-// The cached shell is refreshed on every successful navigation, and any cache
+// The cached shell is refreshed on every successful navigation (except the
+// prerendered copy pages and invite links, see isOwnDocument below), and any cache
 // that is not this version's is dropped on activate — so a deploy rolls the
 // offline copy forward without a version bump. Bump SW_VERSION only to force a
 // full drop (e.g. when the caching policy itself changes).
-const SW_VERSION = 'v3'
+const SW_VERSION = 'v4'
 const CACHE = `yatraflow-${SW_VERSION}`
 const SHELL = '/'
 const SHELL_ASSETS = [SHELL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+
+/** The prerendered copy pages (#1042). Each is its own HTML document, not the
+ *  app shell. A successful navigation to one must not overwrite the SHELL key,
+ *  or the offline fallback would open that page at every address. The navigation
+ *  itself still goes to the network first. Exact pathnames, with and without the
+ *  slash, because /faq and /faq/ both reach the page. */
+const OWN_HTML = new Set([
+  '/faq', '/faq/', '/how-it-works', '/how-it-works/',
+  '/about', '/about/', '/for-creators', '/for-creators/',
+])
+
+/** True for a navigation whose response is that page's own HTML, not the shell:
+ *  a copy page, or an invite link. An invite response names a trip (#1042), so it
+ *  must never become the offline fallback for every route. */
+function isOwnDocument(pathname) {
+  return OWN_HTML.has(pathname) || pathname.startsWith('/join/')
+}
 
 /** Paths that must never be cached or served from cache. `/i/` and `/c/` are
  *  the tag-bearing card endpoints: a navigation to one must reach the network
@@ -71,7 +89,9 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          if (response.ok) {
+          // Only the app's own document may take the SHELL key. A copy page or an
+          // invite link is HTML of its own (see isOwnDocument above).
+          if (response.ok && !isOwnDocument(url.pathname)) {
             const copy = response.clone()
             caches.open(CACHE).then(cache => cache.put(SHELL, copy))
           }

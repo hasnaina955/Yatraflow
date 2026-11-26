@@ -23,7 +23,8 @@ import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { analyticsBeforeSend } from './lib/analyticsPrivacy'
 import { scrollBehavior } from './lib/motion'
-import { pageMeta, routeParts } from './lib/pageTitle'
+import { canonicalPath, isPrivateRoute, pageMeta, routeParts } from './lib/pageTitle'
+import { PUBLIC_ORIGIN } from './lib/shareUrl'
 import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath } from './lib/routes'
 import { stashCalcPrefillFromSearch } from './lib/calcPrefill'
 import { normalizeInviteCode, inviteRoute } from './lib/inviteCode'
@@ -138,8 +139,10 @@ export function profileLookupState(
 const GUEST_ROUTE_SEGMENTS = new Set(['pub', 'creator', 'explore', 'creators', 'for-creators'])
 
 /** Routes that are static copy: they read no store data, so they paint before
- *  the hydrate settles instead of showing the loading block. */
-const STATIC_COPY_SEGMENTS = new Set(['faq', 'how-it-works'])
+ *  the hydrate settles instead of showing the loading block. The build prerenders
+ *  these four pages (scripts/prerender-static-pages.mjs), so the loader must not
+ *  replace their text after boot. */
+const STATIC_COPY_SEGMENTS = new Set(['faq', 'how-it-works', 'about', 'for-creators'])
 
 /** Whether the profile lookup takes the page from the route. A failed lookup takes it on the
  *  bare route too, so its Try again is never hidden behind the landing. A reading lookup does
@@ -556,19 +559,27 @@ export default function App() {
         tag.setAttribute('content', original)
       }
     }
-    // A page with its own copy is its own canonical. Without this the shell's
-    // canonical (the homepage) tells a crawler to fold /faq into '/', while the
-    // sitemap lists it as a page of its own.
+    // The canonical names this route's own address, and only the home page and the
+    // copy pages name one. The shell ships no canonical (every route would inherit
+    // the homepage's), so the link is created here when a route needs it and
+    // removed when it does not (#1042). The origin is the production origin, so a
+    // preview never names itself.
+    const canonicalTo = canonicalPath(routeParts(route))
     const canonical = document.querySelector('link[rel="canonical"]')
-    if (canonical) {
-      const original = canonical.getAttribute('data-site-canonical')
-      if (meta.description) {
-        if (original === null) canonical.setAttribute('data-site-canonical', canonical.getAttribute('href') ?? '')
-        const base = new URL(original ?? canonical.getAttribute('href') ?? '/', location.origin).origin
-        canonical.setAttribute('href', `${base}/${routeParts(route).join('/')}`)
-      } else if (original !== null) {
-        canonical.setAttribute('href', original)
-      }
+    if (canonicalTo !== null) {
+      const link = canonical ?? document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'canonical' }))
+      link.setAttribute('href', `${PUBLIC_ORIGIN}${canonicalTo}`)
+    } else {
+      canonical?.remove()
+    }
+    // Private pages are noindex. The server sends the same header for these paths
+    // (vercel.json), so a crawler that does not run script sees it too.
+    const robotsTag = document.querySelector('meta[name="robots"]')
+    if (isPrivateRoute(routeParts(route))) {
+      const robots = robotsTag ?? document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
+      robots.setAttribute('content', 'noindex')
+    } else {
+      robotsTag?.remove()
     }
   }, [route])
 

@@ -85,7 +85,7 @@ Browser checks must accept this floor instead of requiring an exact zero.
 The check once read only unstaged edits, so a commit made it inspect zero lines and always pass. If the checked count is zero, read the base named in the verdict before you trust the pass.
 
 Use `npm run verify` — it runs the full gate:
-`tsc -b --clean` → `tsc -b` → `npm run typecheck:tests` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run changelog:check` → `npm run check:css` → `npm test` → `vite build`.
+`tsc -b --clean` → `tsc -b` → `npm run typecheck:tests` → `npm run lint:ratchet` → `npm run lint:ste` → `npm run changelog:check` → `npm run check:css` → `npm test` → `vite build` → `node scripts/prerender-static-pages.mjs` (the four static copy pages, #1042).
 
 **Between full gate runs, a focused run selects with git, not memory.**
 `npm run test:changed` unions the test files changed vs the batch base with the

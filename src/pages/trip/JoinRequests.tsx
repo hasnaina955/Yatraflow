@@ -17,7 +17,6 @@ export function JoinRequests({ tripId }: { tripId: string }) {
 
   useEffect(() => {
     let alive = true
-    setList({ kind: 'loading' })
     void listPendingJoinRequests(tripId).then(r => {
       if (alive) setList(r.kind === 'ok' ? { kind: 'ok', requests: r.requests } : { kind: 'failed' })
     })
@@ -29,7 +28,10 @@ export function JoinRequests({ tripId }: { tripId: string }) {
     setFailedDecision(null)
     void decideTripJoin(id, approve).then(r => {
       setBusy(null)
-      if (r.kind === 'ok') setReload(n => n + 1)
+      if (r.kind === 'ok') {
+        setList({ kind: 'loading' })
+        setReload(n => n + 1)
+      }
       else setFailedDecision(id)
     })
   }
@@ -41,7 +43,7 @@ export function JoinRequests({ tripId }: { tripId: string }) {
       {list.kind === 'failed' && (
         <div className="share-join-state" role="alert">
           <p>Couldn’t load join requests.</p>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setReload(n => n + 1)}>Try again</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => { setList({ kind: 'loading' }); setReload(n => n + 1) }}>Try again</button>
         </div>
       )}
       {list.kind === 'ok' && list.requests.length === 0 && (

@@ -19,6 +19,7 @@ const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
 const MIGRATION = '20261126b_paywall_visibility_authorship.sql'
+const PUBLIC_TRIP_MIGRATION = '20261126d_public_trip_trash_order.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
 const schema = read('supabase/schema.sql')
 
@@ -106,14 +107,23 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     }
   })
 
-  it('uses the same public trip reader in the migration and bootstrap schema', () => {
+  it('the newest migration that defines get_public_trip is the one this test reads', () => {
+    const defining = readdirSync('supabase/migrations')
+      .filter(name => name.endsWith('.sql'))
+      .sort()
+      .filter(name => read(`supabase/migrations/${name}`).includes('function public.get_public_trip('))
+    expect(defining.at(-1), 'a newer migration redefines get_public_trip: update PUBLIC_TRIP_MIGRATION').toBe(PUBLIC_TRIP_MIGRATION)
+  })
+
+  it('uses the same public trip reader in the newest migration and bootstrap schema', () => {
     const readPublicTrip = (source: string) => {
       const start = source.indexOf('drop function if exists public.get_public_trip(text);')
       expect(start).toBeGreaterThan(-1)
       const grant = 'grant execute on function public.get_public_trip(text) to anon, authenticated;'
       return source.slice(start, source.indexOf(grant, start) + grant.length)
     }
-    expect(readPublicTrip(schema)).toBe(readPublicTrip(migration))
+    const newest = read(`supabase/migrations/${PUBLIC_TRIP_MIGRATION}`)
+    expect(readPublicTrip(schema)).toBe(readPublicTrip(newest))
   })
 
   it('both copies carry the same grants and revokes', () => {

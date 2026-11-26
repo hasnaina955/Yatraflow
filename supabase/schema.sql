@@ -1181,7 +1181,9 @@ begin
     return;
   end if;
 
-  if v_trip.owner_id = auth.uid() or public.is_member(v_trip.id) or public.is_admin() then
+  -- This condition mirrors the trips read hide trashed policy.
+  if v_trip.owner_id = auth.uid() or public.is_admin() or public.is_editor(v_trip.id)
+    or (v_trip.deleted_at is null and public.is_member(v_trip.id)) then
     return next v_trip;
     return;
   end if;

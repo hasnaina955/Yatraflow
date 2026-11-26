@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const read = (file: string) => readFileSync(new URL(`../supabase/${file}`, import.meta.url), 'utf8')
 const migration = 'migrations/20261126b_paywall_visibility_authorship.sql'
+const trashOrder = 'migrations/20261126d_public_trip_trash_order.sql'
 const owner = '10000000-0000-4000-8000-000000000001'
 const buyer = '10000000-0000-4000-8000-000000000002'
 const legacyCreator = '10000000-0000-4000-8000-000000000003'
@@ -13,6 +14,12 @@ const priced = '20000000-0000-4000-8000-000000000001'
 const other = '20000000-0000-4000-8000-000000000002'
 const legacy = '20000000-0000-4000-8000-000000000003'
 const privateStop = 'Private waterfront stop'
+const trashed = '20000000-0000-4000-8000-000000000004'
+const trashedFree = '20000000-0000-4000-8000-000000000005'
+const viewer = '10000000-0000-4000-8000-000000000006'
+const commenter = '10000000-0000-4000-8000-000000000007'
+const editor = '10000000-0000-4000-8000-000000000008'
+const stranger = '10000000-0000-4000-8000-000000000009'
 
 describe('publication and paid invite rules on PostgreSQL', () => {
   let db: PGlite
@@ -83,6 +90,8 @@ describe('publication and paid invite rules on PostgreSQL', () => {
     `)
     await db.exec(read(migration))
     await db.exec(read(migration))
+    await db.exec(read(trashOrder))
+    await db.exec(read(trashOrder))
     for (const id of [owner, buyer, legacyCreator, crew, admin]) {
       await db.query('insert into auth.users(id, email) values ($1, $2)', [id, `${id}@synthetic.invalid`])
     }
@@ -218,6 +227,68 @@ describe('publication and paid invite rules on PostgreSQL', () => {
     const handover = 'update public.trips set owner_id = $1 where id = $2 returning owner_id'
     const changed = await asCaller('service_role', '', handover, [crew, other])
     expect(changed.rows).toEqual([{ owner_id: crew }])
+  })
+
+  it('gives a trashed trip to no viewer or commenter, on a free or a priced link', async () => {
+    for (const id of [viewer, commenter, editor, stranger]) {
+      await db.query('insert into auth.users(id, email) values ($1, $2)', [id, `${id}@synthetic.invalid`])
+    }
+    for (const [trip, pub, premium] of [[trashed, 'trashed-paid', 499], [trashedFree, 'trashed-free', null]] as const) {
+      await db.query(
+        "insert into public.trips(id, owner_id, name, visibility, days) values ($1, $2, 'Trashed trip', 'public', $3::jsonb)",
+        [trip, owner, JSON.stringify([{ id: 'paid-day', index: 1, stops: [{ title: privateStop, category: 'sightseeing' }] }])],
+      )
+      await db.query(
+        "insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr, free_day_indexes, duration_days) values ($1, $2, $3, $4, '[0]', 2)",
+        [pub, trip, owner, premium],
+      )
+      for (const [user, role] of [[viewer, 'viewer'], [commenter, 'commenter'], [editor, 'editor']] as const) {
+        await db.query(
+          "insert into public.trip_member_access(trip_id, user_id, owner_id, state, role, joined_at) values ($1, $2, $3, 'active', $4, $5)",
+          [trip, user, owner, role, Date.now()],
+        )
+        await db.query('insert into public.trip_members(trip_id, user_id, role, joined_at) values ($1, $2, $3, $4)', [trip, user, role, Date.now()])
+      }
+      await db.query('update public.trips set deleted_at = now() where id = $1', [trip])
+    }
+    for (const pub of ['trashed-paid', 'trashed-free']) {
+      expect(await publicTrip(pub, viewer), `viewer on ${pub}`).toEqual([])
+      expect(await publicTrip(pub, commenter), `commenter on ${pub}`).toEqual([])
+    }
+  })
+
+  it('keeps a trashed trip in full for its owner, its editor and an admin', async () => {
+    for (const pub of ['trashed-paid', 'trashed-free']) {
+      for (const actor of [owner, editor]) {
+        const rows = await publicTrip(pub, actor)
+        expect(rows, `${actor} on ${pub}`).toHaveLength(1)
+        expect(JSON.stringify(rows), `${actor} on ${pub}`).toContain(privateStop)
+      }
+    }
+    await db.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ app_metadata: { role: 'masteradmin' } })])
+    try {
+      for (const pub of ['trashed-paid', 'trashed-free']) {
+        const rows = await publicTrip(pub, admin)
+        expect(rows, `admin on ${pub}`).toHaveLength(1)
+        expect(JSON.stringify(rows), `admin on ${pub}`).toContain(privateStop)
+      }
+    } finally {
+      await db.exec("select set_config('request.jwt.claims', '', false)")
+    }
+  })
+
+  it('serves an active trip to a viewer in full, and to a stranger locked', async () => {
+    for (const trip of [trashed, trashedFree]) {
+      await db.query('update public.trips set deleted_at = null where id = $1', [trip])
+    }
+    for (const pub of ['trashed-paid', 'trashed-free']) {
+      const rows = await publicTrip(pub, viewer)
+      expect(rows, `viewer on ${pub}`).toHaveLength(1)
+      expect(JSON.stringify(rows), `viewer on ${pub}`).toContain(privateStop)
+    }
+    const locked = await publicTrip('trashed-paid', stranger)
+    expect(locked).toHaveLength(1)
+    expect(JSON.stringify(locked)).not.toContain(privateStop)
   })
 
   it('replaces the earlier return type and fails if another signature remains', async () => {

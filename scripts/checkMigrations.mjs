@@ -148,6 +148,9 @@ export function deriveProbes(sql) {
  *  errors at call time) or covered by another live suite. A silent failure to
  *  apply is the one thing this check refuses to wave through. */
 export const NO_PROBE_SURFACE = {
+  '20261126d_public_trip_trash_order.sql': {
+    reason: 'Redefines get_public_trip only. A missing file is silent: a viewer or commenter can read a trashed trip. The cover is tests/paywall-visibility-authorship-db.test.ts, which runs the file on PGlite and calls the function as each kind of viewer.',
+  },
   '20261126b_paywall_visibility_authorship.sql': {
     reason: 'Updates publication policies, a trigger, and trip readers. The RLS contract and tests/paywall-visibility-authorship-db.test.ts cover access.',
   },

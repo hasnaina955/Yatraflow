@@ -171,7 +171,7 @@ describe('#566 — a trashed trip keeps serving its creator and buyers', () => {
   it('gates on the tombstone instead — creator and entitled buyers pass', () => {
     const fn = body()
     expect(fn, 'the trash gate is gone').toMatch(/if \(v_pub\.unpublished_at is not null or v_trip\.deleted_at is not null\) and not v_buyer then/)
-    expect(fn).toMatch(/if v_trip\.owner_id = auth\.uid\(\) or public\.is_member\(v_trip\.id\) or public\.is_admin\(\) then\s+return next v_trip/)
+    expect(fn).toMatch(/if v_trip\.owner_id = auth\.uid\(\) or public\.is_admin\(\) or public\.is_editor\(v_trip\.id\)\s+or \(v_trip\.deleted_at is null and public\.is_member\(v_trip\.id\)\) then\s+return next v_trip/)
   })
 
   it('runs the gate before any path that could serve the trip to a visitor', () => {

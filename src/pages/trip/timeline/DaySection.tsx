@@ -1638,7 +1638,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           status={sheetStop.status}
           otherDayNumbers={sheetOtherDays}
           editable={editable}
-          kindIcon={<StopKindIcon kind={stopPresentation(sheetStop, bodyTrip?.transportMode).kind} />}
+          kindIcon={<StopKindIcon kind={stopPresentation(sheetStop, trip?.transportMode).kind} />}
           isFirst={sheetIndex === 0}
           isLast={sheetIndex === ordered.length - 1}
           onEdit={() => onEdit(sheetStop.id)}

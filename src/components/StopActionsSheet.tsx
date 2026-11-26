@@ -63,11 +63,11 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const {
     open, onClose, stopTitle, dayNumber, timeLabel, stopNumber, stopCount,
     status, otherDayNumbers, editable, kindIcon, isFirst, isLast,
-    onEdit, onStatus, onMove, onReorderUp, onReorderDown, onShowOnMap, onRemove,
   } = props
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const [present, setPresent] = useState(open)
+  const [dragging, setDragging] = useState(false)
   const [dragY, setDragY] = useState(0)
   const dragStart = useRef<number | null>(null)
   if (open && !present) setPresent(true)
@@ -123,6 +123,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (prefersReducedMotion()) return
     dragStart.current = e.clientY
+    setDragging(true)
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent) => {
@@ -132,6 +133,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const onPointerUp = () => {
     if (dragStart.current == null) return
     dragStart.current = null
+    setDragging(false)
     const distance = dragY
     setDragY(0)
     if (distance >= DRAG_CLOSE_PX) onClose()
@@ -150,7 +152,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        data-dragging={dragStart.current != null ? 'true' : undefined}
+        data-dragging={dragging ? 'true' : undefined}
         style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
         inert={!open ? true : undefined}
       >

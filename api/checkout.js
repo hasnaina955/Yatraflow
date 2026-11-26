@@ -44,20 +44,24 @@ async function authUserId(supabaseUrl, anonKey, token, signal) {
   return typeof user?.id === 'string' && user.id ? user.id : null
 }
 
-async function fetchPublication(supabaseUrl, serviceKey, pubId, signal) {
-  // unpublished_at=is.null: the paywall is at the wire, not in React — a
-  // withdrawn plan must not mint a gateway order. Rows survive #350, so a
-  // withdrawn pub otherwise reads as present and sells; with the filter it
-  // takes the exact "not found" refusal a missing row already gets.
-  const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/published_itineraries` +
-    `?id=eq.${encodeURIComponent(pubId)}&unpublished_at=is.null&select=id,creator_id,premium_price_inr,trips!inner(owner_id)&limit=1`
-  const response = await fetch(url, {
-    headers: supabaseServiceHeaders(serviceKey),
+/** checkout_offer (spec 3.6): the facts checkout decides from. The database
+ *  owns the listing rule, the buyer state and the creator check, so none of
+ *  them is re-derived here. The buyer id is passed in, so the read does not
+ *  depend on auth.uid(). A read that returns no facts throws, which the caller
+ *  reports as a 503 rather than deciding on nothing. */
+async function fetchCheckoutOffer(supabaseUrl, serviceKey, buyerId, pubId, signal) {
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/rpc/checkout_offer`, {
+    method: 'POST',
+    headers: { ...supabaseServiceHeaders(serviceKey), 'content-type': 'application/json' },
+    body: JSON.stringify({ p_pub_id: pubId, p_buyer: buyerId }),
     signal,
   })
-  if (!response.ok) throw new Error(`publications read failed: ${response.status}`)
-  const rows = await response.json()
-  return Array.isArray(rows) ? rows[0] ?? null : null
+  if (!response.ok) throw new Error(`checkout offer read failed: ${response.status}`)
+  const facts = await response.json()
+  if (!facts || typeof facts !== 'object' || Array.isArray(facts)) {
+    throw new Error('checkout offer returned no facts')
+  }
+  return facts
 }
 
 async function fetchEntitlements(supabaseUrl, serviceKey, userId, pubId, signal) {
@@ -233,28 +237,20 @@ export default async function handler(req, res) {
 
   const signal = AbortSignal.timeout(8000)
   let userId
-  let pub
+  let offer
   try {
     userId = await authUserId(supabaseUrl, anonKey, token, signal)
     if (!userId) return json(res, 401, { error: 'session expired — log in again' })
-    pub = await fetchPublication(supabaseUrl, serviceKey, pubId, signal)
+    offer = await fetchCheckoutOffer(supabaseUrl, serviceKey, userId, pubId, signal)
   } catch {
     return json(res, 503, { error: 'could not reach the trip store' })
   }
-  if (!pub) return json(res, 404, { error: 'no such publication' })
-  if (typeof pub.creator_id !== 'string' || !pub.creator_id || pub.creator_id !== pub.trips?.owner_id) {
-    return json(res, 403, { error: 'this itinerary is not available for purchase' })
+  // Spec 3.6, steps 2 and 3: the buyer exists and is not disabled, and the
+  // publication exists. Both are decided on the facts, not re-read here.
+  if (offer.buyer_found !== true || offer.buyer_disabled === true) {
+    return json(res, 403, { error: 'this account cannot buy right now' })
   }
-
-  // The price comes from the row, never the request. Unpriced ⇒ nothing to buy.
-  const price = pub.premium_price_inr
-  if (!Number.isInteger(price) || price < 1) {
-    return json(res, 403, { error: 'this itinerary is free — fork it instead' })
-  }
-  // The creator does not buy their own publication.
-  if (pub.creator_id === userId) {
-    return json(res, 403, { error: 'this is your own publication' })
-  }
+  if (offer.publication_found !== true) return json(res, 404, { error: 'no such publication' })
 
   let recovering = false
   try {
@@ -341,6 +337,21 @@ export default async function handler(req, res) {
       return json(res, 503, {
         error: 'your earlier attempt is in a state we do not recognise — to make sure you are never charged twice, we stopped here; try again in a moment',
       })
+    }
+    // Spec 3.6, steps 6 to 8. Recovery above ran whatever the listing state, so
+    // money already taken settled. New money goes only to a listed guide, and an
+    // open order is not served again on an unlisted one.
+    if (offer.listed !== true) {
+      return json(res, 404, { error: 'this itinerary is not available' })
+    }
+    // The price comes from the row, never the request. Unpriced ⇒ nothing to buy.
+    const price = offer.price_inr
+    if (!Number.isInteger(price) || price < 1) {
+      return json(res, 403, { error: 'this itinerary is free — fork it instead' })
+    }
+    // The creator does not buy their own publication.
+    if (offer.buyer_is_creator === true) {
+      return json(res, 403, { error: 'this is your own publication' })
     }
     const atPrice = payable.filter(p => p.order.amount_inr === price)
     // #594 — several orders at the CURRENT price, all still payable, means the

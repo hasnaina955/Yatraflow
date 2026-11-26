@@ -537,7 +537,6 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
   }
 
   const sev = worstSeverity(warnings)
-  const totalStops = ordered.length
 
   // FLIP slot-in: when this column's card arrangement changes (same-day drag
   // reorder, or a card slotting in from another day), every card animates from
@@ -583,7 +582,6 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
       <button type="button" className="board-col-head" onClick={() => onToggleFocus(day.index)}
         aria-pressed={focused} title={focused ? `Show the whole route again` : `Focus the map on Day ${day.index + 1}`}>
         <span className="board-col-day"><i style={{ backgroundColor: dayColor(day.index) }} />Day {day.index + 1}{date && <span className="board-col-date">{new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })}</span>}</span>
-        <span className="board-col-count">{focused ? 'Focused · ' : ''}{totalStops} stop{totalStops === 1 ? '' : 's'}</span>
         {day.title && <span className="board-col-subtitle" title={day.title}>{day.title}</span>}
         {loadLabel && <span className={`board-col-load load-${loadLabel.includes('long') ? 'long' : loadLabel.includes('full') ? 'full' : loadLabel.includes('light') ? 'light' : 'stay'}`}><span className="board-load-track"><span className="board-load-fill" /></span>{loadLabel}</span>}
       </button>

@@ -223,21 +223,17 @@
    screens used, and it keeps the buttons centred with one gap. */
 .inv-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 
-/* D4 — the owner's join requests on the Share tab. Rows lift on hover with the
-   fast motion token; the list is plain so it reads as a list, not a card grid. */
+/* D4 — the owner's join requests, on the Plan card. Each row reuses the member
+   row (.feed-item.shr-member-row): name and age, the role chip, then the two
+   decisions. The details column has a 160px basis, so at phone width the
+   decisions wrap to their own line, and at 1280 the whole row fits on one. */
 .share-join-requests { display: grid; gap: 10px; margin-top: 18px; }
-.share-join-title { font-size: 1rem; margin: 0; }
 .share-join-state { margin: 0; }
 .share-join-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.share-join-row {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 12px; border: 1px solid currentColor; border-radius: 10px;
-  transition: background var(--motion-fast) ease;
-}
-.share-join-row:hover { background: rgba(127, 127, 127, 0.08); }
+.share-join-row { flex-wrap: wrap; }
+.share-join-row .shr-member-details { flex: 1 1 160px; min-width: 0; }
 .share-join-actions { display: inline-flex; gap: 8px; }
 .share-join-error { width: 100%; font-size: 0.9rem; }
-@media (prefers-reduced-motion: reduce) { .share-join-row { transition: none; } }
 
 /* The small trip preview on a signed-out invite. Every value comes from the
    trip the gate already holds, so this is a restatement, not a new read. */

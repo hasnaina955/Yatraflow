@@ -3,6 +3,8 @@
 // not load is never shown as "No one is waiting to join".
 import { useEffect, useState } from 'react'
 import { decideTripJoin, listPendingJoinRequests, type PendingJoinRequest } from '../../lib/joinRequests'
+import { Chip } from '../../components/ui'
+import { timeAgo } from './shared'
 
 const ROLE_NAME = { editor: 'Editor', viewer: 'Viewer' } as const
 
@@ -37,7 +39,7 @@ export function JoinRequests({ tripId }: { tripId: string }) {
 
   return (
     <section className="share-join-requests" aria-labelledby="share-join-title">
-      <h3 id="share-join-title" className="share-join-title">Join requests</h3>
+      <h3 id="share-join-title" className="shr-card-title">Join requests</h3>
       {list.kind === 'loading' && <p className="share-join-state" role="status">Loading requests…</p>}
       {list.kind === 'failed' && (
         <div className="share-join-state" role="alert">
@@ -51,8 +53,12 @@ export function JoinRequests({ tripId }: { tripId: string }) {
       {list.kind === 'ok' && list.requests.length > 0 && (
         <ul className="share-join-list">
           {list.requests.map(r => (
-            <li key={r.id} className="share-join-row">
-              <span className="share-join-who">{r.name} asked to join as {ROLE_NAME[r.role]}</span>
+            <li key={r.id} className="feed-item shr-member-row share-join-row">
+              <div className="shr-member-details">
+                <b>{r.name}</b>
+                <div className="small muted">{timeAgo(Date.parse(r.createdAt))}</div>
+              </div>
+              <Chip tone="info">{ROLE_NAME[r.role]}</Chip>
               <span className="share-join-actions">
                 <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => decide(r.id, true)}>Approve</button>
                 <button type="button" className="btn btn-outline btn-sm" disabled={busy === r.id} onClick={() => decide(r.id, false)}>Decline</button>

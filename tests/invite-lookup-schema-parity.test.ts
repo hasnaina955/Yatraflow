@@ -6,14 +6,8 @@
 // trash filter and its approved projection, so a fresh install resolved a priced
 // plan for anyone who held the invite code.
 //
-// Two copies exist on purpose. The live one (the newest migration) is
-// `language sql`, and a sql body is validated at CREATE time. schema.sql
-// deliberately never creates the payments rail (see the DEFERRED table in
-// tests/trip-owner-delete-guards.test.ts), so a verbatim sql copy fails the
-// whole bootstrap with "relation does not exist". So the schema copy is
-// plpgsql, and it guards the one rail table with to_regclass, the same pattern
-// trip_has_publication_money uses. The parity this file pins is the meaning:
-// the same projection, the same gates, the same grants.
+// Both definitions call the same payment check. It handles a schema-only
+// install where the payments rail is absent and no buyer can exist yet.
 //
 // The second half runs the function on a schema-only PGlite database. A source
 // scan cannot prove what an anon caller receives.
@@ -24,7 +18,7 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
-const MIGRATION = '20261124c_invite_preview_write_version.sql'
+const MIGRATION = '20261126b_paywall_visibility_authorship.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
 const schema = read('supabase/schema.sql')
 
@@ -91,11 +85,8 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
       'owner_id = auth.uid()',
       'public.is_member(',
       'public.is_admin()',
-      "visibility = 'private'",
-      'coalesce(p.premium_price_inr, 0) > 0',
-      'p.creator_id = auth.uid()',
-      'public.entitlements',
-      'e.user_id = auth.uid()',
+      'not public.is_disabled()',
+      'public.invite_trip_payment_allows(t.id)',
     ]
     for (const gate of gates) {
       expect(flat(liveBody), `the migration must keep: ${gate}`).toContain(gate)
@@ -103,22 +94,21 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     }
   })
 
-  it('schema.sql drops the unfiltered body, and defers the rail table from a plpgsql body', () => {
-    const text = flat(schemaBody)
-    expect(text).not.toContain('select t.*')
-    expect(text).toContain('language plpgsql')
-    expect(flat(liveBody)).toContain('language sql')
-    // A deferred relation is legal only inside plpgsql, and only behind a guard
-    // that keeps a schema-only build valid.
-    const guard = text.indexOf("to_regclass('public.entitlements') is not null")
-    const readOfTable = text.indexOf('from public.entitlements e')
-    expect(guard).toBeGreaterThan(-1)
-    expect(readOfTable, 'the entitlements read must sit after its guard').toBeGreaterThan(guard)
+  it('both build paths apply the same payment check', () => {
+    const helper = 'create or replace function public.invite_trip_payment_allows('
+    for (const source of [migration, schema]) {
+      const start = source.indexOf(helper)
+      const code = flat(source.slice(start, source.indexOf('$$;', start)))
+      expect(code).toContain("to_regclass('public.entitlements') is null")
+      expect(code).toContain('join public.entitlements e on e.pub_id = p.id')
+      expect(code.match(/p\.premium_price_inr is not null/g)).toHaveLength(2)
+      expect(code).not.toContain('creator_id')
+    }
   })
 
   it('both copies carry the same grants and revokes', () => {
     for (const [label, source] of [['the migration', migration], ['schema.sql', schema]] as const) {
-      expect(source, label).toContain(`revoke all on function public.${NAME}(text) from public;`)
+      expect(source, label).toContain(`revoke execute on function public.${NAME}(text) from public, anon;`)
       expect(source, label).toContain(`grant execute on function public.${NAME}(text) to anon, authenticated;`)
     }
   })
@@ -193,7 +183,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
       await db.query('insert into auth.users(id,email) values($1,$2)', [id, `${id}@synthetic.invalid`])
     }
     await db.query('insert into public.trips(id,owner_id,name,visibility) values($1,$2,$3,$4)', [PRIVATE_TRIP, OWNER, 'Code trip', 'private'])
-    await db.query('insert into public.trips(id,owner_id,name,visibility) values($1,$2,$3,$4)', [PRICED_TRIP, OWNER, 'Priced trip', 'public'])
+    await db.query('insert into public.trips(id,owner_id,name,visibility) values($1,$2,$3,$4)', [PRICED_TRIP, OWNER, 'Priced trip', 'private'])
     await db.query(
       `insert into public.published_itineraries(id,trip_id,creator_id,title,premium_price_inr,free_day_indexes)
        values($1,$2,$3,$4,$5,$6::jsonb)`,
@@ -239,9 +229,28 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
 
   it('a priced publication hides the trip from a caller who cannot be a buyer', async () => {
     // No payments rail exists in this build, so no entitlement row can exist.
+    expect(await rowsFor('', codes[PRICED_TRIP])).toEqual([])
     expect(await rowsFor(STRANGER, codes[PRICED_TRIP])).toEqual([])
     // The owner and the publication's creator still resolve it.
     expect(await rowsFor(OWNER, codes[PRICED_TRIP])).toHaveLength(1)
+  })
+
+  it('requires the linked trip owner on publication inserts and updates', async () => {
+    const insert = (actor: string, pub: string, trip: string) => asCaller(
+      'authenticated', actor,
+      'insert into public.published_itineraries(id, trip_id, creator_id) values($1,$2,$3)',
+      [pub, trip, actor],
+    )
+    await expect(insert(STRANGER, 'other_owner', PRICED_TRIP)).rejects.toThrow(/row-level security/)
+    await insert(OWNER, 'owner_publication', PRIVATE_TRIP)
+
+    const otherTrip = '20000000-0000-4000-8000-000000000003'
+    await db.query('insert into public.trips(id,owner_id,name) values($1,$2,$3)', [otherTrip, STRANGER, 'Other trip'])
+    await insert(STRANGER, 'own_publication', otherTrip)
+    await expect(asCaller('authenticated', STRANGER,
+      'update public.published_itineraries set trip_id=$1 where id=$2',
+      [PRICED_TRIP, 'own_publication'],
+    )).rejects.toThrow(/row-level security/)
   })
 
   it('a buyer resolves it once the payments rail exists, and a stranger still does not', async () => {
@@ -251,5 +260,53 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     await db.query('insert into public.entitlements(pub_id,user_id) values($1,$2)', [PUB, BUYER])
     expect(await rowsFor(BUYER, codes[PRICED_TRIP])).toHaveLength(1)
     expect(await rowsFor(STRANGER, codes[PRICED_TRIP])).toEqual([])
+  })
+
+  it('keeps both preview RPCs and joining locked on the migrated database', async () => {
+    await db.exec('alter table public.published_itineraries add column unpublished_at timestamptz')
+    await db.exec(migration)
+    await db.exec(migration)
+
+    const code = codes[PRICED_TRIP]
+    const uuidRows = (actor: string) => asCaller<{ invite_code: string | null }>(
+      'authenticated', actor, 'select invite_code from public.get_invite_trip($1)', [PRICED_TRIP],
+    )
+    const join = (actor: string) => asCaller(
+      'authenticated', actor, 'select public.join_trip($1)', [code],
+    )
+    await db.query(
+      'insert into public.published_itineraries(id,trip_id,creator_id) values($1,$2,$3)',
+      ['legacy_publication', PRICED_TRIP, STRANGER],
+    )
+    await db.query('insert into public.entitlements values($1,$2)', ['legacy_publication', STRANGER])
+    await db.query('update public.published_itineraries set premium_price_inr=0 where id=$1', [PUB])
+    expect(await rowsFor('', code)).toEqual([])
+    expect(await rowsFor(STRANGER, code)).toEqual([])
+    expect((await uuidRows(STRANGER)).rows).toEqual([])
+    await expect(join(STRANGER)).rejects.toThrow(/Invite is unavailable/)
+    expect(await rowsFor(BUYER, code)).toHaveLength(1)
+    expect((await uuidRows(BUYER)).rows).toEqual([{ invite_code: null }])
+    await join(BUYER)
+
+    await db.query('update public.trips set visibility=$1 where id=$2', ['public', PRICED_TRIP])
+    await db.query('delete from public.entitlements where pub_id=$1', ['legacy_publication'])
+    expect((await asCaller('authenticated', STRANGER,
+      'select id from public.get_public_trip($1)', ['legacy_publication'],
+    )).rows).toEqual([])
+    expect((await asCaller('authenticated', BUYER,
+      'select id from public.get_public_trip($1)', [PUB],
+    )).rows).toEqual([{ id: PRICED_TRIP }])
+  })
+
+  it('preserves a newer invite projection when the hotfix runs after it', async () => {
+    await db.exec('drop function public.get_trip_by_invite_code(text)')
+    await db.exec('create type public.trip_invite_preview as (id uuid)')
+    await db.exec('create function public.get_trip_by_invite_code(text) returns setof public.trip_invite_preview language sql as $$ select null::uuid where false $$')
+    await db.exec(migration)
+
+    const result = await db.query<{ preserves_projection: boolean }>(
+      "select prorettype = 'public.trip_invite_preview'::regtype as preserves_projection from pg_proc where oid = 'public.get_trip_by_invite_code(text)'::regprocedure",
+    )
+    expect(result.rows).toEqual([{ preserves_projection: true }])
   })
 })

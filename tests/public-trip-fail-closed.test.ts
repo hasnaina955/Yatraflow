@@ -170,16 +170,16 @@ describe('#566 — a trashed trip keeps serving its creator and buyers', () => {
 
   it('gates on the tombstone instead — creator and entitled buyers pass', () => {
     const fn = body()
-    expect(fn, 'the trash gate is gone').toMatch(/if v_trip\.deleted_at is not null and not \(/)
-    const gate = fn.slice(fn.indexOf('if v_trip.deleted_at is not null and not ('))
+    expect(fn, 'the trash gate is gone').toMatch(/if v_trip\.deleted_at is not null/)
+    const gate = fn.slice(fn.indexOf('if v_trip.deleted_at is not null'))
     const claimants = gate.slice(0, gate.indexOf('then'))
-    expect(claimants).toContain('v_pub.creator_id = auth.uid()')
-    expect(claimants).toContain('from public.entitlements e')
+    expect(claimants).toContain('v_trip.owner_id is distinct from auth.uid()')
+    expect(claimants).toContain('not v_buyer')
   })
 
   it('runs the gate before any path that could serve the trip', () => {
     const fn = body()
-    const gate = fn.indexOf('if v_trip.deleted_at is not null and not (')
+    const gate = fn.indexOf('if v_trip.deleted_at is not null')
     expect(gate).toBeGreaterThan(-1)
     // Before the first `return next`, so no branch can skip it.
     expect(gate).toBeLessThan(fn.indexOf('return next v_trip'))

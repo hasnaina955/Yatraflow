@@ -793,6 +793,32 @@ create policy "published read" on public.published_itineraries
 create policy "published write" on public.published_itineraries
   for all using (auth.uid() = creator_id) with check (auth.uid() = creator_id);
 
+-- These checks AND with the existing creator and admin policies.
+drop policy if exists "published insert owns trip" on public.published_itineraries;
+create policy "published insert owns trip" on public.published_itineraries
+  as restrictive for insert to authenticated with check (
+    trip_id is null or public.is_admin() or exists (
+      select 1 from public.trips t
+      where t.id = published_itineraries.trip_id and t.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "published update owns trip" on public.published_itineraries;
+create policy "published update owns trip" on public.published_itineraries
+  as restrictive for update to authenticated
+  using (
+    trip_id is null or public.is_admin() or exists (
+      select 1 from public.trips t
+      where t.id = published_itineraries.trip_id and t.owner_id = auth.uid()
+    )
+  )
+  with check (
+    trip_id is null or public.is_admin() or exists (
+      select 1 from public.trips t
+      where t.id = published_itineraries.trip_id and t.owner_id = auth.uid()
+    )
+  );
+
 -- ---------- pub_events ----------
 -- Read your own publications' funnel. NO write policy for anon/authenticated:
 -- rows are written only by bump_published_stats below (the definer function),
@@ -946,26 +972,69 @@ grant execute on function public.prune_pub_events(integer) to service_role;
 --   select public.prune_pub_events();
 
 -- ============================================================
--- Invite-code lookup (mirrors migrations/20261124c_invite_preview_write_version.sql)
+-- Invite previews (mirror migrations/20261126b_paywall_visibility_authorship.sql).
 -- ============================================================
--- The code is the capability — same trust model as get_invite_trip: a
--- private trip must be previewable by whoever holds its invite code, and RLS
--- cannot know the request came from a #/join/<code> link. SECURITY DEFINER
--- bypasses the trips read policy; case-insensitive because users type codes
--- casually.
---
--- This copy answers what the live function answers, and it is plpgsql for one
--- reason: the live body is `language sql`, and a sql body is validated at
--- CREATE time. This file never creates `public.entitlements` (the payments
--- rail lives in migrations/20260918_payments_rail.sql), so a sql copy fails the
--- whole bootstrap with "relation does not exist". plpgsql resolves a relation
--- when the statement is reached, so the guarded branch below keeps a
--- schema-only build valid. Same reasoning as trip_has_publication_money above.
---
--- The projection is the live one: only the columns named here reach a caller,
--- so a new column is not exposed by accident. `write_version` is the row
--- revision the app checks before it renders a preview, `deleted_at is null`
--- hides trashed trips, and the gates hold the paywall.
+-- Only the invite definers call this check. A schema-only install has no buyers.
+create or replace function public.invite_trip_payment_allows(p_trip_id uuid)
+returns boolean
+language plpgsql
+stable
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.published_itineraries p
+    where p.trip_id = p_trip_id and p.premium_price_inr is not null
+  ) then
+    return true;
+  end if;
+
+  if auth.uid() is null or to_regclass('public.entitlements') is null then
+    return false;
+  end if;
+
+  return exists (
+    select 1 from public.published_itineraries p
+    join public.entitlements e on e.pub_id = p.id
+    where p.trip_id = p_trip_id and p.premium_price_inr is not null
+      and e.user_id = auth.uid()
+  );
+end;
+$$;
+revoke all on function public.invite_trip_payment_allows(uuid) from public, anon, authenticated;
+
+create or replace function public.get_invite_trip(p_trip_id uuid)
+returns setof public.trips
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_trip public.trips;
+begin
+  for v_trip in
+    select t.* from public.trips t
+    where t.id = p_trip_id
+      and t.deleted_at is null
+      and not public.is_disabled()
+      and (
+        t.owner_id = auth.uid()
+        or public.is_member(t.id)
+        or public.is_admin()
+        or public.invite_trip_payment_allows(t.id)
+      )
+  loop
+    -- The code joins the trip. A caller with only the trip id never gets it.
+    v_trip.invite_code := null;
+    return next v_trip;
+  end loop;
+  return;
+end;
+$$;
+revoke execute on function public.get_invite_trip(uuid) from public, anon;
+grant execute on function public.get_invite_trip(uuid) to anon, authenticated;
+
 create or replace function public.get_trip_by_invite_code(p_code text)
 returns setof public.trips
 language plpgsql
@@ -1019,59 +1088,22 @@ begin
     ) as projected
     where upper(t.invite_code) = upper(trim(p_code))
       and t.deleted_at is null
+      and not public.is_disabled()
+      and (
+        t.owner_id = auth.uid()
+        or public.is_member(t.id)
+        or public.is_admin()
+        or public.invite_trip_payment_allows(t.id)
+      )
   loop
-    -- The owner, the crew and a masteradmin resolve the trip.
-    if v_row.owner_id = auth.uid()
-      or public.is_member(v_row.id)
-      or public.is_admin() then
-      return next v_row;
-      continue;
-    end if;
-
-    -- A private trip: the code is the capability, exactly like the uuid.
-    if v_row.visibility = 'private' then
-      return next v_row;
-      continue;
-    end if;
-
-    -- A public trip is fine unless a priced publication backs it.
-    if not exists (
-      select 1 from public.published_itineraries p
-      where p.trip_id = v_row.id and coalesce(p.premium_price_inr, 0) > 0
-    ) then
-      return next v_row;
-      continue;
-    end if;
-
-    -- The publication's creator reads their own plan.
-    if exists (
-      select 1 from public.published_itineraries p
-      where p.trip_id = v_row.id and p.creator_id = auth.uid()
-    ) then
-      return next v_row;
-      continue;
-    end if;
-
-    -- A buyer resolves it too, but only on an install that has the payments
-    -- rail. No buyer can exist without that table, so a schema-only build
-    -- answers fail-closed and serves no preview.
-    if to_regclass('public.entitlements') is not null then
-      if exists (
-        select 1 from public.entitlements e
-        join public.published_itineraries p on p.id = e.pub_id
-        where p.trip_id = v_row.id and e.user_id = auth.uid()
-      ) then
-        return next v_row;
-        continue;
-      end if;
-    end if;
+    return next v_row;
   end loop;
 
   return;
 end;
 $$;
 
-revoke all on function public.get_trip_by_invite_code(text) from public;
+revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
 grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
 
 -- ============================================================
@@ -3012,6 +3044,11 @@ begin
     raise exception 'Ask the owner to restore your access.' using errcode='42501';
   end if;
   if exists(select 1 from public.trip_members where trip_id=v_id and user_id=v_actor) then return v_id; end if;
+  -- A new member could read the full row through the trips policy.
+  if v_actor <> v_trip.owner_id and not public.is_admin()
+    and not public.invite_trip_payment_allows(v_id) then
+    raise exception 'Invite is unavailable.' using errcode='42501';
+  end if;
   -- The owner stays owner. A new member gets the link role. A repaired active
   -- row keeps its last role. A returning member gets the lower of the last
   -- role and the link role.

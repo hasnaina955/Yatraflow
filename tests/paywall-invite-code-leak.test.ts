@@ -192,10 +192,10 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
     const code = sqlCode(sqlFunction(src(`../supabase/migrations/${newest}`), 'get_trip_by_invite_code'))
     // The gate: a priced publication locks the code path for everyone without a
     // claim on it — the same clause shape as get_invite_trip.
-    expect(code).toMatch(/coalesce\(p\.premium_price_inr, 0\) > 0/)
+    expect(code).toMatch(/public\.invite_trip_payment_allows\(t\.id\)/)
+    expect(code).not.toMatch(/t\.visibility = 'private'|p\.creator_id = auth\.uid\(\)/)
     expect(code).toMatch(/public\.is_member\(t\.id\)/)
     expect(code).toMatch(/public\.is_admin\(\)/)
-    expect(code).toMatch(/from public\.entitlements e\s+where e\.pub_id = p\.id and e\.user_id = auth\.uid\(\)/)
     // Trashed trips stop resolving through the code, as they already do through
     // the uuid.
     expect(code).toMatch(/t\.deleted_at is null/)

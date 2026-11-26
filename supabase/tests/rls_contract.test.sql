@@ -15,7 +15,7 @@
 --   3. child collab     -- suggestions / activity: editor-or-
 --                          public read, editor write
 --   4. notifications    -- recipient-only read, recipient-or-orchestrator write
---   5. published        -- public gallery read, creator-only write
+--   5. published        -- public gallery read, verified publication writes
 --   6. trash wiring     -- per-user list/restore/purge RPCs re-check ownership,
 --                          30-day sweep only via service_role, pg_cron schedule
 --   7. capability RPCs  -- invite code / invite preview / published stats:
@@ -485,6 +485,53 @@ begin
   ) then
     raise exception 'published_itineraries write must be creator-only';
   end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published insert owns trip' and cmd = 'INSERT'
+      and permissive = 'RESTRICTIVE' and roles = array['authenticated']::name[]
+      and with_check like '%owner_id%auth.uid()%' and with_check like '%is_admin%'
+  ) then
+    raise exception 'publication inserts need the linked trip owner or an admin';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published update owns trip' and cmd = 'UPDATE'
+      and permissive = 'RESTRICTIVE' and roles = array['authenticated']::name[]
+      and qual like '%owner_id%auth.uid()%' and qual like '%is_admin%'
+      and with_check like '%owner_id%auth.uid()%' and with_check like '%is_admin%'
+  ) then
+    raise exception 'publication updates must check the owner of both the old and new trip';
+  end if;
+
+  if has_table_privilege('anon', 'public.published_itineraries', 'delete')
+    or has_table_privilege('authenticated', 'public.published_itineraries', 'delete')
+    or exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'published_itineraries' and cmd = 'DELETE'
+    ) then
+    raise exception 'clients cannot delete publications';
+  end if;
+  if (
+    select count(*) from pg_constraint
+    where confrelid = 'public.published_itineraries'::regclass
+      and contype = 'f' and confdeltype = 'r'
+      and ((conrelid = 'public.purchase_orders'::regclass and conname = 'purchase_orders_pub_id_fkey')
+        or (conrelid = 'public.entitlements'::regclass and conname = 'entitlements_pub_id_fkey'))
+  ) <> 2 then
+    raise exception 'purchase orders and entitlements must restrict publication deletes';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.published_itineraries'::regclass
+      and tgname = 'publication_trip_id_immutable' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_trip_id()'::regprocedure
+  ) then
+    raise exception 'a publication must keep its original trip';
+  end if;
 end $$;
 
 -- ------------------------------------------------------------ 6. trash wiring
@@ -567,6 +614,44 @@ do $$
 begin
   if position('write_version' in pg_get_functiondef('public.get_trip_by_invite_code(text)'::regprocedure)) = 0 then
     raise exception 'get_trip_by_invite_code must return write_version (#1019)';
+  end if;
+end $$;
+
+-- Invite reads check payment. Crew access to a priced trip needs owner approval.
+do $$
+declare
+  rpc regprocedure;
+  body text;
+begin
+  foreach rpc in array array[
+    'public.get_trip_by_invite_code(text)'::regprocedure,
+    'public.get_invite_trip(uuid)'::regprocedure
+  ] loop
+    body := pg_get_functiondef(rpc);
+    if body not like '%public.is_disabled()%'
+      or body like '%visibility = ''private''%'
+      or body like '%p.creator_id = auth.uid()%'
+      or body not like '%public.invite_trip_payment_allows(%' then
+      raise exception '% lost the priced invite access check', rpc;
+    end if;
+  end loop;
+
+  body := pg_get_functiondef('public.invite_trip_payment_allows(uuid)'::regprocedure);
+  if body not like '%join public.entitlements e on e.pub_id = p.id%'
+    or body not like '%t.owner_id = p.creator_id%'
+    or body not like '%p.premium_price_inr is not null%and e.user_id = auth.uid()%' then
+    raise exception 'invite payments must use an entitlement for a priced publication from the trip owner';
+  end if;
+
+  body := pg_get_functiondef('public.join_trip(text)'::regprocedure);
+  if body not like '%public.trip_has_priced_publication(v_id)%'
+    or body not like '%PT403%' or body like '%public.invite_trip_payment_allows(%' then
+    raise exception 'paid invite joins need approval even for buyers';
+  end if;
+
+  if (select count(*) from pg_proc where pronamespace = 'public'::regnamespace
+      and proname = 'get_trip_by_invite_code') <> 1 then
+    raise exception 'get_trip_by_invite_code must have one signature';
   end if;
 end $$;
 
@@ -1726,6 +1811,11 @@ begin
   select pg_get_functiondef('public.trips_owner_id_immutable()'::regprocedure) into v_src;
   if position('current_user not in' in v_src) = 0 then
     raise exception '#936: trips_owner_id_immutable must not exempt anon or authenticated callers that have no JWT subject';
+  end if;
+  if position('public.trip_has_publication_money(old.id)' in v_src) = 0
+    or position('public.trip_has_publication_money(old.id)' in v_src)
+       > position('current_user not in' in v_src) then
+    raise exception 'published trips cannot change owner, including through the operator path';
   end if;
 end $$;
 

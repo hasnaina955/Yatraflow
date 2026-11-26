@@ -5898,7 +5898,7 @@ export async function setMemberRole(tripId: ID, userId: ID, role: TripMember['ro
  *   'failed'           no membership was created. A retry must join again.
  */
 export type JoinResult = 'joined' | 'joined-unloaded' | 'joined-unloaded-incomplete' | 'joined-unloaded-failed'
-  | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
+  | 'owner-approval' | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
 
 /**
  * Join a trip through its invite code, then fetch the full row into the cache.
@@ -5997,6 +5997,7 @@ async function joinAfterScope(
     return 'abandoned'
   }
   if (error) {
+    if (error.code === 'PT403') return 'owner-approval'
     console.error('[yatraflow] join write failed', error)
     return 'failed'
   }

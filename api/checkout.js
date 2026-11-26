@@ -1,5 +1,5 @@
 // ============ POST /api/checkout — create a Razorpay order (M7) ============
-import { supabaseServiceHeaders, supabaseAnonHeaders } from './_supabase-headers.js'
+import { supabaseServiceHeaders } from './_supabase-headers.js'
 import { markOrderPaid } from './_order-mark.js'
 // The browser sends ONLY the publication id; the price is read server-side
 // from the published_itineraries row. A tampered request body cannot change
@@ -7,7 +7,8 @@ import { markOrderPaid } from './_order-mark.js'
 // a client-supplied user id.
 //
 // Env vars (Vercel):
-//   SUPABASE_URL, SUPABASE_ANON_KEY   — read the publication row
+//   SUPABASE_URL, SUPABASE_ANON_KEY   — verify the buyer's session
+//   SUPABASE_SERVICE_ROLE_KEY       — read the linked trip owner and manage orders
 //   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET — gateway credentials (test mode OK)
 //
 // Mirrors api/i.js conventions: plain JS, strict body validation, bounded
@@ -43,15 +44,15 @@ async function authUserId(supabaseUrl, anonKey, token, signal) {
   return typeof user?.id === 'string' && user.id ? user.id : null
 }
 
-async function fetchPublication(supabaseUrl, anonKey, pubId, signal) {
+async function fetchPublication(supabaseUrl, serviceKey, pubId, signal) {
   // unpublished_at=is.null: the paywall is at the wire, not in React — a
   // withdrawn plan must not mint a gateway order. Rows survive #350, so a
   // withdrawn pub otherwise reads as present and sells; with the filter it
   // takes the exact "not found" refusal a missing row already gets.
   const url = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/published_itineraries` +
-    `?id=eq.${encodeURIComponent(pubId)}&unpublished_at=is.null&select=id,trip_id,creator_id,premium_price_inr&limit=1`
+    `?id=eq.${encodeURIComponent(pubId)}&unpublished_at=is.null&select=id,creator_id,premium_price_inr,trips!inner(owner_id)&limit=1`
   const response = await fetch(url, {
-    headers: supabaseAnonHeaders(anonKey),
+    headers: supabaseServiceHeaders(serviceKey),
     signal,
   })
   if (!response.ok) throw new Error(`publications read failed: ${response.status}`)
@@ -236,11 +237,14 @@ export default async function handler(req, res) {
   try {
     userId = await authUserId(supabaseUrl, anonKey, token, signal)
     if (!userId) return json(res, 401, { error: 'session expired — log in again' })
-    pub = await fetchPublication(supabaseUrl, anonKey, pubId, signal)
+    pub = await fetchPublication(supabaseUrl, serviceKey, pubId, signal)
   } catch {
     return json(res, 503, { error: 'could not reach the trip store' })
   }
   if (!pub) return json(res, 404, { error: 'no such publication' })
+  if (typeof pub.creator_id !== 'string' || !pub.creator_id || pub.creator_id !== pub.trips?.owner_id) {
+    return json(res, 403, { error: 'this itinerary is not available for purchase' })
+  }
 
   // The price comes from the row, never the request. Unpriced ⇒ nothing to buy.
   const price = pub.premium_price_inr

@@ -1581,6 +1581,20 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     )
   }
 
+  if (phase === 'failed' && machine.reason === 'owner-approval') {
+    return (
+      <div className="container yf-page page-enter">
+        <StateBlock
+          kind="failed"
+          art={<Link2 size={38} aria-hidden />}
+          title="Owner approval needed"
+          body="Contact the trip owner about crew access."
+          actions={<button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>}
+        />
+      </div>
+    )
+  }
+
   // #804 (B1/B5) — the join itself failed, so no membership exists. The typed
   // refusal stays distinct, so the screen names the actual remedy instead of
   // calling every outcome a dropped connection.

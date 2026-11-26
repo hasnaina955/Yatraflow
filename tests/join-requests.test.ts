@@ -12,15 +12,25 @@ const { rpc, selectResult, eqCalls, cardResult } = vi.hoisted(() => ({
   cardResult: { value: { data: [] as unknown, error: null as unknown } },
 }))
 
+vi.mock('../src/store/store', () => ({
+  captureJoinRequestScope: () => ({ live: () => true, token: async () => 'token-owner' }),
+}))
+
 vi.mock('../src/lib/supabase', () => {
   const builder = {
+    setHeader() { return builder },
     eq(column: string, value: string) { eqCalls.push([column, value]); return builder },
     order() { return builder },
     then(resolve: (v: unknown) => unknown) { return Promise.resolve(selectResult.value).then(resolve) },
   }
   return {
     supabase: {
-      rpc,
+      rpc: (fn: string, args: Record<string, unknown>) => ({
+        setHeader() { return this },
+        then(resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) {
+          return Promise.resolve(rpc(fn, args)).then(resolve, reject)
+        },
+      }),
       from: () => ({ select: () => builder }),
     },
   }
@@ -137,12 +147,12 @@ describe('listPendingJoinRequests', () => {
 
 describe('decideTripJoin', () => {
   it('passes the request id and the decision', async () => {
-    expect(await decideTripJoin('req-1', true)).toEqual({ kind: 'ok' })
+    expect(await decideTripJoin('req-1', true, 'trip-1')).toEqual({ kind: 'ok' })
     expect(rpc).toHaveBeenCalledWith('decide_trip_join', { p_request: 'req-1', p_approve: true })
   })
 
   it('reports failed when the decision is refused', async () => {
     rpc.mockResolvedValue({ error: { message: 'not the owner' } })
-    expect(await decideTripJoin('req-1', false)).toEqual({ kind: 'failed' })
+    expect(await decideTripJoin('req-1', false, 'trip-1')).toEqual({ kind: 'failed' })
   })
 })

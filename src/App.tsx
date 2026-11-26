@@ -13,7 +13,7 @@ import {
   shouldBrowserNotify,
 } from './lib/browserNotifications'
 import type { Notification, Trip } from './data/types'
-import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, captureJoinRequestScope, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
 import type { InvitePreviewIdentity } from './lib/inviteLookup'
 import { requestTripJoin } from './lib/joinRequests'
 import { authNext } from './lib/authNext'
@@ -1170,9 +1170,18 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
  *  reads as one still in flight. */
 function ApprovalAsk({ code, signedIn, onNavigate }: { code: string; signedIn: boolean; onNavigate: (route: string) => void }) {
   const [sent, setSent] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const attempt = useRef(0)
+  useEffect(() => () => { attempt.current = 0 }, [])
   const send = () => {
+    const scope = captureJoinRequestScope()
+    if (!scope) return
+    const id = nextAttemptId()
+    attempt.current = id
     setSent('sending')
-    void requestTripJoin(code).then(r => setSent(r.kind === 'ok' ? 'sent' : 'failed'))
+    void requestTripJoin(code, scope).then(r => {
+      if (attempt.current !== id || !scope.live() || r.kind === 'cancelled') return
+      setSent(r.kind === 'ok' ? 'sent' : 'failed')
+    })
   }
   if (!signedIn) {
     return (
@@ -1535,7 +1544,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // #1019 — no trip has this code. The copy is split into a title and a body; read
   // together they are the dead-link copy word for word.
   if (currentStatus === 'approval') {
-    return <ApprovalAsk key={linkTarget} code={linkTarget} signedIn={!!db.sessionUserId} onNavigate={onNavigate} />
+    return <ApprovalAsk key={`${linkTarget}:${identityGen}`} code={linkTarget} signedIn={!!db.sessionUserId} onNavigate={onNavigate} />
   }
 
   if (currentStatus === 'dead') {

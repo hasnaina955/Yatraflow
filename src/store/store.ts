@@ -2647,6 +2647,18 @@ function memberAccessLive(scope: MemberAccessScope, tripId: ID, epoch: number): 
     && !!trip && !trip.deletedAt && (!!trip.members?.some(m => m.userId === scope.userId) || isAdminCached())
 }
 
+export function captureJoinRequestScope(tripId?: ID) {
+  const scope = captureMemberScope()
+  if (!scope) return null
+  const epoch = tripId ? (tripAccessEpochs.get(tripId) ?? 0) : 0
+  const live = () => {
+    if (tripId) return memberAccessLive(scope, tripId, epoch)
+    const sameOwner = scope.session ? sameSession(scope.session, currentOwner()) : currentOwner() === null
+    return sameOwner && isCurrentIdentity(scope)
+  }
+  return { live, token: () => tripWriteToken(scope, live) }
+}
+
 function installMemberAccess(tripId: ID, state: MemberAccessState, scope: MemberAccessScope, epoch: number): boolean {
   if (!memberAccessLive(scope, tripId, epoch)) return false
   const previous = accessReceipts.get(tripId)

@@ -1299,60 +1299,13 @@ export type Database = {
       }
       get_trip_by_invite_code: {
         Args: { p_code: string }
-        Returns: {
-          budget_per_person_inr: number
-          campaign_id: string | null
-          cover_emoji: string
-          cover_image_url: string | null
-          created_at: number
-          creation_kind: string | null
-          days: Json
-          deleted_at: string | null
-          destination_coords: Json | null
-          destinations: Json
-          drive_after_dinner_min: number | null
-          driver_count: number | null
-          drives_part: boolean | null
-          end_date: string
-          expenses: Json
-          fixed_commitments: Json
-          flights: Json | null
-          fuel_economy_km_per_l: number | null
-          fuel_price_per_l: number | null
-          has_vulnerable: boolean | null
-          id: string
-          invite_code: string | null
-          local_train: boolean | null
-          name: string
-          owner_id: string
-          ref: string | null
-          rent_per_day_inr: number | null
-          round_trip: boolean | null
-          source_pub_id: string | null
-          start_date: string
-          start_location: string
-          start_location_coords: Json | null
-          stay_style: string | null
-          tank_l: number | null
-          transport_mode: string
-          travel_style: string
-          travellers: number
-          updated_at: number
-          vehicle_profile: Json | null
-          visibility: string
-          write_version: number
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "trips"
-          isOneToOne: false
-          isSetofReturn: true
-        }
+        Returns: Database["public"]["CompositeTypes"]["trip_invite_preview"][]
       }
       grant_paid_order: {
         Args: { p_razorpay_order_id: string }
         Returns: string
       }
+      invite_first_name: { Args: { p_name: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_disabled: { Args: never; Returns: boolean }
       is_editor: { Args: { trip: string }; Returns: boolean }
@@ -1397,7 +1350,43 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      trip_invite_preview: {
+        budget_per_person_inr: number | null
+        cover_emoji: string | null
+        cover_image_url: string | null
+        created_at: number | null
+        days: Json | null
+        deleted_at: string | null
+        destination_coords: Json | null
+        destinations: Json | null
+        drive_after_dinner_min: number | null
+        driver_count: number | null
+        drives_part: boolean | null
+        end_date: string | null
+        expenses: Json | null
+        fixed_commitments: Json | null
+        fuel_economy_km_per_l: number | null
+        fuel_price_per_l: number | null
+        has_vulnerable: boolean | null
+        id: string | null
+        invite_code: string | null
+        invite_role: string | null
+        name: string | null
+        owner_first_name: string | null
+        owner_id: string | null
+        round_trip: boolean | null
+        start_date: string | null
+        start_location: string | null
+        start_location_coords: Json | null
+        stay_style: string | null
+        transport_mode: string | null
+        travel_style: string | null
+        travellers: number | null
+        updated_at: number | null
+        vehicle_profile: Json | null
+        visibility: string | null
+        write_version: number | null
+      }
     }
   }
 }

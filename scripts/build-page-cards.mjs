@@ -3,7 +3,7 @@
 // (#1042): public/og/page-faq.png, page-how-it-works.png, page-about.png,
 // page-for-creators.png and invite.png. Each is 1200 x 630.
 //
-// Input: the five committed sources in public/og/source/ (1536 x 1024, text-free
+// Input: the five committed sources in design/art/og-source/ (1536 x 1024, text-free
 // art with a dark left side). Each source is scaled to width 1200 (height 800),
 // then a 630-pixel band is taken from its centre (85 px off the top and the
 // bottom). The headline and a small brand line are drawn on the dark left side.
@@ -28,7 +28,8 @@ import cards from './page-cards.json' with { type: 'json' }
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const OUT_DIR = path.join(ROOT, 'public', 'og')
-const SRC_DIR = path.join(OUT_DIR, 'source')
+// The sources are art inputs, so they sit outside public/ and never reach dist/.
+const SRC_DIR = path.join(ROOT, 'design', 'art', 'og-source')
 const WIDTH = 1200
 const HEIGHT = 630
 

@@ -5,7 +5,7 @@
 // the client (src/lib/inviteCode.ts and src/lib/dayCount.ts).
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import handler, { inviteHead, namedTitle, readInvite, renderInvitePage } from '../api/join.js'
+import handler, { dayCountOf, inviteHead, namedTitle, readInvite, renderInvitePage } from '../api/join.js'
 import { headTags } from '../api/_headTemplate.js'
 import { dayCountForRange as serverDayCount } from '../api/_dayCount.js'
 import { looksLikeInviteCode as serverLooks, normalizeInviteCode as serverNormalize } from '../api/_inviteCode.js'
@@ -101,9 +101,14 @@ function trip(overrides: Record<string, unknown> = {}) {
     budget_per_person_inr: 45000,
     invite_code: CODE,
     write_version: 3,
-    days: [{ index: 0, stops: [{ name: 'Amber Fort' }] }],
+    days: dayRows(4, [{ name: 'Amber Fort' }]),
     ...overrides,
   }
+}
+
+/** A plan of `count` days. Day one has the given stops, which must stay out of the HTML. */
+function dayRows(count: number, firstStops: { name: string }[] = []) {
+  return Array.from({ length: count }, (_, index) => ({ index, stops: index === 0 ? firstStops : [] }))
 }
 
 beforeEach(() => {
@@ -140,15 +145,15 @@ describe('the invite card names the trip and its day count, and nothing else', (
     expect(namedTitle('Goa Weekend', 1)).toBe('Join «Goa Weekend» · 1 day')
   })
 
-  it('leaves the day part out when the dates give no count', async () => {
-    stubFetch({ rpc: { body: [trip({ start_date: null, end_date: null })] } })
+  it('leaves the day part out when neither the days nor the dates give a count', async () => {
+    stubFetch({ rpc: { body: [trip({ days: undefined, start_date: null, end_date: null })] } })
     const res = await run('GET', CODE)
     expect(res.body).toContain('<title>Join «Rajasthan Winter Loop»</title>')
     expect(res.body).not.toContain(' days</title>')
   })
 
   it('leaves the day part out for an inverted date range', async () => {
-    stubFetch({ rpc: { body: [trip({ start_date: '2026-12-04', end_date: '2026-12-01' })] } })
+    stubFetch({ rpc: { body: [trip({ days: undefined, start_date: '2026-12-04', end_date: '2026-12-01' })] } })
     const res = await run('GET', CODE)
     expect(res.body).toContain('<title>Join «Rajasthan Winter Loop»</title>')
   })
@@ -296,6 +301,54 @@ describe('the page keeps the app shell, with the invite head in place of the hom
   })
 })
 
+describe('the day count is the one the invite screen shows (App.tsx inviteFacts.days)', () => {
+  it.each([
+    ['the plan has four days, and the dates span four', 4, 4],
+    ['the plan has three days, and the dates span four: the screen rule wins', 3, 3],
+    ['the plan has five days, and the dates span four: the screen rule wins', 5, 5],
+    ['the plan has one day', 1, 1],
+  ])('%s', async (_label, planDays, expected) => {
+    stubFetch({ rpc: { body: [trip({ days: dayRows(planDays), start_date: '2026-12-01', end_date: '2026-12-04' })] } })
+    const res = await run('GET', CODE)
+    const word = expected === 1 ? 'day' : 'days'
+    expect(res.body).toContain(`<title>Join «Rajasthan Winter Loop» · ${expected} ${word}</title>`)
+  })
+
+  it('shows no day part for an empty plan, even when the dates span days, as the screen shows none', async () => {
+    stubFetch({ rpc: { body: [trip({ days: [] })] } })
+    const res = await run('GET', CODE)
+    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop»</title>')
+    expect(res.body).not.toContain(' days</title>')
+  })
+
+  it.each([
+    ['missing', undefined],
+    ['null', null],
+    ['a string', 'four days'],
+    ['an object', { length: 4 }],
+  ])('falls back to the dates when the row has no days array (%s)', async (_label, days) => {
+    stubFetch({ rpc: { body: [trip({ days, start_date: '2026-12-01', end_date: '2026-12-04' })] } })
+    const res = await run('GET', CODE)
+    expect(res.body).toContain('<title>Join «Rajasthan Winter Loop» · 4 days</title>')
+  })
+
+  it('applies the same rule to a row: the days array first, the dates only without one', () => {
+    const dates = { start_date: '2026-12-01', end_date: '2026-12-04' }
+    expect(dayCountOf({ days: [1, 2, 3], ...dates })).toBe(3)
+    expect(dayCountOf({ days: [1, 2, 3, 4, 5], ...dates })).toBe(5)
+    expect(dayCountOf({ days: [], ...dates })).toBe(0)
+    expect(dayCountOf({ days: null, ...dates })).toBe(4)
+    expect(dayCountOf({ ...dates })).toBe(4)
+    expect(dayCountOf({ days: undefined, start_date: null, end_date: null })).toBe(0)
+    expect(dayCountOf({ days: undefined, start_date: '2026-12-04', end_date: '2026-12-01' })).toBe(0)
+  })
+
+  it('reads only the count from the row, with no other field of the plan', async () => {
+    stubFetch({ rpc: { body: [trip({ days: dayRows(3) })] } })
+    expect(await readInvite(CODE)).toEqual({ name: 'Rajasthan Winter Loop', days: 3 })
+  })
+})
+
 describe('the anonymous read is the one the invite screen makes', () => {
   it('posts the code to the invite RPC with the anonymous key, and no other key', async () => {
     const calls = stubFetch({ rpc: { body: [trip()] } })
@@ -309,8 +362,10 @@ describe('the anonymous read is the one the invite screen makes', () => {
     expect(JSON.stringify(headers)).not.toContain('sb_secret')
   })
 
-  it('reads the day count from the start and end dates the RPC returns', async () => {
-    stubFetch({ rpc: { body: [trip({ start_date: '2026-03-01', end_date: '2026-03-10' })] } })
+  it('reads the day count from the days the RPC returns, and from the dates only without a days array', async () => {
+    stubFetch({ rpc: { body: [trip({ days: dayRows(10), start_date: '2026-03-01', end_date: '2026-03-03' })] } })
+    expect(await readInvite(CODE)).toEqual({ name: 'Rajasthan Winter Loop', days: 10 })
+    stubFetch({ rpc: { body: [trip({ days: undefined, start_date: '2026-03-01', end_date: '2026-03-10' })] } })
     expect(await readInvite(CODE)).toEqual({ name: 'Rajasthan Winter Loop', days: 10 })
   })
 

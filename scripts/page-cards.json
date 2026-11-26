@@ -1,5 +1,5 @@
 {
-  "$comment": "The link-preview card for each static copy page and the invite card (#1042). `source` is the art in public/og/source/ (committed input). `file` is the 1200x630 card under public/og/. `headline` is the card's text and its image alt text. scripts/build-page-cards.mjs draws the cards, and scripts/prerender-static-pages.mjs and api/join.js read the headline and file names from here, so the text and the image cannot drift apart.",
+  "$comment": "The link-preview card for each static copy page and the invite card (#1042). `source` is the art in design/art/og-source/ (committed input, kept out of public/ so it is not served). `file` is the 1200x630 card under public/og/. `headline` is the card's text and its image alt text. scripts/build-page-cards.mjs draws the cards, and scripts/prerender-static-pages.mjs and api/join.js read the headline and file names from here, so the text and the image cannot drift apart.",
   "faq": {
     "source": "og-faq.png",
     "file": "page-faq.png",

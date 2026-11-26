@@ -11,10 +11,10 @@
 // paid published guide (supabase/migrations/20261124c_invite_preview_write_version.sql),
 // so a priced trip answers nothing and gets the generic card. No migration is added.
 //
-// What it shows: the trip's name, and its day count from the start and end dates.
-// Nothing else: no members, budget, destination or dates. A code no trip has, a
-// malformed code, and every failed read all get the generic card. The response is
-// noindex and no-store, and it is never an error page.
+// What it shows: the trip's name, and its day count, counted as the invite screen
+// counts it (see dayCountOf). Nothing else: no members, budget, destination, dates
+// or days. A code no trip has, a malformed code, and every failed read all get the
+// generic card. The response is noindex and no-store, and it is never an error page.
 import { applyHead } from './_headTemplate.js'
 import { dayCountForRange } from './_dayCount.js'
 import { looksLikeInviteCode, normalizeInviteCode } from './_inviteCode.js'
@@ -78,6 +78,18 @@ export function inviteHead({ name = null, days = 0, code = null, origin }) {
   }
 }
 
+/** The day count a card shows for one invite row. The invite screen counts the trip's
+ *  days: App.tsx reads `shownTrip.days.length` (`inviteFacts.days`), and the row's
+ *  `days` array is what that trip is built from. So a row with a days array shows
+ *  that array's length, even when the dates span another count. A row with no days
+ *  array falls back to its start and end dates. The screen would show no count
+ *  there (rowToTrip reads a missing days field as an empty list), and the card does
+ *  show the dates' count. A count that is not a positive integer is omitted. */
+export function dayCountOf(row) {
+  const count = Array.isArray(row.days) ? row.days.length : dayCountForRange(row.start_date, row.end_date)
+  return Number.isInteger(count) && count > 0 ? count : 0
+}
+
 /** The name and day count of the trip behind a code, or null. Null covers every
  *  answer that is not a trip: an empty list (no trip has the code), a row with no
  *  usable name, a non-OK status, a timeout and a network error. Each one gets the
@@ -98,7 +110,7 @@ export async function readInvite(code, env = process.env) {
     if (!Array.isArray(rows) || !rows[0] || typeof rows[0] !== 'object') return null
     const row = rows[0]
     if (typeof row.name !== 'string' || row.name.trim() === '') return null
-    return { name: row.name, days: dayCountForRange(row.start_date, row.end_date) }
+    return { name: row.name, days: dayCountOf(row) }
   } catch {
     return null
   }

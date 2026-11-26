@@ -30,7 +30,7 @@ describe('the five link-preview cards exist and declare the right size', () => {
   })
 
   it.each(entries)('%s is drawn from a committed 1536 x 1024 source', (_key, card) => {
-    const url = new URL(`../public/og/source/${card.source}`, import.meta.url)
+    const url = new URL(`../design/art/og-source/${card.source}`, import.meta.url)
     expect(existsSync(url), card.source).toBe(true)
     expect(pngSize(url)).toEqual({ width: 1536, height: 1024 })
   })

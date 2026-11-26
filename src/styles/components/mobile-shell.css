@@ -1,0 +1,110 @@
+/* Mobile shell slice. New .yf-m* classes only, plus coarse-pointer gates.
+   Every token reads with a fallback, so both themes follow the existing palette.
+   Import this file last from src/styles.css. */
+
+.yf-mdock{
+  position:fixed;left:0;right:0;bottom:0;z-index:60;display:none;
+  align-items:stretch;gap:2px;
+  padding:6px 10px calc(8px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  background:var(--card, #FEFDFB);
+  border-top:1px solid var(--line-soft, #E8E4DB);
+  box-shadow:0 -8px 24px -14px rgba(var(--shadow-navy-rgb, 34,32,30), .28);
+}
+.yf-mdock-tab{
+  flex:1;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border-radius:12px;color:var(--ink-3, #6B645C);font-size:11px;font-weight:600;
+  text-decoration:none;position:relative;transition:color var(--motion-fast, var(--t-fast));
+}
+.yf-mdock-tab svg{width:22px;height:22px}
+.yf-mdock-tab.is-active{color:var(--teal-deep, #0B4F47)}
+.yf-mdock-tab.is-active::before{
+  content:"";position:absolute;top:-7px;width:22px;height:3px;border-radius:3px;background:var(--teal, #0F6B60);
+}
+.yf-mdock-tab:active{transform:scale(.94)}
+.yf-mdock-badge{
+  position:absolute;top:4px;right:calc(50% - 21px);min-width:16px;height:16px;padding:0 4px;
+  border-radius:8px;background:color-mix(in srgb, var(--danger-600, #A82E2E) 55%, #000);color:#FFFFFF;
+  font-size:11px;font-weight:700;line-height:1;display:grid;place-items:center;border:2px solid var(--card, #FEFDFB);
+}
+.yf-mdock-fabwrap{flex:1;display:grid;place-items:center}
+.yf-mdock-fab{
+  width:52px;height:52px;border-radius:16px;display:grid;place-items:center;border:0;cursor:pointer;
+  background:color-mix(in srgb, var(--teal-deep, #0B4F47) 55%, #000);color:var(--paper, #F8F5F0);
+  box-shadow:0 8px 20px -8px rgba(var(--shadow-navy-rgb, 34,32,30), .45);
+  transition:transform var(--motion-fast, var(--t-fast)) cubic-bezier(.22,1,.36,1);
+}
+.yf-mdock-fab:active{transform:scale(.9) rotate(90deg)}
+.yf-mdock-fab svg{width:24px;height:24px}
+
+@media (max-width: 820px), (pointer: coarse){
+  .yf-mdock{display:flex}
+  .yf-has-dock{padding-bottom:calc(76px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))}
+}
+
+.yf-msheet-scrim{
+  position:fixed;inset:0;z-index:70;background:var(--scrim, rgba(30,26,18,.45));
+  opacity:0;pointer-events:none;transition:opacity var(--motion-med, var(--t-fast));
+}
+.yf-msheet-scrim.is-open{opacity:1;pointer-events:auto}
+.yf-msheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:71;
+  max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;
+  background:var(--paper, #F8F5F0);color:var(--ink, #22201E);
+  border-radius:24px 24px 0 0;border-top:1px solid var(--line-soft, #E8E4DB);
+  box-shadow:0 -18px 50px -18px rgba(var(--shadow-navy-rgb, 34,32,30), .5);
+  transform:translateY(105%);
+  transition:transform var(--motion-slow, var(--t-med)) cubic-bezier(.22,1,.36,1);
+  padding-bottom:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+.yf-msheet.is-open{transform:none}
+.yf-msheet-grab{
+  flex:none;height:28px;display:grid;place-items:center;cursor:grab;touch-action:none;
+  -webkit-user-select:none;user-select:none;
+}
+.yf-msheet-grab::before{content:"";width:40px;height:4.5px;border-radius:3px;background:var(--line, #DFDBD1)}
+.yf-msheet-grab:active{cursor:grabbing}
+.yf-msheet-body{overflow-y:auto;overscroll-behavior:contain;padding:4px 18px 20px}
+
+.yf-mtoast-slot{
+  position:fixed;left:12px;right:12px;z-index:80;pointer-events:none;
+  bottom:calc(88px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+.yf-mtoast-slot > *{pointer-events:auto}
+
+.yf-scroll{
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;scrollbar-color:var(--line, #DFDBD1) transparent;
+}
+.yf-scroll::-webkit-scrollbar{width:8px}
+.yf-scroll::-webkit-scrollbar-track{background:transparent}
+.yf-scroll::-webkit-scrollbar-thumb{
+  background:var(--line, #DFDBD1);border-radius:8px;border:2px solid transparent;background-clip:content-box;
+}
+.yf-scroll::-webkit-scrollbar-thumb:hover{background:var(--teal, #0F6B60);background-clip:content-box}
+
+.yf-mhead{
+  position:sticky;top:0;z-index:20;
+  padding-top:var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  background:var(--paper, #F8F5F0);
+  border-bottom:1px solid transparent;transition:border-color var(--motion-fast, var(--t-fast));
+}
+.yf-mhead.is-folded{border-bottom-color:var(--line-soft, #E8E4DB)}
+
+.yf-skel{position:relative;overflow:hidden;background:var(--sunken, #ECE7DE);border-radius:14px}
+.yf-skel::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,transparent 30%,var(--card, #FEFDFB) 50%,transparent 70%);
+  animation:yf-shimmer 1.4s infinite;
+}
+@keyframes yf-shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+
+:where(.yf-mdock, .yf-msheet) :focus-visible{outline:2px solid var(--teal, #0F6B60);outline-offset:2px;border-radius:10px}
+
+@media (pointer: coarse){
+  .yf-mdock, .yf-msheet-grab, .yf-mdock-fab{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  .yf-msheet-body :where(button, [role="button"], input, select){min-height:40px}
+}
+@media (prefers-reduced-motion: reduce){
+  .yf-msheet, .yf-msheet-scrim, .yf-mdock-tab, .yf-mdock-fab{transition-duration:.01ms}
+  .yf-skel::after{animation:none}
+}

@@ -54,6 +54,7 @@
 @import './styles/pages/for-creators.css';
 @import './styles/components/site-footer.css';
 @import './styles/components/topnav-collapse.css';
+@import './styles/components/mobile-shell.css';
 
 /* Settings controls keep their state legible in both themes. */
 .tset-main .tset-danger-btn:disabled { opacity: 1; color: var(--pw-ink-2); }

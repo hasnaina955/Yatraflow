@@ -178,6 +178,28 @@
       ]
     },
     {
+      "id": "mobile-shell",
+      "file": "src/styles/components/mobile-shell.css",
+      "owned": [
+        "yf-mdock",
+        "yf-mdock-tab",
+        "yf-mdock-badge",
+        "yf-mdock-fabwrap",
+        "yf-mdock-fab",
+        "yf-has-dock",
+        "yf-msheet-scrim",
+        "yf-msheet",
+        "yf-msheet-grab",
+        "yf-msheet-body",
+        "yf-mtoast-slot",
+        "yf-scroll",
+        "yf-mhead",
+        "yf-skel"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
       "id": "landing",
       "file": "src/styles/pages/landing.css",
       "owned": [

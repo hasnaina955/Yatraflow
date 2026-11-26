@@ -224,6 +224,7 @@
         "board-col-count",
         "board-col-day",
         "board-col-head",
+        "board-col-load",
         "board-col-stops",
         "board-col-subtitle",
         "board-col-zone--add",

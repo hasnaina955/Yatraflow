@@ -69,7 +69,8 @@ describe('Board transport rendering', () => {
       days: [{ id: 'day', index: 0, stops: [stop('Panaji market', 'panaji market '), { ...stop('Night in Panaji', 'Panaji'), orderInDay: 1 }] }],
     })
     const metas = [...html.matchAll(/<span class="board-stop-meta">(.*?)<\/span>/g)].map(m => m[1])
-    expect(metas).toEqual(['0h 45m', 'Panaji · 0h 45m'])
+    expect(metas).toEqual(['0h 45m', '0h 45m'])
+    expect(html).toContain('Night in Panaji · Panaji · 0h 45m')
   })
 
   it.each([
@@ -77,9 +78,9 @@ describe('Board transport rendering', () => {
     ['car', 'Drive', 'car'],
   ] as const)('renders the %s label and icon', (mode, label, icon) => {
     const html = render(mode)
-    const kicker = html.match(/<span class="board-stop-kicker">(.*?)<\/span>/)?.[1]
+    const kicker = html.match(/<span class="board-stop-icon" aria-label="[^"]+">(.*?)<\/span>/)?.[1]
     expect(kicker).toContain(`lucide-${icon}`)
-    expect(kicker).toContain(`</svg>${label}`)
+    expect(html).toContain(`aria-label="${label}"`)
     if (mode === 'flight') expect(kicker).not.toContain('Drive')
   })
 })

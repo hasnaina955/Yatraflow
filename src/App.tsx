@@ -1188,8 +1188,11 @@ function ApprovalAsk({ code, signedIn, onNavigate }: { code: string; signedIn: b
     )
   }
   if (sent === 'sent') {
+    // Its own key: the sent screen mounts as a new tree, so "Go home" is a new
+    // button. Without it, React reuses the "Ask to join" button node and the
+    // primary colour morphs into the outline style for the first 160 ms.
     return (
-      <div className="container yf-page page-enter inv-screen">
+      <div key="sent" className="container yf-page page-enter inv-screen">
         <StateBlock
           kind="kept"
           art={<Link2 size={38} aria-hidden />}

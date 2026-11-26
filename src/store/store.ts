@@ -2520,6 +2520,11 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   // never touch `trip.inviteCode`, and the owner's own surfaces read the trips
   // table under RLS.
   const fetched = rowToTrip({ ...rows[0], invite_code: null }, [])
+  // The guide row is the server's answer for this viewer, not the viewer's own
+  // trip. Only the owner's row enters cache.trips, so a guide never reaches the
+  // cache, the offline queues or a snapshot (spec 3.7). Every other viewer reads
+  // the row this function returns.
+  if (rows[0].owner_id !== userId) return fetched
   // #349 — the RPC is the server truth FOR THIS VIEWER on every call, so a
   // re-fetch has to REPLACE the cached row. Insert-if-absent is what kept the
   // public page locked after a paid unlock: the re-read answered with real
@@ -2565,6 +2570,9 @@ export type InviteLookup =
   | { kind: 'dead' }
   | { kind: 'failed' }
   | { kind: 'cancelled' }
+  // PT403: the trip is priced and the caller is not its owner. The reader returns
+  // no trip data, so the caller is asked to request approval (D4), not told the read failed.
+  | { kind: 'approval-needed' }
 
 /**
  * Resolve a short invite code ("GOA-K7QF") to its trip via the
@@ -2595,6 +2603,7 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
     rpc = { data: null, error: err }
   }
   if (epoch !== identityEpoch || cache.sessionUserId !== userId) return { kind: 'cancelled' }
+  if ((rpc.error as { code?: string } | null)?.code === 'PT403') return { kind: 'approval-needed' }
   if (rpc.error) {
     console.error('[yatraflow] invite-code lookup failed', rpc.error)
     return { kind: 'failed' }

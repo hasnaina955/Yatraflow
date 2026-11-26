@@ -27,10 +27,11 @@ import { seedData } from '../src/data/seed'
 import { tripToRow } from '../src/lib/tripRow'
 import type { Trip } from '../src/data/types'
 
-const { rpcCalls, rpcData } = vi.hoisted(() => ({
+const { rpcCalls, rpcData, rpcErrors } = vi.hoisted(() => ({
   rpcCalls: [] as Array<{ fn: string; args: unknown }>,
   /** What the mocked wire answers, per RPC name. */
   rpcData: {} as Record<string, unknown>,
+  rpcErrors: {} as Record<string, { code: string; message: string }>,
 }))
 
 vi.mock('../src/lib/supabase', () => {
@@ -56,7 +57,7 @@ vi.mock('../src/lib/supabase', () => {
       from: () => qb,
       rpc: (fn: string, args: unknown) => {
         rpcCalls.push({ fn, args })
-        return Promise.resolve({ data: rpcData[fn] ?? null, error: null })
+        return Promise.resolve({ data: rpcData[fn] ?? null, error: rpcErrors[fn] ?? null })
       },
       auth: {
         getSession: async () => ({ data: { session: null } }),
@@ -104,6 +105,7 @@ async function freshStore() {
 beforeEach(() => {
   rpcCalls.length = 0
   for (const k of Object.keys(rpcData)) delete rpcData[k]
+  for (const k of Object.keys(rpcErrors)) delete rpcErrors[k]
 })
 
 afterEach(() => { vi.restoreAllMocks() })
@@ -234,6 +236,26 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
 })
 
 describe('#351 — the client is not the second half of the exploit', () => {
+  it('keeps a guide row out of the cache for a viewer who does not own the trip', async () => {
+    const store = await freshStore()
+    // A row whose owner is not the viewer: the guide, not the viewer's own trip.
+    rpcData.get_public_trip = (leakedPayload() as Array<Record<string, unknown>>).map(row => ({ ...row, owner_id: 'not-the-viewer' }))
+
+    const fetched = await store.fetchPublicTrip('pub-351')
+
+    expect(fetched, 'the guide still resolves for the page').not.toBeNull()
+    expect(store.tripById(fetched!.id), 'a guide row must never enter cache.trips').toBeUndefined()
+  })
+
+  it('reads a PT403 from the code reader as approval-needed, not as a failure', async () => {
+    const store = await freshStore()
+    rpcErrors.get_trip_by_invite_code = { code: 'PT403', message: 'Owner approval needed.' }
+
+    const result = await store.fetchTripByInviteCode('YATRA-PT403')
+
+    expect(result).toEqual({ kind: 'approval-needed' })
+  })
+
   it('drops a leaked invite_code before it can reach the cache', async () => {
     const store = await freshStore()
     rpcData.get_public_trip = leakedPayload()

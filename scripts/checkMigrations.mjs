@@ -151,6 +151,9 @@ export const NO_PROBE_SURFACE = {
   '20261126c_invite_preview_projection.sql': {
     reason: 'Updates the invite preview type and reader. tests/invite-preview-projection-db.test.ts covers the projection and payment checks.',
   },
+  '20261127a_paid_access_boundary.sql': {
+    reason: 'redefines `claim_paid_order` with the refunded-order refusal in the opaque class, and also the paid readers, refund functions, publication link guard and approve-request flow. Covered by tests/claim-opaque.test.ts for the claim and tests/paid-access-matrix-db.test.ts, which runs the chain on PGlite and calls each reader as each kind of caller.',
+  },
   '20261126d_public_trip_trash_order.sql': {
     reason: 'Redefines get_public_trip only. A missing file is silent: a viewer or commenter can read a trashed trip. The cover is tests/paywall-visibility-authorship-db.test.ts, which runs the file on PGlite and calls the function as each kind of viewer.',
   },

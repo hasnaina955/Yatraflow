@@ -102,7 +102,7 @@ describe('publication-reachable anchor wiring', () => {
   // The counts rose by the discovery links: 18 to 21 in App.tsx, one each for
   // the signed-out topnav and tray "How it works" links and the invite FAQ link,
   // and 1 to 2 in PublicItinerary.tsx for the paid-guide FAQ link.
-  it.each([['../src/App.tsx', 21], ['../src/pages/PublicItinerary.tsx', 2]] as const)('uses the shared pattern on every route anchor in %s', (path, count) => {
+  it.each([['../src/App.tsx', 22], ['../src/pages/PublicItinerary.tsx', 2]] as const)('uses the shared pattern on every route anchor in %s', (path, count) => {
     // CRLF folds to LF first, so a Windows checkout reads the same source.
     const source = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     expect(source.match(/\{\.\.\.appLink\(/g)).toHaveLength(count)

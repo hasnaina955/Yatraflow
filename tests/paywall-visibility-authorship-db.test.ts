@@ -119,10 +119,21 @@ describe('publication and paid invite rules on PostgreSQL', () => {
     await db.query(`
       insert into public.published_itineraries
         (id, trip_id, creator_id, premium_price_inr, free_day_indexes, duration_days)
-      values ('paid-guide', $1, $3, 499, '[0]', 2),
-        ('free-alias', $1, $3, null, '[0,1]', 2),
-        ('legacy-guide', $2, $4, 499, '[0]', 2)
-    `, [priced, legacy, owner, legacyCreator])
+      values ('paid-guide', $1, $2, 499, '[0]', 2),
+        ('free-alias', $1, $2, null, '[0,1]', 2)
+    `, [priced, owner])
+    // A pre-guard row: its creator is not the trip owner. The publication link
+    // guard refuses that shape on write, and 20261127a's pre-check refuses to run
+    // over it. Replica mode writes it the way old data was written, so this
+    // chain can still exercise the reader rule that refuses it.
+    await db.query("set session_replication_role = replica")
+    await db.query(
+      `insert into public.published_itineraries
+        (id, trip_id, creator_id, premium_price_inr, free_day_indexes, duration_days)
+      values ('legacy-guide', $1, $2, 499, '[0]', 2)`,
+      [legacy, legacyCreator],
+    )
+    await db.query("set session_replication_role = origin")
     await db.query(`
       with orders as (
         insert into public.purchase_orders

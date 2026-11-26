@@ -594,7 +594,7 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
     expect(shared).not.toContain("rpc('get_trip_by_invite_code'")
   })
 
-  it('the code RPC is gated on membership and price', () => {
+  it('the code RPC is gated on the access level and the price', () => {
     // get_trip_by_invite_code DOES return invite_code (it must: the caller
     // presented the code). Its guard is the row filter, which is why the code is
     // a capability rather than a secret: without the code there is no row.
@@ -605,10 +605,11 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
       if (text.includes('function public.get_trip_by_invite_code')) src = text
     }
     expect(src, 'the newest definition must be found').not.toBe('')
-    const body = src.slice(src.indexOf('function public.get_trip_by_invite_code'))
-    expect(body).toMatch(/owner_id = auth\.uid\(\)/)
-    expect(body).toContain('public.is_member(t.id)')
-    expect(body).toContain('public.invite_trip_payment_allows(t.id)')
+    // Slice to the function's own closing `$$;`, so later text cannot satisfy a pin.
+    const start = src.indexOf('create or replace function public.get_trip_by_invite_code(')
+    const body = src.slice(start, src.indexOf('$$;', start))
+    expect(body).toContain('public.trip_access_level(v_row.id)')
+    expect(body).toContain("if v_level <> 'crew' and public.trip_has_priced_publication(v_row.id) then")
     expect(body).not.toContain("t.visibility = 'private'")
   })
 })

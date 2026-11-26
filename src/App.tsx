@@ -13,8 +13,9 @@ import {
   shouldBrowserNotify,
 } from './lib/browserNotifications'
 import type { Notification, Trip } from './data/types'
-import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, captureJoinRequestScope, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
 import type { InvitePreviewIdentity } from './lib/inviteLookup'
+import { requestTripJoin } from './lib/joinRequests'
 import { authNext } from './lib/authNext'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
@@ -1163,6 +1164,81 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   )
 }
 
+/** D4 — a priced trip's invite. The visitor asks the owner, and nothing joins
+ *  them until the owner approves. Signed out, the screen asks for a sign-in
+ *  first. Sending, sent and failed are separate states, so a failed request never
+ *  reads as one still in flight. */
+function ApprovalAsk({ code, signedIn, onNavigate }: { code: string; signedIn: boolean; onNavigate: (route: string) => void }) {
+  const [sent, setSent] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const attempt = useRef(0)
+  useEffect(() => () => { attempt.current = 0 }, [])
+  const send = () => {
+    const scope = captureJoinRequestScope()
+    if (!scope) return
+    const id = nextAttemptId()
+    attempt.current = id
+    setSent('sending')
+    void requestTripJoin(code, scope).then(r => {
+      if (attempt.current !== id || !scope.live() || r.kind === 'cancelled') return
+      setSent(r.kind === 'ok' ? 'sent' : 'failed')
+    })
+  }
+  if (!signedIn) {
+    return (
+      <div className="container yf-page page-enter inv-screen">
+        <StateBlock
+          kind="empty"
+          art={<Link2 size={38} aria-hidden />}
+          title="Owner approval needed"
+          body="Sign in, then ask the trip owner to let you in."
+          actions={<a className="btn btn-primary" {...appLink(`/auth?next=${encodeURIComponent(`/join/${code}`)}`)}>Sign in</a>}
+        />
+      </div>
+    )
+  }
+  if (sent === 'sent') {
+    // Its own key: the sent screen mounts as a new tree, so "Go home" is a new
+    // button. Without it, React reuses the "Ask to join" button node and the
+    // primary colour morphs into the outline style for the first 160 ms.
+    return (
+      <div key="sent" className="container yf-page page-enter inv-screen">
+        <StateBlock
+          kind="kept"
+          art={<Link2 size={38} aria-hidden />}
+          title="Request sent"
+          body="The owner has your request. You join the trip once they approve it."
+          actions={<button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>}
+        />
+      </div>
+    )
+  }
+  if (sent === 'failed') {
+    return (
+      <div className="container yf-page page-enter inv-screen">
+        <StateBlock
+          kind="failed"
+          art={<Link2 size={38} aria-hidden />}
+          title="Couldn’t send the request"
+          body="Check your connection, then try again. Nothing was sent to the owner."
+          actions={<button className="btn btn-primary" onClick={send}>Try again</button>}
+        />
+      </div>
+    )
+  }
+  const sending = sent === 'sending'
+  return (
+    <div className="container yf-page page-enter inv-screen">
+      <StateBlock
+        kind={sending ? 'loading' : 'empty'}
+        art={<Link2 size={38} aria-hidden />}
+        title={sending ? 'Sending your request' : 'Owner approval needed'}
+        body={sending ? 'This takes a moment.' : 'This trip is priced, so its owner decides who joins. Ask to join, and the owner will see your request.'}
+        actions={<button className="btn btn-primary" onClick={send} disabled={sending}>{sending ? 'Sending…' : 'Ask to join'}</button>}
+      />
+    </div>
+  )
+}
+
 /**
  * Invite links land here: resolve the code, require login, then join the trip
  * and open it. Accepts a short invite code ("GOA-K7QF", #/join/<code>) or a
@@ -1189,7 +1265,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // trip and the join machine owns everything from there (B2).
   // #1019 — 'dead' means no trip has this code (the dead-link copy). 'broken'
   // means the read itself failed (the retry screen). The two never share a screen.
-  const [status, setStatus] = useState<'loading' | 'broken' | 'dead' | 'retired' | 'ready'>('loading')
+  const [status, setStatus] = useState<'loading' | 'broken' | 'dead' | 'retired' | 'ready' | 'approval'>('loading')
   const [retryTick, setRetryTick] = useState(0)
   // The confirmation step. A valid invite no longer joins anyone the moment the
   // page loads: the signed-in reader sees the facts and one button, and the
@@ -1322,7 +1398,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
         setResolved({ target: linkTarget, identityGen, trip: result.trip, preview }); setStatus('ready')
       } else {
         setResolved({ target: linkTarget, identityGen, trip: null, preview: null })
-        setStatus(result.kind === 'unavailable' ? 'retired' : result.kind === 'dead' ? 'dead' : 'broken')
+        setStatus(result.kind === 'unavailable' ? 'retired' : result.kind === 'dead' ? 'dead' : result.kind === 'approval-needed' ? 'approval' : 'broken')
       }
     })
     return () => { alive = false }
@@ -1467,6 +1543,10 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
 
   // #1019 — no trip has this code. The copy is split into a title and a body; read
   // together they are the dead-link copy word for word.
+  if (currentStatus === 'approval') {
+    return <ApprovalAsk key={`${linkTarget}:${identityGen}`} code={linkTarget} signedIn={!!db.sessionUserId} onNavigate={onNavigate} />
+  }
+
   if (currentStatus === 'dead') {
     // The dead-link screen. The owner's name is not known here (nothing
     // resolved), so the copy falls back to whoever shared it, and the code box

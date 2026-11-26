@@ -561,10 +561,10 @@ begin
   if not exists (
     select 1 from pg_trigger
     where tgrelid = 'public.published_itineraries'::regclass
-      and tgname = 'publication_trip_id_immutable' and tgenabled = 'O'
-      and tgfoid = 'public.guard_publication_trip_id()'::regprocedure
+      and tgname = 'publication_link_guard' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_link()'::regprocedure
   ) then
-    raise exception 'a publication must keep its original trip';
+    raise exception 'a publication must keep its original trip and creator';
   end if;
 end $$;
 
@@ -662,24 +662,31 @@ begin
     'public.get_invite_trip(uuid)'::regprocedure
   ] loop
     body := pg_get_functiondef(rpc);
-    if body not like '%public.is_disabled()%'
+    if body not like '%public.trip_access_level(%'
       or body like '%visibility = ''private''%'
-      or body like '%p.creator_id = auth.uid()%'
-      or body not like '%public.invite_trip_payment_allows(%' then
-      raise exception '% lost the priced invite access check', rpc;
+      or body like '%p.creator_id = auth.uid()%' then
+      raise exception '% does not read the one access level', rpc;
     end if;
   end loop;
 
-  body := pg_get_functiondef('public.invite_trip_payment_allows(uuid)'::regprocedure);
-  if body not like '%join public.entitlements e on e.pub_id = p.id%'
-    or body not like '%t.owner_id = p.creator_id%'
-    or body not like '%p.premium_price_inr is not null%and e.user_id = auth.uid()%' then
-    raise exception 'invite payments must use an entitlement for a priced publication from the trip owner';
+  -- The access level carries the disabled, editor, trash and buyer rules.
+  body := pg_get_functiondef('public.trip_access_level(uuid)'::regprocedure);
+  if body not like '%public.is_disabled()%'
+    or body not like '%public.is_editor(p_trip_id)%'
+    or body not like '%v_deleted is null and public.is_member(p_trip_id)%'
+    or body not like '%from public.entitlements e%'
+    or body not like '%o.refunded_paise < o.amount_inr * 100%' then
+    raise exception 'trip_access_level must keep the disabled, editor, trash and buyer rules';
+  end if;
+
+  -- The payment helper the readers used to call is gone for good.
+  if to_regprocedure('public.invite_trip_payment_allows(uuid)') is not null then
+    raise exception 'invite_trip_payment_allows must not exist';
   end if;
 
   body := pg_get_functiondef('public.join_trip(text)'::regprocedure);
   if body not like '%public.trip_has_priced_publication(v_id)%'
-    or body not like '%PT403%' or body like '%public.invite_trip_payment_allows(%' then
+    or body not like '%PT403%' then
     raise exception 'paid invite joins need approval even for buyers';
   end if;
 

@@ -25,7 +25,10 @@ const codeOf = (source: string) => source
   .replace(/--[^\n]*/g, ' ')
   .replace(/(^|\n)[^\S\n]*\/\/[^\n]*/g, '$1')
 
-const NEWEST = '20261002_claim_paid_order_marker_guard.sql'
+// 20261127a redefines claim_paid_order with the refunded-order refusal in the
+// same opaque class (spec 3.5). Its body carries every earlier guard forward.
+const NEWEST = '20261127a_paid_access_boundary.sql'
+const MARKER_GUARD = '20261002_claim_paid_order_marker_guard.sql'
 const PREVIOUS = '20260929_claim_paid_order_opaque.sql'
 const OLDEST = '20260918_payments_rail.sql'
 
@@ -132,11 +135,11 @@ describe('#355 — the grant itself is untouched', () => {
       .filter(f => f.endsWith('.sql'))
       .filter(f => codeOf(read(`../supabase/migrations/${f}`)).includes('create or replace function public.claim_paid_order('))
       .sort()
-    // Three files define it; whichever sorts LAST is what a fresh in-order
+    // Four files define it; whichever sorts LAST is what a fresh in-order
     // apply leaves behind, and that is the one every assertion above read
     // (§6k — name order decides, so the newest body must carry every earlier
     // guard forward, which is what the tests above and below pin).
-    expect(definers).toEqual([OLDEST, PREVIOUS, NEWEST])
+    expect(definers).toEqual([OLDEST, PREVIOUS, MARKER_GUARD, NEWEST])
   })
 })
 

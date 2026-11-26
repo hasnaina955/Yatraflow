@@ -223,6 +223,18 @@
    screens used, and it keeps the buttons centred with one gap. */
 .inv-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 
+/* D4 — the owner's join requests, on the Plan card. Each row reuses the member
+   row (.feed-item.shr-member-row): name and age, the role chip, then the two
+   decisions. The details column has a 160px basis, so at phone width the
+   decisions wrap to their own line, and at 1280 the whole row fits on one. */
+.share-join-requests { display: grid; gap: 10px; margin: 18px 0; }
+.share-join-state { margin: 0; }
+.share-join-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.share-join-row { flex-wrap: wrap; }
+.share-join-row .shr-member-details { flex: 1 1 160px; min-width: 0; }
+.share-join-actions { display: inline-flex; gap: 8px; }
+.share-join-error { width: 100%; font-size: 0.9rem; }
+
 /* The small trip preview on a signed-out invite. Every value comes from the
    trip the gate already holds, so this is a restatement, not a new read. */
 .inv-preview { display: grid; gap: 6px; margin: 14px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); text-align: left; }

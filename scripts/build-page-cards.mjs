@@ -13,9 +13,10 @@
 // its headline is refused.
 //
 // Fonts: the headline uses Sora 800 and the brand line uses Plus Jakarta Sans 700,
-// the app's own faces. fontconfig must list them on the machine that renders
-// (the @fontsource packages ship the WOFF files). Without them the render falls
-// back to a system face, so the committed PNGs are the reference for the look.
+// the app's own faces. fontconfig must list them on the machine that renders, as
+// TTF or OTF files. The @fontsource packages ship WOFF, which librsvg did not load
+// here, so the headline fell back to Inter silently. Without the faces the render
+// falls back to a system face, so the committed PNGs are the reference.
 //
 // Usage: npm run og:pages   (sharp is a dev dependency; the output is committed.)
 
@@ -108,8 +109,9 @@ async function main() {
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  // Failures set the exit code and return (#656): a direct process.exit can cut off the message.
   main().catch(error => {
     console.error(`[og:pages] ${error instanceof Error ? error.message : String(error)}`)
-    process.exit(1)
+    process.exitCode = 1
   })
 }

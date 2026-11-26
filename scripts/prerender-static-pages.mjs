@@ -130,8 +130,9 @@ async function main() {
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  // Failures set the exit code and return (#656): a direct process.exit can cut off the message.
   main().catch(error => {
     console.error(`[prerender] ${error instanceof Error ? error.message : String(error)}`)
-    process.exit(1)
+    process.exitCode = 1
   })
 }

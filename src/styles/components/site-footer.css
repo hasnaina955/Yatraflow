@@ -1,0 +1,68 @@
+/* Site footer navigation: four labelled groups under the disclaimer.
+   On a phone the groups sit in two columns: Plan and Help, then Creators and
+   Company. From 721px up they sit in four columns.
+   The base .footer, .footer-inner and .footer-route-mark rules stay in their
+   legacy files. This owner answers for the group classes only. Every colour
+   comes from a token, so both themes follow the token blocks. */
+
+.footer-inner.footer-layout {
+  display: grid;
+  justify-content: stretch;
+  align-items: start;
+  gap: var(--space-10);
+}
+
+.footer-brand {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.footer-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-7) var(--space-6);
+}
+
+.footer-group {
+  min-width: 0;
+}
+
+/* The global h2 rule sets a display face and 21px. A group title is a label. */
+.footer-group-title {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-body);
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.footer-group-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* On a phone, 12px of padding above and below each link gives a tap target near 44px. */
+.footer-link {
+  display: block;
+  padding-block: var(--space-5);
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (min-width: 721px) {
+  .footer-groups {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-9);
+  }
+
+  .footer-link {
+    padding-block: var(--space-2);
+  }
+}

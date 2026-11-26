@@ -65,7 +65,7 @@ export type JoinPhase = 'idle' | 'joining' | 'loading' | 'joined' | 'joined-unlo
  *  - `deleted`: the trip is in the trash.
  *  - `incomplete`: the row arrived in a shape this client cannot trust.
  *  - `failed`: the read itself failed. */
-export type JoinRefusal = 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed'
+export type JoinRefusal = 'owner-approval' | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed'
 
 export interface JoinState {
   phase: JoinPhase
@@ -274,7 +274,7 @@ export type JoinEvent =
 /** The result of a join or a reload, as the store reports it. The refusal kinds
  *  stay distinct so the gate can say "you are not on this trip" instead of
  *  claiming a membership the server denied. */
-export type JoinResult = 'joined' | 'joined-unloaded' | 'joined-unloaded-incomplete' | 'joined-unloaded-failed' | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
+export type JoinResult = 'joined' | 'joined-unloaded' | 'joined-unloaded-incomplete' | 'joined-unloaded-failed' | JoinRefusal | 'abandoned'
 
 /** True when the event belongs to the live try. */
 function isCurrent(state: JoinState, e: { userId: string; gen: number }): boolean {
@@ -378,7 +378,7 @@ export function joinMachine(state: JoinState, event: JoinEvent): JoinPlan {
 function refusalFor(result: JoinResult): JoinRefusal | null {
   if (result === 'joined-unloaded-incomplete') return 'incomplete'
   if (result === 'joined-unloaded-failed') return 'failed'
-  if (result === 'not-member' || result === 'missing' || result === 'deleted'
+  if (result === 'owner-approval' || result === 'not-member' || result === 'missing' || result === 'deleted'
     || result === 'incomplete' || result === 'failed') return result
   return null
 }
@@ -397,7 +397,7 @@ export function joinAllowsNavigation(state: JoinState): boolean {
 
 /** True when the screen must offer a Try again. */
 export function joinOffersRetry(state: JoinState): boolean {
-  return state.phase === 'joined-unloaded' || state.phase === 'failed' || state.phase === 'abandoned'
+  return state.phase === 'joined-unloaded' || (state.phase === 'failed' && state.reason !== 'owner-approval') || state.phase === 'abandoned'
 }
 
 /** The state of the shared snapshot's decode.

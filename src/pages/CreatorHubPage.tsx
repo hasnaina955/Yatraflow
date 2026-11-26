@@ -269,7 +269,10 @@ export function CreatorHubPage({ onNavigate, followsApi, postsApi = creatorPosts
       <PageHeader
         kicker="For creators"
         headline={{ lead: 'Creator', accent: 'hub' }}
-        meta={<p className="muted small">Good {greeting}, {me.profile.name}{nextPayout && nextPayout.clearsInr > 0 ? ` · Next payout run ${longDate(nextPayout.dueAt)}` : ''}</p>}
+        meta={<>
+          <p className="muted small">Good {greeting}, {me.profile.name}{nextPayout && nextPayout.clearsInr > 0 ? ` · Next payout run ${longDate(nextPayout.dueAt)}` : ''}</p>
+          <p className="small"><a className="text-link" {...appLink('/for-creators')}>About YatraFlow for creators</a></p>
+        </>}
         actions={me.profile.isCreator ? (
           <>
           <a className="btn btn-outline btn-sm" {...appLink(`/creator/${me.id}`)}>

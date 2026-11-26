@@ -42,6 +42,8 @@
 -- it has applied) and asserts shareUrl.ts, api/i.js, schema.sql and the
 -- constraints all agree.
 
+begin;
+
 alter table public.pub_events drop constraint if exists pub_events_source_check;
 alter table public.pub_events add constraint pub_events_source_check
   check (source is null or source in ('buyer', 'calculator', 'community', 'copy', 'creator', 'explore', 'purchases', 'wa'));
@@ -49,3 +51,5 @@ alter table public.pub_events add constraint pub_events_source_check
 alter table public.trips drop constraint if exists trips_ref_check;
 alter table public.trips add constraint trips_ref_check
   check (ref is null or ref in ('buyer', 'calculator', 'community', 'copy', 'creator', 'explore', 'purchases', 'wa'));
+
+commit;

@@ -594,7 +594,7 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
     expect(shared).not.toContain("rpc('get_trip_by_invite_code'")
   })
 
-  it('the code RPC is gated on membership, price and visibility', () => {
+  it('the code RPC is gated on membership and price', () => {
     // get_trip_by_invite_code DOES return invite_code (it must: the caller
     // presented the code). Its guard is the row filter, which is why the code is
     // a capability rather than a secret: without the code there is no row.
@@ -608,7 +608,8 @@ describe('B-2 — the invite code is not reachable from a shared-trip fetch', ()
     const body = src.slice(src.indexOf('function public.get_trip_by_invite_code'))
     expect(body).toMatch(/owner_id = auth\.uid\(\)/)
     expect(body).toContain('public.is_member(t.id)')
-    expect(body).toContain("t.visibility = 'private'")
+    expect(body).toContain('public.invite_trip_payment_allows(t.id)')
+    expect(body).not.toContain("t.visibility = 'private'")
   })
 })
 // ============ round 7 — the four mutations that initially escaped ============

@@ -10,7 +10,9 @@ import { apkUpdateStatus, subscribeApkUpdate, type UpdateRuntimeStatus } from '.
 
 /** The runtime's status, re-rendered on every change. */
 export function useApkUpdateStatus(): UpdateRuntimeStatus {
-  return useSyncExternalStore(subscribeApkUpdate, apkUpdateStatus)
+  // The server snapshot is the same reader: a prerender renders the shell, and the
+  // runtime starts idle, so the first render needs no native bridge.
+  return useSyncExternalStore(subscribeApkUpdate, apkUpdateStatus, apkUpdateStatus)
 }
 
 /**

@@ -24,6 +24,7 @@ import {
 } from '../../lib/publishRules'
 import { takePublishDraft } from '../../lib/publishDraft'
 import { publishFormKey, publishFormMount } from '../../lib/publishFormKey'
+import { appLink } from '../../lib/appLink'
 import { Mascot } from '../../components/mascot/Mascot'
 import { pubArtId } from '../../lib/pubDayArt'
 import { artCoverOrigin, artCoverUrl } from '../../lib/artCover'
@@ -840,6 +841,8 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
                 )}
               </div>
             ) : null}
+            {/* The codes section answers the link, reset and role questions. */}
+            {readRole && <p className="hint-text"><a className="text-link" {...appLink('/faq?section=codes')}>Questions about links and roles? See the FAQ</a></p>}
             {isOwner && readRole && (
               <button type="button" className="btn btn-outline btn-sm shr-reset-link" disabled={inviteBusy} onClick={() => setResetAsk(true)}>Reset link</button>
             )}
@@ -938,6 +941,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           <p className="hint-text shr-publication-description">
             List this trip on Explore. Pick the free preview days. No real payments in this MVP.
           </p>
+          <p className="hint-text"><a className="text-link" {...appLink('/for-creators')}>Publishing for an audience? See YatraFlow for creators</a></p>
           {/* Loading, failed and "not published" are three different statements
               (#704). The last one is said only after a read that succeeded.
               Each is its own compact block, so the roles are the shared ones: a
@@ -1035,20 +1039,20 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           onChange={key => { if (isShareTabId(key)) setTab(key) }} />
       )}
 
-      {wide ? (
-        <div className="shr-columns">
-          {SHARE_TABS.map(t => (
-            <section key={t.id} className="shr-column" data-share-column={t.id}>{panelBody[t.id]}</section>
-          ))}
-        </div>
-      ) : (
-        SHARE_TABS.map(t => (
-          <section key={t.id} role="tabpanel" id={`share-panel-${t.id}`} aria-labelledby={`share-tab-${t.id}`}
-            className="share-panel" hidden={tab !== t.id}>
+      {/* One wrapper and one section per panel in both layouts. A resize across the
+          1100px break changes attributes only. No panel remounts, so the publish
+          form keeps its drafts. */}
+      <div className={wide ? 'shr-columns' : 'share-panels'}>
+        {SHARE_TABS.map(t => (
+          <section key={t.id} id={`share-panel-${t.id}`} data-share-column={t.id}
+            className={wide ? 'shr-column' : 'share-panel'}
+            role={wide ? undefined : 'tabpanel'}
+            aria-labelledby={wide ? undefined : `share-tab-${t.id}`}
+            hidden={!wide && tab !== t.id}>
             {panelBody[t.id]}
           </section>
-        ))
-      )}
+        ))}
+      </div>
 
       <Modal open={qrOpen} onClose={() => setQrOpen(false)} title="Invite QR code">
         <div className="shr-qr">

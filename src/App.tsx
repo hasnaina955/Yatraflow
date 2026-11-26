@@ -4,7 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useS
 import { InlineIcon } from './components/icons'
 import { createPortal } from 'react-dom'
 import {
-  Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
+  Bell, Calculator, CircleHelp, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
   Settings, Sparkles, Sun, Tent, X,
 } from 'lucide-react'
 import { Analytics } from '@vercel/analytics/react'
@@ -24,7 +24,8 @@ import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { analyticsBeforeSend } from './lib/analyticsPrivacy'
 import { scrollBehavior } from './lib/motion'
-import { pageMeta, routeParts } from './lib/pageTitle'
+import { canonicalPath, isPrivateRoute, pageMeta, routeParts } from './lib/pageTitle'
+import { PUBLIC_ORIGIN } from './lib/shareUrl'
 import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath } from './lib/routes'
 import { stashCalcPrefillFromSearch } from './lib/calcPrefill'
 import { normalizeInviteCode, inviteRoute } from './lib/inviteCode'
@@ -37,6 +38,8 @@ import { currentQuery, currentRoute, navigate as navigateRoute, onRouteChange, r
 import { appLink } from './lib/appLink'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
+import { supabaseSessionKey } from './lib/supabase'
+import { browserLocalStorage, storedSessionHint } from './lib/storedSession'
 import { apkUpdateCheck, bootApkUpdates } from './lib/apkUpdateRuntime'
 import { feedbackHref } from './lib/feedback'
 import { setTheme, useTheme } from './lib/theme'
@@ -137,8 +140,10 @@ export function profileLookupState(
 const GUEST_ROUTE_SEGMENTS = new Set(['pub', 'creator', 'explore', 'creators', 'for-creators'])
 
 /** Routes that are static copy: they read no store data, so they paint before
- *  the hydrate settles instead of showing the loading block. */
-const STATIC_COPY_SEGMENTS = new Set(['faq', 'how-it-works'])
+ *  the hydrate settles instead of showing the loading block. The build prerenders
+ *  these four pages (scripts/prerender-static-pages.mjs), so the loader must not
+ *  replace their text after boot. */
+const STATIC_COPY_SEGMENTS = new Set(['faq', 'how-it-works', 'about', 'for-creators'])
 
 /** Whether the profile lookup takes the page from the route. A failed lookup takes it on the
  *  bare route too, so its Try again is never hidden behind the landing. A reading lookup does
@@ -555,19 +560,27 @@ export default function App() {
         tag.setAttribute('content', original)
       }
     }
-    // A page with its own copy is its own canonical. Without this the shell's
-    // canonical (the homepage) tells a crawler to fold /faq into '/', while the
-    // sitemap lists it as a page of its own.
+    // The canonical names this route's own address, and only the home page and the
+    // copy pages name one. The shell ships no canonical (every route would inherit
+    // the homepage's), so the link is created here when a route needs it and
+    // removed when it does not (#1042). The origin is the production origin, so a
+    // preview never names itself.
+    const canonicalTo = canonicalPath(routeParts(route))
     const canonical = document.querySelector('link[rel="canonical"]')
-    if (canonical) {
-      const original = canonical.getAttribute('data-site-canonical')
-      if (meta.description) {
-        if (original === null) canonical.setAttribute('data-site-canonical', canonical.getAttribute('href') ?? '')
-        const base = new URL(original ?? canonical.getAttribute('href') ?? '/', location.origin).origin
-        canonical.setAttribute('href', `${base}/${routeParts(route).join('/')}`)
-      } else if (original !== null) {
-        canonical.setAttribute('href', original)
-      }
+    if (canonicalTo !== null) {
+      const link = canonical ?? document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'canonical' }))
+      link.setAttribute('href', `${PUBLIC_ORIGIN}${canonicalTo}`)
+    } else {
+      canonical?.remove()
+    }
+    // Private pages are noindex. The server sends the same header for these paths
+    // (vercel.json), so a crawler that does not run script sees it too.
+    const robotsTag = document.querySelector('meta[name="robots"]')
+    if (isPrivateRoute(routeParts(route))) {
+      const robots = robotsTag ?? document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
+      robots.setAttribute('content', 'noindex')
+    } else {
+      robotsTag?.remove()
     }
   }, [route])
 
@@ -583,6 +596,13 @@ export default function App() {
   // exactly what the post-gate frame would be, instead of a spinner that
   // swaps to the full page (the landing load shift, Lighthouse CLS 0.997).
   const ready = useStoreReady()
+  // Two paths show the signed-out nav, and both are needed. With no stored session,
+  // the reader is signed out for certain, so the items show at once. With a stored
+  // session, the reader may be signed in. A reload would show the items before
+  // hydrate reads the session, so they wait for `ready`, and then show only when no
+  // user is signed in. The hint is read once at mount.
+  const [storedSession] = useState(() => storedSessionHint(browserLocalStorage(), supabaseSessionKey ?? ''))
+  const showSignedOutNav = storedSession === 'absent' || ready
 
   // A signed-out visitor who opens the create route goes to signup and comes
   // back to it once the account exists. This route used to render the landing
@@ -814,6 +834,15 @@ export default function App() {
               <a className={`nav-link ${route === CREATE_PATH ? 'active' : ''}`} data-pill-key={CREATE_PATH} {...appLink(CREATE_PATH)}>Plan a trip</a>
             </>}
             <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" {...appLink('/explore')}>Explore</a>
+            {/* Signed-out web only. showSignedOutNav decides when these items may show.
+                The rest of the gate matches the Log in buttons below. */}
+            {showSignedOutNav && !me && !sessionUserId && !isNative && <>
+              <a className={`nav-link topnav-extra ${route === '/how-it-works' ? 'active' : ''}`} data-pill-key="/how-it-works" {...appLink('/how-it-works')}>How it works</a>
+              {/* The calculator hub is a static page outside the router. A plain href
+                  has no pill key, so the glider never measures it. The topnav-extra
+                  class moves both items into the tray between 721px and 860px. */}
+              <a className="nav-link topnav-extra" href="/trip-cost-calculators/">Calculators</a>
+            </>}
             {me?.profile.isCreator && (
               <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} data-pill-key="/creator-hub" {...appLink('/creator-hub')}>Creator hub</a>
             )}
@@ -922,6 +951,11 @@ export default function App() {
           </>
           }
           <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>
+          {/* The same two signed-out items as the topnav. The tray is web-only already. */}
+          {showSignedOutNav && !me && !sessionUserId && <>
+            <a className={`nav-link ${route === '/how-it-works' ? 'active' : ''}`} {...appLink('/how-it-works')}><InlineIcon icon={CircleHelp} size={15} gap={6} />How it works</a>
+            <a className="nav-link" href="/trip-cost-calculators/"><InlineIcon icon={Calculator} size={15} gap={6} />Calculators</a>
+          </>}
           {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('/creator-hub')}><InlineIcon icon={Sparkles} size={15} gap={6} />Creator hub</a>}
           {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
         </div>
@@ -951,9 +985,41 @@ export default function App() {
           <circle cx="3" cy="5.5" r="3" fill="currentColor" />
           <circle cx="117" cy="5.5" r="3" fill="currentColor" />
         </svg>
-        <div className="container footer-inner">
-          <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
-          <span className="small muted">All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks. <a className="footer-link" {...appLink('/about')}>About YatraFlow</a> · <a className="footer-link" href={feedbackHref()}>Send feedback</a> · <a className="footer-link" {...appLink('/how-it-works')}>How it works</a> · <a className="footer-link" {...appLink('/faq')}>FAQ</a> · <a className="footer-link" href="/trip-cost-calculators/">Free trip cost calculators</a> · <a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh</a> · <a className="footer-link" {...appLink('/for-creators')}>For travel creators</a></span>
+        <div className="container footer-inner footer-layout">
+          <div className="footer-brand">
+            <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
+            <span className="small muted">All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks.</span>
+          </div>
+          <nav className="footer-groups" aria-label="Footer">
+            <div className="footer-group">
+              <h2 className="footer-group-title">Plan</h2>
+              <ul className="footer-group-list">
+                {/* The calculator hub and the Ladakh page are static pages, so they are plain hrefs and web-only. */}
+                {!isNative && <li><a className="footer-link" href="/trip-cost-calculators/">Trip cost calculators</a></li>}
+                {!isNative && <li><a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh trip cost calculator</a></li>}
+                <li><a className="footer-link" {...appLink('/how-it-works')}>How it works</a></li>
+              </ul>
+            </div>
+            <div className="footer-group">
+              <h2 className="footer-group-title">Help</h2>
+              <ul className="footer-group-list">
+                <li><a className="footer-link" {...appLink('/faq')}>FAQ</a></li>
+                <li><a className="footer-link" href={feedbackHref()}>Send feedback</a></li>
+              </ul>
+            </div>
+            <div className="footer-group">
+              <h2 className="footer-group-title">Creators</h2>
+              <ul className="footer-group-list">
+                <li><a className="footer-link" {...appLink('/for-creators')}>For travel creators</a></li>
+              </ul>
+            </div>
+            <div className="footer-group">
+              <h2 className="footer-group-title">Company</h2>
+              <ul className="footer-group-list">
+                <li><a className="footer-link" {...appLink('/about')}>About YatraFlow</a></li>
+              </ul>
+            </div>
+          </nav>
         </div>
       </footer>
 
@@ -1527,6 +1593,20 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     )
   }
 
+  if (phase === 'failed' && machine.reason === 'owner-approval') {
+    return (
+      <div className="container yf-page page-enter">
+        <StateBlock
+          kind="failed"
+          art={<Link2 size={38} aria-hidden />}
+          title="Owner approval needed"
+          body="Contact the trip owner about crew access."
+          actions={<button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>}
+        />
+      </div>
+    )
+  }
+
   // #804 (B1/B5) — the join itself failed, so no membership exists. The typed
   // refusal stays distinct, so the screen names the actual remedy instead of
   // calling every outcome a dropped connection.
@@ -1681,6 +1761,8 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
           <ol className="inv-next">
             {copy.nextSteps.map(step => <li key={step}>{step}</li>)}
           </ol>
+          {/* A query, not a fragment, so the native shell routes it like any other page. */}
+          <a className="inv-quiet-link" {...appLink(copy.faqHref)}>{copy.faqLabel} →</a>
         </section>
       </div>
     )

@@ -159,13 +159,13 @@ export function subscribe(fn: () => void): () => void {
 export function getSnapshot(): DB { return cache }
 
 export function useDb(): DB {
-  return useSyncExternalStore(subscribe, getSnapshot)
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
 /** True once the first post-mount hydrate has settled. Gates every
  *  "empty state" in the app: before this, empty just means "still loading". */
 export function useStoreReady(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.ready)
+  return useSyncExternalStore(subscribe, () => cache.ready, () => cache.ready)
 }
 
 // ---------------- Slice-level selectors ----------------
@@ -176,11 +176,11 @@ export function useStoreReady(): boolean {
 // the whole page tree because a trip edit changed cache.trips).
 
 export function useTrips(): Trip[] {
-  return useSyncExternalStore(subscribe, () => cache.trips)
+  return useSyncExternalStore(subscribe, () => cache.trips, () => cache.trips)
 }
 
 export function useTrashedTrips(): Trip[] {
-  return useSyncExternalStore(subscribe, () => cache.trashedTrips)
+  return useSyncExternalStore(subscribe, () => cache.trashedTrips, () => cache.trashedTrips)
 }
 
 /** Trash-bin read verdict (#387): `loaded` flips on the first successful
@@ -188,43 +188,43 @@ export function useTrashedTrips(): Trip[] {
  *  states from the pair (failed outranks; unloaded-unfailed is reading), so a
  *  failed bin read can never render the genuine-empty copy. */
 export function useTrashLoaded(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.trashLoaded)
+  return useSyncExternalStore(subscribe, () => cache.trashLoaded, () => cache.trashLoaded)
 }
 
 export function useTrashFailed(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.trashFailed)
+  return useSyncExternalStore(subscribe, () => cache.trashFailed, () => cache.trashFailed)
 }
 
 /** Per-slice hydrate verdicts (#364, #383). Narrow so My Trips re-renders only
  *  when the verdicts move, not on every unrelated store commit. */
 export function useSliceReads(): Record<string, 'ok' | 'failed'> {
-  return useSyncExternalStore(subscribe, () => cache.sliceReads)
+  return useSyncExternalStore(subscribe, () => cache.sliceReads, () => cache.sliceReads)
 }
 
 /** Crew quiz answers for every trip read so far. Filter by trip id in the page. */
 export function useCrewPreferenceRows(): CrewPreference[] {
-  return useSyncExternalStore(subscribe, () => cache.crewPreferences)
+  return useSyncExternalStore(subscribe, () => cache.crewPreferences, () => cache.crewPreferences)
 }
 
 /** Per-trip verdicts of the crew preference reads. Use `sliceState(reads, tripId)`. */
 export function useCrewPreferenceReads(): Record<ID, 'ok' | 'failed' | 'reading'> {
-  return useSyncExternalStore(subscribe, () => cache.crewPreferenceReads)
+  return useSyncExternalStore(subscribe, () => cache.crewPreferenceReads, () => cache.crewPreferenceReads)
 }
 
 export function usePublished(): PublishedItinerary[] {
-  return useSyncExternalStore(subscribe, () => cache.published)
+  return useSyncExternalStore(subscribe, () => cache.published, () => cache.published)
 }
 
 export function useUsers(): CachedUser[] {
-  return useSyncExternalStore(subscribe, () => cache.users)
+  return useSyncExternalStore(subscribe, () => cache.users, () => cache.users)
 }
 
 export function useNotifications(): Notification[] {
-  return useSyncExternalStore(subscribe, () => cache.notifications)
+  return useSyncExternalStore(subscribe, () => cache.notifications, () => cache.notifications)
 }
 
 export function useSessionUserId(): ID | null {
-  return useSyncExternalStore(subscribe, () => cache.sessionUserId)
+  return useSyncExternalStore(subscribe, () => cache.sessionUserId, () => cache.sessionUserId)
 }
 
 /**
@@ -238,13 +238,13 @@ export function useSessionUserId(): ID | null {
  * The value itself is meaningless; only a change matters.
  */
 export function useIdentityGeneration(): number {
-  return useSyncExternalStore(subscribe, () => identityEpoch)
+  return useSyncExternalStore(subscribe, () => identityEpoch, () => identityEpoch)
 }
 
 /** Synchronous read of the session's admin flag (true only after the first
  *  successful hydrate fetched the JWT role). Gates the #/admin route. */
 export function useIsAdmin(): boolean {
-  return useSyncExternalStore(subscribe, isAdminCached)
+  return useSyncExternalStore(subscribe, isAdminCached, isAdminCached)
 }
 
 /** Admin audit entries (the audit-log tab's rows). Hydrated for admins only. */
@@ -259,12 +259,12 @@ export interface AdminAuditEntry {
 }
 
 export function useAdminAudit(): AdminAuditEntry[] {
-  return useSyncExternalStore(subscribe, () => cache.adminAudit)
+  return useSyncExternalStore(subscribe, () => cache.adminAudit, () => cache.adminAudit)
 }
 
 /** The audit read's own status (#367) — the tab renders a retry on true. */
 export function useAdminAuditFailed(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.adminAuditFailed)
+  return useSyncExternalStore(subscribe, () => cache.adminAuditFailed, () => cache.adminAuditFailed)
 }
 
 interface AuditRowShape {
@@ -5902,7 +5902,7 @@ export async function setMemberRole(tripId: ID, userId: ID, role: TripMember['ro
  *   'failed'           no membership was created. A retry must join again.
  */
 export type JoinResult = 'joined' | 'joined-unloaded' | 'joined-unloaded-incomplete' | 'joined-unloaded-failed'
-  | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
+  | 'owner-approval' | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
 
 /**
  * Join a trip through its invite code, then fetch the full row into the cache.
@@ -6001,6 +6001,7 @@ async function joinAfterScope(
     return 'abandoned'
   }
   if (error) {
+    if (error.code === 'PT403') return 'owner-approval'
     console.error('[yatraflow] join write failed', error)
     return 'failed'
   }

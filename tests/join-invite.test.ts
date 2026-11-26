@@ -263,6 +263,16 @@ describe('joinViaInvite (write order)', () => {
     writes.length = 0
   }
 
+  it('reports owner approval without adding a buyer to the trip', async () => {
+    const id = '66666666-6666-4666-8666-666666666666'
+    await freshJoinable(id)
+    state.joinError = { code: 'PT403', message: 'Owner approval needed.' }
+
+    expect(await joinViaInvite(id, ME, CODE)).toBe('owner-approval')
+    expect(writes.filter(write => write.table === 'rpc:join_trip')).toHaveLength(1)
+    expect(tripById(id)).toBeUndefined()
+  })
+
   it('reports failure honestly when join_trip refuses the join', async () => {
     const t = '77777777-7777-4777-8777-777777777777'
     await freshJoinable(t)

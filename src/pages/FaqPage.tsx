@@ -12,11 +12,18 @@ import { currentQuery } from '../lib/router'
 /**
  * The FAQPage schema, built with the DOM API so no answer can ever be read as
  * markup: the JSON goes in as text, and leaving the page removes the block.
+ *
+ * A direct load of /faq already carries the same block in its prerendered head
+ * (scripts/prerender-static-pages.mjs). Replacing it here, rather than adding a
+ * second one, keeps exactly one FAQPage block on the page after boot. A visit that
+ * arrives by an in-app link has no prerendered head, so the block is added here.
  */
 function FaqSchema() {
   useEffect(() => {
+    document.head.querySelectorAll('script[data-faq-schema]').forEach(node => node.remove())
     const script = document.createElement('script')
     script.type = 'application/ld+json'
+    script.setAttribute('data-faq-schema', '')
     script.textContent = JSON.stringify(faqJsonLd())
     document.head.appendChild(script)
     return () => { script.remove() }

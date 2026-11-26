@@ -17,7 +17,7 @@ import {
 } from '../scripts/prerender-static-pages.mjs'
 import pageCards from '../scripts/page-cards.json' with { type: 'json' }
 
-const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
+const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** A stand-in for the built shell: the managed head tags, the hashed assets the
  *  build writes, and the #root the shell ships with. */

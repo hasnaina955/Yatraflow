@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { canonicalPath, isPrivateRoute, routeParts } from '../src/lib/pageTitle'
 
-const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
+const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 describe('the route helpers name the private pages and the canonical pages', () => {
   it.each([

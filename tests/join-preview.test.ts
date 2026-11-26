@@ -13,7 +13,7 @@ import { OG_TITLE_MAX } from '../api/_shareCard.js'
 import { dayCountForRange } from '../src/lib/dayCount'
 import { looksLikeInviteCode, normalizeInviteCode } from '../src/lib/inviteCode'
 
-const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
+const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** A stand-in for the built shell: the managed head tags, the hashed app assets and
  *  the #root the build writes. */

@@ -1,0 +1,28 @@
+{
+  "$comment": "The link-preview card for each static copy page and the invite card (#1042). `source` is the art in public/og/source/ (committed input). `file` is the 1200x630 card under public/og/. `headline` is the card's text and its image alt text. scripts/build-page-cards.mjs draws the cards, and scripts/prerender-static-pages.mjs and api/join.js read the headline and file names from here, so the text and the image cannot drift apart.",
+  "faq": {
+    "source": "og-faq.png",
+    "file": "page-faq.png",
+    "headline": "Questions, answered"
+  },
+  "how-it-works": {
+    "source": "og-how-it-works.png",
+    "file": "page-how-it-works.png",
+    "headline": "How YatraFlow works"
+  },
+  "about": {
+    "source": "og-about.png",
+    "file": "page-about.png",
+    "headline": "About YatraFlow"
+  },
+  "for-creators": {
+    "source": "og-for-creators.png",
+    "file": "page-for-creators.png",
+    "headline": "YatraFlow for creators"
+  },
+  "invite": {
+    "source": "og-invite.png",
+    "file": "invite.png",
+    "headline": "You're invited to plan a trip"
+  }
+}

@@ -39,11 +39,21 @@ const STATIC: Record<string, string> = {
   'how-it-works': HOW_IT_WORKS_TITLE,
 }
 
+/** The story page's meta description (#1042, owner-approved copy). */
+export const ABOUT_DESCRIPTION =
+  'YatraFlow helps groups plan Indian trips together, with every stop, hour and rupee in one shared plan. See what it does today and what comes next.'
+
+/** The creator page's meta description (#1042, owner-approved copy). */
+export const FOR_CREATORS_DESCRIPTION =
+  'Turn your India travel content into timed itineraries that your audience can copy and change. See what YatraFlow gives creators today and what is next.'
+
 /** Route head -> the meta description a page carries. Every other route keeps
  *  the site description that index.html ships. */
 const DESCRIPTIONS: Record<string, string> = {
   faq: FAQ_DESCRIPTION,
   'how-it-works': HOW_IT_WORKS_DESCRIPTION,
+  about: ABOUT_DESCRIPTION,
+  'for-creators': FOR_CREATORS_DESCRIPTION,
 }
 
 /** Routes whose title is the record's own name when we have it. */

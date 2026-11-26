@@ -18,6 +18,12 @@ export function shouldHandleAppLink(event: LinkClick, target = '', download = fa
     (!target || target === '_self') && !download
 }
 
+/** The document's protocol. A build-time prerender runs in Node with no
+ *  `location`, so it reads https, the protocol every served page has. */
+function documentProtocol(): string {
+  return typeof location === 'undefined' ? 'https:' : location.protocol
+}
+
 /** Spread onto a real anchor: browser-owned new tabs, in-document navigation
  *  for same-tab clicks. The preventDefault matters on the web — an anchor
  *  whose href is a real path would otherwise be a FULL page load, dropping
@@ -25,7 +31,7 @@ export function shouldHandleAppLink(event: LinkClick, target = '', download = fa
  *  stay one pushState inside the running document. */
 export function appLink(route: AppRoute) {
   return {
-    href: appLinkHref(route, Capacitor.isNativePlatform(), location.protocol),
+    href: appLinkHref(route, Capacitor.isNativePlatform(), documentProtocol()),
     onClick(event: MouseEvent<HTMLAnchorElement>) {
       if (!shouldHandleAppLink(event, event.currentTarget.target, event.currentTarget.hasAttribute('download'))) return
       event.preventDefault()

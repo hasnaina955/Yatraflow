@@ -116,6 +116,38 @@
       "destination": "/api/i?id=:slug&via=pub"
     },
     {
+      "source": "/faq",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/faq/",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/how-it-works/index.html"
+    },
+    {
+      "source": "/how-it-works/",
+      "destination": "/how-it-works/index.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/about/",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/for-creators",
+      "destination": "/for-creators/index.html"
+    },
+    {
+      "source": "/for-creators/",
+      "destination": "/for-creators/index.html"
+    },
+    {
       "source": "/((?!api/|i/|c/|sitemap.xml|calculators/|og/|trip-cost-calculators/|goa-trip-cost-calculator/|rajasthan-trip-cost-calculator/|meghalaya-trip-cost-calculator/|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",
       "destination": "/index.html"
     }

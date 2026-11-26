@@ -46,6 +46,9 @@ export interface InviteRecipientCopy {
   nextSteps: string[]
   /** The paid-guide note, or null when no guide is priced. */
   paidGuideNote: string | null
+  /** The quiet FAQ link under the next steps. Its target is a real FAQ section. */
+  faqLabel: string
+  faqHref: `/${string}`
 }
 
 export interface InviteConfirmCopy {
@@ -198,6 +201,9 @@ export function recipientInviteCopy(facts: InviteFacts): InviteRecipientCopy {
     paidGuideNote: price
       ? `Part of this plan is a paid guide (${formatInr(price)}). Joining the crew is free; you only pay if you want the locked days.`
       : null,
+    faqLabel: 'Questions? See the FAQ',
+    // Getting started answers the reader's own question: whether an account is needed.
+    faqHref: '/faq?section=getting-started',
   }
 }
 

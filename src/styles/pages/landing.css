@@ -65,3 +65,16 @@
   }
 }
 
+/* One quiet text-link row under the hero buttons. */
+.hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5) var(--space-9);
+  margin: var(--space-7) 0 0;
+}
+
+/* The calculator hub line, inside the Plan Bench card under its browse link. */
+.bench-hub-link {
+  margin: var(--space-6) 0 0;
+}
+

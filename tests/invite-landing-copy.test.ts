@@ -10,6 +10,7 @@ import {
   invitesStopCount, paidGuidePriceFor, recipientInviteCopy,
 } from '../src/lib/inviteLandingCopy'
 import type { PublishedItinerary } from '../src/data/types'
+import { FAQ_SECTIONS } from '../src/lib/faqContent'
 
 const FULL = {
   tripTitle: 'Goa with the gang',
@@ -47,6 +48,14 @@ describe('recipient copy with every fact', () => {
   it('keeps the quiet read-only path and the three next steps', () => {
     expect(copy.lookFirst).toBe(INVITE_LOOK_FIRST)
     expect(copy.nextSteps).toHaveLength(3)
+  })
+
+  it('links the signed-out reader to the FAQ section that answers whether an account is needed', () => {
+    expect(copy.faqLabel).toBe('Questions? See the FAQ')
+    expect(copy.faqHref).toBe('/faq?section=getting-started')
+    // The link names a section that the FAQ page renders. A missing id lands at the top.
+    const sectionId = copy.faqHref.split('section=')[1]
+    expect(FAQ_SECTIONS.map(section => section.id)).toContain(sectionId)
   })
 })
 

@@ -45,6 +45,7 @@ export function CreatorRankingsPage() {
         kicker="Creator rankings"
         headline={{ lead: 'Most forked', accent: 'creators' }}
         lede="Ranked by forks of live public routes. Ties go to more live routes, then name."
+        meta={<p className="small muted"><a className="text-link" {...appLink('/for-creators')}>Publishing your own routes? See YatraFlow for creators</a></p>}
       />
 
       <div className="cr-card cr-rk-filter" role="group" aria-label="Ranking filters">

@@ -224,6 +224,7 @@
         "board-col-count",
         "board-col-day",
         "board-col-head",
+        "board-col-load",
         "board-col-stops",
         "board-col-subtitle",
         "board-col-zone--add",
@@ -658,6 +659,23 @@
         "fcr-step-body", "fcr-steps--tight", "fcr-grid", "fcr-grid--three", "fcr-card", "fcr-card-index",
         "fcr-card-title", "fcr-card-body", "fcr-final", "fcr-close", "fcr-close-note", "fcr-link"
       ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
+      "id": "site-footer",
+      "file": "src/styles/components/site-footer.css",
+      "owned": [
+        "footer-layout", "footer-brand", "footer-groups", "footer-group",
+        "footer-group-title", "footer-group-list", "footer-link"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
+      "id": "topnav-collapse",
+      "file": "src/styles/components/topnav-collapse.css",
+      "owned": ["topnav-extra"],
       "configClasses": [],
       "variables": []
     }

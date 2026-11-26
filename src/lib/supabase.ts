@@ -46,3 +46,11 @@ export const supabase: SupabaseClient = createClient(
   },
 )
 
+/**
+ * The key the client keeps its session under. supabase-js derives it from the
+ * project URL and exposes the resolved value, so it is read here and never
+ * guessed. The topnav's stored-session hint reads this key from localStorage.
+ */
+export const supabaseSessionKey: string | undefined =
+  (supabase.auth as unknown as { storageKey?: string }).storageKey
+

@@ -19,7 +19,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const MIGRATION = 'supabase/migrations/20261126_invite_preview_projection.sql'
+const MIGRATION = 'supabase/migrations/20261127_invite_preview_projection.sql'
 const OWNER = '1126a000-0000-4000-8000-000000000001'
 const STRANGER = '1126a000-0000-4000-8000-000000000002'
 const NAMED_TRIP = '1126a000-0000-4000-8000-000000000011'
@@ -82,6 +82,16 @@ describe('the invite preview projects a first name and the link role', () => {
       create table public.entitlements (pub_id text, user_id uuid);
       create function public.is_member(trip uuid) returns boolean language sql stable as $$ select false $$;
       create function public.is_admin() returns boolean language sql stable as $$ select false $$;
+      create function public.is_disabled() returns boolean language sql stable as $$ select false $$;
+      -- The one payment gate every invite path shares (20261126b). A priced
+      -- publication lets nobody through here, because this build has no buyer.
+      create function public.invite_trip_payment_allows(trip uuid) returns boolean
+        language sql stable as $$
+          select not exists (
+            select 1 from public.published_itineraries p
+            where p.trip_id = trip and p.premium_price_inr is not null
+          )
+        $$;
 
       insert into public.profile_cards (id, name) values ('${OWNER}', 'Shubham Kulkarni');
       insert into public.trips (id, owner_id, name, invite_code, visibility, created_at, updated_at, write_version)

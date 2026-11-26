@@ -96,7 +96,7 @@ export function inviteReadOnlyFacts(facts: InviteFacts): { label: string; value:
 export const INVITE_LOOK_FIRST = 'Just look at it first'
 
 /** Only the head of a name reaches this screen: first name or handle, never a full name.
- *  The server normalises the same way (20261126_invite_preview_projection.sql), so this
+ *  The server normalises the same way (20261127_invite_preview_projection.sql), so this
  *  is the render-side half of one rule and not the only guard: a leading '@' comes off a
  *  handle, and a token that still reads as an address, a URL or a phone number is not a
  *  name, so the screen keeps its anonymous wording instead of printing it. */

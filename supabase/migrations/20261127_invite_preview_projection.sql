@@ -112,8 +112,11 @@ create type public.trip_invite_preview as (
 );
 
 -- --------------------------------------------------------------- 3. the read
--- Same signature, same language, same definer, same search path, same gates.
--- Only the return type and the two added members change.
+-- Same signature, same language, same definer, same search path, same gates as
+-- 20261126b, which owns them now: `not is_disabled()`, the member/admin check and
+-- `invite_trip_payment_allows`, the one payment gate every invite path shares.
+-- Only the return type and the two added members change. This file sorts after
+-- 20261126b, so the gate logic it copies is the newest one.
 create or replace function public.get_trip_by_invite_code(p_code text)
 returns setof public.trip_invite_preview
 language sql
@@ -167,33 +170,16 @@ as $$
   ) as projected
   where upper(t.invite_code) = upper(trim(p_code))
     and t.deleted_at is null
+    and not public.is_disabled()
     and (
       t.owner_id = auth.uid()
       or public.is_member(t.id)
       or public.is_admin()
-
-      or t.visibility = 'private'
-
-      or not exists (
-        select 1 from public.published_itineraries p
-        where p.trip_id = t.id and coalesce(p.premium_price_inr, 0) > 0
-      )
-
-      or exists (
-        select 1 from public.published_itineraries p
-        where p.trip_id = t.id
-          and (
-            p.creator_id = auth.uid()
-            or exists (
-              select 1 from public.entitlements e
-              where e.pub_id = p.id and e.user_id = auth.uid()
-            )
-          )
-      )
+      or public.invite_trip_payment_allows(t.id)
     );
 $$;
 
-revoke all on function public.get_trip_by_invite_code(text) from public;
+revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
 grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
 
 commit;

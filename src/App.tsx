@@ -1286,7 +1286,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     days: shownTrip?.days?.length ?? null,
     stops: invitesStopCount(shownTrip?.days),
     perPersonBudget: shownTrip?.budgetPerPersonInr ?? null,
-    // Both come from the preview RPC (20261126_invite_preview_projection.sql).
+    // Both come from the preview RPC (20261127_invite_preview_projection.sql).
     // Before that migration is applied the row carries neither, and the copy
     // falls back to its anonymous wording.
     inviterFirstName: preview?.ownerFirstName ?? null,

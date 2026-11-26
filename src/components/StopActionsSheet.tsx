@@ -40,6 +40,25 @@ const SHEET_STATUSES: StopStatus[] = ['confirmed', 'maybe', 'needs-booking']
 
 const DRAG_CLOSE_PX = 90
 
+/** The sheet's handlers, kept pure so the remove-to-undo wiring is testable
+ *  without a DOM. Every action runs, then closes the sheet. */
+export function stopSheetHandlers(
+  props: Pick<StopActionsSheetProps,
+    'onEdit' | 'onStatus' | 'onMove' | 'onReorderUp' | 'onReorderDown' | 'onShowOnMap' | 'onRemove'>,
+  close: () => void,
+) {
+  const wrap = (action: () => void) => () => { action(); close() }
+  return {
+    edit: wrap(props.onEdit),
+    status: (s: StopStatus) => wrap(() => props.onStatus(s))(),
+    move: wrap(props.onMove),
+    up: wrap(props.onReorderUp),
+    down: wrap(props.onReorderDown),
+    map: wrap(props.onShowOnMap),
+    remove: wrap(props.onRemove),
+  }
+}
+
 export function StopActionsSheet(props: StopActionsSheetProps) {
   const {
     open, onClose, stopTitle, dayNumber, timeLabel, stopNumber, stopCount,
@@ -118,10 +137,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
     if (distance >= DRAG_CLOSE_PX) onClose()
   }
 
-  const run = (action: () => void) => () => {
-    action()
-    onClose()
-  }
+  const h = stopSheetHandlers(props, onClose)
 
   const shell = (
     <div
@@ -169,7 +185,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
                     role="radio"
                     aria-checked={s === status}
                     className={s === status ? 'is-selected' : undefined}
-                    onClick={run(() => onStatus(s))}
+                    onClick={() => h.status(s)}
                   >
                     {statusLabel(s)}
                   </button>
@@ -178,14 +194,14 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
             </div>
 
             <div className="stop-sheet-actions">
-              <button type="button" className="stop-sheet-action" onClick={run(onEdit)}>
+              <button type="button" className="stop-sheet-action" onClick={h.edit}>
                 <Pencil size={18} aria-hidden />Edit details
               </button>
-              <button type="button" className="stop-sheet-action" onClick={run(onMove)}>
+              <button type="button" className="stop-sheet-action" onClick={h.move}>
                 <MoveHorizontal size={18} aria-hidden />
                 <span className="stop-sheet-action-text">Move to another day</span>
                 {otherDayNumbers.length > 0 && (
-                  <span className="stop-sheet-hint">{otherDayNumbers.map(n => `Day ${n}`).join(', ')}</span>
+                  <span className="stop-sheet-hint">Day {otherDayNumbers.join(', ')}</span>
                 )}
               </button>
               <div className="stop-sheet-action stop-sheet-reorder">
@@ -195,7 +211,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
                   type="button"
                   className="stop-sheet-step"
                   disabled={isFirst}
-                  onClick={run(onReorderUp)}
+                  onClick={h.up}
                   aria-label={`Move ${stopTitle} earlier`}
                 >
                   <ChevronUp size={18} aria-hidden />
@@ -204,18 +220,18 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
                   type="button"
                   className="stop-sheet-step"
                   disabled={isLast}
-                  onClick={run(onReorderDown)}
+                  onClick={h.down}
                   aria-label={`Move ${stopTitle} later`}
                 >
                   <ChevronDown size={18} aria-hidden />
                 </button>
               </div>
-              <button type="button" className="stop-sheet-action" onClick={run(onShowOnMap)}>
+              <button type="button" className="stop-sheet-action" onClick={h.map}>
                 <MapPin size={18} aria-hidden />Show on the map
               </button>
             </div>
 
-            <button type="button" className="stop-sheet-remove" onClick={run(onRemove)}>
+            <button type="button" className="stop-sheet-remove" onClick={h.remove}>
               <Trash2 size={18} aria-hidden />Remove from Day {dayNumber}
             </button>
             <p className="stop-sheet-note">You see the impact first, and you can undo it.</p>

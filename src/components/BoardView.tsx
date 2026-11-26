@@ -4,6 +4,7 @@
 // change routes through the same applyChange → impact-preview flow as the
 // Timeline, so nothing persists without its consequence visible first.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Loader2, LocateFixed, Map as MapIcon,
   MoveHorizontal, Plus, RefreshCw, Trash2, TriangleAlert, GripVertical, MoreHorizontal, Pencil,
@@ -448,6 +449,33 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
   // Keyboard/touch alternative to dragging: ▲▼ reorders within the day, the
   // ↔ button opens a move-to-day modal (UI audit: Board was drag-only).
   const [warningsOpen, setWarningsOpen] = useState(false)
+  const warningButtonRef = useRef<HTMLButtonElement>(null)
+  const warningPanelRef = useRef<HTMLDivElement>(null)
+  const [warningPosition, setWarningPosition] = useState({ left: 8, top: 8, maxHeight: 200 })
+  useLayoutEffect(() => {
+    if (!warningsOpen) return
+    const position = () => {
+      const rect = warningButtonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const top = Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 108))
+      setWarningPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 328)), top, maxHeight: Math.max(0, Math.min(320, window.innerHeight - top - 8)) })
+    }
+    position()
+    window.addEventListener('resize', position)
+    window.addEventListener('scroll', position, true)
+    return () => { window.removeEventListener('resize', position); window.removeEventListener('scroll', position, true) }
+  }, [warningsOpen])
+  useEffect(() => {
+    if (!warningsOpen) return
+    const close = () => { setWarningsOpen(false); warningButtonRef.current?.focus() }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); close() } }
+    const onClick = (event: MouseEvent) => {
+      if (event.target instanceof Node && !warningPanelRef.current?.contains(event.target) && !warningButtonRef.current?.contains(event.target)) close()
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('click', onClick)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('click', onClick) }
+  }, [warningsOpen])
   const [openActions, setOpenActions] = useState<string | null>(null)
   const [moveStop, setMoveStop] = useState<ItineraryStop | null>(null)
   const ordered = useMemo(() => activeStopsInOrder(day), [day])
@@ -585,8 +613,8 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
         {day.title && <span className="board-col-subtitle" title={day.title}>{day.title}</span>}
         {loadLabel && <span className={`board-col-load load-${loadLabel.includes('long') ? 'long' : loadLabel.includes('full') ? 'full' : loadLabel.includes('light') ? 'light' : 'stay'}`}><span className="board-load-track"><span className="board-load-fill" /></span>{loadLabel}</span>}
       </button>
-      {sev && <button type="button" className={`board-warning-toggle sev-${sev}`} aria-expanded={warningsOpen} aria-controls={`board-warnings-${day.id}`} aria-label={`${warnings.length} warning${warnings.length === 1 ? '' : 's'} for Day ${day.index + 1}`} onClick={() => setWarningsOpen(open => !open)}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings.length}</button>}
-      <div id={`board-warnings-${day.id}`} className={`board-warnings${warningsOpen ? ' is-open' : ''}`} aria-hidden={!warningsOpen}><div>{warnings.map((warning, index) => <p key={index}>{warning.title}: {warning.detail} {warning.fix}</p>)}</div></div>
+      {sev && <button ref={warningButtonRef} type="button" className={`board-warning-toggle sev-${sev}`} aria-expanded={warningsOpen} aria-controls={`board-warnings-${day.id}`} aria-label={`${warnings.length} warning${warnings.length === 1 ? '' : 's'} for Day ${day.index + 1}`} onClick={() => setWarningsOpen(open => !open)}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings.length}</button>}
+      {sev && typeof document !== 'undefined' && createPortal(<div ref={warningPanelRef} id={`board-warnings-${day.id}`} className={`board-warnings popover${warningsOpen ? ' is-open' : ''}`} style={warningPosition} aria-hidden={!warningsOpen} inert={!warningsOpen} role="region" aria-label={`Warnings for Day ${day.index + 1}`} tabIndex={0}>{warnings.map((warning, index) => <p key={index} tabIndex={0}>{warning.title}: {warning.detail} {warning.fix}</p>)}</div>, document.body)}
       </div>
 
       <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}${dragging !== null && keepsScroll ? ' keeps-scroll' : ''}`}

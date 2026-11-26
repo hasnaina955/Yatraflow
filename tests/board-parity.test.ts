@@ -32,6 +32,10 @@ describe('#369 — the pulse and the pills read the engine, not a regex', () => 
 
   it('exposes each warning in the expandable day control', () => {
     expect(board).toContain('aria-expanded={warningsOpen}')
+    expect(board).toContain('aria-controls={`board-warnings-${day.id}`}')
+    expect(board).toContain('createPortal(<div ref={warningPanelRef}')
+    expect(board).toContain('aria-hidden={!warningsOpen} inert={!warningsOpen}')
+    expect(board).toContain('role="region" aria-label={`Warnings for Day ${day.index + 1}`} tabIndex={0}')
     expect(board).toContain('{warning.title}: {warning.detail} {warning.fix}')
     expect(board).toContain('board-warning-toggle sev-${sev}')
   })

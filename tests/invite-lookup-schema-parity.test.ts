@@ -157,6 +157,19 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
     return result.rows.map(row => JSON.parse(row.row) as Record<string, unknown>)
   }
 
+  async function seedEntitlement(pub: string, user: string) {
+    await db.query(`
+      with paid_order as (
+        insert into public.purchase_orders
+          (user_id, pub_id, razorpay_order_id, amount_inr, status, price_snapshot_inr)
+        values ($1, $2, $2, 499, 'paid', 499)
+        returning id, user_id, pub_id
+      )
+      insert into public.entitlements(order_id, user_id, pub_id, amount_paid_inr)
+        select id, user_id, pub_id, 499 from paid_order
+    `, [user, pub])
+  }
+
   beforeAll(async () => {
     db = new PGlite()
     // Only the hosted pieces are stubbed: the roles, the auth schema and its
@@ -266,8 +279,8 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
   it('a buyer resolves it once the payments rail exists, and a stranger still does not', async () => {
     // The rail arrives after the bootstrap, as a migration would. This is the
     // branch the to_regclass guard defers, so it must work once it is reached.
-    await db.exec('create table public.entitlements(pub_id text, user_id uuid)')
-    await db.query('insert into public.entitlements(pub_id,user_id) values($1,$2)', [PUB, BUYER])
+    await db.exec(read('supabase/migrations/20260918_payments_rail.sql'))
+    await seedEntitlement(PUB, BUYER)
     expect(await rowsFor(BUYER, codes[PRICED_TRIP])).toHaveLength(1)
     expect(await rowsFor(STRANGER, codes[PRICED_TRIP])).toEqual([])
   })
@@ -287,7 +300,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
       'insert into public.published_itineraries(id,trip_id,creator_id) values($1,$2,$3)',
       ['legacy_publication', PRICED_TRIP, STRANGER],
     )
-    await db.query('insert into public.entitlements values($1,$2)', ['legacy_publication', STRANGER])
+    await seedEntitlement('legacy_publication', STRANGER)
     await db.query('update public.published_itineraries set premium_price_inr=0 where id=$1', [PUB])
     expect(await rowsFor('', code)).toEqual([])
     expect(await rowsFor(STRANGER, code)).toEqual([])

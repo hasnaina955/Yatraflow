@@ -59,13 +59,13 @@ export function SegmentedTabs({ semantics, items, value, onChange, label, classN
 
   if (semantics === 'toggle') {
     return (
-      <div className={className} role="group" aria-label={label} data-layout={value}>
+      <PillNav className={className} role="group" aria-label={label} activeKey={value}>
         {items.map(item => (
-          <button key={item.key} type="button" aria-pressed={value === item.key} onClick={() => onChange(item.key)}>
+          <button key={item.key} type="button" data-pill-key={item.key} aria-pressed={value === item.key} onClick={() => onChange(item.key)}>
             {item.icon}{item.label}
           </button>
         ))}
-      </div>
+      </PillNav>
     )
   }
 

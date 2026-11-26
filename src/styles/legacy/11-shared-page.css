@@ -456,7 +456,7 @@
    The group sets data-layout to the active choice. The pressed button keeps no
    fill of its own, because the glider paints it. The group's own rules are in
    the Grid | List switch section above. */
-.mt-seg::before {
+.mt-seg:not(.pill-nav)::before {
   content: ''; position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px;
   width: calc((100% - 6px) / 2); border-radius: 999px; background: var(--text); pointer-events: none;
   transition: left var(--motion-med) var(--ease-glide);

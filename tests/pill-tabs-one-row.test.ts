@@ -1,14 +1,28 @@
 import { readFileSync } from 'node:fs'
+import postcss from 'postcss'
 import { describe, expect, it } from 'vitest'
+import inventory from './pill-tab-inventory.json'
 
-const css = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
+const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 describe('pill tab rails', () => {
-  it('does not allow the Group input rail to wrap', () => {
-    expect(css('src/styles/pages/group-input.css')).not.toMatch(/\.gin-pillbar\s*\{[^}]*flex-wrap:\s*wrap\b/)
+  it('does not reintroduce wrapping in an inventoried rail', () => {
+    const failures: string[] = []
+    for (const { file, selector } of inventory) {
+      postcss.parse(read(file), { from: file }).walkRules(rule => {
+        if (!rule.selectors.some(part => part === selector || part.startsWith(`${selector} `))) return
+        rule.walkDecls(decl => {
+          if ((decl.prop === 'flex-wrap' && decl.value === 'wrap') ||
+              (decl.prop === 'white-space' && decl.value === 'normal')) failures.push(`${file}: ${rule.selector} ${decl.prop}: ${decl.value}`)
+        })
+      })
+    }
+    expect(failures).toEqual([])
   })
   it('keeps shared rail items on one line', () => {
-    const shared = css('src/styles/components/pill-nav.css')
-    expect(shared).toMatch(/\.pill-nav\s*>\s*\[data-pill-key\]\s*\{[^}]*white-space:\s*nowrap/)
+    const shared = read('src/styles/components/pill-nav.css')
+    expect(shared).toMatch(/\.pill-nav\s*\{[^}]*flex-wrap:\s*nowrap/)
+    expect(shared).toMatch(/\.pill-nav\s*\{[^}]*scroll-snap-type:\s*x proximity/)
+    expect(shared).toMatch(/\.pill-nav\s*>\s*\[data-pill-key\]\s*\{[^}]*flex:\s*none[^}]*white-space:\s*nowrap[^}]*scroll-snap-align:/)
   })
 })

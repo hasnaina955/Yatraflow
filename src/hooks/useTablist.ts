@@ -19,6 +19,7 @@
 // differ per surface.
 
 import { useCallback, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { scrollBehavior } from '../lib/motion'
 
 export function useTablist<K extends string>(
   ids: readonly K[],
@@ -39,7 +40,7 @@ export function useTablist<K extends string>(
     refs.current[next]?.focus()
     // scrollable tablists (share tabs on narrow screens): arrowing to a tab
     // that's out of view must bring it in
-    refs.current[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    refs.current[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: scrollBehavior() })
   }, [ids, activate])
 
   return {

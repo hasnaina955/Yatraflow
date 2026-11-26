@@ -46,7 +46,7 @@
 /* ---------- #684 - the trip tab rail hides its scrollbar ----------
    `.tabbar` scrolls sideways at phone width. It hides the scrollbar, so a tab
    past the right edge ("Group input") was cut with no sign that more exist.
-   PillNav publishes the rail's scroll state on `data-overflow`. Each rule below
+   PillNav publishes the rail's scroll state on `data-overflow`. Its owner file
    masks only a side that still holds hidden tabs. A rail that fits gets no mask.
    The mask reaches the tab labels. A background gradient cannot, because the
    labels paint above the background. */

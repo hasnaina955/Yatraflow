@@ -17,6 +17,7 @@ import { useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { railOverflow, railScrollToReveal } from '../lib/railOverflow'
 import { gliderBox } from '../lib/pillGeometry'
+import { scrollBehavior } from '../lib/motion'
 
 export function PillNav({ activeKey, className, role = 'presentation', 'aria-label': ariaLabel, ink, children }: {
   activeKey: string
@@ -77,7 +78,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
       inkOrigin.y = item.top - box.top + wrap.scrollTop - wrap.clientTop
     }
 
-    const revealActive = () => {
+    const revealActive = (animate = false) => {
       const el = wrap.querySelector<HTMLElement>(`[data-pill-key="${CSS.escape(activeKey)}"]`)
       if (!el) return
       const box = wrap.getBoundingClientRect()
@@ -91,7 +92,9 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
         itemLeft,
         itemRight,
       )
-      if (Math.abs(next - wrap.scrollLeft) > 0.5) wrap.scrollLeft = next
+      if (Math.abs(next - wrap.scrollLeft) > 0.5) {
+        el.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: animate ? scrollBehavior() : 'auto' })
+      }
     }
 
     const place = (animate: boolean) => {
@@ -190,7 +193,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
     // Only a change of activeKey glides; the first paint and every later
     // re-measure snap.
     const keyChanged = lastKeyRef.current !== activeKey
-    if (firstRunRef.current || keyChanged) revealActive()
+    if (firstRunRef.current || keyChanged) revealActive(!firstRunRef.current)
     syncInkOrigin()
     place(!firstRunRef.current && keyChanged)
     syncOverflow()
@@ -208,7 +211,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
     // wherever the row happened to be would read as a second, unasked-for
     // movement.
     let live = true
-    const remeasure = () => { revealActive(); syncInkOrigin(); place(false); syncOverflow() }
+    const remeasure = () => { syncInkOrigin(); place(false); syncOverflow() }
     let settleFrame = requestAnimationFrame(() => {
       settleFrame = requestAnimationFrame(() => { if (live) remeasure() })
     })

@@ -1672,7 +1672,8 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
    absolute overlay (top-left, z-index 5) that covered the map itself. The row
    wraps on desktop and scrolls horizontally on mobile (media query below). */
 .map-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-.map-day-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--yf-surface); border: 1px solid var(--yf-glass-border); border-radius: 999px; padding: 3px 4px; }
+.map-day-filter { display: flex; gap: 8px; flex-wrap: nowrap; align-items: center; background: var(--yf-surface); border: 1px solid var(--yf-glass-border); border-radius: 999px; padding: 3px 4px; }
+.map-day-filter .map-scope-lbl { flex: none; white-space: nowrap; }
 .map-day-chip {
   border: 1px solid var(--yf-glass-border); background: var(--yf-glass);
   -webkit-backdrop-filter: blur(var(--yf-blur-chip)); backdrop-filter: blur(var(--yf-blur-chip));
@@ -3286,7 +3287,7 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   }
   .tl-toolbar-sep { display: none; }
   .tl-toolbar .view-pillbar { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; }
-  .tl-toolbar .view-pillbar .tab-btn { flex: 1 1 auto; justify-content: center; padding: 0 10px; }
+  .tl-toolbar .view-pillbar .tab-btn { flex: none; justify-content: center; padding: 0 10px; }
   .tl-edit-switch { height: 44px; padding: 0 12px 0 8px; gap: 8px; background: var(--pw-soft); }
   .tl-edit-hint { display: none; }
   .tl-edit-label { font-size: 13px; }

@@ -39,8 +39,8 @@
 .shr-day-tag { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .shr-day-num { font-family: var(--font-display); font-size: 18px; font-weight: 800; line-height: 1; }
 /* Free / Premium control. Its glider is the group's ::before, moved by data-layout. */
-.shr-seg { position: relative; align-self: flex-start; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); }
-.shr-seg::before { content: ''; position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 6px) / 2); border-radius: 999px; background: var(--text); pointer-events: none; transition: left var(--motion-med) var(--ease-glide); }
+.shr-seg { position: relative; align-self: flex-start; display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); }
+.shr-seg:not(.pill-nav)::before { content: ''; position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 6px) / 2); border-radius: 999px; background: var(--text); pointer-events: none; transition: left var(--motion-med) var(--ease-glide); }
 .shr-seg[data-layout='premium']::before { left: calc(50% + 1px); }
 .shr-seg button { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: none; color: var(--text); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: color var(--motion-med) var(--ease-glide); }
 .shr-seg button[aria-pressed='true'] { color: var(--bg); }

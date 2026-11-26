@@ -5,7 +5,6 @@
 
 /* The actions sit beside the stop text on desktop, so they need no divider.
    The phone block in board-04.css adds it where the actions wrap below. */
-.board-stop-actions { margin-top: 0; }
 
 .board-stop-title-btn {
   border: none; background: none; padding: 0; text-align: inherit; color: inherit;
@@ -137,69 +136,86 @@
 
 .board-cols {
   position: relative; z-index: var(--z-raised); flex: 1 1 auto; min-height: 0;
-  display: flex; align-items: stretch; gap: 14px; overflow-x: auto;
+  display: flex; align-items: flex-end; gap: 12px; overflow-x: auto;
   justify-content: center; /* centre short trips; `safe` keeps long-trip scroll from clipping */
   justify-content: safe center;
   padding: 6px 16px 14px; scrollbar-width: thin;
 }
 
 .board-col {
-  /* Fill the row: columns share the spare width (capped so a 3-day trip doesn't
-     stretch into billboards); long trips fall back to the min-width scroll.
-     Height fits the column's own content — no internal scrollbar in realistic
-     days; the board floor grows with the tallest column. 760px cap is a safety
-     net so a monster day scrolls internally instead of stretching the page. */
-  flex: 1 1 264px; min-width: 250px; max-width: 424px;
-  height: auto; max-height: 760px; min-height: 340px;
+  flex: 0 0 206px; width: 206px; max-height: 760px; min-height: 0;
   display: flex; flex-direction: column;
-  border-radius: var(--radius-lg); overflow: hidden;
-  background: color-mix(in srgb, var(--card) 97%, transparent);
+  border-radius: var(--radius); overflow: hidden;
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  -webkit-backdrop-filter: blur(var(--yf-blur-panel));
+  backdrop-filter: blur(var(--yf-blur-panel));
   border: 1px solid var(--yf-glass-border);
   box-shadow: var(--shadow-soft);
 }
 
 .board-col--focused { outline: 2px solid var(--yf-teal-600); outline-offset: -2px; }
 
+.board-col-header { position: relative; }
+
 .board-col-head {
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px;
-  padding: 9px 12px 7px; text-align: left;
+  display: grid; align-items: center; gap: 2px;
+  width: 100%; padding: 10px 10px 0; text-align: left;
   background: transparent; border: none; border-bottom: 1px solid var(--line); cursor: pointer;
   font-family: var(--font-body);
 }
 
 .board-col-head:hover { background: var(--card-soft); }
 
-.board-col-day { font-size: 12px; font-weight: 800; color: var(--text); }
+.board-col-day { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; color: var(--text); text-transform: uppercase; white-space: nowrap; }
+.board-col-day i { width: 10px; height: 10px; flex: none; border-radius: 50%; }
+.board-col-date { font-size: 11.5px; font-weight: 500; color: var(--text-3); text-transform: none; }
 
-.board-col-count {
-  font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
-  background: var(--teal-soft); color: var(--teal-deep); white-space: nowrap;
+.board-col-subtitle, .board-col-load {
+  color: var(--text-3);
 }
 
 .board-col-subtitle {
-  grid-column: 1 / -1; font-size: 11.5px; color: var(--text-3);
+  font-size: 14px; font-weight: 700; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.board-col-head .day-warn-pill { grid-column: 1 / -1; justify-self: start; margin-top: 3px; max-width: 100%; }
+.board-col-load { display: flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.board-load-track { flex: 1; height: 5px; border-radius: 5px; background: var(--line); overflow: hidden; }
+:root[data-theme='dark'] .board-load-track { background: var(--bg); }
+.board-load-fill { display: block; height: 100%; width: var(--load-width); border-radius: inherit; background: var(--load-color); transform-origin: left; animation: board-load-in var(--motion-slower) var(--ease-paper) both; transition: width var(--motion-slower) var(--ease-paper), background-color var(--motion-slow) var(--ease-paper); }
+.load-light { --load-color: var(--board-day-color); --load-width: 35%; }
+.load-full { --load-color: var(--board-day-color); --load-width: 78%; }
+.load-long { --load-color: #B23A2E; --load-width: 96%; }
+.load-stay { --load-color: var(--board-day-color); --load-width: 25%; }
+@keyframes board-load-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.board-warning-toggle { position: absolute; top: 5px; right: 8px; display: flex; align-items: center; justify-content: end; min-width: 28px; min-height: 24px; border: 0; padding: 3px; background: transparent; color: var(--danger); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+.board-warning-toggle:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 2px; }
+.board-warnings { position: fixed; z-index: var(--z-nav-glass); width: min(320px, calc(100% - 16px)); overflow-y: auto; overscroll-behavior: contain; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow-soft); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-4px); transition: opacity var(--motion-fast) var(--ease-exit), transform var(--motion-fast) var(--ease-exit), visibility var(--motion-fast) var(--ease-exit); }
+.board-warnings.is-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); transition: opacity var(--motion-med) var(--ease-paper), transform var(--motion-med) var(--ease-paper); }
+.board-warnings p { margin: 4px 10px; color: var(--text); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .board-warnings, .board-warnings.is-open { transition: none; transform: none; } }
 
 .board-col-stops {
-  flex: 1 1 auto; overflow-y: auto; padding: 9px; min-height: 0;
-  display: flex; flex-direction: column; gap: 8px;
+  flex: 0 1 auto; overflow-y: auto; padding: 7px 10px 10px; min-height: 0;
+  display: flex; flex-direction: column; gap: 6px;
 }
 
-.board-stop { padding: 7px 10px 7px 13px; box-shadow: var(--shadow-soft); }
+.board-stop { position: relative; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 9px; box-shadow: none; }
+.board-stop-grip { flex: none; color: var(--text-3); }
+.board-stop-icon { display: flex; align-items: center; justify-content: center; flex: none; width: 26px; height: 26px; border-radius: 8px; background: var(--card-soft); color: var(--text-2); }
+.board-actions-toggle { display: none; }
+.board-stop-actions { position: absolute; z-index: 2; right: 0; top: 50%; transform: translateY(-50%); padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); box-shadow: var(--shadow-soft); opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-paper); }
+.board-stop:hover .board-stop-actions, .board-stop:focus-within .board-stop-actions, .board-stop.actions-open .board-stop-actions { opacity: 1; pointer-events: auto; }
 
 /* The shared .stop-main is a flex row (Timeline card). On the Board the kicker,
    title and meta stack, one line each, so the meta keeps the column width. */
-.board-stop .stop-main { flex-direction: column; align-items: stretch; gap: 0; text-align: start; }
+.board-stop .stop-main { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: 0; text-align: start; }
 
 .board-stop.stop-card {
-  border-color: color-mix(in srgb, var(--kind-c, var(--line)) 25%, var(--line));
-  background: linear-gradient(to right,
-    color-mix(in srgb, var(--kind-c, var(--line)) 9%, var(--card)) 0%,
-    color-mix(in srgb, var(--kind-c, var(--line)) 4%, var(--card)) 55%,
-    var(--card) 100%);
+  align-items: center; gap: 8px; min-height: 44px; padding: 8px 9px; border-radius: 12px;
+  border-color: var(--line);
+  background: var(--card);
 }
 
 .board-stop-kicker {
@@ -212,17 +228,17 @@
 .board-stop-kicker svg { vertical-align: -1.5px; margin-right: 4px; }
 
 .board-stop .stop-title {
-  display: block; font-size: 13px; margin-top: 2px;
+  display: block; font-size: 12.5px; margin-top: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .board-stop-meta {
-  display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); font-weight: 500;
+  display: block; margin-top: 0; font-size: 11px; line-height: 1.2; color: var(--text-3); font-weight: 500;
   /* Duration and cost share this line — the same data role already uses tabular
      figures in .stop-meta, so the board's columns should line up too. */
   font-variant-numeric: tabular-nums;
   /* Wrap, do not clip: the place, duration and cost must stay readable. */
-  white-space: normal; overflow-wrap: anywhere;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .board-flight .stop-title, .board-flight .board-stop-meta {
@@ -230,11 +246,11 @@
 }
 
 .board-col-zone {
-  border: 1.5px dashed color-mix(in srgb, var(--yf-teal-600) 40%, var(--yf-border));
-  border-radius: 13px;
-  padding: 9px 9px; text-align: center; color: var(--yf-text-muted);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 2px 0; text-align: left; color: var(--yf-text-muted);
   display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto;
-  background: color-mix(in srgb, var(--card) 55%, transparent);
+  background: transparent;
 }
 
 .board-col-zone b { font-size: 12px; color: var(--teal-deep); }
@@ -252,3 +268,5 @@ button.board-col-zone--add:hover { border-color: var(--teal); background: color-
 button.board-col-zone--add:focus-visible { outline: none; box-shadow: var(--ring); }
 
 button.board-col-zone--add:active { transform: translateY(1px); }
+
+.board-col-zone .small { display: none; }

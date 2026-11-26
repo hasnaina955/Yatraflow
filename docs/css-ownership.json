@@ -165,6 +165,34 @@
       ]
     },
     {
+      "id": "stop-actions-sheet",
+      "file": "src/styles/components/stop-actions-sheet.css",
+      "owned": [
+        "stop-sheet-overlay",
+        "stop-sheet-overlay-exiting",
+        "stop-sheet",
+        "stop-sheet-handle",
+        "stop-sheet-head",
+        "stop-sheet-tile",
+        "stop-sheet-titles",
+        "stop-sheet-meta",
+        "stop-sheet-close",
+        "stop-sheet-status",
+        "stop-sheet-label",
+        "stop-sheet-segment",
+        "stop-sheet-actions",
+        "stop-sheet-action",
+        "stop-sheet-action-text",
+        "stop-sheet-hint",
+        "stop-sheet-reorder",
+        "stop-sheet-step",
+        "stop-sheet-remove",
+        "stop-sheet-note"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
       "id": "toast",
       "file": "src/styles/components/toast.css",
       "owned": [],

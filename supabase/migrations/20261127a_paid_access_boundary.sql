@@ -576,8 +576,8 @@ create trigger purchase_orders_transition
   for each row execute function public.guard_order_transition();
 
 -- ---------------------------------------------- 9. refunds
--- The full refund ends the order in one write. Recording the total and ending the
--- order are one UPDATE, so no row is ever paid with a full refund.
+-- The full refund ends the order in one write. One UPDATE records the total and
+-- ends the order, so no row is ever paid with a full refund.
 create or replace function public.revoke_refunded_entitlement(p_razorpay_order_id text)
 returns boolean
 language plpgsql

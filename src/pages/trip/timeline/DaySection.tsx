@@ -36,7 +36,8 @@ import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
 import { motionTiming, prefersReducedMotion } from '../../../lib/motion'
 import { stopPresentation, type StopKind } from '../../../lib/stopKind'
 import { statusLabel } from '../../../lib/labels'
-import { Chip, Modal, toast, useReorder } from '../../../components/ui'
+import { Chip, Modal, toast, useMedia, useReorder } from '../../../components/ui'
+import { StopActionsSheet } from '../../../components/StopActionsSheet'
 import { StateBlock } from '../../../components/page/StateBlock'
 import { Select } from '../../../components/Select'
 import { COVER_TYPES, coverFileError, uploadCover } from '../../../lib/coverUpload'
@@ -452,7 +453,7 @@ function useFold(open: boolean): FoldState {
 // (whose travel panel searches against the whole itinerary). A closed card
 // therefore cannot read the trip at all: `trip` is optional, so a `trip.x` on
 // the collapsed path is a compile error rather than a stale render.
-export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
+export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, onShowOnMap, dayNumbers, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
   day: Trip['days'][number]
   /** MR8: this trip's saved ids, and the one toggle every heart on the page uses. */
   savedIds: string[]
@@ -510,6 +511,10 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   onLinkCommitment: (commitmentId: string, dayIndex: number, stopId: string | null) => void
   warnings: ScheduleWarning[]
   onStatus: (stop: ItineraryStop, status: ItineraryStop['status']) => void
+  /** Phone sheet: focus this stop on the map through the workspace map target. */
+  onShowOnMap?: (stopId: string) => void
+  /** All day numbers on this trip, for real "Move to another day" hints. */
+  dayNumbers?: number[]
   /** S3: the shared day model. Optional until S4 declares the panel props. */
   journeyDay?: JourneyDay
   journeyStatus?: JourneyStatus
@@ -758,6 +763,21 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // while the card still had 900px left to travel).
   const fold = useFold(open)
   const timeFormat = useTimeFormat()
+  // One phone sheet for the stop actions. The desktop ⋯ disclosure stays exactly
+  // as it was; only the <=720px phone surface swaps it for the sheet.
+  const phoneSheet = useMedia('(max-width: 720px)')
+  const [sheetStopId, setSheetStopId] = useState<string | null>(null)
+  const sheetIndex = sheetStopId ? ordered.findIndex(s => s.id === sheetStopId) : -1
+  const sheetStop = sheetIndex >= 0 ? ordered[sheetIndex] : null
+  const sheetRow = sheetStop ? simRows.get(String(sheetStop.id)) : undefined
+  const sheetTime = sheetStop
+    ? (sheetStop.openTime && sheetStop.closeTime
+        ? formatHMRange(sheetStop.openTime, sheetStop.closeTime, timeFormat)
+        : sheetRow?.arrive && sheetRow?.depart
+          ? formatHMRange(sheetRow.arrive, sheetRow.depart, timeFormat)
+          : undefined)
+    : undefined
+  const sheetOtherDays = (dayNumbers ?? []).filter(n => n !== day.index + 1)
   // Both clips hand focus back here when they unmount under the keyboard user's
   // feet (see SmoothCollapse's fallbackFocus).
   const collapseRef = useRef<HTMLButtonElement>(null)
@@ -1306,34 +1326,48 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                       maybe, move-day, delete) put 21 controls on a three-stop
                       day and were the loudest clutter left in the body. The two
                       reorder arrows stay inline because they are the keyboard
-                      alternative to dragging; everything else folds away. */}
-                  <div className="move-btns">
-                    <button className="move-btn" disabled={i === 0} onClick={() => moveUp(i)} aria-label={`Move ${s.title} up`}><ChevronUp size={12} aria-hidden /></button>
-                    <button className="move-btn" disabled={i === ordered.length - 1} onClick={() => moveDown(i)} aria-label={`Move ${s.title} down`}><ChevronDown size={12} aria-hidden /></button>
-                  </div>
-                  <details className="stop-more">
-                    <summary className="icon-btn" aria-label={`More actions for ${s.title}`} title="More actions">
-                      <MoreHorizontal size={16} aria-hidden />
-                    </summary>
-                    <div className="stop-more-menu" role="menu">
-                      <button type="button" role="menuitem" onClick={() => onEdit(s.id)}>
-                        <Pencil size={14} aria-hidden />Edit
-                      </button>
-                      {s.status !== 'confirmed'
-                        ? <button type="button" role="menuitem" onClick={() => onStatus(s, 'confirmed')}>
-                            <CircleCheck size={14} aria-hidden />Mark confirmed
-                          </button>
-                        : <button type="button" role="menuitem" onClick={() => onStatus(s, 'maybe')}>
-                            <CircleHelp size={14} aria-hidden />Mark maybe
-                          </button>}
-                      <button type="button" role="menuitem" onClick={() => onMoveBetweenDays(s)}>
-                        <MoveHorizontal size={14} aria-hidden />Move to another day
-                      </button>
-                      <button type="button" role="menuitem" className="danger" onClick={() => onDelete(s.id, day.index)}>
-                        <Trash2 size={14} aria-hidden />Delete
-                      </button>
+                      alternative to dragging; everything else folds away. On a
+                      phone the arrows and the popover give way to one sheet. */}
+                  {!phoneSheet && (
+                    <div className="move-btns">
+                      <button className="move-btn" disabled={i === 0} onClick={() => moveUp(i)} aria-label={`Move ${s.title} up`}><ChevronUp size={12} aria-hidden /></button>
+                      <button className="move-btn" disabled={i === ordered.length - 1} onClick={() => moveDown(i)} aria-label={`Move ${s.title} down`}><ChevronDown size={12} aria-hidden /></button>
                     </div>
-                  </details>
+                  )}
+                  {!phoneSheet ? (
+                    <details className="stop-more">
+                      <summary className="icon-btn" aria-label={`More actions for ${s.title}`} title="More actions">
+                        <MoreHorizontal size={16} aria-hidden />
+                      </summary>
+                      <div className="stop-more-menu" role="menu">
+                        <button type="button" role="menuitem" onClick={() => onEdit(s.id)}>
+                          <Pencil size={14} aria-hidden />Edit
+                        </button>
+                        {s.status !== 'confirmed'
+                          ? <button type="button" role="menuitem" onClick={() => onStatus(s, 'confirmed')}>
+                              <CircleCheck size={14} aria-hidden />Mark confirmed
+                            </button>
+                          : <button type="button" role="menuitem" onClick={() => onStatus(s, 'maybe')}>
+                              <CircleHelp size={14} aria-hidden />Mark maybe
+                            </button>}
+                        <button type="button" role="menuitem" onClick={() => onMoveBetweenDays(s)}>
+                          <MoveHorizontal size={14} aria-hidden />Move to another day
+                        </button>
+                        <button type="button" role="menuitem" className="danger" onClick={() => onDelete(s.id, day.index)}>
+                          <Trash2 size={14} aria-hidden />Delete
+                        </button>
+                      </div>
+                    </details>
+                  ) : (
+                    <button
+                      type="button"
+                      className="icon-btn stop-more-phone"
+                      aria-label={`More actions for ${s.title}`}
+                      onClick={() => setSheetStopId(s.id)}
+                    >
+                      <MoreHorizontal size={16} aria-hidden />
+                    </button>
+                  )}
                 </div>
               )}
               </div>
@@ -1592,6 +1626,30 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           </div>
         </>}
       </Modal>
+      {editable && sheetStop && (
+        <StopActionsSheet
+          open={!!sheetStopId}
+          onClose={() => setSheetStopId(null)}
+          stopTitle={sheetStop.title}
+          dayNumber={day.index + 1}
+          timeLabel={sheetTime}
+          stopNumber={sheetIndex + 1}
+          stopCount={ordered.length}
+          status={sheetStop.status}
+          otherDayNumbers={sheetOtherDays}
+          editable={editable}
+          kindIcon={<StopKindIcon kind={stopPresentation(sheetStop, bodyTrip?.transportMode).kind} />}
+          isFirst={sheetIndex === 0}
+          isLast={sheetIndex === ordered.length - 1}
+          onEdit={() => onEdit(sheetStop.id)}
+          onStatus={status => onStatus(sheetStop, status)}
+          onMove={() => onMoveBetweenDays(sheetStop)}
+          onReorderUp={() => moveUp(sheetIndex)}
+          onReorderDown={() => moveDown(sheetIndex)}
+          onShowOnMap={() => onShowOnMap?.(sheetStop.id)}
+          onRemove={() => onDelete(sheetStop.id, day.index)}
+        />
+      )}
     </div>
   )
 // `day` is compared by CONTENT: the store hands every merged/echoed row fresh

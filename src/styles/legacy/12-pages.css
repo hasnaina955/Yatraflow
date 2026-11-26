@@ -227,7 +227,7 @@
    row (.feed-item.shr-member-row): name and age, the role chip, then the two
    decisions. The details column has a 160px basis, so at phone width the
    decisions wrap to their own line, and at 1280 the whole row fits on one. */
-.share-join-requests { display: grid; gap: 10px; margin-top: 18px; }
+.share-join-requests { display: grid; gap: 10px; margin: 18px 0; }
 .share-join-state { margin: 0; }
 .share-join-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .share-join-row { flex-wrap: wrap; }

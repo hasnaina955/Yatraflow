@@ -3782,6 +3782,12 @@ begin
   where a.trip_id = v_trip.id and a.user_id = v_req.user_id
   for update;
 
+  -- The same refusal as join_trip and request_trip_join. A member that the owner
+  -- removed after the request was made is restored only by the restore path.
+  if v_access.state = 'removed' or (v_access.owner_id is not null and v_access.owner_id <> v_trip.owner_id) then
+    raise exception 'Ask the owner to restore your access.' using errcode = '42501';
+  end if;
+
   v_role := case
     when v_access.user_id is null then v_cap
     when v_access.state = 'active' then v_access.role

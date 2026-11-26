@@ -26,6 +26,7 @@ const U = {
   owner: id(1), admin: id(2), editor: id(3), viewer: id(4), buyer: id(5), refunded: id(6),
   premark: id(7), outsider: id(8), disBuyer: id(9), disMember: id(10), partial: id(11),
   partialPremark: id(12), outsider2: id(13), outsider3: id(14), outsider4: id(15),
+  removed: id(16),
 }
 const T = {
   listed: id(101), unpub: id(102), private: id(103), trash: id(104), free: id(105), never: id(106),
@@ -715,6 +716,25 @@ describe('the approve-request flow: request, decide, and nothing else writes tri
     const all = await db.query(`select id from public.trip_join_requests where trip_id = $1`, [T.listed])
     expect(all.rows.length).toBeGreaterThanOrEqual(2)
     await reset(db)
+  })
+
+  it('an approval does not restore a member that the owner removed after the request', async () => {
+    await as(db, 'authenticated', U.removed)
+    const req = await db.query<{ id: string }>(`select public.request_trip_join($1) as id`, [CODE.listed])
+    await reset(db)
+    // The owner removes this person after the request was made.
+    await db.query(
+      `insert into public.trip_member_access (trip_id, user_id, owner_id, state, role, joined_at)
+       values ($1, $2, $3, 'removed', 'editor', 1)`,
+      [T.listed, U.removed, U.owner],
+    )
+    await as(db, 'authenticated', U.owner)
+    await expect(db.query(`select public.decide_trip_join($1, true)`, [req.rows[0].id])).rejects.toThrow(/restore your access/)
+    await reset(db)
+    const member = await db.query(`select 1 from public.trip_members where trip_id = $1 and user_id = $2`, [T.listed, U.removed])
+    expect(member.rows).toHaveLength(0)
+    const status = await db.query<{ status: string }>(`select status from public.trip_join_requests where id = $1`, [req.rows[0].id])
+    expect(status.rows[0].status).toBe('pending')
   })
 })
 

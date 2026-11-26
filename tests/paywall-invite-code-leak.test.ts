@@ -185,17 +185,21 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
   })
 
   it('get_trip_by_invite_code carries the guard its uuid sibling has had all along', () => {
-    const files = defining('get_trip_by_invite_code')
+    const files = defining('get_trip_by_invite_code').filter(file =>
+      !src('../supabase/migrations/' + file).includes("and prorettype = 'public.trips'::regtype"),
+    )
     const newest = files.at(-1)
     expect(newest).toBeDefined()
 
     const code = sqlCode(sqlFunction(src(`../supabase/migrations/${newest}`), 'get_trip_by_invite_code'))
     // The gate: a priced publication locks the code path for everyone without a
     // claim on it — the same clause shape as get_invite_trip.
-    expect(code).toMatch(/coalesce\(p\.premium_price_inr, 0\) > 0/)
+    expect(code).not.toMatch(/t\.visibility = 'private'|p\.creator_id = auth\.uid\(\)/)
+    expect(code.match(/p\.premium_price_inr is not null/g)).toHaveLength(2)
+    expect(code).toMatch(/join public\.entitlements e on e\.pub_id = p\.id/)
+    expect(code).toMatch(/e\.user_id = auth\.uid\(\)/)
     expect(code).toMatch(/public\.is_member\(t\.id\)/)
     expect(code).toMatch(/public\.is_admin\(\)/)
-    expect(code).toMatch(/from public\.entitlements e\s+where e\.pub_id = p\.id and e\.user_id = auth\.uid\(\)/)
     // Trashed trips stop resolving through the code, as they already do through
     // the uuid.
     expect(code).toMatch(/t\.deleted_at is null/)

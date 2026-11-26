@@ -6,7 +6,7 @@
 // The builder is pure so the rules are testable without a router or a store:
 //   - An optional fact that the trip does not have is dropped, never printed as
 //     "0 stops", "₹0", "undefined" or a raw id.
-//   - A missing inviter name degrades the sentence instead of leaving a hole.
+//   - A missing owner name degrades the sentence instead of leaving a hole.
 //   - The invite's role decides the two role lines. The preview read carries no
 //     role, so a role it does not know says what both roles share.
 import type { PublishedItinerary } from '../data/types'
@@ -22,7 +22,7 @@ export interface InviteFacts {
   route?: string | null
   /** How many people plan it. Absent when the read did not carry a crew. */
   crew?: number | null
-  inviterFirstName?: string | null
+  ownerFirstName?: string | null
   startDate?: string | null
   endDate?: string | null
   days?: number | null
@@ -173,15 +173,18 @@ function tripName(facts: InviteFacts): string {
 
 /** State A: a valid invite, signed out. The common case. */
 export function recipientInviteCopy(facts: InviteFacts): InviteRecipientCopy {
-  const inviter = inviteFirstName(facts.inviterFirstName)
+  const owner = inviteFirstName(facts.ownerFirstName)
   const name = tripName(facts)
   const parts = inviteFactParts(facts)
   const price = typeof facts.paidGuidePrice === 'number' && Number.isFinite(facts.paidGuidePrice) && facts.paidGuidePrice > 0
     ? facts.paidGuidePrice
     : null
   return {
-    headline: inviter ? `${inviter} added you to ${name}.` : `You were added to ${name}.`,
-    facts: parts.length ? parts.join(' · ') : 'A group trip on YatraFlow.',
+    headline: owner ? `Join ${owner}'s trip.` : `Join ${name}.`,
+    facts: [
+      ...(owner && facts.tripTitle?.trim() ? [name] : []),
+      ...parts,
+    ].join(' · ') || 'A group trip on YatraFlow.',
     roleLine: facts.role === 'editor'
       ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split, and you can vote on the open decisions.'
       : facts.role === 'viewer'
@@ -194,12 +197,12 @@ export function recipientInviteCopy(facts: InviteFacts): InviteRecipientCopy {
     underPrimary: 'Free. We’ll ask you to sign in or create an account first. That’s how we tell your vote from someone else’s.',
     lookFirst: INVITE_LOOK_FIRST,
     nextSteps: [
-      'You land on the plan your friend already started.',
+      'You can open the trip plan.',
       'Vote on whatever’s open. Your group sees the result.',
       'Everyone sees who paid what, settled at the end, in as few transfers as possible.',
     ],
     paidGuideNote: price
-      ? `Part of this plan is a paid guide (${formatInr(price)}). Joining the crew is free; you only pay if you want the locked days.`
+      ? `Part of this plan is a paid guide (${formatInr(price)}). An invite does not unlock the paid guide.`
       : null,
     faqLabel: 'Questions? See the FAQ',
     // Getting started answers the reader's own question: whether an account is needed.
@@ -209,13 +212,13 @@ export function recipientInviteCopy(facts: InviteFacts): InviteRecipientCopy {
 
 /** State B: a valid invite, signed in. One confirm, then the join. */
 export function inviteConfirmCopy(facts: InviteFacts): InviteConfirmCopy {
-  const inviter = inviteFirstName(facts.inviterFirstName)
+  const owner = inviteFirstName(facts.ownerFirstName)
   const tail: string[] = []
   const days = dayNumber(facts.days)
   if (days) tail.push(`${days} ${days === 1 ? 'day' : 'days'}`)
   const stops = dayNumber(facts.stops)
   if (stops) tail.push(`${stops} ${stops === 1 ? 'stop' : 'stops'}`)
-  const lead = inviter ? `${inviter} invited you.` : 'You were invited.'
+  const lead = owner ? `${owner} owns this trip.` : 'You were invited.'
   return {
     headline: `Join ${tripName(facts)}?`,
     sub: tail.length ? `${lead} ${tail.join(' · ')}.` : lead,
@@ -230,7 +233,7 @@ export function expiredInviteCopy(input: { ownerFirstName?: string | null } = {}
   return {
     headline: 'This invite link has expired.',
     body: owner
-      ? `Links can be reset by whoever owns the trip. Ask ${owner} for a fresh one, or enter the code they shared.`
+      ? `Links can be reset by whoever owns the trip. Ask ${owner} for a fresh one, or enter a new code.`
       : 'Links can be reset by whoever owns the trip. Ask whoever shared it for a fresh one, or enter the code they shared.',
     codeLabel: 'Trip code',
     codePlaceholder: 'GOA-K7QF',

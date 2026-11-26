@@ -1,13 +1,9 @@
 -- ============================================================================
--- Invite preview projection — name the friend, state the link's role.
+-- Invite preview projection. Show the trip owner and the link's role.
 --
--- The signed-out invite preview (`/join/<code>`) read trip facts only, so the
--- screen had to open with "You were added to Goa 2026." even when the visitor
--- was told by a friend to tap the link. Two facts were missing and are added
--- here:
+-- The signed-out invite preview includes two fields beside the trip facts:
 --
---   owner_first_name — the first name (or handle) of the trip's owner, the
---                      person whose link this is.
+--   owner_first_name — the first name or handle of the trip owner.
 --   invite_role      — 'editor' or 'viewer', the role the code admits
 --                      (trip_invite_role, #1012; a missing row means editor,
 --                      exactly as join_trip reads it).
@@ -31,12 +27,11 @@
 -- carries '@', '/' or ':' is an address or a URL rather than a name, a token
 -- made only of digits and phone separators is a phone number in any shape
 -- (`+91.98765.43210`, `(022).123.4567`, `-`), and a dotted alphanumeric token is
--- a web address (`www.example.com`): all answer NULL, which the client renders.
+-- a web address (`www.example.com`): all return NULL.
 -- The refusal is a list of shapes that cannot be a name, never a list of letters
 -- a name must use: a name in any script passes (`प्रिया`, `Анна`, `田中`), and the
 -- ARE engine has no script-independent letter class to test with.
--- with the anonymous wording it already has. `src/lib/inviteLandingCopy.ts`
--- keeps the same rule on the render side.
+-- The client uses a generic headline when the owner name is absent.
 --
 -- Re-runnable: the function is dropped before the type it returns, and the type
 -- is dropped before it is created.
@@ -112,8 +107,8 @@ create type public.trip_invite_preview as (
 );
 
 -- --------------------------------------------------------------- 3. the read
--- Same signature, same language, same definer, same search path, same gates.
--- Only the return type and the two added members change.
+-- A priced trip needs an entitlement or existing access.
+-- The link does not identify who shared it.
 create or replace function public.get_trip_by_invite_code(p_code text)
 returns setof public.trip_invite_preview
 language sql
@@ -167,33 +162,27 @@ as $$
   ) as projected
   where upper(t.invite_code) = upper(trim(p_code))
     and t.deleted_at is null
+    and not public.is_disabled()
     and (
       t.owner_id = auth.uid()
       or public.is_member(t.id)
       or public.is_admin()
 
-      or t.visibility = 'private'
-
       or not exists (
         select 1 from public.published_itineraries p
-        where p.trip_id = t.id and coalesce(p.premium_price_inr, 0) > 0
+        where p.trip_id = t.id and p.premium_price_inr is not null
       )
 
       or exists (
         select 1 from public.published_itineraries p
-        where p.trip_id = t.id
-          and (
-            p.creator_id = auth.uid()
-            or exists (
-              select 1 from public.entitlements e
-              where e.pub_id = p.id and e.user_id = auth.uid()
-            )
-          )
+        join public.entitlements e on e.pub_id = p.id
+        where p.trip_id = t.id and p.premium_price_inr is not null
+          and e.user_id = auth.uid()
       )
     );
 $$;
 
-revoke all on function public.get_trip_by_invite_code(text) from public;
+revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
 grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
 
 commit;

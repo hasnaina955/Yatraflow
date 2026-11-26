@@ -14,7 +14,7 @@ import { FAQ_SECTIONS } from '../src/lib/faqContent'
 
 const FULL = {
   tripTitle: 'Goa with the gang',
-  inviterFirstName: 'Riya',
+  ownerFirstName: 'Riya',
   route: 'Pune → Goa',
   crew: 4,
   startDate: '2026-12-12',
@@ -29,16 +29,16 @@ const FULL = {
 describe('recipient copy with every fact', () => {
   const copy = recipientInviteCopy(FULL)
 
-  it('names the inviter and the trip in the headline', () => {
-    expect(copy.headline).toBe('Riya added you to Goa with the gang.')
+  it('names the owner in the headline', () => {
+    expect(copy.headline).toBe("Join Riya's trip.")
   })
 
   it('lists the facts the trip has, in order', () => {
-    expect(copy.facts).toBe('12 – 17 Dec · 6 days · 11 stops · ₹18,400 per person budget')
+    expect(copy.facts).toBe('Goa with the gang · 12 – 17 Dec · 6 days · 11 stops · ₹18,400 per person budget')
   })
 
   it('adds the paid-guide note only when a guide is priced', () => {
-    expect(copy.paidGuideNote).toBe('Part of this plan is a paid guide (₹199). Joining the crew is free; you only pay if you want the locked days.')
+    expect(copy.paidGuideNote).toBe('Part of this plan is a paid guide (₹199). An invite does not unlock the paid guide.')
   })
 
   it('speaks to an editor about voting', () => {
@@ -63,7 +63,7 @@ describe('recipient copy with no facts', () => {
   const copy = recipientInviteCopy({ tripTitle: 'Goa with the gang' })
 
   it('degrades the headline instead of leaving a hole', () => {
-    expect(copy.headline).toBe('You were added to Goa with the gang.')
+    expect(copy.headline).toBe('Join Goa with the gang.')
   })
 
   it('says what the trip is when nothing else is known', () => {
@@ -86,11 +86,11 @@ describe('role wording', () => {
   })
 
   it('says what the link gives, in both the headline sentence and the role line', () => {
-    expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham' }).headline)
-      .toBe('Shubham added you to Goa.')
-    expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham', role: 'editor' }).roleLine)
+    expect(recipientInviteCopy({ tripTitle: 'Goa', ownerFirstName: 'Shubham' }).headline)
+      .toBe("Join Shubham's trip.")
+    expect(recipientInviteCopy({ tripTitle: 'Goa', ownerFirstName: 'Shubham', role: 'editor' }).roleLine)
       .toContain('you can vote on the open decisions')
-    expect(recipientInviteCopy({ tripTitle: 'Goa', inviterFirstName: 'Shubham', role: 'viewer' }).roleLine)
+    expect(recipientInviteCopy({ tripTitle: 'Goa', ownerFirstName: 'Shubham', role: 'viewer' }).roleLine)
       .not.toContain('you can vote')
   })
 })
@@ -98,33 +98,33 @@ describe('role wording', () => {
 // The two fields the preview RPC projects (20261126_invite_preview_projection.sql).
 // Each one degrades on its own: a name without a role, or a role without a name,
 // still reads as a complete sentence.
-describe('the inviter name the preview projects', () => {
-  it('names the friend when the preview carries one', () => {
-    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }).headline)
-      .toBe('Shubham added you to Goa 2026.')
-    expect(inviteConfirmCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }).sub)
-      .toBe('Shubham invited you.')
+describe('the owner name the preview projects', () => {
+  it('names the owner when the preview carries one', () => {
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: 'Shubham' }).headline)
+      .toBe("Join Shubham's trip.")
+    expect(inviteConfirmCopy({ tripTitle: 'Goa 2026', ownerFirstName: 'Shubham' }).sub)
+      .toBe('Shubham owns this trip.')
   })
 
   it('keeps today’s anonymous wording when the preview carries none', () => {
-    const anonymous = 'You were added to Goa 2026.'
-    for (const inviterFirstName of [null, undefined, '', '   ']) {
-      expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName }).headline).toBe(anonymous)
+    const anonymous = 'Join Goa 2026.'
+    for (const ownerFirstName of [null, undefined, '', '   ']) {
+      expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName }).headline).toBe(anonymous)
     }
     expect(inviteConfirmCopy({ tripTitle: 'Goa 2026' }).sub).toBe('You were invited.')
   })
 
   it('strips a leading @ from a handle', () => {
-    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: '@shubham_k' }).headline)
-      .toBe('shubham_k added you to Goa 2026.')
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: '@shubham_k' }).headline)
+      .toBe("Join shubham_k's trip.")
     expect(inviteFirstName('@shubham_k')).toBe('shubham_k')
     expect(inviteFirstName('@@riya')).toBe('riya')
   })
 
   it('caps a long name at 24 characters, ellipsis included', () => {
     const long = 'Bartholomewmaximilianjones'
-    const copy = recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: long })
-    expect(copy.headline).toBe('Bartholomewmaximilianjo… added you to Goa 2026.')
+    const copy = recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: long })
+    expect(copy.headline).toBe("Join Bartholomewmaximilianjo…'s trip.")
     expect(inviteFirstName(long)).toHaveLength(24)
     // A name the server already capped comes through unchanged, never re-cut.
     expect(inviteFirstName('Bartholomewmaximilianjo…')).toBe('Bartholomewmaximilianjo…')
@@ -134,15 +134,15 @@ describe('the inviter name the preview projects', () => {
     expect(inviteFirstName('Shubham@Example.com')).toBeNull()
     expect(inviteFirstName('https://instagram.com/shubham')).toBeNull()
     expect(inviteFirstName('+91 98765 43210')).toBeNull()
-    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham@Example.com' }).headline)
-      .toBe('You were added to Goa 2026.')
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: 'Shubham@Example.com' }).headline)
+      .toBe('Join Goa 2026.')
   })
 
   it('refuses a schemeless web address or a dotted phone number, which carry no @ or /', () => {
     for (const contact of ['www.example.com', 'example.com', '98765.43210', 'shubham.k', '+91.98765.43210', '(022).123.4567', '-', '(', '()']) {
       expect(inviteFirstName(contact), contact).toBeNull()
-      expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: contact }).headline)
-        .toBe('You were added to Goa 2026.')
+      expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: contact }).headline)
+        .toBe('Join Goa 2026.')
     }
     // A trailing full stop is punctuation, not a domain: the word survives it.
     expect(inviteFirstName('Riya.')).toBe('Riya')
@@ -153,14 +153,14 @@ describe('the inviter name the preview projects', () => {
       expect(inviteFirstName(name), name).not.toBeNull()
     }
     expect(inviteFirstName('प्रिया शर्मा')).toBe('प्रिया')
-    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'प्रिया' }).headline)
-      .toBe('प्रिया added you to Goa 2026.')
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: 'प्रिया' }).headline)
+      .toBe("Join प्रिया's trip.")
   })
 })
 
 describe('the preview role, and the paid guide alongside it', () => {
   it('states an editor link and a viewer link differently, with the same name', () => {
-    const base = { tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }
+    const base = { tripTitle: 'Goa 2026', ownerFirstName: 'Shubham' }
     expect(recipientInviteCopy({ ...base, role: 'editor' }).roleLine).toContain('you can vote')
     expect(recipientInviteCopy({ ...base, role: 'viewer' }).roleLine).toBe(
       'You’ll see the whole plan: days, stops, drive times and the ₹ split. You can’t edit it, comment or vote.',
@@ -168,17 +168,17 @@ describe('the preview role, and the paid guide alongside it', () => {
   })
 
   it('keeps the role line when the preview carried no name, and the name when it carried no role', () => {
-    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', role: 'viewer' }).headline).toBe('You were added to Goa 2026.')
-    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', inviterFirstName: 'Shubham' }).roleLine)
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', role: 'viewer' }).headline).toBe('Join Goa 2026.')
+    expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ownerFirstName: 'Shubham' }).roleLine)
       .toBe('You’ll see the whole plan: days, stops, drive times and the ₹ split.')
   })
 
-  it('names the friend and still says the guide is a paid extra', () => {
+  it('names the owner and still says the guide is a paid extra', () => {
     const copy = recipientInviteCopy({
-      tripTitle: 'Goa 2026', inviterFirstName: 'Shubham', role: 'viewer', paidGuidePrice: 499,
+      tripTitle: 'Goa 2026', ownerFirstName: 'Shubham', role: 'viewer', paidGuidePrice: 499,
     })
-    expect(copy.headline).toBe('Shubham added you to Goa 2026.')
-    expect(copy.paidGuideNote).toBe('Part of this plan is a paid guide (₹499). Joining the crew is free; you only pay if you want the locked days.')
+    expect(copy.headline).toBe("Join Shubham's trip.")
+    expect(copy.paidGuideNote).toBe('Part of this plan is a paid guide (₹499). An invite does not unlock the paid guide.')
     expect(copy.roleLine).not.toContain('you can vote')
   })
 })
@@ -189,7 +189,7 @@ describe('a failed preview read', () => {
   // anonymous screen rather than as an error.
   it('renders today’s anonymous wording from no facts at all', () => {
     const copy = recipientInviteCopy({})
-    expect(copy.headline).toBe('You were added to a trip.')
+    expect(copy.headline).toBe('Join a trip.')
     expect(copy.facts).toBe('A group trip on YatraFlow.')
     expect(copy.roleLine).toBe('You’ll see the whole plan: days, stops, drive times and the ₹ split.')
     expect(copy.paidGuideNote).toBeNull()
@@ -199,16 +199,16 @@ describe('a failed preview read', () => {
 
 describe('the signed-in confirm', () => {
   it('asks the question with the facts it has', () => {
-    const copy = inviteConfirmCopy({ tripTitle: 'Goa with the gang', inviterFirstName: 'Riya', days: 6, stops: 11 })
+    const copy = inviteConfirmCopy({ tripTitle: 'Goa with the gang', ownerFirstName: 'Riya', days: 6, stops: 11 })
     expect(copy.headline).toBe('Join Goa with the gang?')
-    expect(copy.sub).toBe('Riya invited you. 6 days · 11 stops.')
+    expect(copy.sub).toBe('Riya owns this trip. 6 days · 11 stops.')
     expect(copy.primary).toBe('Join the trip')
     expect(copy.quiet).toBe('Not now')
   })
 
   it('drops absent counts without leaving a dangling separator', () => {
-    const copy = inviteConfirmCopy({ tripTitle: 'Goa', inviterFirstName: 'Riya', days: null, stops: null })
-    expect(copy.sub).toBe('Riya invited you.')
+    const copy = inviteConfirmCopy({ tripTitle: 'Goa', ownerFirstName: 'Riya', days: null, stops: null })
+    expect(copy.sub).toBe('Riya owns this trip.')
   })
 })
 

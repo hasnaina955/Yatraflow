@@ -61,7 +61,11 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
     const defining = readdirSync('supabase/migrations')
       .filter(name => name.endsWith('.sql'))
       .sort()
-      .filter(name => read(`supabase/migrations/${name}`).includes(`function public.${NAME}(`))
+      .filter(name => {
+        const source = read(`supabase/migrations/${name}`)
+        // The hotfix replaces only the legacy row type.
+        return definition(source) && !source.includes("and prorettype = 'public.trips'::regtype")
+      })
     expect(defining.at(-1), 'a newer migration redefines the function: update MIGRATION and this test').toBe(MIGRATION)
   })
 
@@ -101,15 +105,18 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
       'owner_id = auth.uid()',
       'public.is_member(',
       'public.is_admin()',
-      "visibility = 'private'",
-      'coalesce(p.premium_price_inr, 0) > 0',
-      'p.creator_id = auth.uid()',
+      'not public.is_disabled()',
+      'p.premium_price_inr is not null',
       'public.entitlements',
       'e.user_id = auth.uid()',
     ]
     for (const gate of gates) {
       expect(flat(liveBody), `the migration must keep: ${gate}`).toContain(gate)
       expect(flat(schemaBody), `schema.sql must keep: ${gate}`).toContain(gate)
+    }
+    for (const body of [liveBody, schemaBody]) {
+      expect(flat(body)).not.toMatch(/visibility = 'private'|p\.creator_id = auth\.uid\(\)/)
+      expect(flat(body).match(/p\.premium_price_inr is not null/g)).toHaveLength(2)
     }
   })
 
@@ -128,7 +135,7 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
 
   it('both copies carry the same grants and revokes', () => {
     for (const [label, source] of [['the migration', migration], ['schema.sql', schema]] as const) {
-      expect(source, label).toContain(`revoke all on function public.${NAME}(text) from public;`)
+      expect(source, label).toContain(`revoke execute on function public.${NAME}(text) from public, anon;`)
       expect(source, label).toContain(`grant execute on function public.${NAME}(text) to anon, authenticated;`)
     }
   })

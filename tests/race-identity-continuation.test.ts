@@ -206,14 +206,14 @@ vi.mock('../src/lib/offlineCache', () => ({
 const { trip: TRIP, alice: ALICE, bob: BOB } = ids
 const CODE = 'GOA-K7QFH3WT'
 
-/** A preview row: the invite RPC names 31 of the 34 trip columns. */
+/** A legacy invite preview row. */
 function previewRow(): Record<string, unknown> {
   return {
     id: TRIP, owner_id: BOB, name: 'Goa Beach Week', start_location: 'Mumbai', start_location_coords: null,
     destinations: ['Goa'], destination_coords: null, start_date: '2026-10-01', end_date: '2026-10-04',
     travellers: 3, transport_mode: 'car', budget_per_person_inr: 12000, travel_style: 'relaxed',
     fixed_commitments: [], days: [], expenses: [], cover_emoji: '🧭', invite_code: CODE, visibility: 'private',
-    created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000, write_version: 1,
+    created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000, write_version: 1, deleted_at: null,
   }
 }
 
@@ -224,7 +224,7 @@ function fullTripRow(): Record<string, unknown> {
     flights: [], tank_l: null, rent_per_day_inr: null, local_train: null, ref: null,
     fuel_economy_km_per_l: null, fuel_price_per_l: null, round_trip: null, cover_image_url: null,
     stay_style: null, driver_count: null, has_vulnerable: null, drive_after_dinner_min: null,
-    vehicle_profile: null, deleted_at: null,
+    vehicle_profile: null,
   }
 }
 

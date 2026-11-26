@@ -962,30 +962,10 @@ grant execute on function public.prune_pub_events(integer) to service_role;
 -- ============================================================
 -- Invite-code lookup (mirrors migrations/20261126_invite_preview_projection.sql)
 -- ============================================================
--- The code is the capability — same trust model as get_invite_trip: a
--- private trip must be previewable by whoever holds its invite code, and RLS
--- cannot know the request came from a #/join/<code> link. SECURITY DEFINER
--- bypasses the trips read policy; case-insensitive because users type codes
--- casually.
---
--- This copy answers what the live function answers, and it is plpgsql for one
--- reason: the live body is `language sql`, and a sql body is validated at
--- CREATE time. This file never creates `public.entitlements` (the payments
--- rail lives in migrations/20260918_payments_rail.sql), so a sql copy fails the
--- whole bootstrap with "relation does not exist". plpgsql resolves a relation
--- when the statement is reached, so the guarded branch below keeps a
--- schema-only build valid. Same reasoning as trip_has_publication_money above.
---
--- The projection is the live one: only the columns named here reach a caller,
--- so a new column is not exposed by accident. `write_version` is the row
--- revision the app checks before it renders a preview, `deleted_at is null`
--- hides trashed trips, and the gates hold the paywall.
---
--- `owner_first_name` and `invite_role` mirror
--- migrations/20261126_invite_preview_projection.sql: the invite screen names the
--- friend who sent the link and says what the link gives. The return type is a
--- named composite so the shape IS the allowlist, and `invite_first_name` is the
--- server half of the normalisation, since an anonymous caller reads this row.
+-- The code identifies the trip. The definer checks access to priced trips.
+-- The payments rail is installed by a separate migration. This plpgsql
+-- body checks for the entitlements table before it reads a buyer's access.
+-- The projection includes the trip owner's first name and the link's role.
 drop function if exists public.get_trip_by_invite_code(text);
 drop type if exists public.trip_invite_preview;
 
@@ -1105,6 +1085,7 @@ begin
     ) as projected
     where upper(t.invite_code) = upper(trim(p_code))
       and t.deleted_at is null
+      and not public.is_disabled()
   loop
     -- The owner, the crew and a masteradmin resolve the trip.
     if v_row.owner_id = auth.uid()
@@ -1114,25 +1095,9 @@ begin
       continue;
     end if;
 
-    -- A private trip: the code is the capability, exactly like the uuid.
-    if v_row.visibility = 'private' then
-      return next v_row;
-      continue;
-    end if;
-
-    -- A public trip is fine unless a priced publication backs it.
     if not exists (
       select 1 from public.published_itineraries p
-      where p.trip_id = v_row.id and coalesce(p.premium_price_inr, 0) > 0
-    ) then
-      return next v_row;
-      continue;
-    end if;
-
-    -- The publication's creator reads their own plan.
-    if exists (
-      select 1 from public.published_itineraries p
-      where p.trip_id = v_row.id and p.creator_id = auth.uid()
+      where p.trip_id = v_row.id and p.premium_price_inr is not null
     ) then
       return next v_row;
       continue;
@@ -1145,7 +1110,8 @@ begin
       if exists (
         select 1 from public.entitlements e
         join public.published_itineraries p on p.id = e.pub_id
-        where p.trip_id = v_row.id and e.user_id = auth.uid()
+        where p.trip_id = v_row.id and p.premium_price_inr is not null
+          and e.user_id = auth.uid()
       ) then
         return next v_row;
         continue;
@@ -1157,7 +1123,7 @@ begin
 end;
 $$;
 
-revoke all on function public.get_trip_by_invite_code(text) from public;
+revoke execute on function public.get_trip_by_invite_code(text) from public, anon;
 grant execute on function public.get_trip_by_invite_code(text) to anon, authenticated;
 
 -- ============================================================

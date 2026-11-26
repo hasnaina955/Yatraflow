@@ -55,10 +55,12 @@ describe('the invite preview projects a first name and the link role', () => {
       $$;
       create table public.trips (
         id uuid primary key, owner_id uuid not null, name text not null default '',
-        start_location text, destinations jsonb, start_date text, end_date text, travellers integer,
-        transport_mode text, budget_per_person_inr integer, travel_style text,
+        start_location text not null default '', destinations jsonb not null default '[]',
+        start_date text not null default '', end_date text not null default '', travellers integer not null default 1,
+        transport_mode text not null default 'car', budget_per_person_inr integer not null default 0,
+        travel_style text not null default 'balanced',
         fixed_commitments jsonb not null default '[]', days jsonb not null default '[]',
-        expenses jsonb not null default '[]', cover_emoji text,
+        expenses jsonb not null default '[]', cover_emoji text not null default '',
         visibility text not null default 'private',
         created_at bigint, updated_at bigint, start_location_coords jsonb, destination_coords jsonb,
         fuel_economy_km_per_l numeric, fuel_price_per_l numeric, round_trip boolean, invite_code text,
@@ -82,14 +84,17 @@ describe('the invite preview projects a first name and the link role', () => {
       create table public.entitlements (pub_id text, user_id uuid);
       create function public.is_member(trip uuid) returns boolean language sql stable as $$ select false $$;
       create function public.is_admin() returns boolean language sql stable as $$ select false $$;
+      create function public.is_disabled() returns boolean language sql stable as $$
+        select coalesce(current_setting('test.disabled', true) = 'true', false)
+      $$;
 
       insert into public.profile_cards (id, name) values ('${OWNER}', 'Shubham Kulkarni');
       insert into public.trips (id, owner_id, name, invite_code, visibility, created_at, updated_at, write_version)
         values ('${NAMED_TRIP}', '${OWNER}', 'Goa 2026', '${CODE}', 'private', 1, 1, 7),
-               ('${PRICED_TRIP}', '${OWNER}', 'Munnar guide', '${PRICED_CODE}', 'public', 1, 1, 8),
+               ('${PRICED_TRIP}', '${OWNER}', 'Munnar guide', '${PRICED_CODE}', 'private', 1, 1, 8),
                ('${ORPHAN_TRIP}', '${OWNER}', 'Coorg', '${ORPHAN_CODE}', 'private', 1, 1, 9);
       insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr)
-        values ('${PUB}', '${PRICED_TRIP}', '${OWNER}', 499);
+        values ('${PUB}', '${PRICED_TRIP}', '${OWNER}', 0);
     `)
     await db.exec(readFileSync(resolve(process.cwd(), MIGRATION), 'utf8'))
   })
@@ -146,9 +151,27 @@ describe('the invite preview projects a first name and the link role', () => {
     expect(rows[0].owner_first_name).toBeNull()
   })
 
-  it('a priced publication still hides the trip from a caller who cannot be a buyer', async () => {
+  it('keeps a priced private trip behind its publication entitlement', async () => {
+    await db.query(
+      'insert into public.published_itineraries (id, trip_id, creator_id) values ($1, $2, $3)',
+      ['unpriced', PRICED_TRIP, STRANGER],
+    )
+    await db.query('insert into public.entitlements values ($1, $2)', ['unpriced', STRANGER])
     expect(await rowsFor(PRICED_CODE)).toEqual([])
+    expect(await rowsFor(PRICED_CODE, STRANGER)).toEqual([])
     expect(await rowsFor(PRICED_CODE, OWNER)).toHaveLength(1)
+    await db.query('insert into public.entitlements values ($1, $2)', [PUB, STRANGER])
+    expect(await rowsFor(PRICED_CODE, STRANGER)).toHaveLength(1)
+  })
+
+  it('refuses a disabled session even when the session owns the trip', async () => {
+    await db.exec("set test.disabled = 'true'")
+    try {
+      expect(await rowsFor(CODE, OWNER)).toEqual([])
+    } finally {
+      await db.exec('reset test.disabled')
+    }
+    expect(await rowsFor(CODE, OWNER)).toHaveLength(1)
   })
 
   it('a trashed trip resolves for nobody', async () => {
@@ -222,10 +245,10 @@ describe('the invite preview projects a first name and the link role', () => {
 
     const copy = recipientInviteCopy({
       tripTitle: trip.name,
-      inviterFirstName: preview.ownerFirstName,
+      ownerFirstName: preview.ownerFirstName,
       role: preview.inviteRole,
     })
-    expect(copy.headline).toBe('Shubham added you to Goa 2026.')
+    expect(copy.headline).toBe("Join Shubham's trip.")
     expect(copy.roleLine).toContain('You can’t edit it, comment or vote.')
     expect(copy.roleLine).not.toContain('you can vote')
   })
@@ -237,6 +260,6 @@ describe('the invite preview projects a first name and the link role', () => {
     const { recipientInviteCopy } = await import('../src/lib/inviteLandingCopy')
     expect(invitePreviewIdentity({ id: NAMED_TRIP, name: 'Goa 2026' })).toEqual({ ownerFirstName: null, inviteRole: null })
     expect(recipientInviteCopy({ tripTitle: 'Goa 2026', ...invitePreviewIdentity({}) }).headline)
-      .toBe('You were added to Goa 2026.')
+      .toBe('Join Goa 2026.')
   })
 })

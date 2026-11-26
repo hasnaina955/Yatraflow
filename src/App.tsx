@@ -1278,7 +1278,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     // Both come from the preview RPC (20261126_invite_preview_projection.sql).
     // Before that migration is applied the row carries neither, and the copy
     // falls back to its anonymous wording.
-    inviterFirstName: preview?.ownerFirstName ?? null,
+    ownerFirstName: preview?.ownerFirstName ?? null,
     role: preview?.inviteRole ?? null,
     paidGuidePrice,
   }
@@ -1305,7 +1305,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       // machine drives from there.
       if (result.kind === 'cancelled') return
       if (result.kind === 'found') {
-        // Only the code read carries the inviter's name and the link's role; a
+        // Only the code read carries the trip owner's name and the link's role; a
         // trip-id link answers with a full shared read, which has neither.
         const preview = 'preview' in result ? result.preview : null
         setResolved({ target: linkTarget, identityGen, trip: result.trip, preview }); setStatus('ready')

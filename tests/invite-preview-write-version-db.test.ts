@@ -33,10 +33,12 @@ describe('#1019 get_trip_by_invite_code returns write_version on a real database
       $$;
       create table public.trips (
         id uuid primary key, owner_id uuid not null, name text not null default '',
-        start_location text, destinations jsonb, start_date text, end_date text, travellers integer,
-        transport_mode text, budget_per_person_inr integer, travel_style text,
+        start_location text not null default '', destinations jsonb not null default '[]',
+        start_date text not null default '', end_date text not null default '', travellers integer not null default 1,
+        transport_mode text not null default 'car', budget_per_person_inr integer not null default 0,
+        travel_style text not null default 'balanced',
         fixed_commitments jsonb not null default '[]', days jsonb not null default '[]',
-        expenses jsonb not null default '[]', cover_emoji text, visibility text not null default 'private',
+        expenses jsonb not null default '[]', cover_emoji text not null default '', visibility text not null default 'private',
         created_at bigint, updated_at bigint, start_location_coords jsonb, destination_coords jsonb,
         fuel_economy_km_per_l numeric, fuel_price_per_l numeric, round_trip boolean, invite_code text,
         deleted_at timestamptz, driver_count integer, has_vulnerable boolean, drive_after_dinner_min integer,

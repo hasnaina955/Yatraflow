@@ -4,6 +4,7 @@ import { InlineIcon } from './icons'
 import { Check, Map as MapIcon, Mountain, Sailboat, Tent, TriangleAlert, Trees, Users, X } from 'lucide-react'
 import { nativeCopyText } from '../lib/native'
 import { motionExitTiming, prefersReducedMotion } from '../lib/motion'
+import { beginToastExit, leaveIfNotHeld, toastIconKind } from '../lib/toastTiming'
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
 import { type AvatarTone } from '../lib/avatarTone'
@@ -235,7 +236,7 @@ export function undoToast(msg: string, undo: () => void) {
   pushToastFn?.(msg, 'ok', { label: 'Undo', run: undo })
 }
 let dismissToastFn: ((id: number) => void) | null = null
-type ToastItem = { id: number; msg: string; kind: string; action?: { label: string; run: () => void } }
+type ToastItem = { id: number; msg: string; kind: string; action?: { label: string; run: () => void }; leaving?: boolean }
 /** How long a toast stays up. An undo toast gets a longer window, and either can
     be held open indefinitely by pointing at it or tabbing into it. */
 const TOAST_DWELL = 3400
@@ -251,18 +252,36 @@ export function ToastZone() {
   // adjustable or extendable; this covers holding it open, which is the common
   // case - the remaining gap is recorded in the audit log rather than claimed.)
   const timers = useRef(new Map<number, { id: number; remaining: number; startedAt: number; handle: number }>())
+  // One exit timer per toast, separate from the dwell timer. A leaving toast is
+  // taken out of the dwell map, so releasing a hold cannot re-arm its dwell.
+  const exitTimers = useRef(new Map<number, () => void>())
   const held = useRef(false)
   // Hover and focus are INDEPENDENT reasons to hold. Sharing one flag meant a
   // pointer-out resumed a toast the keyboard was still reading, and a blur
   // resumed one the pointer was still resting on.
   const holding = useRef({ pointer: false, focus: false })
 
+  /** Move one toast to its exit: fade and sink in CSS, then unmount on the
+   *  same token's clock. Explicit dismiss and Undo use this path too. */
+  const startLeave = (id: number) => {
+    const rec = timers.current.get(id)
+    if (rec) { clearTimeout(rec.handle); timers.current.delete(id) }
+    if (exitTimers.current.has(id)) return
+    let removedNow = false
+    const cancel = beginToastExit(
+      () => setToasts(t => t.map(x => x.id === id ? { ...x, leaving: true } : x)),
+      () => {
+        removedNow = true
+        exitTimers.current.delete(id)
+        setToasts(t => t.filter(x => x.id !== id))
+      },
+    )
+    // Reduced motion removes the toast inside beginToastExit, so there is no
+    // live timer to keep for it.
+    if (!removedNow) exitTimers.current.set(id, cancel)
+  }
+
   useEffect(() => {
-    const drop = (id: number) => {
-      const rec = timers.current.get(id)
-      if (rec) { clearTimeout(rec.handle); timers.current.delete(id) }
-      setToasts(t => t.filter(x => x.id !== id))
-    }
     pushToastFn = (msg, kind = 'ok', action) => {
       const id = ++toastSeq
       setToasts(t => [...t, { id, msg, kind, action }])
@@ -270,16 +289,20 @@ export function ToastZone() {
       const rec = { id, remaining: ms, startedAt: Date.now(), handle: 0 }
       // A toast that arrives while the pointer already rests on the zone (a
       // second save, say) must not start a clock the user cannot see running.
-      if (!held.current) rec.handle = window.setTimeout(() => drop(id), ms)
+      if (!held.current) rec.handle = window.setTimeout(() => leaveIfNotHeld(() => held.current, () => startLeave(id)), ms)
       timers.current.set(id, rec)
     }
-    dismissToastFn = drop
+    // Undo and any explicit dismiss go through the same exit as the dwell timer.
+    dismissToastFn = startLeave
     const pending = timers.current
+    const exits = exitTimers.current
     return () => {
       pushToastFn = null
       dismissToastFn = null
       for (const rec of pending.values()) clearTimeout(rec.handle)
       pending.clear()
+      for (const cancel of exits.values()) cancel()
+      exits.clear()
     }
   }, [])
 
@@ -329,8 +352,8 @@ export function ToastZone() {
     for (const rec of timers.current.values()) {
       rec.startedAt = Date.now()
       rec.handle = window.setTimeout(() => {
-        timers.current.delete(rec.id)
-        setToasts(t => t.filter(x => x.id !== rec.id))
+        // The re-armed clock is the dwell clock; it still obeys the hold.
+        leaveIfNotHeld(() => held.current, () => startLeave(rec.id))
       }, Math.max(rec.remaining, 1000))
     }
   }
@@ -352,17 +375,22 @@ export function ToastZone() {
         syncHold()
       }}
     >
-      {toasts.map(t => (
-        <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : undefined}>
-          <span>{t.msg}</span>
-          {t.action && (
-            <button
-              className="toast-action"
-              onClick={() => { t.action!.run(); dismissToastFn?.(t.id) }}
-            >{t.action.label}</button>
-          )}
-        </div>
-      ))}
+      {toasts.map(t => {
+        const icon = toastIconKind(t.kind)
+        return (
+          <div key={t.id} className={`toast ${t.kind}${t.leaving ? ' leaving' : ''}`} role={t.kind === 'err' ? 'alert' : undefined}>
+            {icon === 'check' && <span className="toast-icon" aria-hidden="true"><Check size={12} strokeWidth={2.4} /></span>}
+            {icon === 'alert' && <span className="toast-icon" aria-hidden="true"><TriangleAlert size={12} strokeWidth={2.2} /></span>}
+            <span>{t.msg}</span>
+            {t.action && (
+              <button
+                className="toast-action"
+                onClick={() => { t.action!.run(); dismissToastFn?.(t.id) }}
+              >{t.action.label}</button>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

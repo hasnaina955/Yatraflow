@@ -2520,11 +2520,13 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   // never touch `trip.inviteCode`, and the owner's own surfaces read the trips
   // table under RLS.
   const fetched = rowToTrip({ ...rows[0], invite_code: null }, [])
+  const existing = cache.trips.find(t => t.id === fetched.id)
   // The guide row is the server's answer for this viewer, not the viewer's own
-  // trip. Only the owner's row enters cache.trips, so a guide never reaches the
-  // cache, the offline queues or a snapshot (spec 3.7). Every other viewer reads
-  // the row this function returns.
-  if (rows[0].owner_id !== userId) return fetched
+  // trip. A guide row is never inserted for a viewer who does not own the trip,
+  // so guides stay out of cache.trips, the offline queues and snapshots (spec 3.7).
+  // A copy that is already cached is refreshed as before. Otherwise a guide stub
+  // cached before this change would keep a paid page locked after a purchase (#349).
+  if (rows[0].owner_id !== userId && !existing) return fetched
   // #349 — the RPC is the server truth FOR THIS VIEWER on every call, so a
   // re-fetch has to REPLACE the cached row. Insert-if-absent is what kept the
   // public page locked after a paid unlock: the re-read answered with real
@@ -2538,7 +2540,6 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   // empty list — so a cached membership is carried over into the replacement
   // instead of being dropped. It is the vote quorum's denominator and has
   // nothing to do with the paywall.
-  const existing = cache.trips.find(t => t.id === fetched.id)
   // Same two guards the realtime handler uses, for the same reasons: a strictly
   // older row is a replay of something we already applied (the ledger holds the
   // newest server clock this session has seen), and a write this session just
@@ -8526,6 +8527,16 @@ function recordServerTripTimestamp(id: string, raw: unknown): void {
 /** Test hook — clear the server-timestamp ledger (see _clearRecentLocalWrites). */
 export function _clearServerTripTimestamps(): void {
   serverTripTimestamps.clear()
+}
+
+/** Test hook — place a cached copy the server served at `updatedAt`, as a client
+ *  does after a read by an owner. A non-owner's first read no longer inserts a
+ *  guide row (spec 3.7), so a convergence test seeds the cache through here. */
+export function _seedServedCopyForTest(trip: Trip, updatedAt: number): void {
+  const copy = { ...trip, updatedAt }
+  recordServerTripTimestamp(copy.id, updatedAt)
+  cache.trips = [...cache.trips.filter(t => t.id !== copy.id), copy]
+  commit()
 }
 
 /** Test hooks — read one entry from each bounded ledger, so the #579 eviction

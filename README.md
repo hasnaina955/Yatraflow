@@ -194,7 +194,7 @@ You need a [Supabase](https://supabase.com) project for accounts and shared data
 | Layer | Choice | Why |
 |---|---|---|
 | Build | [Vite 8](https://vitejs.dev) | Instant dev server, zero-config builds |
-| UI | React 18 + TypeScript (strict) | No router lib or UI kit — real paths on the web, hash in the native shell, hand-rolled components |
+| UI | React 19 + TypeScript (strict) | No router lib or UI kit — real paths on the web, hash in the native shell, hand-rolled components |
 | State | `useSyncExternalStore` over a module store | Tiny reactive cache hydrated from Supabase; every mutation writes through |
 | Maps | [mapcn](https://github.com/AnmolSaini16/mapcn) (MapLibre GL) | OpenFreeMap basemaps |
 | Backend | [Supabase](https://supabase.com) (Postgres + Auth + RLS) | Accounts and shared trip data |

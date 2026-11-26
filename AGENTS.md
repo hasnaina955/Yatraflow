@@ -14,7 +14,7 @@ Record each crucial learning in the same session, as a short rule. Before you co
 
 ## 1. What this project is
 
-YatraFlow is a collaborative India trip-planning app, built with React 18, Vite 8, TypeScript, Supabase and MapLibre GL. It deploys on Vercel from `main`. No bookings — planning plus paid itinerary unlocks.
+YatraFlow is a collaborative India trip-planning app, built with React 19, Vite 8, TypeScript, Supabase and MapLibre GL. It deploys on Vercel from `main`. No bookings — planning plus paid itinerary unlocks.
 
 Key locations:
 

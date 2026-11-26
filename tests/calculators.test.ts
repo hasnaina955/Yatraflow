@@ -128,13 +128,25 @@ describe('calculator model', () => {
     expect(on.group.low - off.group.low).toBe(4 * 2000)
   })
 
-  it('prices entries and fees per person, and a per-day fee per person per day', () => {
+  it('prices entries per person, a boat per four travellers and the guide once for the whole group', () => {
     const dest = byKey.meghalaya
-    const r = engine.calculate(dest, { ...engine.defaultInputs(dest), people: 3, days: 6, nights: 5 })
-    const registration = r.rows.find((x: any) => x.key === 'registration')
-    expect(registration).toMatchObject({ low: 3 * 100, high: 3 * 200 })
+    // The gate removed the unsourced tourism registration fee and moved the
+    // guide from per person to per group, so the old per-person arithmetic is
+    // no longer the model this test is meant to pin.
+    const r = engine.calculate(dest, { ...engine.defaultInputs(dest), people: 3, days: 6, nights: 5, guideOn: true })
+    expect(r.rows.find((x: any) => x.key === 'registration')).toBeUndefined()
     const entries = r.rows.find((x: any) => x.key === 'entries')
-    expect(entries).toMatchObject({ low: 3 * 600, high: 3 * 1400 })
+    expect(entries).toMatchObject({ low: 3 * 100, high: 3 * 300 })
+    // The Dawki boat is a per-boat fare, not a share: one boat seats about
+    // four, so the count rounds up per four travellers (Capy review on #1044).
+    expect(r.rows.find((x: any) => x.key === 'boat')).toMatchObject({ low: 500, high: 1200 })
+    const boatFor = (people: number) =>
+      engine.calculate(dest, { ...engine.defaultInputs(dest), people }).rows.find((x: any) => x.key === 'boat')
+    expect(boatFor(1)).toMatchObject({ low: 500, high: 1200 })
+    expect(boatFor(2)).toMatchObject({ low: 500, high: 1200 })
+    expect(boatFor(5)).toMatchObject({ low: 2 * 500, high: 2 * 1200 })
+    const guide = r.rows.find((x: any) => x.key === 'guide')
+    expect(guide).toMatchObject({ low: 800, high: 1500 })
   })
 
   it('rounds rooms up at two people per room', () => {

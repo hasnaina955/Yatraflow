@@ -235,7 +235,6 @@ export function toast(msg: string, kind: 'ok' | 'err' = 'ok', action?: { label: 
 export function undoToast(msg: string, undo: () => void) {
   pushToastFn?.(msg, 'ok', { label: 'Undo', run: undo })
 }
-let dismissToastFn: ((id: number) => void) | null = null
 type ToastItem = { id: number; msg: string; kind: string; action?: { label: string; run: () => void }; leaving?: boolean }
 /** How long a toast stays up. An undo toast gets a longer window, and either can
     be held open indefinitely by pointing at it or tabbing into it. */
@@ -265,8 +264,9 @@ export function ToastZone() {
    *  same token's clock. Explicit dismiss and Undo use this path too. */
   const startLeave = (id: number) => {
     const rec = timers.current.get(id)
-    if (rec) { clearTimeout(rec.handle); timers.current.delete(id) }
-    if (exitTimers.current.has(id)) return
+    if (!rec) return false
+    clearTimeout(rec.handle)
+    timers.current.delete(id)
     let removedNow = false
     const cancel = beginToastExit(
       () => setToasts(t => t.map(x => x.id === id ? { ...x, leaving: true } : x)),
@@ -279,6 +279,7 @@ export function ToastZone() {
     // Reduced motion removes the toast inside beginToastExit, so there is no
     // live timer to keep for it.
     if (!removedNow) exitTimers.current.set(id, cancel)
+    return true
   }
 
   useEffect(() => {
@@ -292,13 +293,10 @@ export function ToastZone() {
       if (!held.current) rec.handle = window.setTimeout(() => leaveIfNotHeld(() => held.current, () => startLeave(id)), ms)
       timers.current.set(id, rec)
     }
-    // Undo and any explicit dismiss go through the same exit as the dwell timer.
-    dismissToastFn = startLeave
     const pending = timers.current
     const exits = exitTimers.current
     return () => {
       pushToastFn = null
-      dismissToastFn = null
       for (const rec of pending.values()) clearTimeout(rec.handle)
       pending.clear()
       for (const cancel of exits.values()) cancel()
@@ -377,16 +375,23 @@ export function ToastZone() {
     >
       {toasts.map(t => {
         const icon = toastIconKind(t.kind)
+        const { action } = t
         return (
           <div key={t.id} className={`toast ${t.kind}${t.leaving ? ' leaving' : ''}`} role={t.kind === 'err' ? 'alert' : undefined}>
             {icon === 'check' && <span className="toast-icon" aria-hidden="true"><Check size={12} strokeWidth={2.4} /></span>}
             {icon === 'alert' && <span className="toast-icon" aria-hidden="true"><TriangleAlert size={12} strokeWidth={2.2} /></span>}
             <span>{t.msg}</span>
-            {t.action && (
+            {action && (
               <button
                 className="toast-action"
-                onClick={() => { t.action!.run(); dismissToastFn?.(t.id) }}
-              >{t.action.label}</button>
+                disabled={t.leaving}
+                onClick={e => {
+                  if (!startLeave(t.id)) return
+                  // Release the focus hold before the focused button leaves.
+                  e.currentTarget.blur()
+                  action.run()
+                }}
+              >{action.label}</button>
             )}
           </div>
         )

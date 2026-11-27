@@ -48,7 +48,7 @@ describe('toast / impact-sheet lane contract (#841)', () => {
     expect(ui).toContain('ref={zoneRef}')
     expect(ui).toContain('const TOAST_DWELL = 3400')
     expect(ui).toContain('const TOAST_DWELL_UNDO = 7000')
-    expect(ui).toContain('dismissToastFn?.(t.id)')
+    expect(ui).toContain('if (!startLeave(t.id)) return')
   })
 
   it('keeps the standards guarantees the repair relies on', () => {

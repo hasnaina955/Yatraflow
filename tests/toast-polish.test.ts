@@ -36,6 +36,20 @@ describe('#1053 — the exit lifecycle', () => {
     expect(unmount).toHaveBeenCalledOnce()
   })
 
+  it('cancels a pending exit on cleanup', () => {
+    vi.useFakeTimers()
+    try {
+      const unmount = vi.fn()
+      const cancel = beginToastExit(vi.fn(), unmount, false)
+      cancel()
+      expect(vi.getTimerCount()).toBe(0)
+      vi.advanceTimersByTime(toastExitDuration(false))
+      expect(unmount).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('a held toast does not leave; a released one does (fake timers)', () => {
     vi.useFakeTimers()
     try {
@@ -53,12 +67,14 @@ describe('#1053 — the exit lifecycle', () => {
     }
   })
 
-  it('uses one exit clock per toast and sends Undo through the same exit', () => {
+  it('consumes the dwell timer before running the action and disables it during exit', () => {
     expect(ui).toContain('const exitTimers = useRef(new Map<number, () => void>())')
-    expect(ui).toContain('if (exitTimers.current.has(id)) return')
-    expect(ui).toContain('dismissToastFn = startLeave')
+    expect(ui).toMatch(/if \(!rec\) return false\s+clearTimeout\(rec\.handle\)\s+timers\.current\.delete\(id\)/)
+    expect(ui).toContain('disabled={t.leaving}')
+    expect(ui).toMatch(/if \(!startLeave\(t\.id\)\) return[\s\S]*?e\.currentTarget\.blur\(\)\s+action\.run\(\)/)
     expect(ui).toContain('leaveIfNotHeld(() => held.current, () => startLeave(id))')
     expect(ui).toContain('beginToastExit(')
+    expect(ui).toContain('for (const cancel of exits.values()) cancel()')
   })
 })
 

@@ -72,13 +72,13 @@
   display: block;
   width: 100%;
   height: 100%;
-  transition: transform var(--motion-med) var(--ease-settle);
+  transition: transform var(--motion-med) var(--ease-paper);
 }
 @media (hover: hover) {
   .bud-chakra:hover img { transform: translateY(-2px) rotate(-3deg); }
 }
 .bud-chakra[data-state='poked'] img,
-.bud-chakra[data-state='waking'] img { animation: bud-chakra-squish var(--motion-slower) var(--ease-settle); }
+.bud-chakra[data-state='waking'] img { animation: bud-chakra-squish var(--motion-slower) var(--ease-paper); }
 .bud-chakra[data-state='asleep'] img {
   opacity: .85;
   animation: bud-chakra-breathe calc(var(--motion-slower) * 6) var(--ease-resize) infinite alternate;

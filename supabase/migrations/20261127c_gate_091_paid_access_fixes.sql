@@ -2,9 +2,11 @@
 -- 20261127c_gate_091_paid_access_fixes.sql
 --
 -- Gate fixes for v0.91.0 paid-access boundary:
---   1. create_pending_purchase_order: lock trip then publication with
---      FOR NO KEY UPDATE. Recheck link, listing and price. Set created_at
---      with clock_timestamp() after both locks.
+--   1. purchase_orders_pending_guard: lock trip then publication with
+--      FOR NO KEY UPDATE on pending inserts. Recheck link, listing and price.
+--      Set created_at with clock_timestamp() after both locks.
+--   1a. create_pending_purchase_order: check inputs and insert a pending
+--      row so both RPC and direct inserts share the trigger guard.
 --   2. publication_unpublished_at_guard: stamp first withdrawal with
 --      clock_timestamp() and ignore client values. Keep the first stamp on
 --      retries. Allow null on republish.
@@ -17,15 +19,11 @@
 -- ============================================================
 begin;
 
--- ---------------------------------------------- 1. atomic pending order insert
-drop function if exists public.create_pending_purchase_order(uuid, text, text, integer);
-create or replace function public.create_pending_purchase_order(
-  p_user_id uuid,
-  p_pub_id text,
-  p_razorpay_order_id text,
-  p_expected_price_inr integer
-)
-returns text
+-- ---------------------------------------------- 1. pending order insert guard
+drop trigger if exists purchase_orders_pending_guard on public.purchase_orders;
+drop function if exists public.guard_pending_purchase_order();
+create or replace function public.guard_pending_purchase_order()
+returns trigger
 language plpgsql
 security definer
 set search_path = public
@@ -36,17 +34,18 @@ declare
   v_pub public.published_itineraries;
   v_disabled boolean;
 begin
-  if p_user_id is null
-    or p_pub_id is null or btrim(p_pub_id) = ''
-    or p_razorpay_order_id is null or btrim(p_razorpay_order_id) = ''
-    or p_expected_price_inr is null or p_expected_price_inr < 1 or p_expected_price_inr > 100000 then
+  if new.user_id is null
+    or new.pub_id is null or btrim(new.pub_id) = ''
+    or new.razorpay_order_id is null or btrim(new.razorpay_order_id) = ''
+    or new.amount_inr is null or new.amount_inr < 1 or new.amount_inr > 100000
+    or new.price_snapshot_inr is null or new.price_snapshot_inr is distinct from new.amount_inr then
     raise exception 'Invalid order parameters.' using errcode = '22023';
   end if;
 
   -- Read the candidate trip id first without locking.
   select p.trip_id into v_trip_id
   from public.published_itineraries p
-  where p.id = p_pub_id;
+  where p.id = new.pub_id;
   if not found or v_trip_id is null then
     raise exception 'This guide is no longer for sale.' using errcode = 'PT410';
   end if;
@@ -62,7 +61,7 @@ begin
 
   select p.* into v_pub
   from public.published_itineraries p
-  where p.id = p_pub_id
+  where p.id = new.pub_id
   for no key update;
   if not found then
     raise exception 'This guide is no longer for sale.' using errcode = 'PT410';
@@ -70,12 +69,12 @@ begin
 
   select pr.is_disabled into v_disabled
   from public.profiles pr
-  where pr.id = p_user_id;
+  where pr.id = new.user_id;
   if not found or v_disabled then
     raise exception 'This account cannot buy right now.' using errcode = '42501';
   end if;
 
-  if v_pub.creator_id = p_user_id then
+  if v_pub.creator_id = new.user_id then
     raise exception 'This is your own publication.' using errcode = '42501';
   end if;
 
@@ -87,15 +86,51 @@ begin
     or v_pub.creator_id is distinct from v_trip.owner_id
     or v_pub.premium_price_inr is null
     or v_pub.premium_price_inr < 1
-    or v_pub.premium_price_inr is distinct from p_expected_price_inr then
+    or v_pub.premium_price_inr is distinct from new.amount_inr
+    or v_pub.premium_price_inr is distinct from new.price_snapshot_inr then
     raise exception 'This guide is no longer for sale.' using errcode = 'PT410';
   end if;
 
+  new.created_at := clock_timestamp();
+  return new;
+end;
+$$;
+
+revoke all on function public.guard_pending_purchase_order() from public, anon, authenticated;
+
+create trigger purchase_orders_pending_guard
+  before insert on public.purchase_orders
+  for each row
+  when (new.status = 'pending')
+  execute function public.guard_pending_purchase_order();
+
+-- ---------------------------------------------- 1a. atomic pending order RPC
+drop function if exists public.create_pending_purchase_order(uuid, text, text, integer);
+create or replace function public.create_pending_purchase_order(
+  p_user_id uuid,
+  p_pub_id text,
+  p_razorpay_order_id text,
+  p_expected_price_inr integer
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_user_id is null
+    or p_pub_id is null or btrim(p_pub_id) = ''
+    or p_razorpay_order_id is null or btrim(p_razorpay_order_id) = ''
+    or p_expected_price_inr is null or p_expected_price_inr < 1 or p_expected_price_inr > 100000 then
+    raise exception 'Invalid order parameters.' using errcode = '22023';
+  end if;
+
+  -- Rely on purchase_orders_pending_guard for row locks, checks, and clock.
   insert into public.purchase_orders (
-    user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr, created_at
+    user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr
   )
   values (
-    p_user_id, p_pub_id, p_razorpay_order_id, p_expected_price_inr, 'INR', 'pending', p_expected_price_inr, clock_timestamp()
+    p_user_id, p_pub_id, p_razorpay_order_id, p_expected_price_inr, 'INR', 'pending', p_expected_price_inr
   );
 
   return 'minted';

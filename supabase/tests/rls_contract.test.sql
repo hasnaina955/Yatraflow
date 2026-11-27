@@ -507,6 +507,8 @@ declare
   v_read_qual text;
   v_fn_src text;
   v_mint_src text;
+  v_guard_src text;
+  v_guard_trg text;
 begin
   -- Listed guide or authorized reader read; no open `using (true)` policy.
   if exists (
@@ -550,10 +552,32 @@ begin
     raise exception 'create_pending_purchase_order must be service_role only';
   end if;
   v_mint_src := pg_get_functiondef('public.create_pending_purchase_order(uuid,text,text,integer)'::regprocedure);
-  if v_mint_src not like '%for no key update%'
-    or v_mint_src not like '%clock_timestamp%'
-    or v_mint_src not like '%PT410%' then
-    raise exception 'create_pending_purchase_order must lock with FOR NO KEY UPDATE, use clock_timestamp, and raise PT410 on failed recheck';
+  if v_mint_src not like '%insert into public.purchase_orders%'
+    or v_mint_src like '%for no key update%'
+    or v_mint_src like '%for update%' then
+    raise exception 'create_pending_purchase_order must insert via the trigger guard without taking duplicate locks';
+  end if;
+  if to_regprocedure('public.guard_pending_purchase_order()') is null
+    or has_function_privilege('anon', 'public.guard_pending_purchase_order()', 'execute')
+    or has_function_privilege('authenticated', 'public.guard_pending_purchase_order()', 'execute') then
+    raise exception 'guard_pending_purchase_order must exist and be revoked from clients';
+  end if;
+  v_guard_src := pg_get_functiondef('public.guard_pending_purchase_order()'::regprocedure);
+  if v_guard_src not like '%for no key update%'
+    or v_guard_src not like '%clock_timestamp%'
+    or v_guard_src not like '%PT410%' then
+    raise exception 'guard_pending_purchase_order must lock with FOR NO KEY UPDATE, use clock_timestamp, and raise PT410 on failed recheck';
+  end if;
+  select pg_get_triggerdef(t.oid) into v_guard_trg
+  from pg_trigger t
+  where t.tgrelid = 'public.purchase_orders'::regclass
+    and t.tgname = 'purchase_orders_pending_guard'
+    and t.tgenabled = 'O'
+    and t.tgfoid = 'public.guard_pending_purchase_order()'::regprocedure;
+  if v_guard_trg is null
+    or v_guard_trg not like '%BEFORE INSERT%'
+    or v_guard_trg not like '%status = ''pending''%' then
+    raise exception 'purchase_orders_pending_guard must be an active BEFORE INSERT trigger for pending orders';
   end if;
   if not exists (
     select 1 from pg_policies

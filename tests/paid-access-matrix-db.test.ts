@@ -544,7 +544,7 @@ describe('refunds, transitions and claims, on the database', () => {
     await db.query(
       `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, status, price_snapshot_inr, created_at)
        values ($1, $2, 'rzp_guard', 99, 'pending', 99, $3)`,
-      [U.outsider3, PUB.private, PAST],
+      [U.outsider3, PUB.listed, PAST],
     )
     // Pending to paid with a full refund already recorded: refused.
     await db.query(`update public.purchase_orders set refunded_paise = 9900 where razorpay_order_id = 'rzp_guard'`)
@@ -814,6 +814,71 @@ describe('v0.91.0 gate paid-access fixes on the database', () => {
     )
     const clockRow = await db.query<{ later: boolean }>(
       `select created_at > $1::timestamptz as later from public.purchase_orders where razorpay_order_id = 'rzp_clock_mint'`,
+      [txStart.rows[0].t],
+    )
+    await db.exec('commit')
+    expect(clockRow.rows[0].later).toBe(true)
+  })
+
+  it('purchase_orders_pending_guard blocks direct pending inserts after withdrawal or bad state, stamps clock_timestamp(), and skips non-pending inserts', async () => {
+    await reset(db)
+    // Withdraw PUB.listed temporarily, then try a direct v0.90.0-style pending insert.
+    await db.query(`update public.published_itineraries set unpublished_at = 1 where id = $1`, [PUB.listed])
+    try {
+      await expect(db.query(
+        `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr)
+         values ($1, $2, 'rzp_direct_withdrawn', 99, 'INR', 'pending', 99)`,
+        [U.outsider4, PUB.listed],
+      )).rejects.toThrow(/This guide is no longer for sale/)
+    } finally {
+      await db.query(`update public.published_itineraries set unpublished_at = null where id = $1`, [PUB.listed])
+    }
+
+    await expect(db.query(
+      `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr)
+       values ($1, $2, 'rzp_direct_private', 99, 'INR', 'pending', 99)`,
+      [U.outsider4, PUB.private],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+
+    await expect(db.query(
+      `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr)
+       values ($1, $2, 'rzp_direct_trash', 99, 'INR', 'pending', 99)`,
+      [U.outsider4, PUB.trash],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+
+    await expect(db.query(
+      `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr)
+       values ($1, $2, 'rzp_direct_reprice', 149, 'INR', 'pending', 149)`,
+      [U.outsider4, PUB.listed],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+
+    const bad = await db.query(
+      `select 1 from public.purchase_orders where razorpay_order_id in ('rzp_direct_withdrawn', 'rzp_direct_private', 'rzp_direct_trash', 'rzp_direct_reprice')`,
+    )
+    expect(bad.rows).toHaveLength(0)
+
+    // Non-pending inserts bypass the pending guard trigger (fixtures/historical rows).
+    await db.query(
+      `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr, created_at)
+       values ($1, $2, 'rzp_direct_nonpending', 99, 'INR', 'failed', 99, $3)`,
+      [U.outsider4, PUB.unpub, PAST],
+    )
+    const nonPending = await db.query<{ status: string }>(
+      `select status from public.purchase_orders where razorpay_order_id = 'rzp_direct_nonpending'`,
+    )
+    expect(nonPending.rows).toEqual([{ status: 'failed' }])
+
+    // Direct valid pending insert succeeds and overwrites client created_at with clock_timestamp().
+    await db.exec('begin')
+    const txStart = await db.query<{ t: string }>('select transaction_timestamp()::text as t')
+    await db.exec('select pg_sleep(0.02)')
+    await db.query(
+      `insert into public.purchase_orders (user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr, created_at)
+       values ($1, $2, 'rzp_direct_valid', 99, 'INR', 'pending', 99, $3)`,
+      [U.outsider4, PUB.listed, PAST],
+    )
+    const clockRow = await db.query<{ later: boolean }>(
+      `select created_at > $1::timestamptz as later from public.purchase_orders where razorpay_order_id = 'rzp_direct_valid'`,
       [txStart.rows[0].t],
     )
     await db.exec('commit')

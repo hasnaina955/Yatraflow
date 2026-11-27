@@ -11,5 +11,6 @@
   { "file": "src/styles/legacy/05-share-and-trip-ticket.css", "selector": ".shr-seg" },
   { "file": "src/styles/pages/explore-redesign.css", "selector": ".ex-seg" },
   { "file": "src/styles/legacy/02-select-and-print.css", "selector": ".map-day-filter" },
-  { "file": "src/styles/components/map-v2-rail.css", "selector": ".mv2-lens-tabs" }
+  { "file": "src/styles/components/map-v2-rail.css", "selector": ".mv2-lens-tabs" },
+  { "file": "src/styles/components/map-v2-rail.css", "selector": ".mv2-lenses" }
 ]

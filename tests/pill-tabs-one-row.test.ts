@@ -60,4 +60,9 @@ describe('pill tab rails', () => {
     expect(shared).toMatch(/\.pill-nav\s*\{[^}]*scroll-snap-type:\s*x proximity/)
     expect(shared).toMatch(/\.pill-nav\s*>\s*\[data-pill-key\]\s*\{[^}]*flex:\s*none[^}]*white-space:\s*nowrap[^}]*scroll-snap-align:/)
   })
+  it('keeps the standalone Map lens rail on one line', () => {
+    const map = read('src/styles/components/map-v2-rail.css')
+    expect(map).toMatch(/\.mv2-workspace \.mv2-lenses\s*\{[^}]*flex-wrap:\s*nowrap/)
+    expect(map).toMatch(/\.mv2-lenses\s*>\s*button\s*\{[^}]*white-space:\s*nowrap/)
+  })
 })

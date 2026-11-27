@@ -1,0 +1,165 @@
+// #1064 · the Universal Add context resolver. One row of the spec per case.
+import { describe, expect, it } from 'vitest'
+import {
+  resolveAddContext, tripIdOfRoute, raisesKeyboard, nextCompact, ADD_LABELS,
+  type AddContextInput, type TripAddScope,
+} from '../src/lib/universalAdd'
+
+function scope(over: Partial<TripAddScope> = {}): TripAddScope {
+  return { tab: 'overview', canEdit: true, isMember: true, chakra: true, mapFullscreen: false, stopDay: null, timelineEditing: true, ...over }
+}
+
+function ctx(route: string, trip: TripAddScope | null = null, over: Partial<AddContextInput> = {}) {
+  return resolveAddContext({ route, signedIn: true, overlayOpen: false, keyboardOpen: false, trip, ...over })
+}
+
+const labels = (c: ReturnType<typeof ctx>) => c.menu.map(a => a.label)
+
+describe('outside a trip', () => {
+  it('Home and My trips plan a trip, with no Chakra (it needs a trip)', () => {
+    for (const route of ['/', '/trips', '/trips?view=past']) {
+      const c = ctx(route)
+      expect(c.state).toBe('ready')
+      expect(c.primary).toEqual({ kind: 'plan-trip', label: 'Plan a trip' })
+      expect(c.menu).toEqual([])
+    }
+  })
+
+  it('Profile, Explore, notifications and other routes have no add', () => {
+    for (const route of ['/profile', '/explore', '/explore?style=beach', '/creator-hub', '/create', '/pub/x']) {
+      expect(ctx(route)).toEqual({ state: 'none', primary: null, menu: [] })
+    }
+  })
+
+  it('a signed-out visitor gets nothing', () => {
+    expect(ctx('/', null, { signedIn: false }).state).toBe('hidden')
+  })
+})
+
+describe('inside a trip, as an editor', () => {
+  it('Overview adds a stop for the published first day that needs work, without a day in the label', () => {
+    const c = ctx('/trip/t1', scope({ tab: 'overview', stopDay: 2 }))
+    expect(c.primary).toEqual({ kind: 'add-stop', label: 'Add stop', dayIndex: 2 })
+    expect(labels(c)).toEqual(['Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
+  })
+
+  it('Timeline names the day it targets', () => {
+    const c = ctx('/trip/t1/timeline', scope({ tab: 'timeline', stopDay: 1 }))
+    expect(c.primary).toEqual({ kind: 'add-stop', label: 'Add stop · Day 2', dayIndex: 1 })
+  })
+
+  it('Board names its focused day', () => {
+    const c = ctx('/trip/t1/board', scope({ tab: 'board', stopDay: 0 }))
+    expect(c.primary?.label).toBe('Add stop · Day 1')
+  })
+
+  it('never invents a day: no published day means no day in the label', () => {
+    const c = ctx('/trip/t1/timeline', scope({ tab: 'timeline', stopDay: null }))
+    expect(c.primary).toEqual({ kind: 'add-stop', label: 'Add stop' })
+  })
+
+  it('the menu add-stop from another tab carries the day but not the day label', () => {
+    const c = ctx('/trip/t1/budget', scope({ tab: 'budget', stopDay: 3 }))
+    expect(c.primary?.label).toBe('Add expense')
+    expect(c.menu[0]).toEqual({ kind: 'add-stop', label: 'Add stop', dayIndex: 3 })
+  })
+
+  it('Map adds a place when the map is not full screen (a wide native screen)', () => {
+    const c = ctx('/trip/t1/map', scope({ tab: 'map' }))
+    expect(c.primary?.label).toBe('Add place')
+    expect(labels(c)).toEqual(['Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
+  })
+
+  it('Budget, Group input and Share map to their own add', () => {
+    expect(ctx('/trip/t1/budget', scope({ tab: 'budget' })).primary?.label).toBe('Add expense')
+    expect(ctx('/trip/t1/group', scope({ tab: 'group' })).primary?.label).toBe('Add decision')
+    expect(ctx('/trip/t1/share', scope({ tab: 'share' })).primary?.label).toBe('Invite people')
+  })
+
+  it('the menu never repeats the primary', () => {
+    const c = ctx('/trip/t1/share', scope({ tab: 'share' }))
+    expect(labels(c)).toEqual(['Add stop', 'Add expense', 'Add decision', 'Ask Chakra'])
+  })
+
+  it('trip settings has no add', () => {
+    expect(ctx('/trip/t1/settings', scope({ tab: 'settings' })).state).toBe('none')
+  })
+
+  it('the Timeline in Review mode offers no Add stop and falls to the next allowed action', () => {
+    const c = ctx('/trip/t1/timeline', scope({ tab: 'timeline', timelineEditing: false, stopDay: 0 }))
+    expect(c.primary?.kind).toBe('add-expense')
+    expect(c.menu.some(a => a.kind === 'add-stop')).toBe(false)
+  })
+})
+
+describe('permissions', () => {
+  const viewer = { canEdit: false, isMember: true }
+
+  it('a read-only viewer gets only Invite people and Ask Chakra, on every tab', () => {
+    for (const tab of ['overview', 'timeline', 'board', 'map', 'budget', 'group', 'share'] as const) {
+      const c = ctx(`/trip/t1/${tab}`, scope({ tab, ...viewer, stopDay: 1 }))
+      expect(c.primary).toEqual({ kind: 'invite', label: 'Invite people' })
+      expect(labels(c)).toEqual(['Ask Chakra'])
+    }
+  })
+
+  it('no edit and no Chakra still leaves Invite people', () => {
+    const c = ctx('/trip/t1/group', scope({ tab: 'group', ...viewer, chakra: false }))
+    expect(c.primary?.kind).toBe('invite')
+    expect(c.menu).toEqual([])
+  })
+
+  it('nothing allowed at all reads as no add', () => {
+    const c = ctx('/trip/t1/group', scope({ tab: 'group', canEdit: false, isMember: false, chakra: false }))
+    expect(c.state).toBe('none')
+  })
+})
+
+describe('hidden cases', () => {
+  it('a sheet, dialog or the keyboard hides it, in and out of a trip', () => {
+    expect(ctx('/', null, { overlayOpen: true }).state).toBe('hidden')
+    expect(ctx('/trip/t1/timeline', scope({ tab: 'timeline' }), { keyboardOpen: true }).state).toBe('hidden')
+  })
+
+  it('the full-screen phone Map hides it', () => {
+    expect(ctx('/trip/t1/map', scope({ tab: 'map', mapFullscreen: true })).state).toBe('hidden')
+  })
+
+  it('a trip that is loading or failed (no scope yet) hides it, never a disabled flash', () => {
+    expect(ctx('/trip/t1', null).state).toBe('hidden')
+  })
+})
+
+describe('labels', () => {
+  it('every label is a verb and a noun starting with a capital', () => {
+    for (const label of Object.values(ADD_LABELS)) {
+      expect(label).toMatch(/^[A-Z][a-z]+ (a )?[A-Z]?[a-z]+$/)
+    }
+  })
+})
+
+describe('helpers', () => {
+  it('reads the trip id from the route', () => {
+    expect(tripIdOfRoute('/trip/abc/budget?x=1')).toBe('abc')
+    expect(tripIdOfRoute('/trips')).toBeNull()
+  })
+
+  it('treats text fields as the keyboard and buttons as not', () => {
+    expect(raisesKeyboard({ tagName: 'INPUT', type: 'text' })).toBe(true)
+    expect(raisesKeyboard({ tagName: 'INPUT', type: 'search' })).toBe(true)
+    expect(raisesKeyboard({ tagName: 'TEXTAREA' })).toBe(true)
+    expect(raisesKeyboard({ tagName: 'DIV', isContentEditable: true })).toBe(true)
+    expect(raisesKeyboard({ tagName: 'INPUT', type: 'checkbox' })).toBe(false)
+    expect(raisesKeyboard({ tagName: 'INPUT', type: 'range' })).toBe(false)
+    expect(raisesKeyboard({ tagName: 'INPUT', type: 'text', readOnly: true })).toBe(false)
+    expect(raisesKeyboard({ tagName: 'BUTTON' })).toBe(false)
+    expect(raisesKeyboard(null)).toBe(false)
+  })
+
+  it('shrinks the web pill on a scroll down and grows it on a scroll up', () => {
+    expect(nextCompact(false, 100, 140)).toBe(true)
+    expect(nextCompact(true, 140, 100)).toBe(false)
+    expect(nextCompact(true, 140, 143)).toBe(true) // inside the dead band
+    expect(nextCompact(true, 40, 10)).toBe(false) // back at the top
+  })
+})

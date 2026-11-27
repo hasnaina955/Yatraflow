@@ -49,9 +49,6 @@
 .pill-nav[data-overflow='middle'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade), #000 calc(100% - var(--pill-edge-fade)), transparent); }
 .pill-nav[data-overflow='end'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade)); }
 .map-day-filter .pill-glider, .mv2-lens-tabs .pill-glider { visibility: hidden; }
-.shr-seg .pill-glider, .mt-seg .pill-glider { background: var(--text); }
-.mt-listhead .mt-seg .pill-glider, .ex-seg .pill-glider { background: var(--card); box-shadow: var(--shadow-card); }
-.ex-seg .pill-glider { border-radius: var(--radius-sm); }
 .pill-nav > * { position: relative; z-index: 1; }
 .pill-glider {
   position: absolute; left: 0; top: 0; width: 0; z-index: 0;
@@ -72,6 +69,9 @@
   pointer-events: none;
 }
 [data-theme='dark'] .pill-glider { background: var(--teal); }
+.shr-seg .pill-glider, .mt-seg .pill-glider { background: var(--text); }
+.mt-listhead .mt-seg .pill-glider { background: var(--card); box-shadow: var(--shadow-card); }
+.ex-seg .pill-glider { background: var(--card); border-radius: var(--radius-sm); box-shadow: var(--elev-press); }
 /* The workspace trip tabs carry the artboard's `--glow-sea` on the active pill:
    an inner top highlight plus a short drop shadow, so the selected tab reads as
    a raised capsule rather than a flat fill. */

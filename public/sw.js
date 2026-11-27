@@ -51,8 +51,15 @@ function extractStartupAssets(html) {
     seen.add(assetPath)
     assets.push(assetPath)
   }
+  // Literal patterns only: one per attribute that the precache reads.
+  const ATTR_PATTERNS = {
+    type: /\btype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    src: /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    rel: /\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    href: /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+  }
   const attr = (attrs, name) => {
-    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(attrs)
+    const match = ATTR_PATTERNS[name].exec(attrs)
     return match ? (match[1] ?? match[2] ?? match[3] ?? '') : ''
   }
   for (const match of html.matchAll(/<script\b([^>]*)>/gi)) {

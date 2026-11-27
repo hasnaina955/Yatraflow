@@ -892,6 +892,37 @@
   margin-inline-start: -9px;
 }
 
+/* Phone day cards use the same warning tones as the day strip. */
+.ovw-day-list { display: none; }
+@media (max-width: 767px) {
+  .ovw-day-list { display: grid; gap: 10px; margin: 16px 0; }
+  .ovw-day-cards { display: grid; gap: 10px; }
+  .ovw-day-card {
+    display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 88px;
+    padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg);
+    background: var(--card); color: var(--text); text-align: left;
+    transition: border-color var(--motion-fast) var(--ease-paper);
+  }
+  button.ovw-day-card { cursor: pointer; }
+  button.ovw-day-card:hover { border-color: var(--teal-deep); }
+  button.ovw-day-card:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 2px; }
+  .ovw-day-date { display: grid; min-width: 44px; padding: 5px; border-radius: var(--radius-sm); background: var(--bg-soft); text-align: center; font-size: 11px; text-transform: uppercase; }
+  .ovw-day-date b { font-size: 20px; line-height: 1; }
+  .ovw-day-body { display: grid; flex: 1; min-width: 0; gap: 4px; }
+  .ovw-day-body > strong { overflow-wrap: anywhere; }
+  .ovw-day-body > span { color: var(--text-2); font-size: 12px; }
+  .ovw-day-status { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .ovw-day-status i { display: block; flex: 1; height: 4px; border-radius: 999px; background: var(--ok); transform-origin: left; }
+  .ovw-day-status b { color: var(--text); white-space: nowrap; }
+  .ovw-day-status.is-fix i { background: var(--saffron); }
+  .ovw-day-status.is-risk i { background: var(--color-destructive); }
+  .ovw-day-status.is-empty i { background: var(--gray-400); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ovw-day-card { transition: none; }
+}
+
+
 /* ---------- Entrance: the Overview tab's own cascade ----------
    The shared page entrance faded this tab's panel while the cards inside it
    rose. Two clocks ran over each other and the stagger read flat. The panel
@@ -1021,11 +1052,34 @@ div[role="tabpanel"]:has(> .ovw2) { animation: none; }
 .ovw-matrix .mx-compact > .mx-crow:nth-child(n+3) { animation-delay: calc(var(--stagger-step) * 19); }
 .ovw-matrix .mx-compact > .mx-crow:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * 20); }
 
+/* Day cards and status bars enter in sequence, with a capped stagger. */
+@keyframes ovwGrowX { from { transform: scaleX(0); } }
+.ovw-day-card {
+  animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 0);
+}
+.ovw-day-card:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.ovw-day-card:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.ovw-day-card:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.ovw-day-card:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.ovw-day-card:nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+.ovw-day-status i {
+  animation: ovwGrowX var(--motion-slower) var(--ease-paper) backwards;
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+.ovw-day-card:nth-child(2) .ovw-day-status i { animation-delay: calc(var(--stagger-step) * 2); }
+.ovw-day-card:nth-child(3) .ovw-day-status i { animation-delay: calc(var(--stagger-step) * 3); }
+.ovw-day-card:nth-child(4) .ovw-day-status i { animation-delay: calc(var(--stagger-step) * 4); }
+.ovw-day-card:nth-child(5) .ovw-day-status i { animation-delay: calc(var(--stagger-step) * 5); }
+.ovw-day-card:nth-child(n+6) .ovw-day-status i { animation-delay: calc(var(--stagger-step) * 6); }
+
 /* Reduced motion. Every selector that sets an animation name above is switched
    off here with the same selector text, so the specificity is equal and this
    later rule wins. The delay-only rules need no opt-out: with no name, they
    start nothing. */
 @media (prefers-reduced-motion: reduce) {
+  .ovw-day-card,
+  .ovw-day-status i,
   .ovw2-issues .ovw-need-list > .ovw-need:nth-child(-n+3),
   .ovw2-route .ovw-elev-area,
   .ovw2-route .ovw-elev-hill-far,
@@ -1046,35 +1100,3 @@ div[role="tabpanel"]:has(> .ovw2) { animation: none; }
 
 /* The inset's reduced-motion opt-out and its phone breakpoint live with the
    inset rules in src/styles/pages/overview-route-card.css. */
-
-/* Phone day cards use the same warning tones as the day strip. */
-.ovw-day-list { display: none; }
-@media (max-width: 767px) {
-  .ovw-day-list { display: grid; gap: 10px; margin: 16px 0; }
-  .ovw-day-cards { display: grid; gap: 10px; }
-  .ovw-day-card {
-    display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 88px;
-    padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg);
-    background: var(--card); color: var(--text); text-align: left;
-    animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
-    animation-delay: calc(var(--stagger-step) * var(--ovw-day-i, 0));
-    transition: border-color var(--motion-fast) var(--ease-paper);
-  }
-  button.ovw-day-card { cursor: pointer; }
-  button.ovw-day-card:hover { border-color: var(--teal-deep); }
-  button.ovw-day-card:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 2px; }
-  .ovw-day-date { display: grid; min-width: 44px; padding: 5px; border-radius: var(--radius-sm); background: var(--bg-soft); text-align: center; font-size: 11px; text-transform: uppercase; }
-  .ovw-day-date b { font-size: 20px; line-height: 1; }
-  .ovw-day-body { display: grid; flex: 1; min-width: 0; gap: 4px; }
-  .ovw-day-body > strong { overflow-wrap: anywhere; }
-  .ovw-day-body > span { color: var(--text-2); font-size: 12px; }
-  .ovw-day-status { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-  .ovw-day-status i { display: block; flex: 1; height: 4px; border-radius: 999px; background: var(--ok); transform-origin: left; animation: mt-bar-grow var(--motion-slower) var(--ease-paper) backwards; animation-delay: calc(var(--stagger-step) * (var(--ovw-day-i, 0) + 1)); }
-  .ovw-day-status b { color: var(--text); white-space: nowrap; }
-  .ovw-day-status.is-fix i { background: var(--saffron); }
-  .ovw-day-status.is-risk i { background: var(--color-destructive); }
-  .ovw-day-status.is-empty i { background: var(--gray-400); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ovw-day-card, .ovw-day-status i { animation: none; transition: none; }
-}

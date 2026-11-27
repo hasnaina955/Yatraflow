@@ -88,9 +88,10 @@ describe('Overview tab entrance: tab-owned cascade', () => {
       .filter((v) => !/^none\b/.test(v))
     // Fifteen animated rules today. The bound catches an empty parse, not a count change.
     expect(values.length).toBeGreaterThanOrEqual(15)
+    // Day status bars grow horizontally from their left edge.
     for (const v of values) {
       expect(v).toMatch(
-        /^(pageRise|fadeIn|ovwGrowY|ovwRoadDraw) (var\(--motion-(fast|med|slow|slower)\)|calc\(var\(--motion-slower\) \* 1\.5\)) var\(--ease-paper\) backwards$/,
+        /^(pageRise|fadeIn|ovwGrowY|ovwGrowX|ovwRoadDraw) (var\(--motion-(fast|med|slow|slower)\)|calc\(var\(--motion-slower\) \* 1\.5\)) var\(--ease-paper\) backwards$/,
       )
     }
   })

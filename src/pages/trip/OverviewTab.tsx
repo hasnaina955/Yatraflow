@@ -44,7 +44,6 @@ import { useTripElevation } from '../../hooks/useTripElevation'
 import { overviewHealthTiles } from '../../lib/overviewHealthTiles'
 import { dayStrip } from '../../lib/tripDayStrip'
 import { dayStripItems } from '../../lib/dayStrip'
-import { staggerStep } from '../../lib/motion'
 
 // ================= Overview =================
 
@@ -336,7 +335,7 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
         <h2 className="ovw-title" id="ovw-days-title">Days</h2>
         {trip.days.length === 0 ? <StateBlock kind="empty" size="compact" title="No days yet" /> : (
           <div className="ovw-day-cards">
-            {dayStrip(trip, health.warnings).map((cell, index) => {
+            {dayStrip(trip, health.warnings).map(cell => {
               const day = trip.days.find(item => item.index + 1 === cell.dayNumber)
               if (!day) return null
               const stops = [...day.stops].filter(stop => stop.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
@@ -356,8 +355,8 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
                 </span>
               </>
               return onOpenTimeline ? (
-                <button key={day.id} type="button" className="ovw-day-card" style={{ '--ovw-day-i': staggerStep(index) } as CSSProperties} onClick={() => onOpenTimeline({ dayIndex: day.index })}>{content}</button>
-              ) : <div key={day.id} className="ovw-day-card" style={{ '--ovw-day-i': staggerStep(index) } as CSSProperties}>{content}</div>
+                <button key={day.id} type="button" className="ovw-day-card" onClick={() => onOpenTimeline({ dayIndex: day.index })}>{content}</button>
+              ) : <div key={day.id} className="ovw-day-card">{content}</div>
             })}
           </div>
         )}

@@ -75,11 +75,13 @@ export function inviteHead({ origin }) {
 }
 
 /** This deployment's own shell. The host is the one Vercel names for this build.
- *  A preview reads its own app. A local run reads the canonical origin. */
+ *  A preview reads its own app. A local run reads the canonical origin. The shell
+ *  is /app.html: /index.html is the prerendered home page, so its body and its
+ *  canonical are not the invite card's. */
 export async function readShell(origin, env = process.env) {
   const base = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : origin
   try {
-    const response = await fetch(`${base}/index.html`, { signal: AbortSignal.timeout(4000) })
+    const response = await fetch(`${base}/app.html`, { signal: AbortSignal.timeout(4000) })
     if (!response.ok) return null
     return await response.text()
   } catch {

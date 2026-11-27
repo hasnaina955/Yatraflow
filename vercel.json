@@ -57,6 +57,15 @@
       ]
     },
     {
+      "source": "/app.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/(trip|trips|new|profile|purchases|creator-hub|admin|auth|created|share|join|invite)(/.*)?",
       "headers": [
         {
@@ -178,7 +187,7 @@
     },
     {
       "source": "/((?!api/|i/|c/|sitemap.xml|calculators/|og/|trip-cost-calculators/|goa-trip-cost-calculator/|rajasthan-trip-cost-calculator/|meghalaya-trip-cost-calculator/|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     }
   ]
 }

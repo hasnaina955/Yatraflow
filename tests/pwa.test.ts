@@ -105,7 +105,7 @@ describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
   const assetsBranch = () => sw.slice(sw.indexOf("startsWith('/assets/')"))
 
   it('bumps the version — the policy changed, so activate sweeps poisoned v1 caches', () => {
-    expect(sw).toContain("const SW_VERSION = 'v4'")
+    expect(sw).toContain("const SW_VERSION = 'v5'")
   })
 
   it('refuses to cache a text/html response under an asset URL', () => {

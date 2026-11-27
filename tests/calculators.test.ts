@@ -607,7 +607,7 @@ describe('calculator routing and discovery wiring', () => {
   const sitemap = read('../api/sitemap.js')
 
   const paths = [manifest.hub, ...manifest.calculators.map((c: any) => c.slug)]
-  const catchAll = vercel.rewrites.find((r) => r.destination === '/index.html')
+  const catchAll = vercel.rewrites.find((r) => r.destination === '/app.html')
   // Vercel's catch-all is `/((?!a/|b/|…).*)`: the alternatives inside the
   // negative lookahead are the paths it leaves alone. Read them out and match
   // by prefix — the same decision the platform makes, without compiling a

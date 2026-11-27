@@ -59,7 +59,7 @@
   animation: toast-icon-pop var(--motion-fast) var(--ease-settle) both;
 }
 
-.toast.ok .toast-icon { background: var(--pw-lagoon-400); color: var(--pw-on-cover); }
+.toast.ok .toast-icon { background: var(--pw-lagoon-400); color: var(--pw-ink); }
 
 /* At night the ok/undo pill flips to paper, as the night-sky artboard draws it:
    a teal check on paper and plain teal Undo text. The neutral pill uses the
@@ -75,14 +75,14 @@
 [data-theme='dark'] .toast.ok .toast-icon { background: var(--toast-night-action); color: var(--pw-on-cover); }
 
 .toast-action {
-  border: none; background: rgba(255,255,255,.18); color: inherit;
+  border: none; background: rgba(255,255,255,.10); color: inherit;
   font-weight: 700; font-size: 12.5px; padding: 8px 16px; min-height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--toast-radius, 999px);
   cursor: pointer; letter-spacing: .02em;
 }
 
-.toast-action:hover { background: rgba(255,255,255,.32); }
+.toast-action:hover { background: rgba(255,255,255,.14); }
 
 /* The night-sky artboard draws Undo as plain teal text on the paper pill.
    This covers ok (every undoToast) and neutral, but not the red error pill. */
@@ -91,7 +91,7 @@
 }
 
 [data-theme='dark'] .toast:not(.err) .toast-action:hover {
-  background: rgba(11,107,99,.1);
+  background: color-mix(in srgb, var(--toast-night-action) 10%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

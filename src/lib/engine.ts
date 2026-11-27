@@ -237,7 +237,9 @@ export function earlyArrivalAdvisory(arrival: string | undefined, openTime: stri
   if (!arrived || !opens || !start) return null
   const waitMinutes = hmToMinutes(opens) - hmToMinutes(arrived)
   if (waitMinutes < 30) return null
-  return { waitMinutes, suggestedStart: addMinutesToClock(hmToMinutes(start), waitMinutes) }
+  const startMinutes = hmToMinutes(start)
+  if (startMinutes + waitMinutes >= 1440) return { waitMinutes, suggestedStart: null, canShift: false as const }
+  return { waitMinutes, suggestedStart: addMinutesToClock(startMinutes, waitMinutes), canShift: true as const }
 }
 
 export interface LegEstimate {

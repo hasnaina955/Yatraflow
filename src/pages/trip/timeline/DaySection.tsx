@@ -767,6 +767,21 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // while the card still had 900px left to travel).
   const fold = useFold(open)
   const timeFormat = useTimeFormat()
+  const renderEarlyArrival = (stop: ItineraryStop) => {
+    const arrival = simRows.get(stop.id)?.arrive
+    const advisory = earlyArrivalAdvisory(arrival, stop.openTime, sim.startsAt)
+    const advisoryKey = `early_arrival_${dayCover?.id}_${stop.id}_${arrival}`
+    if (!advisory || dismissedArrivals.includes(advisoryKey) || loadFlag(advisoryKey, false)) return null
+    return (
+      <div className="tl-early-arrival" role="note">
+        <strong>Arrive {advisory.waitMinutes} min before it opens</strong>
+        <div className="tl-early-arrival-actions">
+          {editable && advisory.canShift && <button type="button" disabled={previewOpen} onClick={() => onSuggestDayStart(day.index, advisory.suggestedStart)}>Start at {formatHM(advisory.suggestedStart, timeFormat)}</button>}
+          <button type="button" onClick={() => { saveFlag(advisoryKey, true); setDismissedArrivals(current => [...current, advisoryKey]) }}>Dismiss</button>
+        </div>
+      </div>
+    )
+  }
   // One phone sheet for the stop actions. The desktop ⋯ disclosure stays exactly
   // as it was; only the <=720px phone surface swaps it for the sheet.
   const phoneSheet = useMedia('(max-width: 720px)')
@@ -1189,6 +1204,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                 <div className="travel-leg">
                   <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />
                 </div>
+                {renderEarlyArrival(first)}
               </div>
             </div>
           )
@@ -1201,8 +1217,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           // #555: this row's own schedule facts, keyed by stop id — never by
           // the rendered index (rejected rows shift positional reads).
           const row = simRows.get(s.id)
-          const advisory = earlyArrivalAdvisory(row?.arrive, s.openTime, sim.startsAt)
-          const advisoryKey = `early_arrival_${dayCover?.id}_${s.id}_${row?.arrive}`
           const isAnchor = s.auto === true
           if (isAnchor) {
             const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
@@ -1321,15 +1335,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   ].filter(Boolean).join(' · ')}
                 </div>
                 {s.openTime && <div className="stop-meta">Open {formatHMRange(s.openTime, s.closeTime, timeFormat)}</div>}
-                {advisory && !dismissedArrivals.includes(advisoryKey) && !loadFlag(advisoryKey, false) && (
-                  <div className="tl-early-arrival" role="note">
-                    <strong>Arrive {advisory.waitMinutes} min before it opens</strong>
-                    <div className="tl-early-arrival-actions">
-                      {editable && <button type="button" disabled={previewOpen} onClick={() => onSuggestDayStart(day.index, advisory.suggestedStart)}>Start at {formatHM(advisory.suggestedStart, timeFormat)}</button>}
-                      <button type="button" onClick={() => { saveFlag(advisoryKey, true); setDismissedArrivals(current => [...current, advisoryKey]) }}>Dismiss</button>
-                    </div>
-                  </div>
-                )}
+                {(i === 0 ? !row?.legIn || row.legIn.distanceKm < 0.5 : ordered[i - 1].auto === true) && renderEarlyArrival(s)}
                 {s.departTime && s.arrivalTime && (
                   <div className="stop-meta">Dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</div>
                 )}
@@ -1407,6 +1413,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                       <div className={`travel-leg ${foreignOver === i + 1 && dragging === null ? 'foreign-over' : ''}`}>
                         {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />}
                       </div>
+                      {renderEarlyArrival(ordered[i + 1])}
                       {/* #422: the insertion control belongs to the leg BETWEEN
                           two stops, and it hands over the slot it sits in —
                           resolved from the two neighbouring row ids at click

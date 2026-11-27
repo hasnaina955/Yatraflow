@@ -5,6 +5,7 @@
 // fails quietly in production and loudly here.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import vm from 'node:vm'
 
 const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
 
@@ -105,7 +106,7 @@ describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
   const assetsBranch = () => sw.slice(sw.indexOf("startsWith('/assets/')"))
 
   it('bumps the version — the policy changed, so activate sweeps poisoned v1 caches', () => {
-    expect(sw).toContain("const SW_VERSION = 'v5'")
+    expect(sw).toContain("const SW_VERSION = 'v6'")
   })
 
   it('refuses to cache a text/html response under an asset URL', () => {
@@ -126,10 +127,12 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
     .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))
     .join('\n')
 
-  it('lists the four pages with and without the trailing slash', () => {
+  it('lists the four pages with and without the trailing slash and direct index.html URLs', () => {
+    expect(code, "'/index.html'").toContain("'/index.html'")
     for (const slug of ['faq', 'how-it-works', 'about', 'for-creators']) {
       expect(code, `'/${slug}'`).toContain(`'/${slug}'`)
       expect(code, `'/${slug}/'`).toContain(`'/${slug}/'`)
+      expect(code, `'/${slug}/index.html'`).toContain(`'/${slug}/index.html'`)
     }
   })
 
@@ -138,5 +141,245 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
     expect(code).toContain("OWN_HTML.has(pathname) || pathname.startsWith('/join/')")
     expect(code).toContain('cache.put(SHELL, copy)')
     expect(code).toContain('fetch(request)')
+  })
+
+  it('confirms the bare app shell positively before writing the SHELL key', async () => {
+    expect(code).toContain('isBareAppShell(html)')
+    expect(html).toContain('<meta name="yatraflow-shell" content="app" />')
+
+    const putCalls: string[] = []
+    const cacheStore = new Map<string, Response>()
+    const listeners = new Map<string, (event: unknown) => void>()
+    const fakeCache = {
+      addAll: async () => undefined,
+      put: async (key: unknown, value: Response) => {
+        const k = String(key)
+        putCalls.push(k)
+        cacheStore.set(k, value)
+      },
+      match: async (key: unknown) => cacheStore.get(String(key)),
+    }
+    let nextFetch: (request: { url: string }) => Promise<Response> = async () =>
+      new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })
+
+    const context = vm.createContext({
+      URL,
+      Response,
+      self: {
+        location: { origin: 'https://www.yatraflow.in' },
+        addEventListener: (type: string, fn: (event: unknown) => void) => listeners.set(type, fn),
+        clients: { claim: async () => undefined },
+      },
+      caches: {
+        open: async () => fakeCache,
+        match: async (key: unknown) => cacheStore.get(String(key)),
+        keys: async () => [],
+        delete: async () => true,
+      },
+      fetch: (request: { url: string }) => nextFetch(request),
+    })
+    vm.runInContext(sw, context)
+    const onFetch = listeners.get('fetch')
+    expect(onFetch).toBeTypeOf('function')
+
+    const runNavigate = async (pathname: string) => {
+      let pending: Promise<Response> | undefined
+      onFetch!({
+        request: { method: 'GET', mode: 'navigate', url: `https://www.yatraflow.in${pathname}` },
+        respondWith: (promise: Promise<Response>) => {
+          pending = promise
+        },
+      })
+      const response = await pending
+      await new Promise(resolve => setTimeout(resolve, 0))
+      return response
+    }
+
+    nextFetch = async () =>
+      new Response('User-agent: *\nDisallow: /trip/\n', {
+        status: 200,
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
+      })
+    await runNavigate('/robots.txt')
+
+    nextFetch = async () =>
+      new Response('<html><head><link rel="canonical" href="https://www.yatraflow.in/faq" /></head><body>faq</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
+    for (const pathname of ['/index.html', '/faq', '/faq/index.html', '/how-it-works/index.html', '/about/index.html', '/for-creators/index.html']) {
+      await runNavigate(pathname)
+    }
+
+    nextFetch = async () =>
+      new Response('<html><body>unknown 200 page</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
+    await runNavigate('/unknown-200-page')
+    expect(putCalls).toEqual([])
+    expect(cacheStore.has('/app.html')).toBe(false)
+
+    nextFetch = async () =>
+      new Response(html, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
+    await runNavigate('/trips')
+    expect(putCalls).toEqual(['/app.html'])
+
+    nextFetch = async () => {
+      throw new Error('offline')
+    }
+    const offlineTrips = await runNavigate('/trips')
+    expect(offlineTrips?.status).toBe(200)
+    expect(await offlineTrips?.text()).toBe(html)
+  })
+
+  it('precaches the startup JS and CSS during v5-to-v6 install, keeps v5 on failure, and boots offline /trips after activate', async () => {
+    const origin = 'https://www.yatraflow.in'
+    const v5Shell = html.replace(
+      '<script type="module" src="/src/main.tsx"></script>',
+      '<script type="module" crossorigin src="/assets/index-old555.js"></script>',
+    )
+    const v6Shell = html
+      .replace(
+        '</head>',
+        '    <link rel="stylesheet" crossorigin href="/assets/index-new222.css" />\n    <link rel="modulepreload" crossorigin href="/assets/vendor-new333.js" />\n  </head>',
+      )
+      .replace(
+        '<script type="module" src="/src/main.tsx"></script>',
+        '<script type="module" crossorigin src="/assets/index-new111.js"></script>',
+      )
+
+    const cacheStores = new Map<string, Map<string, Response>>()
+    const normalizeKey = (key: unknown) => {
+      const raw = typeof key === 'string' ? key : String((key as { url?: string })?.url ?? key)
+      return new URL(raw, origin).pathname
+    }
+    const openStore = (name: string) => {
+      let map = cacheStores.get(name)
+      if (!map) {
+        map = new Map<string, Response>()
+        cacheStores.set(name, map)
+      }
+      return {
+        put: async (key: unknown, value: Response) => {
+          map!.set(normalizeKey(key), value)
+        },
+        match: async (key: unknown) => {
+          const hit = map!.get(normalizeKey(key))
+          return hit ? hit.clone() : undefined
+        },
+      }
+    }
+    cacheStores.set(
+      'yatraflow-v5',
+      new Map([
+        ['/app.html', new Response(v5Shell, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })],
+        ['/assets/index-old555.js', new Response('console.log("v5")', { status: 200, headers: { 'content-type': 'application/javascript' } })],
+      ]),
+    )
+
+    const listeners = new Map<string, (event: unknown) => void>()
+    let fetchImpl: (input: string | { url: string }) => Promise<Response> = async () => {
+      throw new Error('unexpected')
+    }
+    const context = vm.createContext({
+      URL,
+      Response,
+      self: {
+        location: { origin },
+        addEventListener: (type: string, fn: (event: unknown) => void) => listeners.set(type, fn),
+        clients: { claim: async () => undefined },
+      },
+      caches: {
+        open: async (name: string) => openStore(name),
+        match: async (key: unknown) => {
+          const normalized = normalizeKey(key)
+          for (const map of cacheStores.values()) {
+            const hit = map.get(normalized)
+            if (hit) return hit.clone()
+          }
+          return undefined
+        },
+        keys: async () => [...cacheStores.keys()],
+        delete: async (name: string) => cacheStores.delete(name),
+      },
+      fetch: (input: string | { url: string }) => fetchImpl(input),
+    })
+    vm.runInContext(sw, context)
+
+    const dispatchLifecycle = async (name: 'install' | 'activate') => {
+      let waited: Promise<unknown> | undefined
+      listeners.get(name)!({
+        waitUntil: (promise: Promise<unknown>) => {
+          waited = promise
+        },
+      })
+      await waited
+    }
+
+    // Failed install: missing CSS returns rewritten 200 HTML -> install must reject and keep v5 intact.
+    fetchImpl = async input => {
+      const pathname = normalizeKey(input)
+      if (pathname === '/app.html') return new Response(v6Shell, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })
+      if (pathname === '/manifest.webmanifest') return new Response('{}', { status: 200, headers: { 'content-type': 'application/manifest+json' } })
+      if (pathname.startsWith('/icons/')) return new Response('png', { status: 200, headers: { 'content-type': 'image/png' } })
+      if (pathname === '/assets/index-new111.js') return new Response('console.log("v6")', { status: 200, headers: { 'content-type': 'application/javascript' } })
+      if (pathname === '/assets/vendor-new333.js') return new Response('export const v = 6', { status: 200, headers: { 'content-type': 'application/javascript' } })
+      if (pathname === '/assets/index-new222.css') return new Response(v6Shell, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })
+      return new Response('missing', { status: 404 })
+    }
+    await expect(dispatchLifecycle('install')).rejects.toThrow(/Asset precache failed/)
+    expect([...cacheStores.keys()]).toEqual(['yatraflow-v5'])
+
+    // Successful install: v6 cache is populated, and v5 stays until activate runs.
+    fetchImpl = async input => {
+      const pathname = normalizeKey(input)
+      if (pathname === '/app.html') return new Response(v6Shell, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })
+      if (pathname === '/manifest.webmanifest') return new Response('{}', { status: 200, headers: { 'content-type': 'application/manifest+json' } })
+      if (pathname.startsWith('/icons/')) return new Response('png', { status: 200, headers: { 'content-type': 'image/png' } })
+      if (pathname === '/assets/index-new111.js') return new Response('console.log("v6")', { status: 200, headers: { 'content-type': 'application/javascript' } })
+      if (pathname === '/assets/vendor-new333.js') return new Response('export const v = 6', { status: 200, headers: { 'content-type': 'application/javascript' } })
+      if (pathname === '/assets/index-new222.css') return new Response('body{color:#000}', { status: 200, headers: { 'content-type': 'text/css' } })
+      return new Response('missing', { status: 404 })
+    }
+    await dispatchLifecycle('install')
+    expect([...cacheStores.keys()].sort()).toEqual(['yatraflow-v5', 'yatraflow-v6'])
+
+    await dispatchLifecycle('activate')
+    expect([...cacheStores.keys()]).toEqual(['yatraflow-v6'])
+
+    // Go offline and boot /trips: shell HTML, module script, modulepreload chunk, and stylesheet all hit v6.
+    fetchImpl = async () => {
+      throw new Error('offline')
+    }
+    const fetchResource = async (pathname: string, mode?: string) => {
+      let pending: Promise<Response> | undefined
+      listeners.get('fetch')!({
+        request: { method: 'GET', mode, url: `${origin}${pathname}` },
+        respondWith: (promise: Promise<Response>) => {
+          pending = promise
+        },
+      })
+      return await pending
+    }
+
+    const offlineShell = await fetchResource('/trips', 'navigate')
+    expect(offlineShell?.status).toBe(200)
+    expect(await offlineShell?.text()).toBe(v6Shell)
+
+    const offlineJs = await fetchResource('/assets/index-new111.js')
+    expect(offlineJs?.status).toBe(200)
+    expect(await offlineJs?.text()).toBe('console.log("v6")')
+
+    const offlineChunk = await fetchResource('/assets/vendor-new333.js')
+    expect(offlineChunk?.status).toBe(200)
+    expect(await offlineChunk?.text()).toBe('export const v = 6')
+
+    const offlineCss = await fetchResource('/assets/index-new222.css')
+    expect(offlineCss?.status).toBe(200)
+    expect(await offlineCss?.text()).toBe('body{color:#000}')
   })
 })

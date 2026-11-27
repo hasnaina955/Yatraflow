@@ -69,6 +69,8 @@ jobs:
 
 
       - name: Build web bundle
+        env:
+          VITE_BUILD_TARGET: native
         run: npm run build
 
       - name: Sync web assets + plugins to Android

@@ -104,4 +104,13 @@ describe('Android release workflow', () => {
     // A host spelled out here would bake a feed that nobody approved.
     expect(workflow).not.toMatch(/yatraflow\.in/)
   })
+
+  it('sets VITE_BUILD_TARGET=native on the web build step so the APK skips landing HTML', () => {
+    const buildStep = workflow.slice(
+      workflow.indexOf('name: Build web bundle'),
+      workflow.indexOf('name: Sync web assets'),
+    )
+    expect(buildStep).toMatch(/VITE_BUILD_TARGET:\s*native\b/)
+    expect(buildStep).toContain('run: npm run build')
+  })
 })

@@ -17,7 +17,7 @@ export const SITE_NAME = 'YatraFlow'
 // icons and the Apple tags stay as the shell wrote them.
 const MANAGED = [
   /<title>[\s\S]*?<\/title>\s*/g,
-  /<meta\b[^>]*\b(?:name|property)="(?:description|robots|og:[^"]*|twitter:[^"]*)"[^>]*>\s*/g,
+  /<meta\b[^>]*\b(?:name|property)="(?:description|robots|yatraflow-shell|og:[^"]*|twitter:[^"]*)"[^>]*>\s*/g,
   /<link\b[^>]*\brel="canonical"[^>]*>\s*/g,
 ]
 

@@ -20,7 +20,7 @@ A collaborative travel-planning web app, built India-first. Real multi-day itine
 
 <br />
 
-<a href="https://github.com/hasnaina955/Yatraflow"><img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square" alt="React" /></a>
+<a href="https://github.com/hasnaina955/Yatraflow"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square" alt="React" /></a>
 <a href="https://vitejs.dev"><img src="https://img.shields.io/badge/Vite-8-646CFF?style=flat-square" alt="Vite" /></a>
 <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square" alt="TypeScript" /></a>
 <a href="https://supabase.com"><img src="https://img.shields.io/badge/Supabase-Postgres%2BAuth-3ECF8E?style=flat-square" alt="Supabase" /></a>

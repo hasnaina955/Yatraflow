@@ -38,6 +38,12 @@ const CARD_WIDTH = 1200
 const CARD_HEIGHT = 630
 /** The bare app shell, kept beside the prerendered home page. */
 export const SHELL_FILE = 'app.html'
+/** Positive marker present only on the bare app shell. */
+export const SHELL_MARKER = '<meta name="yatraflow-shell" content="app" />'
+/** Removes the bare-shell marker before prerendering a page. */
+export function stripShellMarker(html) {
+  return html.replace(/[ \t]*<meta name="yatraflow-shell" content="app" \/>\r?\n?/g, '')
+}
 /** The site card that index.html names for the home page. */
 const HOME_CARD = { file: 'og-default.png', alt: 'YatraFlow: India trips, planned together. Plan, Map, Budget and Share.' }
 
@@ -131,6 +137,7 @@ function assertPage(html, { label, canonical, image, schemaAttr }) {
   if (!/<script[^>]+src="\/assets\/[^"]+\.js"/.test(html)) throw new Error(`${label}: the hashed app script is missing`)
   if (!/<link[^>]+href="\/assets\/[^"]+\.css"/.test(html)) throw new Error(`${label}: the hashed stylesheet is missing`)
   if (schemaAttr && !html.includes(schemaAttr)) throw new Error(`${label}: the ${schemaAttr} block is missing`)
+  if (html.includes(SHELL_MARKER)) throw new Error(`${label}: the bare shell marker stayed in the prerendered page`)
 }
 
 /** Throws unless the written page has one of each tag a crawler reads, the right
@@ -157,12 +164,13 @@ export function assertPrerenderedHome(html) {
 async function renderAll(template) {
   const entry = pathToFileURL(path.join(TMP, 'static-pages.mjs')).href
   const { STATIC_PAGES, HOME_PAGE } = await import(entry)
+  const pageTemplate = stripShellMarker(template)
   const written = []
   for (const page of STATIC_PAGES) {
     let html
     try {
       const body = renderToStaticMarkup(createElement(page.component))
-      html = applyHead(template, pageHead(page), body)
+      html = applyHead(pageTemplate, pageHead(page), body)
     } catch (error) {
       throw new Error(`prerender of /${page.slug} failed: ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -176,7 +184,7 @@ async function renderAll(template) {
   // the shell in place.
   let home
   try {
-    home = applyHead(template, homeHead(HOME_PAGE), renderToStaticMarkup(createElement(HOME_PAGE.component)))
+    home = applyHead(pageTemplate, homeHead(HOME_PAGE), renderToStaticMarkup(createElement(HOME_PAGE.component)))
   } catch (error) {
     throw new Error(`prerender of / failed: ${error instanceof Error ? error.message : String(error)}`)
   }

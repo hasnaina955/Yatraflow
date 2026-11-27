@@ -2142,8 +2142,12 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     if (tripList.length === 0 && seedIfEmpty && !admin && !tripCountUnknown) {
       // The empty state offers "Load demo trips" while this seed runs. The flag that
       // addDemoTrips checks keeps that button from seeding a second set.
+      // #1054: only the page context that claims the account's seed marker
+      // seeds, so two tabs on one empty account no longer both seed.
       demoSeedInFlight = true
-      try { await seedDemoFor(userId, gen) } finally { demoSeedInFlight = false }
+      try {
+        if (gen === hydrateGen && await claimDemoSeed(userId)) await seedDemoFor(userId, gen)
+      } finally { demoSeedInFlight = false }
     }
     return true
   } catch (e) {
@@ -2188,6 +2192,36 @@ function mapOrSkip<T>(rows: unknown[], to: (row: unknown) => T): T[] {
 }
 
 // ---------------- Seeding demo trips ----------------
+
+/** #1054: one page context per account wins the automatic demo seed. The
+ *  conditional update matches the row only while the marker is empty, so a
+ *  second tab that races it gets 0 rows back. Fails closed: an error, a throw
+ *  or 0 rows means no seed. */
+async function claimDemoSeed(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from('profiles')
+      .update({ demo_seeded_at: new Date().toISOString() })
+      .eq('id', userId)
+      .is('demo_seeded_at', null)
+      .select('id')
+    if (error) { console.error('[yatraflow] demo seed claim failed', error); return false }
+    return Array.isArray(data) && data.length === 1
+  } catch (e) {
+    console.error('[yatraflow] demo seed claim rejected', e)
+    return false
+  }
+}
+
+/** #1054: a manual "Load demo trips" also marks the account as seeded, so a
+ *  later automatic seed cannot add a second set. The result is ignored. */
+async function markDemoSeeded(userId: string): Promise<void> {
+  try {
+    await supabase.from('profiles')
+      .update({ demo_seeded_at: new Date().toISOString() })
+      .eq('id', userId)
+      .is('demo_seeded_at', null)
+  } catch { /* the marker is best effort after a manual seed */ }
+}
 
 async function seedDemoFor(userId: string, gen: number = hydrateGen): Promise<void> {
   const seedTrips = structuredClone(seedData.trips)
@@ -2251,7 +2285,7 @@ export function addDemoTrips(): void {
   demoSeedInFlight = true
   toast('Adding demo trips…')
   void seedDemoFor(userId).then(
-    () => toast('Demo trips added'),
+    () => { toast('Demo trips added'); void markDemoSeeded(userId) },
     (e) => console.error('[yatraflow] demo seed failed', e),
   ).finally(() => { demoSeedInFlight = false })
 }

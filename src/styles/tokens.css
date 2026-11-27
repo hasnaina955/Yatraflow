@@ -626,6 +626,15 @@
   --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
   --icon-stroke: 1.9;
   --icon-stroke-sm: 1.9;
+
+  /* Toast at night. The night-sky artboard flips the ok/undo pill and the
+     neutral pill to paper so they stand out from dark cards. The fill stays
+     paper in the dark theme, so the ink and action colours are fixed here
+     rather than re-declared per theme. Measured on the paper: ink 13.90:1,
+     teal action 5.49:1. */
+  --toast-night-paper: #E8EFF5;
+  --toast-night-ink: #142329;
+  --toast-night-action: #0B6B63;
 }
 
 /* from src/styles/legacy/15-overview.css */

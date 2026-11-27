@@ -143,6 +143,8 @@ describe('Papercut motion foundation', () => {
       // My trips: the glass date stamp and the health score number pop in once
       // (tests/trips-motion.test.ts pins both).
       .filter(selector => selector !== '.mt-stamp' && selector !== '.mt-ring text')
+      // Toasts: the 18px status icon pops in once (tests/toast-polish.test.ts, #1053).
+      .filter(selector => selector !== '.toast-icon')
     expect(bounceRules).toEqual([])
     expect(css).not.toContain('.save-heart.save-heart')
     expect(gallery).toMatch(/\.gallery-final-pin\s*\{[^}]*width:\s*20px[^}]*height:\s*20px/)

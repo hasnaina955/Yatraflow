@@ -24,7 +24,7 @@ picks a pattern from here rather than inventing a feel.
 | List exit | Adopted: 240ms on `--ease-exit`; JS unmount timer reads 240ms. |
 | Map shell exit | Adopted: 360ms on `--ease-exit`; JS unmount timer reads 360ms. |
 | Dropdown and menu exit | Contract: 160ms on `--ease-exit`. The exit lifecycle is deferred to the owning component slice. |
-| Toast exit | Contract: 160ms on `--ease-exit`. The current toast has entrance motion only; its exit lifecycle is deferred. |
+| Toast exit | Adopted: 160ms on `--ease-exit`. The unmount timer reads `--motion-fast`. |
 | Drawer and sheet exit | Contract: 240ms on `--ease-exit`. The current AI drawer hides at once; its exit lifecycle is deferred. |
 
 Do not report a deferred exit as shipped. Add its lifecycle with the owning slice.
@@ -109,7 +109,7 @@ No scale or border-radius morphing on drag; drag movement is translation only (c
 | Drag settle | FLIP translate→none, `--motion-slow`, `--ease-paper`; the carried row settles from its release point (engine `consumeCarryRect`) | same surfaces, on commit |
 | Map shell expand / collapse | `scale(.94↔1)` + fade, `--motion-slow`, `--ease-paper`; collapse uses the full 360ms on `--ease-exit`. TripMap's unmount timer reads `motionExitTiming('--motion-slow')`, so CSS and JS cannot drift. Reduced motion is immediate. | `.map-shell--expanded` / `.map-shell--closing` |
 | Rail fold | `grid-template-columns` glide, `--motion-slow`, `--ease-resize`; the fold icon rides the same clock | `.map-ideas-grid` folded states |
-| Toast | rise 8px + fade in, `--motion-med`, `--ease-paper`; the named exit contract is `--motion-fast`, `--ease-exit`. Its exit lifecycle is deferred | toast zone |
+| Toast | Rise 8px and fade in on `--motion-med` and `--ease-paper`. The pill moves 3px past its rest position, then settles. It fades out and sinks 6px on `--motion-fast` and `--ease-exit`, then unmounts. Reduced motion skips both animations. | toast zone |
 
 **A list row keeps its own entrance.** The page cascade (`.page-enter > *`) reaches direct
 children only. A list row is not a direct child, so it uses `.yf-surface.is-entering`, as the

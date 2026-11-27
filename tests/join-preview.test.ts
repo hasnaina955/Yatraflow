@@ -24,6 +24,7 @@ const SHELL = [
   '    <meta property="og:url" content="https://www.yatraflow.in/" />',
   '    <meta property="og:image" content="https://www.yatraflow.in/og-default.png" />',
   '    <link rel="canonical" href="https://www.yatraflow.in/" />',
+  '    <meta name="yatraflow-shell" content="app" />',
   '    <title>Site title</title>',
   '    <script type="module" crossorigin src="/assets/index-abc123.js"></script>',
   '    <link rel="stylesheet" crossorigin href="/assets/index-def456.css">',
@@ -181,7 +182,7 @@ describe('the page keeps the app shell, with the invite head in place of the hom
     expect(res.body).toContain('<div id="root"><noscript>')
   })
 
-  it('carries one title, one description and one og:url, and no canonical', async () => {
+  it('carries one title, one description and one og:url, and no canonical or shell marker', async () => {
     stubFetch()
     const res = await run('GET', CODE)
     expect(res.body.match(/<title>/g)?.length).toBe(1)
@@ -189,6 +190,7 @@ describe('the page keeps the app shell, with the invite head in place of the hom
     expect(res.body.match(/<meta property="og:url"/g)?.length).toBe(1)
     expect(res.body).toContain(`<meta property="og:url" content="${ORIGIN}/join" />`)
     expect(res.body).not.toContain('rel="canonical"')
+    expect(res.body).not.toContain('yatraflow-shell')
     expect(res.body).not.toContain('Site title')
   })
 

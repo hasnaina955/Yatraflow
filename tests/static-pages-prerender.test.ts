@@ -60,6 +60,12 @@ describe('applyHead replaces the shell head, never appends to it', () => {
     expect(html).not.toContain('https://www.yatraflow.in/" />')
   })
 
+  it('strips the bare shell marker so no server-rendered HTML carries it', () => {
+    const withMarker = SHELL.replace('</head>', `    ${SHELL_MARKER}\n  </head>`)
+    const html = applyHead(withMarker, sample, '<h1>About</h1>')
+    expect(html).not.toContain('yatraflow-shell')
+  })
+
   it('keeps the tags it does not own, and the hashed app assets', () => {
     const html = applyHead(SHELL, sample, '<h1>About</h1>')
     expect(html).toContain('<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F8F5F0" />')

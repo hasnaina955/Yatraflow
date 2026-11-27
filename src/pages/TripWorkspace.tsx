@@ -474,7 +474,7 @@ function sanitizeTab(s: string | undefined): TabKey {
 
 /** #1051: the width at which the trip tab rail docks under the app bar. It must
  *  match the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`. */
-export const PHONE_DOCK_QUERY = '(max-width: 720px)'
+const PHONE_DOCK_QUERY = '(max-width: 720px)'
 
 export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: string; initialTab?: string; onNavigate: (route: string) => void }) {
   const db = useDb()

@@ -114,7 +114,9 @@ function measureStickyStack(): number {
     const s = getComputedStyle(el)
     if (s.position !== 'sticky' && s.position !== 'fixed') continue
     const top = parseFloat(s.top)
-    if (!Number.isFinite(top) || top > 120) continue
+    // 200, not 120: on a phone the review ribbon sticks below the trip tab
+    // dock, at about 150px (#1051).
+    if (!Number.isFinite(top) || top > 200) continue
     const h = el.offsetHeight
     if (h === 0 || h > 240) continue
     bottom = Math.max(bottom, top + h)

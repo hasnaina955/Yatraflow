@@ -67,7 +67,7 @@ describe('pill tab rails', () => {
   })
   it('docks the trip tab rail under the app bar on a phone (#1051)', () => {
     const workspace = read('src/pages/TripWorkspace.tsx')
-    expect(workspace).toContain("export const PHONE_DOCK_QUERY = '(max-width: 720px)'")
+    expect(workspace).toContain("const PHONE_DOCK_QUERY = '(max-width: 720px)'")
     expect(workspace).toContain('const tabsDocked = phoneWidth && !headerFolded')
     expect(workspace).toContain('{!tabsDocked && tabRail}')
     expect(workspace).toContain('{tabsDocked && <div className="yf-page yf-tabdock">{tabRail}</div>}')
@@ -88,5 +88,15 @@ describe('pill tab rails', () => {
     expect(dock?.background).toBe('var(--bg)')
     expect(dockRules['.yf-page.yf-tabdock > .yf-tabbar']?.['max-width']).toBe('100%')
     expect(dockRules[".yf-page[data-tabs='docked'] .yf-trip-head > .yf-cover-content"]?.['padding-bottom']).toBe('var(--space-7)')
+
+    // The sticky bars inside a tab, and the jump targets, clear the dock.
+    const root2 = dockRules["html:has(.yf-page[data-tabs='docked'])"]
+    expect(root2?.['--yf-dock-bottom']).toBe('calc(var(--nav-top) + var(--nav-h) + 2px + var(--space-3) + 52px + var(--space-4))')
+    expect(root2?.['scroll-padding-top']).toContain('var(--yf-dock-bottom)')
+    const below = dockRules[".yf-page[data-tabs='docked'] ~ .tab-panel .tset-nav,\n  .yf-page[data-tabs='docked'] ~ .tab-panel .tl-root-review .tl-ribbon"]
+    expect(below?.top).toBe('calc(var(--yf-dock-bottom) + var(--space-4))')
+    expect(dockRules[".yf-page[data-tabs='docked'] ~ .tab-panel .tset-main > .tsx-card"]?.['scroll-margin-top']).toContain('var(--yf-dock-bottom)')
+    // The Timeline stack measure must still count a bar that sticks below the dock.
+    expect(read('src/pages/trip/TimelineTab.tsx')).toContain('top > 200) continue')
   })
 })

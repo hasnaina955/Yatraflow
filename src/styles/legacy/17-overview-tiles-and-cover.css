@@ -534,6 +534,22 @@
     clip-path: inset(0 -100vmax);
   }
 
+  /* The dock is a sticky bar of its own: 6px, the 52px pill and 8px. The
+     sticky bars inside a tab, and every jump target, sit below it. */
+  html:has(.yf-page[data-tabs='docked']) {
+    --yf-dock-bottom: calc(var(--nav-top) + var(--nav-h) + 2px + var(--space-3) + 52px + var(--space-4));
+    scroll-padding-top: calc(var(--yf-dock-bottom) + var(--space-7));
+  }
+
+  .yf-page[data-tabs='docked'] ~ .tab-panel .tset-nav,
+  .yf-page[data-tabs='docked'] ~ .tab-panel .tl-root-review .tl-ribbon {
+    top: calc(var(--yf-dock-bottom) + var(--space-4));
+  }
+
+  .yf-page[data-tabs='docked'] ~ .tab-panel .tset-main > .tsx-card {
+    scroll-margin-top: calc(var(--yf-dock-bottom) + var(--space-7));
+  }
+
   .yf-page.yf-tabdock > .yf-tabbar {
     width: max-content;
     max-width: 100%;

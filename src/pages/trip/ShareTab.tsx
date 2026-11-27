@@ -644,7 +644,8 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
   const [tab, setTab] = useState<ShareTabId>('plan')
   // #1064: the universal Add control's Invite people opens this card: the plan
   // panel, scrolled to the invite field, with focus on its first control (the
-  // copy button, or Try again when the link could not be made).
+  // copy button, or Try again when the link could not be made). While the link
+  // is still being made the field has no control yet, so the group takes focus.
   const inviteFieldRef = useRef<HTMLDivElement>(null)
   const [inviteAsked, setInviteAsked] = useState(false)
   useEffect(() => {
@@ -652,7 +653,8 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
     const field = inviteFieldRef.current
     if (!field) return
     field.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
-    field.querySelector<HTMLElement>('button, a[href]')?.focus({ preventScroll: true })
+    const target = field.querySelector<HTMLElement>('button, a[href]') ?? field
+    target.focus({ preventScroll: true })
     setInviteAsked(false)
   }, [inviteAsked, tab])
   useTabAdd({
@@ -815,7 +817,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           <p className="hint-text shr-invite-description">{readRole ? <span key={readRole} className="shr-role-fade">{`New members join as ${readRole}s. `}</span> : null}Returning members never get more than their last role. Removed members need an owner restore.</p>
           {/* #1012 — a labelled link, then the join code as its own tile. The link
               and the code are two different things, so they are two blocks. */}
-          <div ref={inviteFieldRef} className="shr-invite-field" role="group" aria-labelledby="share-invite-label">
+          <div ref={inviteFieldRef} tabIndex={-1} className="shr-invite-field" role="group" aria-labelledby="share-invite-label">
             <span className="shr-field-label" id="share-invite-label">Invite link</span>
             {inviteLink ? (
               <div className="share-link-box shr-invite-link"><InlineIcon icon={Link2} size={14} gap={0} /><code title={inviteLink}>{inviteLink}</code><CopyButton text={inviteLink} /></div>

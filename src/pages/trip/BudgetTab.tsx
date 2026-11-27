@@ -37,6 +37,8 @@ import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
 import { refuseWhileStaged } from '../../lib/mutationLifecycle'
 import { Mascot } from '../../components/mascot/Mascot'
+import { BudgetChakra } from '../../components/mascot/BudgetChakra'
+import { budgetMood } from '../../lib/budgetMood'
 
 // ================= Budget tab =================
 
@@ -311,9 +313,7 @@ const TRACK_GAP = 2
 const MIN_SEG = 6
 
 
-export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings, onAskChakra }: {
-  /** Opens the Chakra drawer. Absent hides the Ask button. */
-  onAskChakra?: () => void
+export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings }: {
   trip: Trip
   totals: ReturnType<typeof computeTotals>
   editable: boolean
@@ -425,6 +425,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   const openLedgerExpenses = trip.expenses.filter(e => !e.settled)
   const openLedgerTotal = linesTotal(openLedgerExpenses, trip.travellers)
   const settledPct = ledgerTotal > 0 ? Math.min(100, Math.round((settledTotal / ledgerTotal) * 100)) : 0
+  // The Chakra tile's mood. The rules live in src/lib/budgetMood.ts.
+  const chakraMood = budgetMood({ hasTarget, pctUsed, ledgerLines: trip.expenses.length, settledPct })
   const kittyLines = trip.expenses.filter(e => !e.paidBy)
   const kittyTotal = linesTotal(kittyLines, trip.travellers)
   const kittyPct = ledgerTotal > 0 ? Math.round((kittyTotal / ledgerTotal) * 100) : 0
@@ -678,12 +680,7 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
         {/* Chakra has its own place in the glance row (owner, 27 Nov). It took the
             Biggest line tile: the category insight below still names that line. */}
         <article className="card bud-glance-tile bud-glance-chakra">
-          <span className="bud-chakra-art"><Mascot pose="budget" size={84} animated /></span>
-          <span className="bud-chakra-copy">
-            <span className="bud-kicker">Chakra</span>
-            <span className="bud-glance-sub">Ask Chakra about this budget.</span>
-            {onAskChakra && <button type="button" className="btn btn-sm bud-chakra-ask" onClick={onAskChakra}>Ask Chakra</button>}
-          </span>
+          <BudgetChakra mood={chakraMood} />
         </article>
       </section>
 

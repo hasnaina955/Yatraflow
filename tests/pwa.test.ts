@@ -106,7 +106,7 @@ describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
   const assetsBranch = () => sw.slice(sw.indexOf("startsWith('/assets/')"))
 
   it('bumps the version — the policy changed, so activate sweeps poisoned v1 caches', () => {
-    expect(sw).toContain("const SW_VERSION = 'v5'")
+    expect(sw).toContain("const SW_VERSION = 'v6'")
   })
 
   it('refuses to cache a text/html response under an asset URL', () => {
@@ -143,16 +143,25 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
     expect(code).toContain('fetch(request)')
   })
 
-  it('never writes the SHELL key for copy-page index.html or home index.html responses', async () => {
+  it('confirms the bare app shell positively before writing the SHELL key', async () => {
+    expect(code).toContain('isBareAppShell(html)')
+    expect(html).toContain('<meta name="yatraflow-shell" content="app" />')
+
     const putCalls: string[] = []
+    const cacheStore = new Map<string, Response>()
     const listeners = new Map<string, (event: unknown) => void>()
     const fakeCache = {
       addAll: async () => undefined,
-      put: async (key: unknown) => {
-        putCalls.push(String(key))
+      put: async (key: unknown, value: Response) => {
+        const k = String(key)
+        putCalls.push(k)
+        cacheStore.set(k, value)
       },
-      match: async () => undefined,
+      match: async (key: unknown) => cacheStore.get(String(key)),
     }
+    let nextFetch: (request: { url: string }) => Promise<Response> = async () =>
+      new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })
+
     const context = vm.createContext({
       URL,
       Response,
@@ -163,34 +172,67 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
       },
       caches: {
         open: async () => fakeCache,
-        match: async () => undefined,
+        match: async (key: unknown) => cacheStore.get(String(key)),
         keys: async () => [],
         delete: async () => true,
       },
-      fetch: async () => new Response('<html><body>page</body></html>', { status: 200 }),
+      fetch: (request: { url: string }) => nextFetch(request),
     })
     vm.runInContext(sw, context)
     const onFetch = listeners.get('fetch')
     expect(onFetch).toBeTypeOf('function')
 
     const runNavigate = async (pathname: string) => {
-      let pending: Promise<unknown> | undefined
+      let pending: Promise<Response> | undefined
       onFetch!({
         request: { method: 'GET', mode: 'navigate', url: `https://www.yatraflow.in${pathname}` },
-        respondWith: (promise: Promise<unknown>) => {
+        respondWith: (promise: Promise<Response>) => {
           pending = promise
         },
       })
-      await pending
+      const response = await pending
       await new Promise(resolve => setTimeout(resolve, 0))
+      return response
     }
 
-    for (const pathname of ['/index.html', '/faq/index.html', '/how-it-works/index.html', '/about/index.html', '/for-creators/index.html']) {
+    nextFetch = async () =>
+      new Response('User-agent: *\nDisallow: /trip/\n', {
+        status: 200,
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
+      })
+    await runNavigate('/robots.txt')
+
+    nextFetch = async () =>
+      new Response('<html><head><link rel="canonical" href="https://www.yatraflow.in/faq" /></head><body>faq</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
+    for (const pathname of ['/index.html', '/faq', '/faq/index.html', '/how-it-works/index.html', '/about/index.html', '/for-creators/index.html']) {
       await runNavigate(pathname)
     }
-    expect(putCalls).toEqual([])
 
+    nextFetch = async () =>
+      new Response('<html><body>unknown 200 page</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
+    await runNavigate('/unknown-200-page')
+    expect(putCalls).toEqual([])
+    expect(cacheStore.has('/app.html')).toBe(false)
+
+    nextFetch = async () =>
+      new Response(html, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
     await runNavigate('/trips')
     expect(putCalls).toEqual(['/app.html'])
+
+    nextFetch = async () => {
+      throw new Error('offline')
+    }
+    const offlineTrips = await runNavigate('/trips')
+    expect(offlineTrips?.status).toBe(200)
+    expect(await offlineTrips?.text()).toBe(html)
   })
 })

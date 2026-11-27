@@ -21,13 +21,24 @@
 // that is not this version's is dropped on activate — so a deploy rolls the
 // offline copy forward without a version bump. Bump SW_VERSION only to force a
 // full drop (e.g. when the caching policy itself changes).
-const SW_VERSION = 'v5'
+// v6 confirms the bare app shell positively before caching SHELL.
+const SW_VERSION = 'v6'
 const CACHE = `yatraflow-${SW_VERSION}`
 // The bare app shell. The build writes the prerendered home page to /index.html
 // and keeps the shell at /app.html, which the SPA catch-all serves for every
 // other route. v5 moved the key from '/' to '/app.html'.
 const SHELL = '/app.html'
+const SHELL_MARKER = '<meta name="yatraflow-shell" content="app" />'
 const SHELL_ASSETS = [SHELL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+
+/** True only when HTML is the bare app shell: has the marker and no canonical or robots tag. */
+function isBareAppShell(html) {
+  return (
+    html.includes(SHELL_MARKER) &&
+    !html.includes('rel="canonical"') &&
+    !html.includes('name="robots"')
+  )
+}
 
 /** The prerendered copy pages (#1042) and the home page. Each is its own HTML document, not the
  *  app shell. A successful navigation to one must not overwrite the SHELL key,
@@ -96,11 +107,25 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          // Only the app's own document may take the SHELL key. A copy page or an
-          // invite link is HTML of its own (see isOwnDocument above).
-          if (response.ok && !isOwnDocument(url.pathname)) {
-            const copy = response.clone()
-            caches.open(CACHE).then(cache => cache.put(SHELL, copy))
+          // Write SHELL only for a confirmed bare app shell response.
+          // Copy pages and invite links stay out by path and by content.
+          const type = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+          const readable = !type || type.includes('text/html') || type.startsWith('text/plain')
+          if (response.ok && !isOwnDocument(url.pathname) && readable) {
+            const probe = response.clone()
+            const writeShell = probe
+              .text()
+              .then(html => {
+                if (!isBareAppShell(html)) return
+                const copy = new Response(html, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers,
+                })
+                return caches.open(CACHE).then(cache => cache.put(SHELL, copy))
+              })
+              .catch(() => {})
+            if (typeof event.waitUntil === 'function') event.waitUntil(writeShell)
           }
           return response
         })

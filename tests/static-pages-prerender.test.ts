@@ -13,7 +13,8 @@ import { HOME_PAGE, STATIC_PAGES } from '../src/prerender/static-pages'
 import { ABOUT_DESCRIPTION, FOR_CREATORS_DESCRIPTION, pageMeta, SITE_DESCRIPTION } from '../src/lib/pageTitle'
 import { appLink } from '../src/lib/appLink'
 import {
-  assertPrerenderedHome, assertPrerenderedPage, homeHead, homeJsonLd, pageHead, SHELL_FILE, shouldSkipPrerender,
+  assertPrerenderedHome, assertPrerenderedPage, homeHead, homeJsonLd, pageHead, SHELL_FILE, SHELL_MARKER,
+  shouldSkipPrerender, stripShellMarker,
 } from '../scripts/prerender-static-pages.mjs'
 import pageCards from '../scripts/page-cards.json' with { type: 'json' }
 
@@ -298,6 +299,16 @@ describe('the bare shell stays at its own address', () => {
     const sw = read('public/sw.js')
     expect(sw).toContain(`const SHELL = '/${SHELL_FILE}'`)
     expect(sw).toMatch(/const OWN_HTML = new Set\(\[\s*'\/',/)
+    expect(read('index.html')).toContain(SHELL_MARKER)
+    const stripped = stripShellMarker(read('index.html'))
+    expect(stripped).not.toContain(SHELL_MARKER)
+    const home = applyHead(
+      stripped.replace('</head>', '    <script type="module" src="/assets/index-abc123.js"></script><link rel="stylesheet" href="/assets/index-def456.css">\n  </head>'),
+      homeHead(HOME_PAGE),
+      renderToStaticMarkup(createElement(HOME_PAGE.component)),
+    )
+    expect(() => assertPrerenderedHome(home)).not.toThrow()
+    expect(() => assertPrerenderedHome(home.replace('</head>', `    ${SHELL_MARKER}\n  </head>`))).toThrow(/bare shell marker/)
   })
 
   it('builds the invite card from the bare shell', () => {

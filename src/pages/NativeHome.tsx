@@ -13,7 +13,7 @@
 import { useState } from 'react'
 import { InlineIcon } from '../components/icons'
 import { Bell, Compass, Plus, Sparkles, TriangleAlert, Users, Wallet } from 'lucide-react'
-import type { Trip } from '../data/types'
+import type { ItineraryStop, Trip } from '../data/types'
 import { useUsers, useSessionUserId, useNotifications, useSliceReads, tripsForUser, rereadTrips } from '../store/store'
 import { collectWarnings, computeTotals, formatInrShort } from '../lib/engine'
 import { sliceState } from '../lib/readState'
@@ -36,9 +36,19 @@ export function greeting(): string {
 
 /** Live = today falls inside the date range; upcoming = starts in the future.
  *  Exported for the pin test: the phase is a pure read of the trip's dates. */
-export function tripPhase(t: Trip): 'live' | 'upcoming' | 'other' {
-  const status = statusOf({ startDate: t.startDate, endDate: t.endDate || t.startDate }, new Date())
+export function tripPhase(t: Pick<Trip, 'startDate' | 'endDate'>, now = new Date()): 'live' | 'upcoming' | 'other' {
+  const status = statusOf({ startDate: t.startDate, endDate: t.endDate || t.startDate }, now)
   return status === 'live' || status === 'upcoming' ? status : 'other'
+}
+
+export function nextStoredStop<T extends Pick<ItineraryStop, 'arrivalTime'>>(stops: readonly T[], now: Date): T | undefined {
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return stops.filter(stop => stop.arrivalTime && stop.arrivalTime >= clock)
+    .sort((a, b) => (a.arrivalTime ?? '').localeCompare(b.arrivalTime ?? ''))[0]
+}
+
+export function NativeHomeSkeleton({ retrying = false }: { retrying?: boolean }) {
+  return <div className="nh-skeletons" role="status" aria-label={retrying ? 'Trying again' : 'Loading trips'}><span /><span /><span /></div>
 }
 
 function HomeTripRow({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string) => void }) {
@@ -79,10 +89,8 @@ function LiveTripHero({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string
   const now = new Date()
   const countdown = countdownText({ ...trip, endDate: trip.endDate || trip.startDate }, now)
   const dayNumber = Number(/^Day (\d+)/.exec(countdown ?? '')?.[1])
-  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const day = trip.days.find(item => item.index === dayNumber - 1)
-  const next = day?.stops.filter(stop => stop.arrivalTime && stop.arrivalTime >= clock)
-    .sort((a, b) => (a.arrivalTime ?? '').localeCompare(b.arrivalTime ?? ''))[0]
+  const next = nextStoredStop(day?.stops ?? [], now)
   return (
     <section className="nh-hero yf-surface" aria-label={`Live trip: ${trip.name}`}>
       <div className="nh-hero-cover">
@@ -155,7 +163,7 @@ export function NativeHomePage({ me, onNavigate }: {
         actions={(
           <div className="app-home-avatar-row">
             {unread > 0 && (
-              <button className="app-home-bell" onClick={() => onNavigate('/trips')} aria-label={`${unread} unread notifications`}>
+              <button className="app-home-bell" onClick={() => onNavigate('/profile')} aria-label={`${unread} unread notifications`}>
                 <Bell size={17} aria-hidden />
                 <span className="app-home-bell-count">{unread}</span>
               </button>
@@ -180,7 +188,7 @@ export function NativeHomePage({ me, onNavigate }: {
 
       {/* #704: the three read states differ. The empty copy shows only after a read that succeeded. */}
       {trips.length === 0 && (tripsRead === 'reading' || retrying) && (
-        <div className="nh-skeletons" role="status" aria-label={retrying ? 'Trying again' : 'Loading trips'}><span /><span /><span /></div>
+        <NativeHomeSkeleton retrying={retrying} />
       )}
       {trips.length === 0 && tripsRead === 'failed' && !retrying && (
         <StateBlock

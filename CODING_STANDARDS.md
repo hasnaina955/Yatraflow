@@ -41,6 +41,7 @@ anywhere in this repo means the entry labelled `6b` below.
 ## 1. Pitfall entries (`AGENTS.md` §2, the 6-series rules (6a onward))
 
 Source-contract tests must handle both LF and CRLF line endings.
+Calendar-date tests must format local dates as local dates. UTC conversion can shift midnight to the prior day.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
 Tests that change a seeded date must set both dates. Demo seed dates move with the clock and can match a fixed replacement date.
 

@@ -68,7 +68,7 @@ describe('bottom navigation is a shell-only primary nav', () => {
 
   it('mounts only behind the native gate in App.tsx', () => {
     expect(app).toContain("import { BottomNav } from './components/BottomNav'")
-    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} />}')
+    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}')
   })
 
   it('hides the website top bar for the signed-in shell', () => {

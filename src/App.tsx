@@ -50,7 +50,7 @@ import { StateBlock } from './components/page/StateBlock'
 import { PageHeader } from './components/page/PageHeader'
 import { Mascot } from './components/mascot/Mascot'
 import { LandingPage } from './pages/Landing'
-import { NativeHomePage } from './pages/NativeHome'
+import { NativeHomePage, NativeHomeSkeleton } from './pages/NativeHome'
 import {
   sharedSnapshotState, inviteGateState, gateMachine, dispatchGateEvent, setGateOwner, ownedBy, disposeGateMount,
   subscribeGateState, gateMachineVersion,
@@ -654,7 +654,7 @@ export default function App() {
   // unconditional, so every launch flashed the marketing landing + its
   // website chrome before NativeHome arrived.
   if (!ready && parts[0] !== 'auth' && parts[0] !== 'share' && !STATIC_COPY_SEGMENTS.has(parts[0] ?? '') && (!bareRoute || isNative)) {
-    page = lazyRouteFallback
+    page = isNative && bareRoute ? <div className="app-home yf-page"><NativeHomeSkeleton /></div> : lazyRouteFallback
   } else if (parts[0] === 'share' && parts[1]) {
     page = <SharedTripPage payload={parts[1]} onNavigate={navigate} />
   } else if (parts[0] === 'join' && parts[1]) {

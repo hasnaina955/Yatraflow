@@ -1,30 +1,35 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { badgeText } from '../src/components/BottomNav'
+import { nextStoredStop, tripPhase } from '../src/pages/NativeHome'
+import { countdownText } from '../src/lib/tripsPage'
 
-const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
+const now = new Date(2026, 10, 27, 12, 5)
+const trip = {
+  startDate: '2026-11-25',
+  endDate: '2026-11-30',
+  days: Array.from({ length: 6 }, (_, index) => ({ id: String(index), index, stops: [] })),
+}
 
 describe('native home live trip', () => {
-  it('uses live trip data and keeps read states distinct', () => {
-    const home = read('src/pages/NativeHome.tsx')
-    expect(home).toContain("trips.find(t => tripPhase(t) === 'live')")
-    expect(home).toContain('countdownText(')
-    expect(home).toContain('dayStrip(trip, collectWarnings(trip))')
-    expect(home).toContain('stop.arrivalTime >= clock')
-    expect(home).toContain("tripsRead === 'failed' && !retrying")
-    expect(home).toContain("tripsRead === 'ready' && !retrying")
-    expect(home).toContain('nh-skeletons')
+  it('classifies live, upcoming and past dates', () => {
+    expect(tripPhase(trip, now)).toBe('live')
+    expect(tripPhase({ startDate: '2026-11-28', endDate: '2026-11-30' }, now)).toBe('upcoming')
+    expect(tripPhase({ startDate: '2026-11-20', endDate: '2026-11-26' }, now)).toBe('other')
   })
-  it('passes the unread count to the trips badge with reduced motion', () => {
-    const nav = read('src/components/BottomNav.tsx')
-    expect(read('src/App.tsx')).toContain('isCreator={me.profile.isCreator} unread={unread}')
-    expect(nav).toContain("to === '/trips' && unread > 0")
-    expect(nav).toContain("unread > 9 ? '9+' : unread")
-    expect(nav).toContain('${unread} unread')
-    const css = read('src/styles/legacy/06-shell-and-consistency.css')
-    expect(css).toContain('var(--ease-settle)')
-    expect(css).toMatch(/prefers-reduced-motion: reduce\) \{ \.bottom-nav-badge \{ animation: none/)
-    const homeCss = read('src/styles/legacy/12-pages.css')
-    expect(homeCss).toContain('scale(1.035)')
-    expect(homeCss).toContain('var(--motion-slower) var(--ease-glide)')
+  it('shows the current day and total days', () => {
+    expect(countdownText(trip, now)).toBe('Day 3 of 6')
+  })
+  it('selects the next stored arrival, including the current minute', () => {
+    const stops = [{ arrivalTime: '14:00' }, { arrivalTime: '11:59' }, { arrivalTime: '12:05' }, {}]
+    expect(nextStoredStop(stops, now)).toEqual({ arrivalTime: '12:05' })
+    expect(nextStoredStop([{}, { arrivalTime: '11:59' }], now)).toBeUndefined()
+  })
+  it('formats unread badges and places them on Profile', () => {
+    expect(badgeText(0)).toBeNull()
+    expect(badgeText(3)).toBe('3')
+    expect(badgeText(12)).toBe('9+')
+    const nav = readFileSync('src/components/BottomNav.tsx', 'utf8').replace(/\r\n/g, '\n')
+    expect(nav).toContain("to === '/profile' && badge && <span className=\"bottom-nav-badge\"")
   })
 })

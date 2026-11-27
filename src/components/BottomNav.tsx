@@ -64,6 +64,11 @@ export function areaOf(route: string): Area {
   return null
 }
 
+export function badgeText(unread: number): string | null {
+  if (!Number.isFinite(unread) || unread <= 0) return null
+  return unread > 9 ? '9+' : String(Math.floor(unread))
+}
+
 export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: {
   route: string
   onNavigate: (r: string) => void
@@ -73,6 +78,7 @@ export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: 
 }) {
   const current = areaOf(route)
   const items = navDestinations(isCreator)
+  const badge = badgeText(unread)
   return (
     // data-destinations lets the END of styles.css scope a five-column grid to
     // this case, so the four-item bar keeps its own rule untouched.
@@ -92,10 +98,10 @@ export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: 
             type="button"
             className={`bottom-nav-item${active ? ' active' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={to === '/trips' && unread > 0 ? `${label}, ${unread} unread` : title}
+            aria-label={to === '/profile' && badge ? `${label}, ${unread} unread` : title}
             onClick={() => onNavigate(to)}
           >
-            <span className="bottom-nav-icon"><Icon size={22} aria-hidden />{to === '/trips' && unread > 0 && <span className="bottom-nav-badge" aria-hidden>{unread > 9 ? '9+' : unread}</span>}</span>
+            <span className="bottom-nav-icon"><Icon size={22} aria-hidden />{to === '/profile' && badge && <span className="bottom-nav-badge" aria-hidden>{badge}</span>}</span>
             <span className="bottom-nav-label">{label}</span>
           </button>
         )

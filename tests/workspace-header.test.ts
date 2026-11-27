@@ -183,7 +183,7 @@ describe('the workspace markup consumes the rules', () => {
     // container still publishes the fold state and which tab holds the map.
     // #1012 adds the Share tab's wide flag on the same container (data-share-wide).
     expect(ws).toMatch(/<div className="container page-enter yf-workspace" data-wide=\{headerFolded \? 'true' : 'false'\} data-share-wide=\{tab === 'share' \? 'true' : undefined\} data-map-active=\{tab === 'map' \? 'true' : undefined\} data-canvas=\{headerFolded \? 'true' : undefined\} data-map-fullscreen=\{phoneMapFullscreen \? 'true' : undefined\}>/)
-    expect(ws).toMatch(/<div className="yf-page" data-compact=\{headerFolded \? 'true' : 'false'\}>/)
+    expect(ws).toMatch(/<div className="yf-page" data-compact=\{headerFolded \? 'true' : 'false'\} data-tabs=\{tabsDocked \? 'docked' : undefined\}>/)
   })
 
   it('makes folded content inert after focus moves to the active tab', () => {

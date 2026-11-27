@@ -16,6 +16,140 @@ All notable changes to YatraFlow. Format loosely follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-11-27
+
+### Added
+
+- **Toasts now show a kind icon.** An `ok` toast shows a teal check circle. An `err` toast shows an alert icon. A neutral toast shows no icon. The icon is decorative and hidden from screen readers. (#1053)
+
+- **Link-preview bots get a generic invite card for shared invite links.** The card shows no trip title and no day count. The handler reads the app shell and skips any trip lookup. People still get the app. (#1042)
+
+- **The home page is in the HTML that a crawler gets.** The build prerenders the landing page into index.html with its own canonical and the Organization and WebSite schema. The app still boots and replaces the body.
+
+- **Invite previews show the trip owner and the link role.** Signed-out visitors see the owner's first name or handle when available. The server sends at most 24 characters and filters out contact details. The new fields appear after the migration. (#1036)
+
+- **Phone stops open one bottom sheet instead of a popover.** At 720px or less, a stop's ⋯ opens a sheet. It has a drag handle, a close button and the stop name. The title line shows the real day, clock and position. The desktop popover does not change.
+
+- **The sheet carries the stop status and actions.** The status group uses Confirmed, Maybe and Needs booking. It marks the current status. A status change goes through the impact preview. Edit details, Move to another day and Reorder use the existing paths. The move hint lists real day numbers. Reorder ends are disabled. Show on the map uses the map focus path. Remove uses the impact preview. Keep leaves an Undo.
+
+- **The sheet follows the phone access and motion rules.** Controls have a 44px target floor. Focus enters the sheet and returns to the ⋯ on close. Escape and a downward drag close the sheet. The lower edge uses safe-area padding. The dark theme uses the shared tokens. Entrance and exit use named motion tokens. With reduced motion, a downward drag still closes the sheet. The sheet opens and closes at once.
+
+- **Phone Overview shows each day and its checks.** Open a day card to view it in Timeline. (#1062)
+
+- **The FAQ, How it works, About and For creators pages carry their full text in the first HTML response.** Each page has its own title, description, canonical address and social card, written at build time. Crawlers and link previews read them without running the app. (#1042)
+
+- **The Timeline flags early arrivals.** A suggested day start opens the impact preview. Travellers can dismiss each advisory. (#1063)
+
+- **Each copy page and the invite link have their own 1200 by 630 preview card.** The card shows the page's headline on the approved art, so a shared link previews the page it names. (#1042)
+
+### Changed
+
+- **The invite card's og:url names /join with no code.** A chat app cannot keep a join token from the card. (#1045)
+
+- **Board days fit their stops and show route load.** Compact columns align at the map floor. Day headers show a date, route title, and load bar when data is available. Stop actions appear on hover or keyboard focus. On touch screens, the actions open below the stop. Drive time helps set the load. A day without a location has no load bar. The warning count opens a scrollable popover without moving the columns. Neutral stop cards sit on a translucent day panel. Drag tilt and neighbour glide respect reduced motion.
+
+- **Toasts settle 3 px when they enter.** The pill rises 8 px and fades on `--motion-med` and `--ease-paper`, overshoots by 3 px, then rests. The check icon pops on `--ease-settle` inside the small-pop rule. (#1053)
+
+- **Toasts now animate out.** When the timer ends or the user selects Undo, the toast fades and sinks 6 px. It uses `--motion-fast` and `--ease-exit`. Hover or focus pauses the timer. The Undo action runs once. (#1053)
+
+- **The Undo button has a 44 px tap height.** The label reads "Undo". (#1053)
+
+- **The ok and undo toasts use paper at night.** The check sits in a teal circle. The Undo label uses teal ink. The error toast keeps its danger fill. Action text meets AA contrast in both themes, including on hover. Reduced motion shows and removes a toast at once. (#1053)
+
+- **Crawlers may fetch an invite link.** The response is noindex in its header and its head, so search still leaves the page out. (#1042)
+
+- **Every other route gets the bare app shell from app.html.** The SPA catch-all, the service worker and the invite card read app.html. No other route gets the home page text or its canonical. The service worker cache moves to v5.
+
+- **Visitors find How it works and the calculators from the home page, the top menu and the footer.** The footer groups its links under four labels, and the invite and paid-guide screens link to the FAQ.
+
+- **The agent and contributor docs name React 19, the version the app ships.** CODING_STANDARDS.md records four rules from the prerender and canonical work. They cover server snapshots, the shell's canonical, the lint gate on new files, and the preview server's rewrites. (#1042)
+
+- **The home page sets its canonical address in both its HTML and an HTTP header.** The bare app shell drops that tag, so other routes no longer carry the home canonical. Among the prerender outputs, only the home page and the four copy pages name a canonical address. Guide and creator cards also set their own canonicals. (#1042)
+
+- **The About and For creators pages show their text before the account loads.** For creators shows its signed-out call to action until the account loads, then updates it. (#1042)
+
+- **Every paid reader now asks one access rule, so a guide, its invite code and a trashed trip agree.** A guide serves its owner, its editors, the members of a live trip, and its buyers. An outsider reads a guide only while it is listed. A buyer keeps reading after the guide is unpublished or trashed. The guide's crew ledger never leaves the server for anyone else.
+
+- **A full refund ends its order in one write and cannot be claimed again.** A failed order stays failed. A fully refunded order cannot be marked paid.
+
+- **A priced trip's invite code no longer returns the trip to callers outside existing crew access.** Callers without crew access get an owner-approval refusal instead, buyers included, and no trip data.
+
+- **A publication's creator must be the trip owner on every write.** The migration refuses to run over a database that already breaks this rule.
+
+- **Checkout sells only a listed guide.** A private, trashed or unpublished guide gets no new order, and an open order is not served again.
+
+- **A captured payment for an order written before withdrawal settles even when the guide is unlisted.** A guide withdrawn before a guarded insert cannot take a payment, and a buyer who paid keeps access.
+
+- **A priced invite asks the trip owner before anyone outside crew access joins.** A visitor without existing crew access sends a request. The owner approves or declines it on the Share tab.
+
+- **Native home shows a live trip with its next stored stop and day checks.** Profile navigation shows the unread notification count. (#1061)
+
+- **The Budget tab shows an animated Chakra tile with no text.** Its mood follows the budget. It looks happy, careful near the target, sad over it, and in love when every line is settled. A tap makes it squish and send up hearts. In the dark theme, it sleeps until a tap wakes it. The tile takes the place of the Biggest line tile. The category note under the chart still names the biggest line and its share of the trip.
+
+- **Invite preview types match the database projection.** Contract checks cover the preview type, reader signature, and execution grants.
+
+### Fixed
+
+- **Invite link previews no longer show trip details to people who are not signed in.** Every anonymous request gets one private-invite card. The card names no trip title, day count or member. (#1045)
+
+- **The invite preview no longer makes a database lookup for an anonymous card.** A valid code, an invalid code and a malformed code now return the same card bytes. (#1045)
+
+- **Pill and segmented bars stay on one row.** Scroll to reach choices that do not fit on screen. (#1051)
+
+- **Trip tabs stay in reach under the app bar on phones.** The tab strip moves out of the trip cover. When you scroll, it stops just below the app bar and stays there. The cover scrolls away fully. (#1051)
+
+- **A shared invite link no longer previews as the home page.** Link-preview bots get the generic invite card, with no trip title and no day count. (#1042)
+
+- **A title cut at a surrogate pair no longer shows a broken character.** The card helper keeps UTF-16 surrogate pairs whole on the itinerary and creator cards. (#1042)
+
+- **A calculator destination becomes a route stop only once the map pins it.** Until then the form says the place is being found. Where the search gives each place its state, the state wins over a village of the same name. If no place matches, the pin fails, or it takes eight seconds, the name waits in the stop box. The traveller then edits the name to see suggestions. Once the traveller types in the stop box or adds a stop, a late result adds nothing. Already shipped in v0.90.0 through #1038.
+
+- **Publish drafts stay put when the window crosses 1100px.** The price, free days and tagline keep what you typed when the Share tab changes between tabs and columns. Already shipped in v0.90.0 through #1038.
+
+- **Invite previews name the trip owner.** The page shows who owns the trip when someone else shares the link.
+
+- **Invite previews protect priced trips.** They use the same payment check as other invite links.
+
+- **Invalid invite responses show an error.** The app rejects malformed fields and rows for a different invite code.
+
+- **Calculator estimates for up to 30 people fill the party size.** A larger estimate, up to 40 people, leaves the party size to the traveller. The form says so and names the 30-person limit. Already shipped in v0.90.0 through #1038.
+
+- **Signed-in and invite screens are marked noindex.** A search engine that reads the response or the page is told not to list them. Public pages are unchanged. (#1042)
+
+- **The Goa, Rajasthan and Meghalaya calculators use only rates with a source.** Meghalaya drops the unsupported registration fee and raises the SUV rate to the market range. Its guide price is for the whole group, and the Dawki boat counts one boat for each four travellers. Rajasthan uses the Jaipur petrol price and the documented route distances. Goa raises the low ends that were below the market. The default range per person is now Goa ₹7,700 – ₹12,700, Rajasthan ₹15,100 – ₹25,100 and Meghalaya ₹12,300 – ₹19,400. The Ladakh numbers do not change.
+
+- **Paid guides stay locked across publication and invite links.** Checkout verifies that the creator owns the trip. Refunds remove buyer access.
+
+- **Only trip owners and administrators can write linked publications.**
+
+- **Buyers can read the full guide.** To join the crew, ask the trip owner for approval.
+
+- **A publication stays linked to its original trip.** A trip with a publication cannot change owner.
+
+- **Unpublishing keeps purchase records and buyer access.** Clients can unpublish a guide. The database keeps sold guides and their purchase records.
+
+- **Crew can restore a missing membership on a priced trip.** The invite keeps their active role.
+
+- **Trashed trips stay hidden from viewers and commenters on public links.** Only the owner, editors, admins and buyers can read a trashed trip through its public link.
+
+- **Join requests stay bound to the account that started them.** A sign-in change cancels stale results.
+
+- **The demo trips are added only once per account.** Before, two tabs could open an empty account at the same time. Both then added the three demo trips, so each trip showed twice. The app now claims a marker on the profile before it adds them. A second tab gets no claim and adds nothing. Accounts that already have trips count as done. "Load demo trips" still works, and it also sets the marker.
+
+- **The offline fallback stays the app shell after a visit to a copy page.** The service worker no longer stores a copy page as the shell. (#1042)
+
+- **The Meals and Sights switch on the Map glides.** The active pill slides to the new tab, and the new cards rise in with a short stagger. Before, the pill snapped and the old cards changed their text and height in place. Reduced motion shows the new tab at once.
+
+- **The Timeline fits more of each day on a phone.** Both stop times stay visible, and the day warning sits below the title. (#1066)
+
+- **The Android APK build skips the web landing pages.** The APK workflow sets VITE_BUILD_TARGET=native so the bundle keeps relative asset paths and the bare app shell.
+
+- **The native app shell shows no website footer.** The footer had no platform gate. The native Day view ended with the website's Plan, Help, Creators and Company groups. The shell keeps its bottom bar, on the same rule as the top bar and the bar. (#1055)
+
+- **Native home shows loading rows and a distinct retry state.** Failed reads do not appear empty. (#1061)
+
+- **Paid-access boundary now locks pending orders at the table, hides unlisted guides, and repairs active invites.** A `BEFORE INSERT` trigger on `purchase_orders` runs for pending orders. It locks the trip then the publication with `FOR NO KEY UPDATE`, rechecks link, listing, and price, and sets `created_at` with `clock_timestamp()`. Both direct pending inserts and `create_pending_purchase_order` share this guard. A `BEFORE UPDATE` trigger stamps the first withdrawal with `clock_timestamp()` and ignores client values. Retries keep the first stamp, and republish clears `unpublished_at` to `null`. Unlisted guides stay hidden from anonymous reads. Active trip members with missing rows restore access on priced invites.
+
 ## [0.90.0] - 2026-11-26
 
 ### Added

@@ -99,9 +99,20 @@ _Recent release highlights, newest first. See [CHANGELOG.md](CHANGELOG.md) for t
 
 Pending notes live in [change fragments](changelog.d/README.md). The release owner assembles them into the public record.
 
+## The v0.91.0 release
+
+The repository is at v0.91.0. See the [release record](CHANGELOG.md) for its full scope.
+
+- **The home page and the copy pages ship as full HTML.** Crawlers read the FAQ, How it works, About and creator pages with their own preview cards.
+- **Every paid reader checks one access rule.** Priced trip invites ask the trip owner for approval first, and refunded orders lose access.
+- **Board columns fit their stops and show route load.** Day headers show dates, route titles and a warnings popover.
+- **Phone trips add a stop sheet, day cards and early-arrival hints.** The tab strip stays below the app bar, and native home shows live trips.
+- **Toasts show status icons and smooth motion.** The Budget tab adds an animated Chakra tile, and the Meals and Sights switch glides.
+- **Invite links return one generic private card to bots.** Goa, Rajasthan and Meghalaya calculators use only sourced rates, and demo trips add once per account.
+
 ## The v0.90.0 release
 
-The repository is at v0.90.0. See the [release record](CHANGELOG.md) for its full scope.
+The previous release. Its highlights stay here until the next release.
 
 - **The sign-in page has a new cover and new form styles.** On a desktop, an animated lake scene sits beside the form. The sign-up password hint counts down the characters you still need.
 - **An invite link explains the trip before it asks you to join.** The page names the inviter and the trip. It lists the dates, the stops and the per-person estimate. An expired link offers the trip code box and the FAQ.
@@ -114,7 +125,7 @@ The repository is at v0.90.0. See the [release record](CHANGELOG.md) for its ful
 
 ## The v0.89.0 release
 
-The previous release. Its highlights stay here until the next release.
+Its highlights stay here until the next release.
 
 - **Chakra now marks the Plan Bench win, the night halt, the day's warnings, the budget cap and the offline banner.** The companion button and its drawer also show Chakra. Five new heads join the curious one.
 - **My trips has a new look.** A greeting counts trips, drafts and memories. The Up next card counts down with flip tiles and shows a trip health ring. Ended trips become Memories postcards with a "Plan it again" action.

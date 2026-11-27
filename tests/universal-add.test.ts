@@ -163,3 +163,62 @@ describe('helpers', () => {
     expect(nextCompact(true, 40, 10)).toBe(false) // back at the top
   })
 })
+
+describe('the add store', async () => {
+  const store = await import('../src/lib/universalAddStore')
+  const ws = (over: Partial<import('../src/lib/universalAddStore').WorkspaceAddState> = {}) => ({
+    tripId: 't1', tab: 'timeline' as const, canEdit: true, isMember: true, chakra: true, mapFullscreen: false, overviewDay: 2, go: () => {}, ...over,
+  })
+
+  it('runs the tab on screen first, and routes anything else through the workspace', () => {
+    store.resetAddStore()
+    const calls: string[] = []
+    store.publishWorkspace(ws({ go: (k, d) => calls.push(`go:${k}:${d ?? ''}`) }))
+    store.publishTab({ tripId: 't1', tab: 'timeline', stopDay: 1, timelineEditing: true, kinds: ['add-stop'], run: (k, d) => calls.push(`tab:${k}:${d ?? ''}`) })
+    store.runTripAdd('add-stop', 1)
+    store.runTripAdd('add-expense')
+    expect(calls).toEqual(['tab:add-stop:1', 'go:add-expense:'])
+  })
+
+  it('ignores a tab registration for another trip or tab', () => {
+    store.resetAddStore()
+    const calls: string[] = []
+    store.publishWorkspace(ws({ tab: 'budget', go: k => calls.push(`go:${k}`) }))
+    store.publishTab({ tripId: 't1', tab: 'timeline', stopDay: 1, timelineEditing: true, kinds: ['add-stop'], run: () => calls.push('stale') })
+    store.runTripAdd('add-stop')
+    expect(calls).toEqual(['go:add-stop'])
+    expect(store.tripScopeOf(store.readAddSnapshot(), 't1')?.stopDay).toBeNull()
+  })
+
+  it('a one-shot request is consumed by its own tab only, once', () => {
+    store.resetAddStore()
+    store.requestTabAdd({ tripId: 't1', tab: 'budget', kind: 'add-expense' })
+    expect(store.consumeTabRequest('t1', 'budget')?.kind).toBe('add-expense')
+    expect(store.consumeTabRequest('t1', 'budget')).toBeNull()
+  })
+
+  it('a request for another tab or trip is dropped, so it cannot fire on a later visit', () => {
+    store.resetAddStore()
+    store.requestTabAdd({ tripId: 't1', tab: 'budget', kind: 'add-expense' })
+    expect(store.consumeTabRequest('t1', 'timeline')).toBeNull()
+    expect(store.consumeTabRequest('t1', 'budget')).toBeNull()
+    store.requestTabAdd({ tripId: 't1', tab: 'budget', kind: 'add-expense' })
+    store.dropTripRequests('t1')
+    expect(store.consumeTabRequest('t1', 'budget')).toBeNull()
+  })
+
+  it('reads the scope only for the trip in the route', () => {
+    store.resetAddStore()
+    store.publishWorkspace(ws({ tab: 'overview' }))
+    expect(store.tripScopeOf(store.readAddSnapshot(), 't2')).toBeNull()
+    expect(store.tripScopeOf(store.readAddSnapshot(), 't1')).toMatchObject({ tab: 'overview', stopDay: 2 })
+  })
+
+  it('an unpublish only clears its own registration', () => {
+    store.resetAddStore()
+    const offA = store.publishWorkspace(ws())
+    store.publishWorkspace(ws({ tab: 'board' }))
+    offA()
+    expect(store.readAddSnapshot().workspace?.tab).toBe('board')
+  })
+})

@@ -261,7 +261,7 @@ describe('unpublishItinerary owner gate + rollback (v0.36)', () => {
 function answering(result: { data: unknown; error: unknown }) {
   const builder: Record<string, unknown> = {}
   let single = false
-  for (const m of ['select', 'eq', 'in', 'setHeader']) builder[m] = () => builder
+  for (const m of ['select', 'eq', 'in', 'is', 'setHeader']) builder[m] = () => builder
   builder.maybeSingle = () => { single = true; return builder }
   builder.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
     Promise.resolve({ ...result, data: single && Array.isArray(result.data) ? result.data[0] ?? null : result.data }).then(res, rej)
@@ -346,6 +346,8 @@ describe('#704 — a throw during hydrate fails every slice it left unread', () 
     vi.spyOn(client, 'from').mockImplementation(((table: string) => {
       // No membership row, so the run reports its verdict and then seeds demo trips. The first seed write throws.
       if (table === 'trips') throw new Error('forced after the verdict')
+      // #1054: the demo seed claim on `profiles` is granted, so the seed runs.
+      if (table === 'profiles') return { ...answering({ data: [], error: null }), update: () => answering({ data: [{ id: 'user-e3' }], error: null }) }
       return answering({ data: [], error: null })
     }) as never)
 

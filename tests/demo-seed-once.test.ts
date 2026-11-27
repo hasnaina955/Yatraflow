@@ -32,7 +32,7 @@ const { state } = vi.hoisted(() => ({
     sessionUser: null as string | null,
     holdSignOut: false,
     resolveSignOut: null as (() => void) | null,
-    /** Every `profiles` update this run issued, in order. The filters are the
+    /** Every `profiles` update this run issued, oldest first. The filters are the
      *  `.eq` and `.is` calls, which is how the claim narrows itself to a row
      *  whose marker is still empty. */
     profileUpdates: [] as Array<{ values: unknown; filters: string[] }>,

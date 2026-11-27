@@ -411,6 +411,7 @@ export type Database = {
           avatar_url: string | null
           created_at: number
           creator_bio: string | null
+          demo_seeded_at: string | null
           email: string
           home_city: string | null
           id: string
@@ -427,6 +428,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: number
           creator_bio?: string | null
+          demo_seeded_at?: string | null
           email: string
           home_city?: string | null
           id: string
@@ -443,6 +445,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: number
           creator_bio?: string | null
+          demo_seeded_at?: string | null
           email?: string
           home_city?: string | null
           id?: string

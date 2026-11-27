@@ -69,7 +69,7 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const [present, setPresent] = useState(open)
   const [dragging, setDragging] = useState(false)
   const [dragY, setDragY] = useState(0)
-  const dragStart = useRef<number | null>(null)
+  const dragStart = useRef<{ pointerId: number; clientY: number } | null>(null)
   if (open && !present) setPresent(true)
 
   // The exit animation is the phone sheet's named contract. A reduced-motion
@@ -120,23 +120,28 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   if (timeLabel) meta.push(timeLabel)
   meta.push(`stop ${stopNumber} of ${stopCount}`)
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (prefersReducedMotion()) return
-    dragStart.current = e.clientY
+  const onPointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!e.isPrimary || e.button !== 0) return
+    dragStart.current = { pointerId: e.pointerId, clientY: e.clientY }
     setDragging(true)
-    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (dragStart.current == null) return
-    setDragY(Math.max(0, e.clientY - dragStart.current))
+    const start = dragStart.current
+    if (start?.pointerId !== e.pointerId || prefersReducedMotion()) return
+    setDragY(Math.max(0, e.clientY - start.clientY))
   }
-  const onPointerUp = () => {
-    if (dragStart.current == null) return
+  const resetDrag = (e: React.PointerEvent) => {
+    if (dragStart.current?.pointerId !== e.pointerId) return
     dragStart.current = null
     setDragging(false)
-    const distance = dragY
     setDragY(0)
-    if (distance >= DRAG_CLOSE_PX) onClose()
+  }
+  const onPointerUp = (e: React.PointerEvent) => {
+    const start = dragStart.current
+    if (start?.pointerId !== e.pointerId) return
+    resetDrag(e)
+    if (e.clientY - start.clientY >= DRAG_CLOSE_PX) onClose()
   }
 
   const h = stopSheetHandlers(props, onClose)
@@ -162,7 +167,8 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={resetDrag}
+          onLostPointerCapture={resetDrag}
         />
         <div className="stop-sheet-head">
           <span className="stop-sheet-tile" aria-hidden="true">{kindIcon}</span>

@@ -296,6 +296,14 @@ export interface RoadLeg extends LegEstimate {
   segments?: RoadProfilePoint[]
 }
 
+/** `routePath` returns a plain `RoadLeg[]` that may carry a `transportFailed`
+ *  flag. When true, every provider was unreachable (rejected fetch, 401/403/429,
+ *  OSRM down) — retrying after a backoff would only send the same doomed
+ *  request again (#959). The flag is on the ARRAY, not on each leg, because a
+ *  single transport outage affects every leg at once. Callers that treat the
+ *  value as a plain `RoadLeg[]` lose only the flag. */
+export type RoutePathResult = RoadLeg[] & { transportFailed?: boolean }
+
 // ---- session leg cache -----------------------------------------------------
 // Measured legs are remembered for the tab's lifetime, keyed by the rounded
 // pair + mode. This is what makes the map's day chips instant on revisit and
@@ -625,7 +633,7 @@ export async function routePath(
   points: LatLng[],
   assumptions: EngineAssumptions,
   signal?: AbortSignal,
-): Promise<RoadLeg[]> {
+): Promise<RoutePathResult> {
   if (points.length < 2) return []
   const legs: RoadLeg[] = new Array(points.length - 1)
   const missing: number[] = []
@@ -662,6 +670,10 @@ export async function routePath(
   // would immediately discard only spends rate-limit budget. So does a chain
   // that failed in transport: the same provider would fail every leg again.
   const perLeg = 'perLeg' in outcome ? outcome.perLeg : true // a wrong-length chain still splits
+  // #959: when both Google and OSRM failed in transport (`perLeg: false`), tag
+  // the result so `measureRoadChain`/`measureDayRide` skip the 2 s retry —
+  // the same providers would fail again and waste a second Google request.
+  const transportFailed = !perLeg
   const settled = signal?.aborted || !perLeg
     ? missing.map(() => null)
     : await Promise.all(missing.map(async legIndex => {
@@ -679,5 +691,6 @@ export async function routePath(
     legs[legIndex] = leg
     cacheSet(legCacheKey(points[legIndex], points[legIndex + 1], assumptions.mode), leg)
   })
+  if (transportFailed) (legs as RoutePathResult).transportFailed = true
   return legs
 }

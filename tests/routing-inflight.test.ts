@@ -23,6 +23,7 @@ vi.mock('../src/lib/supabase', () => {
 // These tests pin the call counts with a stubbed fetch — no real network.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { routePath, roadLegBetween, clearRouteCacheForTests, type LatLng } from '../src/lib/routing'
+import { measureRoadChain, measureDayRide } from '../src/lib/tripRoad'
 import { googleRoute } from '../src/lib/providers/routes'
 import { SOFT_CAPS, quotaResetForTests } from '../src/lib/providers/quota'
 import { getAssumptions } from '../src/lib/engine'
@@ -156,6 +157,26 @@ describe('a cold load makes one Google attempt', () => {
     expect(calls.osrm).toHaveLength(1)
     expect(legs).toHaveLength(14)
     expect(legs.every(l => l.source === 'estimate')).toBe(true)
+  })
+
+  it('#959: transport failure with OSRM down makes exactly one Google request for the whole page load (no 2s retry)', async () => {
+    stubFetch({ google: transportFailure })
+    const sleep = vi.fn(async () => {})
+    const out = await measureRoadChain(KERALA, asm, { sleep })
+    expect(out.ok).toBe(false)
+    expect(calls.google).toHaveLength(1)
+    expect(calls.osrm).toHaveLength(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+
+  it('#959: measureDayRide skips the 2s retry on transport failure with OSRM down', async () => {
+    stubFetch({ google: transportFailure })
+    const sleep = vi.fn(async () => {})
+    const out = await measureDayRide(KERALA, asm, { sleep })
+    expect(out.ok).toBe(false)
+    expect(calls.google).toHaveLength(1)
+    expect(calls.osrm).toHaveLength(1)
+    expect(sleep).not.toHaveBeenCalled()
   })
 
   it.each([401, 403, 429])('HTTP %i is an auth/quota failure: no per-leg Google retry', async status => {

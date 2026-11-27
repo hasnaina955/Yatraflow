@@ -208,6 +208,19 @@ describe('measureRoadChain — the one chain, one retry (#188 acceptance)', () =
     expect(sleep).toHaveBeenCalledTimes(1)
   })
 
+  it('#959: skips retry when measurement indicates transport failure', async () => {
+    const failedResult = Object.assign(
+      [{ distanceKm: 5, durationMinutes: 6, source: 'estimate' as const, geometry: [] }],
+      { transportFailed: true },
+    )
+    const measure = vi.fn(async () => failedResult)
+    const sleep = vi.fn(async () => {})
+    const out = await measureRoadChain([P(10, 77), P(10.1, 77.1)], ASSUMPTIONS, { sleep, measure, retryDelayMs: 0 })
+    expect(out.ok).toBe(false)
+    expect(measure).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+
   it('survives a measurement that throws (and still retries once)', async () => {
     const measure = vi.fn(async () => { throw new Error('boom') })
     const sleep = vi.fn(async () => {})

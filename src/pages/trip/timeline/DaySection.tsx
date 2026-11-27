@@ -766,9 +766,13 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // One phone sheet for the stop actions. The desktop ⋯ disclosure stays exactly
   // as it was; only the <=720px phone surface swaps it for the sheet.
   const phoneSheet = useMedia('(max-width: 720px)')
-  const [sheetStopId, setSheetStopId] = useState<string | null>(null)
-  const sheetIndex = sheetStopId ? ordered.findIndex(s => s.id === sheetStopId) : -1
+  const [sheet, setSheet] = useState<{ stopId: string; open: boolean } | null>(null)
+  const closeSheet = useCallback(() => {
+    setSheet(current => current?.open ? { ...current, open: false } : current)
+  }, [])
+  const sheetIndex = sheet ? ordered.findIndex(s => s.id === sheet.stopId) : -1
   const sheetStop = sheetIndex >= 0 ? ordered[sheetIndex] : null
+  if (sheet && (!phoneSheet || !editable || !sheetStop)) setSheet(null)
   const sheetRow = sheetStop ? simRows.get(String(sheetStop.id)) : undefined
   const sheetTime = sheetStop
     ? (sheetStop.openTime && sheetStop.closeTime
@@ -1363,7 +1367,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                       type="button"
                       className="icon-btn stop-more-phone"
                       aria-label={`More actions for ${s.title}`}
-                      onClick={() => setSheetStopId(s.id)}
+                      onClick={() => setSheet({ stopId: s.id, open: true })}
                     >
                       <MoreHorizontal size={16} aria-hidden />
                     </button>
@@ -1626,10 +1630,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           </div>
         </>}
       </Modal>
-      {editable && sheetStop && (
+      {phoneSheet && editable && sheet && sheetStop && (
         <StopActionsSheet
-          open={!!sheetStopId}
-          onClose={() => setSheetStopId(null)}
+          key={sheetStop.id}
+          open={sheet.open}
+          onClose={closeSheet}
           stopTitle={sheetStop.title}
           dayNumber={day.index + 1}
           timeLabel={sheetTime}

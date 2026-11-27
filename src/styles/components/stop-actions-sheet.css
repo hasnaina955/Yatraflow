@@ -216,6 +216,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .stop-sheet-overlay-exiting { display: none; }
+
   .stop-sheet,
   .stop-sheet-overlay,
   .stop-sheet-overlay-exiting,

@@ -32,9 +32,6 @@
   overscroll-behavior: contain;
 }
 
-/* Drag is translation only and never eased while the finger is down. */
-.stop-sheet[data-dragging='true'] { animation: none; transition: none; }
-
 .stop-sheet-overlay-exiting {
   pointer-events: none;
   animation: stop-sheet-scrim-out var(--motion-med) var(--ease-exit) forwards;
@@ -44,12 +41,12 @@
 }
 
 @keyframes stop-sheet-in {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; translate: 0 18px; }
+  to { opacity: 1; translate: 0 0; }
 }
 @keyframes stop-sheet-out {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(18px); }
+  from { opacity: 1; translate: 0 0; }
+  to { opacity: 0; translate: 0 18px; }
 }
 @keyframes stop-sheet-scrim-in {
   from { opacity: 0; }

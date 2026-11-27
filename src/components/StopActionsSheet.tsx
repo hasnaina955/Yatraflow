@@ -67,7 +67,6 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const [present, setPresent] = useState(open)
-  const [dragging, setDragging] = useState(false)
   const [dragY, setDragY] = useState(0)
   const dragStart = useRef<{ pointerId: number; clientY: number } | null>(null)
   if (open && !present) setPresent(true)
@@ -123,7 +122,6 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const onPointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
     if (!e.isPrimary || e.button !== 0) return
     dragStart.current = { pointerId: e.pointerId, clientY: e.clientY }
-    setDragging(true)
     e.currentTarget.setPointerCapture?.(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent) => {
@@ -134,7 +132,6 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
   const resetDrag = (e: React.PointerEvent) => {
     if (dragStart.current?.pointerId !== e.pointerId) return
     dragStart.current = null
-    setDragging(false)
     setDragY(0)
   }
   const onPointerUp = (e: React.PointerEvent) => {
@@ -157,7 +154,6 @@ export function StopActionsSheet(props: StopActionsSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        data-dragging={dragging ? 'true' : undefined}
         style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
         inert={!open ? true : undefined}
       >

@@ -110,7 +110,7 @@ export function consumeTabRequest(tripId: string, tab: WorkspaceTabKey): Pending
   return req
 }
 
-/** Leaving a trip drops a request left for it. */
+/** When you leave a trip, this drops a request left for it. */
 export function dropTripRequests(tripId: string): void {
   if (pending?.tripId === tripId) pending = null
 }

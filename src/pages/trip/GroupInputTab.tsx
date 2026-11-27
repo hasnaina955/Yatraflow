@@ -301,6 +301,26 @@ export function GroupInputTab({ trip, editable, canComment, me, previewOpen, slo
       selected={selectedIdeaId === sg.id} onSelect={toggleIdea} />
   )
 
+  // #1064: the universal Add control opens the decision form. It sits in the
+  // ideas column, which a phone shows on its own, so the view moves there
+  // first; the form's question field takes focus on the frame after that
+  // column renders.
+  useTabAdd({
+    tripId: trip.id,
+    tab: 'group',
+    handlers: editable ? {
+      'add-decision': () => {
+        setView('ideas')
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const field = document.getElementById(DECISION_FORM_ID)?.querySelector<HTMLInputElement>('input')
+          if (!field) return
+          field.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+          field.focus({ preventScroll: true })
+        }))
+      },
+    } : {},
+  })
+
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   useEffect(() => {
     if (!pendingTarget) return
@@ -323,26 +343,6 @@ export function GroupInputTab({ trip, editable, canComment, me, previewOpen, slo
     if (first.kind === 'idea') setSelectedIdeaId(first.sg.id)
     focusItem(itemId(first))
   }
-
-  // #1064: the universal Add control opens the decision form. It sits in the
-  // ideas column, which a phone shows on its own, so the view moves there
-  // first; the form's question field takes focus on the frame after that
-  // column renders.
-  useTabAdd({
-    tripId: trip.id,
-    tab: 'group',
-    handlers: editable ? {
-      'add-decision': () => {
-        setView('ideas')
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          const field = document.getElementById(DECISION_FORM_ID)?.querySelector<HTMLInputElement>('input')
-          if (!field) return
-          field.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
-          field.focus({ preventScroll: true })
-        }))
-      },
-    } : {},
-  })
 
   return (
     <div className="gin-page" data-intro={intro ? 'true' : undefined}>

@@ -14,8 +14,8 @@
 //
 // The control is never unmounted while it hides. A dialog (the Chakra drawer
 // first) captures document.activeElement on open and focuses it again on
-// close. Keeping the button connected, and focusable from script, lets that
-// return land here instead of on <body>.
+// close. The button stays connected, and focusable from script, so that
+// the return lands here instead of on <body>.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -140,8 +140,8 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   /** The control that opened the menu, so Escape can hand focus back to it. */
   const openerRef = useRef<HTMLButtonElement | null>(null)
   // A menu belongs to the context it opened in, and the shrink to the route it
-  // happened on. Keying the state by them means a route change or a new context
-  // closes the menu and grows the pill, with no effect to reset them.
+  // happened on. The state uses them as its key, so a route change or a new context
+  // closes the menu and grows the pill, and no effect resets them.
   const ctxKey = `${route}|${ctx.state}|${ctx.menu.map(a => a.label).join(',')}`
   const [menuKey, setMenuKey] = useState<string | null>(null)
   const menuOpen = menuKey === ctxKey

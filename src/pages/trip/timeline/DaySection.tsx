@@ -1265,29 +1265,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           const stopFixed = (fixedByStop.get(String(s.id))?.length ?? 0) > 0
           return (
             <React.Fragment key={s.id}>
-              {i > 0 && earlyArrivalPlacement(i, firstLegVisible) === 'leg' && (() => {
-                const leg = row?.legIn
-                return (
-                  <div className="tl-legrow" {...(editable ? dayDropHandlers(i) : {})}>
-                    <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
-                    <div className="tl-leg-cell">
-                      <div className={`travel-leg ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}>
-                        {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />}
-                      </div>
-                      {renderEarlyArrival(s)}
-                      {editable && (
-                        <button
-                          type="button"
-                          className="leg-insert"
-                          onClick={() => onInsertHere(day.index, insertionSlotBetween(ordered, ordered[i - 1]?.id ?? null, s.id))}
-                          aria-label={`Insert a stop on Day ${day.index + 1} ${insertionWhere(ordered[i - 1]?.title, s.title)}`}
-                          title="Insert a stop here"
-                        ><Plus size={13} aria-hidden /><span className="leg-insert-label">Insert</span></button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
               <div
                 className="tl-row"
                 data-stop-id={s.id}
@@ -1424,6 +1401,41 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
               </div>
             </div>
 
+            {i < ordered.length - 1 && !(ordered[i + 1].auto === true) && (() => {
+                // #555: the gap under this row is the drive INTO the row BELOW
+                // it — sim's legs are into-legs, resolved by stop id here, so a
+                // rejected neighbour (absent from the schedule) can never shift
+                // another row's leg into this gap. The row renders even without
+                // a leg: it is also the drop zone / Insert slot between the two
+                // rows.
+                const leg = simRows.get(ordered[i + 1].id)?.legIn
+                return (
+                  <div className="tl-legrow" {...(editable ? dayDropHandlers(i + 1) : {})}>
+                    <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
+                    <div className="tl-leg-cell">
+                      <div className={`travel-leg ${foreignOver === i + 1 && dragging === null ? 'foreign-over' : ''}`}>
+                        {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />}
+                      </div>
+                      {renderEarlyArrival(ordered[i + 1])}
+                      {/* #422: the insertion control belongs to the leg BETWEEN
+                          two stops, and it hands over the slot it sits in —
+                          resolved from the two neighbouring row ids at click
+                          time, so a shifted list cannot insert two rows away.
+                          Revealed on hover and on keyboard focus; always visible
+                          on touch (a hover-only control is unreachable there). */}
+                      {editable && (
+                        <button
+                          type="button"
+                          className="leg-insert"
+                          onClick={() => onInsertHere(day.index, insertionSlotBetween(ordered, ordered[i]?.id ?? null, ordered[i + 1]?.id ?? null))}
+                          aria-label={`Insert a stop on Day ${day.index + 1} ${insertionWhere(ordered[i]?.title, ordered[i + 1]?.title)}`}
+                          title="Insert a stop here"
+                        ><Plus size={13} aria-hidden /><span className="leg-insert-label">Insert</span></button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
             </React.Fragment>
           )
         })}

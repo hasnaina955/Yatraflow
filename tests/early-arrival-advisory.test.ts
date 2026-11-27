@@ -28,7 +28,7 @@ describe('early arrival advisory', () => {
     const css = read('src/styles/pages/workspace-timeline.css')
     expect(day).toContain('saveFlag(advisoryKey, true)')
     expect(day).toContain('{editable && advisory.canShift && <button type="button" disabled={previewOpen}')
-    expect(day).toContain('{renderEarlyArrival(s)}')
+    expect(day).toContain('{renderEarlyArrival(ordered[i + 1])}')
     expect(day).toContain('{renderEarlyArrival(first)}')
     expect(tab).toMatch(/handleSuggestDayStart[\s\S]*?latest\.current\.applyChange/)
     expect(css).toContain('var(--motion-med) var(--ease-paper)')

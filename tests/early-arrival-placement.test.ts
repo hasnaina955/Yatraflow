@@ -13,7 +13,7 @@ describe('early arrival placement', () => {
   it('uses the placement for both the incoming leg and the fallback', () => {
     const source = readFileSync('src/pages/trip/timeline/DaySection.tsx', 'utf8').replace(/\r\n/g, '\n')
     expect(source).toContain("earlyArrivalPlacement(i, firstLegVisible) === 'stop'")
-    expect(source).toContain("earlyArrivalPlacement(i, firstLegVisible) === 'leg'")
+    expect(source).toContain('{renderEarlyArrival(ordered[i + 1])}')
     expect(source).not.toContain('ordered[i - 1].auto === true')
   })
 })

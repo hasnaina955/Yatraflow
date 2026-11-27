@@ -91,12 +91,15 @@ vi.mock('../src/lib/supabase', () => {
     const done = () => {
       state.writes.push({ table, method, payload, eqs: { ...eqs } })
       bump()
+      // #1054: the demo seed claim on `profiles` is granted, as on a new account.
+      if (table === 'profiles' && method === 'update') return Promise.resolve({ error: null, data: [{ id: eqs.id }] })
       return Promise.resolve({ error: null, data: table === 'trips' && method === 'update'
         ? [{ id: eqs.id, write_version: Number(eqs.write_version) + 1, updated_at: 2 }] : null })
     }
     const chainable = () => {
       qb.eq = (col: string, val: unknown) => { eqs[col] = val; return qb }
       qb.in = (col: string, vals: unknown[]) => { eqs[col] = String(vals); return qb }
+      qb.is = (col: string, val: unknown) => { eqs[col] = val; return qb }
       qb.order = () => qb
       qb.limit = () => qb
       qb.maybeSingle = done

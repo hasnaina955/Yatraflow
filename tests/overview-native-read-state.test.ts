@@ -204,6 +204,6 @@ describe('#704 — the store publishes each read verdict to the pages', () => {
   })
 
   it('the auto-seed sets the flag addDemoTrips checks, so the Load demo button cannot seed a second set', () => {
-    expect(store).toMatch(/demoSeedInFlight = true\s*try \{ await seedDemoFor\(userId, gen\) \} finally \{ demoSeedInFlight = false \}/)
+    expect(store).toMatch(/demoSeedInFlight = true\s*try \{\s*if \(gen === hydrateGen && await claimDemoSeed\(userId\)\) await seedDemoFor\(userId, gen\)\s*\} finally \{ demoSeedInFlight = false \}/)
   })
 })

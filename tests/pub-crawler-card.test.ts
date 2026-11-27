@@ -75,7 +75,7 @@ afterEach(() => {
 describe('vercel.json — crawler card at /pub/<id>', () => {
   it('puts the /pub rewrite before the SPA catch-all', () => {
     const pub = config.rewrites.find((r) => r.source === '/pub/:slug')
-    const catchAll = config.rewrites.find((r) => r.destination === '/index.html')
+    const catchAll = config.rewrites.find((r) => r.destination === '/app.html')
     expect(pub).toBeDefined()
     expect(catchAll).toBeDefined()
     expect(config.rewrites.indexOf(pub!)).toBeLessThan(config.rewrites.indexOf(catchAll!))

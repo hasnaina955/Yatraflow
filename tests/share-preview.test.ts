@@ -636,7 +636,7 @@ describe('public share source wiring', () => {
     const sources = config.rewrites.map((r: { source: string }) => r.source)
     const catchAll = config.rewrites.find((r: { source: string }) => r.source.startsWith('/(('))
     expect(catchAll, 'no SPA fallback rewrite found').toBeTruthy()
-    expect(catchAll.destination).toBe('/index.html')
+    expect(catchAll.destination).toBe('/app.html')
     expect(sources.indexOf('/i/:id')).toBeLessThan(sources.indexOf(catchAll.source))
     expect(sources.indexOf('/c/:id')).toBeLessThan(sources.indexOf(catchAll.source))
     expect(catchAll.source).toContain('(?!api/')

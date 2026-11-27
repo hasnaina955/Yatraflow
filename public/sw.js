@@ -21,17 +21,21 @@
 // that is not this version's is dropped on activate — so a deploy rolls the
 // offline copy forward without a version bump. Bump SW_VERSION only to force a
 // full drop (e.g. when the caching policy itself changes).
-const SW_VERSION = 'v4'
+const SW_VERSION = 'v5'
 const CACHE = `yatraflow-${SW_VERSION}`
-const SHELL = '/'
+// The bare app shell. The build writes the prerendered home page to /index.html
+// and keeps the shell at /app.html, which the SPA catch-all serves for every
+// other route. v5 moved the key from '/' to '/app.html'.
+const SHELL = '/app.html'
 const SHELL_ASSETS = [SHELL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
 
-/** The prerendered copy pages (#1042). Each is its own HTML document, not the
+/** The prerendered copy pages (#1042) and the home page. Each is its own HTML document, not the
  *  app shell. A successful navigation to one must not overwrite the SHELL key,
  *  or the offline fallback would open that page at every address. The navigation
  *  itself still goes to the network first. Exact pathnames, with and without the
  *  slash, because /faq and /faq/ both reach the page. */
 const OWN_HTML = new Set([
+  '/',
   '/faq', '/faq/', '/how-it-works', '/how-it-works/',
   '/about', '/about/', '/for-creators', '/for-creators/',
 ])

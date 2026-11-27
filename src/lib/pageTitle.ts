@@ -39,6 +39,11 @@ const STATIC: Record<string, string> = {
   'how-it-works': HOW_IT_WORKS_TITLE,
 }
 
+/** The site description that index.html ships. The prerendered home page
+ *  carries the same string. */
+export const SITE_DESCRIPTION =
+  'Plan Indian trips together — not in a chaotic group chat. Every stop, hour and rupee in one plan your group can actually follow.'
+
 /** The story page's meta description (#1042, owner-approved copy). */
 export const ABOUT_DESCRIPTION =
   'YatraFlow helps groups plan Indian trips together, with every stop, hour and rupee in one shared plan. See what it does today and what comes next.'

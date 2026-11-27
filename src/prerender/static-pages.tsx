@@ -13,8 +13,9 @@ import { AboutPage } from '../pages/AboutPage'
 import { FaqPage } from '../pages/FaqPage'
 import { ForCreatorsPage } from '../pages/ForCreatorsPage'
 import { HowItWorksPage } from '../pages/HowItWorksPage'
+import { LandingPage } from '../pages/Landing'
 import { faqJsonLd } from '../lib/faqContent'
-import { pageMeta } from '../lib/pageTitle'
+import { pageMeta, SITE_DESCRIPTION } from '../lib/pageTitle'
 
 export type StaticPageSlug = 'faq' | 'how-it-works' | 'about' | 'for-creators'
 
@@ -44,3 +45,26 @@ export const STATIC_PAGES: readonly StaticPage[] = [
   { slug: 'about', component: AboutPage, ...metaFor('about') },
   { slug: 'for-creators', component: ForCreatorsPage, ...metaFor('for-creators') },
 ]
+
+/** The home page, as the build prerenders it into dist/index.html. The driver
+ *  keeps the bare app shell as dist/app.html, and the SPA catch-all serves that
+ *  file, so no other route gets the home page's text or its canonical. */
+export interface HomePrerender {
+  component: ComponentType
+  /** The document title, the same string the router applies after boot. */
+  title: string
+  /** The site description that index.html ships. */
+  description: string
+}
+
+/** The landing page with no router. A link in the static copy is a plain href,
+ *  and the app replaces the body when it boots. */
+function PrerenderedLanding() {
+  return <LandingPage onNavigate={() => {}} />
+}
+
+export const HOME_PAGE: HomePrerender = {
+  component: PrerenderedLanding,
+  title: pageMeta([]).title,
+  description: SITE_DESCRIPTION,
+}

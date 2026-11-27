@@ -218,8 +218,8 @@ describe('vercel.json routes the feed ahead of the SPA catch-all', () => {
     expect(config.rewrites[at].destination).toBe('/api/android-manifest?apk=1')
   })
 
-  it('places both ahead of the catch-all that answers index.html', () => {
-    const catchAll = config.rewrites.findIndex((r) => r.destination === '/index.html')
+  it('places both ahead of the catch-all that answers the app shell', () => {
+    const catchAll = config.rewrites.findIndex((r) => r.destination === '/app.html')
     expect(catchAll).toBeGreaterThan(indexOf('/android/manifest.json'))
     expect(catchAll).toBeGreaterThan(indexOf('/android/latest.apk'))
   })

@@ -9,11 +9,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { applyHead, headTags, jsonForScript, singleHeadTags } from '../api/_headTemplate.js'
 import { DEFAULT_ORIGIN } from '../api/_origin.js'
-import { STATIC_PAGES } from '../src/prerender/static-pages'
-import { ABOUT_DESCRIPTION, FOR_CREATORS_DESCRIPTION, pageMeta } from '../src/lib/pageTitle'
+import { HOME_PAGE, STATIC_PAGES } from '../src/prerender/static-pages'
+import { ABOUT_DESCRIPTION, FOR_CREATORS_DESCRIPTION, pageMeta, SITE_DESCRIPTION } from '../src/lib/pageTitle'
 import { appLink } from '../src/lib/appLink'
 import {
-  assertPrerenderedPage, pageHead, shouldSkipPrerender,
+  assertPrerenderedHome, assertPrerenderedPage, homeHead, homeJsonLd, pageHead, SHELL_FILE, shouldSkipPrerender,
 } from '../scripts/prerender-static-pages.mjs'
 import pageCards from '../scripts/page-cards.json' with { type: 'json' }
 
@@ -240,5 +240,67 @@ describe('the wiring that runs the prerender', () => {
     const faq = read('src/pages/FaqPage.tsx')
     expect(faq).toContain("script[data-faq-schema]")
     expect(faq).toContain("script.setAttribute('data-faq-schema', '')")
+  })
+})
+
+describe('the prerendered home page', () => {
+  it('carries the router title, the site description, the home canonical and the site card', () => {
+    const head = homeHead(HOME_PAGE)
+    expect(head.title).toBe(pageMeta([]).title)
+    expect(head.description).toBe(SITE_DESCRIPTION)
+    expect(head.canonical).toBe(`${DEFAULT_ORIGIN}/`)
+    expect(head.url).toBe(head.canonical)
+    expect(head.image.url).toBe(`${DEFAULT_ORIGIN}/og-default.png`)
+    expect(head.image.width).toBe(1200)
+    expect(head.image.height).toBe(630)
+  })
+
+  it('uses the description that the shell ships', () => {
+    expect(read('index.html')).toContain(`<meta name="description" content="${SITE_DESCRIPTION}" />`)
+  })
+
+  it('names the Organization and the WebSite at the production origin', () => {
+    const schema = homeJsonLd() as { '@context': string; '@graph': { '@type': string; url: string }[] }
+    expect(schema['@context']).toBe('https://schema.org')
+    expect(schema['@graph'].map(node => node['@type'])).toEqual(['Organization', 'WebSite'])
+    for (const node of schema['@graph']) expect(node.url).toBe(`${DEFAULT_ORIGIN}/`)
+  })
+
+  it('passes the checks when the landing page is rendered into the shell', () => {
+    const html = applyHead(SHELL, homeHead(HOME_PAGE), renderToStaticMarkup(createElement(HOME_PAGE.component)))
+    expect(() => assertPrerenderedHome(html)).not.toThrow()
+    expect(html).toContain('data-site-schema')
+    expect(singleHeadTags(html)).toEqual({ title: 1, description: 1, canonical: 1, ogUrl: 1 })
+  })
+
+  it('fails a home page with no heading', () => {
+    expect(() => assertPrerenderedHome(applyHead(SHELL, homeHead(HOME_PAGE), '<p>no heading</p>'))).toThrow(/heading/)
+  })
+})
+
+describe('the bare shell stays at its own address', () => {
+  const vercel = JSON.parse(read('vercel.json')) as {
+    rewrites: { source: string; destination: string }[]
+    headers: { source: string; headers: { key: string; value: string }[] }[]
+  }
+
+  it('serves every other route from the bare shell, not from the home page', () => {
+    const catchAll = vercel.rewrites.find(rule => rule.source.startsWith('/((?!'))
+    expect(catchAll?.destination).toBe(`/${SHELL_FILE}`)
+  })
+
+  it('keeps the shell address out of the index', () => {
+    const rule = vercel.headers.find(entry => entry.source === `/${SHELL_FILE}`)
+    expect(rule?.headers).toContainEqual({ key: 'X-Robots-Tag', value: 'noindex' })
+  })
+
+  it('gives the service worker the bare shell as its offline copy, and never the home page', () => {
+    const sw = read('public/sw.js')
+    expect(sw).toContain(`const SHELL = '/${SHELL_FILE}'`)
+    expect(sw).toMatch(/const OWN_HTML = new Set\(\[\s*'\/',/)
+  })
+
+  it('builds the invite card from the bare shell', () => {
+    expect(read('api/join.js')).toContain(`/${SHELL_FILE}\``)
   })
 })

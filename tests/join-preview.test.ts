@@ -45,7 +45,7 @@ function stubFetch(options: { shell?: 'ok' | 'fail' } = {}) {
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
     const url = String(input)
     calls.push(url)
-    if (url.endsWith('/index.html')) {
+    if (url.endsWith('/app.html')) {
       if (options.shell === 'fail') return new Response('down', { status: 503 })
       return new Response(SHELL, { status: 200, headers: { 'content-type': 'text/html' } })
     }
@@ -128,7 +128,7 @@ describe('every anonymous request gets the same private-invite card', () => {
     for (const code of [CODE, 'GOA-XXXX', '<script>alert(1)</script>']) {
       const calls = stubFetch()
       await run('GET', code)
-      expect(calls).toEqual([`${ORIGIN}/index.html`])
+      expect(calls).toEqual([`${ORIGIN}/app.html`])
       expect(calls.some(url => url.includes('/rpc/'))).toBe(false)
     }
   })

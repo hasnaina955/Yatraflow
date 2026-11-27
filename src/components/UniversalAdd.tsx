@@ -295,7 +295,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
 
   if (variant === 'nav') {
     return (
-      <div className="ua-slot" data-state={state}>
+      <div className="ua-slot" data-state={state} aria-hidden={hidden || undefined}>
         <button ref={mainRef} type="button" className="ua-fab"
           disabled={ctx.state === 'none'}
           tabIndex={hidden ? -1 : undefined}
@@ -321,7 +321,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   }
 
   return (
-    <div className="ua-pill" data-state={state} data-compact={compact ? 'true' : undefined}>
+    <div className="ua-pill" data-state={state} data-compact={compact ? 'true' : undefined} aria-hidden={hidden || undefined}>
       <button ref={mainRef} type="button" className="ua-pill-main"
         tabIndex={hidden ? -1 : undefined}
         aria-label={compact && primary ? primary.label : undefined}

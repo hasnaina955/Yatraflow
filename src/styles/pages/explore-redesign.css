@@ -249,10 +249,10 @@
    The group sets `data-layout` to the active key: all, short, medium or long.
    The pressed button keeps no fill, because the glider paints it. */
 .ex-seg {
-  position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  position: relative; display: flex;
   flex: none; padding: 4px; border-radius: var(--radius-sm); background: var(--pw-sunken);
 }
-.ex-seg::before {
+.ex-seg:not(.pill-nav)::before {
   content: ''; position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px;
   width: calc((100% - 8px) / 4); border-radius: var(--radius-sm);
   background: var(--card); box-shadow: var(--elev-press); pointer-events: none;
@@ -294,10 +294,9 @@
      `min-width: 0` they prop the fold open wider than the bar and the page
      scrolls sideways. The group scrolls inside itself instead. */
   .ex-page .ex-selects.is-open { min-width: 0; }
-  /* The four columns share the fold's width, so a label may wrap onto a second
-     line. A scroll box would break the glider, which is placed by percentage. */
+  /* The measured glider follows the active option in the scroll box. */
   .ex-page .ex-selects.is-open .ex-seg { flex: 1 1 100%; min-width: 0; }
-  .ex-seg button { height: auto; min-height: 44px; padding: 4px 6px; white-space: normal; line-height: 1.2; }
+  .ex-seg button { min-height: 44px; padding: 4px 6px; white-space: nowrap; line-height: 1.2; }
   .ex-page .ex-hero-search { min-height: 54px; }
   .ex-page .ex-hero-search-go { padding: 0 16px; }
 }

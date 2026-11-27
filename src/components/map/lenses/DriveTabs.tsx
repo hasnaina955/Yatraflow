@@ -12,6 +12,7 @@ import { driveLettersByRoad } from '../../../pages/trip/map/useMapLenses'
 import { useTimeFormat } from '../../../lib/timefmt'
 import { pickFactChips } from '../placeCardFacts'
 import type { PlaceHit } from '../../../lib/geocode'
+import { PillNav } from '../../PillNav'
 
 /** One row of a Drive tab group. */
 type DriveRow = DriveTabGroup['shown'][number]
@@ -178,7 +179,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
     const group = groups[index]
     if (!group) return
     onTab(group.tab)
-    tabRefs.current[index]?.focus()
+    tabRefs.current[index]?.focus({ preventScroll: true })
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -198,7 +199,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
     />
     {driveTabMode(groups.length) === 'none'
       ? null
-      : <div className="mv2-lens-tabs" role="tablist" aria-label="Along the drive tabs">
+      : <PillNav className="mv2-lens-tabs" role="tablist" aria-label="Along the drive tabs" activeKey={active.tab}>
         {groups.map((group, index) => {
           const selected = group.tab === active.tab
           return <button
@@ -207,6 +208,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
             id={`${uid}-tab-${group.tab}`}
             type="button"
             role="tab"
+            data-pill-key={group.tab}
             className={`mv2-lens-tab${selected ? ' is-active' : ''}`}
             aria-selected={selected}
             aria-controls={`${uid}-panel`}
@@ -218,7 +220,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
             <span className="mv2-lens-tab-total">{group.total}</span>
           </button>
         })}
-      </div>}
+      </PillNav>}
     <div className="mv2-lens-panel" id={`${uid}-panel`} role="tabpanel"
       {...(driveTabMode(groups.length) === 'none'
         ? { 'aria-label': active.label }

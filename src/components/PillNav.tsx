@@ -15,8 +15,9 @@
 // along — the code now matches the catalog.
 import { useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { railOverflow, railScrollToReveal } from '../lib/railOverflow'
+import { pillScrollToReveal, railOverflow } from '../lib/railOverflow'
 import { gliderBox } from '../lib/pillGeometry'
+import { scrollBehavior } from '../lib/motion'
 
 export function PillNav({ activeKey, className, role = 'presentation', 'aria-label': ariaLabel, ink, children }: {
   activeKey: string
@@ -77,21 +78,23 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
       inkOrigin.y = item.top - box.top + wrap.scrollTop - wrap.clientTop
     }
 
-    const revealActive = () => {
-      const el = wrap.querySelector<HTMLElement>(`[data-pill-key="${CSS.escape(activeKey)}"]`)
-      if (!el) return
+    const active = wrap.querySelector<HTMLElement>(`[data-pill-key="${CSS.escape(activeKey)}"]`)
+    const reveal = (el: HTMLElement, animate: boolean) => {
       const box = wrap.getBoundingClientRect()
       const item = el.getBoundingClientRect()
       const itemLeft = item.left - box.left + wrap.scrollLeft - wrap.clientLeft
       const itemRight = item.right - box.left + wrap.scrollLeft - wrap.clientLeft
-      const next = railScrollToReveal(
+      const next = pillScrollToReveal(
         wrap.scrollLeft,
         wrap.scrollWidth,
         wrap.clientWidth,
         itemLeft,
         itemRight,
+        Number.parseFloat(getComputedStyle(wrap).getPropertyValue('--pill-edge-fade')) || 0,
       )
-      if (Math.abs(next - wrap.scrollLeft) > 0.5) wrap.scrollLeft = next
+      if (Math.abs(next - wrap.scrollLeft) > 0.5) {
+        wrap.scrollTo({ left: next, behavior: animate ? scrollBehavior() : 'instant' })
+      }
     }
 
     const place = (animate: boolean) => {
@@ -181,7 +184,7 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
 
     // The rail can overflow at phone width, and it hides its scrollbar. So the
     // rail's own scroll position is published for CSS to paint the edge fade on
-    // a side that still holds hidden tabs. `.tabbar[data-overflow]` reads it.
+    // a side that still holds hidden tabs.
     const syncOverflow = () => {
       const state = railOverflow(wrap.scrollLeft, wrap.scrollWidth, wrap.clientWidth)
       if (wrap.dataset.overflow !== state) wrap.dataset.overflow = state
@@ -190,15 +193,15 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
     // Only a change of activeKey glides; the first paint and every later
     // re-measure snap.
     const keyChanged = lastKeyRef.current !== activeKey
-    if (firstRunRef.current || keyChanged) revealActive()
+    if (active && (firstRunRef.current || keyChanged)) reveal(active, !firstRunRef.current)
     syncInkOrigin()
     place(!firstRunRef.current && keyChanged)
     syncOverflow()
     firstRunRef.current = false
     lastKeyRef.current = activeKey
 
-    // A pillbar can reflow with no viewport change — a wrapping filter bar, or
-    // the active item gaining a count badge — so watch the box itself, and
+    // A pillbar can reflow with no viewport change, for example when a count
+    // badge appears. Watch the rail and its items, and
     // re-measure once the webfont swaps in, because the first measurement can
     // run against fallback metrics. The font promise outlives this effect, so it
     // needs its own cancellation: without it a stale closure could write the
@@ -208,25 +211,46 @@ export function PillNav({ activeKey, className, role = 'presentation', 'aria-lab
     // wherever the row happened to be would read as a second, unasked-for
     // movement.
     let live = true
-    const remeasure = () => { revealActive(); syncInkOrigin(); place(false); syncOverflow() }
+    const remeasure = () => { syncInkOrigin(); place(false); syncOverflow() }
+    const revealAfterResize = () => {
+      if (active) reveal(active, false)
+      remeasure()
+    }
+    const revealFocused = (event: FocusEvent) => {
+      const el = event.target
+      if (el instanceof HTMLElement && el.parentElement === wrap && el.hasAttribute('data-pill-key')) reveal(el, true)
+    }
     let settleFrame = requestAnimationFrame(() => {
       settleFrame = requestAnimationFrame(() => { if (live) remeasure() })
     })
-    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(remeasure)
+    const measureWidth = () => `${wrap.clientWidth}:${wrap.scrollWidth}:${active?.offsetLeft}:${active?.offsetWidth}`
+    let width = measureWidth()
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      const nextWidth = measureWidth()
+      if (width !== nextWidth) {
+        width = nextWidth
+        revealAfterResize()
+      } else remeasure()
+    })
     ro?.observe(wrap)
-    document.fonts?.ready.then(() => {
-      if (live) requestAnimationFrame(() => { if (live) remeasure() })
-    }).catch(() => {})
-    window.addEventListener('resize', remeasure)
+    if (ro) wrap.querySelectorAll('[data-pill-key]').forEach(item => ro.observe(item))
+    if (document.fonts?.status === 'loading') {
+      document.fonts.ready.then(() => {
+        if (live) requestAnimationFrame(() => { if (live) revealAfterResize() })
+      }).catch(() => {})
+    }
+    window.addEventListener('resize', revealAfterResize)
     // A sideways swipe is the common case, and it is the only one a resize
     // observer cannot see. The listener is passive: it never blocks the swipe.
     wrap.addEventListener('scroll', syncOverflow, { passive: true })
+    wrap.addEventListener('focusin', revealFocused)
     return () => {
       live = false
       cancelAnimationFrame(settleFrame)
       ro?.disconnect()
-      window.removeEventListener('resize', remeasure)
+      window.removeEventListener('resize', revealAfterResize)
       wrap.removeEventListener('scroll', syncOverflow)
+      wrap.removeEventListener('focusin', revealFocused)
     }
   }, [activeKey, children])
 

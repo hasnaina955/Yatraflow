@@ -1,0 +1,16 @@
+[
+  { "file": "src/styles/components/pill-nav.css", "selector": ".pill-nav" },
+  { "file": "src/styles/legacy/01-foundations.css", "selector": ".nav-links" },
+  { "file": "src/styles/legacy/02-select-and-print.css", "selector": ".tabbar" },
+  { "file": "src/styles/legacy/02-select-and-print.css", "selector": ".filter-pillbar" },
+  { "file": "src/styles/legacy/02-select-and-print.css", "selector": ".mode-pillbar" },
+  { "file": "src/styles/legacy/02-select-and-print.css", "selector": ".view-pillbar" },
+  { "file": "src/styles/pages/group-input.css", "selector": ".gin-pillbar" },
+  { "file": "src/styles/legacy/12-pages.css", "selector": ".seg" },
+  { "file": "src/styles/legacy/09-trips-list.css", "selector": ".mt-seg" },
+  { "file": "src/styles/legacy/05-share-and-trip-ticket.css", "selector": ".shr-seg" },
+  { "file": "src/styles/pages/explore-redesign.css", "selector": ".ex-seg" },
+  { "file": "src/styles/legacy/02-select-and-print.css", "selector": ".map-day-filter" },
+  { "file": "src/styles/components/map-v2-rail.css", "selector": ".mv2-lens-tabs" },
+  { "file": "src/styles/components/map-v2-rail.css", "selector": ".mv2-lenses" }
+]

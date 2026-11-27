@@ -31,20 +31,18 @@ describe('SegmentedTabs', () => {
     expect(segmented).toContain('aria-selected')
   })
 
-  it('keeps the toggle a plain group of pressed buttons with no glider', () => {
+  it('keeps toggle semantics on the shared scrolling rail', () => {
     const toggleBranch = segmented.slice(segmented.indexOf("semantics === 'toggle'"), segmented.indexOf('return (\n    <PillNav'))
     expect(toggleBranch).toContain('role="group"')
     expect(toggleBranch).toContain('aria-pressed')
-    expect(toggleBranch).not.toContain('PillNav')
+    expect(toggleBranch).toContain('PillNav')
+    expect(toggleBranch).toContain('data-pill-key')
     expect(toggleBranch).not.toContain('role="tab"')
   })
 
-  it('sets data-layout to the active key, the attribute the mt-seg glider reads', () => {
+  it('sets the active key for the measured glider', () => {
     const toggleBranch = segmented.slice(segmented.indexOf("semantics === 'toggle'"), segmented.indexOf('return (\n    <PillNav'))
-    const glider = styles.match(/\.mt-seg\[(data-[\w-]+)='list'\]::before/)
-    const attribute = glider?.[1] ?? ''
-    expect(attribute, 'styles.css must draw the mt-seg glider from a data attribute').not.toBe('')
-    expect(toggleBranch).toContain(`${attribute}={value}`)
+    expect(toggleBranch).toContain('activeKey={value}')
   })
 
   it('adds no raw duration of its own', () => {

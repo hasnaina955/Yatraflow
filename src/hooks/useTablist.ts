@@ -36,10 +36,7 @@ export function useTablist<K extends string>(
     else return
     e.preventDefault()
     activate(ids[next])
-    refs.current[next]?.focus()
-    // scrollable tablists (share tabs on narrow screens): arrowing to a tab
-    // that's out of view must bring it in
-    refs.current[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    refs.current[next]?.focus({ preventScroll: true })
   }, [ids, activate])
 
   return {

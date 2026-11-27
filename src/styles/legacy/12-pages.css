@@ -1043,13 +1043,10 @@
    The pace track scrolls sideways so every style stays reachable on a phone. */
 .tset-driver-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .tset-driver-pace-pair > .field { min-width: 0; }
-/* The artboard's segment: one pill track, the chosen option on a raised card.
-   `.seg-btn` is the option; `PillNav` supplies the arrow-key roving. The track
-   wraps because the pace list holds ten options — an unwrapped ten-option row
-   is wider than the middle column and pushed the last three off the card. */
+/* The segment scrolls when its options exceed the available width. */
 .seg {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
   padding: 4px;
   border-radius: var(--radius-pill);

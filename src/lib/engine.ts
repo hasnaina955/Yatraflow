@@ -4,6 +4,7 @@ import type { Trip, ItineraryStop, ItineraryDay, ID, TravelStyle, FixedCommitmen
 import { haversineKm } from './geo'
 import { STAY_RATE_PER_NIGHT } from './rates'
 import { airportByIata, airBlockMinutes, airDistanceKm, airArc, airFareEstimateInr, nearestAirport, type Airport } from './air'
+import { validHM } from './timefmt'
 
 export interface EngineAssumptions {
   mode: string
@@ -226,6 +227,17 @@ export function addMinutesToClock(startMin: number, mins: number): string {
   let t = startMin + Math.round(mins)
   t = ((t % 1440) + 1440) % 1440
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+}
+
+/** Suggest a later start when a stop is reached at least 30 minutes early. */
+export function earlyArrivalAdvisory(arrival: string | undefined, openTime: string | undefined, startTime: string) {
+  const arrived = validHM(arrival)
+  const opens = validHM(openTime)
+  const start = validHM(startTime)
+  if (!arrived || !opens || !start) return null
+  const waitMinutes = hmToMinutes(opens) - hmToMinutes(arrived)
+  if (waitMinutes < 30) return null
+  return { waitMinutes, suggestedStart: addMinutesToClock(hmToMinutes(start), waitMinutes) }
 }
 
 export interface LegEstimate {

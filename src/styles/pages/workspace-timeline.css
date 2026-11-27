@@ -26,3 +26,30 @@
 @media (max-width: 640px) {
   .tl-rail-num { width: 24px; height: 24px; }
 }
+.tl-early-arrival {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--yf-amber-100);
+  color: var(--text);
+  animation: tl-early-arrival-in var(--motion-med) var(--ease-paper) both;
+}
+
+.tl-early-arrival-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-early-arrival-actions button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: opacity var(--motion-fast) var(--ease-paper);
+}
+.tl-early-arrival-actions button:disabled { opacity: .5; cursor: default; }
+@keyframes tl-early-arrival-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-early-arrival { animation: none; }
+  .tl-early-arrival-actions button { transition: none; }
+}

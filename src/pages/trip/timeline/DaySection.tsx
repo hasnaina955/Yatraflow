@@ -8,7 +8,7 @@
 // MoveStopModal and ClampedText — the whole timeline hot path.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
-import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
+import { savedDayId, savedStopId, loadFlag, saveFlag } from '../../../lib/uiPrefs'
 import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import {
   ArrowRight, Armchair, BedDouble, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, CloudRain, CloudSun,
@@ -18,7 +18,7 @@ import {
 import type { ChangeEvent } from 'react'
 import type { Trip, ItineraryStop, ItineraryDay } from '../../../data/types'
 import {
-  minutesToHM, hmToMinutes, formatInr,
+  minutesToHM, hmToMinutes, formatInr, earlyArrivalAdvisory,
   computeCategoryBias, optimizeDayOrder, roadScaleRatio, measuredLegCount, optimiseKmLabel, scheduleRowsById,
 } from '../../../lib/engine'
 import type { ScheduledLeg } from '../../../lib/engine'
@@ -453,7 +453,7 @@ function useFold(open: boolean): FoldState {
 // (whose travel panel searches against the whole itinerary). A closed card
 // therefore cannot read the trip at all: `trip` is optional, so a `trip.x` on
 // the collapsed path is a compile error rather than a stale render.
-export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, onStatusPreview, onShowOnMap, dayNumbers, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
+export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onSuggestDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, onStatusPreview, onShowOnMap, dayNumbers, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
   day: Trip['days'][number]
   /** MR8: this trip's saved ids, and the one toggle every heart on the page uses. */
   savedIds: string[]
@@ -505,6 +505,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   onAddQuickStop: (dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>) => void
   /** set the day's ride/drive start time (long-ride planner) */
   onSetDayStart: (dayIndex: number, time: string) => void
+  onSuggestDayStart: (dayIndex: number, time: string) => void
   /** insert planned break halts, each at a user-chosen km point, ordered by distance */
   onAddPlannedHalts: (dayIndex: number, halts: { km: number; stop: Omit<ItineraryStop, 'id' | 'orderInDay'> }[]) => void
   /** link a fixed commitment to the stop its deadline is checked against (null unlinks) */
@@ -569,6 +570,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // goes through this map (printModel's accessor), never through the rendered
   // position.
   const simRows = useMemo(() => scheduleRowsById(sim), [sim])
+  const [dismissedArrivals, setDismissedArrivals] = useState<string[]>([])
   const commitmentsToday = facts.commitments
   // PW-08: one read model for the day's fixed commitments. Every clock comes
   // from the same simulateDay rows the rail prints, so a stop pill, the fixed
@@ -1199,6 +1201,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           // #555: this row's own schedule facts, keyed by stop id — never by
           // the rendered index (rejected rows shift positional reads).
           const row = simRows.get(s.id)
+          const advisory = earlyArrivalAdvisory(row?.arrive, s.openTime, sim.startsAt)
+          const advisoryKey = `early_arrival_${dayCover?.id}_${s.id}_${row?.arrive}`
           const isAnchor = s.auto === true
           if (isAnchor) {
             const cleanName = (s.locationName || s.title).replace(/ \((start|end)\)$/, '')
@@ -1317,6 +1321,15 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   ].filter(Boolean).join(' · ')}
                 </div>
                 {s.openTime && <div className="stop-meta">Open {formatHMRange(s.openTime, s.closeTime, timeFormat)}</div>}
+                {advisory && !dismissedArrivals.includes(advisoryKey) && !loadFlag(advisoryKey, false) && (
+                  <div className="tl-early-arrival" role="note">
+                    <strong>Arrive {advisory.waitMinutes} min before it opens</strong>
+                    <div className="tl-early-arrival-actions">
+                      {editable && <button type="button" disabled={previewOpen} onClick={() => onSuggestDayStart(day.index, advisory.suggestedStart)}>Start at {formatHM(advisory.suggestedStart, timeFormat)}</button>}
+                      <button type="button" onClick={() => { saveFlag(advisoryKey, true); setDismissedArrivals(current => [...current, advisoryKey]) }}>Dismiss</button>
+                    </div>
+                  </div>
+                )}
                 {s.departTime && s.arrivalTime && (
                   <div className="stop-meta">Dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</div>
                 )}

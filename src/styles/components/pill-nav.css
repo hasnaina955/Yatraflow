@@ -39,13 +39,13 @@
    as one continuous motion instead of two backgrounds cross-fading.
    `--pill-gap` is the row's own gap, named so the clipped ink copy (`.pill-ink-row`)
    can lay out with the SAME spacing instead of restating the number. */
-.pill-nav { position: relative; display: flex; flex-wrap: nowrap; gap: 2px; --pill-gap: 2px; max-width: 100%; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.pill-nav { position: relative; display: flex; flex-wrap: nowrap; gap: 2px; --pill-gap: 2px; --pill-edge-fade: 20px; max-width: 100%; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
 .pill-nav::-webkit-scrollbar { display: none; }
-.pill-nav > [data-pill-key] { flex: none; white-space: nowrap; scroll-snap-align: start; }
+.pill-nav > [data-pill-key] { flex: none; white-space: nowrap; scroll-snap-align: center; }
 .pill-nav:not(.nav-links) > [data-pill-key] { min-height: 44px; }
-.pill-nav[data-overflow='start'] { mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
-.pill-nav[data-overflow='middle'] { mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 28px), transparent); }
-.pill-nav[data-overflow='end'] { mask-image: linear-gradient(90deg, transparent, #000 20px); }
+.pill-nav[data-overflow='start'] { mask-image: linear-gradient(90deg, #000 calc(100% - var(--pill-edge-fade)), transparent); }
+.pill-nav[data-overflow='middle'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade), #000 calc(100% - var(--pill-edge-fade)), transparent); }
+.pill-nav[data-overflow='end'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade)); }
 .map-day-filter .pill-glider, .mv2-lens-tabs .pill-glider { visibility: hidden; }
 .shr-seg .pill-glider, .mt-seg .pill-glider { background: var(--text); }
 .mt-listhead .mt-seg .pill-glider, .ex-seg .pill-glider { background: var(--card); box-shadow: var(--shadow-card); }

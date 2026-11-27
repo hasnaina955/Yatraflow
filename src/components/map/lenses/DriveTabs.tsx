@@ -179,7 +179,7 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
     const group = groups[index]
     if (!group) return
     onTab(group.tab)
-    tabRefs.current[index]?.focus()
+    tabRefs.current[index]?.focus({ preventScroll: true })
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {

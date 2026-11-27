@@ -1,7 +1,7 @@
 // ============ Rail overflow — the scroll state of a horizontal pill rail ============
 // The workspace tab rail scrolls sideways at phone width. It hides its
 // scrollbar. CSS cannot read a scroll position, so PillNav publishes this state
-// instead. The `.tabbar[data-overflow]` rules in styles.css paint the edge fade.
+// instead. The `.pill-nav[data-overflow]` rules paint the edge fade.
 //
 // 'none'   the rail fits; nothing is hidden
 // 'start'  the rail sits at its left edge; tabs hide past the right edge
@@ -41,4 +41,21 @@ export function railScrollToReveal(
     return Math.max(0, Math.min(max, Math.ceil(itemRight - clientWidth)))
   }
   return current
+}
+
+/** Center a clipped pill on its snap point. An edge without a fade needs no inset. */
+export function pillScrollToReveal(
+  scrollLeft: number,
+  scrollWidth: number,
+  clientWidth: number,
+  itemLeft: number,
+  itemRight: number,
+  fade: number,
+): number {
+  const state = railOverflow(scrollLeft, scrollWidth, clientWidth)
+  if (state === 'none') return scrollLeft
+  const left = scrollLeft + (state === 'start' ? 0 : fade)
+  const right = scrollLeft + clientWidth - (state === 'end' ? 0 : fade)
+  if (itemLeft >= left && itemRight <= right) return scrollLeft
+  return Math.max(0, Math.min(scrollWidth - clientWidth, (itemLeft + itemRight - clientWidth) / 2))
 }

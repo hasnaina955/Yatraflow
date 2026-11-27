@@ -53,6 +53,35 @@ describe('landing links open their pages through appLink', () => {
     expect(linksTo(planBench, '/explore', 'Or browse ready itineraries')).toBe(true)
   })
 
+  it('sends See how it works to /how-it-works', () => {
+    expect(linksTo(landing, '/how-it-works', 'See how it works')).toBe(true)
+  })
+
+  it('keeps the calculator hub a plain href behind the web-only gate, in the hero and in the Plan Bench card', () => {
+    // The hub is a static page outside the router, so it cannot be an appLink.
+    expect(landing).toMatch(/const showCalculator = !isNative/)
+    expect(landing).toMatch(/\{showCalculator && <a className="text-link" href="\/trip-cost-calculators\/">Price a trip first<\/a>\}/)
+    // The Plan Bench line moved into the card, so Landing no longer renders it.
+    expect(landing).not.toContain('landing-hub-link')
+    expect(planBench).toMatch(/\{!isNative && \(\s*<p className="bench-hub-link small muted">\s*Planning Goa, Rajasthan, Meghalaya or Ladakh\? <a className="text-link" href="\/trip-cost-calculators\/">Try the destination calculators\.<\/a>/)
+    expect(planBench).toMatch(/import \{ isNative, nativeCopyText \} from '\.\.\/lib\/native'/)
+  })
+
+  it('places the hub line under the Plan Bench browse link, inside the card', () => {
+    // The line sits right after the CTA row that holds "Or browse ready itineraries",
+    // and before the receipt actions, so it reads as part of the Plan Bench.
+    const browse = planBench.indexOf('Or browse ready itineraries')
+    const hub = planBench.indexOf('bench-hub-link')
+    const receipts = planBench.indexOf('bench-receipt-actions')
+    expect(browse).toBeGreaterThan(-1)
+    expect(hub).toBeGreaterThan(browse)
+    expect(receipts).toBeGreaterThan(hub)
+  })
+
+  it('imports the native flag that the calculator gate reads', () => {
+    expect(landing).toMatch(/import \{ isNative \} from '\.\.\/lib\/native'/)
+  })
+
   it('imports the shared helper in both files', () => {
     expect(landing).toMatch(/import \{ appLink \} from '\.\.\/lib\/appLink'/)
     expect(planBench).toMatch(/import \{ appLink \} from '\.\.\/lib\/appLink'/)

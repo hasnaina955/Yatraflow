@@ -188,6 +188,7 @@
   --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px;
   --space-9: 22px; --space-10: 24px;
   --nav-h: 62px;
+  --nav-top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   /* ---- bottom chrome (mobile / native shell) ----
      One offset every fixed/sticky bottom layer clears: the shell's own
      navigation row (--shell-nav-h, 0px on the web so both the offset and any
@@ -626,6 +627,15 @@
   --glow-marigold: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 18px -8px rgba(178,104,12,.6);
   --icon-stroke: 1.9;
   --icon-stroke-sm: 1.9;
+
+  /* Toast at night. The night-sky artboard flips the ok/undo pill and the
+     neutral pill to paper so they stand out from dark cards. The fill stays
+     paper in the dark theme, so the ink and action colours are fixed here
+     rather than re-declared per theme. Measured on the paper: ink 13.90:1,
+     teal action 5.49:1. */
+  --toast-night-paper: #E8EFF5;
+  --toast-night-ink: #142329;
+  --toast-night-action: #0B6B63;
 }
 
 /* from src/styles/legacy/15-overview.css */

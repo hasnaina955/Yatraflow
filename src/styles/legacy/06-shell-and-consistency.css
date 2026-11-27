@@ -132,6 +132,10 @@ html.native-shell {
 /* Same active ink as .tab-btn.active; --teal-deep re-points in dark mode. */
 .bottom-nav-item.active { color: var(--teal-deep); }
 .bottom-nav-label { font-size: var(--text-xs); font-weight: 600; line-height: 1.2; }
+.bottom-nav-icon { position: relative; display: inline-flex; }
+.bottom-nav-badge { position: absolute; top: -6px; left: 100%; min-width: 19px; height: 19px; padding: 0 3px; display: grid; place-items: center; border-radius: 999px; background: var(--color-destructive); color: white; font-size: 11px; font-weight: 700; animation: bottom-nav-pop var(--motion-fast) var(--ease-settle) both; }
+@keyframes bottom-nav-pop { from { transform: scale(.7); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .bottom-nav-badge { animation: none; } }
 
 /* ============ v0.48 design-system consistency pass ============ */
 /* ---------- Ordering: this design-system layer is deliberately the LAST section in the file. It is the global override layer (one kicker recipe, one set of blur tiers, the <=720px touch-target floor), so it must win the cascade over every earlier block — including the page-scoped .app-home rules above. New sections belong above it. ---------- */
@@ -160,7 +164,7 @@ html.native-shell {
   .ha-kicker, .ha-stats span, .hbc-code span, .hbc-sub, .loc-kind, .weather-day, .ride-purpose,
   .bench-eyebrow, .bench-scale-ends, .bench-receipt-kicker, .bench-total-label, .bench-badge,
   .ticker-item .t-tag, .board-stop-kicker, .pub-ledger th, .route-tag, .group-lab, .mini-lab,
-  .compare-table th, .toast-action, .editorial-kicker, .pub-stats-label,
+  .compare-table th, .editorial-kicker, .pub-stats-label,
   .pub-hero-badge, .pub-hero-byline,
   .eyebrow, .cal-wd,
   /* .tk-brand / .tk-kind left the kicker family for the boarding-pass head bar

@@ -13,7 +13,7 @@
 //   person-day  people * days * rate                      (food)
 //   person      people * (rate + dayRate * days + addOn)  (entries, permits, fees)
 //   room-night  rooms * nights * rate                     (stay)
-//   flat        rate, once                                (a booking fee)
+//   flat        units * rate, units 1 unless set          (a booking fee, a boat)
 //
 // A line can be gated by a group's chosen value (`when`) or by its own checkbox
 // (`optional`), which is how "I ride my own bike" removes bike rent without a
@@ -57,11 +57,13 @@ const money = (obj) => ({ low: num(obj?.low), high: num(obj?.high ?? obj?.low) }
 
 /** Resolve a line's multiplier. `units` is either a fixed count, the visitor's
  *  own count (a destination that asks for bikes), a headcount, or one per two
- *  travellers — a scooty between two people is the case that needs the halves. */
+ *  travellers — a scooty between two people is the case that needs the halves —
+ *  or one per four, for a boat that seats about four. */
 function resolveUnits(line, input, people) {
   if (typeof line.units === 'number') return line.units
   if (line.units === 'people') return people
   if (line.units === 'half-people') return Math.ceil(people / 2)
+  if (line.units === 'per-four') return Math.ceil(people / 4)
   if (line.units === 'units') return Math.floor(num(input.units))
   return 1
 }
@@ -184,7 +186,7 @@ function lineAmount(dest, line, input, ctx) {
     case 'room-night':
       return { low: rooms * nights * low, high: rooms * nights * high }
     case 'flat':
-      return { low, high }
+      return { low: units * low, high: units * high }
     default:
       return { low: 0, high: 0 }
   }

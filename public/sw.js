@@ -16,14 +16,121 @@
 //      is left alone here — a cached auth/rest response is a correctness bug,
 //      and phase 2 decides deliberately which cross-origin data may be kept.
 //
-// The cached shell is refreshed on every successful navigation, and any cache
+// The cached shell is refreshed on every successful navigation (except the
+// prerendered copy pages and invite links, see isOwnDocument below), and any cache
 // that is not this version's is dropped on activate — so a deploy rolls the
 // offline copy forward without a version bump. Bump SW_VERSION only to force a
 // full drop (e.g. when the caching policy itself changes).
-const SW_VERSION = 'v3'
+// v6 confirms the bare app shell positively before caching SHELL and precaches
+// the shell's startup script and stylesheet assets during install.
+const SW_VERSION = 'v6'
 const CACHE = `yatraflow-${SW_VERSION}`
-const SHELL = '/'
-const SHELL_ASSETS = [SHELL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+// The bare app shell. The build writes the prerendered home page to /index.html
+// and keeps the shell at /app.html, which the SPA catch-all serves for every
+// other route. v5 moved the key from '/' to '/app.html'.
+const SHELL = '/app.html'
+const SHELL_MARKER = '<meta name="yatraflow-shell" content="app" />'
+const STATIC_ASSETS = ['/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+const SHELL_ASSETS = [SHELL, ...STATIC_ASSETS]
+
+/** Extracts same-origin module scripts and stylesheet/modulepreload links from shell HTML. */
+function extractStartupAssets(html) {
+  const assets = []
+  const seen = new Set()
+  const add = raw => {
+    if (!raw) return
+    let parsed
+    try {
+      parsed = new URL(raw, self.location.origin)
+    } catch {
+      return
+    }
+    if (parsed.origin !== self.location.origin) return
+    const assetPath = parsed.pathname + parsed.search
+    if (assetPath === SHELL || seen.has(assetPath)) return
+    seen.add(assetPath)
+    assets.push(assetPath)
+  }
+  // Literal patterns only: one per attribute that the precache reads.
+  const ATTR_PATTERNS = {
+    type: /\btype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    src: /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    rel: /\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    href: /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+  }
+  const attr = (attrs, name) => {
+    const match = ATTR_PATTERNS[name].exec(attrs)
+    return match ? (match[1] ?? match[2] ?? match[3] ?? '') : ''
+  }
+  for (const match of html.matchAll(/<script\b([^>]*)>/gi)) {
+    const attrs = match[1]
+    if (attr(attrs, 'type').toLowerCase() === 'module') add(attr(attrs, 'src'))
+  }
+  for (const match of html.matchAll(/<link\b([^>]*)>/gi)) {
+    const attrs = match[1]
+    const rels = attr(attrs, 'rel').toLowerCase().split(/\s+/)
+    if (rels.includes('stylesheet') || rels.includes('modulepreload')) add(attr(attrs, 'href'))
+  }
+  return assets
+}
+
+/** Fetches the shell and all startup assets before writing the new version cache.
+ *  If any fetch fails or returns HTML instead of an asset, install rejects so
+ *  the old worker and its cache stay in control. */
+async function precacheShell() {
+  const shellResponse = await fetch(SHELL)
+  if (!shellResponse.ok) throw new Error(`Shell precache failed: ${shellResponse.status}`)
+  const shellHtml = await shellResponse.text()
+  const shellCopy = new Response(shellHtml, {
+    status: shellResponse.status,
+    statusText: shellResponse.statusText,
+    headers: shellResponse.headers,
+  })
+  const urls = [...new Set([...STATIC_ASSETS, ...extractStartupAssets(shellHtml)])]
+  const entries = await Promise.all(
+    urls.map(async assetUrl => {
+      const response = await fetch(assetUrl)
+      const type = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+      if (!response.ok || type.includes('text/html')) {
+        throw new Error(`Asset precache failed: ${assetUrl} (${response.status})`)
+      }
+      return [assetUrl, response]
+    }),
+  )
+  const cache = await caches.open(CACHE)
+  await cache.put(SHELL, shellCopy)
+  await Promise.all(entries.map(([assetUrl, response]) => cache.put(assetUrl, response)))
+}
+
+/** True only when HTML is the bare app shell: has the marker and no canonical or robots tag. */
+function isBareAppShell(html) {
+  return (
+    html.includes(SHELL_MARKER) &&
+    !html.includes('rel="canonical"') &&
+    !html.includes('name="robots"')
+  )
+}
+
+/** The prerendered copy pages (#1042) and the home page. Each is its own HTML document, not the
+ *  app shell. A successful navigation to one must not overwrite the SHELL key,
+ *  or the offline fallback would open that page at every address. The navigation
+ *  itself still goes to the network first. Exact pathnames, with and without the
+ *  slash and direct index.html URLs, because /faq, /faq/ and /faq/index.html all
+ *  reach the page. */
+const OWN_HTML = new Set([
+  '/', '/index.html',
+  '/faq', '/faq/', '/faq/index.html',
+  '/how-it-works', '/how-it-works/', '/how-it-works/index.html',
+  '/about', '/about/', '/about/index.html',
+  '/for-creators', '/for-creators/', '/for-creators/index.html',
+])
+
+/** True for a navigation whose response is that page's own HTML, not the shell:
+ *  a copy page, or an invite link. An invite response names a trip (#1042), so it
+ *  must never become the offline fallback for every route. */
+function isOwnDocument(pathname) {
+  return OWN_HTML.has(pathname) || pathname.startsWith('/join/')
+}
 
 /** Paths that must never be cached or served from cache. `/i/` and `/c/` are
  *  the tag-bearing card endpoints: a navigation to one must reach the network
@@ -40,7 +147,7 @@ const NEVER = [
 ]
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL_ASSETS)))
+  event.waitUntil(precacheShell())
   // Deliberately NO skipWaiting(): a new worker takes over on the next full
   // load, so a running session never has its shell swapped underneath it. The
   // app's own stale-chunk auto-reload covers the mid-session deploy case.
@@ -71,9 +178,25 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          if (response.ok) {
-            const copy = response.clone()
-            caches.open(CACHE).then(cache => cache.put(SHELL, copy))
+          // Write SHELL only for a confirmed bare app shell response.
+          // Copy pages and invite links stay out by path and by content.
+          const type = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+          const readable = !type || type.includes('text/html') || type.startsWith('text/plain')
+          if (response.ok && !isOwnDocument(url.pathname) && readable) {
+            const probe = response.clone()
+            const writeShell = probe
+              .text()
+              .then(html => {
+                if (!isBareAppShell(html)) return
+                const copy = new Response(html, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers,
+                })
+                return caches.open(CACHE).then(cache => cache.put(SHELL, copy))
+              })
+              .catch(() => {})
+            if (typeof event.waitUntil === 'function') event.waitUntil(writeShell)
           }
           return response
         })

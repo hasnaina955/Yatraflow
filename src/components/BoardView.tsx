@@ -4,9 +4,10 @@
 // change routes through the same applyChange → impact-preview flow as the
 // Timeline, so nothing persists without its consequence visible first.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Loader2, LocateFixed, Map as MapIcon,
-  MoveHorizontal, Plus, RefreshCw, Trash2, TriangleAlert,
+  MoveHorizontal, Plus, RefreshCw, Trash2, TriangleAlert, GripVertical, MoreHorizontal, Pencil,
 } from 'lucide-react'
 import { prefersReducedMotion } from '../lib/motion'
 import {
@@ -27,6 +28,9 @@ import { setStopStatus, useDb } from '../store/store'
 import { useReorder, Modal, toast } from './ui'
 import { refuseWhileStaged, removeStopWithUndo } from '../lib/mutationLifecycle'
 import { healthBandClass } from '../lib/healthBand'
+import { boardLoadWord, hasBoardLoadLocation } from '../lib/boardLoad'
+import { dayColor } from '../lib/mapStyles/dayColors'
+import { visitDateForDay } from '../lib/hoursContext'
 import { warningDigest, warningLines, worstSeverity } from '../lib/warningDigest'
 import { isAlreadyAdded, placeIdentity } from '../lib/placeIdentity'
 import { kmFromStartForHit } from '../lib/providers/hits'
@@ -150,10 +154,8 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
     () => (isAirMode(trip.transportMode) ? tripJourneyGeometry(trip, legCorrections).geometry : null),
     [trip, legCorrections],
   )
-  const airJourneys = useMemo(
-    () => isAirMode(trip.transportMode)
-      ? new Map(days.map(day => [day.index, buildJourney(trip, day, legCorrections)]))
-      : null,
+  const journeys = useMemo(
+    () => new Map(days.map(day => [day.index, buildJourney(trip, day, legCorrections)])),
     [trip, days, legCorrections],
   )
   /** The road did not resolve (or is being re-measured after a failed attempt)
@@ -288,7 +290,7 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
               onClick={() => setMapFocus(f => !f)} aria-pressed={mapFocus}
               title={mapFocus ? 'Bring the day columns back' : 'Slide the columns aside and read the map full-bleed (Esc)'}>
               {mapFocus
-                ? <><InlineIcon icon={ArrowLeft} size={13} gap={4} />Back to cards</>
+                ? <><InlineIcon icon={ArrowLeft} size={13} gap={4} />Show days</>
                 : <><InlineIcon icon={MapIcon} size={13} gap={4} />View map</>}
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => handleAdd(focusedDay === 'all' ? 0 : focusedDay)}>
@@ -371,19 +373,28 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
 
         {/* floating day columns — near-opaque so cards stay readable (§3.1) */}
         <div className="board-cols" role="list" aria-label="Trip days">
-          {days.map(day => (
-            <BoardColumn key={day.id} day={day} allDays={days} editable={editable} transportMode={trip.transportMode}
-              flightJourney={airJourneys?.get(day.index)} flight={flightForDay(trip, day.index)}
-              warnings={warn.byDay.get(day.index) ?? NO_WARNINGS}
-              focused={focusedDay === day.index}
-              onToggleFocus={toggleDayFocus}
-              onMoveStopIn={handleMoveStopInto}
-              onReorder={reorderWithinDay}
-              onDelete={handleDelete}
-              onStatus={handleStatus}
-              onAdd={handleAdd}
-              onEdit={handleEdit} />
-          ))}
+          {days.map(day => {
+            const journey = journeys.get(day.index)
+            const loadLabel = (hasBoardLoadLocation(day.stops) || (isAirMode(trip.transportMode) && flightForDay(trip, day.index))) ? boardLoadWord({
+              distanceKm: journey?.distanceKm,
+              stopCount: activeStopsInOrder(day).length,
+              hours: journey ? journey.driveMinutes / 60 : undefined,
+            }) : null
+            return (
+              <BoardColumn key={day.id} day={day} allDays={days} editable={editable} transportMode={trip.transportMode}
+                flightJourney={isAirMode(trip.transportMode) ? journey : undefined} flight={flightForDay(trip, day.index)}
+                loadLabel={loadLabel} date={visitDateForDay(trip.startDate, day.index)}
+                warnings={warn.byDay.get(day.index) ?? NO_WARNINGS}
+                focused={focusedDay === day.index}
+                onToggleFocus={toggleDayFocus}
+                onMoveStopIn={handleMoveStopInto}
+                onReorder={reorderWithinDay}
+                onDelete={handleDelete}
+                onStatus={handleStatus}
+                onAdd={handleAdd}
+                onEdit={handleEdit} />
+            )
+          })}
         </div>
       </div>
 
@@ -416,13 +427,15 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
 // handlers, booleans and the day object itself (immutable between writes) — so
 // a column bails out unless ITS day, focus or warnings changed. The map is
 // memoized separately above.
-const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, transportMode, flightJourney, flight, warnings, focused, onToggleFocus, onMoveStopIn, onReorder, onDelete, onStatus, onAdd, onEdit }: {
+const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, transportMode, flightJourney, flight, loadLabel, date, warnings, focused, onToggleFocus, onMoveStopIn, onReorder, onDelete, onStatus, onAdd, onEdit }: {
   day: Trip['days'][number]
   allDays: Trip['days']
   editable: boolean
   transportMode: Trip['transportMode']
   flightJourney?: Journey
   flight: FlightLeg | null
+  loadLabel: string | null
+  date: string | null
   warnings: ScheduleWarning[]
   focused: boolean
   onToggleFocus: (dayIndex: number) => void
@@ -433,9 +446,45 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
   onAdd: (dayIndex: number) => void
   onEdit: (stopId: string) => void
 }) {
-  const timeFormat = useTimeFormat()
   // Keyboard/touch alternative to dragging: ▲▼ reorders within the day, the
   // ↔ button opens a move-to-day modal (UI audit: Board was drag-only).
+  const [warningsOpen, setWarningsOpen] = useState(false)
+  const warningButtonRef = useRef<HTMLButtonElement>(null)
+  const warningPanelRef = useRef<HTMLDivElement>(null)
+  const [warningPosition, setWarningPosition] = useState<Pick<React.CSSProperties, 'left' | 'top' | 'bottom' | 'maxHeight'>>({ left: 8, top: 8, maxHeight: 200 })
+  useLayoutEffect(() => {
+    if (!warningsOpen) return
+    const position = () => {
+      const rect = warningButtonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const { clientHeight, clientWidth } = document.documentElement
+      const left = Math.max(8, Math.min(rect.left, clientWidth - 328))
+      const top = Math.max(8, rect.bottom + 6)
+      const roomBelow = clientHeight - top - 8
+      const bottom = Math.max(8, clientHeight - rect.top + 6)
+      const roomAbove = clientHeight - bottom - 8
+      setWarningPosition(roomBelow >= 100 || roomBelow >= roomAbove
+        ? { left, top, maxHeight: Math.max(0, Math.min(320, roomBelow)) }
+        : { left, bottom, maxHeight: Math.max(0, Math.min(320, roomAbove)) })
+    }
+    position()
+    warningPanelRef.current?.focus({ preventScroll: true })
+    window.addEventListener('resize', position)
+    window.addEventListener('scroll', position, true)
+    return () => { window.removeEventListener('resize', position); window.removeEventListener('scroll', position, true) }
+  }, [warningsOpen])
+  useEffect(() => {
+    if (!warningsOpen) return
+    const close = () => { setWarningsOpen(false); warningButtonRef.current?.focus({ preventScroll: true }) }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); close() } }
+    const onClick = (event: MouseEvent) => {
+      if (event.target instanceof Node && !warningPanelRef.current?.contains(event.target) && !warningButtonRef.current?.contains(event.target)) close()
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('click', onClick)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('click', onClick) }
+  }, [warningsOpen])
+  const [openActions, setOpenActions] = useState<string | null>(null)
   const [moveStop, setMoveStop] = useState<ItineraryStop | null>(null)
   const ordered = useMemo(() => activeStopsInOrder(day), [day])
   const stopsRef = useRef<HTMLDivElement>(null)
@@ -451,7 +500,7 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
   }, [])
   // Liquid drag pattern (bencho-style, Timeline parity): the DOM order NEVER
   // changes mid-drag. The carried card is pinned to the pointer by the engine
-  // (lib/touchDnd.ts) and its skin warps with the throw; cards between the
+  // (lib/touchDnd.ts) and its skin tilts; cards between the
   // carried slot and the cursor target glide out of the way in real time
   // (transform transition), and the final arrangement settles ONCE via the
   // FLIP pass on commit. The insertion index is the source of truth for
@@ -517,18 +566,13 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
    *  origin, so the gap reopens under the cursor. The sign math lives in the
    *  pure glideOffsetPx (lib/touchDnd.ts) so tests can pin it. */
   function glideOffset(i: number): number | null {
-    if (dragging === null || insertIdx === null) return null
+    if (prefersReducedMotion() || dragging === null || insertIdx === null) return null
     const card = stopsRef.current?.querySelectorAll<HTMLElement>('[data-stop-id]')[dragging]
-    const h = card ? card.offsetHeight + 8 : 0
+    const h = card ? card.offsetHeight + 6 : 0
     return glideOffsetPx(dragging, insertIdx, i, h)
   }
 
-  /** The pill's class comes from the warnings' OWN worst severity (#369) — and
-   *  a low-only day gets `sev-low`, the quiet variant, instead of the base
-   *  amber tint that made a route-backtracking note as loud as an over-packed
-   *  day. The title carries every warning, so none is silently dropped. */
   const sev = worstSeverity(warnings)
-  const totalStops = ordered.length
 
   // FLIP slot-in: when this column's card arrangement changes (same-day drag
   // reorder, or a card slotting in from another day), every card animates from
@@ -569,14 +613,20 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
   useLayoutEffect(() => () => cancelListSettles(listId), [listId])
 
   return (
-    <div className={`board-col${focused ? ' board-col--focused' : ''}${dragging !== null ? ' drag-live' : ''}`} role="listitem">
+    <div style={{ "--board-day-color": dayColor(day.index) } as React.CSSProperties} className={`board-col${focused ? ' board-col--focused' : ''}${dragging !== null ? ' drag-live' : ''}`} role="listitem">
+      <div className="board-col-header">
       <button type="button" className="board-col-head" onClick={() => onToggleFocus(day.index)}
         aria-pressed={focused} title={focused ? `Show the whole route again` : `Focus the map on Day ${day.index + 1}`}>
-        <span className="board-col-day">Day {day.index + 1}</span>
-        <span className="board-col-count">{focused ? 'Focused · ' : ''}{totalStops} stop{totalStops === 1 ? '' : 's'}</span>
-        <span className="board-col-subtitle" title={day.title || `Day ${day.index + 1}`}>{day.title || `Day ${day.index + 1}`}</span>
-        {sev && <span className={`day-warn-pill sev-${sev}`} title={warningLines(warnings)}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings[0].title.replace(/^Day \d+:\s*/, '')}{warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}</span>}
+        <span className="board-col-day"><i style={{ backgroundColor: dayColor(day.index) }} />Day {day.index + 1}{date && <span className="board-col-date">{new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })}</span>}</span>
+        {day.title && <span className="board-col-subtitle" title={day.title}>{day.title}</span>}
+        {loadLabel && <span className={`board-col-load load-${loadLabel.includes('long') ? 'long' : loadLabel.includes('full') ? 'full' : loadLabel.includes('light') ? 'light' : 'stay'}`}><span className="board-load-track"><span className="board-load-fill" /></span>{loadLabel}</span>}
       </button>
+      {sev && <button ref={warningButtonRef} type="button" className={`board-warning-toggle sev-${sev}`} aria-expanded={warningsOpen} aria-controls={`board-warnings-${day.id}`} aria-label={`${warnings.length} warning${warnings.length === 1 ? '' : 's'} for Day ${day.index + 1}`} onClick={event => {
+        if (warningsOpen) event.currentTarget.focus({ preventScroll: true })
+        setWarningsOpen(!warningsOpen)
+      }}><InlineIcon icon={TriangleAlert} size={12} gap={3} />{warnings.length}</button>}
+      {sev && typeof document !== 'undefined' && createPortal(<div ref={warningPanelRef} id={`board-warnings-${day.id}`} className={`board-warnings popover${warningsOpen ? ' is-open' : ''}`} style={warningPosition} aria-hidden={!warningsOpen} inert={!warningsOpen} role="region" aria-label={`Warnings for Day ${day.index + 1}`} tabIndex={0}>{warnings.map((warning, index) => <p key={index} tabIndex={0}>{warning.title}: {warning.detail} {warning.fix}</p>)}</div>, document.body)}
+      </div>
 
       <div className={`board-col-stops${dragging !== null ? ' is-dragging' : ''}${dragging !== null && keepsScroll ? ' keeps-scroll' : ''}`}
         ref={stopsRef} data-yf-list={listId} onPointerDownCapture={measureListScroll}>
@@ -593,16 +643,16 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
           ].filter(Boolean).join(' · ')
           return (
             // Position layer (.board-row) / skin (.board-stop): the engine
-            // pins the row to the pointer while the skin inside warps with
-            // the throw — position and deformation cannot share a transform.
+            // pins the row to the pointer while the skin tilts independently.
             <div key={s.id} className="board-row"
               data-stop-id={s.id}
               title={meta ? `${s.title} · ${meta}` : s.title}
               style={{ transform: glideOffset(i) != null ? `translateY(${glideOffset(i)}px)` : undefined }}
               {...(editable ? dndHandlers(i) : {})}>
-              <div className={`board-stop stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}>
+              <div className={`board-stop stop-card kind-${kind} status-${s.status} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}${openActions === s.id ? ' actions-open' : ''}`}>
+                {editable && <GripVertical className="board-stop-grip" size={13} aria-hidden />}
+                <span className="board-stop-icon" aria-label={label}>{mode ? modeIcon(mode, 14) : <KindIcon kind={kind} size={14} />}</span>
                 <div className="stop-main">
-                  <span className="board-stop-kicker">{s.departTime ? `${formatHM(s.departTime, timeFormat)} · ` : ''}{mode ? modeIcon(mode, 12) : <KindIcon kind={kind} size={12} />}{label}</span>
                   {editable ? (
                     <button type="button" className="board-stop-title-btn" onClick={() => onEdit(s.id)}
                       title={meta ? `Edit ${s.title} · ${meta}` : `Edit ${s.title}`}
@@ -612,10 +662,12 @@ const BoardColumn = React.memo(function BoardColumn({ day, allDays, editable, tr
                   ) : (
                     <span className="stop-title">{s.title}</span>
                   )}
-                  {meta && <span className="board-stop-meta">{meta}</span>}
+                  {s.visitMinutes > 0 && <span className="board-stop-meta">{minutesToHM(s.visitMinutes)}</span>}
                 </div>
+                {editable && <button type="button" className="board-actions-toggle" aria-label={`Actions for ${s.title}`} aria-expanded={openActions === s.id} onClick={() => setOpenActions(openActions === s.id ? null : s.id)}><MoreHorizontal size={16} aria-hidden /></button>}
                 {editable && (
                   <div className="stop-actions board-stop-actions">
+                    <button type="button" className="move-btn" onClick={() => onEdit(s.id)} aria-label={`Edit ${s.title}`}><Pencil size={13} aria-hidden /></button>
                     <div className="move-btns">
                       <button type="button" className="move-btn" disabled={i === 0}
                         onClick={() => onReorder(day.index, i, i - 1)} aria-label={`Move ${s.title} up`}>

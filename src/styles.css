@@ -10,6 +10,7 @@
 @import './styles/components/board-02.css';
 @import './styles/components/chip.css';
 @import './styles/components/dialog.css';
+@import './styles/components/stop-actions-sheet.css';
 @import './styles/components/toast.css';
 @import './styles/components/avatar.css';
 @import './styles/legacy/03-maplibre.css';
@@ -52,6 +53,8 @@
 @import './styles/pages/about.css';
 @import './styles/pages/content-pages.css';
 @import './styles/pages/for-creators.css';
+@import './styles/components/site-footer.css';
+@import './styles/components/topnav-collapse.css';
 
 /* Settings controls keep their state legible in both themes. */
 .tset-main .tset-danger-btn:disabled { opacity: 1; color: var(--pw-ink-2); }

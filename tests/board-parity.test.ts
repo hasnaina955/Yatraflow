@@ -30,8 +30,14 @@ describe('#369 — the pulse and the pills read the engine, not a regex', () => 
     expect(board).not.toMatch(/health\.score >= 40/)
   })
 
-  it('gives a low-only day its quiet class and keeps every warning in a title', () => {
-    expect(board).toMatch(/className=\{`day-warn-pill sev-\$\{sev\}`\} title=\{warningLines\(warnings\)\}/)
+  it('exposes each warning in the expandable day control', () => {
+    expect(board).toContain('aria-expanded={warningsOpen}')
+    expect(board).toContain('aria-controls={`board-warnings-${day.id}`}')
+    expect(board).toContain('createPortal(<div ref={warningPanelRef}')
+    expect(board).toContain('aria-hidden={!warningsOpen} inert={!warningsOpen}')
+    expect(board).toContain('role="region" aria-label={`Warnings for Day ${day.index + 1}`} tabIndex={0}')
+    expect(board).toContain('{warning.title}: {warning.detail} {warning.fix}')
+    expect(board).toContain('board-warning-toggle sev-${sev}')
   })
 
   it('shows trip-wide warnings instead of dropping them', () => {
@@ -108,5 +114,36 @@ describe('a carried stop stays visible and stays on the pointer', () => {
     expect(board).toMatch(/onPointerDownCapture=\{measureListScroll\}/)
     expect(board).toMatch(/setKeepsScroll\(\(stopsRef\.current\?\.scrollTop \?\? 0\) > 0\)/)
     expect(board).toMatch(/dragging !== null && keepsScroll \? ' keeps-scroll' : ''/)
+  })
+})
+
+describe('Board mockup parity', () => {
+  const motion = page('../src/styles/components/board-04.css').replace(/\/\*[\s\S]*?\*\//g, '')
+
+  it('derives each load word from journey distance, active stops and hours', () => {
+    expect(board).toMatch(/from '\.\.\/lib\/boardLoad'/)
+    expect(board).toMatch(/const journeys = useMemo\(\s*\(\) => new Map\(days\.map\(day => \[day\.index, buildJourney\(trip, day, legCorrections\)\]\)\),/)
+    expect(board).toMatch(/distanceKm: journey\?\.distanceKm/)
+    expect(board).toMatch(/stopCount: activeStopsInOrder\(day\)\.length/)
+    expect(board).toMatch(/hours: journey \? journey\.driveMinutes \/ 60 : undefined/)
+    expect(board).toMatch(/loadLabel=\{loadLabel\}/)
+    expect(board).toContain('board-load-fill')
+  })
+
+  it('names the map-focus return action Show days', () => {
+    expect(board).toContain('Show days')
+    expect(board).not.toContain('Back to cards')
+  })
+
+  it('uses the mockup fixed tilt instead of velocity warp', () => {
+    expect(motion).toMatch(/\.board-row\.is-carried \.board-stop \{ transform: rotate\(-2\.5deg\); \}/)
+    expect(motion).not.toContain('--warp-')
+  })
+
+  it('removes neighbour sliding and carried tilt under reduced motion', () => {
+    expect(board).toMatch(/if \(prefersReducedMotion\(\) \|\| dragging === null \|\| insertIdx === null\) return null/)
+    const reduced = motion.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/)?.[1] ?? ''
+    expect(reduced).toMatch(/\.board-stop, \.board-row \{ transition: none; \}/)
+    expect(reduced).toMatch(/\.board-row\.is-carried \.board-stop \{ transform: none; \}/)
   })
 })

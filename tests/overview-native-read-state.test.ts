@@ -135,13 +135,13 @@ describe('#704 — native Home reads the trips verdict before it renders', () =>
   it('the retry re-reads the trips slice, and Try again is disabled while the read runs', () => {
     expect(home).toMatch(/import \{[^}]*\brereadTrips\b[^}]*\} from '\.\.\/store\/store'/)
     expect(home).toMatch(/const \[retrying, setRetrying\] = useState\(false\)/)
-    expect(home).toMatch(/const retryTrips = \(\) => \{\s*setRetrying\(true\)\s*void rereadTrips\(\)\.finally\(\(\) => \{ setRetrying\(false\) \}\)\s*\}/)
+    expect(home).toMatch(/const retryTrips = \(\) => \{\s*if \(retrying\) return\s*setRetrying\(true\)\s*void rereadTrips\(\)\.finally\(\(\) => \{ setRetrying\(false\) \}\)\s*\}/)
     expect(home).toContain("{retrying ? 'Trying…' : 'Try again'}")
     expect(home.match(/disabled=\{retrying\}/g)?.length ?? 0).toBe(2)
   })
 
   it('reading shows a loading row, failed shows its own message, and empty shows only after a successful read', () => {
-    const readingAt = homeBody.indexOf("trips.length === 0 && tripsRead === 'reading'")
+    const readingAt = homeBody.indexOf("trips.length === 0 && (tripsRead === 'reading' || retrying)")
     const failedAt = homeBody.indexOf("trips.length === 0 && tripsRead === 'failed'")
     const readyAt = homeBody.indexOf("trips.length === 0 && tripsRead === 'ready'")
     const rowsAt = homeBody.indexOf('trips.length > 0 && (')
@@ -149,7 +149,7 @@ describe('#704 — native Home reads the trips verdict before it renders', () =>
     expect(failedAt, 'the failed branch').toBeGreaterThan(readingAt)
     expect(readyAt, 'the ready branch').toBeGreaterThan(failedAt)
     expect(rowsAt, 'the rows branch').toBeGreaterThan(readyAt)
-    expect(homeBody.slice(readingAt, failedAt)).toMatch(/<StateBlock kind="loading" icon=\{<span className="spinner" aria-hidden="true" \/>\} title="Loading trips…" \/>/)
+    expect(homeBody.slice(readingAt, failedAt)).toContain('<NativeHomeSkeleton retrying={retrying} />')
     expect(homeBody.slice(failedAt, readyAt)).toMatch(
       /<StateBlock\s+kind="failed"\s+icon=\{<TriangleAlert size=\{26\} aria-hidden \/>\}\s+title="Couldn’t load trips"\s+body="The request failed\. That does not mean you have no trips\."/,
     )
@@ -204,6 +204,6 @@ describe('#704 — the store publishes each read verdict to the pages', () => {
   })
 
   it('the auto-seed sets the flag addDemoTrips checks, so the Load demo button cannot seed a second set', () => {
-    expect(store).toMatch(/demoSeedInFlight = true\s*try \{ await seedDemoFor\(userId, gen\) \} finally \{ demoSeedInFlight = false \}/)
+    expect(store).toMatch(/demoSeedInFlight = true\s*try \{\s*if \(gen === hydrateGen && await claimDemoSeed\(userId\)\) await seedDemoFor\(userId, gen\)\s*\} finally \{ demoSeedInFlight = false \}/)
   })
 })

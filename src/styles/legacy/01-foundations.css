@@ -166,7 +166,7 @@ html {
   -webkit-tap-highlight-color: transparent;
   /* Anchor/scrollIntoView targets land clear of the floating pill topnav
      (12px top gap + nav height + breathing room). */
-  scroll-padding-top: calc(12px + var(--nav-h) + 16px);
+  scroll-padding-top: calc(var(--nav-top) + var(--nav-h) + 16px);
   /* The bottom half of the same rule. --bottom-ui-offset already resolves to
      just the gesture inset outside the shell, so this is correct on both
      platforms and no longer needs to be re-declared inside html.native-shell. */
@@ -238,11 +238,11 @@ input, select, textarea { font-family: var(--font-body); font-size: 14.5px; colo
   /* Float on scroll: sticky pins the pill to the top of the viewport once the
      page scrolls, so the glass pill nav "follows" alongside the trip-total
      strip the way the user asked. It keeps the CTI floating-pill look. */
-  position: sticky; top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); z-index: var(--z-nav-glass);
+  position: sticky; top: var(--nav-top); z-index: var(--z-nav-glass);
   /* CTI nav language: a floating pill detached from the viewport edges,
      not a full-bleed bar — the page atmosphere shows around it. */
   width: min(1180px, calc(100% - 28px));
-  margin: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) auto 0;
+  margin: var(--nav-top) auto 0;
   background: var(--yf-nav-glass);
   -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
   backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);

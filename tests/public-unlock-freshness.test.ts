@@ -98,7 +98,7 @@ vi.mock('../src/lib/supabase', async () => {
 
 import {
   fetchPublicTrip, tripById, duplicateTrip,
-  _clearRecentLocalWrites, _clearServerTripTimestamps,
+  _clearRecentLocalWrites, _clearServerTripTimestamps, _seedServedCopyForTest,
 } from '../src/store/store'
 import { forkPublication, wireWithheld } from '../src/lib/forkPub'
 
@@ -177,12 +177,11 @@ beforeEach(() => {
 describe('#349 — fetchPublicTrip converges the cache to the RPC, never first-wins', () => {
   it('a re-fetch REPLACES a cached stub with the row the server just served', async () => {
     const trip = base()
-    // The pre-purchase read: the wire withholds days 1–3, and that stub lands in
+    // The pre-purchase state: a stub the server served at updatedAt 1000 is in
     // the cache. This is the state every paying buyer is in when they click
-    // Unlock.
-    state.rpcRows = [row(wireStub(trip, FREE))]
-    const before = await fetchPublicTrip(pubRow.id)
-    expect(noticeCount(before!.days)).toBeGreaterThan(0)
+    // Unlock. A non-owner's first read inserts nothing (spec 3.7), so the cached
+    // copy is seeded directly.
+    _seedServedCopyForTest(wireStub(trip, FREE), 1000)
     expect(noticeCount(tripById(trip.id)!.days)).toBeGreaterThan(0)
 
     // The post-purchase read of the SAME publication: real days now.
@@ -219,8 +218,8 @@ describe('#349 — fetchPublicTrip converges the cache to the RPC, never first-w
 
   it('drops a strictly older row — a replay must not walk the cache backwards', async () => {
     const trip = base()
-    state.rpcRows = [row(trip, 5000)]
-    await fetchPublicTrip(pubRow.id)
+    // The cache holds a copy the server served at 5000.
+    _seedServedCopyForTest(trip, 5000)
     state.rpcRows = [row(trip, 4000)]
     const out = await fetchPublicTrip(pubRow.id)
     expect(out!.updatedAt).toBe(5000)
@@ -245,8 +244,7 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
   it('a buyer with a grant forks REAL days, from the stale-stub start state', async () => {
     const trip = base()
     // Broken precondition: the cache already holds the pre-purchase stub.
-    state.rpcRows = [row(wireStub(trip, FREE))]
-    await fetchPublicTrip(pubRow.id)
+    _seedServedCopyForTest(wireStub(trip, FREE), 1000)
     expect(noticeCount(tripById(trip.id)!.days)).toBeGreaterThan(0)
     // The unlock: the same RPC now serves the real trip, and the buyer's own
     // entitlement row exists.
@@ -301,8 +299,7 @@ describe('#349 — the fork asks the wire and the entitlement, never the cache',
     // The cache holds a real row (this session can see it), but the wire read
     // fails — so nothing here is evidence about entitlement, or about what the
     // server would have served.
-    state.rpcRows = [row(trip)]
-    await fetchPublicTrip(pubRow.id)
+    _seedServedCopyForTest(trip, 1000)
     state.rpcRows = null
     grant(pubRow.id, 'buyer-349')
     _clearRecentLocalWrites()

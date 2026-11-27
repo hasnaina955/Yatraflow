@@ -6,7 +6,7 @@
 // The builder is pure so the rules are testable without a router or a store:
 //   - An optional fact that the trip does not have is dropped, never printed as
 //     "0 stops", "₹0", "undefined" or a raw id.
-//   - A missing inviter name degrades the sentence instead of leaving a hole.
+//   - A missing owner name degrades the sentence instead of leaving a hole.
 //   - The invite's role decides the two role lines. The preview read carries no
 //     role, so a role it does not know says what both roles share.
 import type { PublishedItinerary } from '../data/types'
@@ -22,7 +22,7 @@ export interface InviteFacts {
   route?: string | null
   /** How many people plan it. Absent when the read did not carry a crew. */
   crew?: number | null
-  inviterFirstName?: string | null
+  ownerFirstName?: string | null
   startDate?: string | null
   endDate?: string | null
   days?: number | null
@@ -46,6 +46,9 @@ export interface InviteRecipientCopy {
   nextSteps: string[]
   /** The paid-guide note, or null when no guide is priced. */
   paidGuideNote: string | null
+  /** The quiet FAQ link under the next steps. Its target is a real FAQ section. */
+  faqLabel: string
+  faqHref: `/${string}`
 }
 
 export interface InviteConfirmCopy {
@@ -92,12 +95,26 @@ export function inviteReadOnlyFacts(facts: InviteFacts): { label: string; value:
 /** The quiet secondary path. It is always present and always quieter than joining. */
 export const INVITE_LOOK_FIRST = 'Just look at it first'
 
-/** Only the head of a name reaches this screen: first name or handle, never a full name. */
+/** Only the head of a name reaches this screen: first name or handle, never a full name.
+ *  The server normalises the same way (20261126c_invite_preview_projection.sql), so this
+ *  is the render-side half of one rule and not the only guard: a leading '@' comes off a
+ *  handle, and a token that still reads as an address, a URL or a phone number is not a
+ *  name, so the screen keeps its anonymous wording instead of printing it. */
 export function inviteFirstName(name: string | null | undefined): string | null {
   if (typeof name !== 'string') return null
-  const first = name.trim().split(/\s+/)[0]
+  const token = name.trim().split(/\s+/)[0]
+  // A trailing full stop is the end of a sentence, not part of a name.
+  const first = token.replace(/^@+/, '').replace(/\.+$/, '')
   if (!first) return null
-  return first.length > 24 ? `${first.slice(0, 24)}…` : first
+  if (/[@/:]/.test(first)) return null
+  // Digits and phone separators alone are a phone number in any shape
+  // (+91.98765.43210, (022).123.4567) or a stray separator ("-", "("). The test
+  // names the shapes that cannot be a name, so a name in any script passes.
+  if (/^[0-9 ()+.-]+$/.test(first)) return null
+  // A dotted alphanumeric token is a web address or a dotted phone number, not a
+  // first name: "www.example.com" and "98765.43210" both answer no name.
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(first)) return null
+  return first.length > 24 ? `${first.slice(0, 23)}…` : first
 }
 
 /** The stated per-person budget, or null. `budgetPerPersonInr` is what the crew
@@ -156,43 +173,52 @@ function tripName(facts: InviteFacts): string {
 
 /** State A: a valid invite, signed out. The common case. */
 export function recipientInviteCopy(facts: InviteFacts): InviteRecipientCopy {
-  const inviter = inviteFirstName(facts.inviterFirstName)
+  const owner = inviteFirstName(facts.ownerFirstName)
   const name = tripName(facts)
   const parts = inviteFactParts(facts)
   const price = typeof facts.paidGuidePrice === 'number' && Number.isFinite(facts.paidGuidePrice) && facts.paidGuidePrice > 0
     ? facts.paidGuidePrice
     : null
   return {
-    headline: inviter ? `${inviter} added you to ${name}.` : `You were added to ${name}.`,
-    facts: parts.length ? parts.join(' · ') : 'A group trip on YatraFlow.',
+    headline: owner ? `Join ${owner}'s trip.` : `Join ${name}.`,
+    facts: [
+      ...(owner && facts.tripTitle?.trim() ? [name] : []),
+      ...parts,
+    ].join(' · ') || 'A group trip on YatraFlow.',
     roleLine: facts.role === 'editor'
       ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split, and you can vote on the open decisions.'
       : facts.role === 'viewer'
-        ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split. No editing, no notifications.'
+        // The role the server enforces (can_comment, is_editor): a viewer reads
+        // the plan but cannot edit it, comment on it or vote. The line promises
+        // no more than that — notifications reach every member, viewers included.
+        ? 'You’ll see the whole plan: days, stops, drive times and the ₹ split. You can’t edit it, comment or vote.'
         : 'You’ll see the whole plan: days, stops, drive times and the ₹ split.',
     primary: 'Join the plan',
     underPrimary: 'Free. We’ll ask you to sign in or create an account first. That’s how we tell your vote from someone else’s.',
     lookFirst: INVITE_LOOK_FIRST,
     nextSteps: [
-      'You land on the plan your friend already started.',
+      'You can open the trip plan.',
       'Vote on whatever’s open. Your group sees the result.',
       'Everyone sees who paid what, settled at the end, in as few transfers as possible.',
     ],
     paidGuideNote: price
-      ? `Part of this plan is a paid guide (${formatInr(price)}). Joining the crew is free; you only pay if you want the locked days.`
+      ? `Part of this plan is a paid guide (${formatInr(price)}). An invite does not unlock the paid guide.`
       : null,
+    faqLabel: 'Questions? See the FAQ',
+    // Getting started answers the reader's own question: whether an account is needed.
+    faqHref: '/faq?section=getting-started',
   }
 }
 
 /** State B: a valid invite, signed in. One confirm, then the join. */
 export function inviteConfirmCopy(facts: InviteFacts): InviteConfirmCopy {
-  const inviter = inviteFirstName(facts.inviterFirstName)
+  const owner = inviteFirstName(facts.ownerFirstName)
   const tail: string[] = []
   const days = dayNumber(facts.days)
   if (days) tail.push(`${days} ${days === 1 ? 'day' : 'days'}`)
   const stops = dayNumber(facts.stops)
   if (stops) tail.push(`${stops} ${stops === 1 ? 'stop' : 'stops'}`)
-  const lead = inviter ? `${inviter} invited you.` : 'You were invited.'
+  const lead = owner ? `${owner} owns this trip.` : 'You were invited.'
   return {
     headline: `Join ${tripName(facts)}?`,
     sub: tail.length ? `${lead} ${tail.join(' · ')}.` : lead,
@@ -207,7 +233,7 @@ export function expiredInviteCopy(input: { ownerFirstName?: string | null } = {}
   return {
     headline: 'This invite link has expired.',
     body: owner
-      ? `Links can be reset by whoever owns the trip. Ask ${owner} for a fresh one, or enter the code they shared.`
+      ? `Links can be reset by whoever owns the trip. Ask ${owner} for a fresh one, or enter a new code.`
       : 'Links can be reset by whoever owns the trip. Ask whoever shared it for a fresh one, or enter the code they shared.',
     codeLabel: 'Trip code',
     codePlaceholder: 'GOA-K7QF',

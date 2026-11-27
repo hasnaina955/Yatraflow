@@ -25,7 +25,7 @@
   "peoplePerRoom": 2,
   "fuel": {
     "mileage": 15,
-    "price": 105
+    "price": 104
   },
   "defaults": {
     "people": 4,
@@ -113,8 +113,8 @@
   "stays": {
     "hostel": {
       "label": "Hostel",
-      "low": 600,
-      "high": 1200,
+      "low": 1200,
+      "high": 2000,
       "style": "budget"
     },
     "guesthouse": {
@@ -133,7 +133,7 @@
   "foods": {
     "shack": {
       "label": "Beach shacks",
-      "low": 500,
+      "low": 700,
       "high": 900
     },
     "cafe": {
@@ -180,10 +180,10 @@
       },
       "rateLabel": "Return flight fare, per person",
       "rate": {
-        "low": 4200,
+        "low": 6500,
         "high": 9500
       },
-      "hint": "Return from a metro booked a few weeks out. The last week of December is well above this.",
+      "hint": "Return from a metro booked a few weeks out. Mumbai returns were listing around ₹8,000 in November 2026; the last week of December is well above this.",
       "params": {
         "low": "fl",
         "high": "fL"
@@ -205,7 +205,7 @@
         ]
       },
       "rateLabel": "Fuel and distance",
-      "hint": "Mileage and pump price for the car you would drive. Tolls and parking are not counted here.",
+      "hint": "Mileage and the Panjim pump price in November 2026 for the car you would drive. Tolls and parking are not counted here.",
       "source": {
         "label": "assumption",
         "href": "#src-assume"
@@ -309,6 +309,7 @@
       "tier": "food",
       "tierLegend": "Food",
       "tierParam": "f",
+      "tierHint": "Price per person per day. Two shack meals: a cheap breakfast and a fish thali.",
       "rateLabel": "Food, per person per day",
       "params": {
         "low": "fd",
@@ -325,10 +326,10 @@
       "offLabel": "Not included, add it if the group wants it",
       "rateLabel": "Nightlife and water sports, per person",
       "rate": {
-        "low": 1500,
+        "low": 1800,
         "high": 3500
       },
-      "hint": "One beach club night, one water-sports slot and a sunset cruise is what this covers. Goa needs no permits.",
+      "hint": "One beach club night, one water-sports slot and a sunset cruise is what this covers. Club entry, the cruise and a single water sport already add up to about ₹1,850.",
       "params": {
         "low": "nl",
         "high": "nL",
@@ -362,7 +363,7 @@
   "faqs": [
     {
       "q": "How much does a 4-day Goa trip cost for 4 friends?",
-      "a": "With the default settings here, four people on a 4-day North Goa trip in peak season, arriving by train, sharing two scooties and two guesthouse rooms and eating at shacks, the calculator lands near ₹6,900 to ₹12,700 per person. That is ₹27,400 to ₹50,600 for the group. Flights instead of the train, a hotel instead of a guesthouse, or a packed New Year week each move the top of that range up."
+      "a": "With the default settings here, four people on a 4-day North Goa trip in peak season, arriving by train, sharing two scooties and two guesthouse rooms and eating at shacks, the calculator lands near ₹7,700 to ₹12,700 per person. That is ₹30,600 to ₹50,600 for the group. Flights instead of the train, a hotel instead of a guesthouse, or a packed New Year week each move the top of that range up."
     },
     {
       "q": "What is the Goa budget per person from Bengaluru, Mumbai or Delhi?",
@@ -370,7 +371,7 @@
     },
     {
       "q": "Do I need a permit to visit Goa?",
-      "a": "No. Goa is an ordinary domestic trip with no permits and no registration fees. That is why this calculator has no permit line, unlike Ladakh or Meghalaya. What it does count is the optional nightlife and water-sports buffer, which is the line most groups forget."
+      "a": "No. For Indian nationals, a Goa holiday needs no permit or registration: you book, you travel and you check in. Foreign nationals need a visa, which is a national rule, not a Goa permit. That is why this calculator has no permit line. The optional nightlife and water-sports line is the one groups forget."
     },
     {
       "q": "Is a scooty or a car better for a group in Goa?",
@@ -385,16 +386,16 @@
     {
       "id": "src-assume",
       "kind": "Assumption",
-      "text": "Travel fares, stays, food, scooter and car rentals, the nightlife and water-sports buffer, the 1,200 km self-drive distance, mileage of 15 km per litre and fuel at ₹105 per litre are YatraFlow planning estimates checked in November 2026. They are market ranges for a peak-season week, not a quote and not an official tariff: replace each one with the price you were actually given."
+      "text": "Travel fares, stays, food, scooter and car rentals, the nightlife and water-sports buffer, the 1,200 km self-drive distance, mileage of 15 km per litre and fuel at ₹104 per litre are YatraFlow planning estimates. The fuel figure is the Panjim pump price in November 2026. They are market ranges for a peak-season week, not a quote and not an official tariff: replace each one with the price you were actually given."
     },
     {
       "id": "src-tourism",
       "kind": "Sourced",
-      "text": "Season timing, the December peak and the absence of any permit or registration requirement for a domestic Goa trip: ",
+      "text": "Season timing, the December peak, and the absence of any permit or registration requirement for a domestic Goa trip: ",
       "links": [
         {
-          "text": "Goa Tourism, official state tourism site",
-          "href": "https://www.goatourism.gov.in/"
+          "text": "Goa Tourism help and travel information",
+          "href": "https://goatourism.gov.in/about-dot/help/"
         }
       ]
     }

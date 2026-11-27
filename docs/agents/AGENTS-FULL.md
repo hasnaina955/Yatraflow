@@ -27,7 +27,7 @@ Prune entries that stop being true.
 
 ## 1. What this project is
 
-YatraFlow — collaborative India trip-planning app. React 18 + Vite 8 +
+YatraFlow — collaborative India trip-planning app. React 19 + Vite 8 +
 TypeScript, Supabase (auth + data), MapLibre GL maps, web paths and search since #426, hash in native and file builds,
 deployed on Vercel from `main`. No bookings — planning plus paid itinerary unlocks.
 

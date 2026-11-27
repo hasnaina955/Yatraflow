@@ -1,0 +1,231 @@
+#!/usr/bin/env node
+// Build-time prerender of the four static copy pages (#1042): /faq, /how-it-works,
+// /about and /for-creators, and of the home page. Runs after `vite build`, so it
+// can read the hashed shell (dist/index.html) and keep its script and stylesheet tags.
+//
+//   1. Bundle src/prerender/static-pages.tsx with Vite's SSR build into a temp
+//      folder inside the project (so the bundle resolves node_modules).
+//   2. Render each page with renderToStaticMarkup.
+//   3. Write dist/<slug>/index.html: the shell's head with this page's own
+//      title, description, canonical, Open Graph and Twitter tags (api/_headTemplate.js
+//      replaces them, never appends), and the rendered body inside #root.
+//   4. Copy the bare shell to dist/app.html. The SPA catch-all in vercel.json, the
+//      service worker and the invite card read that file, so they never get the
+//      home page's text or its canonical.
+//   5. Write dist/index.html last: the home page, with its canonical, the
+//      Organization and WebSite schema, and the rendered landing page.
+//   6. Check each file. A page that throws, or whose head is not single, fails the build.
+//
+// Skipped for the file and native targets (VITE_BUILD_TARGET), which use a relative
+// base and an in-app router, so a crawlable copy of a page is not what they serve.
+// The temp folder is removed in every case.
+
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { build } from 'vite'
+import { applyHead, singleHeadTags } from '../api/_headTemplate.js'
+import { DEFAULT_ORIGIN } from '../api/_origin.js'
+import pageCards from './page-cards.json' with { type: 'json' }
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const DIST = path.join(ROOT, 'dist')
+const TMP = path.join(ROOT, '.prerender-tmp')
+const ENTRY = path.join(ROOT, 'src', 'prerender', 'static-pages.tsx')
+const CARD_WIDTH = 1200
+const CARD_HEIGHT = 630
+/** The bare app shell, kept beside the prerendered home page. */
+export const SHELL_FILE = 'app.html'
+/** Positive marker present only on the bare app shell. */
+export const SHELL_MARKER = '<meta name="yatraflow-shell" content="app" />'
+/** Removes the bare-shell marker before prerendering a page. */
+export function stripShellMarker(html) {
+  return html.replace(/[ \t]*<meta name="yatraflow-shell" content="app" \/>\r?\n?/g, '')
+}
+/** The site card that index.html names for the home page. */
+const HOME_CARD = { file: 'og-default.png', alt: 'YatraFlow: India trips, planned together. Plan, Map, Budget and Share.' }
+
+/** True for the builds that must not get prerendered copy: a file or native shell. */
+export function shouldSkipPrerender(env = process.env) {
+  const target = (env.VITE_BUILD_TARGET ?? '').trim().toLowerCase()
+  return target === 'file' || target === 'native'
+}
+
+/** The head one prerendered page carries. Every URL is absolute, and it names the
+ *  production origin, so a preview build never writes its own address as canonical. */
+export function pageHead(page) {
+  const card = pageCards[page.slug]
+  if (!card) throw new Error(`/${page.slug} has no card in scripts/page-cards.json`)
+  const url = `${DEFAULT_ORIGIN}/${page.slug}`
+  return {
+    title: page.title,
+    description: page.description,
+    canonical: url,
+    url,
+    image: {
+      url: `${DEFAULT_ORIGIN}/og/${card.file}`,
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      type: 'image/png',
+      alt: card.headline,
+    },
+    ...(page.jsonLd ? { jsonLd: page.jsonLd, jsonLdAttr: 'data-faq-schema' } : {}),
+  }
+}
+
+/** The Organization and WebSite schema for the home page. Every URL is absolute
+ *  and names the production origin. */
+export function homeJsonLd() {
+  const home = `${DEFAULT_ORIGIN}/`
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${home}#organization`,
+        name: 'YatraFlow',
+        url: home,
+        logo: `${DEFAULT_ORIGIN}/icons/icon-512.png`,
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${home}#website`,
+        name: 'YatraFlow',
+        url: home,
+        inLanguage: 'en-IN',
+        publisher: { '@id': `${home}#organization` },
+      },
+    ],
+  }
+}
+
+/** The head the prerendered home page carries. */
+export function homeHead(home) {
+  const url = `${DEFAULT_ORIGIN}/`
+  return {
+    title: home.title,
+    description: home.description,
+    canonical: url,
+    url,
+    image: {
+      url: `${DEFAULT_ORIGIN}/${HOME_CARD.file}`,
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      type: 'image/png',
+      alt: HOME_CARD.alt,
+    },
+    jsonLd: homeJsonLd(),
+    jsonLdAttr: 'data-site-schema',
+  }
+}
+
+/** The checks every prerendered file must pass. `label` names the page in an error. */
+function assertPage(html, { label, canonical, image, schemaAttr }) {
+  const counts = singleHeadTags(html)
+  for (const [tag, n] of Object.entries(counts)) {
+    if (n !== 1) throw new Error(`${label}: expected one ${tag} tag, found ${n}`)
+  }
+  if (!html.includes(`<link rel="canonical" href="${canonical}" />`)) throw new Error(`${label}: wrong canonical`)
+  if (!html.includes(`<meta property="og:image" content="${image}" />`)) throw new Error(`${label}: wrong og:image`)
+  const root = html.indexOf('<div id="root">')
+  const bodyEnd = html.indexOf('</body>')
+  const body = root >= 0 && bodyEnd > root ? html.slice(root, bodyEnd) : ''
+  if (!body.includes('<h1')) throw new Error(`${label}: no rendered heading in #root`)
+  if (body.includes('Loading…') || body.includes('Loading...')) throw new Error(`${label}: the loader text reached the static body`)
+  if (!/<script[^>]+src="\/assets\/[^"]+\.js"/.test(html)) throw new Error(`${label}: the hashed app script is missing`)
+  if (!/<link[^>]+href="\/assets\/[^"]+\.css"/.test(html)) throw new Error(`${label}: the hashed stylesheet is missing`)
+  if (schemaAttr && !html.includes(schemaAttr)) throw new Error(`${label}: the ${schemaAttr} block is missing`)
+  if (html.includes(SHELL_MARKER)) throw new Error(`${label}: the bare shell marker stayed in the prerendered page`)
+}
+
+/** Throws unless the written page has one of each tag a crawler reads, the right
+ *  canonical and card, a rendered body, and the shell's hashed app assets. */
+export function assertPrerenderedPage(html, page) {
+  assertPage(html, {
+    label: `/${page.slug}`,
+    canonical: `${DEFAULT_ORIGIN}/${page.slug}`,
+    image: `${DEFAULT_ORIGIN}/og/${pageCards[page.slug].file}`,
+    schemaAttr: page.jsonLd ? 'data-faq-schema' : null,
+  })
+}
+
+/** The same checks for the home page, with the site card and the site schema. */
+export function assertPrerenderedHome(html) {
+  assertPage(html, {
+    label: '/',
+    canonical: `${DEFAULT_ORIGIN}/`,
+    image: `${DEFAULT_ORIGIN}/${HOME_CARD.file}`,
+    schemaAttr: 'data-site-schema',
+  })
+}
+
+async function renderAll(template) {
+  const entry = pathToFileURL(path.join(TMP, 'static-pages.mjs')).href
+  const { STATIC_PAGES, HOME_PAGE } = await import(entry)
+  const pageTemplate = stripShellMarker(template)
+  const written = []
+  for (const page of STATIC_PAGES) {
+    let html
+    try {
+      const body = renderToStaticMarkup(createElement(page.component))
+      html = applyHead(pageTemplate, pageHead(page), body)
+    } catch (error) {
+      throw new Error(`prerender of /${page.slug} failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    assertPrerenderedPage(html, page)
+    const dir = path.join(DIST, page.slug)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(path.join(dir, 'index.html'), html)
+    written.push(`/${page.slug}`)
+  }
+  // Render the home page before any write to dist/index.html, so a failure leaves
+  // the shell in place.
+  let home
+  try {
+    home = applyHead(pageTemplate, homeHead(HOME_PAGE), renderToStaticMarkup(createElement(HOME_PAGE.component)))
+  } catch (error) {
+    throw new Error(`prerender of / failed: ${error instanceof Error ? error.message : String(error)}`)
+  }
+  assertPrerenderedHome(home)
+  // The bare shell moves to dist/app.html first. Then the home page takes dist/index.html.
+  writeFileSync(path.join(DIST, SHELL_FILE), template)
+  writeFileSync(path.join(DIST, 'index.html'), home)
+  written.push('/')
+  return written
+}
+
+async function main() {
+  if (shouldSkipPrerender()) {
+    console.log('[prerender] skipped: VITE_BUILD_TARGET is file or native, so the shell serves the app with relative assets')
+    return
+  }
+  const template = readFileSync(path.join(DIST, 'index.html'), 'utf8')
+  rmSync(TMP, { recursive: true, force: true })
+  try {
+    await build({
+      root: ROOT,
+      logLevel: 'warn',
+      build: {
+        ssr: ENTRY,
+        outDir: TMP,
+        emptyOutDir: true,
+        sourcemap: false,
+        rollupOptions: { output: { entryFileNames: 'static-pages.mjs' } },
+      },
+    })
+    const written = await renderAll(template)
+    console.log(`[prerender] wrote ${written.length} static pages: ${written.join(', ')}`)
+  } finally {
+    rmSync(TMP, { recursive: true, force: true })
+  }
+}
+
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  // Failures set the exit code and return (#656): a direct process.exit can cut off the message.
+  main().catch(error => {
+    console.error(`[prerender] ${error instanceof Error ? error.message : String(error)}`)
+    process.exitCode = 1
+  })
+}

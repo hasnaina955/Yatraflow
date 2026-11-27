@@ -21,7 +21,7 @@ function trip(dates: { start?: string; end?: string }): Trip {
 /** Midnight today, so a day boundary never makes these tests flaky. */
 const today = new Date()
 today.setHours(0, 0, 0, 0)
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const shiftDays = (n: number) => {
   const d = new Date(today)
   d.setDate(d.getDate() + n)

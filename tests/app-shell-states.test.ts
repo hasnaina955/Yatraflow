@@ -11,9 +11,9 @@ const app = read('src/App.tsx')
 const boundary = read('src/components/ErrorBoundary.tsx')
 
 describe('app shell loading states (P1)', () => {
-  it('renders the lazy route fallback through StateBlock kind="loading", and the start-up gate reuses it', () => {
+  it('keeps the lazy fallback and gives native home its skeleton at startup', () => {
     expect(app).toMatch(/const lazyRouteFallback = <div className="container page-enter route-fallback"><StateBlock kind="loading"[^\n]*title="Loading…" \/><\/div>/)
-    expect(app).toMatch(/if \(!ready && [^\n]*\{\n\s*page = lazyRouteFallback\n/)
+    expect(app).toMatch(/if \(!ready && [^\n]*\{\n\s*if \(isNative && bareRoute\) page = .*<NativeHomeStartupPage \/>.*\n\s*else page = lazyRouteFallback\n/)
   })
 
   it('no longer contains the retired loading-block markup', () => {
@@ -45,9 +45,12 @@ describe('app shell error boundary (P1)', () => {
 })
 
 describe('app shell footer (P1)', () => {
-  it('keeps the footer element, the feedback link and the calculator link', () => {
+  it('keeps the footer element, the feedback link, the calculator hub link and the Ladakh link', () => {
     expect(app).toContain('<footer className="footer">')
     expect(app).toContain('Send feedback')
+    // The footer names the hub and the Ladakh page. The Ladakh link stays on purpose:
+    // that page already ranks in search, and a sitewide internal link helps it.
+    expect(app).toContain('href="/trip-cost-calculators/"')
     expect(app).toContain('href="/ladakh-trip-cost-calculator/"')
   })
 })

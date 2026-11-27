@@ -223,6 +223,18 @@
    screens used, and it keeps the buttons centred with one gap. */
 .inv-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 
+/* D4 — the owner's join requests, on the Plan card. Each row reuses the member
+   row (.feed-item.shr-member-row): name and age, the role chip, then the two
+   decisions. The details column has a 160px basis, so at phone width the
+   decisions wrap to their own line, and at 1280 the whole row fits on one. */
+.share-join-requests { display: grid; gap: 10px; margin: 18px 0; }
+.share-join-state { margin: 0; }
+.share-join-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.share-join-row { flex-wrap: wrap; }
+.share-join-row .shr-member-details { flex: 1 1 160px; min-width: 0; }
+.share-join-actions { display: inline-flex; gap: 8px; }
+.share-join-error { width: 100%; font-size: 0.9rem; }
+
 /* The small trip preview on a signed-out invite. Every value comes from the
    trip the gate already holds, so this is a restatement, not a new read. */
 .inv-preview { display: grid; gap: 6px; margin: 14px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); text-align: left; }
@@ -306,6 +318,18 @@
 /* The live dot is the row's one status mark, so it is not colour alone: the
    words "Live now" sit beside it. */
 .nh-live-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--color-primary); }
+.nh-hero { overflow: hidden; margin-top: var(--space-4); }
+.nh-hero-cover { position: relative; height: 150px; overflow: hidden; background: var(--bg-soft); }
+.nh-hero-cover > img, .nh-hero-cover > .mt-art { width: 100%; height: 100%; object-fit: cover; animation: nh-cover-in var(--motion-slower) var(--ease-glide) both; }
+.nh-hero-live { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--bg); color: var(--text); font-weight: 700; font-size: var(--text-xs); }
+.nh-hero-body { display: grid; gap: 10px; padding: 14px; }
+.nh-hero-body h2, .nh-hero-body p { margin: 0; }
+.nh-hero-next { padding: 10px; border-radius: var(--radius-sm); background: var(--bg-soft); }
+.nh-hero-open { min-height: 44px; }
+.nh-skeletons { display: grid; gap: 8px; margin-top: var(--space-4); }
+.nh-skeletons span { height: 72px; border-radius: var(--radius-sm); background: var(--bg-soft); }
+@keyframes nh-cover-in { from { transform: scale(1.035); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .nh-hero-cover > img, .nh-hero-cover > .mt-art { animation: none; } }
 
 /* The section title above the rows. R20: Plus Jakarta Sans 800 at 18px. */
 .nh-section { font-family: var(--font-body); font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--text); margin: 0 0 10px; }
@@ -1031,13 +1055,10 @@
    The pace track scrolls sideways so every style stays reachable on a phone. */
 .tset-driver-pace-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .tset-driver-pace-pair > .field { min-width: 0; }
-/* The artboard's segment: one pill track, the chosen option on a raised card.
-   `.seg-btn` is the option; `PillNav` supplies the arrow-key roving. The track
-   wraps because the pace list holds ten options — an unwrapped ten-option row
-   is wider than the middle column and pushed the last three off the card. */
+/* The segment scrolls when its options exceed the available width. */
 .seg {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
   padding: 4px;
   border-radius: var(--radius-pill);

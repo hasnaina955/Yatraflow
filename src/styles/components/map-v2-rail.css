@@ -88,8 +88,8 @@
 .mv2-omnibar .input { --input-padding: var(--space-4) var(--space-2); --input-background: transparent; --input-border-color: transparent; min-width: 0; }
 .mv2-omnibar .mv2-search-icon { flex: 0 0 auto; color: var(--text-2); }
 .mv2-omnibar .btn { --btn-min-height: 44px; --btn-padding: 0 var(--space-5); }
-.mv2-workspace .mv2-lenses { position: absolute; top: var(--mv2-inset); right: var(--mv2-inset); z-index: 5; display: flex; gap: var(--space-2); padding: var(--space-2); border-radius: var(--radius-pill); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); }
-.mv2-lenses > button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: var(--space-2) var(--space-5); gap: var(--space-3); border-radius: var(--radius-pill); border: 0; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
+.mv2-workspace .mv2-lenses { position: absolute; top: var(--mv2-inset); right: var(--mv2-inset); z-index: 5; display: flex; flex-wrap: nowrap; gap: var(--space-2); padding: var(--space-2); border-radius: var(--radius-pill); background: var(--card); color: var(--text); box-shadow: var(--shadow-soft); }
+.mv2-lenses > button { display: inline-flex; align-items: center; justify-content: center; flex: none; white-space: nowrap; min-height: 44px; padding: var(--space-2) var(--space-5); gap: var(--space-3); border-radius: var(--radius-pill); border: 0; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 700; cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
 .mv2-lenses > button[aria-pressed='true'] { background: var(--color-primary); color: var(--color-primary-foreground); }
 .mv2-lenses b { display: grid; place-items: center; min-width: 16px; height: 16px; padding-inline: 4px; border-radius: var(--radius-pill); background: var(--bg-soft); color: var(--text-3); font-size: 11px; font-weight: 800; }
 .mv2-icon-btn { display: inline-grid; place-items: center; flex: 0 0 auto; width: 44px; height: 44px; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--card); color: var(--text); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
@@ -525,7 +525,8 @@
 .mv2-lens-phase { margin: 0; padding: 12px; border-radius: 12px; background: var(--pw-soft); color: var(--pw-ink); font: var(--pw-meta); }
 .mv2-lens-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pw-sunken); }
 .mv2-lens-tab { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--pw-ink); font: var(--pw-ui); cursor: pointer; transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper); }
-.mv2-lens-tab.is-active { background: var(--pw-card); border-color: var(--pw-line); }
+/* The PillNav glider paints the active pill. The tab paints only its ink, so the switch is one glide, not a snap. */
+.mv2-lens-tab.is-active { background: transparent; border-color: transparent; }
 .mv2-lens-tab:focus-visible, .mv2-lens-place-open:focus-visible, .mv2-lens-place-add:focus-visible, .mv2-lens-round:focus-visible, .mv2-lens-deck-close:focus-visible, .mv2-lens-preview:focus-visible { outline: 2px solid var(--pw-time-drive); outline-offset: 2px; }
 .mv2-lens-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv2-lens-tab-total { flex: none; color: var(--pw-ink-3); font: var(--pw-caption); }
@@ -1437,6 +1438,10 @@
 .mv2-workspace .poi-col--see > :nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
 .mv2-workspace .poi-col--see > :nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
 .mv2-workspace .poi-col--see > :nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+/* A drive tab switch (Meals, Sights, Breaks) remounts the card list, so the new cards rise in. */
+.mv2-lens-drive .mv2-lens-cards > li { animation: mv2-rise-drive var(--motion-med) var(--ease-paper) backwards; }
+.mv2-lens-drive .mv2-lens-cards > li:nth-child(2) { animation-delay: calc(var(--stagger-step) * 1); }
+.mv2-lens-drive .mv2-lens-cards > li:nth-child(n+3) { animation-delay: calc(var(--stagger-step) * 2); }
 .mv2-workspace .mv2-lenses > button { transition: background var(--motion-fast) var(--ease-paper), color var(--motion-fast) var(--ease-paper), box-shadow var(--motion-fast) var(--ease-paper), scale var(--motion-fast) var(--ease-paper); }
 .mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-map-view > button:active { scale: .96; }
 @keyframes mv2-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
@@ -1450,6 +1455,7 @@
 @keyframes mv2-rise-fix { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) {
   .mv2-workspace .mv2-itinerary, .mv2-workspace .map-ideas-grid > .poi-col, .mv2-workspace .mv2-detail, .mv2-workspace .poi-col--see > *, .mv2-tool-menu-body, .mv2-layers-dot { animation: none; }
+  .mv2-lens-drive .mv2-lens-cards > li { animation: none; }
   .mv2-workspace .mv2-lenses > button:active, .mv2-day-strip > button:active, .mv2-map-view > button:active { scale: none; }
 }
 

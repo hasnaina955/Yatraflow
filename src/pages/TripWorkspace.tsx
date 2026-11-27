@@ -3,7 +3,7 @@
 // routing to the tab components in pages/trip/* (M3.4 split). Tabs:
 // Overview / Timeline / Map / Group input / Budget / Share. The former
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
 import { useDb, tripById, currentUser, roleOf, canEdit, canComment, trackTripPreview, tripPreviewPending, observeTripPreview, userById, readSharedTrip, useIdentityGeneration, admitTripPreview } from '../store/store'
 import { SegmentedTabs } from '../components/page/SegmentedTabs'
@@ -472,6 +472,10 @@ function sanitizeTab(s: string | undefined): TabKey {
   return isTabKey(s) ? s : 'overview'
 }
 
+/** #1051: the width at which the trip tab rail docks under the app bar. It must
+ *  match the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`. */
+const PHONE_DOCK_QUERY = '(max-width: 720px)'
+
 export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: string; initialTab?: string; onNavigate: (route: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -812,6 +816,24 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const headerExtraRef = useRef<HTMLDivElement | null>(null)
   const [headerExtraInert, setHeaderExtraInert] = useState(false)
   const headerFolded = foldWorkspaceHeader(tab)
+  // #1051: on a phone the scrolling tabs dock the rail under the app bar. Map
+  // and Board keep it in their slim folded bar.
+  // The first value is the real match, so a phone paints the dock at once and
+  // never shows the rail jump out of the cover.
+  const phoneWidth = useMedia(PHONE_DOCK_QUERY,
+    typeof window !== 'undefined' && (window.matchMedia?.(PHONE_DOCK_QUERY).matches ?? false))
+  const tabsDocked = phoneWidth && !headerFolded
+  // A tab change can move the rail between the cover and the dock, which
+  // remounts it. Keep keyboard focus on the selected tab when that happens.
+  const refocusRail = useRef(false)
+  useLayoutEffect(() => {
+    if (!refocusRail.current) return
+    refocusRail.current = false
+    document.getElementById(workspaceTabId(tab))?.focus()
+    // Only a move of the rail needs this; `tab` is read, not a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabsDocked])
+  useEffect(() => { refocusRail.current = false }, [tab])
 
   useEffect(() => {
     if (!headerFolded) {
@@ -951,9 +973,27 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     ? presenceRow.peers.map(peer => peer.userId)
     : [])
 
+  const tabRail = (
+    <SegmentedTabs className="tabbar yf-tabbar" semantics="tablist" label="Trip sections" value={tab} ink
+      onChange={key => {
+        if (!isTabKey(key)) return
+        const active = document.activeElement
+        refocusRail.current = active instanceof Element && !!active.closest('.yf-tabbar')
+        setTab(key)
+      }}
+      items={TABS.map(([key, label]) => ({
+        key,
+        label,
+        id: workspaceTabId(key),
+        controls: workspacePanelId(key),
+        count: key === 'group' ? db.suggestions.filter(s => s.tripId === trip.id && s.status === 'open').length
+          + db.decisions.filter(d => d.tripId === trip.id && d.status === 'open').length : undefined,
+      }))} />
+  )
+
   return (
     <div className="container page-enter yf-workspace" data-wide={headerFolded ? 'true' : 'false'} data-share-wide={tab === 'share' ? 'true' : undefined} data-map-active={tab === 'map' ? 'true' : undefined} data-canvas={headerFolded ? 'true' : undefined} data-map-fullscreen={phoneMapFullscreen ? 'true' : undefined}>
-      <div className="yf-page" data-compact={headerFolded ? 'true' : 'false'}>
+      <div className="yf-page" data-compact={headerFolded ? 'true' : 'false'} data-tabs={tabsDocked ? 'docked' : undefined}>
         <TripArtSprite />
         <header className="yf-trip-head">
           <div className="yf-cover-media" aria-hidden="true">
@@ -1025,19 +1065,14 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
                 </div>
               </div>
             </div>
-            <SegmentedTabs className="tabbar yf-tabbar" semantics="tablist" label="Trip sections" value={tab} ink
-              onChange={key => { if (isTabKey(key)) setTab(key) }}
-              items={TABS.map(([key, label]) => ({
-                key,
-                label,
-                id: workspaceTabId(key),
-                controls: workspacePanelId(key),
-                count: key === 'group' ? db.suggestions.filter(s => s.tripId === trip.id && s.status === 'open').length
-                  + db.decisions.filter(d => d.tripId === trip.id && d.status === 'open').length : undefined,
-              }))} />
+            {!tabsDocked && tabRail}
           </div>
         </header>
       </div>
+      {/* #1051: on a phone the rail leaves the cover and sticks under the
+          floating app bar. The wrapper keeps `yf-page`, so the rail keeps its
+          own look rules. */}
+      {tabsDocked && <div className="yf-page yf-tabdock">{tabRail}</div>}
 
       {TABS.map(([key]) => <div className="tab-panel" key={key} role="tabpanel" id={workspacePanelId(key)} aria-labelledby={workspaceTabId(key)} hidden={tab !== key}>
       {tab === key && <>
@@ -1047,7 +1082,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {tab === 'overview' && <OverviewTab trip={effective} editable={editable} onOpenDecisions={() => setTab('group')} onOpenTimeline={openTimeline} onOpenMap={openMap} onInvite={() => setTab('share')} health={health} totals={totals} road={road} corridorSegments={suggestionCache.cache.map?.segments} mapInputs={mapInputs} mapCache={suggestionCache.cache.map} />}
       {/* key: the timeline holds per-trip view state (open-day accordion) —
           remount it when the workspace switches trips (e.g. browser back/forward). */}
-      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} identityGeneration={identityGeneration} ownerTripId={tripId} projectedController={timelineWriterController} projectedAvailability={projectedAvailability} />}
+      {tab === 'timeline' && <TimelineTab key={effective.id} trip={effective} editable={editable} applyChange={applyChange} previewOpen={!!pending} legCorrections={legCorrections} roadStatus={road.status} suggestionCache={suggestionCache} journeyDays={journeyDays} onOpenBoard={() => setTab('board')} onOpenMap={openMap} focusDay={timelineFocusDay} focusStopId={timelineFocusStop} focusBlock={timelineFocusBlock} onFocusConsumed={clearTimelineFocus} projectedWriter={projectedWriterHop} identityGeneration={identityGeneration} ownerTripId={tripId} projectedController={timelineWriterController} projectedAvailability={projectedAvailability} />}
       {tab === 'board' && (
         <React.Suspense fallback={<StateBlock kind="loading" size="compact" title="Loading board" />}>
           <BoardView trip={effective} editable={editable} applyChange={applyChange} health={health} totals={totals} legCorrections={legCorrections} previewOpen={!!pending} road={road}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { railOverflow, railScrollToReveal } from '../src/lib/railOverflow'
+import { pillScrollToReveal, railOverflow, railScrollToReveal } from '../src/lib/railOverflow'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 // #684: the trip tab rail scrolls sideways at phone width and hides its
@@ -48,6 +48,14 @@ describe('the active pill is scrolled into its rail', () => {
     expect(railScrollToReveal(0, 853, 312, 460.25, 536.65)).toBe(225)
     expect(railScrollToReveal(536.65, 853, 312, 20.25, 100.75)).toBe(20)
   })
+
+  it('centers a pill that intersects a fade and clamps at the edges', () => {
+    expect(pillScrollToReveal(34, 390, 356, 4, 111, 20)).toBe(0)
+    expect(pillScrollToReveal(0, 390, 356, 300, 386, 20)).toBe(34)
+    expect(pillScrollToReveal(120, 600, 300, 125, 225, 20)).toBe(25)
+    expect(pillScrollToReveal(120, 600, 300, 307, 410, 20)).toBe(208.5)
+    expect(pillScrollToReveal(120, 600, 300, 140, 400, 20)).toBe(120)
+  })
 })
 
 // The fade needs both halves. PillNav publishes the state. The stylesheet
@@ -58,24 +66,25 @@ describe('the rail publishes its state, and the stylesheet paints it', () => {
   const css = readCssSource('src/styles.css')
 
   it('PillNav reads the rail and writes the state it measured', () => {
-    expect(pillNav).toContain("import { railOverflow, railScrollToReveal } from '../lib/railOverflow'")
+    expect(pillNav).toContain("import { pillScrollToReveal, railOverflow } from '../lib/railOverflow'")
     expect(pillNav).toMatch(/railOverflow\(wrap\.scrollLeft, wrap\.scrollWidth, wrap\.clientWidth\)/)
     expect(pillNav).toMatch(/wrap\.dataset\.overflow = state/)
     expect(pillNav).toContain("wrap.addEventListener('scroll', syncOverflow")
   })
 
   it('PillNav reveals the active item without scrolling the page or a fitting rail', () => {
-    expect(pillNav).toContain('railScrollToReveal')
-    expect(pillNav).toContain('wrap.scrollLeft = next')
-    expect(pillNav).toContain('if (firstRunRef.current || keyChanged) revealActive()')
+    expect(pillNav).toContain('const next = pillScrollToReveal(')
+    expect(pillNav).toContain('wrap.scrollTo({ left: next')
+    expect(pillNav).toContain('if (active && (firstRunRef.current || keyChanged)) reveal(active, !firstRunRef.current)')
     expect(pillNav).not.toContain('.scrollIntoView(')
   })
 
   it('a state that hides tabs gets a mask, and a rail that fits gets none', () => {
     for (const state of ['start', 'middle', 'end']) {
-      expect(css, `the ${state} state needs a mask rule`).toContain(`.tabbar[data-overflow='${state}']`)
+      expect(css, `the ${state} state needs a mask rule`).toContain(`.pill-nav[data-overflow='${state}']`)
     }
-    expect(css).toMatch(/\.tabbar\[data-overflow='start'\] \{\s*-webkit-mask-image: linear-gradient\(90deg, #000 calc\(100% - 28px\), transparent\);/)
+    expect(css).toMatch(/\.pill-nav\[data-overflow='start'\]\s*\{\s*mask-image:/)
+    expect(css).toMatch(/\.pill-nav > \[data-pill-key\]\s*\{[^}]*scroll-snap-align: center/)
     expect(css, 'the fitting state must paint no mask').not.toContain("[data-overflow='none']")
   })
 })

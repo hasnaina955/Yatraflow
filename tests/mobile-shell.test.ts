@@ -10,14 +10,14 @@ import { navDestinations } from '../src/components/BottomNav'
 import { readCssSource } from '../scripts/css-source-graph.mjs'
 
 const css = readCssSource('src/styles.css')
-const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 /** `app` with the route constants spelled out — the create route is an imported
  *  constant since #398, and the reachability checks below look for the
  *  destinations themselves. */
 const appResolved = app.split('CREATE_ROUTE').join(CREATE_ROUTE).split('CREATE_PATH').join(CREATE_PATH)
 const manifest = readFileSync(new URL('../android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8')
 
-const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
+const source = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** Every declaration block in `cssText` whose selector is exactly `selector`. */
 function rules(cssText: string, selector: string): string[] {
@@ -68,7 +68,7 @@ describe('bottom navigation is a shell-only primary nav', () => {
 
   it('mounts only behind the native gate in App.tsx', () => {
     expect(app).toContain("import { BottomNav } from './components/BottomNav'")
-    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} />}')
+    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}')
   })
 
   it('hides the website top bar for the signed-in shell', () => {
@@ -87,6 +87,25 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(profile).toContain('logout()')
   })
 
+  it('hides the website footer for the signed-in shell, beside the top bar and the bottom bar', () => {
+    // #1055: the footer had no platform gate, so the native Day view ended
+    // with the website's Plan, Help, Creators and Company groups. The
+    // signed-in shell keeps the bottom bar and no website chrome.
+    expect(app).toContain('(!isNative || !me) &&')
+    expect(app).toContain('{isNative && me && <BottomNav')
+    const at = app.indexOf('<footer className="footer">')
+    expect(at).toBeGreaterThan(-1)
+    // The gate opens directly above the element, so the footer is its first
+    // and only child.
+    const gate = app.lastIndexOf('{!isNative && (', at)
+    expect(gate, 'the footer needs a !isNative gate').toBeGreaterThan(-1)
+    expect(app.slice(gate + '{!isNative && ('.length, at).trim()).toBe('')
+    // The gate closes after the element, so no part of the footer leaks out.
+    const elementEnd = app.indexOf('</footer>', at)
+    expect(elementEnd).toBeGreaterThan(at)
+    expect(app.slice(elementEnd, elementEnd + 40)).toMatch(/<\/footer>\s*\)/)
+  })
+
   it('gates the hamburger and its tray identically — no dead control in the shell', () => {
     expect(css).toContain('html.native-shell .nav-links { display: none; }')
     // The tray renders only on the web (`mobileNav && !isNative`); the button
@@ -100,6 +119,52 @@ describe('bottom navigation is a shell-only primary nav', () => {
     for (const dest of ['/trips', '/new', '/explore', '/creator-hub', '/profile']) {
       expect(appResolved, `${dest} must stay reachable`).toContain(dest)
     }
+  })
+
+  it('offers How it works and the calculator hub to a signed-out web visitor, in the topnav and the tray', () => {
+    // The topnav pair sits behind the signed-out gate and the web gate. The
+    // hub is a static page, so it is a plain href with no pill key.
+    const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
+    expect(pill).toContain('{showSignedOutNav && !me && !sessionUserId && !isNative && <>')
+    expect(pill).toContain('data-pill-key="/how-it-works"')
+    expect(pill).toMatch(/<a className="nav-link topnav-extra" href="\/trip-cost-calculators\/">Calculators<\/a>/)
+    expect(pill).not.toMatch(/data-pill-key="\/trip-cost-calculators/)
+    // The tray is web-only already, so its pair needs only the signed-out gate.
+    const trayAt = app.indexOf('<div className="mobile-menu"')
+    const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
+    expect(tray).toContain('{showSignedOutNav && !me && !sessionUserId && <>')
+    expect(tray).toContain("{...appLink('/how-it-works')}")
+    expect(tray).toMatch(/<a className="nav-link" href="\/trip-cost-calculators\/">/)
+  })
+
+  it('shows the signed-out items at once with no stored session, and waits for hydrate when one may be stored', () => {
+    // The hint is read once at mount. With no stored session, the reader is signed
+    // out for certain. Otherwise the items wait for `ready`, then show only when no
+    // user is signed in. Both gates read the same flag.
+    expect(app).toMatch(/import \{ supabaseSessionKey \} from '\.\/lib\/supabase'/)
+    expect(app).toMatch(/import \{ browserLocalStorage, storedSessionHint \} from '\.\/lib\/storedSession'/)
+    expect(app).toMatch(/const \[storedSession\] = useState\(\(\) => storedSessionHint\(browserLocalStorage\(\), supabaseSessionKey \?\? ''\)\)/)
+    expect(app).toMatch(/const showSignedOutNav = storedSession === 'absent' \|\| ready/)
+    const pill = app.slice(app.indexOf('<PillNav activeKey={route}'), app.indexOf('</PillNav>'))
+    expect(pill).toMatch(/\{showSignedOutNav && !me && !sessionUserId && !isNative && <>/)
+    const trayAt = app.indexOf('<div className="mobile-menu"')
+    const tray = app.slice(trayAt, app.indexOf('</div>', trayAt))
+    expect(tray).toMatch(/\{showSignedOutNav && !me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
+    // The older forms are gone from both places: the ready-only gate and the unguarded gate.
+    expect(pill).not.toMatch(/\{ready && !me/)
+    expect(tray).not.toMatch(/\{ready && !me/)
+    expect(pill).not.toMatch(/\{!me && !sessionUserId && !isNative && <>/)
+    expect(tray).not.toMatch(/\{!me && !sessionUserId && <>\s*<a className=\{`nav-link \$\{route === '\/how-it-works'/)
+  })
+
+  it('moves the two added topnav items into the tray between 721px and 860px, where they would overflow', () => {
+    // Measured in the browser: beside Explore, the pair overflowed the bar by 18px at 721px,
+    // and "How it works" wrapped onto three lines. Explore stays inline in that band.
+    const collapse = source('src/styles/components/topnav-collapse.css')
+    expect(collapse).toMatch(/@media \(min-width: 721px\) and \(max-width: 860px\) \{\s*\.topnav-extra \{\s*display: none;/)
+    expect(collapse).toMatch(/\.topnav:has\(\.topnav-extra\) \.mobile-nav-btn \{\s*display: inline-flex;/)
+    // The stylesheet graph carries the rule, so the owner file is imported.
+    expect(css).toMatch(/@media \(min-width: 721px\) and \(max-width: 860px\) \{\s*\.topnav-extra \{/)
   })
 })
 

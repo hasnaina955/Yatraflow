@@ -15,7 +15,7 @@
 --   3. child collab     -- suggestions / activity: editor-or-
 --                          public read, editor write
 --   4. notifications    -- recipient-only read, recipient-or-orchestrator write
---   5. published        -- public gallery read, creator-only write
+--   5. published        -- public gallery read, verified publication writes
 --   6. trash wiring     -- per-user list/restore/purge RPCs re-check ownership,
 --                          30-day sweep only via service_role, pg_cron schedule
 --   7. capability RPCs  -- invite code / invite preview / published stats:
@@ -207,6 +207,40 @@ begin
       and cmd = 'UPDATE' and lower(coalesce(with_check, '')) like '%is_editor%'
   ) then
     raise exception 'trips update WITH CHECK drifted: must stay editor-pinned';
+  end if;
+end $$;
+
+-- Invite preview type, reader signature and client grants.
+do $$
+declare
+  v_type oid := to_regtype('public.trip_invite_preview');
+  v_reader oid := to_regprocedure('public.get_trip_by_invite_code(text)');
+  v_helper oid := to_regprocedure('public.invite_first_name(text)');
+begin
+  if v_type is null or not exists (
+    select 1 from pg_type t
+    where t.oid = v_type and t.typtype = 'c'
+      and (select count(*) from pg_attribute a
+        where a.attrelid = t.typrelid and a.attnum > 0 and not a.attisdropped) = 35
+  ) then
+    raise exception 'trip_invite_preview must be a composite type with 35 members';
+  end if;
+  if v_reader is null or not exists (
+    select 1 from pg_proc p where p.oid = v_reader and p.proretset and p.prorettype = v_type
+  ) or (select count(*) from pg_proc p
+    where p.pronamespace = 'public'::regnamespace and p.proname = 'get_trip_by_invite_code') <> 1 then
+    raise exception 'get_trip_by_invite_code(text) must be the only overload and return setof trip_invite_preview';
+  end if;
+  if v_helper is null then
+    raise exception 'invite_first_name(text) must exist';
+  end if;
+  if has_function_privilege('anon', v_helper, 'execute')
+    or has_function_privilege('authenticated', v_helper, 'execute') then
+    raise exception 'clients must not execute invite_first_name';
+  end if;
+  if not has_function_privilege('anon', v_reader, 'execute')
+    or not has_function_privilege('authenticated', v_reader, 'execute') then
+    raise exception 'clients must execute get_trip_by_invite_code';
   end if;
 end $$;
 
@@ -469,14 +503,81 @@ end $$;
 
 -- -------------------------------------------------------- 5. published gallery
 do $$
+declare
+  v_read_qual text;
+  v_fn_src text;
+  v_mint_src text;
+  v_guard_src text;
+  v_guard_trg text;
 begin
-  -- Public gallery read (any visitor); creator-only write.
-  if not exists (
+  -- Listed guide or authorized reader read; no open `using (true)` policy.
+  if exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'published_itineraries'
       and cmd = 'SELECT' and qual = 'true'
   ) then
-    raise exception 'published_itineraries SELECT must be public (Explore gallery)';
+    raise exception 'published_itineraries SELECT must not be open with using (true)';
+  end if;
+  select qual into v_read_qual from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published read' and cmd = 'SELECT';
+  if v_read_qual is null or v_read_qual not like '%can_read_publication%' then
+    raise exception 'published_itineraries SELECT must gate through can_read_publication';
+  end if;
+  if to_regprocedure('public.can_read_publication(text)') is null
+    or not exists (
+      select 1 from pg_proc p
+      where p.oid = 'public.can_read_publication(text)'::regprocedure
+        and p.prosecdef
+        and p.proconfig is not null
+        and exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%')
+    )
+    or not has_function_privilege('anon', 'public.can_read_publication(text)', 'execute')
+    or not has_function_privilege('authenticated', 'public.can_read_publication(text)', 'execute')
+    or exists (
+      select 1 from pg_proc p
+      cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+      where p.oid = 'public.can_read_publication(text)'::regprocedure and e.grantee = 0
+    ) then
+    raise exception 'can_read_publication(text) must be SECURITY DEFINER with search_path and anon+authenticated execute';
+  end if;
+  v_fn_src := pg_get_functiondef('public.can_read_publication(text)'::regprocedure);
+  if v_fn_src not like '%publication_is_listed%' or v_fn_src not like '%trip_access_level%' then
+    raise exception 'can_read_publication must check publication_is_listed and trip_access_level';
+  end if;
+  if to_regprocedure('public.create_pending_purchase_order(uuid,text,text,integer)') is null
+    or has_function_privilege('anon', 'public.create_pending_purchase_order(uuid,text,text,integer)', 'execute')
+    or has_function_privilege('authenticated', 'public.create_pending_purchase_order(uuid,text,text,integer)', 'execute')
+    or not has_function_privilege('service_role', 'public.create_pending_purchase_order(uuid,text,text,integer)', 'execute') then
+    raise exception 'create_pending_purchase_order must be service_role only';
+  end if;
+  v_mint_src := pg_get_functiondef('public.create_pending_purchase_order(uuid,text,text,integer)'::regprocedure);
+  if v_mint_src not like '%insert into public.purchase_orders%'
+    or v_mint_src like '%for no key update%'
+    or v_mint_src like '%for update%' then
+    raise exception 'create_pending_purchase_order must insert via the trigger guard without taking duplicate locks';
+  end if;
+  if to_regprocedure('public.guard_pending_purchase_order()') is null
+    or has_function_privilege('anon', 'public.guard_pending_purchase_order()', 'execute')
+    or has_function_privilege('authenticated', 'public.guard_pending_purchase_order()', 'execute') then
+    raise exception 'guard_pending_purchase_order must exist and be revoked from clients';
+  end if;
+  v_guard_src := pg_get_functiondef('public.guard_pending_purchase_order()'::regprocedure);
+  if v_guard_src not like '%for no key update%'
+    or v_guard_src not like '%clock_timestamp%'
+    or v_guard_src not like '%PT410%' then
+    raise exception 'guard_pending_purchase_order must lock with FOR NO KEY UPDATE, use clock_timestamp, and raise PT410 on failed recheck';
+  end if;
+  select pg_get_triggerdef(t.oid) into v_guard_trg
+  from pg_trigger t
+  where t.tgrelid = 'public.purchase_orders'::regclass
+    and t.tgname = 'purchase_orders_pending_guard'
+    and t.tgenabled = 'O'
+    and t.tgfoid = 'public.guard_pending_purchase_order()'::regprocedure;
+  if v_guard_trg is null
+    or v_guard_trg not like '%BEFORE INSERT%'
+    or v_guard_trg not like '%status = ''pending''%' then
+    raise exception 'purchase_orders_pending_guard must be an active BEFORE INSERT trigger for pending orders';
   end if;
   if not exists (
     select 1 from pg_policies
@@ -484,6 +585,61 @@ begin
       and cmd = 'ALL' and qual like '%creator_id%'
   ) then
     raise exception 'published_itineraries write must be creator-only';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published insert owns trip' and cmd = 'INSERT'
+      and permissive = 'RESTRICTIVE' and roles = array['authenticated']::name[]
+      and with_check like '%owner_id%auth.uid()%' and with_check like '%is_admin%'
+  ) then
+    raise exception 'publication inserts need the linked trip owner or an admin';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published update owns trip' and cmd = 'UPDATE'
+      and permissive = 'RESTRICTIVE' and roles = array['authenticated']::name[]
+      and qual like '%owner_id%auth.uid()%' and qual like '%is_admin%'
+      and with_check like '%owner_id%auth.uid()%' and with_check like '%is_admin%'
+  ) then
+    raise exception 'publication updates must check the owner of both the old and new trip';
+  end if;
+
+  if has_table_privilege('anon', 'public.published_itineraries', 'delete')
+    or has_table_privilege('authenticated', 'public.published_itineraries', 'delete')
+    or exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'published_itineraries' and cmd = 'DELETE'
+    ) then
+    raise exception 'clients cannot delete publications';
+  end if;
+  if (
+    select count(*) from pg_constraint
+    where confrelid = 'public.published_itineraries'::regclass
+      and contype = 'f' and confdeltype = 'r'
+      and ((conrelid = 'public.purchase_orders'::regclass and conname = 'purchase_orders_pub_id_fkey')
+        or (conrelid = 'public.entitlements'::regclass and conname = 'entitlements_pub_id_fkey'))
+  ) <> 2 then
+    raise exception 'purchase orders and entitlements must restrict publication deletes';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.published_itineraries'::regclass
+      and tgname = 'publication_link_guard' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_link()'::regprocedure
+  ) then
+    raise exception 'a publication must keep its original trip and creator';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.published_itineraries'::regclass
+      and tgname = 'publication_unpublished_at_guard' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_unpublished_at()'::regprocedure
+  ) then
+    raise exception 'publication withdrawal timestamp must come from the database clock';
   end if;
 end $$;
 
@@ -567,6 +723,51 @@ do $$
 begin
   if position('write_version' in pg_get_functiondef('public.get_trip_by_invite_code(text)'::regprocedure)) = 0 then
     raise exception 'get_trip_by_invite_code must return write_version (#1019)';
+  end if;
+end $$;
+
+-- Invite reads check payment. Crew access to a priced trip needs owner approval.
+do $$
+declare
+  rpc regprocedure;
+  body text;
+begin
+  foreach rpc in array array[
+    'public.get_trip_by_invite_code(text)'::regprocedure,
+    'public.get_invite_trip(uuid)'::regprocedure
+  ] loop
+    body := pg_get_functiondef(rpc);
+    if body not like '%public.trip_access_level(%'
+      or body like '%visibility = ''private''%'
+      or body like '%p.creator_id = auth.uid()%' then
+      raise exception '% does not read the one access level', rpc;
+    end if;
+  end loop;
+
+  -- The access level carries the disabled, editor, trash and buyer rules.
+  body := pg_get_functiondef('public.trip_access_level(uuid)'::regprocedure);
+  if body not like '%public.is_disabled()%'
+    or body not like '%public.is_editor(p_trip_id)%'
+    or body not like '%v_deleted is null and public.is_member(p_trip_id)%'
+    or body not like '%from public.entitlements e%'
+    or body not like '%o.refunded_paise < o.amount_inr * 100%' then
+    raise exception 'trip_access_level must keep the disabled, editor, trash and buyer rules';
+  end if;
+
+  -- The payment helper the readers used to call is gone for good.
+  if to_regprocedure('public.invite_trip_payment_allows(uuid)') is not null then
+    raise exception 'invite_trip_payment_allows must not exist';
+  end if;
+
+  body := pg_get_functiondef('public.join_trip(text)'::regprocedure);
+  if body not like '%public.trip_has_priced_publication(v_id)%'
+    or body not like '%PT403%' then
+    raise exception 'paid invite joins need approval even for buyers';
+  end if;
+
+  if (select count(*) from pg_proc where pronamespace = 'public'::regnamespace
+      and proname = 'get_trip_by_invite_code') <> 1 then
+    raise exception 'get_trip_by_invite_code must have one signature';
   end if;
 end $$;
 
@@ -1726,6 +1927,11 @@ begin
   select pg_get_functiondef('public.trips_owner_id_immutable()'::regprocedure) into v_src;
   if position('current_user not in' in v_src) = 0 then
     raise exception '#936: trips_owner_id_immutable must not exempt anon or authenticated callers that have no JWT subject';
+  end if;
+  if position('public.trip_has_publication_money(old.id)' in v_src) = 0
+    or position('public.trip_has_publication_money(old.id)' in v_src)
+       > position('current_user not in' in v_src) then
+    raise exception 'published trips cannot change owner, including through the operator path';
   end if;
 end $$;
 

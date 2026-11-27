@@ -65,15 +65,22 @@ export const OG_DESCRIPTION_MAX = 115
  *
  *  The cut keeps whole words and ends with an ellipsis, so a long trip name
  *  reads as shortened rather than broken. Text inside the budget is returned
- *  unchanged, whitespace collapsed. */
+ *  unchanged, whitespace collapsed. The budget counts UTF-16 units, and a cut
+ *  never leaves half of a surrogate pair (half of an emoji) at its end. */
 export function fitOg(text, max) {
   const line = String(text ?? '').replace(/\s+/g, ' ').trim()
   if (line.length <= max) return line
-  const room = max - 1
-  const cut = line.slice(0, room)
+  let end = max - 1
+  if (isHighSurrogate(line.charCodeAt(end - 1))) end -= 1
+  const cut = line.slice(0, end)
   const space = cut.lastIndexOf(' ')
   const head = (space > 0 ? cut.slice(0, space) : cut).replace(/[\s·,;:–—-]+$/, '')
   return `${head}…`
+}
+
+/** The first unit of an astral character (an emoji, for one): 0xD800 to 0xDBFF. */
+function isHighSurrogate(code) {
+  return code >= 0xd800 && code <= 0xdbff
 }
 
 /** A scene card with its real size, or null for every other URL.

@@ -4,7 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useS
 import { InlineIcon } from './components/icons'
 import { createPortal } from 'react-dom'
 import {
-  Bell, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
+  Bell, Calculator, CircleHelp, Compass, Import, Inbox, Luggage, Link2, Mail, Menu, Moon, Plus,
   Settings, Sparkles, Sun, Tent, X,
 } from 'lucide-react'
 import { Analytics } from '@vercel/analytics/react'
@@ -13,7 +13,9 @@ import {
   shouldBrowserNotify,
 } from './lib/browserNotifications'
 import type { Notification, Trip } from './data/types'
-import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublished, useSessionUserId, useIdentityGeneration, captureJoinRequestScope, useSliceReads, logout, markAllNotificationsRead, tripById, joinViaInvite, reloadJoinedTrip, importTripPersisted, retryImportTrip, init, resumeSync, useStoreReady, readSharedTrip, fetchTripByInviteCode, viewerIsMemberOf, collectUnclaimedCovers } from './store/store'
+import type { InvitePreviewIdentity } from './lib/inviteLookup'
+import { requestTripJoin } from './lib/joinRequests'
 import { authNext } from './lib/authNext'
 import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
 import { BottomNav } from './components/BottomNav'
@@ -23,7 +25,8 @@ import { PillNav } from './components/PillNav'
 import { decodeTripSnapshot } from './lib/snapshot'
 import { analyticsBeforeSend } from './lib/analyticsPrivacy'
 import { scrollBehavior } from './lib/motion'
-import { pageMeta, routeParts } from './lib/pageTitle'
+import { canonicalPath, isPrivateRoute, pageMeta, routeParts } from './lib/pageTitle'
+import { PUBLIC_ORIGIN } from './lib/shareUrl'
 import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath } from './lib/routes'
 import { stashCalcPrefillFromSearch } from './lib/calcPrefill'
 import { normalizeInviteCode, inviteRoute } from './lib/inviteCode'
@@ -36,6 +39,8 @@ import { currentQuery, currentRoute, navigate as navigateRoute, onRouteChange, r
 import { appLink } from './lib/appLink'
 import { App as CapApp } from '@capacitor/app'
 import { isNative } from './lib/native'
+import { supabaseSessionKey } from './lib/supabase'
+import { browserLocalStorage, storedSessionHint } from './lib/storedSession'
 import { apkUpdateCheck, bootApkUpdates } from './lib/apkUpdateRuntime'
 import { feedbackHref } from './lib/feedback'
 import { setTheme, useTheme } from './lib/theme'
@@ -45,7 +50,7 @@ import { StateBlock } from './components/page/StateBlock'
 import { PageHeader } from './components/page/PageHeader'
 import { Mascot } from './components/mascot/Mascot'
 import { LandingPage } from './pages/Landing'
-import { NativeHomePage } from './pages/NativeHome'
+import { NativeHomePage, NativeHomeStartupPage } from './pages/NativeHome'
 import {
   sharedSnapshotState, inviteGateState, gateMachine, dispatchGateEvent, setGateOwner, ownedBy, disposeGateMount,
   subscribeGateState, gateMachineVersion,
@@ -136,8 +141,10 @@ export function profileLookupState(
 const GUEST_ROUTE_SEGMENTS = new Set(['pub', 'creator', 'explore', 'creators', 'for-creators'])
 
 /** Routes that are static copy: they read no store data, so they paint before
- *  the hydrate settles instead of showing the loading block. */
-const STATIC_COPY_SEGMENTS = new Set(['faq', 'how-it-works'])
+ *  the hydrate settles instead of showing the loading block. The build prerenders
+ *  these four pages (scripts/prerender-static-pages.mjs), so the loader must not
+ *  replace their text after boot. */
+const STATIC_COPY_SEGMENTS = new Set(['faq', 'how-it-works', 'about', 'for-creators'])
 
 /** Whether the profile lookup takes the page from the route. A failed lookup takes it on the
  *  bare route too, so its Try again is never hidden behind the landing. A reading lookup does
@@ -554,19 +561,27 @@ export default function App() {
         tag.setAttribute('content', original)
       }
     }
-    // A page with its own copy is its own canonical. Without this the shell's
-    // canonical (the homepage) tells a crawler to fold /faq into '/', while the
-    // sitemap lists it as a page of its own.
+    // The canonical names this route's own address, and only the home page and the
+    // copy pages name one. The shell ships no canonical (every route would inherit
+    // the homepage's), so the link is created here when a route needs it and
+    // removed when it does not (#1042). The origin is the production origin, so a
+    // preview never names itself.
+    const canonicalTo = canonicalPath(routeParts(route))
     const canonical = document.querySelector('link[rel="canonical"]')
-    if (canonical) {
-      const original = canonical.getAttribute('data-site-canonical')
-      if (meta.description) {
-        if (original === null) canonical.setAttribute('data-site-canonical', canonical.getAttribute('href') ?? '')
-        const base = new URL(original ?? canonical.getAttribute('href') ?? '/', location.origin).origin
-        canonical.setAttribute('href', `${base}/${routeParts(route).join('/')}`)
-      } else if (original !== null) {
-        canonical.setAttribute('href', original)
-      }
+    if (canonicalTo !== null) {
+      const link = canonical ?? document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'canonical' }))
+      link.setAttribute('href', `${PUBLIC_ORIGIN}${canonicalTo}`)
+    } else {
+      canonical?.remove()
+    }
+    // Private pages are noindex. The server sends the same header for these paths
+    // (vercel.json), so a crawler that does not run script sees it too.
+    const robotsTag = document.querySelector('meta[name="robots"]')
+    if (isPrivateRoute(routeParts(route))) {
+      const robots = robotsTag ?? document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
+      robots.setAttribute('content', 'noindex')
+    } else {
+      robotsTag?.remove()
     }
   }, [route])
 
@@ -582,6 +597,13 @@ export default function App() {
   // exactly what the post-gate frame would be, instead of a spinner that
   // swaps to the full page (the landing load shift, Lighthouse CLS 0.997).
   const ready = useStoreReady()
+  // Two paths show the signed-out nav, and both are needed. With no stored session,
+  // the reader is signed out for certain, so the items show at once. With a stored
+  // session, the reader may be signed in. A reload would show the items before
+  // hydrate reads the session, so they wait for `ready`, and then show only when no
+  // user is signed in. The hint is read once at mount.
+  const [storedSession] = useState(() => storedSessionHint(browserLocalStorage(), supabaseSessionKey ?? ''))
+  const showSignedOutNav = storedSession === 'absent' || ready
 
   // A signed-out visitor who opens the create route goes to signup and comes
   // back to it once the account exists. This route used to render the landing
@@ -632,7 +654,8 @@ export default function App() {
   // unconditional, so every launch flashed the marketing landing + its
   // website chrome before NativeHome arrived.
   if (!ready && parts[0] !== 'auth' && parts[0] !== 'share' && !STATIC_COPY_SEGMENTS.has(parts[0] ?? '') && (!bareRoute || isNative)) {
-    page = lazyRouteFallback
+    if (isNative && bareRoute) page = <NativeHomeStartupPage />
+    else page = lazyRouteFallback
   } else if (parts[0] === 'share' && parts[1]) {
     page = <SharedTripPage payload={parts[1]} onNavigate={navigate} />
   } else if (parts[0] === 'join' && parts[1]) {
@@ -813,6 +836,15 @@ export default function App() {
               <a className={`nav-link ${route === CREATE_PATH ? 'active' : ''}`} data-pill-key={CREATE_PATH} {...appLink(CREATE_PATH)}>Plan a trip</a>
             </>}
             <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} data-pill-key="/explore" {...appLink('/explore')}>Explore</a>
+            {/* Signed-out web only. showSignedOutNav decides when these items may show.
+                The rest of the gate matches the Log in buttons below. */}
+            {showSignedOutNav && !me && !sessionUserId && !isNative && <>
+              <a className={`nav-link topnav-extra ${route === '/how-it-works' ? 'active' : ''}`} data-pill-key="/how-it-works" {...appLink('/how-it-works')}>How it works</a>
+              {/* The calculator hub is a static page outside the router. A plain href
+                  has no pill key, so the glider never measures it. The topnav-extra
+                  class moves both items into the tray between 721px and 860px. */}
+              <a className="nav-link topnav-extra" href="/trip-cost-calculators/">Calculators</a>
+            </>}
             {me?.profile.isCreator && (
               <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} data-pill-key="/creator-hub" {...appLink('/creator-hub')}>Creator hub</a>
             )}
@@ -921,6 +953,11 @@ export default function App() {
           </>
           }
           <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>
+          {/* The same two signed-out items as the topnav. The tray is web-only already. */}
+          {showSignedOutNav && !me && !sessionUserId && <>
+            <a className={`nav-link ${route === '/how-it-works' ? 'active' : ''}`} {...appLink('/how-it-works')}><InlineIcon icon={CircleHelp} size={15} gap={6} />How it works</a>
+            <a className="nav-link" href="/trip-cost-calculators/"><InlineIcon icon={Calculator} size={15} gap={6} />Calculators</a>
+          </>}
           {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('/creator-hub')}><InlineIcon icon={Sparkles} size={15} gap={6} />Creator hub</a>}
           {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
         </div>
@@ -944,17 +981,54 @@ export default function App() {
         <div className="route-panel" key={routePanelKey}>{page}</div>
       </main>
 
-      <footer className="footer">
-        <svg className="footer-route-mark" viewBox="0 0 120 14" aria-hidden="true" focusable="false">
-          <path d="M3 5.5C9 2 16 2 22 5.5S35 9 41 5.5S54 2 60 5.5S73 9 79 5.5S92 2 98 5.5S111 9 117 5.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="3 3" />
-          <circle cx="3" cy="5.5" r="3" fill="currentColor" />
-          <circle cx="117" cy="5.5" r="3" fill="currentColor" />
-        </svg>
-        <div className="container footer-inner">
-          <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
-          <span className="small muted">All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks. <a className="footer-link" {...appLink('/about')}>About YatraFlow</a> · <a className="footer-link" href={feedbackHref()}>Send feedback</a> · <a className="footer-link" {...appLink('/how-it-works')}>How it works</a> · <a className="footer-link" {...appLink('/faq')}>FAQ</a> · <a className="footer-link" href="/trip-cost-calculators/">Free trip cost calculators</a> · <a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh</a> · <a className="footer-link" {...appLink('/for-creators')}>For travel creators</a></span>
-        </div>
-      </footer>
+      {/* Website chrome is web-only, on the same rule as the topnav above
+          and the bottom bar below: the installed app keeps no marketing
+          footer, so the native Day view ends at the page. */}
+      {!isNative && (
+        <footer className="footer">
+          <svg className="footer-route-mark" viewBox="0 0 120 14" aria-hidden="true" focusable="false">
+            <path d="M3 5.5C9 2 16 2 22 5.5S35 9 41 5.5S54 2 60 5.5S73 9 79 5.5S92 2 98 5.5S111 9 117 5.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="3 3" />
+            <circle cx="3" cy="5.5" r="3" fill="currentColor" />
+            <circle cx="117" cy="5.5" r="3" fill="currentColor" />
+          </svg>
+          <div className="container footer-inner footer-layout">
+            <div className="footer-brand">
+              <span><b>YatraFlow</b>: plan together, travel better. Built for Indian travellers</span>
+              <span className="small muted">All costs are transparent estimates. No bookings. Planning plus paid itinerary unlocks.</span>
+            </div>
+            <nav className="footer-groups" aria-label="Footer">
+              <div className="footer-group">
+                <h2 className="footer-group-title">Plan</h2>
+                <ul className="footer-group-list">
+                  {/* The calculator hub and the Ladakh page are static pages, so they are plain hrefs and web-only. */}
+                  {!isNative && <li><a className="footer-link" href="/trip-cost-calculators/">Trip cost calculators</a></li>}
+                  {!isNative && <li><a className="footer-link" href="/ladakh-trip-cost-calculator/">Ladakh trip cost calculator</a></li>}
+                  <li><a className="footer-link" {...appLink('/how-it-works')}>How it works</a></li>
+                </ul>
+              </div>
+              <div className="footer-group">
+                <h2 className="footer-group-title">Help</h2>
+                <ul className="footer-group-list">
+                  <li><a className="footer-link" {...appLink('/faq')}>FAQ</a></li>
+                  <li><a className="footer-link" href={feedbackHref()}>Send feedback</a></li>
+                </ul>
+              </div>
+              <div className="footer-group">
+                <h2 className="footer-group-title">Creators</h2>
+                <ul className="footer-group-list">
+                  <li><a className="footer-link" {...appLink('/for-creators')}>For travel creators</a></li>
+                </ul>
+              </div>
+              <div className="footer-group">
+                <h2 className="footer-group-title">Company</h2>
+                <ul className="footer-group-list">
+                  <li><a className="footer-link" {...appLink('/about')}>About YatraFlow</a></li>
+                </ul>
+              </div>
+            </nav>
+          </div>
+        </footer>
+      )}
 
       {/* The shell's primary navigation - same platform gate as the shell home
           above (isNative && me), so the website never renders it. It replaces
@@ -963,7 +1037,7 @@ export default function App() {
           Creator hub tab for a creator, or the relocated controls on Profile.
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
-      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} />}
+      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}
 
       <ToastZone />
       {/* Web Analytics is a web concern: the Capacitor shell has no Vercel
@@ -1096,6 +1170,81 @@ function SharedTripPage({ payload, onNavigate }: { payload: string; onNavigate: 
   )
 }
 
+/** D4 — a priced trip's invite. The visitor asks the owner, and nothing joins
+ *  them until the owner approves. Signed out, the screen asks for a sign-in
+ *  first. Sending, sent and failed are separate states, so a failed request never
+ *  reads as one still in flight. */
+function ApprovalAsk({ code, signedIn, onNavigate }: { code: string; signedIn: boolean; onNavigate: (route: string) => void }) {
+  const [sent, setSent] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const attempt = useRef(0)
+  useEffect(() => () => { attempt.current = 0 }, [])
+  const send = () => {
+    const scope = captureJoinRequestScope()
+    if (!scope) return
+    const id = nextAttemptId()
+    attempt.current = id
+    setSent('sending')
+    void requestTripJoin(code, scope).then(r => {
+      if (attempt.current !== id || !scope.live() || r.kind === 'cancelled') return
+      setSent(r.kind === 'ok' ? 'sent' : 'failed')
+    })
+  }
+  if (!signedIn) {
+    return (
+      <div className="container yf-page page-enter inv-screen">
+        <StateBlock
+          kind="empty"
+          art={<Link2 size={38} aria-hidden />}
+          title="Owner approval needed"
+          body="Sign in, then ask the trip owner to let you in."
+          actions={<a className="btn btn-primary" {...appLink(`/auth?next=${encodeURIComponent(`/join/${code}`)}`)}>Sign in</a>}
+        />
+      </div>
+    )
+  }
+  if (sent === 'sent') {
+    // Its own key: the sent screen mounts as a new tree, so "Go home" is a new
+    // button. Without it, React reuses the "Ask to join" button node and the
+    // primary colour morphs into the outline style for the first 160 ms.
+    return (
+      <div key="sent" className="container yf-page page-enter inv-screen">
+        <StateBlock
+          kind="kept"
+          art={<Link2 size={38} aria-hidden />}
+          title="Request sent"
+          body="The owner has your request. You join the trip once they approve it."
+          actions={<button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>}
+        />
+      </div>
+    )
+  }
+  if (sent === 'failed') {
+    return (
+      <div className="container yf-page page-enter inv-screen">
+        <StateBlock
+          kind="failed"
+          art={<Link2 size={38} aria-hidden />}
+          title="Couldn’t send the request"
+          body="Check your connection, then try again. Nothing was sent to the owner."
+          actions={<button className="btn btn-primary" onClick={send}>Try again</button>}
+        />
+      </div>
+    )
+  }
+  const sending = sent === 'sending'
+  return (
+    <div className="container yf-page page-enter inv-screen">
+      <StateBlock
+        kind={sending ? 'loading' : 'empty'}
+        art={<Link2 size={38} aria-hidden />}
+        title={sending ? 'Sending your request' : 'Owner approval needed'}
+        body={sending ? 'This takes a moment.' : 'This trip is priced, so its owner decides who joins. Ask to join, and the owner will see your request.'}
+        actions={<button className="btn btn-primary" onClick={send} disabled={sending}>{sending ? 'Sending…' : 'Ask to join'}</button>}
+      />
+    </div>
+  )
+}
+
 /**
  * Invite links land here: resolve the code, require login, then join the trip
  * and open it. Accepts a short invite code ("GOA-K7QF", #/join/<code>) or a
@@ -1114,7 +1263,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // membership-scoped hydration never loaded it - fetch it on demand. The
   // RPC fallback covers private trips: holding the link (the trip's UUID)
   // is the capability to preview it.
-  const [resolved, setResolved] = useState<{ target: string; identityGen: number; trip: Trip | null } | null>(null)
+  const [resolved, setResolved] = useState<{ target: string; identityGen: number; trip: Trip | null; preview: InvitePreviewIdentity | null } | null>(null)
   // #804 (B1) — 'joined-unloaded' and 'join-failed' are distinct outcomes of a
   // join, kept apart from 'broken' (the link read failed) and 'retired' (a
   // trip-id link for a non-member). Each offers a different remedy.
@@ -1122,7 +1271,7 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   // trip and the join machine owns everything from there (B2).
   // #1019 — 'dead' means no trip has this code (the dead-link copy). 'broken'
   // means the read itself failed (the retry screen). The two never share a screen.
-  const [status, setStatus] = useState<'loading' | 'broken' | 'dead' | 'retired' | 'ready'>('loading')
+  const [status, setStatus] = useState<'loading' | 'broken' | 'dead' | 'retired' | 'ready' | 'approval'>('loading')
   const [retryTick, setRetryTick] = useState(0)
   // The confirmation step. A valid invite no longer joins anyone the moment the
   // page loads: the signed-in reader sees the facts and one button, and the
@@ -1201,6 +1350,9 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
   const identityGen = useIdentityGeneration()
   const currentRead = resolved?.target === linkTarget && resolved.identityGen === identityGen ? resolved : null
   const shownTrip = currentRead?.trip ?? null
+  // The preview's name and role, when the code read carried them. They are not
+  // fields of the trip on purpose (#1012), so they travel beside it.
+  const preview = currentRead?.preview ?? null
   const currentStatus = currentRead ? status : 'loading'
   // Membership is a fact of the row the gate holds. When it is true the screen
   // offers the plan itself instead of a join.
@@ -1216,7 +1368,11 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
     days: shownTrip?.days?.length ?? null,
     stops: invitesStopCount(shownTrip?.days),
     perPersonBudget: shownTrip?.budgetPerPersonInr ?? null,
-    role: shownTrip?.inviteRole ?? null,
+    // Both come from the preview RPC (20261126c_invite_preview_projection.sql).
+    // Before that migration is applied the row carries neither, and the copy
+    // falls back to its anonymous wording.
+    ownerFirstName: preview?.ownerFirstName ?? null,
+    role: preview?.inviteRole ?? null,
     paidGuidePrice,
   }
 
@@ -1241,10 +1397,14 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
       // was unreachable. The read succeeded, so the gate says ready and the join
       // machine drives from there.
       if (result.kind === 'cancelled') return
-      if (result.kind === 'found') { setResolved({ target: linkTarget, identityGen, trip: result.trip }); setStatus('ready') }
-      else {
-        setResolved({ target: linkTarget, identityGen, trip: null })
-        setStatus(result.kind === 'unavailable' ? 'retired' : result.kind === 'dead' ? 'dead' : 'broken')
+      if (result.kind === 'found') {
+        // Only the code read carries the trip owner's name and the link's role; a
+        // trip-id link answers with a full shared read, which has neither.
+        const preview = 'preview' in result ? result.preview : null
+        setResolved({ target: linkTarget, identityGen, trip: result.trip, preview }); setStatus('ready')
+      } else {
+        setResolved({ target: linkTarget, identityGen, trip: null, preview: null })
+        setStatus(result.kind === 'unavailable' ? 'retired' : result.kind === 'dead' ? 'dead' : result.kind === 'approval-needed' ? 'approval' : 'broken')
       }
     })
     return () => { alive = false }
@@ -1389,6 +1549,10 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
 
   // #1019 — no trip has this code. The copy is split into a title and a body; read
   // together they are the dead-link copy word for word.
+  if (currentStatus === 'approval') {
+    return <ApprovalAsk key={`${linkTarget}:${identityGen}`} code={linkTarget} signedIn={!!db.sessionUserId} onNavigate={onNavigate} />
+  }
+
   if (currentStatus === 'dead') {
     // The dead-link screen. The owner's name is not known here (nothing
     // resolved), so the copy falls back to whoever shared it, and the code box
@@ -1510,6 +1674,20 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
               <button className="btn btn-outline" onClick={() => onNavigate('/trips')}>Go to My trips</button>
             </div>
           )}
+        />
+      </div>
+    )
+  }
+
+  if (phase === 'failed' && machine.reason === 'owner-approval') {
+    return (
+      <div className="container yf-page page-enter">
+        <StateBlock
+          kind="failed"
+          art={<Link2 size={38} aria-hidden />}
+          title="Owner approval needed"
+          body="Contact the trip owner about crew access."
+          actions={<button className="btn btn-outline" onClick={() => onNavigate('/')}>Go home</button>}
         />
       </div>
     )
@@ -1669,6 +1847,8 @@ function InviteGate({ codeOrTripId, onNavigate }: { codeOrTripId: string; onNavi
           <ol className="inv-next">
             {copy.nextSteps.map(step => <li key={step}>{step}</li>)}
           </ol>
+          {/* A query, not a fragment, so the native shell routes it like any other page. */}
+          <a className="inv-quiet-link" {...appLink(copy.faqHref)}>{copy.faqLabel} →</a>
         </section>
       </div>
     )

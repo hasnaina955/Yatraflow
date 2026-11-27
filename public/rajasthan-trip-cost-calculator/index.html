@@ -57,7 +57,7 @@
       "name": "How much does a 7-day Rajasthan trip cost for 4 people?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "With the default settings here, four people on the full Jaipur–Jodhpur–Jaisalmer–Udaipur circuit in a haveli with local thalis, driving their own car, the calculator lands near ₹15,800 to ₹25,800 per person. That is ₹63,200 to ₹1,03,200 for the group. A car with a driver adds to that, and it takes the driving fatigue out. Two people instead of four pushes the per-person figure up because the car and the rooms are shared between fewer people."
+        "text": "With the default settings here, four people on the full Jaipur–Jodhpur–Jaisalmer–Udaipur circuit in a haveli with local thalis, driving their own car, the calculator lands near ₹15,100 to ₹25,100 per person. That is ₹60,300 to ₹1,00,300 for the group. A car with a driver adds to that, and it takes the driving fatigue out. Two people instead of four pushes the per-person figure up because the car and the rooms are shared between fewer people."
       }
     },
     {
@@ -73,7 +73,7 @@
       "name": "Is it cheaper to drive, take a car with a driver, or go by train?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Driving your own car is the cheapest on paper, because you pay for fuel and tolls and nothing else. A car with a driver costs the most, but it includes fuel and tolls and removes 2,000 km of driving from your group. The train looks cheap until you add the local cabs at both ends, which is why the train option here prices them together. Switch the Getting around option and compare the totals, not the headline rate."
+        "text": "Driving your own car is the cheapest on paper, because you pay for fuel and tolls and nothing else. A car with a driver costs the most, but it includes fuel and tolls and removes 1,500 km of driving from your group. The train looks cheap until you add the local cabs at both ends, which is why the train option here prices them together. Switch the Getting around option and compare the totals, not the headline rate."
       }
     },
     {
@@ -81,7 +81,7 @@
       "name": "Do I need a permit for Rajasthan?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "No. There are no permits or tourism registrations for a domestic Rajasthan circuit. You pay monument entry tickets, and that is the only government fee involved. Unlike Ladakh or Meghalaya, nothing here needs an online registration before you travel."
+        "text": "No. There are no permits or tourism registrations for a domestic Rajasthan circuit. You pay monument entry tickets and, in your own car, highway tolls. Nothing here needs an online registration before you travel."
       }
     },
     {
@@ -108,7 +108,7 @@
 
     <section class="panel summary" id="summary" aria-label="Estimate at a glance">
       <div data-hero><!--gen:hero-->
-<p class="who">Per person</p><p class="big"><span class="amt">₹15,800</span> – <span class="amt">₹25,800</span></p><p class="group"><span class="amt">₹63,200</span> – <span class="amt">₹1,03,200</span> for 4 people</p>
+<p class="who">Per person</p><p class="big"><span class="amt">₹15,100</span> – <span class="amt">₹25,100</span></p><p class="group"><span class="amt">₹60,300</span> – <span class="amt">₹1,00,300</span> for 4 people</p>
 <!--/gen:hero--></div>
       <a class="jump" href="#result">See the breakdown</a>
     </section>
@@ -123,11 +123,11 @@
             <label class="card-opt"><input type="radio" name="route" value="desert-4"><span class="body"><b>Desert loop</b><span class="meta">Jaipur–Jodhpur–Jaisalmer · 4 days</span></span></label>
             <label class="card-opt"><input type="radio" name="route" value="custom"><span class="body"><b>Custom</b><span class="meta">Your km, your days</span></span></label>
           </div>
-          <p class="hint" id="routeHint">The classic winter loop, about 2,000 km of driving across the four cities.</p>
+          <p class="hint" id="routeHint">The classic winter loop across the four cities, about 1,500 km with the local sightseeing drives.</p>
           <div class="row three" id="routeRow">
             <div class="field" id="kmField">
               <label for="km">Distance, km</label>
-              <input type="number" id="km" inputmode="numeric" min="0" step="50" value="2000" placeholder="2000" aria-describedby="m-km">
+              <input type="number" id="km" inputmode="numeric" min="0" step="50" value="1500" placeholder="1500" aria-describedby="m-km">
               <p class="msg" id="m-km" hidden></p>
             </div>
             <div class="field">
@@ -163,7 +163,7 @@
               <label class="opt"><input type="radio" name="g-transport" value="suv-driver"><span>SUV with driver</span></label>
               <label class="opt"><input type="radio" name="g-transport" value="train"><span>Train + cabs</span></label>
           </div>
-          <p class="hint" style="margin-top:8px">A 2,000 km circuit is a real drive. A car with a driver costs the most but removes the fatigue.</p>
+          <p class="hint" style="margin-top:8px">A 1,500 km circuit is a real drive. A car with a driver costs the most but removes the fatigue.</p>
         </fieldset>
         <fieldset>
           <legend>Stay</legend>
@@ -200,11 +200,11 @@
               </div>
               <div class="field">
                 <label for="fuel">Fuel price</label>
-                <div class="adorn post"><input type="number" id="fuel" inputmode="decimal" min="0" step="1" value="105" aria-describedby="m-fuel"><span aria-hidden="true">₹/L</span></div>
+                <div class="adorn post"><input type="number" id="fuel" inputmode="decimal" min="0" step="1" value="113" aria-describedby="m-fuel"><span aria-hidden="true">₹/L</span></div>
                 <p class="msg" id="m-fuel" hidden></p>
               </div>
             </div>
-            <p class="hint">Mileage and pump price for the car you would drive. Toll is counted on its own line.</p>
+            <p class="hint">Mileage and the Jaipur pump price for the car you would drive. Toll is counted on its own line.</p>
           </fieldset>
           <fieldset>
             <legend>Highway tolls, for the whole car <a class="tag asm" href="#src-assume">assumption</a></legend>
@@ -232,11 +232,11 @@
               </div>
               <div class="field">
                 <label for="suvHigh">High</label>
-                <div class="adorn pre"><span aria-hidden="true">₹</span><input type="number" id="suvHigh" inputmode="numeric" min="0" step="100" value="5500" aria-describedby="m-suvHigh"></div>
+                <div class="adorn pre"><span aria-hidden="true">₹</span><input type="number" id="suvHigh" inputmode="numeric" min="0" step="100" value="6500" aria-describedby="m-suvHigh"></div>
                 <p class="msg" id="m-suvHigh" hidden></p>
               </div>
             </div>
-            <p class="hint">An Innova-class car with a driver, fuel and tolls included. Driver food and stay are usually settled separately at the end.</p>
+            <p class="hint">An Innova-class car with a driver, fuel and tolls included. Week-long operator quotes run about ₹5,400–₹7,800 a day; check the km cap. Driver food and stay are usually settled separately at the end.</p>
           </fieldset>
           <fieldset>
             <legend>Train fare, per person <a class="tag asm" href="#src-assume">assumption</a></legend>
@@ -271,7 +271,7 @@
             <p class="hint">Station to hotel and the fort hops. The long intercity hops are on the train line.</p>
           </fieldset>
           <fieldset>
-            <legend>Monument entry tickets, per person <a class="tag src" href="#src-asi">sourced</a></legend>
+            <legend>Monument entry tickets, per person <a class="tag src" href="#src-tickets">sourced</a></legend>
             <div class="row">
               <div class="field">
                 <label for="entriesLow">Low</label>
@@ -354,12 +354,12 @@
       <section class="panel result" id="result" aria-labelledby="resultTitle">
         <h2 id="resultTitle">Your estimate</h2>
         <div data-hero><!--gen:hero-->
-<p class="who">Per person</p><p class="big"><span class="amt">₹15,800</span> – <span class="amt">₹25,800</span></p><p class="group"><span class="amt">₹63,200</span> – <span class="amt">₹1,03,200</span> for 4 people</p>
+<p class="who">Per person</p><p class="big"><span class="amt">₹15,100</span> – <span class="amt">₹25,100</span></p><p class="group"><span class="amt">₹60,300</span> – <span class="amt">₹1,00,300</span> for 4 people</p>
 <!--/gen:hero--></div>
         <p class="note warn" id="fuelNote" hidden>Fuel is not counted yet. Enter a mileage to add it.</p>
         <ul class="break" id="breakdown">
 <!--gen:breakdown-->
-<li><span class="cat">Fuel (own car)</span><span class="val"><span class="amt">₹15,000</span></span><span class="bar" aria-hidden="true"><i class="lo" data-k="fuel-lo" style="width:27.8%"></i></span></li>
+<li><span class="cat">Fuel (own car)</span><span class="val"><span class="amt">₹12,100</span></span><span class="bar" aria-hidden="true"><i class="lo" data-k="fuel-lo" style="width:22.4%"></i></span></li>
 <li><span class="cat">Highway tolls (own car)</span><span class="val"><span class="amt">₹1,000</span> – <span class="amt">₹2,200</span></span><span class="bar" aria-hidden="true"><i class="lo" data-k="tolls-lo" style="width:1.9%"></i><i class="hi" data-k="tolls-hi" style="width:2.2%"></i></span></li>
 <li><span class="cat">Fort and monument tickets</span><span class="val"><span class="amt">₹2,800</span> – <span class="amt">₹6,400</span></span><span class="bar" aria-hidden="true"><i class="lo" data-k="entries-lo" style="width:5.2%"></i><i class="hi" data-k="entries-hi" style="width:6.7%"></i></span></li>
 <li class="off"><span class="cat">Desert camp night</span><span class="val">Not included, add a night in the dunes</span></li>
@@ -371,19 +371,19 @@
         <p class="legend"><b>Solid bar</b> is the low figure. <b>Striped bar</b> is the extra up to the high figure.</p>
         <p class="honest">These are planning estimates built from the sources and assumptions listed below. They are not quotes. Amounts are rounded to the nearest ₹100.</p>
         <div class="actions">
-          <a class="cta" id="cta" href="https://www.yatraflow.in/new?ref=calculator&amp;calc=rajasthan&amp;dest=Rajasthan&amp;days=7&amp;people=4&amp;mode=car&amp;stay=comfort&amp;budget=20800">Plan this trip with your group</a>
-          <a class="share" id="wa" href="https://wa.me/?text=Rajasthan%20trip%2C%207%20days%2C%204%20people%3A%20%E2%82%B915%2C800%20%E2%80%93%20%E2%82%B925%2C800%20per%20person%2C%20%E2%82%B963%2C200%20%E2%80%93%20%E2%82%B91%2C03%2C200%20for%20the%20group.%20Planning%20estimate%20from%20YatraFlow.%20Work%20out%20yours%3A%20https%3A%2F%2Fwww.yatraflow.in%2Frajasthan-trip-cost-calculator%2F" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><path d="M12.04 2C6.6 2 2.2 6.4 2.2 11.84a9.78 9.78 0 0 0 1.34 4.94L2 22l5.36-1.4a9.9 9.9 0 0 0 4.68 1.19h.01c5.43 0 9.84-4.4 9.84-9.84S17.47 2 12.04 2Zm0 17.97a8.2 8.2 0 0 1-4.16-1.14l-.3-.18-3.09.81.83-3.02-.19-.31a8.13 8.13 0 0 1-1.25-4.3c0-4.5 3.67-8.16 8.17-8.16a8.16 8.16 0 0 1 0 16.3Zm4.48-6.11c-.25-.12-1.46-.72-1.68-.8-.23-.09-.39-.13-.55.12-.16.25-.63.8-.78.96-.14.16-.29.18-.53.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.22-1.46-1.36-1.7-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.44.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.41.06-.63.31-.21.25-.82.8-.82 1.96s.84 2.27.96 2.43c.12.16 1.65 2.52 4 3.53.56.24 1 .38 1.34.49.56.18 1.07.15 1.48.09.45-.07 1.46-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.22-.16-.47-.28Z"/></svg>Share estimate on WhatsApp</a>
+          <a class="cta" id="cta" href="https://www.yatraflow.in/new?ref=calculator&amp;calc=rajasthan&amp;dest=Rajasthan&amp;days=7&amp;people=4&amp;mode=car&amp;stay=comfort&amp;budget=20100">Plan this trip with your group</a>
+          <a class="share" id="wa" href="https://wa.me/?text=Rajasthan%20trip%2C%207%20days%2C%204%20people%3A%20%E2%82%B915%2C100%20%E2%80%93%20%E2%82%B925%2C100%20per%20person%2C%20%E2%82%B960%2C300%20%E2%80%93%20%E2%82%B91%2C00%2C300%20for%20the%20group.%20Planning%20estimate%20from%20YatraFlow.%20Work%20out%20yours%3A%20https%3A%2F%2Fwww.yatraflow.in%2Frajasthan-trip-cost-calculator%2F" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><path d="M12.04 2C6.6 2 2.2 6.4 2.2 11.84a9.78 9.78 0 0 0 1.34 4.94L2 22l5.36-1.4a9.9 9.9 0 0 0 4.68 1.19h.01c5.43 0 9.84-4.4 9.84-9.84S17.47 2 12.04 2Zm0 17.97a8.2 8.2 0 0 1-4.16-1.14l-.3-.18-3.09.81.83-3.02-.19-.31a8.13 8.13 0 0 1-1.25-4.3c0-4.5 3.67-8.16 8.17-8.16a8.16 8.16 0 0 1 0 16.3Zm4.48-6.11c-.25-.12-1.46-.72-1.68-.8-.23-.09-.39-.13-.55.12-.16.25-.63.8-.78.96-.14.16-.29.18-.53.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.22-1.46-1.36-1.7-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.44.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.41.06-.63.31-.21.25-.82.8-.82 1.96s.84 2.27.96 2.43c.12.16 1.65 2.52 4 3.53.56.24 1 .38 1.34.49.56.18 1.07.15 1.48.09.45-.07 1.46-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.22-.16-.47-.28Z"/></svg>Share estimate on WhatsApp</a>
         </div>
         <p class="keeps">This page's link keeps your numbers, so you can copy it from the address bar. Everything here is free and needs no signup.</p>
       </section>
     </div>
-    <p class="sr-only" role="status" id="status"><!--gen:status-->Estimate ₹15,800 – ₹25,800 per person, ₹63,200 – ₹1,03,200 for 4 people.<!--/gen:status--></p>
+    <p class="sr-only" role="status" id="status"><!--gen:status-->Estimate ₹15,100 – ₹25,100 per person, ₹60,300 – ₹1,00,300 for 4 people.<!--/gen:status--></p>
 
     <section class="below" aria-labelledby="faqTitle">
       <h2 id="faqTitle">Questions about Rajasthan trip costs</h2>
       <details class="faq">
         <summary>How much does a 7-day Rajasthan trip cost for 4 people?</summary>
-        <p>With the default settings here, four people on the full Jaipur–Jodhpur–Jaisalmer–Udaipur circuit in a haveli with local thalis, driving their own car, the calculator lands near ₹15,800 to ₹25,800 per person. That is ₹63,200 to ₹1,03,200 for the group. A car with a driver adds to that, and it takes the driving fatigue out. Two people instead of four pushes the per-person figure up because the car and the rooms are shared between fewer people.</p>
+        <p>With the default settings here, four people on the full Jaipur–Jodhpur–Jaisalmer–Udaipur circuit in a haveli with local thalis, driving their own car, the calculator lands near ₹15,100 to ₹25,100 per person. That is ₹60,300 to ₹1,00,300 for the group. A car with a driver adds to that, and it takes the driving fatigue out. Two people instead of four pushes the per-person figure up because the car and the rooms are shared between fewer people.</p>
       </details>
       <details class="faq">
         <summary>What costs do groups usually forget in Rajasthan?</summary>
@@ -391,11 +391,11 @@
       </details>
       <details class="faq">
         <summary>Is it cheaper to drive, take a car with a driver, or go by train?</summary>
-        <p>Driving your own car is the cheapest on paper, because you pay for fuel and tolls and nothing else. A car with a driver costs the most, but it includes fuel and tolls and removes 2,000 km of driving from your group. The train looks cheap until you add the local cabs at both ends, which is why the train option here prices them together. Switch the Getting around option and compare the totals, not the headline rate.</p>
+        <p>Driving your own car is the cheapest on paper, because you pay for fuel and tolls and nothing else. A car with a driver costs the most, but it includes fuel and tolls and removes 1,500 km of driving from your group. The train looks cheap until you add the local cabs at both ends, which is why the train option here prices them together. Switch the Getting around option and compare the totals, not the headline rate.</p>
       </details>
       <details class="faq">
         <summary>Do I need a permit for Rajasthan?</summary>
-        <p>No. There are no permits or tourism registrations for a domestic Rajasthan circuit. You pay monument entry tickets, and that is the only government fee involved. Unlike Ladakh or Meghalaya, nothing here needs an online registration before you travel.</p>
+        <p>No. There are no permits or tourism registrations for a domestic Rajasthan circuit. You pay monument entry tickets and, in your own car, highway tolls. Nothing here needs an online registration before you travel.</p>
       </details>
       <details class="faq">
         <summary>What are the best months to visit Rajasthan, and how does season change the price?</summary>
@@ -409,8 +409,8 @@
       <details>
         <summary>Read the sources</summary>
         <ul class="sources">
-          <li id="src-asi"><b>Sourced:</b> Monument entry tickets are set by the Archaeological Survey of India. Indian national rates run from about ₹50 to ₹500 a site across Amber, Mehrangarh, Jaisalmer Fort and the City Palace, and camera fees are charged separately: <a href="https://asi.nic.in/" rel="noopener">Archaeological Survey of India, ticketed monuments</a>, <a href="https://www.tourism.rajasthan.gov.in/" rel="noopener">Rajasthan Tourism, official state tourism site</a>.</li>
-          <li id="src-assume"><b>Assumption:</b> Route distances of about 2,000 km for the full circuit, 1,100 km for Jaipur–Udaipur and 900 km for the desert loop; stays, food, the SUV-with-driver rate, tolls, the desert camp range, the buffer, mileage of 14 km per litre and fuel at ₹105 per litre are YatraFlow planning estimates checked in November 2026. They are market ranges, not a quote and not an official tariff: replace each one with the price you were actually given.</li>
+          <li id="src-tickets"><b>Sourced:</b> Monument entry tickets are set by each site's operator, not by one tariff: the Rajasthan state booking site, the Mehrangarh Museum Trust and the Udaipur City Palace Museum each publish their own Indian-national rates, from about ₹50 to ₹500 a site, with camera fees charged separately: <a href="https://obms-tourist.rajasthan.gov.in/place-details/Amber-Fort" rel="noopener">Rajasthan state monument booking (Amber Fort)</a>, <a href="https://mehrangarh.org/visit/mehrangarh-museum" rel="noopener">Mehrangarh Museum Trust</a>, <a href="https://citypalacemuseum.org/docs/faq.pdf" rel="noopener">Udaipur City Palace Museum</a>.</li>
+          <li id="src-assume"><b>Assumption:</b> Route distances of about 1,500 km for the full circuit, 800 km for Jaipur–Udaipur and 1,250 km for the desert loop; stays, food, the SUV-with-driver rate, tolls, the desert camp range, the buffer, mileage of 14 km per litre and fuel at ₹113 per litre are YatraFlow planning estimates. The fuel figure is the Jaipur pump price in November 2026. They are market ranges, not a quote and not an official tariff: replace each one with the price you were actually given.</li>
         </ul>
       </details>
     </section>
@@ -418,8 +418,8 @@
     <section class="below" aria-labelledby="moreTitle">
       <h2 id="moreTitle">More trip cost calculators</h2>
       <ul class="siblings">
-        <li><a href="/goa-trip-cost-calculator/"><b>Goa</b><span>₹6,900 – ₹12,700 per person · Peak November–February</span><span>Peak-season North or South Goa, with flights or train and a scooty between two people.</span></a></li>
-        <li><a href="/meghalaya-trip-cost-calculator/"><b>Meghalaya</b><span>₹9,700 – ₹16,600 per person · Best October–April</span><span>Guwahati–Shillong–Cherrapunji–Dawki, priced the way groups actually travel it.</span></a></li>
+        <li><a href="/goa-trip-cost-calculator/"><b>Goa</b><span>₹7,700 – ₹12,700 per person · Peak November–February</span><span>Peak-season North or South Goa, with flights or train and a scooty between two people.</span></a></li>
+        <li><a href="/meghalaya-trip-cost-calculator/"><b>Meghalaya</b><span>₹12,300 – ₹19,400 per person · Best October–April</span><span>Guwahati–Shillong–Cherrapunji–Dawki, priced the way groups actually travel it.</span></a></li>
         <li><a href="/ladakh-trip-cost-calculator/"><b>Ladakh</b><span>₹15,400 – ₹22,300 per person · Ride June–September</span><span>Bike routes from Manali, Leh or a full Delhi loop, with permits and fuel counted.</span></a></li>
       </ul>
       <a class="hub-link" href="/trip-cost-calculators/">All India trip cost calculators</a>
@@ -430,7 +430,7 @@
   </footer>
 </div>
 <a class="mini" id="mini" href="#result" hidden><span>Per person</span><span id="miniRange"></span></a>
-<script type="application/json" id="calc-cfg">{"key":"rajasthan","slug":"rajasthan-trip-cost-calculator","dest":"Rajasthan","defaultRoute":"circuit-7","defaults":{"people":4,"stay":"haveli","food":"thali","transport":"own-car"},"kmFromRoute":true,"peoplePerRoom":2,"fuel":{"mileage":14,"price":105},"units":null,"routes":{"circuit-7":{"days":7,"km":2000,"note":"The classic winter loop, about 2,000 km of driving across the four cities."},"weekend-4":{"days":4,"km":1100,"note":"One night in Jaipur, two in Udaipur, with the drive between them. The shortest sensible circuit."},"desert-4":{"days":4,"km":900,"note":"West to the dunes, with the desert camp night in the optional line below."},"custom":{"days":7,"km":0,"note":"Enter the distance you actually plan to drive."}},"groups":[{"key":"transport","param":"m","options":[{"value":"own-car","appMode":"car"},{"value":"suv-driver","appMode":"taxi"},{"value":"train","appMode":"train"}]}],"tiers":[{"key":"stay","tier":"stay","options":[{"value":"guesthouse"},{"value":"haveli"},{"value":"hotel"}]},{"key":"food","tier":"food","options":[{"value":"thali"},{"value":"restaurant"}]}],"stays":{"guesthouse":{"label":"Guesthouse","low":1200,"high":2000,"style":"budget"},"haveli":{"label":"Haveli","low":2500,"high":4500,"style":"comfort"},"hotel":{"label":"Hotel","low":4000,"high":8000,"style":"luxury"}},"foods":{"thali":{"label":"Local thalis","low":400,"high":700},"restaurant":{"label":"Restaurants","low":800,"high":1400}},"lines":[{"key":"fuel","name":"Fuel (own car)","kind":"km","units":1,"when":{"group":"transport","in":["own-car"]},"optional":false,"addOn":null},{"key":"tolls","name":"Highway tolls (own car)","kind":"flat","when":{"group":"transport","in":["own-car"]},"optional":false,"rate":{"low":1000,"high":2200},"addOn":null,"params":{"low":"tl","high":"tL"}},{"key":"suv","name":"SUV with driver","kind":"unit-day","units":1,"when":{"group":"transport","in":["suv-driver"]},"optional":false,"rate":{"low":4000,"high":5500},"addOn":null,"params":{"low":"sv","high":"sV"}},{"key":"trainFare","name":"Intercity train","kind":"person","when":{"group":"transport","in":["train"]},"optional":false,"rate":{"low":700,"high":1800},"addOn":null,"params":{"low":"jt","high":"jT"}},{"key":"localCabs","name":"Local cabs","kind":"person-day","when":{"group":"transport","in":["train"]},"optional":false,"rate":{"low":600,"high":1000},"addOn":null,"params":{"low":"lc","high":"lC"}},{"key":"entries","name":"Fort and monument tickets","kind":"person","optional":false,"rate":{"low":700,"high":1600},"addOn":null,"params":{"low":"en","high":"eN"}},{"key":"camp","name":"Desert camp night","offLabel":"Not included, add a night in the dunes","kind":"person","optional":true,"rate":{"low":2000,"high":4500},"addOn":null,"params":{"low":"cp","high":"cP","off":"cpo"}},{"key":"stay","name":"Stay","kind":"room-night","optional":false,"addOn":null,"tier":"stay","tierParam":"s","params":{"low":"sl","high":"sh"}},{"key":"food","name":"Food","kind":"person-day","optional":false,"addOn":null,"tier":"food","tierParam":"f","params":{"low":"fl","high":"fH"}},{"key":"misc","name":"Buffer","kind":"person","optional":false,"rate":{"low":800,"high":1500},"addOn":null,"params":{"low":"ml","high":"mh"}}]}</script>
+<script type="application/json" id="calc-cfg">{"key":"rajasthan","slug":"rajasthan-trip-cost-calculator","dest":"Rajasthan","defaultRoute":"circuit-7","defaults":{"people":4,"stay":"haveli","food":"thali","transport":"own-car"},"kmFromRoute":true,"peoplePerRoom":2,"fuel":{"mileage":14,"price":113},"units":null,"routes":{"circuit-7":{"days":7,"km":1500,"note":"The classic winter loop across the four cities, about 1,500 km with the local sightseeing drives."},"weekend-4":{"days":4,"km":800,"note":"Jaipur to Udaipur and back, about 800 km return, with the city drives inside it. The shortest sensible circuit."},"desert-4":{"days":4,"km":1250,"note":"Jaipur–Jodhpur–Jaisalmer and back, about 1,250 km return, with the desert camp night in the optional line below."},"custom":{"days":7,"km":0,"note":"Enter the distance you actually plan to drive."}},"groups":[{"key":"transport","param":"m","options":[{"value":"own-car","appMode":"car"},{"value":"suv-driver","appMode":"taxi"},{"value":"train","appMode":"train"}]}],"tiers":[{"key":"stay","tier":"stay","options":[{"value":"guesthouse"},{"value":"haveli"},{"value":"hotel"}]},{"key":"food","tier":"food","options":[{"value":"thali"},{"value":"restaurant"}]}],"stays":{"guesthouse":{"label":"Guesthouse","low":1200,"high":2000,"style":"budget"},"haveli":{"label":"Haveli","low":2500,"high":4500,"style":"comfort"},"hotel":{"label":"Hotel","low":4000,"high":8000,"style":"luxury"}},"foods":{"thali":{"label":"Local thalis","low":400,"high":700},"restaurant":{"label":"Restaurants","low":800,"high":1400}},"lines":[{"key":"fuel","name":"Fuel (own car)","kind":"km","units":1,"when":{"group":"transport","in":["own-car"]},"optional":false,"addOn":null},{"key":"tolls","name":"Highway tolls (own car)","kind":"flat","when":{"group":"transport","in":["own-car"]},"optional":false,"rate":{"low":1000,"high":2200},"addOn":null,"params":{"low":"tl","high":"tL"}},{"key":"suv","name":"SUV with driver","kind":"unit-day","units":1,"when":{"group":"transport","in":["suv-driver"]},"optional":false,"rate":{"low":4000,"high":6500},"addOn":null,"params":{"low":"sv","high":"sV"}},{"key":"trainFare","name":"Intercity train","kind":"person","when":{"group":"transport","in":["train"]},"optional":false,"rate":{"low":700,"high":1800},"addOn":null,"params":{"low":"jt","high":"jT"}},{"key":"localCabs","name":"Local cabs","kind":"person-day","when":{"group":"transport","in":["train"]},"optional":false,"rate":{"low":600,"high":1000},"addOn":null,"params":{"low":"lc","high":"lC"}},{"key":"entries","name":"Fort and monument tickets","kind":"person","optional":false,"rate":{"low":700,"high":1600},"addOn":null,"params":{"low":"en","high":"eN"}},{"key":"camp","name":"Desert camp night","offLabel":"Not included, add a night in the dunes","kind":"person","optional":true,"rate":{"low":2000,"high":4500},"addOn":null,"params":{"low":"cp","high":"cP","off":"cpo"}},{"key":"stay","name":"Stay","kind":"room-night","optional":false,"addOn":null,"tier":"stay","tierParam":"s","params":{"low":"sl","high":"sh"}},{"key":"food","name":"Food","kind":"person-day","optional":false,"addOn":null,"tier":"food","tierParam":"f","params":{"low":"fl","high":"fH"}},{"key":"misc","name":"Buffer","kind":"person","optional":false,"rate":{"low":800,"high":1500},"addOn":null,"params":{"low":"ml","high":"mh"}}]}</script>
 <script type="module" src="/calculators/client.js"></script>
 </body>
 </html>

@@ -188,6 +188,16 @@ describe('fetchTripByInviteCode', () => {
     expect((rpcWrite.payload as { p_code: string }).p_code).toBe(CODE)
   })
 
+  it('refuses an RPC row for a different code than the normalized request', async () => {
+    const id = '44444444-4444-4444-8444-444444444444'
+    state.rpcRows = [row({ id, invite_code: 'GOA-K7QF' })]
+
+    expect(await fetchTripByInviteCode(' wayanad n3rt ')).toEqual({ kind: 'failed' })
+    expect(writes.filter(write => write.table === 'rpc:get_trip_by_invite_code').at(-1)?.payload)
+      .toEqual({ p_code: 'WAYANAD-N3RT' })
+    expect(tripById(id)).toBeUndefined()
+  })
+
   it('answers dead for an unknown code: the RPC succeeded with no rows', async () => {
     // #1019 — "no trip has this code" is a dead link, not a failed read.
     state.rpcRows = []
@@ -262,6 +272,16 @@ describe('joinViaInvite (write order)', () => {
     await fetchTripByInviteCode(CODE)
     writes.length = 0
   }
+
+  it('reports owner approval without adding a buyer to the trip', async () => {
+    const id = '66666666-6666-4666-8666-666666666666'
+    await freshJoinable(id)
+    state.joinError = { code: 'PT403', message: 'Owner approval needed.' }
+
+    expect(await joinViaInvite(id, ME, CODE)).toBe('owner-approval')
+    expect(writes.filter(write => write.table === 'rpc:join_trip')).toHaveLength(1)
+    expect(tripById(id)).toBeUndefined()
+  })
 
   it('reports failure honestly when join_trip refuses the join', async () => {
     const t = '77777777-7777-4777-8777-777777777777'

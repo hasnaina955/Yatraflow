@@ -60,7 +60,8 @@ describe('Overview panel classes', () => {
 
   it('gives each Overview panel heading the R20 title class', () => {
     const titles = tab.match(/<h2\b[^>]*className="[^"]*\bovw-title\b[^"]*"[^>]*>/g) ?? []
-    expect(titles).toHaveLength(10)
+    expect(titles).toHaveLength(11)
+    expect(tab).toContain('className="ovw-title" id="ovw-days-title">Days')
     expect(tab).toContain('className="ovw-title" id="ovw-pulse-title">The group')
     expect(tab).toContain('className="ovw-card ovw-route ovw2-route" enterIndex={7}')
     expect(tab).toContain('className="ovw-card ovw2-health"')
@@ -69,7 +70,7 @@ describe('Overview panel classes', () => {
 
   it('uses compact state blocks with separate empty copy', () => {
     const routeCard = read('../src/components/trips/OverviewRouteCard.tsx')
-    expect(count(tab, 'kind="empty"')).toBe(7)
+    expect(count(tab, 'kind="empty"')).toBe(8)
     expect(count(routeCard, 'kind="empty"')).toBe(1)
     expect(tab).toContain('title={hasPlan ? \'The plan flows\' : \'Nothing to check yet\'}')
     expect(tab).toContain('title="Nothing planned yet"')

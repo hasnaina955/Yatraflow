@@ -42,6 +42,8 @@ import type { TimelineFocusTarget } from '../../lib/workspaceHeader'
 import { firstFailedOverviewRead, overviewReadRole, type OverviewReadKey } from '../../lib/overviewReads'
 import { useTripElevation } from '../../hooks/useTripElevation'
 import { overviewHealthTiles } from '../../lib/overviewHealthTiles'
+import { dayStrip } from '../../lib/tripDayStrip'
+import { dayStripItems } from '../../lib/dayStrip'
 
 // ================= Overview =================
 
@@ -205,6 +207,7 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
     totalDays: trip.days.length,
     formatMoney: formatInr,
   })
+  const dayPlaces = dayStripItems(trip.days)
   const elevationResult = elevation.result
   const elevationPeak = elevationResult?.stats.peak ?? null
   // A place whose tile could not be read means the peak is the highest of the
@@ -326,6 +329,37 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
             )}
           </Surface>
         </div>
+      </section>
+
+      <section className="ovw-day-list" aria-labelledby="ovw-days-title">
+        <h2 className="ovw-title" id="ovw-days-title">Days</h2>
+        {trip.days.length === 0 ? <StateBlock kind="empty" size="compact" title="No days yet" /> : (
+          <div className="ovw-day-cards">
+            {dayStrip(trip, health.warnings).map(cell => {
+              const day = trip.days.find(item => item.index + 1 === cell.dayNumber)
+              if (!day) return null
+              const stops = [...day.stops].filter(stop => stop.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
+              const places = stops.map(stop => stop.locationName?.trim()).filter(Boolean)
+              const stripItem = dayPlaces.find(item => item.dayIndex === day.index)
+              const first = stripItem?.from || (day.index === 0 ? trip.startLocation?.trim() : undefined) || places[0]
+              const last = stripItem?.place ?? places[places.length - 1]
+              const route = first && last && first !== last ? `${first} to ${last}` : first || `Day ${cell.dayNumber}`
+              const date = trip.startDate ? new Date(`${isoAddDays(trip.startDate, day.index)}T00:00`) : null
+              const validDate = date && !Number.isNaN(date.getTime()) ? date : null
+              const content = <>
+                <span className="ovw-day-date">{validDate ? <><span>{validDate.toLocaleDateString('en-IN', { weekday: 'short' })}</span><b>{validDate.getDate()}</b></> : <>Day <b>{cell.dayNumber}</b></>}</span>
+                <span className="ovw-day-body">
+                  <strong>{route}</strong>
+                  <span>{stops.length} stop{stops.length === 1 ? '' : 's'}</span>
+                  <span className={`ovw-day-status is-${cell.tone}`}><i aria-hidden="true" /><b>{cell.label}</b></span>
+                </span>
+              </>
+              return onOpenTimeline ? (
+                <button key={day.id} type="button" className="ovw-day-card" onClick={() => onOpenTimeline({ dayIndex: day.index })}>{content}</button>
+              ) : <div key={day.id} className="ovw-day-card">{content}</div>
+            })}
+          </div>
+        )}
       </section>
 
       <div className="ovw2-main">

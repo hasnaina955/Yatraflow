@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { Readable } from 'node:stream'
 
@@ -63,18 +64,24 @@ describe('POST /api/checkout', () => {
     return res
   }
 
-  const pubRow = { id: 'kerala-trip_1', trip_id: 'trip-1', creator_id: 'creator-1', premium_price_inr: 500 }
+  // checkout_offer (spec 3.6): the facts checkout decides from. A listed, priced
+  // guide by someone else, read for an ordinary buyer.
+  const pubRow = {
+    publication_found: true, buyer_found: true, buyer_disabled: false, listed: true,
+    price_inr: 500, creator_id: 'creator-1', trip_id: 'trip-1', buyer_is_creator: false,
+  }
 
   function stubHappyPath() {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('/rest/v1/purchase_orders')) return jsonResponse([])
       if (url === 'https://api.razorpay.com/v1/orders') {
         return jsonResponse({ id: 'order_ABC123', amount: 50000, currency: 'INR' })
       }
-      if (url.includes('/rest/v1/purchase_orders')) return jsonResponse(null, 201)
+      if (url.includes('/rest/v1/rpc/create_pending_purchase_order')) return jsonResponse('minted')
       throw new Error(`unexpected fetch ${url}`)
     })
   }
@@ -87,10 +94,12 @@ describe('POST /api/checkout', () => {
     expect(payload.orderId).toBe('order_ABC123')
     expect(payload.amountPaise).toBe(50_000)
     expect(payload.currency).toBe('INR')
-    // The order row insert carries the server-read price as its snapshot.
-    const insertCall = fetchMock.mock.calls.find(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')
+    // The order row insert goes through the locking RPC with the server-read price.
+    const insertCall = fetchMock.mock.calls.find(c => String(c[0]).includes('/rest/v1/rpc/create_pending_purchase_order'))
     const insertBody = JSON.parse(String((insertCall![1] as RequestInit).body))
-    expect(insertBody).toMatchObject({ user_id: 'buyer-1', pub_id: 'kerala-trip_1', amount_inr: 500, status: 'pending', price_snapshot_inr: 500 })
+    expect(insertBody).toEqual({
+      p_user_id: 'buyer-1', p_pub_id: 'kerala-trip_1', p_razorpay_order_id: 'order_ABC123', p_expected_price_inr: 500,
+    })
     // The gateway call sends paise and INR.
     const gwCall = fetchMock.mock.calls.find(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')
     expect(JSON.parse(String((gwCall![1] as RequestInit).body))).toEqual({ amount: 50_000, currency: 'INR', receipt: expect.any(String), notes: {} })
@@ -101,8 +110,8 @@ describe('POST /api/checkout', () => {
     await run({ pubId: 'kerala-trip_1', userId: 'spoofed-user' })
     const authCall = fetchMock.mock.calls.find(c => String(c[0]).includes('/auth/v1/user'))
     expect((authCall![1] as RequestInit).headers).toMatchObject({ authorization: 'Bearer session-token' })
-    const insertCall = fetchMock.mock.calls.find(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')
-    expect(JSON.parse(String((insertCall![1] as RequestInit).body)).user_id).toBe('buyer-1')
+    const insertCall = fetchMock.mock.calls.find(c => String(c[0]).includes('/rest/v1/rpc/create_pending_purchase_order'))
+    expect(JSON.parse(String((insertCall![1] as RequestInit).body)).p_user_id).toBe('buyer-1')
   })
 
   it.each([
@@ -145,7 +154,7 @@ describe('POST /api/checkout', () => {
   it('returns 404 for an unknown publication', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (String(input).includes('/rest/v1/published_itineraries')) return jsonResponse([])
+      if (String(input).includes('/rest/v1/rpc/checkout_offer')) return jsonResponse({ ...pubRow, publication_found: false })
       throw new Error('unexpected')
     })
     const res = await run({ pubId: 'kerala-trip_1' })
@@ -153,21 +162,84 @@ describe('POST /api/checkout', () => {
   })
 
   it.each([
-    ['an unpriced publication', { ...pubRow, premium_price_inr: null }, 403],
-    ['the creator buying their own plan', { ...pubRow, creator_id: 'buyer-1' }, 403],
-  ])('returns 403 for %s', async (_name, row, status) => {
+    ['an unpriced publication (spec 3.6, step 7)', { price_inr: null }],
+    ['the creator buying their own plan (step 8)', { buyer_is_creator: true }],
+    ['a disabled buyer (step 2)', { buyer_disabled: true }],
+    ['a buyer with no profile (step 2)', { buyer_found: false }],
+  ])('returns 403 for %s', async (_name, patch) => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (String(input).includes('/rest/v1/published_itineraries')) return jsonResponse([row])
+      if (String(input).includes('/rest/v1/rpc/checkout_offer')) return jsonResponse({ ...pubRow, ...patch })
+      // Steps 4 and 5 run before the price and own checks (spec 3.6): no
+      // entitlement and no live order, so they fall through to step 7 or 8.
+      if (String(input).includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (String(input).includes('status=in.(pending,paid)')) return jsonResponse([])
       throw new Error('unexpected')
     })
-    expect((await run({ pubId: 'kerala-trip_1' })).statusCode).toBe(status)
+    expect((await run({ pubId: 'kerala-trip_1' })).statusCode).toBe(403)
+  })
+
+  it('refuses a new order on an unlisted guide: private, trashed or unpublished (spec 3.6, step 6)', async () => {
+    // publication_is_listed is false for a private trip, a trashed trip and an
+    // unpublished guide alike, so one refusal covers all three.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse({ ...pubRow, listed: false })
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('status=in.(pending,paid)')) return jsonResponse([])
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(404)
+    expect(JSON.parse(res.body)).toEqual({ error: 'this itinerary is not available' })
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('does not serve an open order again on an unlisted guide (spec 3.6, step 6)', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse({ ...pubRow, listed: false })
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('status=in.(pending,paid)')) {
+        return jsonResponse([{ razorpay_order_id: 'order_OPEN', amount_inr: 500, status: 'pending' }])
+      }
+      if (url.startsWith('https://api.razorpay.com/v1/orders/order_OPEN')) {
+        return jsonResponse({ id: 'order_OPEN', status: 'created' })
+      }
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(404)
+    expect(res.body).not.toContain('order_OPEN')
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).includes('/rest/v1/purchase_orders') && (c[1] as RequestInit | undefined)?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('a captured order on an unlisted guide still recovers: money that moved always settles (spec 3.6, step 5)', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse({ ...pubRow, listed: false })
+      if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+      if (url.includes('status=in.(pending,paid)')) {
+        return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500, status: 'paid' }])
+      }
+      if (url.includes('/rpc/claim_paid_order')) return jsonResponse(true)
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    const res = await run({ pubId: 'kerala-trip_1' })
+    expect(res.statusCode).toBe(409)
+    expect(fetchMock.mock.calls.some(c => String(c[0]).includes('/rpc/claim_paid_order'))).toBe(true)
+    expect(fetchMock.mock.calls.filter(c => String(c[0]) === 'https://api.razorpay.com/v1/orders')).toHaveLength(0)
   })
 
   it('returns 409 when an entitlement already exists', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (String(input).includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (String(input).includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (String(input).includes('/rest/v1/entitlements')) return jsonResponse([{ id: 'e1' }])
       throw new Error('unexpected')
     })
@@ -179,7 +251,7 @@ describe('POST /api/checkout', () => {
   it('returns 503 when the gateway order fails', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (String(input).includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (String(input).includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (String(input).includes('/rest/v1/entitlements')) return jsonResponse([])
       if (String(input) === 'https://api.razorpay.com/v1/orders') return new Response('denied', { status: 401 })
       throw new Error('unexpected')
@@ -192,7 +264,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       // fetchLatestOrder: the newest row for buyer+pub, any status.
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
@@ -218,7 +290,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
         return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500, status: 'pending' }])
@@ -246,7 +318,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
         return jsonResponse([{ razorpay_order_id: 'order_PAID', amount_inr: 500, status: 'pending' }])
@@ -273,7 +345,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       // fetchLatestOrder: NO status=eq.pending filter — any status.
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
@@ -301,7 +373,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
         return jsonResponse([{ razorpay_order_id: 'order_ATTEMPTED', amount_inr: 500, status: 'pending' }])
@@ -327,7 +399,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
         return jsonResponse([{ razorpay_order_id: 'order_WEIRD', amount_inr: 500, status: 'pending' }])
@@ -351,7 +423,7 @@ describe('POST /api/checkout', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
         return jsonResponse([{ razorpay_order_id: 'order_MAYBEPAID', amount_inr: 500, status: 'pending' }])
@@ -375,14 +447,14 @@ describe('POST /api/checkout', () => {
       const url = String(input)
       const method = (init.method ?? 'GET') as string
       if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-      if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+      if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
       if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
       // The recovery tail: mark the captured row paid, then grant through the
       // buyer-scoped RPC. Both are what a real recovery calls, so the stub
       // carries them rather than the test asserting on a 503 short-circuit.
       if (url.includes('/rpc/claim_paid_order')) return jsonResponse('ent-uuid')
       if (url.includes('/rest/v1/purchase_orders') && method === 'PATCH') return jsonResponse([{ id: 'o', razorpay_order_id: 'x', status: 'paid' }])
-      if (url.includes('/rest/v1/purchase_orders') && method === 'POST') return jsonResponse(null, 201)
+      if (url.includes('/rest/v1/rpc/create_pending_purchase_order')) return jsonResponse('minted')
       if (url.includes('/rest/v1/purchase_orders') && method === 'GET') return jsonResponse(rows)
       // #595 — the payments-list probe the recovery makes before marking:
       // keyed by order id, answered with the gateway's own items shape.
@@ -491,10 +563,10 @@ describe('POST /api/checkout', () => {
       fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
         const url = String(input)
         if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
-        if (url.includes('/rest/v1/published_itineraries')) return jsonResponse([pubRow])
+        if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
         if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
         if (url.includes('/rest/v1/purchase_orders') && (init.method ?? 'GET') === 'GET') return jsonResponse([])
-        if (url.includes('/rest/v1/purchase_orders')) return jsonResponse(null, 409)
+        if (url.includes('/rest/v1/rpc/create_pending_purchase_order')) return jsonResponse({ code: '23505', message: 'duplicate key' }, 409)
         if (url === 'https://api.razorpay.com/v1/orders') return jsonResponse({ id: 'order_RACED', amount: 50000, currency: 'INR' })
         throw new Error(`unexpected fetch ${url}`)
       })
@@ -504,6 +576,75 @@ describe('POST /api/checkout', () => {
       // and Razorpay takes money for a payment the app can never resolve.
       expect(JSON.parse(res.body).orderId).toBeUndefined()
       expect(JSON.parse(res.body).error).toMatch(/nothing was charged/)
+    })
+    it('returns "This guide is no longer for sale" and no gateway order when the insert recheck fails (PT410)', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const url = String(input)
+        if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+        if (url.includes('/rest/v1/rpc/checkout_offer')) return jsonResponse(pubRow)
+        if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+        if (url.includes('/rest/v1/purchase_orders') && (init.method ?? 'GET') === 'GET') return jsonResponse([])
+        if (url === 'https://api.razorpay.com/v1/orders') return jsonResponse({ id: 'order_WITHDRAWN', amount: 50000, currency: 'INR' })
+        if (url.includes('/rest/v1/rpc/create_pending_purchase_order')) {
+          return jsonResponse({ code: 'PT410', message: 'This guide is no longer for sale.' }, 400)
+        }
+        throw new Error(`unexpected fetch ${url}`)
+      })
+      const res = await run({ pubId: 'kerala-trip_1' })
+      expect(res.statusCode).toBe(410)
+      const body = JSON.parse(res.body)
+      expect(body.error).toBe('This guide is no longer for sale')
+      expect(body.orderId).toBeUndefined()
+      expect(res.body).not.toContain('order_WITHDRAWN')
+    })
+    it('rechecks the listing before reusing an existing pending order', async () => {
+      let offerReads = 0
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+        if (url.includes('/rest/v1/rpc/checkout_offer')) {
+          offerReads += 1
+          return jsonResponse(offerReads === 1 ? pubRow : { ...pubRow, listed: false })
+        }
+        if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+        if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+          return jsonResponse([{ razorpay_order_id: 'order_EXISTING', amount_inr: 500, status: 'pending' }])
+        }
+        if (url === 'https://api.razorpay.com/v1/orders/order_EXISTING') {
+          return jsonResponse({ id: 'order_EXISTING', status: 'created' })
+        }
+        throw new Error(`unexpected fetch ${url}`)
+      })
+      const res = await run({ pubId: 'kerala-trip_1' })
+      expect(offerReads).toBe(2)
+      expect(res.statusCode).toBe(410)
+      const body = JSON.parse(res.body)
+      expect(body.error).toBe('This guide is no longer for sale')
+      expect(body.orderId).toBeUndefined()
+      expect(res.body).not.toContain('order_EXISTING')
+    })
+    it('refuses to reuse an existing order if the price changed during the gateway probe', async () => {
+      let offerReads = 0
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/auth/v1/user')) return jsonResponse({ id: 'buyer-1' })
+        if (url.includes('/rest/v1/rpc/checkout_offer')) {
+          offerReads += 1
+          return jsonResponse(offerReads === 1 ? pubRow : { ...pubRow, price_inr: 699 })
+        }
+        if (url.includes('/rest/v1/entitlements')) return jsonResponse([])
+        if (url.includes('/rest/v1/purchase_orders') && url.includes('select=razorpay_order_id')) {
+          return jsonResponse([{ razorpay_order_id: 'order_EXISTING', amount_inr: 500, status: 'pending' }])
+        }
+        if (url === 'https://api.razorpay.com/v1/orders/order_EXISTING') {
+          return jsonResponse({ id: 'order_EXISTING', status: 'created' })
+        }
+        throw new Error(`unexpected fetch ${url}`)
+      })
+      const res = await run({ pubId: 'kerala-trip_1' })
+      expect(offerReads).toBe(2)
+      expect(res.statusCode).toBe(409)
+      expect(JSON.parse(res.body).orderId).toBeUndefined()
     })
     it('failed rows are not live: they never enter the scan', async () => {
       stubLiveOrders([], {})
@@ -1039,5 +1180,76 @@ describe('the mark-paid write is verifiable (#355)', () => {
     await expect(mark(url => (url.includes('status=eq.pending')
       ? PATCH([])
       : new Response('nope', { status: 500 })))).rejects.toThrow('order state read failed')
+  })
+})
+
+describe('20261127c SQL pins: lock, clock, recheck, revoke', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261127c_gate_091_paid_access_fixes.sql', import.meta.url), 'utf8')
+    .replace(/\r\n/g, '\n')
+
+  it('guards pending purchase_orders inserts with a BEFORE INSERT trigger that locks trip then publication, rechecks, and stamps clock_timestamp()', () => {
+    const start = sql.indexOf('create or replace function public.guard_pending_purchase_order(')
+    const end = sql.indexOf('$$;', start)
+    expect(start).toBeGreaterThan(-1)
+    const fn = sql.slice(start, end)
+    const tripRead = fn.indexOf('select p.trip_id into v_trip_id')
+    const tripLock = fn.search(/select t\.\* into v_trip\s+from public\.trips t\s+where t\.id = v_trip_id\s+for no key update;/)
+    const pubLock = fn.search(/select p\.\* into v_pub\s+from public\.published_itineraries p\s+where p\.id = new\.pub_id\s+for no key update;/)
+    const recheck = fn.indexOf('v_pub.trip_id is distinct from v_trip.id')
+    const clockAt = fn.indexOf('new.created_at := clock_timestamp();')
+
+    expect(tripRead).toBeGreaterThan(-1)
+    expect(tripLock).toBeGreaterThan(tripRead)
+    expect(pubLock).toBeGreaterThan(tripLock)
+    expect(recheck).toBeGreaterThan(pubLock)
+    expect(clockAt).toBeGreaterThan(recheck)
+    expect(fn).not.toMatch(/\bnow\s*\(/)
+    expect(fn).toContain('v_pub.unpublished_at is not null')
+    expect(fn).toContain("v_trip.visibility is distinct from 'public'")
+    expect(fn).toContain('v_trip.deleted_at is not null')
+    expect(fn).toContain('v_pub.creator_id is distinct from v_trip.owner_id')
+    expect(fn).toContain('v_pub.premium_price_inr is distinct from new.amount_inr')
+    expect(fn).toContain('v_pub.premium_price_inr is distinct from new.price_snapshot_inr')
+    expect(fn).toContain("using errcode = 'PT410'")
+    expect(sql).toContain('revoke all on function public.guard_pending_purchase_order() from public, anon, authenticated;')
+    expect(sql).toMatch(
+      /create trigger purchase_orders_pending_guard\s+before insert on public\.purchase_orders\s+for each row\s+when \(new\.status = 'pending'\)\s+execute function public\.guard_pending_purchase_order\(\);/,
+    )
+  })
+
+  it('keeps create_pending_purchase_order service_role-only and relies on the pending insert trigger without duplicate locks', () => {
+    const start = sql.indexOf('create or replace function public.create_pending_purchase_order(')
+    const end = sql.indexOf('$$;', start)
+    expect(start).toBeGreaterThan(-1)
+    const fn = sql.slice(start, end)
+    expect(fn).toContain('insert into public.purchase_orders')
+    expect(fn).toContain("'pending'")
+    expect(fn).not.toMatch(/for\s+(no\s+key\s+)?update/i)
+    expect(fn).not.toMatch(/\bnow\s*\(/)
+    expect(sql).toContain('revoke all on function public.create_pending_purchase_order(uuid, text, text, integer) from public, anon, authenticated;')
+    expect(sql).toContain('grant execute on function public.create_pending_purchase_order(uuid, text, text, integer) to service_role;')
+  })
+
+  it('stamps first withdrawal with clock_timestamp(), ignores client values, and keeps the first stamp on retries', () => {
+    const start = sql.indexOf('create or replace function public.guard_publication_unpublished_at(')
+    const end = sql.indexOf('$$;', start)
+    expect(start).toBeGreaterThan(-1)
+    const fn = sql.slice(start, end)
+    expect(fn).toContain('if new.unpublished_at is not null then')
+    expect(fn).toContain('if old.unpublished_at is null then')
+    expect(fn).toContain('clock_timestamp()')
+    expect(fn).toContain('new.unpublished_at := old.unpublished_at;')
+    expect(fn).not.toMatch(/\bnow\s*\(/)
+    expect(sql).toContain('create trigger publication_unpublished_at_guard')
+    expect(sql).toContain('before update on public.published_itineraries')
+    expect(sql).toContain('revoke all on function public.guard_publication_unpublished_at() from public, anon, authenticated;')
+  })
+
+  it('gates published_itineraries SELECT through can_read_publication and revokes PUBLIC execute', () => {
+    expect(sql).toContain('revoke all on function public.can_read_publication(text) from public, anon, authenticated;')
+    expect(sql).toContain('grant execute on function public.can_read_publication(text) to anon, authenticated;')
+    expect(sql).toContain('drop policy if exists "published read" on public.published_itineraries;')
+    expect(sql).toContain('for select using (public.can_read_publication(id));')
+    expect(sql).not.toMatch(/for\s+select\s+using\s*\(\s*true\s*\)/i)
   })
 })

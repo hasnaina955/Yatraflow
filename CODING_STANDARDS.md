@@ -41,6 +41,7 @@ anywhere in this repo means the entry labelled `6b` below.
 ## 1. Pitfall entries (`AGENTS.md` §2, the 6-series rules (6a onward))
 
 Source-contract tests must handle both LF and CRLF line endings.
+Calendar-date tests must format local dates as local dates. UTC conversion can shift midnight to the prior day.
 Tests for helper use must check the call site. A function definition does not prove that callers use it.
 Tests that change a seeded date must set both dates. Demo seed dates move with the clock and can match a fixed replacement date.
 
@@ -1192,11 +1193,18 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
    `tests/trip-owner-delete-guards.test.ts`), and `trips.write_version`, which the
    file adds further down. Write the schema copy in plpgsql and guard the rail
    table with `to_regclass`, the pattern `trip_has_publication_money` uses.
+
+ 6bu. **Stub every object a migration names before the migration runs (learned 2026-11-26, #1039).** `20261126b` alters `public.purchase_orders` and grants execute on `trip_has_publication_money`, which `20261020` defines. A PGlite test on stub tables fails at the first name it cannot find. Give each stub the shape of the test's own inserts. Import the module under test at the top of its file. A dynamic import inside an `it` counts against the five-second timeout under four workers.
    plpgsql resolves a relation when the statement is reached. So the bootstrap
    stays valid, and the guarded branch answers fail-closed. Pin the parity by
    meaning: the same projection and key order, the same gates, the same grants,
    and one run on a schema-only PGlite database.
    `tests/invite-lookup-schema-parity.test.ts` is the model.
+- **A store hook that renders at build time needs a server snapshot (learned 2026-11-26, #1042).** `useSyncExternalStore(subscribe, get)` throws "Missing getServerSnapshot" in the prerender. Pass the same getter as the third argument. `tests/use-sync-server-snapshot.test.ts` parses every call under `src`, so a hook split over several lines is still counted.
+- **Every route gets the same shell, so the shell cannot hold a per-route canonical or robots tag (learned 2026-11-26, #1042).** A canonical in `index.html` names the home page for every app route. Set per-route values in the app after boot, and send the home page's canonical as a header, as `vercel.json` does.
+- **`dist/index.html` is the prerendered home page, and the bare shell is `dist/app.html` (learned 2026-11-27).** Vercel serves `/` from the file system before any rewrite, so the home page must take `index.html`. The SPA catch-all, the service worker and `api/join.js` read `app.html`. Code that needs the bare shell must read `app.html`, or every route gets the landing text and the home canonical.
+- **Run `npm run lint:ste` after `git add -N` on each new file (learned 2026-11-26, #1042).** The default run reads tracked changes only. Two STE faults in a new file passed unchecked and reached a commit.
+- **`vite preview` does not read `vercel.json`, so it serves no rewrite or header from that file (learned 2026-11-26, #1042).** Test a rewrite against the file's own order and matcher. Check the deployed headers on a preview deployment.
 
 ## 2. Conventions (`AGENTS.md` §4)
 
@@ -1467,11 +1475,17 @@ process.
 
 - **A shared component's paint offset must be geometry the container owns, not a number the component invents (learned 2026-10-29).** `PillNav` measured its glider as `item.height - 8` and `item.top + 4`. Those numbers came from one control shape and applied to all fifteen callsites. A 44px active pill painted 36px tall. In the workspace rail (6px padding, 1px border, 58px outer) the fill sat 11px in where the source has 7. The result was a flat pill, not a concentric one. The rule: a nested capsule takes its spacing from the container's padding and border. The component measures the item's border box and adds nothing. Put the arithmetic in a pure module (`src/lib/pillGeometry.ts`). Test it at every real control shape (`tests/pill-geometry.test.ts`). A source-only pin cannot see this class of bug. A test that only matches the component's own text will pass while every rendered pill is wrong.
 
+- **The active pill must clear the edge fade.** The browser applies snap to programmatic scroll. Use the active pill's snap position when the fade covers the pill. Test the pill against the opaque area of the rail.
+
 - **A stack of overlapping avatars must not paint one colour (learned 2026-10-29).** Three initials circles in the same pale mint merge where they overlap. The stack then reads as one block, not as three people. Give each member a tone from the approved token trio. Two properties must hold together. The tone must be stable for an identity, so a rerender or a reorder does not reshuffle the colours. Neighbours must also differ, which a plain hash cannot promise. The stack resolves collisions in `assignAvatarTones`. Only a colliding member moves. A real photo still wins over a tone. Keep the visible circle and its hit target separate. The target may be 44px tall. A negative margin on a wide target either cancels the overlap or steals the neighbour's hits. `tests/avatar-tone.test.ts` pins the distinctness, the stability and the stylesheet pairing.
 
 - **A real-workspace receipt test must not mock the decision module as its transport (learned 2026-11-06, #841).** A workspace test that stubs the decision layer proves only the stub. Keep the production bridge and pass a controlled persistence under it. The uncertain write must reach the real `onUncertain` bridge. The kept callback must receive the acknowledged receipt, never `undefined`; a test that accepts `undefined` cannot see a fake success. Run this bridge in the focused suite. Label a mocked transport as client-only evidence, and never as server proof.
 
 - **A paywall must build the withheld shape, and never clear fields from the stored row (learned 2026-11-10, #774).** `get_public_trip` cleared the description, the notes and the times of each locked stop. It kept every field it did not name, so the title and the coordinates stayed in the response. A list of fields to remove fails open for each new field. Build the locked value from counts, and copy no stored field into it. Apply the same rule to every function that returns the same row: `get_invite_trip` served the full row by trip id. A blur in the browser is not a lock. Prove the boundary by execution. `tests/public-trip-paywall-db.test.ts` runs the migration on PGlite and calls the function as each kind of viewer. A source scan cannot show what a function returns. On the client, read the locked shape in one module (`src/lib/lockedDay.ts`), and keep an unknown count apart from zero.
+
+- **A linked publication does not prove trip ownership.** A paywall must verify the publisher with the trip's owner ID.
+- **A price applies to every alias of the trip.** Use the same trip-level price check for public and invite links. Check crew consent before a join. An entitlement gives read access.
+  Check an entitlement against the priced publication. Apply the same check before an invite grants trip membership.
 
 ## 3. Scripted edits
 
@@ -1535,3 +1549,5 @@ The editor primitives are the default; a script is the exception.
 - Map UI labels start with a capital and use short label and value pairs. Use middle dots between facts. Keep full sentences in tooltips, accessible names, and suggestion help only.
 - Every visible label in `src/` starts with a capital or a number, not only on the Map. `tests/ui-label-capitals.test.ts` scans all of `src/`. Fix the string. Allowlist only a piece that follows other words, a unit after a number, or text that never shows. Give each entry a reason.
 - UI strings in `src/` must not contain an em dash or its HTML entity. Preserve en dashes in time ranges. The source scan reports the file and line. One exception: the owner's locked main line, as one exact single-quoted literal (`LOCKED_BRAND_LINES` in `tests/uiSourceScan.ts`). Add nothing else to that set without the owner.
+
+- **Paid access.** Access to paid content is decided by `trip_access_level`. Each reader is a row in the decision table. Check invariants on write, not on read.

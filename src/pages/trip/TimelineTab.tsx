@@ -80,6 +80,7 @@ import { reuseDayTotals, reuseWarningGroups, type DayTotals } from '../../lib/da
 import type { WorkspaceJourneyDays } from './journey/journeyDays'
 import { insertionWhere } from '../../lib/labels'
 import { canFocusDay } from '../../lib/tripFocus'
+import type { MapTarget } from '../../lib/mapTarget'
 import { QuickAddStop, type QuickAddTarget } from './timeline/QuickAddStop'
 import { MoveStopModal } from './timeline/MoveStopModal'
 
@@ -114,7 +115,9 @@ function measureStickyStack(): number {
     const s = getComputedStyle(el)
     if (s.position !== 'sticky' && s.position !== 'fixed') continue
     const top = parseFloat(s.top)
-    if (!Number.isFinite(top) || top > 120) continue
+    // 200, not 120: on a phone the review ribbon sticks below the trip tab
+    // dock, at about 150px (#1051).
+    if (!Number.isFinite(top) || top > 200) continue
     const h = el.offsetHeight
     if (h === 0 || h > 240) continue
     bottom = Math.max(bottom, top + h)
@@ -123,7 +126,7 @@ function measureStickyStack(): number {
 }
 // ================= Timeline =================
 
-export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId, projectedController, projectedAvailability }: {
+export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorrections, roadStatus, suggestionCache, journeyDays, onOpenBoard, onOpenMap, focusDay, focusStopId, focusBlock, onFocusConsumed, projectedWriter, identityGeneration, ownerTripId, projectedController, projectedAvailability }: {
   trip: Trip
   editable: boolean
   /** `onKept` runs only when the user keeps the staged change — the hook the
@@ -141,6 +144,8 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
   journeyDays: WorkspaceJourneyDays
   /** M5: the doc's §6.3 "Open in Board" bridge — Board now exists. */
   onOpenBoard?: () => void
+  /** Phone stop sheet: focus one stop on the map through the workspace target. */
+  onOpenMap?: (target: MapTarget) => void
   /** Phase 3 (the living plan): the map's halt label handed us a day to open.
    *  Consumed once — the workspace clears it through onFocusConsumed, so a
    *  stale value can neither re-fire on a later mount (tab navigation) nor
@@ -750,6 +755,13 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     }, DAY_START_SETTLE_MS)
   }, [previewOpen])
 
+  const handleSuggestDayStart = useCallback((dayIndex: number, time: string) => {
+    latest.current.applyChange(draft => {
+      const day = draft.days.find(d => d.index === dayIndex)
+      if (day) day.startTime = time
+    }, 'edit', dayIndex)
+  }, [])
+
   // A pending announcement must not outlive the tab: an unmount mid-burst would
   // otherwise speak for a surface the person has already left.
   useEffect(() => () => {
@@ -791,6 +803,19 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
   }, [trip.id, previewOpen])
 
+  // The phone sheet stages a status change through the impact preview. A status
+  // can change dwell, cost and warnings, so the person sees the measured result
+  // before Keep. The desktop ⋯ above keeps its direct group-signal write.
+  const handleStatusWithPreview = useCallback((stop: ItineraryStop, status: ItineraryStop['status']) => {
+    const { applyChange, trip } = latest.current
+    const day = trip.days.find(d => d.stops.some(s => s.id === stop.id))
+    if (!day) { toast(`“${stop.title}” is no longer on this trip.`, 'err'); return }
+    applyChange(draft => {
+      const target = draft.days.find(d => d.index === day.index)?.stops.find(s => s.id === stop.id)
+      if (target) target.status = status
+    }, 'edit', day.index)
+  }, [])
+
   // --- Plan / Inspect (docs/TIMELINE-PLAN.md Phase 3): Inspect is the study
   // view — same data, every editing affordance off (the existing `editable`
   // seam renders it: no drag, delete, add, rename or impact sheet). The mode
@@ -801,6 +826,16 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     setMode(m)
     if (m === 'inspect') { openEditorState(null); setMoveModalStop(null) }
   }
+
+  // Stable props for the memoized DaySection: the day numbers come from the
+  // trip's days, and the map bridge reads the latest callback through a ref so
+  // a workspace re-render never re-renders every day card.
+  const tripDayNumbers = useMemo(() => trip.days.map(d => d.index + 1), [trip.days])
+  const openMapRef = useRef(onOpenMap)
+  useEffect(() => { openMapRef.current = onOpenMap }, [onOpenMap])
+  const handleShowOnMap = useCallback((stopId: string) => {
+    openMapRef.current?.({ kind: 'stop', stopId })
+  }, [])
 
   return (
     <div className={reviewAll ? 'tl-root-review' : undefined}>
@@ -974,10 +1009,14 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
             onCopyDay={handleCopyDay}
             onAddQuickStop={handleAddQuickStop}
             onSetDayStart={handleSetDayStart}
+            onSuggestDayStart={handleSuggestDayStart}
             onAddPlannedHalts={handleAddPlannedHalts}
             onLinkCommitment={handleLinkCommitment}
             warnings={dayWarnings.get(day.index) ?? NO_WARNINGS}
             onStatus={handleStatus}
+            onStatusPreview={handleStatusWithPreview}
+            onShowOnMap={handleShowOnMap}
+            dayNumbers={tripDayNumbers}
             savedIds={savedIds}
             onToggleSaved={toggleSaved}
           />

@@ -49,6 +49,67 @@
 .bud-glance-kitty { background: var(--pw-lagoon-50); border-color: var(--pw-route); }
 .bud-glance-kitty .bud-kicker,
 .bud-glance-kitty .bud-glance-sub { color: var(--pw-sea-700); }
+/* Chakra's own glance tile: art only, with no text and no button. The button
+   is the art (see the BudgetChakra component). Its data-state drives the reactions. */
+.bud-glance-chakra { align-items: center; justify-content: center; text-align: center; }
+.bud-chakra {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 132px;
+  height: 132px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bud-chakra:focus-visible { outline: none; box-shadow: var(--ring); }
+.bud-chakra img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: transform var(--motion-med) var(--ease-paper);
+}
+@media (hover: hover) {
+  .bud-chakra:hover img { transform: translateY(-2px) rotate(-3deg); }
+}
+.bud-chakra[data-state='poked'] img,
+.bud-chakra[data-state='waking'] img { animation: bud-chakra-squish var(--motion-slower) var(--ease-paper); }
+.bud-chakra[data-state='asleep'] img {
+  opacity: .85;
+  animation: bud-chakra-breathe calc(var(--motion-slower) * 6) var(--ease-resize) infinite alternate;
+}
+.bud-chakra-burst { position: absolute; inset: 0; pointer-events: none; }
+.bud-chakra-burst i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--coral);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  animation: bud-chakra-heart calc(var(--motion-slower) * 2) var(--ease-paper) both;
+}
+.bud-chakra-burst i::before,
+.bud-chakra-burst i::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: inherit;
+}
+.bud-chakra-burst i::before { top: -50%; left: 0; }
+.bud-chakra-burst i::after { top: 0; left: 50%; }
+.bud-chakra-burst i:nth-child(1) { --x: -22px; animation-delay: calc(var(--stagger-step) * 0); }
+.bud-chakra-burst i:nth-child(2) { --x: 0px; animation-delay: calc(var(--stagger-step) * 1); }
+.bud-chakra-burst i:nth-child(3) { --x: 22px; animation-delay: calc(var(--stagger-step) * 2); }
+
 .bud-glance-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .bud-kicker {
   font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
@@ -571,12 +632,32 @@
 /* ---- motion ---- */
 @keyframes bud-grow-x { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes bud-bars-in { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes bud-chakra-squish {
+  0% { transform: scale(1); }
+  33% { transform: scale(.9, 1.08); }
+  66% { transform: scale(1.06, .94); }
+  100% { transform: scale(1); }
+}
+@keyframes bud-chakra-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.03); }
+}
+@keyframes bud-chakra-heart {
+  0% { opacity: 0; transform: translate(calc(-50% + var(--x)), -50%) rotate(-45deg) scale(.6); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% - 28px)) rotate(-45deg) scale(1); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .bud-track-fill, .bud-share-bar, .bud-essential-bar, .bud-stack, .bud-bal-bar, .bud-state {
     animation: none;
   }
   .bud-tip { transition: none; }
+  .bud-chakra img,
+  .bud-chakra[data-state='poked'] img,
+  .bud-chakra[data-state='waking'] img,
+  .bud-chakra[data-state='asleep'] img,
+  .bud-chakra-burst i { animation: none; transition: none; }
 }
 
 /* ---- responsive ---- */
@@ -588,6 +669,8 @@
 
 @media (max-width: 720px) {
   .bud-glance { grid-template-columns: 1fr; }
+  /* One column: the Chakra art is 96px. */
+  .bud-chakra { width: 96px; height: 96px; }
   .bud-glance-main { grid-column: auto; }
   .bud-glance-num { font-size: 32px; }
   .bud-glance-num.sm { font-size: 24px; }

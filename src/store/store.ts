@@ -19,7 +19,7 @@ import type { LatLngPoint } from '../data/types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from '../components/ui'
 import { DRIVES_PART_MISSING_REASON, drivesPartWriteVerdict, isMissingColumnError, rowToTrip, tripToRow, tripUpdateRow, validWriteVersion, type OptionalColumnsProbe, type TripRow } from '../lib/tripRow'
-import { classifyInviteRows } from '../lib/inviteLookup'
+import { classifyInviteRows, invitePreviewIdentity, type InvitePreviewIdentity } from '../lib/inviteLookup'
 import { emptyLockedDay, isWireLocked, withoutLockMarker } from '../lib/lockedDay'
 import type { ShareSource } from '../lib/shareUrl'
 import { dayCountForRange } from '../lib/dayCount'
@@ -159,13 +159,13 @@ export function subscribe(fn: () => void): () => void {
 export function getSnapshot(): DB { return cache }
 
 export function useDb(): DB {
-  return useSyncExternalStore(subscribe, getSnapshot)
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
 /** True once the first post-mount hydrate has settled. Gates every
  *  "empty state" in the app: before this, empty just means "still loading". */
 export function useStoreReady(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.ready)
+  return useSyncExternalStore(subscribe, () => cache.ready, () => cache.ready)
 }
 
 // ---------------- Slice-level selectors ----------------
@@ -176,11 +176,11 @@ export function useStoreReady(): boolean {
 // the whole page tree because a trip edit changed cache.trips).
 
 export function useTrips(): Trip[] {
-  return useSyncExternalStore(subscribe, () => cache.trips)
+  return useSyncExternalStore(subscribe, () => cache.trips, () => cache.trips)
 }
 
 export function useTrashedTrips(): Trip[] {
-  return useSyncExternalStore(subscribe, () => cache.trashedTrips)
+  return useSyncExternalStore(subscribe, () => cache.trashedTrips, () => cache.trashedTrips)
 }
 
 /** Trash-bin read verdict (#387): `loaded` flips on the first successful
@@ -188,43 +188,43 @@ export function useTrashedTrips(): Trip[] {
  *  states from the pair (failed outranks; unloaded-unfailed is reading), so a
  *  failed bin read can never render the genuine-empty copy. */
 export function useTrashLoaded(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.trashLoaded)
+  return useSyncExternalStore(subscribe, () => cache.trashLoaded, () => cache.trashLoaded)
 }
 
 export function useTrashFailed(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.trashFailed)
+  return useSyncExternalStore(subscribe, () => cache.trashFailed, () => cache.trashFailed)
 }
 
 /** Per-slice hydrate verdicts (#364, #383). Narrow so My Trips re-renders only
  *  when the verdicts move, not on every unrelated store commit. */
 export function useSliceReads(): Record<string, 'ok' | 'failed'> {
-  return useSyncExternalStore(subscribe, () => cache.sliceReads)
+  return useSyncExternalStore(subscribe, () => cache.sliceReads, () => cache.sliceReads)
 }
 
 /** Crew quiz answers for every trip read so far. Filter by trip id in the page. */
 export function useCrewPreferenceRows(): CrewPreference[] {
-  return useSyncExternalStore(subscribe, () => cache.crewPreferences)
+  return useSyncExternalStore(subscribe, () => cache.crewPreferences, () => cache.crewPreferences)
 }
 
 /** Per-trip verdicts of the crew preference reads. Use `sliceState(reads, tripId)`. */
 export function useCrewPreferenceReads(): Record<ID, 'ok' | 'failed' | 'reading'> {
-  return useSyncExternalStore(subscribe, () => cache.crewPreferenceReads)
+  return useSyncExternalStore(subscribe, () => cache.crewPreferenceReads, () => cache.crewPreferenceReads)
 }
 
 export function usePublished(): PublishedItinerary[] {
-  return useSyncExternalStore(subscribe, () => cache.published)
+  return useSyncExternalStore(subscribe, () => cache.published, () => cache.published)
 }
 
 export function useUsers(): CachedUser[] {
-  return useSyncExternalStore(subscribe, () => cache.users)
+  return useSyncExternalStore(subscribe, () => cache.users, () => cache.users)
 }
 
 export function useNotifications(): Notification[] {
-  return useSyncExternalStore(subscribe, () => cache.notifications)
+  return useSyncExternalStore(subscribe, () => cache.notifications, () => cache.notifications)
 }
 
 export function useSessionUserId(): ID | null {
-  return useSyncExternalStore(subscribe, () => cache.sessionUserId)
+  return useSyncExternalStore(subscribe, () => cache.sessionUserId, () => cache.sessionUserId)
 }
 
 /**
@@ -238,13 +238,13 @@ export function useSessionUserId(): ID | null {
  * The value itself is meaningless; only a change matters.
  */
 export function useIdentityGeneration(): number {
-  return useSyncExternalStore(subscribe, () => identityEpoch)
+  return useSyncExternalStore(subscribe, () => identityEpoch, () => identityEpoch)
 }
 
 /** Synchronous read of the session's admin flag (true only after the first
  *  successful hydrate fetched the JWT role). Gates the #/admin route. */
 export function useIsAdmin(): boolean {
-  return useSyncExternalStore(subscribe, isAdminCached)
+  return useSyncExternalStore(subscribe, isAdminCached, isAdminCached)
 }
 
 /** Admin audit entries (the audit-log tab's rows). Hydrated for admins only. */
@@ -259,12 +259,12 @@ export interface AdminAuditEntry {
 }
 
 export function useAdminAudit(): AdminAuditEntry[] {
-  return useSyncExternalStore(subscribe, () => cache.adminAudit)
+  return useSyncExternalStore(subscribe, () => cache.adminAudit, () => cache.adminAudit)
 }
 
 /** The audit read's own status (#367) — the tab renders a retry on true. */
 export function useAdminAuditFailed(): boolean {
-  return useSyncExternalStore(subscribe, () => cache.adminAuditFailed)
+  return useSyncExternalStore(subscribe, () => cache.adminAuditFailed, () => cache.adminAuditFailed)
 }
 
 interface AuditRowShape {
@@ -2142,8 +2142,12 @@ async function hydrateFromSupabase(userId: string, gen: number, seedIfEmpty = tr
     if (tripList.length === 0 && seedIfEmpty && !admin && !tripCountUnknown) {
       // The empty state offers "Load demo trips" while this seed runs. The flag that
       // addDemoTrips checks keeps that button from seeding a second set.
+      // #1054: only the page context that claims the account's seed marker
+      // seeds, so two tabs on one empty account no longer both seed.
       demoSeedInFlight = true
-      try { await seedDemoFor(userId, gen) } finally { demoSeedInFlight = false }
+      try {
+        if (gen === hydrateGen && await claimDemoSeed(userId)) await seedDemoFor(userId, gen)
+      } finally { demoSeedInFlight = false }
     }
     return true
   } catch (e) {
@@ -2188,6 +2192,36 @@ function mapOrSkip<T>(rows: unknown[], to: (row: unknown) => T): T[] {
 }
 
 // ---------------- Seeding demo trips ----------------
+
+/** #1054: one page context per account wins the automatic demo seed. The
+ *  conditional update matches the row only while the marker is empty, so a
+ *  second tab that races it gets 0 rows back. Fails closed: an error, a throw
+ *  or 0 rows means no seed. */
+async function claimDemoSeed(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from('profiles')
+      .update({ demo_seeded_at: new Date().toISOString() })
+      .eq('id', userId)
+      .is('demo_seeded_at', null)
+      .select('id')
+    if (error) { console.error('[yatraflow] demo seed claim failed', error); return false }
+    return Array.isArray(data) && data.length === 1
+  } catch (e) {
+    console.error('[yatraflow] demo seed claim rejected', e)
+    return false
+  }
+}
+
+/** #1054: a manual "Load demo trips" also marks the account as seeded, so a
+ *  later automatic seed cannot add a second set. The result is ignored. */
+async function markDemoSeeded(userId: string): Promise<void> {
+  try {
+    await supabase.from('profiles')
+      .update({ demo_seeded_at: new Date().toISOString() })
+      .eq('id', userId)
+      .is('demo_seeded_at', null)
+  } catch { /* the marker is best effort after a manual seed */ }
+}
 
 async function seedDemoFor(userId: string, gen: number = hydrateGen): Promise<void> {
   const seedTrips = structuredClone(seedData.trips)
@@ -2251,7 +2285,7 @@ export function addDemoTrips(): void {
   demoSeedInFlight = true
   toast('Adding demo trips…')
   void seedDemoFor(userId).then(
-    () => toast('Demo trips added'),
+    () => { toast('Demo trips added'); void markDemoSeeded(userId) },
     (e) => console.error('[yatraflow] demo seed failed', e),
   ).finally(() => { demoSeedInFlight = false })
 }
@@ -2520,6 +2554,13 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   // never touch `trip.inviteCode`, and the owner's own surfaces read the trips
   // table under RLS.
   const fetched = rowToTrip({ ...rows[0], invite_code: null }, [])
+  const existing = cache.trips.find(t => t.id === fetched.id)
+  // The guide row is the server's answer for this viewer, not the viewer's own
+  // trip. A guide row is never inserted for a viewer who does not own the trip,
+  // so guides stay out of cache.trips, the offline queues and snapshots (spec 3.7).
+  // A copy that is already cached is refreshed as before. Otherwise a guide stub
+  // cached before this change would keep a paid page locked after a purchase (#349).
+  if (rows[0].owner_id !== userId && !existing) return fetched
   // #349 — the RPC is the server truth FOR THIS VIEWER on every call, so a
   // re-fetch has to REPLACE the cached row. Insert-if-absent is what kept the
   // public page locked after a paid unlock: the re-read answered with real
@@ -2533,7 +2574,6 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
   // empty list — so a cached membership is carried over into the replacement
   // instead of being dropped. It is the vote quorum's denominator and has
   // nothing to do with the paywall.
-  const existing = cache.trips.find(t => t.id === fetched.id)
   // Same two guards the realtime handler uses, for the same reasons: a strictly
   // older row is a replay of something we already applied (the ledger holds the
   // newest server clock this session has seen), and a write this session just
@@ -2561,10 +2601,13 @@ export async function fetchPublicTrip(pubId: string): Promise<Trip | null> {
  * means the account changed while the read was in flight.
  */
 export type InviteLookup =
-  | { kind: 'found'; trip: Trip }
+  | { kind: 'found'; trip: Trip; preview: InvitePreviewIdentity | null }
   | { kind: 'dead' }
   | { kind: 'failed' }
   | { kind: 'cancelled' }
+  // PT403: the trip is priced and the caller is not its owner. The reader returns
+  // no trip data, so the caller is asked to request approval (D4), not told the read failed.
+  | { kind: 'approval-needed' }
 
 /**
  * Resolve a short invite code ("GOA-K7QF") to its trip via the
@@ -2584,7 +2627,9 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
   // The preview RPC's own answer is never cached, so this can only hit a
   // complete row.
   const cached = cache.trips.find(t => t.inviteCode === normalized)
-  if (cached) return { kind: 'found', trip: cached }
+  // No preview identity: this row came from a full read, so the gate is in the
+  // already-a-member or signed-in path and every invite fact on it is real.
+  if (cached) return { kind: 'found', trip: cached, preview: null }
   let rpc: { data: unknown; error: unknown }
   try {
     rpc = await supabase.rpc('get_trip_by_invite_code', { p_code: normalized })
@@ -2593,6 +2638,7 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
     rpc = { data: null, error: err }
   }
   if (epoch !== identityEpoch || cache.sessionUserId !== userId) return { kind: 'cancelled' }
+  if ((rpc.error as { code?: string } | null)?.code === 'PT403') return { kind: 'approval-needed' }
   if (rpc.error) {
     console.error('[yatraflow] invite-code lookup failed', rpc.error)
     return { kind: 'failed' }
@@ -2613,9 +2659,11 @@ export async function fetchTripByInviteCode(code: string): Promise<InviteLookup>
   // The caller cannot write this trip anyway: it is not a member yet, so RLS
   // refuses. After joinViaInvite the full row is fetched into the cache.
   // B3 provenance and the dead-or-failed split live in classifyInviteRows (#1019).
-  const verdict = classifyInviteRows(rpc.data)
+  const verdict = classifyInviteRows(rpc.data, normalized)
   if (verdict.kind !== 'found') return verdict
-  return { kind: 'found', trip: rowToTrip(verdict.row, []) }
+  // The preview's name and role travel beside the trip, never inside it: a Trip
+  // must not carry a role claim (#1012), and this row is never cached.
+  return { kind: 'found', trip: rowToTrip(verdict.row, []), preview: invitePreviewIdentity(verdict.row) }
 }
 
 const accessReceipts = new Map<ID, { owner: string; epoch: number; version: number }>()
@@ -2631,6 +2679,18 @@ function memberAccessLive(scope: MemberAccessScope, tripId: ID, epoch: number): 
   const sameOwner = scope.session ? sameSession(scope.session, currentOwner()) : currentOwner() === null
   return sameOwner && isCurrentIdentity(scope) && (tripAccessEpochs.get(tripId) ?? 0) === epoch
     && !!trip && !trip.deletedAt && (!!trip.members?.some(m => m.userId === scope.userId) || isAdminCached())
+}
+
+export function captureJoinRequestScope(tripId?: ID) {
+  const scope = captureMemberScope()
+  if (!scope) return null
+  const epoch = tripId ? (tripAccessEpochs.get(tripId) ?? 0) : 0
+  const live = () => {
+    if (tripId) return memberAccessLive(scope, tripId, epoch)
+    const sameOwner = scope.session ? sameSession(scope.session, currentOwner()) : currentOwner() === null
+    return sameOwner && isCurrentIdentity(scope)
+  }
+  return { live, token: () => tripWriteToken(scope, live) }
 }
 
 function installMemberAccess(tripId: ID, state: MemberAccessState, scope: MemberAccessScope, epoch: number): boolean {
@@ -5898,7 +5958,7 @@ export async function setMemberRole(tripId: ID, userId: ID, role: TripMember['ro
  *   'failed'           no membership was created. A retry must join again.
  */
 export type JoinResult = 'joined' | 'joined-unloaded' | 'joined-unloaded-incomplete' | 'joined-unloaded-failed'
-  | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
+  | 'owner-approval' | 'not-member' | 'missing' | 'deleted' | 'incomplete' | 'failed' | 'abandoned'
 
 /**
  * Join a trip through its invite code, then fetch the full row into the cache.
@@ -5997,6 +6057,7 @@ async function joinAfterScope(
     return 'abandoned'
   }
   if (error) {
+    if (error.code === 'PT403') return 'owner-approval'
     console.error('[yatraflow] join write failed', error)
     return 'failed'
   }
@@ -8512,6 +8573,16 @@ function recordServerTripTimestamp(id: string, raw: unknown): void {
 /** Test hook — clear the server-timestamp ledger (see _clearRecentLocalWrites). */
 export function _clearServerTripTimestamps(): void {
   serverTripTimestamps.clear()
+}
+
+/** Test hook — place a cached copy the server served at `updatedAt`, as a client
+ *  does after a read by an owner. A non-owner's first read no longer inserts a
+ *  guide row (spec 3.7), so a convergence test seeds the cache through here. */
+export function _seedServedCopyForTest(trip: Trip, updatedAt: number): void {
+  const copy = { ...trip, updatedAt }
+  recordServerTripTimestamp(copy.id, updatedAt)
+  cache.trips = [...cache.trips.filter(t => t.id !== copy.id), copy]
+  commit()
 }
 
 /** Test hooks — read one entry from each bounded ledger, so the #579 eviction

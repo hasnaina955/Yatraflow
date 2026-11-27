@@ -24,7 +24,7 @@
   "peoplePerRoom": 2,
   "fuel": {
     "mileage": 14,
-    "price": 105
+    "price": 113
   },
   "defaults": {
     "people": 4,
@@ -37,22 +37,22 @@
       "label": "Full circuit",
       "meta": "Jaipur–Jodhpur–Jaisalmer–Udaipur · 7 days",
       "days": 7,
-      "km": 2000,
-      "note": "The classic winter loop, about 2,000 km of driving across the four cities."
+      "km": 1500,
+      "note": "The classic winter loop across the four cities, about 1,500 km with the local sightseeing drives."
     },
     "weekend-4": {
       "label": "Jaipur–Udaipur",
       "meta": "Two cities · 4 days",
       "days": 4,
-      "km": 1100,
-      "note": "One night in Jaipur, two in Udaipur, with the drive between them. The shortest sensible circuit."
+      "km": 800,
+      "note": "Jaipur to Udaipur and back, about 800 km return, with the city drives inside it. The shortest sensible circuit."
     },
     "desert-4": {
       "label": "Desert loop",
       "meta": "Jaipur–Jodhpur–Jaisalmer · 4 days",
       "days": 4,
-      "km": 900,
-      "note": "West to the dunes, with the desert camp night in the optional line below."
+      "km": 1250,
+      "note": "Jaipur–Jodhpur–Jaisalmer and back, about 1,250 km return, with the desert camp night in the optional line below."
     },
     "custom": {
       "label": "Custom",
@@ -68,7 +68,7 @@
       "key": "transport",
       "param": "m",
       "legend": "Getting around",
-      "hint": "A 2,000 km circuit is a real drive. A car with a driver costs the most but removes the fatigue.",
+      "hint": "A 1,500 km circuit is a real drive. A car with a driver costs the most but removes the fatigue.",
       "options": [
         {
           "value": "own-car",
@@ -133,7 +133,7 @@
         ]
       },
       "rateLabel": "Fuel and distance",
-      "hint": "Mileage and pump price for the car you would drive. Toll is counted on its own line.",
+      "hint": "Mileage and the Jaipur pump price for the car you would drive. Toll is counted on its own line.",
       "source": {
         "label": "assumption",
         "href": "#src-assume"
@@ -178,9 +178,9 @@
       "rateLabel": "SUV with driver, per day",
       "rate": {
         "low": 4000,
-        "high": 5500
+        "high": 6500
       },
-      "hint": "An Innova-class car with a driver, fuel and tolls included. Driver food and stay are usually settled separately at the end.",
+      "hint": "An Innova-class car with a driver, fuel and tolls included. Week-long operator quotes run about ₹5,400–₹7,800 a day; check the km cap. Driver food and stay are usually settled separately at the end.",
       "params": {
         "low": "sv",
         "high": "sV"
@@ -256,7 +256,7 @@
       },
       "source": {
         "label": "sourced",
-        "href": "#src-asi"
+        "href": "#src-tickets"
       }
     },
     {
@@ -333,7 +333,7 @@
   "faqs": [
     {
       "q": "How much does a 7-day Rajasthan trip cost for 4 people?",
-      "a": "With the default settings here, four people on the full Jaipur–Jodhpur–Jaisalmer–Udaipur circuit in a haveli with local thalis, driving their own car, the calculator lands near ₹15,800 to ₹25,800 per person. That is ₹63,200 to ₹1,03,200 for the group. A car with a driver adds to that, and it takes the driving fatigue out. Two people instead of four pushes the per-person figure up because the car and the rooms are shared between fewer people."
+      "a": "With the default settings here, four people on the full Jaipur–Jodhpur–Jaisalmer–Udaipur circuit in a haveli with local thalis, driving their own car, the calculator lands near ₹15,100 to ₹25,100 per person. That is ₹60,300 to ₹1,00,300 for the group. A car with a driver adds to that, and it takes the driving fatigue out. Two people instead of four pushes the per-person figure up because the car and the rooms are shared between fewer people."
     },
     {
       "q": "What costs do groups usually forget in Rajasthan?",
@@ -341,11 +341,11 @@
     },
     {
       "q": "Is it cheaper to drive, take a car with a driver, or go by train?",
-      "a": "Driving your own car is the cheapest on paper, because you pay for fuel and tolls and nothing else. A car with a driver costs the most, but it includes fuel and tolls and removes 2,000 km of driving from your group. The train looks cheap until you add the local cabs at both ends, which is why the train option here prices them together. Switch the Getting around option and compare the totals, not the headline rate."
+      "a": "Driving your own car is the cheapest on paper, because you pay for fuel and tolls and nothing else. A car with a driver costs the most, but it includes fuel and tolls and removes 1,500 km of driving from your group. The train looks cheap until you add the local cabs at both ends, which is why the train option here prices them together. Switch the Getting around option and compare the totals, not the headline rate."
     },
     {
       "q": "Do I need a permit for Rajasthan?",
-      "a": "No. There are no permits or tourism registrations for a domestic Rajasthan circuit. You pay monument entry tickets, and that is the only government fee involved. Unlike Ladakh or Meghalaya, nothing here needs an online registration before you travel."
+      "a": "No. There are no permits or tourism registrations for a domestic Rajasthan circuit. You pay monument entry tickets and, in your own car, highway tolls. Nothing here needs an online registration before you travel."
     },
     {
       "q": "What are the best months to visit Rajasthan, and how does season change the price?",
@@ -354,24 +354,28 @@
   ],
   "sources": [
     {
-      "id": "src-asi",
+      "id": "src-tickets",
       "kind": "Sourced",
-      "text": "Monument entry tickets are set by the Archaeological Survey of India. Indian national rates run from about ₹50 to ₹500 a site across Amber, Mehrangarh, Jaisalmer Fort and the City Palace, and camera fees are charged separately: ",
+      "text": "Monument entry tickets are set by each site's operator, not by one tariff: the Rajasthan state booking site, the Mehrangarh Museum Trust and the Udaipur City Palace Museum each publish their own Indian-national rates, from about ₹50 to ₹500 a site, with camera fees charged separately: ",
       "links": [
         {
-          "text": "Archaeological Survey of India, ticketed monuments",
-          "href": "https://asi.nic.in/"
+          "text": "Rajasthan state monument booking (Amber Fort)",
+          "href": "https://obms-tourist.rajasthan.gov.in/place-details/Amber-Fort"
         },
         {
-          "text": "Rajasthan Tourism, official state tourism site",
-          "href": "https://www.tourism.rajasthan.gov.in/"
+          "text": "Mehrangarh Museum Trust",
+          "href": "https://mehrangarh.org/visit/mehrangarh-museum"
+        },
+        {
+          "text": "Udaipur City Palace Museum",
+          "href": "https://citypalacemuseum.org/docs/faq.pdf"
         }
       ]
     },
     {
       "id": "src-assume",
       "kind": "Assumption",
-      "text": "Route distances of about 2,000 km for the full circuit, 1,100 km for Jaipur–Udaipur and 900 km for the desert loop; stays, food, the SUV-with-driver rate, tolls, the desert camp range, the buffer, mileage of 14 km per litre and fuel at ₹105 per litre are YatraFlow planning estimates checked in November 2026. They are market ranges, not a quote and not an official tariff: replace each one with the price you were actually given."
+      "text": "Route distances of about 1,500 km for the full circuit, 800 km for Jaipur–Udaipur and 1,250 km for the desert loop; stays, food, the SUV-with-driver rate, tolls, the desert camp range, the buffer, mileage of 14 km per litre and fuel at ₹113 per litre are YatraFlow planning estimates. The fuel figure is the Jaipur pump price in November 2026. They are market ranges, not a quote and not an official tariff: replace each one with the price you were actually given."
     }
   ]
 }

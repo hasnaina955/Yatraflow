@@ -1,0 +1,15 @@
+/* The signed-out topnav between 721px and 860px. Its two added items would
+   overflow or wrap there beside Explore, so they move into the hamburger tray,
+   and this query shows the hamburger that opens it. From 861px up the bar holds
+   them inline. The items exist only for signed-out web visitors, so the query
+   never changes the signed-in bar or the installed shell. */
+
+@media (min-width: 721px) and (max-width: 860px) {
+  .topnav-extra {
+    display: none;
+  }
+
+  .topnav:has(.topnav-extra) .mobile-nav-btn {
+    display: inline-flex;
+  }
+}

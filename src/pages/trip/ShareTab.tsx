@@ -24,6 +24,7 @@ import {
 } from '../../lib/publishRules'
 import { takePublishDraft } from '../../lib/publishDraft'
 import { publishFormKey, publishFormMount } from '../../lib/publishFormKey'
+import { appLink } from '../../lib/appLink'
 import { Mascot } from '../../components/mascot/Mascot'
 import { pubArtId } from '../../lib/pubDayArt'
 import { artCoverOrigin, artCoverUrl } from '../../lib/artCover'
@@ -31,6 +32,7 @@ import { sliceState, rowsView, type ReadState, type RowsView } from '../../lib/r
 import type { PublicationDraft } from '../../lib/itinerarySpec'
 import { Avatar, Chip, ConfirmDialog, CopyButton, Field, FormErrorSummary, Modal, toast, undoToast, useMedia } from '../../components/ui'
 import { StateBlock } from '../../components/page/StateBlock'
+import { JoinRequests } from './JoinRequests'
 import { Surface } from '../../components/page/Surface'
 import { PrintExport } from '../../components/PrintExport'
 import { SegmentedTabs } from '../../components/page/SegmentedTabs'
@@ -840,6 +842,8 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
                 )}
               </div>
             ) : null}
+            {/* The codes section answers the link, reset and role questions. */}
+            {readRole && <p className="hint-text"><a className="text-link" {...appLink('/faq?section=codes')}>Questions about links and roles? See the FAQ</a></p>}
             {isOwner && readRole && (
               <button type="button" className="btn btn-outline btn-sm shr-reset-link" disabled={inviteBusy} onClick={() => setResetAsk(true)}>Reset link</button>
             )}
@@ -857,6 +861,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
             </div>
           )}
           <hr className="divider" />
+          {isOwner && <JoinRequests tripId={trip.id} />}
           <h3 className="shr-card-title">Members and roles · {(trip.members ?? []).length}</h3>
           <div className="shr-members" ref={attachMembers}>
             {memberEntries.length === 0 ? (
@@ -938,6 +943,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           <p className="hint-text shr-publication-description">
             List this trip on Explore. Pick the free preview days. No real payments in this MVP.
           </p>
+          <p className="hint-text"><a className="text-link" {...appLink('/for-creators')}>Publishing for an audience? See YatraFlow for creators</a></p>
           {/* Loading, failed and "not published" are three different statements
               (#704). The last one is said only after a read that succeeded.
               Each is its own compact block, so the roles are the shared ones: a

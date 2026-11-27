@@ -27,10 +27,11 @@ import { seedData } from '../src/data/seed'
 import { tripToRow } from '../src/lib/tripRow'
 import type { Trip } from '../src/data/types'
 
-const { rpcCalls, rpcData } = vi.hoisted(() => ({
+const { rpcCalls, rpcData, rpcErrors } = vi.hoisted(() => ({
   rpcCalls: [] as Array<{ fn: string; args: unknown }>,
   /** What the mocked wire answers, per RPC name. */
   rpcData: {} as Record<string, unknown>,
+  rpcErrors: {} as Record<string, { code: string; message: string }>,
 }))
 
 vi.mock('../src/lib/supabase', () => {
@@ -56,7 +57,7 @@ vi.mock('../src/lib/supabase', () => {
       from: () => qb,
       rpc: (fn: string, args: unknown) => {
         rpcCalls.push({ fn, args })
-        return Promise.resolve({ data: rpcData[fn] ?? null, error: null })
+        return Promise.resolve({ data: rpcData[fn] ?? null, error: rpcErrors[fn] ?? null })
       },
       auth: {
         getSession: async () => ({ data: { session: null } }),
@@ -104,6 +105,7 @@ async function freshStore() {
 beforeEach(() => {
   rpcCalls.length = 0
   for (const k of Object.keys(rpcData)) delete rpcData[k]
+  for (const k of Object.keys(rpcErrors)) delete rpcErrors[k]
 })
 
 afterEach(() => { vi.restoreAllMocks() })
@@ -176,8 +178,10 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
     const code = sqlCode(sqlFunction(src(`../supabase/migrations/${NEWEST}`), 'get_public_trip'))
     // Trade one hole for another? The soft-unpublish gate has to survive the
     // rewrite that removes the `select *`.
-    expect(code).toMatch(/if v_pub\.unpublished_at is not null then/)
-    expect(code).toMatch(/from public\.entitlements e\s+where e\.pub_id = v_pub\.id and e\.user_id = auth\.uid\(\)/)
+    // #350 now lives in the listing rule (publication_is_listed), and the buyer
+    // check lives in the one access function the reader asks.
+    expect(code).toMatch(/public\.publication_is_listed\(v_pub\.id\)/)
+    expect(code).toMatch(/v_level := public\.trip_access_level\(v_trip\.id\)/)
     // …and the withholding the paywall itself depends on. Since #774 the
     // function builds each locked day itself and edits no stored stop.
     expect(code).toMatch(/'locked', true/)
@@ -185,17 +189,24 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
   })
 
   it('get_trip_by_invite_code carries the guard its uuid sibling has had all along', () => {
-    const files = defining('get_trip_by_invite_code')
+    const files = defining('get_trip_by_invite_code').filter(file =>
+      !src('../supabase/migrations/' + file).includes("and prorettype = 'public.trips'::regtype"),
+    )
     const newest = files.at(-1)
     expect(newest).toBeDefined()
 
     const code = sqlCode(sqlFunction(src(`../supabase/migrations/${newest}`), 'get_trip_by_invite_code'))
     // The gate: a priced publication locks the code path for everyone without a
     // claim on it — the same clause shape as get_invite_trip.
-    expect(code).toMatch(/coalesce\(p\.premium_price_inr, 0\) > 0/)
-    expect(code).toMatch(/public\.is_member\(t\.id\)/)
-    expect(code).toMatch(/public\.is_admin\(\)/)
-    expect(code).toMatch(/from public\.entitlements e\s+where e\.pub_id = p\.id and e\.user_id = auth\.uid\(\)/)
+    expect(code).toMatch(/public\.trip_access_level\(v_row\.id\)/)
+    expect(code).toMatch(/if v_level <> 'crew' and public\.trip_has_priced_publication\(v_row\.id\) then/)
+    expect(code).not.toMatch(/t\.visibility = 'private'|p\.creator_id = auth\.uid\(\)/)
+    // The membership and admin gates moved into the one access function.
+    const accessFile = defining('trip_access_level').at(-1)
+    expect(accessFile).toBeDefined()
+    const access = sqlCode(sqlFunction(src(`../supabase/migrations/${accessFile}`), 'trip_access_level'))
+    expect(access).toMatch(/public\.is_member\(p_trip_id\)/)
+    expect(access).toMatch(/public\.is_admin\(\)/)
     // Trashed trips stop resolving through the code, as they already do through
     // the uuid.
     expect(code).toMatch(/t\.deleted_at is null/)
@@ -227,6 +238,26 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
 })
 
 describe('#351 — the client is not the second half of the exploit', () => {
+  it('keeps a guide row out of the cache for a viewer who does not own the trip', async () => {
+    const store = await freshStore()
+    // A row whose owner is not the viewer: the guide, not the viewer's own trip.
+    rpcData.get_public_trip = (leakedPayload() as Array<Record<string, unknown>>).map(row => ({ ...row, owner_id: 'not-the-viewer' }))
+
+    const fetched = await store.fetchPublicTrip('pub-351')
+
+    expect(fetched, 'the guide still resolves for the page').not.toBeNull()
+    expect(store.tripById(fetched!.id), 'a guide row must never enter cache.trips').toBeUndefined()
+  })
+
+  it('reads a PT403 from the code reader as approval-needed, not as a failure', async () => {
+    const store = await freshStore()
+    rpcErrors.get_trip_by_invite_code = { code: 'PT403', message: 'Owner approval needed.' }
+
+    const result = await store.fetchTripByInviteCode('YATRA-PT403')
+
+    expect(result).toEqual({ kind: 'approval-needed' })
+  })
+
   it('drops a leaked invite_code before it can reach the cache', async () => {
     const store = await freshStore()
     rpcData.get_public_trip = leakedPayload()

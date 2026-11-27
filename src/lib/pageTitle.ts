@@ -14,7 +14,7 @@
 // the page that already has the record refines the title itself.
 
 import { FAQ_DESCRIPTION, FAQ_TITLE } from './faqContent'
-import { HOW_IT_WORKS_DESCRIPTION, HOW_IT_WORKS_TITLE } from './howItWorksContent'
+import { BRAND_LINE_MAIN, BRAND_LINE_SUPPORT, HOW_IT_WORKS_DESCRIPTION, HOW_IT_WORKS_TITLE } from './howItWorksContent'
 
 export const SITE = 'YatraFlow'
 
@@ -39,11 +39,48 @@ const STATIC: Record<string, string> = {
   'how-it-works': HOW_IT_WORKS_TITLE,
 }
 
+/** The site description that index.html ships. The prerendered home page
+ *  carries the same string. */
+export const SITE_DESCRIPTION = `${BRAND_LINE_MAIN} ${BRAND_LINE_SUPPORT}`
+
+/** The story page's meta description (#1042, owner-approved copy). */
+export const ABOUT_DESCRIPTION =
+  'YatraFlow helps groups plan Indian trips together, with every stop, hour and rupee in one shared plan. See what it does today and what comes next.'
+
+/** The creator page's meta description (#1042, owner-approved copy). */
+export const FOR_CREATORS_DESCRIPTION =
+  'Turn your India travel content into timed itineraries that your audience can copy and change. See what YatraFlow gives creators today and what is next.'
+
 /** Route head -> the meta description a page carries. Every other route keeps
  *  the site description that index.html ships. */
 const DESCRIPTIONS: Record<string, string> = {
   faq: FAQ_DESCRIPTION,
   'how-it-works': HOW_IT_WORKS_DESCRIPTION,
+  about: ABOUT_DESCRIPTION,
+  'for-creators': FOR_CREATORS_DESCRIPTION,
+}
+
+/** The app's own pages: a signed-in account's screens, and the share, invite and
+ *  creation pages of one record. They are not for search, so they carry noindex and
+ *  no canonical (#1042). A public page such as /explore or /pub/<id> is not listed. */
+const PRIVATE_ROUTES: ReadonlySet<string> = new Set([
+  'trip', 'trips', 'new', 'profile', 'purchases', 'creator-hub', 'admin', 'auth',
+  'created', 'share', 'join', 'invite',
+])
+
+/** Whether a route is one of the app's own private pages. */
+export function isPrivateRoute(parts: string[]): boolean {
+  return PRIVATE_ROUTES.has(parts[0] ?? '')
+}
+
+/** The path a route names as its own canonical address, or null when the route
+ *  names none. The home page and the copy pages name themselves. Every other route
+ *  names none, so no page inherits the home page's canonical (#1042). */
+export function canonicalPath(parts: string[]): string | null {
+  const head = parts[0] ?? ''
+  if (!head) return '/'
+  if (Object.prototype.hasOwnProperty.call(DESCRIPTIONS, head)) return `/${head}`
+  return null
 }
 
 /** Routes whose title is the record's own name when we have it. */

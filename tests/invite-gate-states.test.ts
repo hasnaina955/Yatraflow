@@ -4,6 +4,7 @@
 // the rules pinned here are the ones App.tsx follows. A read that failed is
 // never shown as a link that is dead, and the auth round-trip keeps its route.
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   inviteGateState, sharedSnapshotState,
   inviteAuthRoute, inviteLoginNext, inviteSignupNext, invitePreview,
@@ -127,4 +128,10 @@ describe('invitePreview', () => {
   it('counts no members when the trip carries none', () => {
     expect(invitePreview({ name: 'Quick trip', days: [{}], destinations: [], members: [] }).memberCount).toBe(0)
   })
+})
+
+ it('keeps the invite route on the approval sign-in link', () => {
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  const approval = app.slice(app.indexOf('function ApprovalAsk'), app.indexOf('function InviteGate'))
+  expect(approval).toContain('appLink(`/auth?next=${encodeURIComponent(`/join/${code}`)}`)')
 })

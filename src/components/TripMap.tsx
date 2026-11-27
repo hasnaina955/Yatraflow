@@ -4,6 +4,7 @@
 // connecting each day's stops. Distances/durations still come from the engine.
 import { useId, useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps } from 'react'
 import { useInView, usePageVisible } from './ui'
+import { PillNav } from './PillNav'
 import type { Trip } from '../data/types'
 import type { PlaceHit } from '../lib/geocode'
 import { resolveHitCoords } from '../lib/geocode'
@@ -2017,20 +2018,20 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         </div>
         ) : (
         <>
-        <div className="map-day-filter" role="group" aria-label="Which day the map draws">
+        <PillNav className="map-day-filter" role="group" aria-label="Which day the map draws" activeKey={String(dayFilter)}>
           <span className="map-scope-lbl">Show on map</span>
-          <button className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
+          <button data-pill-key="all" className={`map-day-chip ${dayFilter === 'all' ? 'on' : ''}`} aria-pressed={dayFilter === 'all'} onClick={() => { setDayFilter('all'); onDayFilterChange?.('all') }}>All days</button>
           {trip.days.map(d => {
             const rd = tripReadinessRows.find(x => x.dayIndex === d.index)
             return (
-              <button key={d.index} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}
+              <button key={d.index} data-pill-key={String(d.index)} className={`map-day-chip ${dayFilter === d.index ? 'on' : ''}`} aria-pressed={dayFilter === d.index} onClick={() => { setDayFilter(d.index); onDayFilterChange?.(d.index) }}
                 aria-label={`Day ${d.index + 1}${rd ? `, ${rd.filled} of ${rd.required} planned` : ''}`}>
                 Day {d.index + 1}
                 {rd && <span className="map-day-chip-rd">{rd.filled}/{rd.required}</span>}
               </button>
             )
           })}
-        </div>
+        </PillNav>
         <div className="map-toolbar-mid" role="group" aria-label="What the map shows">
           {/* The utilities read as one family, held apart from the day filter by
               the same hairline the view modes use: the chips around them answer

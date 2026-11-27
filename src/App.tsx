@@ -1036,7 +1036,7 @@ export default function App() {
           Creator hub tab for a creator, or the relocated controls on Profile.
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
-      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} />}
+      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}
 
       <ToastZone />
       {/* Web Analytics is a web concern: the Capacitor shell has no Vercel

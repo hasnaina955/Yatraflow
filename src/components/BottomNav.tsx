@@ -64,11 +64,12 @@ export function areaOf(route: string): Area {
   return null
 }
 
-export function BottomNav({ route, onNavigate, isCreator = false }: {
+export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: {
   route: string
   onNavigate: (r: string) => void
   /** The real profile flag. Only decides whether the Creator hub item is drawn. */
   isCreator?: boolean
+  unread?: number
 }) {
   const current = areaOf(route)
   const items = navDestinations(isCreator)
@@ -91,10 +92,10 @@ export function BottomNav({ route, onNavigate, isCreator = false }: {
             type="button"
             className={`bottom-nav-item${active ? ' active' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={title}
+            aria-label={to === '/trips' && unread > 0 ? `${label}, ${unread} unread` : title}
             onClick={() => onNavigate(to)}
           >
-            <Icon size={22} aria-hidden />
+            <span className="bottom-nav-icon"><Icon size={22} aria-hidden />{to === '/trips' && unread > 0 && <span className="bottom-nav-badge" aria-hidden>{unread > 9 ? '9+' : unread}</span>}</span>
             <span className="bottom-nav-label">{label}</span>
           </button>
         )

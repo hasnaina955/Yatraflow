@@ -13,15 +13,17 @@
 import { useState } from 'react'
 import { InlineIcon } from '../components/icons'
 import { Bell, Compass, Plus, Sparkles, TriangleAlert, Users, Wallet } from 'lucide-react'
-import type { Trip } from '../data/types'
+import type { ItineraryStop, Trip } from '../data/types'
 import { useUsers, useSessionUserId, useNotifications, useSliceReads, tripsForUser, rereadTrips } from '../store/store'
-import { computeTotals, formatInrShort } from '../lib/engine'
+import { collectWarnings, computeTotals, formatInrShort } from '../lib/engine'
 import { sliceState } from '../lib/readState'
 import { StateBlock } from '../components/page/StateBlock'
 import { PageHeader } from '../components/page/PageHeader'
 import { Avatar } from '../components/ui'
-import { TripArt } from '../components/trips/TripArt'
-import { regionFor } from '../lib/tripsPage'
+import { TripArt, TripArtSprite } from '../components/trips/TripArt'
+import { countdownText, heroPlace, regionFor, statusOf } from '../lib/tripsPage'
+import { dayStrip } from '../lib/tripDayStrip'
+import { DayStrip } from '../components/trips/DayStrip'
 
 /** Exported for the pin test: the greeting is a pure read of the clock. */
 export function greeting(): string {
@@ -34,16 +36,24 @@ export function greeting(): string {
 
 /** Live = today falls inside the date range; upcoming = starts in the future.
  *  Exported for the pin test: the phase is a pure read of the trip's dates. */
-export function tripPhase(t: Trip): 'live' | 'upcoming' | 'other' {
-  const start = t.startDate ? Date.parse(t.startDate) : NaN
-  const end = t.endDate ? Date.parse(t.endDate) : NaN
-  const today = new Date().setHours(0, 0, 0, 0)
-  if (Number.isFinite(start)) {
-    const e = Number.isFinite(end) ? end : start
-    if (today >= start && today <= e + 86_400_000) return 'live'
-    if (start > today) return 'upcoming'
-  }
-  return 'other'
+export function tripPhase(t: Pick<Trip, 'startDate' | 'endDate'>, now = new Date()): 'live' | 'upcoming' | 'other' {
+  const status = statusOf({ startDate: t.startDate, endDate: t.endDate || t.startDate }, now)
+  return status === 'live' || status === 'upcoming' ? status : 'other'
+}
+
+export function nextStoredStop<T extends Pick<ItineraryStop, 'arrivalTime'>>(stops: readonly T[], now: Date): T | undefined {
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return stops.filter(stop => stop.arrivalTime && stop.arrivalTime >= clock)
+    .sort((a, b) => (a.arrivalTime ?? '').localeCompare(b.arrivalTime ?? ''))[0]
+}
+
+export function NativeHomeSkeleton({ retrying = false }: { retrying?: boolean }) {
+  return <div className="nh-skeletons" role="status" aria-label={retrying ? 'Trying again' : 'Loading trips'}><span /><span /><span /></div>
+}
+
+/** Native start-up gate: the home skeleton inside the home page frame, so launch never shows a bare Loading block. */
+export function NativeHomeStartupPage() {
+  return <div className="app-home yf-page page-enter"><NativeHomeSkeleton /></div>
 }
 
 function HomeTripRow({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string) => void }) {
@@ -80,6 +90,29 @@ function HomeTripRow({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string)
   )
 }
 
+function LiveTripHero({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string) => void }) {
+  const now = new Date()
+  const countdown = countdownText({ ...trip, endDate: trip.endDate || trip.startDate }, now)
+  const dayNumber = Number(/^Day (\d+)/.exec(countdown ?? '')?.[1])
+  const day = trip.days.find(item => item.index === dayNumber - 1)
+  const next = nextStoredStop(day?.stops ?? [], now)
+  return (
+    <section className="nh-hero yf-surface" aria-label={`Live trip: ${trip.name}`}>
+      <div className="nh-hero-cover">
+        {trip.coverImageUrl ? <img src={trip.coverImageUrl} alt="" /> : <TripArt region={regionFor(trip)} />}
+        <span className="nh-hero-live mt-tag--live"><span className="mt-tag-dot" />Live now{countdown && ` · ${countdown}`}</span>
+      </div>
+      <div className="nh-hero-body">
+        <h2>{trip.name}</h2>
+        {heroPlace(trip) && <p>{heroPlace(trip)}</p>}
+        {next && <p className="nh-hero-next">Next · {next.title || next.locationName} · {next.arrivalTime}</p>}
+        <DayStrip cells={dayStrip(trip, collectWarnings(trip))} />
+        <button className="btn btn-primary nh-hero-open" onClick={() => onNavigate(`/trip/${trip.id}`)}>Open trip</button>
+      </div>
+    </section>
+  )
+}
+
 export function NativeHomePage({ me, onNavigate }: {
   me: { id: string; profile: { name: string } }
   onNavigate: (r: string) => void
@@ -96,6 +129,7 @@ export function NativeHomePage({ me, onNavigate }: {
   // #704: Try again is disabled while the re-read runs, so one press starts one read.
   const [retrying, setRetrying] = useState(false)
   const retryTrips = () => {
+    if (retrying) return
     setRetrying(true)
     void rereadTrips().finally(() => { setRetrying(false) })
   }
@@ -112,9 +146,11 @@ export function NativeHomePage({ me, onNavigate }: {
       return b.updatedAt - a.updatedAt
     })
   const firstName = me.profile.name.split(' ')[0]
+  const liveTrip = trips.find(t => tripPhase(t) === 'live')
 
   return (
     <div className="app-home yf-page page-enter">
+      <TripArtSprite />
       {/* R21: this page keeps a Sora h1, so the shared header's serif title is
           scoped back to the display family in the appended CSS. */}
       <PageHeader
@@ -132,7 +168,7 @@ export function NativeHomePage({ me, onNavigate }: {
         actions={(
           <div className="app-home-avatar-row">
             {unread > 0 && (
-              <button className="app-home-bell" onClick={() => onNavigate('/trips')} aria-label={`${unread} unread notifications`}>
+              <button className="app-home-bell" onClick={() => onNavigate('/profile')} aria-label={`${unread} unread notifications`}>
                 <Bell size={17} aria-hidden />
                 <span className="app-home-bell-count">{unread}</span>
               </button>
@@ -156,10 +192,10 @@ export function NativeHomePage({ me, onNavigate }: {
       </div>
 
       {/* #704: the three read states differ. The empty copy shows only after a read that succeeded. */}
-      {trips.length === 0 && tripsRead === 'reading' && (
-        <StateBlock kind="loading" icon={<span className="spinner" aria-hidden="true" />} title="Loading trips…" />
+      {trips.length === 0 && (tripsRead === 'reading' || retrying) && (
+        <NativeHomeSkeleton retrying={retrying} />
       )}
-      {trips.length === 0 && tripsRead === 'failed' && (
+      {trips.length === 0 && tripsRead === 'failed' && !retrying && (
         <StateBlock
           kind="failed"
           icon={<TriangleAlert size={26} aria-hidden />}
@@ -168,7 +204,7 @@ export function NativeHomePage({ me, onNavigate }: {
           actions={<button className="btn btn-primary" onClick={retryTrips} disabled={retrying}>{retrying ? 'Trying…' : 'Try again'}</button>}
         />
       )}
-      {trips.length === 0 && tripsRead === 'ready' && (
+      {trips.length === 0 && tripsRead === 'ready' && !retrying && (
         <StateBlock
           kind="empty"
           icon={<Sparkles size={26} aria-hidden />}
@@ -182,9 +218,10 @@ export function NativeHomePage({ me, onNavigate }: {
           {tripsRead === 'failed' && (
             <p className="small muted" role="status">Couldn’t refresh your trips. Showing what was loaded. <button className="btn btn-outline btn-sm" onClick={retryTrips} disabled={retrying}>{retrying ? 'Trying…' : 'Try again'}</button></p>
           )}
-          <h2 className="nh-section">Your trips</h2>
+          {liveTrip && <LiveTripHero trip={liveTrip} onNavigate={onNavigate} />}
+          {trips.length > (liveTrip ? 1 : 0) && <h2 className="nh-section">Your trips</h2>}
           <div className="nh-trips">
-            {trips.slice(0, 6).map(t => <HomeTripRow key={t.id} trip={t} onNavigate={onNavigate} />)}
+            {trips.filter(t => t.id !== liveTrip?.id).slice(0, 6).map(t => <HomeTripRow key={t.id} trip={t} onNavigate={onNavigate} />)}
           </div>
           {trips.length > 6 && (
             <button className="btn btn-outline nh-more" onClick={() => onNavigate('/trips')}>

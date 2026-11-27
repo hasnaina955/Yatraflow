@@ -64,14 +64,21 @@ export function areaOf(route: string): Area {
   return null
 }
 
-export function BottomNav({ route, onNavigate, isCreator = false }: {
+export function badgeText(unread: number): string | null {
+  if (!Number.isFinite(unread) || unread <= 0) return null
+  return unread > 9 ? '9+' : String(Math.floor(unread))
+}
+
+export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: {
   route: string
   onNavigate: (r: string) => void
   /** The real profile flag. Only decides whether the Creator hub item is drawn. */
   isCreator?: boolean
+  unread?: number
 }) {
   const current = areaOf(route)
   const items = navDestinations(isCreator)
+  const badge = badgeText(unread)
   return (
     // data-destinations lets the END of styles.css scope a five-column grid to
     // this case, so the four-item bar keeps its own rule untouched.
@@ -91,10 +98,10 @@ export function BottomNav({ route, onNavigate, isCreator = false }: {
             type="button"
             className={`bottom-nav-item${active ? ' active' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={title}
+            aria-label={to === '/profile' && badge ? `${label}, ${unread} unread` : title}
             onClick={() => onNavigate(to)}
           >
-            <Icon size={22} aria-hidden />
+            <span className="bottom-nav-icon"><Icon size={22} aria-hidden />{to === '/profile' && badge && <span className="bottom-nav-badge" aria-hidden>{badge}</span>}</span>
             <span className="bottom-nav-label">{label}</span>
           </button>
         )

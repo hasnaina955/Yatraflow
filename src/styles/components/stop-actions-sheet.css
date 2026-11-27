@@ -3,6 +3,11 @@
    breakpoint. Motion uses the shared tokens and every moving part opts out
    under prefers-reduced-motion. */
 
+.stop-more-phone.icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .stop-sheet-overlay {
   position: fixed;
   inset: 0;

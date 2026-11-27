@@ -168,6 +168,7 @@
       "id": "stop-actions-sheet",
       "file": "src/styles/components/stop-actions-sheet.css",
       "owned": [
+        "stop-more-phone",
         "stop-sheet-overlay",
         "stop-sheet-overlay-exiting",
         "stop-sheet",

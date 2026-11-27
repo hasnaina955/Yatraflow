@@ -51,6 +51,11 @@ export function NativeHomeSkeleton({ retrying = false }: { retrying?: boolean })
   return <div className="nh-skeletons" role="status" aria-label={retrying ? 'Trying again' : 'Loading trips'}><span /><span /><span /></div>
 }
 
+/** Native start-up gate: the home skeleton inside the home page frame, so launch never shows a bare Loading block. */
+export function NativeHomeStartupPage() {
+  return <div className="app-home yf-page page-enter"><NativeHomeSkeleton /></div>
+}
+
 function HomeTripRow({ trip, onNavigate }: { trip: Trip; onNavigate: (r: string) => void }) {
   const phase = tripPhase(trip)
   const totals = computeTotals(trip)

@@ -50,6 +50,7 @@ import { currentUser } from '../../../store/store'
 import { Mascot } from '../../../components/mascot/Mascot'
 import { warningHead } from '../../../lib/mascot'
 import { dayHeaderLabel } from './dayLabel'
+import { earlyArrivalPlacement } from './earlyArrivalPlacement'
 
 /**
  * The day's cover plan: the traveller's own upload when there is one, else the
@@ -570,6 +571,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // goes through this map (printModel's accessor), never through the rendered
   // position.
   const simRows = useMemo(() => scheduleRowsById(sim), [sim])
+  const firstLeg = ordered[0]?.auto !== true ? simRows.get(ordered[0]?.id)?.legIn : undefined
+  const firstLegVisible = !!firstLeg && firstLeg.distanceKm >= 0.5
   const [dismissedArrivals, setDismissedArrivals] = useState<string[]>([])
   const commitmentsToday = facts.commitments
   // PW-08: one read model for the day's fixed commitments. Every clock comes
@@ -1196,7 +1199,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
         {(() => {
           const first = ordered[0]
           const leg = first && first.auto !== true ? simRows.get(first.id)?.legIn : null
-          if (!leg || leg.distanceKm < 0.5) return null
+          if (!leg || !firstLegVisible) return null
           return (
             <div className="tl-legrow">
               <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
@@ -1262,6 +1265,29 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           const stopFixed = (fixedByStop.get(String(s.id))?.length ?? 0) > 0
           return (
             <React.Fragment key={s.id}>
+              {i > 0 && earlyArrivalPlacement(i, firstLegVisible) === 'leg' && (() => {
+                const leg = row?.legIn
+                return (
+                  <div className="tl-legrow" {...(editable ? dayDropHandlers(i) : {})}>
+                    <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
+                    <div className="tl-leg-cell">
+                      <div className={`travel-leg ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}>
+                        {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />}
+                      </div>
+                      {renderEarlyArrival(s)}
+                      {editable && (
+                        <button
+                          type="button"
+                          className="leg-insert"
+                          onClick={() => onInsertHere(day.index, insertionSlotBetween(ordered, ordered[i - 1]?.id ?? null, s.id))}
+                          aria-label={`Insert a stop on Day ${day.index + 1} ${insertionWhere(ordered[i - 1]?.title, s.title)}`}
+                          title="Insert a stop here"
+                        ><Plus size={13} aria-hidden /><span className="leg-insert-label">Insert</span></button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
               <div
                 className="tl-row"
                 data-stop-id={s.id}
@@ -1335,7 +1361,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   ].filter(Boolean).join(' · ')}
                 </div>
                 {s.openTime && <div className="stop-meta">Open {formatHMRange(s.openTime, s.closeTime, timeFormat)}</div>}
-                {(i === 0 ? !row?.legIn || row.legIn.distanceKm < 0.5 : ordered[i - 1].auto === true) && renderEarlyArrival(s)}
+                {earlyArrivalPlacement(i, firstLegVisible) === 'stop' && renderEarlyArrival(s)}
                 {s.departTime && s.arrivalTime && (
                   <div className="stop-meta">Dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</div>
                 )}
@@ -1398,41 +1424,6 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
               </div>
             </div>
 
-            {i < ordered.length - 1 && !(ordered[i + 1].auto === true) && (() => {
-                // #555: the gap under this row is the drive INTO the row BELOW
-                // it — sim's legs are into-legs, resolved by stop id here, so a
-                // rejected neighbour (absent from the schedule) can never shift
-                // another row's leg into this gap. The row renders even without
-                // a leg: it is also the drop zone / Insert slot between the two
-                // rows.
-                const leg = simRows.get(ordered[i + 1].id)?.legIn
-                return (
-                  <div className="tl-legrow" {...(editable ? dayDropHandlers(i + 1) : {})}>
-                    <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
-                    <div className="tl-leg-cell">
-                      <div className={`travel-leg ${foreignOver === i + 1 && dragging === null ? 'foreign-over' : ''}`}>
-                        {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />}
-                      </div>
-                      {renderEarlyArrival(ordered[i + 1])}
-                      {/* #422: the insertion control belongs to the leg BETWEEN
-                          two stops, and it hands over the slot it sits in —
-                          resolved from the two neighbouring row ids at click
-                          time, so a shifted list cannot insert two rows away.
-                          Revealed on hover and on keyboard focus; always visible
-                          on touch (a hover-only control is unreachable there). */}
-                      {editable && (
-                        <button
-                          type="button"
-                          className="leg-insert"
-                          onClick={() => onInsertHere(day.index, insertionSlotBetween(ordered, ordered[i]?.id ?? null, ordered[i + 1]?.id ?? null))}
-                          aria-label={`Insert a stop on Day ${day.index + 1} ${insertionWhere(ordered[i]?.title, ordered[i + 1]?.title)}`}
-                          title="Insert a stop here"
-                        ><Plus size={13} aria-hidden /><span className="leg-insert-label">Insert</span></button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
             </React.Fragment>
           )
         })}

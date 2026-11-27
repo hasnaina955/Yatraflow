@@ -5,6 +5,7 @@
 // fails quietly in production and loudly here.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import vm from 'node:vm'
 
 const read = (rel: string) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8')
 
@@ -126,10 +127,12 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
     .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))
     .join('\n')
 
-  it('lists the four pages with and without the trailing slash', () => {
+  it('lists the four pages with and without the trailing slash and direct index.html URLs', () => {
+    expect(code, "'/index.html'").toContain("'/index.html'")
     for (const slug of ['faq', 'how-it-works', 'about', 'for-creators']) {
       expect(code, `'/${slug}'`).toContain(`'/${slug}'`)
       expect(code, `'/${slug}/'`).toContain(`'/${slug}/'`)
+      expect(code, `'/${slug}/index.html'`).toContain(`'/${slug}/index.html'`)
     }
   })
 
@@ -138,5 +141,56 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
     expect(code).toContain("OWN_HTML.has(pathname) || pathname.startsWith('/join/')")
     expect(code).toContain('cache.put(SHELL, copy)')
     expect(code).toContain('fetch(request)')
+  })
+
+  it('never writes the SHELL key for copy-page index.html or home index.html responses', async () => {
+    const putCalls: string[] = []
+    const listeners = new Map<string, (event: unknown) => void>()
+    const fakeCache = {
+      addAll: async () => undefined,
+      put: async (key: unknown) => {
+        putCalls.push(String(key))
+      },
+      match: async () => undefined,
+    }
+    const context = vm.createContext({
+      URL,
+      Response,
+      self: {
+        location: { origin: 'https://www.yatraflow.in' },
+        addEventListener: (type: string, fn: (event: unknown) => void) => listeners.set(type, fn),
+        clients: { claim: async () => undefined },
+      },
+      caches: {
+        open: async () => fakeCache,
+        match: async () => undefined,
+        keys: async () => [],
+        delete: async () => true,
+      },
+      fetch: async () => new Response('<html><body>page</body></html>', { status: 200 }),
+    })
+    vm.runInContext(sw, context)
+    const onFetch = listeners.get('fetch')
+    expect(onFetch).toBeTypeOf('function')
+
+    const runNavigate = async (pathname: string) => {
+      let pending: Promise<unknown> | undefined
+      onFetch!({
+        request: { method: 'GET', mode: 'navigate', url: `https://www.yatraflow.in${pathname}` },
+        respondWith: (promise: Promise<unknown>) => {
+          pending = promise
+        },
+      })
+      await pending
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    for (const pathname of ['/index.html', '/faq/index.html', '/how-it-works/index.html', '/about/index.html', '/for-creators/index.html']) {
+      await runNavigate(pathname)
+    }
+    expect(putCalls).toEqual([])
+
+    await runNavigate('/trips')
+    expect(putCalls).toEqual(['/app.html'])
   })
 })

@@ -33,11 +33,14 @@ const SHELL_ASSETS = [SHELL, '/manifest.webmanifest', '/icons/icon-192.png', '/i
  *  app shell. A successful navigation to one must not overwrite the SHELL key,
  *  or the offline fallback would open that page at every address. The navigation
  *  itself still goes to the network first. Exact pathnames, with and without the
- *  slash, because /faq and /faq/ both reach the page. */
+ *  slash and direct index.html URLs, because /faq, /faq/ and /faq/index.html all
+ *  reach the page. */
 const OWN_HTML = new Set([
-  '/',
-  '/faq', '/faq/', '/how-it-works', '/how-it-works/',
-  '/about', '/about/', '/for-creators', '/for-creators/',
+  '/', '/index.html',
+  '/faq', '/faq/', '/faq/index.html',
+  '/how-it-works', '/how-it-works/', '/how-it-works/index.html',
+  '/about', '/about/', '/about/index.html',
+  '/for-creators', '/for-creators/', '/for-creators/index.html',
 ])
 
 /** True for a navigation whose response is that page's own HTML, not the shell:

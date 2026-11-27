@@ -509,6 +509,42 @@
     z-index: calc(var(--z-nav-glass) - 1);
     background: var(--bg);
   }
+
+  /* #1051: the trip tab rail leaves the cover and sticks just under the band
+     above. The cover gives back the room it kept for the pill. */
+  .yf-page[data-tabs='docked'] .yf-trip-head {
+    height: calc(306px - var(--space-5) - var(--yf-pill-h) - var(--space-8) + var(--space-7));
+  }
+
+  .yf-page[data-tabs='docked'] .yf-trip-head > .yf-cover-content {
+    padding-bottom: var(--space-7);
+  }
+
+  .yf-page.yf-tabdock {
+    position: sticky;
+    top: calc(var(--nav-top) + var(--nav-h) + 2px);
+    z-index: calc(var(--z-nav-glass) - 1);
+    margin-bottom: var(--space-5);
+    /* The clip below also cuts the pill's shadow, so keep room for it. */
+    padding-block: var(--space-3) var(--space-4);
+    background: var(--bg);
+    /* Paint the page colour edge to edge without a wider box, so no row
+       scrolls sideways. */
+    box-shadow: 0 0 0 100vmax var(--bg);
+    clip-path: inset(0 -100vmax);
+  }
+
+  .yf-page.yf-tabdock > .yf-tabbar {
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: var(--space-3);
+    overflow-x: auto;
+    border-color: var(--yf-glass-border);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--pw-card) 86%, transparent);
+    box-shadow: var(--elev-2);
+  }
 }
 
 /* Keep compact titles inside the cover while the member row folds away. */

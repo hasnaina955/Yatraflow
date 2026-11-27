@@ -65,4 +65,28 @@ describe('pill tab rails', () => {
     expect(map).toMatch(/\.mv2-workspace \.mv2-lenses\s*\{[^}]*flex-wrap:\s*nowrap/)
     expect(map).toMatch(/\.mv2-lenses\s*>\s*button\s*\{[^}]*white-space:\s*nowrap/)
   })
+  it('docks the trip tab rail under the app bar on a phone (#1051)', () => {
+    const workspace = read('src/pages/TripWorkspace.tsx')
+    expect(workspace).toContain("export const PHONE_DOCK_QUERY = '(max-width: 720px)'")
+    expect(workspace).toContain('const tabsDocked = phoneWidth && !headerFolded')
+    expect(workspace).toContain('{!tabsDocked && tabRail}')
+    expect(workspace).toContain('{tabsDocked && <div className="yf-page yf-tabdock">{tabRail}</div>}')
+
+    const root = postcss.parse(read('src/styles/legacy/17-overview-tiles-and-cover.css'))
+    const dockRules: Record<string, Record<string, string>> = {}
+    root.walkRules(rule => {
+      if (!rule.selector.includes('yf-tabdock') && !rule.selector.includes("data-tabs='docked'")) return
+      const parent = rule.parent
+      expect(parent?.type === 'atrule' && (parent as postcss.AtRule).params).toBe('(max-width: 720px)')
+      const decls: Record<string, string> = {}
+      rule.walkDecls(decl => { decls[decl.prop] = decl.value })
+      dockRules[rule.selector] = decls
+    })
+    const dock = dockRules['.yf-page.yf-tabdock']
+    expect(dock?.position).toBe('sticky')
+    expect(dock?.top).toBe('calc(var(--nav-top) + var(--nav-h) + 2px)')
+    expect(dock?.background).toBe('var(--bg)')
+    expect(dockRules['.yf-page.yf-tabdock > .yf-tabbar']?.['max-width']).toBe('100%')
+    expect(dockRules[".yf-page[data-tabs='docked'] .yf-trip-head > .yf-cover-content"]?.['padding-bottom']).toBe('var(--space-7)')
+  })
 })

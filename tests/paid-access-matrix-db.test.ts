@@ -18,8 +18,9 @@ const CHAIN = [
   'supabase/migrations/20261126c_invite_preview_projection.sql',
   'supabase/migrations/20261126d_public_trip_trash_order.sql',
   'supabase/migrations/20261127a_paid_access_boundary.sql',
+  'supabase/migrations/20261127c_gate_091_paid_access_fixes.sql',
 ]
-const NEW = 'supabase/migrations/20261127a_paid_access_boundary.sql'
+const NEW = 'supabase/migrations/20261127c_gate_091_paid_access_fixes.sql'
 
 const id = (n: number) => `2611a000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const U = {
@@ -747,7 +748,7 @@ describe('the pre-check refuses a database that already breaks the owner rule', 
         `insert into public.published_itineraries (id, trip_id, creator_id, premium_price_inr) values ('pub_violator', $1, $2, 50)`,
         [T.listed, U.outsider],
       )
-      await expect(db.exec(readFileSync(resolve(process.cwd(), NEW), 'utf8'))).rejects.toThrow(/pub_violator/)
+      await expect(db.exec(readFileSync(resolve(process.cwd(), 'supabase/migrations/20261127a_paid_access_boundary.sql'), 'utf8'))).rejects.toThrow(/pub_violator/)
       // The failed file leaves its transaction open. Roll it back, then look.
       await db.exec('rollback')
       const triggers = await db.query<{ tgname: string }>(`select tgname from pg_trigger where tgrelid = 'public.published_itineraries'::regclass and not tgisinternal`)
@@ -756,4 +757,94 @@ describe('the pre-check refuses a database that already breaks the owner rule', 
       await db.close()
     }
   }, 120_000)
+})
+
+describe('v0.91.0 gate paid-access fixes on the database', () => {
+  let db: PGlite
+
+  beforeAll(async () => {
+    db = await freshDb()
+    await seedTrips(db)
+    await seedMoney(db)
+  }, 120_000)
+
+  afterAll(async () => db?.close())
+
+  it('create_pending_purchase_order locks, rechecks listing and price, and inserts only when valid', async () => {
+    await reset(db)
+    await expect(db.query(
+      `select public.create_pending_purchase_order($1, $2, 'rzp_unpub', 99)`,
+      [U.outsider2, PUB.unpub],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+    await expect(db.query(
+      `select public.create_pending_purchase_order($1, $2, 'rzp_private', 99)`,
+      [U.outsider2, PUB.private],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+    await expect(db.query(
+      `select public.create_pending_purchase_order($1, $2, 'rzp_trash', 99)`,
+      [U.outsider2, PUB.trash],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+    await expect(db.query(
+      `select public.create_pending_purchase_order($1, $2, 'rzp_reprice', 149)`,
+      [U.outsider2, PUB.listed],
+    )).rejects.toThrow(/This guide is no longer for sale/)
+
+    const bad = await db.query(
+      `select 1 from public.purchase_orders where razorpay_order_id in ('rzp_unpub', 'rzp_private', 'rzp_trash', 'rzp_reprice')`,
+    )
+    expect(bad.rows).toHaveLength(0)
+
+    const minted = await db.query<{ r: string }>(
+      `select public.create_pending_purchase_order($1, $2, 'rzp_valid_mint', 99) as r`,
+      [U.outsider2, PUB.listed],
+    )
+    expect(minted.rows[0].r).toBe('minted')
+    const saved = await db.query<{ status: string; amount_inr: number; price_snapshot_inr: number }>(
+      `select status, amount_inr, price_snapshot_inr from public.purchase_orders where razorpay_order_id = 'rzp_valid_mint'`,
+    )
+    expect(saved.rows).toEqual([{ status: 'pending', amount_inr: 99, price_snapshot_inr: 99 }])
+  })
+
+  it('published_itineraries SELECT hides private, trashed, and unpublished guides from anon and outsiders while keeping authorized readers', async () => {
+    const pubsOf = async (caller: Caller) => {
+      const rows = await rowsOf(db, caller, 'select row_to_json(p)::text as row from public.published_itineraries p order by p.id')
+      return rows.map(r => r.id as string).sort()
+    }
+    expect(await pubsOf('anon')).toEqual([PUB.free, PUB.listed].sort())
+    expect(await pubsOf('outsider')).toEqual([PUB.free, PUB.listed].sort())
+    expect(await pubsOf('refunded')).toEqual([PUB.free, PUB.listed].sort())
+    expect(await pubsOf('buyer')).toEqual([PUB.free, PUB.listed, PUB.private, PUB.trash, PUB.unpub].sort())
+    expect(await pubsOf('viewer')).toEqual([PUB.free, PUB.listed, PUB.private, PUB.unpub].sort())
+    expect(await pubsOf('editor')).toEqual([PUB.free, PUB.listed, PUB.private, PUB.trash, PUB.unpub].sort())
+    expect(await pubsOf('owner')).toEqual([PUB.free, PUB.listed, PUB.private, PUB.trash, PUB.unpub].sort())
+    expect(await pubsOf('admin')).toEqual([PUB.free, PUB.listed, PUB.private, PUB.trash, PUB.unpub].sort())
+    expect(await pubsOf('disBuyer')).toEqual([])
+  })
+
+  it('get_trip_by_invite_code admits an active member with a missing trip_members row for the current owner and still blocks non-active callers', async () => {
+    await reset(db)
+    await db.query(
+      `insert into public.trip_member_access (trip_id, user_id, owner_id, state, role, joined_at)
+       values ($1, $2, $3, 'active', 'viewer', 1),
+              ($1, $4, $3, 'left', 'editor', 1),
+              ($1, $5, $6, 'active', 'editor', 1)`,
+      [T.listed, U.outsider3, U.owner, U.outsider4, U.outsider2, U.outsider],
+    )
+    // Active row matching current owner bypasses PT403 and reaches the preview.
+    const activeRows = await rowsOf(
+      db,
+      'outsider3',
+      'select row_to_json(r)::text as row from public.get_trip_by_invite_code($1) r',
+      [CODE.listed],
+    )
+    expect(activeRows).toHaveLength(1)
+    expect(activeRows[0].invite_code).toBe(CODE.listed)
+
+    // Left member, mismatched-owner active row, and buyer still hit PT403.
+    for (const caller of ['outsider4', 'outsider2', 'buyer'] as const) {
+      await expect(
+        rowsOf(db, caller, 'select row_to_json(r)::text as row from public.get_trip_by_invite_code($1) r', [CODE.listed]),
+      ).rejects.toThrow(/Owner approval needed|PT403/)
+    }
+  })
 })

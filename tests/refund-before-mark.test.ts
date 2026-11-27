@@ -75,6 +75,13 @@ const fetchMock = vi.fn(async (input: string | URL, init: RequestInit = {}) => {
     return json('granted')
   }
   if (url.pathname === '/rest/v1/rpc/checkout_offer') return json(OFFER)
+  if (url.pathname === '/rest/v1/rpc/create_pending_purchase_order') {
+    db.orders.push({
+      razorpay_order_id: body.p_razorpay_order_id, user_id: body.p_user_id, pub_id: body.p_pub_id,
+      amount_inr: body.p_expected_price_inr, status: 'pending', razorpay_payment_id: null,
+    })
+    return json('minted')
+  }
   if (url.pathname === '/rest/v1/entitlements') return json([])
   if (url.pathname === '/rest/v1/purchase_orders') {
     if (method === 'PATCH') {

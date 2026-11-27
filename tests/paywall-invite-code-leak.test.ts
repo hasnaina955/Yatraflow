@@ -202,7 +202,9 @@ describe('#351 — the anon paywalled RPC cannot hand out a capability', () => {
     expect(code).toMatch(/if v_level <> 'crew' and public\.trip_has_priced_publication\(v_row\.id\) then/)
     expect(code).not.toMatch(/t\.visibility = 'private'|p\.creator_id = auth\.uid\(\)/)
     // The membership and admin gates moved into the one access function.
-    const access = sqlCode(sqlFunction(src(`../supabase/migrations/${newest}`), 'trip_access_level'))
+    const accessFile = defining('trip_access_level').at(-1)
+    expect(accessFile).toBeDefined()
+    const access = sqlCode(sqlFunction(src(`../supabase/migrations/${accessFile}`), 'trip_access_level'))
     expect(access).toMatch(/public\.is_member\(p_trip_id\)/)
     expect(access).toMatch(/public\.is_admin\(\)/)
     // Trashed trips stop resolving through the code, as they already do through

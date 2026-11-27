@@ -79,7 +79,13 @@ function useKeyboardUp(): boolean {
  * to the new width. The width is measured, because `auto` does not animate.
  * The first paint does not animate: a load is not a change.
  */
-function AddLabel({ text, compact, className }: { text: string; compact?: boolean; className: string }) {
+function AddLabel({ text, compact, className, lines = false }: {
+  text: string
+  compact?: boolean
+  className: string
+  /** Break "Add stop · Day 3" into two lines (the narrow native nav column). */
+  lines?: boolean
+}) {
   const boxRef = useRef<HTMLSpanElement>(null)
   const textRef = useRef<HTMLSpanElement>(null)
   const last = useRef(text)
@@ -98,10 +104,11 @@ function AddLabel({ text, compact, className }: { text: string; compact?: boolea
     if (!box || !inner) return
     box.style.setProperty('--ua-label-w', `${inner.scrollWidth}px`)
   }, [text, compact])
+  const body = (t: string) => (lines ? t.split(' · ').map(part => <span key={part} className="ua-label-line">{part}</span>) : t)
   return (
     <span ref={boxRef} className={className} data-compact={compact ? 'true' : undefined}>
-      {prev !== null && <span className="ua-label-text ua-label-out" aria-hidden="true">{prev}</span>}
-      <span ref={textRef} key={text} className={prev !== null ? 'ua-label-text ua-label-in' : 'ua-label-text'}>{text}</span>
+      {prev !== null && <span className="ua-label-text ua-label-out" aria-hidden="true">{body(prev)}</span>}
+      <span ref={textRef} key={text} className={prev !== null ? 'ua-label-text ua-label-in' : 'ua-label-text'}>{body(text)}</span>
     </span>
   )
 }
@@ -302,11 +309,11 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
             aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuOpen ? menuId : undefined}
             aria-label="More ways to add"
             onClick={() => (menuOpen ? closeMenu(true) : openMenu(moreRef.current))}>
-            <AddLabel className="ua-caption-label" text={primary.label} />
+            <AddLabel className="ua-caption-label" text={primary.label} lines />
             <ChevronUp size={12} strokeWidth={2.6} aria-hidden className="ua-caption-chev" />
           </button>
         ) : (
-          <span className="ua-caption" aria-hidden="true"><AddLabel className="ua-caption-label" text={primary.label} /></span>
+          <span className="ua-caption" aria-hidden="true"><AddLabel className="ua-caption-label" text={primary.label} lines /></span>
         ))}
         {menu}
       </div>

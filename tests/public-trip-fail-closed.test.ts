@@ -138,7 +138,7 @@ describe('every redefinition keeps what the previous three fixes added', () => {
     const fn = body()
     // #350 now lives in publication_is_listed (unpublished, public, not trashed, creator = owner).
     expect(fn, '#350 (soft unpublish) was dropped').toMatch(/publication_is_listed\(v_pub\.id\)/)
-    expect(read(`../supabase/migrations/${NEWEST}`), '#350 unpublish rule is gone').toMatch(/and p\.unpublished_at is null/)
+    expect(read('../supabase/migrations/20261127a_paid_access_boundary.sql'), '#350 unpublish rule is gone').toMatch(/and p\.unpublished_at is null/)
     expect(fn, '#351 (invite_code) was dropped').toMatch(/null::text as invite_code|'invite_code', null::text/)
     expect(fn, '#351 (invite_code) must not read the secret').not.toMatch(/\bt\.invite_code\b/)
     expect(fn, '#351 (whole-row select) came back').not.toMatch(/select\s+\*\s+into v_trip/i)
@@ -174,7 +174,7 @@ describe('#566 — a trashed trip keeps serving its creator and buyers', () => {
 
   it('gates on the level — creator and entitled buyers pass, a trashed trip keeps its editors', () => {
     // 20261127a: the trash rule is one case in trip_access_level, the one decision.
-    const source = read(`../supabase/migrations/${NEWEST}`)
+    const source = read('../supabase/migrations/20261127a_paid_access_boundary.sql')
     expect(body(), 'the readers stopped asking the level function').toMatch(/v_level := public\.trip_access_level\(v_trip\.id\)/)
     expect(source).toMatch(/if v_owner = auth\.uid\(\) or public\.is_admin\(\) then\s+return 'crew'/)
     expect(source).toMatch(/if public\.is_editor\(p_trip_id\) then\s+return 'crew'/)

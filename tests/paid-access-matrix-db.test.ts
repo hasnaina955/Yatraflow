@@ -19,8 +19,10 @@ const CHAIN = [
   'supabase/migrations/20261126d_public_trip_trash_order.sql',
   'supabase/migrations/20261127a_paid_access_boundary.sql',
   'supabase/migrations/20261127c_gate_091_paid_access_fixes.sql',
+  'supabase/migrations/20261128a_public_trip_privacy.sql',
 ]
 const NEW = 'supabase/migrations/20261127c_gate_091_paid_access_fixes.sql'
+const PRIVACY_MIGRATION = 'supabase/migrations/20261128a_public_trip_privacy.sql'
 
 const id = (n: number) => `2611a000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const U = {
@@ -987,4 +989,28 @@ describe('v0.91.0 gate paid-access fixes on the database', () => {
       ).rejects.toThrow(/Owner approval needed|PT403/)
     }
   })
+})
+
+describe('#1015 public trip privacy contract on a real database', () => {
+  it('passes supabase/tests/public_trip_privacy.test.sql and stays idempotent on re-run', async () => {
+    const db = await freshDb()
+    try {
+      await seedTrips(db)
+      await seedMoney(db)
+      // Re-run 20261128a to confirm idempotency and single function definition.
+      await db.exec(readFileSync(resolve(process.cwd(), PRIVACY_MIGRATION), 'utf8'))
+      const procs = await db.query<{ n: number }>(
+        `select count(*)::int as n from pg_proc where pronamespace = 'public'::regnamespace and proname = 'get_public_trip'`,
+      )
+      expect(procs.rows[0].n).toBe(1)
+
+      const results = await db.exec(
+        readFileSync(resolve(process.cwd(), 'supabase/tests/public_trip_privacy.test.sql'), 'utf8'),
+      )
+      const last = results[results.length - 1].rows[0] as { result: string }
+      expect(last.result).toMatch(/^PASS: /)
+    } finally {
+      await db.close()
+    }
+  }, 120_000)
 })

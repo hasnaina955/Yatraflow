@@ -18,6 +18,7 @@ import { tripInviteMessage } from '../../lib/inviteShareText'
 import { computeTotals, formatInr, type LegEstimate } from '../../lib/engine'
 import { publishablePlannedKm } from '../../lib/creatorFacts'
 import { publishableStateCodes } from '../../lib/routeStates'
+import { coarsenPublicPlace } from '../../lib/publicPlace'
 import { netOfFeeInr, PLATFORM_FEE_SUMMARY } from '../../lib/earnings'
 import {
   publishValidation, PUBLISH_FIELD_ORDER, PUBLISH_FIELD_LABELS, PublishRejected, type PublishField,
@@ -363,7 +364,7 @@ function PublicationForm({ trip, pub, draft, live = true, isOwner, creatorId, on
         // original shipped a link that previewed as the brand card (#360).
         coverImageUrl: cover,
         tagline: tagline.trim() || defaultTagline,
-        routeSummary: [trip.startLocation, ...trip.destinations],
+        routeSummary: [coarsenPublicPlace(trip.startLocation), ...trip.destinations].filter(Boolean),
         durationDays: trip.days.length,
         plannedKm: publishablePlannedKm(computeTotals(trip, legCorrections).totalDistanceKm),
         // G3b: the shape module loads here only, so the storefront never carries
@@ -773,12 +774,11 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
   // render is React's pattern for state that follows a prop. An effect would cost a render.
   if (joinBaseline === null && members.length > 0) setJoinBaseline(new Set(members.map(m => m.userId)))
 
-  // #1012: what the public copy leaves out. Only the two items the publish path
-  // was checked against are listed (docs HIDDEN-AUDIT).
+  // #1012 / #1015: what the public copy leaves out.
   const hiddenCard = (
     <div className="shr-hidden-card">
       <span className="shr-field-label">Hidden from the public copy</span>
-      <span className="small">Crew names, and the booking reference on each flight.</span>
+      <span className="small">Crew names, your street address and start pin, expenses, booking details, and stop notes on free previews.</span>
     </div>
   )
 

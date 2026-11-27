@@ -18,10 +18,10 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
-// 20261127c updates get_trip_by_invite_code; 20261127a defines trip_access_level and get_public_trip.
+// 20261127c updates get_trip_by_invite_code; 20261127a defines trip_access_level; 20261128a updates get_public_trip.
 const MIGRATION = '20261127c_gate_091_paid_access_fixes.sql'
 const ACCESS_MIGRATION = '20261127a_paid_access_boundary.sql'
-const PUBLIC_TRIP_MIGRATION = '20261127a_paid_access_boundary.sql'
+const PUBLIC_TRIP_MIGRATION = '20261128a_public_trip_privacy.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
 const accessMigration = read(`supabase/migrations/${ACCESS_MIGRATION}`)
 const hotfix = read('supabase/migrations/20261126b_paywall_visibility_authorship.sql')

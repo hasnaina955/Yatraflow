@@ -148,6 +148,9 @@ export function deriveProbes(sql) {
  *  errors at call time) or covered by another live suite. A silent failure to
  *  apply is the one thing this check refuses to wave through. */
 export const NO_PROBE_SURFACE = {
+  '20261128a_public_trip_privacy.sql': {
+    reason: 'Redefines `get_public_trip` only to coarsen start_location, drop start_location_coords, omit day-0 start anchors, allow-list open days/stops and strip free-content stop notes. Covered by tests/paid-access-matrix-db.test.ts and supabase/tests/public_trip_privacy.test.sql.',
+  },
   '20261127c_gate_091_paid_access_fixes.sql': {
     reason: 'Functions, triggers and policy only (`guard_pending_purchase_order`, `purchase_orders_pending_guard`, `create_pending_purchase_order`, `publication_unpublished_at_guard`, `can_read_publication`, `"published read"`, `get_trip_by_invite_code`). Covered by tests/paid-access-matrix-db.test.ts, tests/payments-functions.test.ts and supabase/tests/rls_contract.test.sql.',
   },

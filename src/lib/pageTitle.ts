@@ -14,7 +14,7 @@
 // the page that already has the record refines the title itself.
 
 import { FAQ_DESCRIPTION, FAQ_TITLE } from './faqContent'
-import { HOW_IT_WORKS_DESCRIPTION, HOW_IT_WORKS_TITLE } from './howItWorksContent'
+import { BRAND_LINE_MAIN, BRAND_LINE_SUPPORT, HOW_IT_WORKS_DESCRIPTION, HOW_IT_WORKS_TITLE } from './howItWorksContent'
 
 export const SITE = 'YatraFlow'
 
@@ -41,8 +41,7 @@ const STATIC: Record<string, string> = {
 
 /** The site description that index.html ships. The prerendered home page
  *  carries the same string. */
-export const SITE_DESCRIPTION =
-  'Plan Indian trips together — not in a chaotic group chat. Every stop, hour and rupee in one plan your group can actually follow.'
+export const SITE_DESCRIPTION = `${BRAND_LINE_MAIN} ${BRAND_LINE_SUPPORT}`
 
 /** The story page's meta description (#1042, owner-approved copy). */
 export const ABOUT_DESCRIPTION =

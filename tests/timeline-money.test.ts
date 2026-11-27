@@ -186,7 +186,7 @@ describe('#343 — the display half', () => {
     const daySection = readFileSync(new URL('../src/pages/trip/timeline/DaySection.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     // The meta line is one " · " string; each money part sits inside its finite guard — a raw interpolation is
     // exactly the "₹undefined" the audit found, so the guard must wrap it.
-    expect(daySection).toMatch(/Number\.isFinite\(s\.entryFeeInrPerPerson\) \? /)
+    expect(daySection).toMatch(/const hasEntryFee = Number\.isFinite\(s\.entryFeeInrPerPerson\)\n\s+const entry = hasEntryFee\s+\?/)
     expect(daySection).toMatch(/Number\.isFinite\(s\.transportCostInrTotal\) && /)
     // Neither field may be interpolated anywhere WITHOUT that guard: one
     // interpolation, one guard — count them rather than trust the eyeball.

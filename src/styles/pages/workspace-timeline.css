@@ -53,3 +53,206 @@
   .tl-early-arrival { animation: none; }
   .tl-early-arrival-actions button { transition: none; }
 }
+
+@media (max-width: 720px) {
+  .tl-day-section > .day-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+  }
+  .tl-day-section .day-badge-lead { grid-area: 1 / 1; }
+  .tl-day-section .day-header > .tl-stop-flex,
+  .tl-day-section .day-title-row { display: contents; }
+  .tl-day-section .day-header > .day-collapse { grid-area: 1 / 3; }
+  .tl-day-section .day-title-row :is(h3, .tl-day-note) {
+    grid-area: 1 / 2;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .tl-day-section .day-header .small.muted.num {
+    grid-area: 2 / 2 / auto / -1;
+    display: block;
+    overflow: visible;
+  }
+  .tl-day-section .day-rename-btn {
+    grid-area: 3 / 2 / auto / -1;
+    justify-self: end;
+    margin-inline-end: 44px;
+  }
+  .tl-day-section .day-header .tl-save-heart { grid-area: 3 / 3; justify-self: end; }
+  .tl-day-section .day-fixed-badge,
+  .tl-day-section .day-header .day-body-clip { grid-column: 2 / -1; justify-self: start; }
+  .tl-day-section .day-route,
+  .tl-day-section :is(.day-cover-btn, .day-cover-clear) { min-width: 44px; min-height: 44px; }
+  .tl-day-section .day-warn-pill {
+    grid-area: 3 / 2 / auto / -1;
+    align-self: center;
+    justify-self: start;
+    margin-inline-end: 44px;
+  }
+  .tl-day-section .day-header:has(.day-rename-btn) .day-warn-pill { margin-inline-end: 88px; }
+  .tl-day-section > .day-cover:not(.is-folded) + .day-header .day-badge-date { width: var(--space-14); }
+
+  .tl-day-section :is(.tl-row, .tl-legrow, .tl-end) {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: var(--space-2);
+    align-items: stretch;
+    margin-bottom: var(--space-2);
+  }
+  .tl-day-section .tl-gutter {
+    grid-template-columns: minmax(0, 1fr) 12px;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    column-gap: 0;
+    padding: var(--space-4) 0 0;
+  }
+  .tl-day-section .tl-gutter-leg { padding: 0; }
+  .tl-day-section .tl-time {
+    margin-top: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    letter-spacing: -.02em;
+    white-space: normal;
+  }
+  .tl-day-section .tl-time.tl-dep {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    font-size: 11px;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+  .tl-day-section .tl-rail-num {
+    width: 12px;
+    height: 12px;
+  }
+  .tl-day-section .tl-node-dot { width: 16px; height: 16px; }
+  .tl-day-section .tl-node-body { padding-top: var(--space-3); }
+
+  .tl-day-section .stop-card {
+    position: relative;
+    display: block;
+    padding: var(--space-4);
+  }
+  .tl-day-section .stop-main {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 44px;
+    gap: 0 var(--space-2);
+  }
+  .tl-day-section .stop-tile {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+  }
+  .tl-day-section .stop-tile svg { width: 18px; height: 18px; }
+  .tl-day-section :is(.stop-body, .stop-toprow) { display: contents; }
+  .tl-day-section .stop-body > * { grid-column: 1 / -1; }
+  .tl-day-section .stop-title {
+    grid-column: 2 / -1;
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+  .tl-day-section .stop-card:has(> .stop-actions) .stop-title { padding-inline-end: 38px; }
+  .tl-day-section .stop-actions {
+    position: absolute;
+    inset-block-start: var(--space-1);
+    inset-inline-end: var(--space-1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .tl-day-section .stop-tags {
+    grid-area: 2 / 1 / auto / 3;
+    align-self: center;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+  }
+  .tl-day-section .tl-save-heart--stop {
+    grid-area: 2 / 3;
+    justify-self: end;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .tl-day-section .stop-meta {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .tl-day-section .stop-desc,
+  .tl-day-section .clamp-measure {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .tl-day-section .clamp-toggle,
+  .tl-day-section .stop-body > a {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .tl-day-section .stop-body > a { display: inline-flex; align-items: center; justify-self: start; }
+
+  .tl-day-section .tl-leg-cell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-2);
+  }
+  .tl-day-section .travel-leg {
+    gap: var(--space-2);
+    margin: 0;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .tl-day-section .travel-leg:has(.travel-leg-origin) { display: block; }
+  .tl-day-section .travel-leg-line { white-space: normal; }
+  .tl-day-section .travel-leg-line svg { width: 14px; height: 14px; }
+  .tl-day-section .travel-leg-origin { display: block; }
+  .tl-day-section .leg-insert {
+    grid-area: 1 / 2;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .tl-day-section .tl-early-arrival {
+    grid-column: 1 / -1;
+    margin-top: var(--space-3);
+    padding: var(--space-4);
+    background: var(--pw-marigold-100);
+    color: var(--pw-marigold-ink);
+  }
+  .tl-early-arrival-message {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-3);
+    margin: 0 0 var(--space-2);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .tl-early-arrival-message svg { margin-top: var(--space-1); }
+  .tl-day-section .tl-early-arrival-actions { flex-wrap: nowrap; }
+  .tl-day-section .tl-early-arrival-actions button {
+    min-width: 44px;
+    padding-inline: var(--space-4);
+    background: var(--pw-sea-700);
+    color: var(--pw-on-sea);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .tl-day-section .tl-early-arrival-actions button:last-child {
+    background: transparent;
+    color: var(--pw-marigold-ink);
+  }
+}

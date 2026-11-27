@@ -225,14 +225,16 @@ export function DriveTabs({ result, activeTab, onTab, intro, stripOf, bandOf, na
       {...(driveTabMode(groups.length) === 'none'
         ? { 'aria-label': active.label }
         : { 'aria-labelledby': `${uid}-tab-${active.tab}` })}>
-      <ul className="mv2-lens-cards">
+      {/* Keyed by tab: a switch remounts the list, so the new cards rise in
+          rather than the old nodes swapping their text and height in place. */}
+      <ul className="mv2-lens-cards" key={active.tab}>
         {active.shown.map((row, index) => {
           const band = bandOf(row)
           const tag = BAND_TAG[band] ?? null
           const over = band === 'over-budget'
           const hit = row.row.hit
           const reason = reasonOf?.(row) ?? null
-          return <li key={index} data-scope-band={band} data-place-id={String(hit.id)}>
+          return <li key={`${String(hit.id)}:${index}`} data-scope-band={band} data-place-id={String(hit.id)}>
             <LensPlaceCard
               hit={hit}
               category={hit.category}

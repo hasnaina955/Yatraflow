@@ -37,6 +37,8 @@ import { StateBlock } from '../../components/page/StateBlock'
 import { Surface } from '../../components/page/Surface'
 import { refuseWhileStaged } from '../../lib/mutationLifecycle'
 import { Mascot } from '../../components/mascot/Mascot'
+import { BudgetChakra } from '../../components/mascot/BudgetChakra'
+import { budgetMood } from '../../lib/budgetMood'
 
 // ================= Budget tab =================
 
@@ -423,6 +425,8 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   const openLedgerExpenses = trip.expenses.filter(e => !e.settled)
   const openLedgerTotal = linesTotal(openLedgerExpenses, trip.travellers)
   const settledPct = ledgerTotal > 0 ? Math.min(100, Math.round((settledTotal / ledgerTotal) * 100)) : 0
+  // The Chakra tile's mood. The rules live in src/lib/budgetMood.ts.
+  const chakraMood = budgetMood({ hasTarget, pctUsed, ledgerLines: trip.expenses.length, settledPct })
   const kittyLines = trip.expenses.filter(e => !e.paidBy)
   const kittyTotal = linesTotal(kittyLines, trip.travellers)
   const kittyPct = ledgerTotal > 0 ? Math.round((kittyTotal / ledgerTotal) * 100) : 0
@@ -673,17 +677,10 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           </span>
         </article>
 
-        <article className="card bud-glance-tile">
-          <span className="bud-kicker">Biggest line</span>
-          <span className="bud-glance-num sm">{ledgerUnread || !biggestLine ? 'Not available' : formatInr(biggestLine.total)}</span>
-          <span className="bud-glance-sub">
-            {ledgerUnread
-              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines')
-              : biggestLine
-                ? <>{biggestLine.expense.label} · {expenseDayLabel(trip, biggestLine.expense)}</>
-                : 'No expense lines yet'}
-          </span>
-          <span className="bud-glance-foot strong">{ledgerUnread || !biggestLine ? 'Not available' : <>{biggestShare}% of the trip</>}</span>
+        {/* Chakra has its own place in the glance row (owner, 27 Nov). It took the
+            Biggest line tile: the category insight below still names that line. */}
+        <article className="card bud-glance-tile bud-glance-chakra">
+          <BudgetChakra mood={chakraMood} />
         </article>
       </section>
 

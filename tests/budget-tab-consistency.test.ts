@@ -140,7 +140,9 @@ describe('P12/PW-13 — the money did not move', () => {
       'const ledgerTotal = linesTotal(trip.expenses, trip.travellers)',
       '{formatInr(openLedgerTotal)} still open across',
       'formatInr(kittyTotal)',
-      'formatInr(biggestLine.total)',
+      // The Biggest line tile gave its place to Chakra (owner, 27 Nov). The
+      // category insight still names that line and its share of the trip.
+      '{biggestLine.expense.label} alone is {biggestShare}% of the trip.',
       '{formatInr(withoutOptional)}',
       '{formatInr(v)}',
       '{formatInr(v / Math.max(1, trip.travellers))}',

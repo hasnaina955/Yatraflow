@@ -25,6 +25,7 @@ create table if not exists public.profiles (
   creator_bio  text,
   social_links jsonb,
   is_disabled  boolean not null default false,
+  demo_seeded_at timestamptz,
   created_at   bigint not null default extract(epoch from now()) * 1000
 );
 -- ---------- trips ----------

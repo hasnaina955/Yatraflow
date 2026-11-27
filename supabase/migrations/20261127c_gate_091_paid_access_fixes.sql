@@ -2,16 +2,18 @@
 -- 20261127c_gate_091_paid_access_fixes.sql
 --
 -- Gate fixes for v0.91.0 paid-access boundary:
---   1. create_pending_purchase_order: lock publication + trip, recheck listing
---      and price in one transaction before inserting a pending purchase order.
---   2. published read: require a listed guide or an authorized reader on
---      published_itineraries SELECT (anon crawlers no longer see private or
---      trashed trips whose publication has no withdrawal stamp).
---   3. get_trip_by_invite_code: recognize an active trip_member_access row for
---      the current owner when trip_members is missing so join_trip can repair
---      their role instead of sending them to owner approval.
+--   1. create_pending_purchase_order: lock trip then publication with
+--      FOR NO KEY UPDATE. Recheck link, listing and price. Set created_at
+--      with clock_timestamp() after both locks.
+--   2. publication_unpublished_at_guard: stamp first withdrawal with
+--      clock_timestamp() and ignore client values. Keep the first stamp on
+--      retries. Allow null on republish.
+--   3. published read: allow listed guides and authorized readers.
+--      Anon crawlers no longer see private or trashed trips.
+--   4. get_trip_by_invite_code: restore active members for the current owner.
+--      Missing trip_members rows go to join_trip, not owner approval.
 --
--- Re-runnable: uses drop function/policy if exists and create or replace.
+-- Re-runnable: uses drop function/policy/trigger if exists and create or replace.
 -- ============================================================
 begin;
 
@@ -29,8 +31,9 @@ security definer
 set search_path = public
 as $$
 declare
-  v_pub public.published_itineraries;
+  v_trip_id uuid;
   v_trip public.trips;
+  v_pub public.published_itineraries;
   v_disabled boolean;
 begin
   if p_user_id is null
@@ -40,18 +43,27 @@ begin
     raise exception 'Invalid order parameters.' using errcode = '22023';
   end if;
 
-  select p.* into v_pub
+  -- Read the candidate trip id first without locking.
+  select p.trip_id into v_trip_id
   from public.published_itineraries p
-  where p.id = p_pub_id
-  for update;
-  if not found or v_pub.trip_id is null then
+  where p.id = p_pub_id;
+  if not found or v_trip_id is null then
     raise exception 'This guide is no longer for sale.' using errcode = 'PT410';
   end if;
 
+  -- Lock trip then publication to match admin delete order.
   select t.* into v_trip
   from public.trips t
-  where t.id = v_pub.trip_id
-  for update;
+  where t.id = v_trip_id
+  for no key update;
+  if not found then
+    raise exception 'This guide is no longer for sale.' using errcode = 'PT410';
+  end if;
+
+  select p.* into v_pub
+  from public.published_itineraries p
+  where p.id = p_pub_id
+  for no key update;
   if not found then
     raise exception 'This guide is no longer for sale.' using errcode = 'PT410';
   end if;
@@ -67,7 +79,9 @@ begin
     raise exception 'This is your own publication.' using errcode = '42501';
   end if;
 
-  if v_pub.unpublished_at is not null
+  -- Recheck link, listing and price under both locks.
+  if v_pub.trip_id is distinct from v_trip.id
+    or v_pub.unpublished_at is not null
     or v_trip.visibility is distinct from 'public'
     or v_trip.deleted_at is not null
     or v_pub.creator_id is distinct from v_trip.owner_id
@@ -78,10 +92,10 @@ begin
   end if;
 
   insert into public.purchase_orders (
-    user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr
+    user_id, pub_id, razorpay_order_id, amount_inr, currency, status, price_snapshot_inr, created_at
   )
   values (
-    p_user_id, p_pub_id, p_razorpay_order_id, p_expected_price_inr, 'INR', 'pending', p_expected_price_inr
+    p_user_id, p_pub_id, p_razorpay_order_id, p_expected_price_inr, 'INR', 'pending', p_expected_price_inr, clock_timestamp()
   );
 
   return 'minted';
@@ -90,6 +104,35 @@ $$;
 
 revoke all on function public.create_pending_purchase_order(uuid, text, text, integer) from public, anon, authenticated;
 grant execute on function public.create_pending_purchase_order(uuid, text, text, integer) to service_role;
+
+-- ---------------------------------------------- 1b. withdrawal clock guard
+-- Stamp first withdrawal from clock_timestamp() and ignore client values.
+-- Keep the first stamp on retries. Republish clears unpublished_at to null.
+drop trigger if exists publication_unpublished_at_guard on public.published_itineraries;
+drop function if exists public.guard_publication_unpublished_at();
+create or replace function public.guard_publication_unpublished_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.unpublished_at is not null then
+    if old.unpublished_at is null then
+      new.unpublished_at := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+    else
+      new.unpublished_at := old.unpublished_at;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.guard_publication_unpublished_at() from public, anon, authenticated;
+
+create trigger publication_unpublished_at_guard
+  before update on public.published_itineraries
+  for each row execute function public.guard_publication_unpublished_at();
 
 -- ---------------------------------------------- 2. publication SELECT boundary
 -- Keep trip_access_level(uuid) revoked from clients; expose only a boolean

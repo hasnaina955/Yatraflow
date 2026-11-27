@@ -803,6 +803,81 @@ describe('v0.91.0 gate paid-access fixes on the database', () => {
       `select status, amount_inr, price_snapshot_inr from public.purchase_orders where razorpay_order_id = 'rzp_valid_mint'`,
     )
     expect(saved.rows).toEqual([{ status: 'pending', amount_inr: 99, price_snapshot_inr: 99 }])
+
+    // Mint sets created_at with clock_timestamp() after locks, not transaction start now().
+    await db.exec('begin')
+    const txStart = await db.query<{ t: string }>('select transaction_timestamp()::text as t')
+    await db.exec('select pg_sleep(0.02)')
+    await db.query(
+      `select public.create_pending_purchase_order($1, $2, 'rzp_clock_mint', 99)`,
+      [U.outsider2, PUB.listed],
+    )
+    const clockRow = await db.query<{ later: boolean }>(
+      `select created_at > $1::timestamptz as later from public.purchase_orders where razorpay_order_id = 'rzp_clock_mint'`,
+      [txStart.rows[0].t],
+    )
+    await db.exec('commit')
+    expect(clockRow.rows[0].later).toBe(true)
+  })
+
+  it('publication_unpublished_at_guard uses clock_timestamp(), ignores client stamps, keeps the first stamp, and allows republish', async () => {
+    await reset(db)
+    await db.exec('begin')
+    const txStartMs = await db.query<{ ms: string }>(
+      `select (extract(epoch from transaction_timestamp()) * 1000)::bigint::text as ms`,
+    )
+    await db.exec('select pg_sleep(0.02)')
+    await db.query(
+      `update public.published_itineraries set unpublished_at = 123 where id = $1`,
+      [PUB.listed],
+    )
+    const first = await db.query<{ unpublished_at: string }>(
+      `select unpublished_at::text from public.published_itineraries where id = $1`,
+      [PUB.listed],
+    )
+    await db.exec('commit')
+    const firstStamp = Number(first.rows[0].unpublished_at)
+    expect(firstStamp).toBeGreaterThan(Number(txStartMs.rows[0].ms))
+    expect(firstStamp).not.toBe(123)
+
+    // Retries keep the first stamp instead of accepting a newer client value.
+    await db.query(
+      `update public.published_itineraries set unpublished_at = 9999999999999 where id = $1`,
+      [PUB.listed],
+    )
+    const retry = await db.query<{ unpublished_at: string }>(
+      `select unpublished_at::text from public.published_itineraries where id = $1`,
+      [PUB.listed],
+    )
+    expect(Number(retry.rows[0].unpublished_at)).toBe(firstStamp)
+
+    // Republish clears unpublished_at to null, and a later withdrawal stamps fresh.
+    await db.query(
+      `update public.published_itineraries set unpublished_at = null where id = $1`,
+      [PUB.listed],
+    )
+    const live = await db.query<{ unpublished_at: string | null }>(
+      `select unpublished_at::text from public.published_itineraries where id = $1`,
+      [PUB.listed],
+    )
+    expect(live.rows[0].unpublished_at).toBeNull()
+
+    await db.exec('select pg_sleep(0.02)')
+    await db.query(
+      `update public.published_itineraries set unpublished_at = 456 where id = $1`,
+      [PUB.listed],
+    )
+    const second = await db.query<{ unpublished_at: string }>(
+      `select unpublished_at::text from public.published_itineraries where id = $1`,
+      [PUB.listed],
+    )
+    expect(Number(second.rows[0].unpublished_at)).toBeGreaterThan(firstStamp)
+
+    // Restore PUB.listed to live for any subsequent assertions.
+    await db.query(
+      `update public.published_itineraries set unpublished_at = null where id = $1`,
+      [PUB.listed],
+    )
   })
 
   it('published_itineraries SELECT hides private, trashed, and unpublished guides from anon and outsiders while keeping authorized readers', async () => {

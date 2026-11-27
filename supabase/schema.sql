@@ -887,6 +887,32 @@ create trigger publication_link_guard
   before insert or update on public.published_itineraries
   for each row execute function public.guard_publication_link();
 
+drop trigger if exists publication_unpublished_at_guard on public.published_itineraries;
+drop function if exists public.guard_publication_unpublished_at();
+create or replace function public.guard_publication_unpublished_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.unpublished_at is not null then
+    if old.unpublished_at is null then
+      new.unpublished_at := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+    else
+      new.unpublished_at := old.unpublished_at;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.guard_publication_unpublished_at() from public, anon, authenticated;
+
+create trigger publication_unpublished_at_guard
+  before update on public.published_itineraries
+  for each row execute function public.guard_publication_unpublished_at();
+
 -- ---------- pub_events ----------
 -- Read your own publications' funnel. NO write policy for anon/authenticated:
 -- rows are written only by bump_published_stats below (the definer function),

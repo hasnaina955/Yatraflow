@@ -149,7 +149,7 @@ export function deriveProbes(sql) {
  *  apply is the one thing this check refuses to wave through. */
 export const NO_PROBE_SURFACE = {
   '20261127c_gate_091_paid_access_fixes.sql': {
-    reason: 'Functions and policies only (`create_pending_purchase_order`, `can_read_publication`, `"published read"`, `get_trip_by_invite_code`). Covered by tests/paid-access-matrix-db.test.ts, tests/payments-functions.test.ts and supabase/tests/rls_contract.test.sql.',
+    reason: 'Functions, trigger and policy only (`create_pending_purchase_order`, `publication_unpublished_at_guard`, `can_read_publication`, `"published read"`, `get_trip_by_invite_code`). Covered by tests/paid-access-matrix-db.test.ts, tests/payments-functions.test.ts and supabase/tests/rls_contract.test.sql.',
   },
   '20261126c_invite_preview_projection.sql': {
     reason: 'Updates the invite preview type and reader. tests/invite-preview-projection-db.test.ts covers the projection and payment checks.',

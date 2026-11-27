@@ -550,8 +550,10 @@ begin
     raise exception 'create_pending_purchase_order must be service_role only';
   end if;
   v_mint_src := pg_get_functiondef('public.create_pending_purchase_order(uuid,text,text,integer)'::regprocedure);
-  if v_mint_src not like '%for update%' or v_mint_src not like '%PT410%' then
-    raise exception 'create_pending_purchase_order must lock and raise PT410 on failed recheck';
+  if v_mint_src not like '%for no key update%'
+    or v_mint_src not like '%clock_timestamp%'
+    or v_mint_src not like '%PT410%' then
+    raise exception 'create_pending_purchase_order must lock with FOR NO KEY UPDATE, use clock_timestamp, and raise PT410 on failed recheck';
   end if;
   if not exists (
     select 1 from pg_policies
@@ -606,6 +608,14 @@ begin
       and tgfoid = 'public.guard_publication_link()'::regprocedure
   ) then
     raise exception 'a publication must keep its original trip and creator';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.published_itineraries'::regclass
+      and tgname = 'publication_unpublished_at_guard' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_unpublished_at()'::regprocedure
+  ) then
+    raise exception 'publication withdrawal timestamp must come from the database clock';
   end if;
 end $$;
 

@@ -1183,25 +1183,51 @@ describe('the mark-paid write is verifiable (#355)', () => {
   })
 })
 
-describe('20261127c SQL pins: lock, recheck, revoke', () => {
+describe('20261127c SQL pins: lock, clock, recheck, revoke', () => {
   const sql = readFileSync(new URL('../supabase/migrations/20261127c_gate_091_paid_access_fixes.sql', import.meta.url), 'utf8')
     .replace(/\r\n/g, '\n')
 
-  it('locks publication and trip, rechecks listing and price, and revokes client execute on create_pending_purchase_order', () => {
+  it('reads trip_id first, locks trip then publication FOR NO KEY UPDATE, rechecks, and stamps created_at with clock_timestamp()', () => {
     const start = sql.indexOf('create or replace function public.create_pending_purchase_order(')
     const end = sql.indexOf('$$;', start)
     expect(start).toBeGreaterThan(-1)
     const fn = sql.slice(start, end)
-    expect(fn).toMatch(/from public\.published_itineraries p[\s\S]*?for update;/)
-    expect(fn).toMatch(/from public\.trips t[\s\S]*?for update;/)
+    const tripRead = fn.indexOf('select p.trip_id into v_trip_id')
+    const tripLock = fn.search(/select t\.\* into v_trip\s+from public\.trips t\s+where t\.id = v_trip_id\s+for no key update;/)
+    const pubLock = fn.search(/select p\.\* into v_pub\s+from public\.published_itineraries p\s+where p\.id = p_pub_id\s+for no key update;/)
+    const recheck = fn.indexOf('v_pub.trip_id is distinct from v_trip.id')
+    const insertAt = fn.indexOf('insert into public.purchase_orders')
+    const clockAt = fn.indexOf('clock_timestamp()')
+
+    expect(tripRead).toBeGreaterThan(-1)
+    expect(tripLock).toBeGreaterThan(tripRead)
+    expect(pubLock).toBeGreaterThan(tripLock)
+    expect(recheck).toBeGreaterThan(pubLock)
+    expect(insertAt).toBeGreaterThan(recheck)
+    expect(clockAt).toBeGreaterThan(insertAt)
+    expect(fn).not.toMatch(/\bnow\s*\(/)
     expect(fn).toContain('v_pub.unpublished_at is not null')
     expect(fn).toContain("v_trip.visibility is distinct from 'public'")
     expect(fn).toContain('v_trip.deleted_at is not null')
     expect(fn).toContain('v_pub.premium_price_inr is distinct from p_expected_price_inr')
     expect(fn).toContain("using errcode = 'PT410'")
-    expect(fn.indexOf('for update')).toBeLessThan(fn.indexOf('insert into public.purchase_orders'))
     expect(sql).toContain('revoke all on function public.create_pending_purchase_order(uuid, text, text, integer) from public, anon, authenticated;')
     expect(sql).toContain('grant execute on function public.create_pending_purchase_order(uuid, text, text, integer) to service_role;')
+  })
+
+  it('stamps first withdrawal with clock_timestamp(), ignores client values, and keeps the first stamp on retries', () => {
+    const start = sql.indexOf('create or replace function public.guard_publication_unpublished_at(')
+    const end = sql.indexOf('$$;', start)
+    expect(start).toBeGreaterThan(-1)
+    const fn = sql.slice(start, end)
+    expect(fn).toContain('if new.unpublished_at is not null then')
+    expect(fn).toContain('if old.unpublished_at is null then')
+    expect(fn).toContain('clock_timestamp()')
+    expect(fn).toContain('new.unpublished_at := old.unpublished_at;')
+    expect(fn).not.toMatch(/\bnow\s*\(/)
+    expect(sql).toContain('create trigger publication_unpublished_at_guard')
+    expect(sql).toContain('before update on public.published_itineraries')
+    expect(sql).toContain('revoke all on function public.guard_publication_unpublished_at() from public, anon, authenticated;')
   })
 
   it('gates published_itineraries SELECT through can_read_publication and revokes PUBLIC execute', () => {

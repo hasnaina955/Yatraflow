@@ -263,7 +263,7 @@
 .ex-seg[data-layout='long']::before { left: calc(4px + (100% - 8px) * .75); }
 .ex-seg button {
   position: relative; z-index: 1;
-  height: 44px; padding: 0 10px; border: 0; border-radius: var(--radius-sm); background: transparent;
+  height: 34px; padding: 0 10px; border: 0; border-radius: var(--radius-sm); background: transparent;
   color: var(--text-2); font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
   transition: color var(--motion-fast) var(--ease-out);
 }

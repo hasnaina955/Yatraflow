@@ -51,7 +51,7 @@
 /* ---------- Grid | List switch ---------- */
 .mt-seg { position: relative; display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); }
 .mt-seg button {
-  position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 14px;
   border: 0; border-radius: 999px; background: none; color: var(--text);
   font-size: 14px; font-weight: 600; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-med) var(--ease-glide);
@@ -364,7 +364,7 @@
 .mt-listhead .mt-seg { padding: 4px; border: 0; background: var(--bg-soft); }
 .mt-listhead .mt-seg::before { top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 2); background: var(--card); box-shadow: var(--shadow-card); }
 .mt-listhead .mt-seg[data-layout='list']::before { left: 50%; }
-.mt-listhead .mt-seg button { min-height: 44px; padding: 0 12px; }
+.mt-listhead .mt-seg button { min-height: 34px; padding: 0 12px; }
 .mt-listhead .mt-seg button[aria-pressed='true'] { color: var(--text); }
 .mt-clear, .mt-trash { flex: none; white-space: nowrap; }
 /* Clear filters mounts when a filter is set: it fades in and slides 6px. The

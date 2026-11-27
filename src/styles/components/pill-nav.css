@@ -42,7 +42,9 @@
 .pill-nav { position: relative; display: flex; flex-wrap: nowrap; gap: 2px; --pill-gap: 2px; --pill-edge-fade: 20px; max-width: 100%; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
 .pill-nav::-webkit-scrollbar { display: none; }
 .pill-nav > [data-pill-key] { flex: none; white-space: nowrap; scroll-snap-align: center; }
-.pill-nav:not(.nav-links) > [data-pill-key] { min-height: 44px; }
+@media (pointer: coarse) {
+  .pill-nav:not(.nav-links) > [data-pill-key] { min-height: 44px; }
+}
 .pill-nav[data-overflow='start'] { mask-image: linear-gradient(90deg, #000 calc(100% - var(--pill-edge-fade)), transparent); }
 .pill-nav[data-overflow='middle'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade), #000 calc(100% - var(--pill-edge-fade)), transparent); }
 .pill-nav[data-overflow='end'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade)); }

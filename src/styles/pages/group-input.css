@@ -12,7 +12,7 @@
 .gin-title { margin: 4px 0 0; }
 .gin-summary { margin: 4px 0 0; }
 .gin-pillbar { flex-wrap: nowrap; min-width: 0; }
-.gin-pillbar .tab-btn { padding: 0 15px; }
+.gin-pillbar .tab-btn { min-height: 36px; padding: 0 15px; }
 
 /* Three columns: decisions, stop ideas and composers, activity */
 .gin-grid { display: grid; grid-template-columns: 1.15fr 1fr 0.8fr; gap: 18px; align-items: start; }

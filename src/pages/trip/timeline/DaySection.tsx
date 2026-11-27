@@ -455,6 +455,8 @@ function useFold(open: boolean): FoldState {
   return { mounted, expanded }
 }
 
+const PHONE_SHEET_QUERY = '(max-width: 720px)'
+
 // React.memo on the timeline hot path: TimelineTab re-renders on every store
 // commit (the shell's useDb feeds the tab counts), but with stable props each
 // DaySection bails out unless ITS day data actually changed (M3.1 made trip
@@ -783,7 +785,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // while the card still had 900px left to travel).
   const fold = useFold(open)
   const timeFormat = useTimeFormat()
-  const phoneSheet = useMedia('(max-width: 720px)')
+  const phoneSheet = useMedia(PHONE_SHEET_QUERY,
+    typeof window !== 'undefined' && (window.matchMedia?.(PHONE_SHEET_QUERY).matches ?? false))
   const renderEarlyArrival = (stop: ItineraryStop) => {
     const arrival = simRows.get(stop.id)?.arrive
     const advisory = earlyArrivalAdvisory(arrival, stop.openTime, sim.startsAt)

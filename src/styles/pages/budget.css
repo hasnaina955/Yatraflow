@@ -49,6 +49,11 @@
 .bud-glance-kitty { background: var(--pw-lagoon-50); border-color: var(--pw-route); }
 .bud-glance-kitty .bud-kicker,
 .bud-glance-kitty .bud-glance-sub { color: var(--pw-sea-700); }
+/* Chakra's own glance tile: the looping budget pose above a short ask. */
+.bud-glance-chakra { align-items: center; justify-content: center; text-align: center; gap: var(--space-4); }
+.bud-chakra-art { display: grid; place-items: center; width: 84px; height: 84px; flex: none; }
+.bud-chakra-copy { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); min-width: 0; }
+.bud-chakra-ask { min-height: 44px; }
 .bud-glance-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .bud-kicker {
   font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
@@ -588,6 +593,11 @@
 
 @media (max-width: 720px) {
   .bud-glance { grid-template-columns: 1fr; }
+  /* One column: Chakra sits beside its ask, so the tile stays short. */
+  .bud-glance-chakra { flex-direction: row; justify-content: flex-start; text-align: start; }
+  .bud-chakra-art { width: 64px; height: 64px; }
+  .bud-chakra-art > * { width: 64px; height: 64px; }
+  .bud-chakra-copy { align-items: flex-start; }
   .bud-glance-main { grid-column: auto; }
   .bud-glance-num { font-size: 32px; }
   .bud-glance-num.sm { font-size: 24px; }

@@ -311,7 +311,9 @@ const TRACK_GAP = 2
 const MIN_SEG = 6
 
 
-export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings }: {
+export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOpenSettings, onAskChakra }: {
+  /** Opens the Chakra drawer. Absent hides the Ask button. */
+  onAskChakra?: () => void
   trip: Trip
   totals: ReturnType<typeof computeTotals>
   editable: boolean
@@ -673,17 +675,15 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
           </span>
         </article>
 
-        <article className="card bud-glance-tile">
-          <span className="bud-kicker">Biggest line</span>
-          <span className="bud-glance-num sm">{ledgerUnread || !biggestLine ? 'Not available' : formatInr(biggestLine.total)}</span>
-          <span className="bud-glance-sub">
-            {ledgerUnread
-              ? (ledgerReading ? 'Reading the expense lines…' : 'Couldn’t read the expense lines')
-              : biggestLine
-                ? <>{biggestLine.expense.label} · {expenseDayLabel(trip, biggestLine.expense)}</>
-                : 'No expense lines yet'}
+        {/* Chakra has its own place in the glance row (owner, 27 Nov). It took the
+            Biggest line tile: the category insight below still names that line. */}
+        <article className="card bud-glance-tile bud-glance-chakra">
+          <span className="bud-chakra-art"><Mascot pose="budget" size={84} animated /></span>
+          <span className="bud-chakra-copy">
+            <span className="bud-kicker">Chakra</span>
+            <span className="bud-glance-sub">Ask Chakra about this budget.</span>
+            {onAskChakra && <button type="button" className="btn btn-sm bud-chakra-ask" onClick={onAskChakra}>Ask Chakra</button>}
           </span>
-          <span className="bud-glance-foot strong">{ledgerUnread || !biggestLine ? 'Not available' : <>{biggestShare}% of the trip</>}</span>
         </article>
       </section>
 

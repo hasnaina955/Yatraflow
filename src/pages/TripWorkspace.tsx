@@ -1112,7 +1112,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
         </React.Suspense>
       )}
       {tab === 'group' && <GroupInputTab trip={effective} editable={editable} canComment={commentable} me={me} previewOpen={!!pending} slotResolution={groupInputResolution} />}
-      {tab === 'budget' && <BudgetTab key={editable ? 'budget-edit' : 'budget-view'} trip={effective} totals={totals} editable={editable} previewOpen={!!pending} stagedRef={pendingRef} onOpenSettings={() => setTab('settings')} />}
+      {tab === 'budget' && <BudgetTab key={editable ? 'budget-edit' : 'budget-view'} trip={effective} totals={totals} editable={editable} previewOpen={!!pending} stagedRef={pendingRef} onOpenSettings={() => setTab('settings')} onAskChakra={() => setAiOpen(true)} />}
       {tab === 'share' && <ShareTab trip={trip} me={me} editable={editable} onNavigate={onNavigate} legCorrections={legCorrections} />}
       {/* key=trip.id: TripSettingsForm holds local draft state in useState
            seeded from the trip at mount and never re-syncs, so without the key
@@ -1139,7 +1139,7 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {/* AI companion: locked for the premium milestone (M8) — the feature is
           complete but unmounted unless VITE_AI_COMPANION=on. See featureFlags. */}
       {AI_COMPANION_ENABLED && (
-        <AiDrawer key={trip.id} trip={trip} open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} legCorrections={legCorrections} />
+        <AiDrawer key={trip.id} trip={trip} open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} legCorrections={legCorrections} showFab={tab !== 'budget'} />
       )}
     </div>
   )

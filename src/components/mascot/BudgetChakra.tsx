@@ -35,7 +35,18 @@ function poseFor(state: ChakraState, mood: BudgetMood): MascotPose {
   if (state === 'asleep') return 'sleep'
   if (state === 'waking') return 'wave'
   if (state === 'poked') return mood === 'worried' ? 'love' : 'celebrate'
-  return MOOD_POSE[mood]
+  return moodPose(mood)
+}
+
+/** The resting pose for a mood. A switch, not a keyed read, so no lookup takes an open key. */
+function moodPose(mood: BudgetMood): MascotPose {
+  switch (mood) {
+    case 'unset': return MOOD_POSE.unset
+    case 'happy': return MOOD_POSE.happy
+    case 'careful': return MOOD_POSE.careful
+    case 'worried': return MOOD_POSE.worried
+    case 'proud': return MOOD_POSE.proud
+  }
 }
 
 export function BudgetChakra({ mood }: { mood: BudgetMood }) {
@@ -68,8 +79,8 @@ function ChakraArt({ mood, dark }: { mood: BudgetMood; dark: boolean }) {
     cancelTimer(sleepTimer)
     // A tap on a sleeping Chakra plays the wave first. Any other tap plays the reaction.
     setState(state === 'asleep' ? 'waking' : 'poked')
-    reactTimer.current = window.setTimeout(() => setState('idle'), REACTION_MS)
-    if (dark) sleepTimer.current = window.setTimeout(() => setState('asleep'), AWAKE_MS)
+    reactTimer.current = window.setTimeout(() => { setState('idle') }, REACTION_MS)
+    if (dark) sleepTimer.current = window.setTimeout(() => { setState('asleep') }, AWAKE_MS)
   }
 
   return (

@@ -1,6 +1,5 @@
 // ============ Budget mood: the face the Chakra tile wears ============
-// A pure function with no React. The rules run in order, and the first match
-// wins: no target, then over 100% of the target, then 90% or more, then a
+// A pure function with no React. The first rule that matches wins. The order is: no target, then over 100% of the target, then 90% or more, then a
 // settled ledger, and otherwise happy.
 import type { MascotPose } from './mascot'
 

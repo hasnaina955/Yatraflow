@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import postcss from 'postcss'
 import { beginToastExit, leaveIfNotHeld, toastExitDuration, toastIconKind } from '../src/lib/toastTiming'
 
 const ui = readFileSync('src/components/ui.tsx', 'utf8')
@@ -83,7 +84,15 @@ describe('#1053 — the toast surface', () => {
   })
 
   it('keeps the Undo label in sentence case', () => {
-    expect(css).not.toMatch(/\.toast-action\s*\{[^}]*text-transform:\s*uppercase/s)
+    const legacy = readFileSync('src/styles/legacy/06-shell-and-consistency.css', 'utf8')
+    const styles = postcss.parse(`${css}\n${legacy}`)
+    const transforms: string[] = []
+    styles.walkRules(rule => {
+      if (rule.selectors.includes('.toast-action')) {
+        rule.walkDecls('text-transform', decl => { transforms.push(decl.value) })
+      }
+    })
+    expect(transforms).not.toContain('uppercase')
   })
 
   it('rides the motion tokens for the entrance, the exit and the icon pop', () => {

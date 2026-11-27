@@ -68,7 +68,8 @@ describe('bottom navigation is a shell-only primary nav', () => {
 
   it('mounts only behind the native gate in App.tsx', () => {
     expect(app).toContain("import { BottomNav } from './components/BottomNav'")
-    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}')
+    // #1064: the centre slot carries the universal Add control.
+    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} centre={addSlot} />}')
   })
 
   it('hides the website top bar for the signed-in shell', () => {

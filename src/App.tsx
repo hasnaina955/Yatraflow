@@ -17,8 +17,9 @@ import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublish
 import type { InvitePreviewIdentity } from './lib/inviteLookup'
 import { requestTripJoin } from './lib/joinRequests'
 import { authNext } from './lib/authNext'
-import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
+import { Avatar, BrandMark, ToastZone, useClickOutside, toast, useMedia } from './components/ui'
 import { BottomNav } from './components/BottomNav'
+import { UniversalAdd } from './components/UniversalAdd'
 import { OfflineBanner } from './components/OfflineBanner'
 import { UpdateNotice } from './components/UpdateNotice'
 import { PillNav } from './components/PillNav'
@@ -338,6 +339,9 @@ export default function App() {
   const [notifShowAll, setNotifShowAll] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
+  // #1064: phone web (720px or less) gets the floating Add pill. Native gets
+  // the same control in the BottomNav centre slot; desktop gets neither.
+  const phoneWeb = useMedia('(max-width: 720px)') && !isNative
   const [notifRef, notifPopRef] = useClickOutside(() => setNotifOpen(false))
   const [menuRef, userMenuRef] = useClickOutside(() => setMenuOpen(false))
   // Both popovers portal to document.body: nested inside .topnav (which has
@@ -780,6 +784,8 @@ export default function App() {
   // notifications slice so the bell stays live without a full-cache subscription.
   const notifs = notificationPanel.rows
   const unread = notifs.filter(n => !n.read).length
+  // #1064: the universal Add control, drawn in the native BottomNav centre slot.
+  const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen} />
   function retryNotifications() { void resumeSync() }
 
   // ---- Browser push (local Notification API, no service worker) ----
@@ -1037,7 +1043,12 @@ export default function App() {
           Creator hub tab for a creator, or the relocated controls on Profile.
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
-      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}
+      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} centre={addSlot} />}
+      {/* #1064: the phone web skin of the same control. Signed out, the landing
+          page carries its own calls to action, so the pill is not drawn. */}
+      {phoneWeb && me && (
+        <UniversalAdd variant="pill" route={route} signedIn onNavigate={navigate} appOverlay={mobileNav || notifOpen || menuOpen} />
+      )}
 
       <ToastZone />
       {/* Web Analytics is a web concern: the Capacitor shell has no Vercel

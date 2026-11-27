@@ -14,10 +14,15 @@
 // This component never mounts on the web: App.tsx renders it only when
 // isNative && me, so the website keeps the pill nav byte-for-byte.
 //
+// #1064: the centre slot. Between My trips and Explore sits the universal Add
+// control (UniversalAdd), passed in as `centre`. It is not a destination, so it
+// stays out of navDestinations() and areaOf(); `data-centre` adds its column.
+//
 // It is NOT an overlay: it does not join App.tsx's registerAndroidBack
 // overlay-close contract, because closing "nothing" is the right answer for
 // a navigation bar — back should walk history, not hide the nav.
 
+import { Fragment, type ReactNode } from 'react'
 import { Compass, House, Sparkles, Tent, User } from 'lucide-react'
 
 export interface NavDestination {
@@ -69,12 +74,14 @@ export function badgeText(unread: number): string | null {
   return unread > 9 ? '9+' : String(Math.floor(unread))
 }
 
-export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: {
+export function BottomNav({ route, onNavigate, isCreator = false, unread = 0, centre }: {
   route: string
   onNavigate: (r: string) => void
   /** The real profile flag. Only decides whether the Creator hub item is drawn. */
   isCreator?: boolean
   unread?: number
+  /** The universal Add slot (#1064), drawn right after My trips. */
+  centre?: ReactNode
 }) {
   const current = areaOf(route)
   const items = navDestinations(isCreator)
@@ -87,23 +94,26 @@ export function BottomNav({ route, onNavigate, isCreator = false, unread = 0 }: 
       role="navigation"
       aria-label="Primary"
       data-destinations={items.length}
+      data-centre={centre ? 'true' : undefined}
     >
       {items.map(({ to, label, title, Icon }) => {
         // areaOf() never returns null for a destination, so a null `current`
         // (any route the nav does not own) leaves every item unlit.
         const active = current === areaOf(to)
         return (
-          <button
-            key={to}
-            type="button"
-            className={`bottom-nav-item${active ? ' active' : ''}`}
-            aria-current={active ? 'page' : undefined}
-            aria-label={to === '/profile' && badge ? `${label}, ${unread} unread` : title}
-            onClick={() => onNavigate(to)}
-          >
-            <span className="bottom-nav-icon"><Icon size={22} aria-hidden />{to === '/profile' && badge && <span className="bottom-nav-badge" aria-hidden>{badge}</span>}</span>
-            <span className="bottom-nav-label">{label}</span>
-          </button>
+          <Fragment key={to}>
+            <button
+              type="button"
+              className={`bottom-nav-item${active ? ' active' : ''}`}
+              aria-current={active ? 'page' : undefined}
+              aria-label={to === '/profile' && badge ? `${label}, ${unread} unread` : title}
+              onClick={() => onNavigate(to)}
+            >
+              <span className="bottom-nav-icon"><Icon size={22} aria-hidden />{to === '/profile' && badge && <span className="bottom-nav-badge" aria-hidden>{badge}</span>}</span>
+              <span className="bottom-nav-label">{label}</span>
+            </button>
+            {to === '/trips' && centre}
+          </Fragment>
         )
       })}
     </nav>

@@ -83,7 +83,8 @@ export type AddState = 'hidden' | 'none' | 'ready'
 export interface AddContext {
   state: AddState
   primary: AddAction | null
-  /** The other actions for the context, in menu order. Never holds the primary. */
+  /** Every allowed action for the context, in menu order, the primary included
+   *  (the owner's menu lists all five inside a trip). One item means no menu. */
   menu: AddAction[]
 }
 
@@ -156,7 +157,8 @@ export function resolveAddContext(input: AddContextInput): AddContext {
   const seg = pathSegments(input.route)
   if (seg.length === 0 || (seg.length === 1 && seg[0] === 'trips')) {
     // Chakra needs a trip, so outside one the menu holds nothing else.
-    return { state: 'ready', primary: { kind: 'plan-trip', label: ADD_LABELS['plan-trip'] }, menu: [] }
+    const plan: AddAction = { kind: 'plan-trip', label: ADD_LABELS['plan-trip'] }
+    return { state: 'ready', primary: plan, menu: [plan] }
   }
   if (seg[0] !== 'trip') return NONE
 
@@ -177,7 +179,7 @@ export function resolveAddContext(input: AddContextInput): AddContext {
   return {
     state: 'ready',
     primary: tripAction(primaryKind, scope),
-    menu: permitted.filter(k => k !== primaryKind).map(k => tripAction(k, scope)),
+    menu: permitted.map(k => tripAction(k, scope)),
   }
 }
 

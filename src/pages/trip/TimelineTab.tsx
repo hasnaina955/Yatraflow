@@ -73,6 +73,7 @@ import { kmFromStartForHit } from '../../lib/providers/hits'
 import { carryStopLinkedRecords, insertStopAt, moveStopToDay, moveStopWithinDay, nextOrderInDay, pendingStopId, stopsInOrder } from '../../lib/stopOrder'
 import { useTimelineMode, type TimelineMode } from './timeline/useTimelineMode'
 import { ToolbarMenu } from './timeline/ToolbarMenu'
+import { useTabAdd } from '../../lib/universalAddStore'
 import { downloadTripIcs } from '../../lib/ics'
 import { PillNav } from '../../components/PillNav'
 import { DaySection } from './timeline/DaySection'
@@ -827,6 +828,23 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     if (m === 'inspect') { openEditorState(null); setMoveModalStop(null) }
   }
 
+  // #1064: the universal Add control opens this tab's StopEditor. On screen it
+  // offers Add stop only while editing is on, as the old phone button did. A
+  // request from another tab ("Add stop" in the menu on Budget) is the user's
+  // own ask to edit, so it switches editing on before the editor opens.
+  useTabAdd({
+    tripId: trip.id,
+    tab: 'timeline',
+    stopDay: addTargetDay,
+    timelineEditing: planEditable,
+    handlers: editable ? {
+      'add-stop': dayIndex => {
+        if (mode !== 'plan') setMode('plan')
+        openEditorState({ mode: 'add', dayIndex: dayIndex ?? addTargetDay })
+      },
+    } : {},
+  })
+
   // Stable props for the memoized DaySection: the day numbers come from the
   // trip's days, and the map bridge reads the latest callback through a ref so
   // a workspace re-render never re-renders every day card.
@@ -922,15 +940,9 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
               </ToolbarMenu>
             </div>
           </div>
-          {/* On a phone the artboard moves Add stop out of the toolbar to a
-              floating button above the bottom nav, because the toolbar there is
-              two compact switches with no room for a labelled primary action. */}
-          {editable && mode === 'plan' && (
-            <button type="button" className="tl-add-fab"
-              onClick={() => openEditorState({ mode: 'add', dayIndex: addTargetDay })}>
-              <Plus size={18} aria-hidden />Add to Day {addTargetDay + 1}
-            </button>
-          )}
+          {/* On a phone the toolbar is two compact switches with no room for a
+              labelled primary action. Add stop lives in the universal Add
+              control there (#1064), fed by the useTabAdd registration above. */}
         </div>
 
         <section className="tl-ribbon" aria-label="Trip ribbon">

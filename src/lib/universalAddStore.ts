@@ -16,7 +16,7 @@
 // Every registration and every request carries the trip id, because the
 // workspace is not keyed by trip and must not leak a request into the next trip.
 
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import type { AddKind, TripAddScope } from './universalAdd'
 import type { WorkspaceTabKey } from './workspaceHeader'
 
@@ -118,7 +118,8 @@ export function dropTripRequests(tripId: string): void {
 /** The workspace publishes its scope. `null` while the trip is not readable. */
 export function useWorkspaceAdd(input: WorkspaceAddState | null): void {
   const goRef = useRef(input?.go)
-  goRef.current = input?.go
+  // The latest router, read at press time. Synced before any effect below runs.
+  useLayoutEffect(() => { goRef.current = input?.go })
   const tripId = input?.tripId ?? null
   const tab = input?.tab ?? null
   const canEdit = input?.canEdit ?? false
@@ -148,7 +149,8 @@ export interface TabAddInput {
 /** A tab registers its own flows and its day target while it is on screen. */
 export function useTabAdd(input: TabAddInput): void {
   const handlersRef = useRef(input.handlers)
-  handlersRef.current = input.handlers
+  // The latest handlers, read at press time. Synced before the one-shot below.
+  useLayoutEffect(() => { handlersRef.current = input.handlers })
   const { tripId, tab } = input
   const stopDay = input.stopDay ?? null
   const timelineEditing = input.timelineEditing ?? false

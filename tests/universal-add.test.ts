@@ -21,7 +21,7 @@ describe('outside a trip', () => {
       const c = ctx(route)
       expect(c.state).toBe('ready')
       expect(c.primary).toEqual({ kind: 'plan-trip', label: 'Plan a trip' })
-      expect(c.menu).toEqual([])
+      expect(c.menu).toEqual([c.primary])
     }
   })
 
@@ -40,7 +40,7 @@ describe('inside a trip, as an editor', () => {
   it('Overview adds a stop for the published first day that needs work, without a day in the label', () => {
     const c = ctx('/trip/t1', scope({ tab: 'overview', stopDay: 2 }))
     expect(c.primary).toEqual({ kind: 'add-stop', label: 'Add stop', dayIndex: 2 })
-    expect(labels(c)).toEqual(['Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
+    expect(labels(c)).toEqual(['Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
   })
 
   it('Timeline names the day it targets', () => {
@@ -62,12 +62,13 @@ describe('inside a trip, as an editor', () => {
     const c = ctx('/trip/t1/budget', scope({ tab: 'budget', stopDay: 3 }))
     expect(c.primary?.label).toBe('Add expense')
     expect(c.menu[0]).toEqual({ kind: 'add-stop', label: 'Add stop', dayIndex: 3 })
+    expect(c.menu[1]).toEqual(c.primary)
   })
 
   it('Map adds a place when the map is not full screen (a wide native screen)', () => {
     const c = ctx('/trip/t1/map', scope({ tab: 'map' }))
     expect(c.primary?.label).toBe('Add place')
-    expect(labels(c)).toEqual(['Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
+    expect(labels(c)).toEqual(['Add place', 'Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
   })
 
   it('Budget, Group input and Share map to their own add', () => {
@@ -76,9 +77,9 @@ describe('inside a trip, as an editor', () => {
     expect(ctx('/trip/t1/share', scope({ tab: 'share' })).primary?.label).toBe('Invite people')
   })
 
-  it('the menu never repeats the primary', () => {
+  it('the menu lists every allowed action in the owner order, the primary included', () => {
     const c = ctx('/trip/t1/share', scope({ tab: 'share' }))
-    expect(labels(c)).toEqual(['Add stop', 'Add expense', 'Add decision', 'Ask Chakra'])
+    expect(labels(c)).toEqual(['Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
   })
 
   it('trip settings has no add', () => {
@@ -99,14 +100,14 @@ describe('permissions', () => {
     for (const tab of ['overview', 'timeline', 'board', 'map', 'budget', 'group', 'share'] as const) {
       const c = ctx(`/trip/t1/${tab}`, scope({ tab, ...viewer, stopDay: 1 }))
       expect(c.primary).toEqual({ kind: 'invite', label: 'Invite people' })
-      expect(labels(c)).toEqual(['Ask Chakra'])
+      expect(labels(c)).toEqual(['Invite people', 'Ask Chakra'])
     }
   })
 
   it('no edit and no Chakra still leaves Invite people', () => {
     const c = ctx('/trip/t1/group', scope({ tab: 'group', ...viewer, chakra: false }))
     expect(c.primary?.kind).toBe('invite')
-    expect(c.menu).toEqual([])
+    expect(labels(c)).toEqual(['Invite people'])
   })
 
   it('nothing allowed at all reads as no add', () => {

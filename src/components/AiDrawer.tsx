@@ -18,9 +18,12 @@ interface Msg {
   source?: CompanionSource
 }
 
-export function AiDrawer({ trip, open, onOpen, onClose, legCorrections }: {
+export function AiDrawer({ trip, open, onOpen, onClose, legCorrections, fab = true }: {
   trip: Trip
   open: boolean
+  /** The floating launcher. Off on phones (#1064), where "Ask Chakra" sits in
+   *  the universal Add menu and opens this same drawer. */
+  fab?: boolean
   onOpen: () => void
   onClose: () => void
   /** The workspace's measured road snapshot, so advice reads the same schedule
@@ -119,7 +122,7 @@ export function AiDrawer({ trip, open, onOpen, onClose, legCorrections }: {
 
   return (
     <>
-      {!open && !thinking && (
+      {fab && !open && !thinking && (
         <button className="ai-fab" onClick={onOpen} aria-label="Open Chakra, the AI travel companion"><Mascot pose="mark-face" size={38} /></button>
       )}
       <div ref={drawerRef} className={`ai-drawer ${open ? 'open' : ''}`} role="dialog" aria-modal="true" aria-label="Chakra, the AI travel companion">

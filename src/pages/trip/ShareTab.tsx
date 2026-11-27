@@ -2,6 +2,7 @@
 // Mechanical extraction from src/pages/TripWorkspace.tsx (M3.4) — no behavior changes.
 // Includes SnapshotCard — ShareTab is its only consumer.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { scrollBehavior } from '../../lib/motion'
 import { InlineIcon } from '../../components/icons'
 import { CalendarDays, ChevronRight, Download, Link2, Lock } from 'lucide-react'
 import type { Trip, PublishedItinerary } from '../../data/types'
@@ -38,6 +39,7 @@ import { PrintExport } from '../../components/PrintExport'
 import { SegmentedTabs } from '../../components/page/SegmentedTabs'
 import { presenceAttrs, usePresenceList } from '../../lib/usePresenceList'
 import { cap, timeAgo } from './shared'
+import { useTabAdd } from '../../lib/universalAddStore'
 
 // The three-column layout starts here (#1012). The same width is written in
 // src/styles/legacy/05-share-and-trip-ticket.css; tests pin both values.
@@ -640,6 +642,24 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
   // nowhere. Reviewing and publishing stay in the creator's hands.
   const [draft, setDraft] = useState(() => takePublishDraft(trip.id))
   const [tab, setTab] = useState<ShareTabId>('plan')
+  // #1064: the universal Add control's Invite people opens this card: the plan
+  // panel, scrolled to the invite field, with focus on its first control (the
+  // copy button, or Try again when the link could not be made).
+  const inviteFieldRef = useRef<HTMLDivElement>(null)
+  const [inviteAsked, setInviteAsked] = useState(false)
+  useEffect(() => {
+    if (!inviteAsked || tab !== 'plan') return
+    const field = inviteFieldRef.current
+    if (!field) return
+    field.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+    field.querySelector<HTMLElement>('button, a[href]')?.focus({ preventScroll: true })
+    setInviteAsked(false)
+  }, [inviteAsked, tab])
+  useTabAdd({
+    tripId: trip.id,
+    tab: 'share',
+    handlers: { invite: () => { setTab('plan'); setInviteAsked(true) } },
+  })
   // #1012 — three columns from SHARE_WIDE_QUERY. The first render reads the query
   // directly, so a wide screen never flashes the tabs before the columns.
   const wide = useMedia(SHARE_WIDE_QUERY, typeof window !== 'undefined' && window.matchMedia(SHARE_WIDE_QUERY).matches)
@@ -795,7 +815,7 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
           <p className="hint-text shr-invite-description">{readRole ? <span key={readRole} className="shr-role-fade">{`New members join as ${readRole}s. `}</span> : null}Returning members never get more than their last role. Removed members need an owner restore.</p>
           {/* #1012 — a labelled link, then the join code as its own tile. The link
               and the code are two different things, so they are two blocks. */}
-          <div className="shr-invite-field" role="group" aria-labelledby="share-invite-label">
+          <div ref={inviteFieldRef} className="shr-invite-field" role="group" aria-labelledby="share-invite-label">
             <span className="shr-field-label" id="share-invite-label">Invite link</span>
             {inviteLink ? (
               <div className="share-link-box shr-invite-link"><InlineIcon icon={Link2} size={14} gap={0} /><code title={inviteLink}>{inviteLink}</code><CopyButton text={inviteLink} /></div>

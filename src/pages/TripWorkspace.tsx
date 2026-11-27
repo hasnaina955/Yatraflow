@@ -476,19 +476,6 @@ function sanitizeTab(s: string | undefined): TabKey {
  *  match the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`. */
 export const PHONE_DOCK_QUERY = '(max-width: 720px)'
 
-function usePhoneDockWidth(): boolean {
-  const [phone, setPhone] = useState(() => typeof window !== 'undefined'
-    && (window.matchMedia?.(PHONE_DOCK_QUERY).matches ?? false))
-  useEffect(() => {
-    const query = window.matchMedia?.(PHONE_DOCK_QUERY)
-    if (!query) return
-    const sync = () => setPhone(query.matches)
-    query.addEventListener('change', sync)
-    return () => query.removeEventListener('change', sync)
-  }, [])
-  return phone
-}
-
 export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: string; initialTab?: string; onNavigate: (route: string) => void }) {
   const db = useDb()
   const me = currentUser(db)
@@ -831,7 +818,10 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const headerFolded = foldWorkspaceHeader(tab)
   // #1051: on a phone the scrolling tabs dock the rail under the app bar. Map
   // and Board keep it in their slim folded bar.
-  const phoneWidth = usePhoneDockWidth()
+  // The first value is the real match, so a phone paints the dock at once and
+  // never shows the rail jump out of the cover.
+  const phoneWidth = useMedia(PHONE_DOCK_QUERY,
+    typeof window !== 'undefined' && (window.matchMedia?.(PHONE_DOCK_QUERY).matches ?? false))
   const tabsDocked = phoneWidth && !headerFolded
   // A tab change can move the rail between the cover and the dock, which
   // remounts it. Keep keyboard focus on the selected tab when that happens.

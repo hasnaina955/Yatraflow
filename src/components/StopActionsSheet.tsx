@@ -28,6 +28,8 @@ export type StopActionsSheetProps = {
   isLast: boolean
   onEdit: () => void
   onStatus: (status: StopStatus) => void
+  /** The phone path stages the change behind the impact preview. */
+  onStatusPreview?: (status: StopStatus) => void
   onMove: () => void
   onReorderUp: () => void
   onReorderDown: () => void
@@ -44,13 +46,13 @@ const DRAG_CLOSE_PX = 90
  *  without a DOM. Every action runs, then closes the sheet. */
 export function stopSheetHandlers(
   props: Pick<StopActionsSheetProps,
-    'onEdit' | 'onStatus' | 'onMove' | 'onReorderUp' | 'onReorderDown' | 'onShowOnMap' | 'onRemove'>,
+    'onEdit' | 'onStatus' | 'onStatusPreview' | 'onMove' | 'onReorderUp' | 'onReorderDown' | 'onShowOnMap' | 'onRemove'>,
   close: () => void,
 ) {
   const wrap = (action: () => void) => () => { action(); close() }
   return {
     edit: wrap(props.onEdit),
-    status: (s: StopStatus) => wrap(() => props.onStatus(s))(),
+    status: (s: StopStatus) => wrap(() => (props.onStatusPreview ?? props.onStatus)(s))(),
     move: wrap(props.onMove),
     up: wrap(props.onReorderUp),
     down: wrap(props.onReorderDown),

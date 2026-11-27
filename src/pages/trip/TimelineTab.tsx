@@ -794,6 +794,19 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
   }, [trip.id, previewOpen])
 
+  // The phone sheet stages a status change through the impact preview. A status
+  // can change dwell, cost and warnings, so the person sees the measured result
+  // before Keep. The desktop ⋯ above keeps its direct group-signal write.
+  const handleStatusWithPreview = useCallback((stop: ItineraryStop, status: ItineraryStop['status']) => {
+    const { applyChange, trip } = latest.current
+    const day = trip.days.find(d => d.stops.some(s => s.id === stop.id))
+    if (!day) { toast(`“${stop.title}” is no longer on this trip.`, 'err'); return }
+    applyChange(draft => {
+      const target = draft.days.find(d => d.index === day.index)?.stops.find(s => s.id === stop.id)
+      if (target) target.status = status
+    }, 'edit', day.index)
+  }, [])
+
   // --- Plan / Inspect (docs/TIMELINE-PLAN.md Phase 3): Inspect is the study
   // view — same data, every editing affordance off (the existing `editable`
   // seam renders it: no drag, delete, add, rename or impact sheet). The mode
@@ -991,6 +1004,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
             onLinkCommitment={handleLinkCommitment}
             warnings={dayWarnings.get(day.index) ?? NO_WARNINGS}
             onStatus={handleStatus}
+            onStatusPreview={handleStatusWithPreview}
             onShowOnMap={handleShowOnMap}
             dayNumbers={tripDayNumbers}
             savedIds={savedIds}

@@ -33,6 +33,7 @@ function props(over: Partial<StopActionsSheetProps> = {}): StopActionsSheetProps
     isLast: false,
     onEdit: () => {},
     onStatus: () => {},
+    onStatusPreview: () => {},
     onMove: () => {},
     onReorderUp: () => {},
     onReorderDown: () => {},
@@ -120,6 +121,18 @@ describe('the phone stop actions sheet', () => {
     expect(undoToasts[0].msg).toContain('Top Station')
   })
 
+  it('stages a phone status change through the preview, not the direct write', () => {
+    const onStatus = vi.fn()
+    const onStatusPreview = vi.fn()
+    const onClose = vi.fn()
+    const handlers = stopSheetHandlers(props({ onStatus, onStatusPreview }), onClose)
+    handlers.status('confirmed')
+    expect(onStatusPreview).toHaveBeenCalledOnce()
+    expect(onStatusPreview).toHaveBeenCalledWith('confirmed')
+    expect(onStatus).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('keeps the desktop disclosure and routes the phone trigger to the sheet', () => {
     const day = readFileSync(new URL('../src/pages/trip/timeline/DaySection.tsx', import.meta.url), 'utf8')
     const tab = readFileSync(new URL('../src/pages/trip/TimelineTab.tsx', import.meta.url), 'utf8')
@@ -131,6 +144,16 @@ describe('the phone stop actions sheet', () => {
     expect(day).toContain('onRemove={() => onDelete(sheetStop.id, day.index)}')
     expect(day).toContain("useMedia('(max-width: 720px)')")
     expect(tab).toContain('onShowOnMap={handleShowOnMap}')
+    expect(day).toContain('onStatusPreview={onStatusPreview ? status => onStatusPreview(sheetStop, status) : undefined}')
+    expect(tab).toContain('onStatusPreview={handleStatusWithPreview}')
+    // The phone path stages an 'edit' through applyChange; the desktop path
+    // keeps its direct group-signal write untouched.
+    const preview = tab.slice(tab.indexOf('const handleStatusWithPreview'), tab.indexOf('// --- Plan / Inspect'))
+    expect(preview).toContain('applyChange(draft => {')
+    expect(preview).toContain("}, 'edit', day.index)")
+    expect(preview).not.toContain('setStopStatus')
+    const desktop = tab.slice(tab.indexOf('const handleStatus ='), tab.indexOf('const handleStatusWithPreview'))
+    expect(desktop).toContain('setStopStatus(trip.id, status, stop.id)')
     expect(workspace).toContain('onOpenMap={openMap}')
   })
 })

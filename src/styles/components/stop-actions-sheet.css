@@ -27,7 +27,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-7);
   padding: 10px 18px calc(18px + var(--safe-bottom));
   background: var(--pw-card);
   color: var(--pw-ink);

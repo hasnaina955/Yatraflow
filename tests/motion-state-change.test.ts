@@ -60,8 +60,8 @@ const reducedMotionBlocks = (): string[] => {
  *  pressed at a time, so the pressed state MOVES from one to the other. A group
  *  of independent chips (`aria-pressed={pressed}`) is not one: nothing travels.
  *  A <PillNav> is skipped: it carries the shared `.pill-glider`. */
-function segmentedGroups(): { file: string; cls: string }[] {
-  const found: { file: string; cls: string }[] = []
+function segmentedGroups(): { file: string; cls: string; shared?: true }[] {
+  const found: ReturnType<typeof segmentedGroups> = []
   for (const rel of tsxFiles) {
     const sf = parse(rel)
     const visit = (node: ts.Node) => {
@@ -70,7 +70,7 @@ function segmentedGroups(): { file: string; cls: string }[] {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         if (node.tagName.getText() === 'SegmentedTabs' && stringValueOf(attrOf(node, 'semantics')) === 'toggle') {
           for (const token of (stringValueOf(attrOf(node, 'className')) ?? '').split(/\s+/).filter(Boolean)) {
-            found.push({ file: 'src/' + rel, cls: token })
+            found.push({ file: 'src/' + rel, cls: token, shared: true })
           }
         }
       }
@@ -107,6 +107,10 @@ function gliderRules(source: string, cls: string): { body: string; stateful: boo
   for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selectors = match[1].replace(/\/\*[\s\S]*?\*\//g, '').split(',')
     for (const selector of selectors) {
+      if (cls === 'pill-glider' && selector.trim() === '.pill-glider') {
+        rules.push({ body: match[2], stateful: false })
+        continue
+      }
       const glider = selector.trim().match(/^\.([\w-]+)(\[[^\]]*\])?::(?:before|after)$/)
       if (glider?.[1] === cls) rules.push({ body: match[2], stateful: glider[2] !== undefined })
     }
@@ -114,25 +118,10 @@ function gliderRules(source: string, cls: string): { body: string; stateful: boo
   return rules
 }
 
-/** Segmented controls found outside the Explore and My trips pages that still
- *  have no glider. This is a ratchet: it may only shrink. When one gets a glider,
- *  the guard below fails until the entry is removed, so the list cannot go stale. */
-const KNOWN_WITHOUT_GLIDER: Record<string, string> = {
-  'map-day-filter': 'Trip map day filter (src/components/TripMap.tsx): not on Explore or My trips',
-}
-
 describe('a control that changes state carries motion (AGENTS §2.10)', () => {
-  const allGroups = segmentedGroups()
-  const groups = allGroups.filter((g) => !(g.cls in KNOWN_WITHOUT_GLIDER))
+  const groups = segmentedGroups()
   const activeMotionCss = reducedMotionBlocks().reduce((source, block) => source.replace(block, ''), css)
-
-  it('keeps the known-gap list honest', () => {
-    for (const cls of Object.keys(KNOWN_WITHOUT_GLIDER)) {
-      expect(allGroups.map((g) => g.cls), `.${cls} is no longer a segmented control: remove it from KNOWN_WITHOUT_GLIDER`).toContain(cls)
-      const hasGlider = gliderRules(css, cls).length > 0
-      expect(hasGlider, `.${cls} now has a glider rule: remove it from KNOWN_WITHOUT_GLIDER so the full guard applies`).toBe(false)
-    }
-  })
+  const pillNav = readFileSync(new URL('../src/components/PillNav.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
   it('finds the segmented controls it is meant to guard', () => {
     // A discovery that finds nothing would let every check below pass on an empty
@@ -140,11 +129,10 @@ describe('a control that changes state carries motion (AGENTS §2.10)', () => {
     expect(groups.map((g) => g.cls)).toContain('mt-seg')
   })
 
-  for (const { file, cls } of groups) {
+  for (const { file, cls, shared } of groups) {
+    const glider = shared ? 'pill-glider' : cls
     it(`${cls} (${file}) slides a glider with motion tokens`, () => {
-      // A rule on the group's ::before or ::after (the glider) that moves it with
-      // a duration token and an easing token, never a raw ms value.
-      const transitions = gliderRules(activeMotionCss, cls).map((rule) => rule.body).filter((body) => /transition\s*:/.test(body))
+      const transitions = gliderRules(activeMotionCss, glider).map((rule) => rule.body).filter((body) => /transition\s*:/.test(body))
       expect(transitions.length, `.${cls} has no glider rule with a transition`).toBeGreaterThan(0)
       for (const body of transitions) {
         const transition = body.match(/transition\s*:([^;]*);/)?.[1] ?? ''
@@ -152,16 +140,16 @@ describe('a control that changes state carries motion (AGENTS §2.10)', () => {
         expect(transition, `.${cls} glider transition`).toMatch(/var\(--ease-/)
         expect(transition, `.${cls} glider transition must not use a positive raw duration`).not.toMatch(/[1-9]\d*m?s\b/)
       }
-      // The glider must have somewhere to go: a rule that moves it for the other
-      // choice (a data attribute on the group).
-      const movesGlider = gliderRules(activeMotionCss, cls).some((rule) => rule.stateful && /(left|transform)\s*:/.test(rule.body))
+      const movesGlider = shared ? pillNav.includes('glider.style.left =') :
+        gliderRules(activeMotionCss, cls).some((rule) => rule.stateful && /(left|transform)\s*:/.test(rule.body))
       expect(movesGlider, `.${cls} glider never moves`).toBe(true)
     })
 
     it(`${cls} (${file}) turns the glider off under prefers-reduced-motion`, () => {
       const optedOut = reducedMotionBlocks().some((block) =>
-        gliderRules(block, cls).some((rule) => !rule.stateful && /transition\s*:\s*none/.test(rule.body)))
-      expect(optedOut, `.${cls}::before has no transition: none in a reduced-motion block`).toBe(true)
+        shared ? /--motion-med:\s*0ms/.test(block) :
+          gliderRules(block, glider).some((rule) => !rule.stateful && /transition\s*:\s*none/.test(rule.body)))
+      expect(optedOut, `.${glider} has no transition: none in a reduced-motion block`).toBe(true)
     })
   }
 })

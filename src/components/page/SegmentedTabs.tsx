@@ -8,8 +8,7 @@
 //               The look is the tabbar and tab-btn rules in styles.css.
 //   'toggle'  - the choices are a pressed-state group, such as Grid and List.
 //               Each button carries aria-pressed. There is no roving focus.
-//               The group sets data-layout to the active key. The look class,
-//               such as mt-seg, reads that attribute to draw a glider.
+//               PillNav measures the active button to place the glider.
 //
 // The semantics prop exists so a group of pressed buttons is never announced
 // as tabs. A tab needs a panel to point at. A toggle does not have one.

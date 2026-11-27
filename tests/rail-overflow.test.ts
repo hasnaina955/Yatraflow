@@ -83,7 +83,7 @@ describe('the rail publishes its state, and the stylesheet paints it', () => {
     for (const state of ['start', 'middle', 'end']) {
       expect(css, `the ${state} state needs a mask rule`).toContain(`.pill-nav[data-overflow='${state}']`)
     }
-    expect(css).toMatch(/\.pill-nav\[data-overflow='start'\']\s*\{\s*mask-image:/)
+    expect(css).toMatch(/\.pill-nav\[data-overflow='start'\]\s*\{\s*mask-image:/)
     expect(css).toMatch(/\.pill-nav > \[data-pill-key\]\s*\{[^}]*scroll-snap-align: center/)
     expect(css, 'the fitting state must paint no mask').not.toContain("[data-overflow='none']")
   })

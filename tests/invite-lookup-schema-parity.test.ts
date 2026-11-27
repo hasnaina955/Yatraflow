@@ -18,11 +18,12 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const NAME = 'get_trip_by_invite_code'
-// 20261127a redefines both readers and adds trip_access_level. It is the newest
-// definition of each, and the parity checks below read it.
-const MIGRATION = '20261127a_paid_access_boundary.sql'
+// 20261127c updates get_trip_by_invite_code; 20261127a defines trip_access_level and get_public_trip.
+const MIGRATION = '20261127c_gate_091_paid_access_fixes.sql'
+const ACCESS_MIGRATION = '20261127a_paid_access_boundary.sql'
 const PUBLIC_TRIP_MIGRATION = '20261127a_paid_access_boundary.sql'
 const migration = read(`supabase/migrations/${MIGRATION}`)
+const accessMigration = read(`supabase/migrations/${ACCESS_MIGRATION}`)
 const hotfix = read('supabase/migrations/20261126b_paywall_visibility_authorship.sql')
 const schema = read('supabase/schema.sql')
 
@@ -118,7 +119,7 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
       'v_deleted is null and public.is_member(p_trip_id)',
       "to_regclass('public.entitlements') is not null",
     ]
-    for (const [label, source] of [['the migration', migration], ['schema.sql', schema]] as const) {
+    for (const [label, source] of [['the migration', accessMigration], ['schema.sql', schema]] as const) {
       const access = flat(fnDefinition(source, 'trip_access_level'))
       expect(access, `${label} defines trip_access_level`).not.toBe('')
       for (const gate of gates) {
@@ -151,7 +152,7 @@ describe('#1020 schema.sql invite lookup matches the live definition', () => {
   })
 
   it('both copies carry the same grants and revokes', () => {
-    for (const [label, source] of [['the migration', migration], ['schema.sql', schema]] as const) {
+    for (const [label, source] of [['the migration', accessMigration], ['schema.sql', schema]] as const) {
       expect(source, label).toContain(`revoke execute on function public.${NAME}(text) from public, anon;`)
       expect(source, label).toContain(`grant execute on function public.${NAME}(text) to anon, authenticated;`)
     }
@@ -332,6 +333,7 @@ describe('#1020 the invite lookup answers with the live gates on a schema-only b
 
   it('keeps both preview RPCs and joining locked on the migrated database', async () => {
     await db.exec(hotfix)
+    await db.exec(accessMigration)
     await db.exec(migration)
     await db.exec(migration)
 

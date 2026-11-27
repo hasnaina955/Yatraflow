@@ -806,8 +806,7 @@ create policy "notifications write" on public.notifications
   with check (auth.uid() = user_id or public.is_editor(trip_id));
 
 -- ---------- published_itineraries ----------
-create policy "published read" on public.published_itineraries
-  for select using (true);  -- public gallery
+-- "published read" is created below after public.can_read_publication.
 
 create policy "published write" on public.published_itineraries
   for all using (auth.uid() = creator_id) with check (auth.uid() = creator_id);
@@ -887,6 +886,32 @@ drop trigger if exists publication_link_guard on public.published_itineraries;
 create trigger publication_link_guard
   before insert or update on public.published_itineraries
   for each row execute function public.guard_publication_link();
+
+drop trigger if exists publication_unpublished_at_guard on public.published_itineraries;
+drop function if exists public.guard_publication_unpublished_at();
+create or replace function public.guard_publication_unpublished_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.unpublished_at is not null then
+    if old.unpublished_at is null then
+      new.unpublished_at := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+    else
+      new.unpublished_at := old.unpublished_at;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.guard_publication_unpublished_at() from public, anon, authenticated;
+
+create trigger publication_unpublished_at_guard
+  before update on public.published_itineraries
+  for each row execute function public.guard_publication_unpublished_at();
 
 -- ---------- pub_events ----------
 -- Read your own publications' funnel. NO write policy for anon/authenticated:
@@ -1138,6 +1163,59 @@ as $$
 $$;
 
 revoke all on function public.publication_is_listed(text) from public, anon, authenticated;
+
+drop policy if exists "published read" on public.published_itineraries;
+drop function if exists public.can_read_publication(text);
+create or replace function public.can_read_publication(p_pub_id text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_pub public.published_itineraries;
+begin
+  if p_pub_id is null or btrim(p_pub_id) = '' then
+    return false;
+  end if;
+
+  if public.is_disabled() then
+    return false;
+  end if;
+
+  select p.* into v_pub
+  from public.published_itineraries p
+  where p.id = p_pub_id;
+  if not found then
+    return false;
+  end if;
+
+  if public.publication_is_listed(v_pub.id) then
+    return true;
+  end if;
+
+  if auth.uid() is null then
+    return false;
+  end if;
+
+  if v_pub.creator_id = auth.uid() or public.is_admin() then
+    return true;
+  end if;
+
+  if v_pub.trip_id is null then
+    return false;
+  end if;
+
+  return public.trip_access_level(v_pub.trip_id) in ('crew', 'buyer');
+end;
+$$;
+
+revoke all on function public.can_read_publication(text) from public, anon, authenticated;
+grant execute on function public.can_read_publication(text) to anon, authenticated;
+
+create policy "published read" on public.published_itineraries
+  for select using (public.can_read_publication(id));
 
 drop function if exists public.get_invite_trip(uuid);
 create or replace function public.get_invite_trip(p_trip_id uuid)
@@ -3494,6 +3572,19 @@ begin
     v_level := public.trip_access_level(v_row.id);
     if v_level = 'none' then
       continue;
+    end if;
+    -- An active member for the current owner with a missing trip_members row
+    -- reaches join_trip to restore their role rather than owner approval.
+    if v_level <> 'crew'
+      and auth.uid() is not null
+      and exists (
+        select 1 from public.trip_member_access a
+        where a.trip_id = v_row.id
+          and a.user_id = auth.uid()
+          and a.state = 'active'
+          and a.owner_id = v_row.owner_id
+      ) then
+      v_level := 'crew';
     end if;
     if v_level <> 'crew' and public.trip_has_priced_publication(v_row.id) then
       raise exception 'Owner approval needed.' using errcode = 'PT403';

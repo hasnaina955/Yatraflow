@@ -503,14 +503,81 @@ end $$;
 
 -- -------------------------------------------------------- 5. published gallery
 do $$
+declare
+  v_read_qual text;
+  v_fn_src text;
+  v_mint_src text;
+  v_guard_src text;
+  v_guard_trg text;
 begin
-  -- Public gallery read (any visitor); creator-only write.
-  if not exists (
+  -- Listed guide or authorized reader read; no open `using (true)` policy.
+  if exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'published_itineraries'
       and cmd = 'SELECT' and qual = 'true'
   ) then
-    raise exception 'published_itineraries SELECT must be public (Explore gallery)';
+    raise exception 'published_itineraries SELECT must not be open with using (true)';
+  end if;
+  select qual into v_read_qual from pg_policies
+    where schemaname = 'public' and tablename = 'published_itineraries'
+      and policyname = 'published read' and cmd = 'SELECT';
+  if v_read_qual is null or v_read_qual not like '%can_read_publication%' then
+    raise exception 'published_itineraries SELECT must gate through can_read_publication';
+  end if;
+  if to_regprocedure('public.can_read_publication(text)') is null
+    or not exists (
+      select 1 from pg_proc p
+      where p.oid = 'public.can_read_publication(text)'::regprocedure
+        and p.prosecdef
+        and p.proconfig is not null
+        and exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%')
+    )
+    or not has_function_privilege('anon', 'public.can_read_publication(text)', 'execute')
+    or not has_function_privilege('authenticated', 'public.can_read_publication(text)', 'execute')
+    or exists (
+      select 1 from pg_proc p
+      cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) e
+      where p.oid = 'public.can_read_publication(text)'::regprocedure and e.grantee = 0
+    ) then
+    raise exception 'can_read_publication(text) must be SECURITY DEFINER with search_path and anon+authenticated execute';
+  end if;
+  v_fn_src := pg_get_functiondef('public.can_read_publication(text)'::regprocedure);
+  if v_fn_src not like '%publication_is_listed%' or v_fn_src not like '%trip_access_level%' then
+    raise exception 'can_read_publication must check publication_is_listed and trip_access_level';
+  end if;
+  if to_regprocedure('public.create_pending_purchase_order(uuid,text,text,integer)') is null
+    or has_function_privilege('anon', 'public.create_pending_purchase_order(uuid,text,text,integer)', 'execute')
+    or has_function_privilege('authenticated', 'public.create_pending_purchase_order(uuid,text,text,integer)', 'execute')
+    or not has_function_privilege('service_role', 'public.create_pending_purchase_order(uuid,text,text,integer)', 'execute') then
+    raise exception 'create_pending_purchase_order must be service_role only';
+  end if;
+  v_mint_src := pg_get_functiondef('public.create_pending_purchase_order(uuid,text,text,integer)'::regprocedure);
+  if v_mint_src not like '%insert into public.purchase_orders%'
+    or v_mint_src like '%for no key update%'
+    or v_mint_src like '%for update%' then
+    raise exception 'create_pending_purchase_order must insert via the trigger guard without taking duplicate locks';
+  end if;
+  if to_regprocedure('public.guard_pending_purchase_order()') is null
+    or has_function_privilege('anon', 'public.guard_pending_purchase_order()', 'execute')
+    or has_function_privilege('authenticated', 'public.guard_pending_purchase_order()', 'execute') then
+    raise exception 'guard_pending_purchase_order must exist and be revoked from clients';
+  end if;
+  v_guard_src := pg_get_functiondef('public.guard_pending_purchase_order()'::regprocedure);
+  if v_guard_src not like '%for no key update%'
+    or v_guard_src not like '%clock_timestamp%'
+    or v_guard_src not like '%PT410%' then
+    raise exception 'guard_pending_purchase_order must lock with FOR NO KEY UPDATE, use clock_timestamp, and raise PT410 on failed recheck';
+  end if;
+  select pg_get_triggerdef(t.oid) into v_guard_trg
+  from pg_trigger t
+  where t.tgrelid = 'public.purchase_orders'::regclass
+    and t.tgname = 'purchase_orders_pending_guard'
+    and t.tgenabled = 'O'
+    and t.tgfoid = 'public.guard_pending_purchase_order()'::regprocedure;
+  if v_guard_trg is null
+    or v_guard_trg not like '%BEFORE INSERT%'
+    or v_guard_trg not like '%status = ''pending''%' then
+    raise exception 'purchase_orders_pending_guard must be an active BEFORE INSERT trigger for pending orders';
   end if;
   if not exists (
     select 1 from pg_policies
@@ -565,6 +632,14 @@ begin
       and tgfoid = 'public.guard_publication_link()'::regprocedure
   ) then
     raise exception 'a publication must keep its original trip and creator';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.published_itineraries'::regclass
+      and tgname = 'publication_unpublished_at_guard' and tgenabled = 'O'
+      and tgfoid = 'public.guard_publication_unpublished_at()'::regprocedure
+  ) then
+    raise exception 'publication withdrawal timestamp must come from the database clock';
   end if;
 end $$;
 

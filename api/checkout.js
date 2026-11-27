@@ -182,24 +182,32 @@ async function claimEntitlement(supabaseUrl, anonKey, token, razorpayOrderId, si
   return response.ok
 }
 
-async function insertOrderRow(supabaseUrl, serviceKey, row, signal) {
-  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/purchase_orders`, {
+async function createPendingOrder(supabaseUrl, serviceKey, order, signal) {
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/rpc/create_pending_purchase_order`, {
     method: 'POST',
-    headers: supabaseServiceHeaders(serviceKey, {
-      'content-type': 'application/json',
-      prefer: 'return=minimal',
+    headers: { ...supabaseServiceHeaders(serviceKey), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      p_user_id: order.userId,
+      p_pub_id: order.pubId,
+      p_razorpay_order_id: order.razorpayOrderId,
+      p_expected_price_inr: order.price,
     }),
-    body: JSON.stringify(row),
     signal,
   })
-  // #594 — 409 here is the one-live-order index (20261004) refusing a second
-  // pending row for this (buyer, pub): the racer lost the mint race, exactly as
-  // the guard intends. It is NOT an error to surface — the caller answers 409
-  // "try again", and the retry's own read now finds the winner's row and
-  // re-serves it. Any other non-2xx is a real failure and still throws.
-  if (response.status === 409) return { minted: false }
-  if (!response.ok) throw new Error(`order row insert failed: ${response.status}`)
-  return { minted: true }
+  if (response.ok) return { minted: true, reason: 'minted' }
+  const errBody = await response.json().catch(() => null)
+  if (response.status === 410 || errBody?.code === 'PT410') {
+    return { minted: false, reason: 'not-for-sale' }
+  }
+  // #594 — 409 / 23505 here is the one-live-order index (20261004) refusing a
+  // second pending row for this (buyer, pub): the racer lost the mint race,
+  // exactly as the guard intends. It is NOT an error to surface — the caller
+  // answers 409 "try again", and the retry's own read now finds the winner's
+  // row and re-serves it. Any other non-2xx is a real failure and still throws.
+  if (response.status === 409 || errBody?.code === '23505') {
+    return { minted: false, reason: 'conflict' }
+  }
+  throw new Error(`order row insert failed: ${response.status}`)
 }
 
 export default async function handler(req, res) {
@@ -368,6 +376,24 @@ export default async function handler(req, res) {
     }
     if (atPrice.length === 1) {
       const order = atPrice[0].order
+      // Recheck listing and price after the gateway probes above, because a
+      // guide can be withdrawn or repriced while probing Razorpay orders.
+      const recheck = await fetchCheckoutOffer(supabaseUrl, serviceKey, userId, pubId, signal)
+      if (recheck.buyer_found !== true || recheck.buyer_disabled === true) {
+        return json(res, 403, { error: 'this account cannot buy right now' })
+      }
+      if (recheck.buyer_is_creator === true) {
+        return json(res, 403, { error: 'this is your own publication' })
+      }
+      if (recheck.publication_found !== true || recheck.listed !== true || !Number.isInteger(recheck.price_inr) || recheck.price_inr < 1) {
+        return json(res, 410, { error: 'This guide is no longer for sale' })
+      }
+      if (recheck.price_inr !== order.amount_inr) {
+        console.error(`[yatraflow] checkout: price changed with an open order for user ${userId} pub ${pubId}: ${order.razorpay_order_id} at ${order.amount_inr} -> ${recheck.price_inr}`)
+        return json(res, 409, {
+          error: 'the price of this plan changed while an earlier payment was still open. No payment on it is complete yet. Contact support before you buy again, so you are not charged twice.',
+        })
+      }
       // RE-SERVE this same order. `created` is still payable. `attempted` means
       // a try did not finish, and Razorpay keeps such an order payable. That is
       // why the gateway does not treat that status as final. Re-serving cannot
@@ -386,21 +412,25 @@ export default async function handler(req, res) {
     }
     const receipt = `r${stable(pubId, 8)}${stable(userId, 4)}`
     const razorpayOrderId = await createRazorpayOrder(keyId, keySecret, price * 100, receipt, signal)
-    const minted = await insertOrderRow(supabaseUrl, serviceKey, {
-      user_id: userId,
-      pub_id: pubId,
-      razorpay_order_id: razorpayOrderId,
-      amount_inr: price,
-      currency: 'INR',
-      status: 'pending',
-      price_snapshot_inr: price,
+    const minted = await createPendingOrder(supabaseUrl, serviceKey, {
+      userId,
+      pubId,
+      razorpayOrderId,
+      price,
     }, signal)
+    // If the guide was withdrawn, made private, trashed, or repriced before
+    // the insert lock ran, create_pending_purchase_order refuses with PT410.
+    // The gateway order created above is never returned to the client, so it
+    // cannot be paid in Razorpay Checkout and remains unused at the gateway.
     // #594 — lost the mint race: the index refused a second pending row. The
     // gateway order exists but is unreachable from this buyer (the row is what
     // checkout and verify both resolve by), so it can never be paid through the
     // app. Say so instead of handing back an order_id whose row does not exist —
     // that modal would open, and Razorpay would take the money for nothing.
     if (!minted.minted) {
+      if (minted.reason === 'not-for-sale') {
+        return json(res, 410, { error: 'This guide is no longer for sale' })
+      }
       return json(res, 409, {
         error: 'another attempt at this payment just started — nothing was charged. Open the plan again to continue.',
       })

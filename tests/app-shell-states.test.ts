@@ -13,7 +13,7 @@ const boundary = read('src/components/ErrorBoundary.tsx')
 describe('app shell loading states (P1)', () => {
   it('keeps the lazy fallback and gives native home its skeleton at startup', () => {
     expect(app).toMatch(/const lazyRouteFallback = <div className="container page-enter route-fallback"><StateBlock kind="loading"[^\n]*title="Loading…" \/><\/div>/)
-    expect(app).toMatch(/if \(!ready && [^\n]*\{\n\s*page = isNative && bareRoute \? .*<NativeHomeSkeleton \/>.* : lazyRouteFallback\n/)
+    expect(app).toMatch(/if \(!ready && [^\n]*\{\n\s*if \(isNative && bareRoute\) page = .*<NativeHomeSkeletonPage \/>.*\n\s*else page = lazyRouteFallback\n/)
   })
 
   it('no longer contains the retired loading-block markup', () => {

@@ -188,6 +188,7 @@
   --space-5: 12px; --space-6: 14px; --space-7: 16px; --space-8: 20px;
   --space-9: 22px; --space-10: 24px;
   --nav-h: 62px;
+  --nav-top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   /* ---- bottom chrome (mobile / native shell) ----
      One offset every fixed/sticky bottom layer clears: the shell's own
      navigation row (--shell-nav-h, 0px on the web so both the offset and any

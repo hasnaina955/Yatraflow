@@ -499,6 +499,18 @@
   background: color-mix(in srgb, var(--pw-card) 86%, transparent);
 }
 
+@media (max-width: 720px) {
+  /* Cover the gaps around the floating bar as the trip header scrolls away. */
+  .app-shell:has(> .topnav):has(.yf-workspace)::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto;
+    height: calc(var(--nav-top) + var(--nav-h) + 2px);
+    z-index: calc(var(--z-nav-glass) - 1);
+    background: var(--bg);
+  }
+}
+
 /* Keep compact titles inside the cover while the member row folds away. */
 .yf-page.yf-page[data-compact='true'] .yf-cover-emoji {
   display: none;

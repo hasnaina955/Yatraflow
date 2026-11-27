@@ -3,7 +3,7 @@
 // routing to the tab components in pages/trip/* (M3.4 split). Tabs:
 // Overview / Timeline / Map / Group input / Budget / Share. The former
 // Suggestions and Decisions tabs merged into `group` (old slugs redirect).
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Trip } from '../data/types'
 import { useDb, tripById, currentUser, roleOf, canEdit, canComment, trackTripPreview, tripPreviewPending, observeTripPreview, userById, readSharedTrip, useIdentityGeneration, admitTripPreview } from '../store/store'
 import { SegmentedTabs } from '../components/page/SegmentedTabs'
@@ -812,29 +812,6 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   const headerExtraRef = useRef<HTMLDivElement | null>(null)
   const [headerExtraInert, setHeaderExtraInert] = useState(false)
   const headerFolded = foldWorkspaceHeader(tab)
-
-  useLayoutEffect(() => {
-    const rail = document.querySelector<HTMLElement>('.yf-page .yf-tabbar')
-    const nav = document.querySelector<HTMLElement>('.topnav')
-    if (!rail || !nav) return
-    const update = () => {
-      const navBox = nav.getBoundingClientRect()
-      const hidden = window.matchMedia('(max-width: 720px)').matches && navBox.height > 0 && rail.getBoundingClientRect().top < navBox.bottom
-      rail.style.visibility = hidden ? 'hidden' : ''
-    }
-    update()
-    window.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-    const observer = new ResizeObserver(update)
-    observer.observe(rail)
-    observer.observe(nav)
-    return () => {
-      window.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-      observer.disconnect()
-      rail.style.visibility = ''
-    }
-  }, [trip?.id, me, tab])
 
   useEffect(() => {
     if (!headerFolded) {

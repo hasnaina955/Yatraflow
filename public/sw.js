@@ -21,7 +21,8 @@
 // that is not this version's is dropped on activate — so a deploy rolls the
 // offline copy forward without a version bump. Bump SW_VERSION only to force a
 // full drop (e.g. when the caching policy itself changes).
-// v6 confirms the bare app shell positively before caching SHELL.
+// v6 confirms the bare app shell positively before caching SHELL and precaches
+// the shell's startup script and stylesheet assets during install.
 const SW_VERSION = 'v6'
 const CACHE = `yatraflow-${SW_VERSION}`
 // The bare app shell. The build writes the prerendered home page to /index.html
@@ -29,7 +30,70 @@ const CACHE = `yatraflow-${SW_VERSION}`
 // other route. v5 moved the key from '/' to '/app.html'.
 const SHELL = '/app.html'
 const SHELL_MARKER = '<meta name="yatraflow-shell" content="app" />'
-const SHELL_ASSETS = [SHELL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+const STATIC_ASSETS = ['/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+const SHELL_ASSETS = [SHELL, ...STATIC_ASSETS]
+
+/** Extracts same-origin module scripts and stylesheet/modulepreload links from shell HTML. */
+function extractStartupAssets(html) {
+  const assets = []
+  const seen = new Set()
+  const add = raw => {
+    if (!raw) return
+    let parsed
+    try {
+      parsed = new URL(raw, self.location.origin)
+    } catch {
+      return
+    }
+    if (parsed.origin !== self.location.origin) return
+    const assetPath = parsed.pathname + parsed.search
+    if (assetPath === SHELL || seen.has(assetPath)) return
+    seen.add(assetPath)
+    assets.push(assetPath)
+  }
+  const attr = (attrs, name) => {
+    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(attrs)
+    return match ? (match[1] ?? match[2] ?? match[3] ?? '') : ''
+  }
+  for (const match of html.matchAll(/<script\b([^>]*)>/gi)) {
+    const attrs = match[1]
+    if (attr(attrs, 'type').toLowerCase() === 'module') add(attr(attrs, 'src'))
+  }
+  for (const match of html.matchAll(/<link\b([^>]*)>/gi)) {
+    const attrs = match[1]
+    const rels = attr(attrs, 'rel').toLowerCase().split(/\s+/)
+    if (rels.includes('stylesheet') || rels.includes('modulepreload')) add(attr(attrs, 'href'))
+  }
+  return assets
+}
+
+/** Fetches the shell and all startup assets before writing the new version cache.
+ *  If any fetch fails or returns HTML instead of an asset, install rejects so
+ *  the old worker and its cache stay in control. */
+async function precacheShell() {
+  const shellResponse = await fetch(SHELL)
+  if (!shellResponse.ok) throw new Error(`Shell precache failed: ${shellResponse.status}`)
+  const shellHtml = await shellResponse.text()
+  const shellCopy = new Response(shellHtml, {
+    status: shellResponse.status,
+    statusText: shellResponse.statusText,
+    headers: shellResponse.headers,
+  })
+  const urls = [...new Set([...STATIC_ASSETS, ...extractStartupAssets(shellHtml)])]
+  const entries = await Promise.all(
+    urls.map(async assetUrl => {
+      const response = await fetch(assetUrl)
+      const type = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+      if (!response.ok || type.includes('text/html')) {
+        throw new Error(`Asset precache failed: ${assetUrl} (${response.status})`)
+      }
+      return [assetUrl, response]
+    }),
+  )
+  const cache = await caches.open(CACHE)
+  await cache.put(SHELL, shellCopy)
+  await Promise.all(entries.map(([assetUrl, response]) => cache.put(assetUrl, response)))
+}
 
 /** True only when HTML is the bare app shell: has the marker and no canonical or robots tag. */
 function isBareAppShell(html) {
@@ -76,7 +140,7 @@ const NEVER = [
 ]
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL_ASSETS)))
+  event.waitUntil(precacheShell())
   // Deliberately NO skipWaiting(): a new worker takes over on the next full
   // load, so a running session never has its shell swapped underneath it. The
   // app's own stale-chunk auto-reload covers the mid-session deploy case.

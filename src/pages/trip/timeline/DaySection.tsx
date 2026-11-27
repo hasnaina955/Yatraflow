@@ -8,20 +8,21 @@
 // MoveStopModal and ClampedText — the whole timeline hot path.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
-import { savedDayId, savedStopId } from '../../../lib/uiPrefs'
+import { savedDayId, savedStopId, loadFlag, saveFlag } from '../../../lib/uiPrefs'
 import { confirmedVisitMinutes } from '../../../lib/hoursContext'
 import {
-  ArrowRight, Armchair, BedDouble, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, CloudRain, CloudSun,
+  ArrowRight, Armchair, BedDouble, Car, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Clock, CloudRain, CloudSun,
   Copy, Droplets, ExternalLink, Flag, Fuel, Landmark, Lock, MapPin, Mountain,
   MoveHorizontal, MoreHorizontal, Moon, PenLine, Pencil, Pin, PlaneTakeoff, Plus, Route as RouteIcon, Trash2, TriangleAlert, Utensils,
 } from 'lucide-react'
 import type { ChangeEvent } from 'react'
 import type { Trip, ItineraryStop, ItineraryDay } from '../../../data/types'
 import {
-  minutesToHM, hmToMinutes, formatInr,
+  minutesToHM, hmToMinutes, formatInr, earlyArrivalAdvisory,
   computeCategoryBias, optimizeDayOrder, roadScaleRatio, measuredLegCount, optimiseKmLabel, scheduleRowsById,
 } from '../../../lib/engine'
 import type { ScheduledLeg } from '../../../lib/engine'
+import { durationLabel } from '../../../lib/routeIq'
 import { distanceStatLabel, roadStateOf, type RoadState } from '../../../lib/roadStatLabel'
 import type { RoadStatus } from '../../../lib/tripRoad'
 import { hasUserPlannedStop, sameDaySectionProps, type DayCardFacts, type DayTotals } from '../../../lib/dayCards'
@@ -50,6 +51,7 @@ import { currentUser } from '../../../store/store'
 import { Mascot } from '../../../components/mascot/Mascot'
 import { warningHead } from '../../../lib/mascot'
 import { dayHeaderLabel } from './dayLabel'
+import { earlyArrivalPlacement } from './earlyArrivalPlacement'
 
 /**
  * The day's cover plan: the traveller's own upload when there is one, else the
@@ -217,7 +219,7 @@ function DayCover({ day, trip, editable, onSetCover, folded = false, nodeRef }: 
 /** One leg row's summary. An air sector reads as a flight — a plane glyph, the
  *  block time and the fare — and never as "~N km · ~N min · est ₹/km", which is
  *  what a flight row used to say when the whole day ran at one blended speed. */
-function LegSummary({ leg, inrPerKm, mode }: { leg: ScheduledLeg; inrPerKm: number; mode: string }) {
+function LegSummary({ leg, inrPerKm, mode, compact }: { leg: ScheduledLeg; inrPerKm: number; mode: string; compact: boolean }) {
   const from = leg.fromTitle.replace(/ \((start|end)\)$/, '')
   if (leg.kind === 'air') {
     const fare = leg.costInr != null ? ` · ${formatInr(Math.round(leg.costInr))} total` : ''
@@ -228,11 +230,23 @@ function LegSummary({ leg, inrPerKm, mode }: { leg: ScheduledLeg; inrPerKm: numb
       </>
     )
   }
+  const cost = Math.round(leg.distanceKm * (leg.inrPerKm ?? inrPerKm))
+  const estimateMode = leg.inrPerKm != null ? 'car' : mode
+  if (compact) {
+    return (
+      <>
+        <span className="travel-leg-line">
+          <MetaIcon icon={Car} tone="money" /> ~{leg.distanceKm.toFixed(0)} km · {durationLabel(leg.durationMinutes)} · ≈ ₹{cost}
+        </span>
+        <span className="travel-leg-origin">From {from} ({estimateMode})</span>
+      </>
+    )
+  }
   return (
     <>
       <MetaIcon icon={Car} tone="money" />
       <span className="travel-leg-line">~{leg.distanceKm.toFixed(0)} km · {minutesToHM(leg.durationMinutes)}</span>
-      <span className="travel-leg-extra">from {from} · est ₹{Math.round(leg.distanceKm * (leg.inrPerKm ?? inrPerKm))} ({leg.inrPerKm != null ? 'car' : mode})</span>
+      <span className="travel-leg-extra">from {from} · est ₹{cost} ({estimateMode})</span>
     </>
   )
 }
@@ -441,6 +455,8 @@ function useFold(open: boolean): FoldState {
   return { mounted, expanded }
 }
 
+const PHONE_SHEET_QUERY = '(max-width: 720px)'
+
 // React.memo on the timeline hot path: TimelineTab re-renders on every store
 // commit (the shell's useDb feeds the tab counts), but with stable props each
 // DaySection bails out unless ITS day data actually changed (M3.1 made trip
@@ -453,7 +469,7 @@ function useFold(open: boolean): FoldState {
 // (whose travel panel searches against the whole itinerary). A closed card
 // therefore cannot read the trip at all: `trip` is optional, so a `trip.x` on
 // the collapsed path is a compile error rather than a stale render.
-export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, onStatusPreview, onShowOnMap, dayNumbers, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
+export const DaySection = React.memo(function DaySection({ day, trip, dayCover, facts, savedIds, onToggleSaved, editable, open, reviewMode, inView, onToggleOpen, onInsertHere, onAdd, onEdit, onDelete, onMoveWithinDay, onReorderDay, onMoveBetweenDays, onMoveStopIn, onRenameDay, onSetCover, onCopyDay, onAddQuickStop, onSetDayStart, onSuggestDayStart, onAddPlannedHalts, onLinkCommitment, warnings, onStatus, onStatusPreview, onShowOnMap, dayNumbers, legCorrections, roadStatus, suggestionCache, dayTotals, journeyDay, journeyStatus, onAddProjectedRow, projectedAddBusy, previewOpen, projectedAddError, onRetryProjectedRow, projectedRetryAvailable, projectedTerminal, projectedUnresolved, projectedRetryBlockedReason, projectedAvailability }: {
   day: Trip['days'][number]
   /** MR8: this trip's saved ids, and the one toggle every heart on the page uses. */
   savedIds: string[]
@@ -505,6 +521,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   onAddQuickStop: (dayIndex: number, stop: Omit<ItineraryStop, 'id' | 'orderInDay'>) => void
   /** set the day's ride/drive start time (long-ride planner) */
   onSetDayStart: (dayIndex: number, time: string) => void
+  onSuggestDayStart: (dayIndex: number, time: string) => void
   /** insert planned break halts, each at a user-chosen km point, ordered by distance */
   onAddPlannedHalts: (dayIndex: number, halts: { km: number; stop: Omit<ItineraryStop, 'id' | 'orderInDay'> }[]) => void
   /** link a fixed commitment to the stop its deadline is checked against (null unlinks) */
@@ -569,6 +586,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // goes through this map (printModel's accessor), never through the rendered
   // position.
   const simRows = useMemo(() => scheduleRowsById(sim), [sim])
+  const firstLeg = ordered[0]?.auto !== true ? simRows.get(ordered[0]?.id)?.legIn : undefined
+  const firstLegVisible = !!firstLeg && firstLeg.distanceKm >= 0.5
+  const [dismissedArrivals, setDismissedArrivals] = useState<string[]>([])
   const commitmentsToday = facts.commitments
   // PW-08: one read model for the day's fixed commitments. Every clock comes
   // from the same simulateDay rows the rail prints, so a stop pill, the fixed
@@ -765,9 +785,33 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // while the card still had 900px left to travel).
   const fold = useFold(open)
   const timeFormat = useTimeFormat()
+  const phoneSheet = useMedia(PHONE_SHEET_QUERY,
+    typeof window !== 'undefined' && (window.matchMedia?.(PHONE_SHEET_QUERY).matches ?? false))
+  const renderEarlyArrival = (stop: ItineraryStop) => {
+    const arrival = simRows.get(stop.id)?.arrive
+    const advisory = earlyArrivalAdvisory(arrival, stop.openTime, sim.startsAt)
+    const advisoryKey = `early_arrival_${dayCover?.id}_${stop.id}_${arrival}`
+    if (!advisory || dismissedArrivals.includes(advisoryKey) || loadFlag(advisoryKey, false)) return null
+    return (
+      <div className="tl-early-arrival" role="note">
+        {phoneSheet ? (
+          <p className="tl-early-arrival-message">
+            <Clock size={15} aria-hidden />
+            <span>
+              <strong>You arrive {advisory.waitMinutes} min before it opens.</strong>
+              {editable && advisory.canShift && <> Start the day at {formatHM(advisory.suggestedStart, timeFormat)}.</>}
+            </span>
+          </p>
+        ) : <strong>Arrive {advisory.waitMinutes} min before it opens</strong>}
+        <div className="tl-early-arrival-actions">
+          {editable && advisory.canShift && <button type="button" disabled={previewOpen} onClick={() => onSuggestDayStart(day.index, advisory.suggestedStart)}>Start at {formatHM(advisory.suggestedStart, timeFormat)}</button>}
+          <button type="button" onClick={() => { saveFlag(advisoryKey, true); setDismissedArrivals(current => [...current, advisoryKey]) }}>Dismiss</button>
+        </div>
+      </div>
+    )
+  }
   // One phone sheet for the stop actions. The desktop ⋯ disclosure stays exactly
   // as it was; only the <=720px phone surface swaps it for the sheet.
-  const phoneSheet = useMedia('(max-width: 720px)')
   const [sheet, setSheet] = useState<{ stopId: string; open: boolean } | null>(null)
   const closeSheet = useCallback(() => {
     setSheet(current => current?.open ? { ...current, open: false } : current)
@@ -907,7 +951,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
     : 0
 
   return (
-    <div className={`day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
+    <div className={`day-section tl-day-section${collapsed ? ' day-closed' : ''}${collapsed && isStayDay ? ' day-stay-collapsed' : ''}${dragging !== null ? ' drag-live' : ''}${reviewMode ? ' day-review' : ''}`} id={`day-card-${day.index}`}>
       {/* The artboard splits the cover in two. An OPEN day draws the 132px
           gradient band, and the header pulls up into it so the date badge
           overlaps the photo. A COLLAPSED day draws only an 84x60 thumbnail at
@@ -1179,14 +1223,15 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
         {(() => {
           const first = ordered[0]
           const leg = first && first.auto !== true ? simRows.get(first.id)?.legIn : null
-          if (!leg || leg.distanceKm < 0.5) return null
+          if (!leg || !firstLegVisible) return null
           return (
             <div className="tl-legrow">
               <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
               <div className="tl-leg-cell">
                 <div className="travel-leg">
-                  <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />
+                  <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} compact={phoneSheet} />
                 </div>
+                {renderEarlyArrival(first)}
               </div>
             </div>
           )
@@ -1242,6 +1287,46 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
           /* The artboard outlines a stop that a fixed clock governs, so the card
              the day cannot move reads apart from the ones it can. */
           const stopFixed = (fixedByStop.get(String(s.id))?.length ?? 0) > 0
+          const duration = minutesToHM(s.visitMinutes)
+          const hasEntryFee = Number.isFinite(s.entryFeeInrPerPerson)
+          const entry = hasEntryFee
+            ? s.entryFeeInrPerPerson > 0
+              ? `₹${s.entryFeeInrPerPerson}${phoneSheet ? ' each' : '/person'}`
+              : phoneSheet ? 'Free entry' : 'free entry'
+            : ''
+          const transport = Number.isFinite(s.transportCostInrTotal) && s.transportCostInrTotal > 0
+            ? `₹${s.transportCostInrTotal} transport`
+            : ''
+          const hours = s.openTime ? formatHMRange(s.openTime, s.closeTime, timeFormat) : ''
+          const phoneHours = s.closeTime
+            ? hours.replace(/ (AM|PM)–(.+) \1$/, '–$2 $1')
+            : hours && `Open ${hours}`
+          const stopTags = (
+            <>
+              <Chip tone={statusTone(s.status)}>{statusLabel(s.status)}</Chip>
+              {(() => {
+                const rows = fixedByStop.get(String(s.id))
+                if (!rows?.length) return null
+                const worstTone = worstFixedTone(rows) ?? 'ok'
+                const worst = rows.find(r => r.tone === worstTone) ?? rows[0]
+                return (
+                  <span
+                    className={`stop-fixed-pill is-${worst.tone}`}
+                    title={rows.map(r => `${r.fc.title} at ${formatHM(r.fc.time, timeFormat)}`).join('\n')}
+                  >
+                    <InlineIcon icon={Lock} size={11} gap={3} />
+                    Fixed {formatHM(worst.fc.time, timeFormat)}
+                    {worst.tone === 'clash' ? ' · clash' : ''}
+                    {rows.length > 1 ? ` +${rows.length - 1}` : ''}
+                  </span>
+                )
+              })()}
+              <span className={`stop-kind-tag kind-${kind}`}>{label}</span>
+              {s.priority === 'must-do' && <Chip tone="danger">Must do</Chip>}
+              {s.priority === 'optional' && <Chip tone="saffron">Optional</Chip>}
+              {s.weatherSensitive && <Chip tone="info"><InlineIcon icon={CloudRain} size={11} gap={3} vAlign="-1px" />Weather-sensitive</Chip>}
+            </>
+          )
           return (
             <React.Fragment key={s.id}>
               <div
@@ -1253,8 +1338,8 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                 <div className="tl-gutter">
                   <span className="tl-time tl-arr"><span className="sr-only">Arrival: </span>{row?.arrive ? formatHM(row.arrive, timeFormat) : '--:--'}</span>
                   <span className="tl-line" aria-hidden="true" />
-                  <span className="tl-time tl-dep"><span className="sr-only">Departure: </span><span aria-hidden="true">to </span>{row?.depart ? formatHM(row.depart, timeFormat) : '--:--'}</span>
-                  <span className="tl-rail-num" aria-hidden="true">{i + 1}</span>
+                  <span className="tl-time tl-dep"><span className="sr-only">Departure: </span>{!phoneSheet && <span aria-hidden="true">to </span>}{row?.depart ? formatHM(row.depart, timeFormat) : '--:--'}</span>
+                  <span className="tl-rail-num" aria-hidden="true">{!phoneSheet && i + 1}</span>
                 </div>
                 <div
                   className={`stop-card kind-${kind} status-${s.status} ${stopFixed ? 'is-fixed' : ''} ${foreignOver === i && dragging === null ? 'foreign-over' : ''}`}
@@ -1282,41 +1367,19 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   >
                     <Heart size={13} aria-hidden fill={stopSaved ? 'currentColor' : 'none'} />
                   </button>
-                  <Chip tone={statusTone(s.status)}>{statusLabel(s.status)}</Chip>
-                  {(() => {
-                    const rows = fixedByStop.get(String(s.id))
-                    if (!rows?.length) return null
-                    const worstTone = worstFixedTone(rows) ?? 'ok'
-                    const worst = rows.find(r => r.tone === worstTone) ?? rows[0]
-                    return (
-                      <span
-                        className={`stop-fixed-pill is-${worst.tone}`}
-                        title={rows.map(r => `${r.fc.title} at ${formatHM(r.fc.time, timeFormat)}`).join('\n')}
-                      >
-                        <InlineIcon icon={Lock} size={11} gap={3} />
-                        Fixed {formatHM(worst.fc.time, timeFormat)}
-                        {worst.tone === 'clash' ? ' · clash' : ''}
-                        {rows.length > 1 ? ` +${rows.length - 1}` : ''}
-                      </span>
-                    )
-                  })()}
-                  <span className={`stop-kind-tag kind-${kind}`}>{label}</span>
-                  {s.priority === 'must-do' && <Chip tone="danger">Must do</Chip>}
-                  {s.priority === 'optional' && <Chip tone="saffron">Optional</Chip>}
-                  {s.weatherSensitive && <Chip tone="info"><InlineIcon icon={CloudRain} size={11} gap={3} vAlign="-1px" />Weather-sensitive</Chip>}
+                  {phoneSheet ? <div className="stop-tags">{stopTags}</div> : stopTags}
                 </div>
-                {/* One " · " line, the way Ride along reads: place, time here, fee.
-                    Money fields stay finite-guarded (#343): an absent fee prints
-                    nothing, and a stored 0 is a real "free entry". */}
-                <div className="stop-meta">
-                  {[
-                    s.locationName,
-                    `${minutesToHM(s.visitMinutes)} here`,
-                    Number.isFinite(s.entryFeeInrPerPerson) ? (s.entryFeeInrPerPerson > 0 ? `₹${s.entryFeeInrPerPerson}/person` : 'free entry') : '',
-                    Number.isFinite(s.transportCostInrTotal) && s.transportCostInrTotal > 0 ? `₹${s.transportCostInrTotal} transport` : '',
-                  ].filter(Boolean).join(' · ')}
-                </div>
-                {s.openTime && <div className="stop-meta">Open {formatHMRange(s.openTime, s.closeTime, timeFormat)}</div>}
+                {phoneSheet ? (
+                  <div className="stop-meta">{[durationLabel(s.visitMinutes), entry, phoneHours, s.locationName, transport].filter(Boolean).join(' · ')}</div>
+                ) : (
+                  <>
+                    <div className="stop-meta">
+                      {[s.locationName, `${duration} here`, entry, transport].filter(Boolean).join(' · ')}
+                    </div>
+                    {hours && <div className="stop-meta">Open {hours}</div>}
+                  </>
+                )}
+                {earlyArrivalPlacement(i, firstLegVisible, i > 0 && ordered[i - 1].auto === true) === 'stop' && renderEarlyArrival(s)}
                 {s.departTime && s.arrivalTime && (
                   <div className="stop-meta">Dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</div>
                 )}
@@ -1392,8 +1455,9 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                     <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
                     <div className="tl-leg-cell">
                       <div className={`travel-leg ${foreignOver === i + 1 && dragging === null ? 'foreign-over' : ''}`}>
-                        {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />}
+                        {leg && leg.distanceKm >= 0.5 && <LegSummary leg={leg} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} compact={phoneSheet} />}
                       </div>
+                      {renderEarlyArrival(ordered[i + 1])}
                       {/* #422: the insertion control belongs to the leg BETWEEN
                           two stops, and it hands over the slot it sits in —
                           resolved from the two neighbouring row ids at click
@@ -1427,7 +1491,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                 <div className="tl-legrow">
                   <div className="tl-gutter tl-gutter-leg"><span className="tl-line tl-line-leg" /></div>
                   <div className="travel-leg">
-                    <LegSummary leg={last.legIn} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} />
+                    <LegSummary leg={last.legIn} inrPerKm={A.inrPerKm ?? 8} mode={A.mode} compact={phoneSheet} />
                   </div>
                 </div>
               )}

@@ -755,6 +755,13 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     }, DAY_START_SETTLE_MS)
   }, [previewOpen])
 
+  const handleSuggestDayStart = useCallback((dayIndex: number, time: string) => {
+    latest.current.applyChange(draft => {
+      const day = draft.days.find(d => d.index === dayIndex)
+      if (day) day.startTime = time
+    }, 'edit', dayIndex)
+  }, [])
+
   // A pending announcement must not outlive the tab: an unmount mid-burst would
   // otherwise speak for a surface the person has already left.
   useEffect(() => () => {
@@ -1002,6 +1009,7 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
             onCopyDay={handleCopyDay}
             onAddQuickStop={handleAddQuickStop}
             onSetDayStart={handleSetDayStart}
+            onSuggestDayStart={handleSuggestDayStart}
             onAddPlannedHalts={handleAddPlannedHalts}
             onLinkCommitment={handleLinkCommitment}
             warnings={dayWarnings.get(day.index) ?? NO_WARNINGS}

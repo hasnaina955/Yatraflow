@@ -31,7 +31,6 @@ export const ALLOWLIST: Allowed[] = [
   ...entry('src/pages/trip/BudgetTab.tsx', ['stays, fuel, meals'], 'MID: descriptor after "Essential {amount}"'),
   ...entry('src/pages/trip/BudgetTab.tsx', ['that line', 'those'], 'MID: "Without {that line or those N}:"'),
   ...entry('src/pages/trip/BudgetTab.tsx', ['settled', 'open'], 'MID: "No {settled or open} lines."'),
-  ...entry('src/pages/trip/timeline/DaySection.tsx', ['car'], 'MID: mode word inside parentheses after the cost'),
   ...entry('src/pages/trip/TripSettingsForm.tsx', ['the start'], 'MID: fallback inside "Drive back to {place} at the end"'),
   ...entry('src/components/creator/StoreWeekend.tsx', ['about'], 'MID: qualifier before a rupee value in a table cell'),
   ...entry('src/components/storefront/ride/RideTimeline.tsx', ['to'], 'MID: range prefix after the arrival time'),

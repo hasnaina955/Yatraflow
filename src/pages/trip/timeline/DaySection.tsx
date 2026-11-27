@@ -1338,7 +1338,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                   ].filter(Boolean).join(' · ')}
                 </div>
                 {s.openTime && <div className="stop-meta">Open {formatHMRange(s.openTime, s.closeTime, timeFormat)}</div>}
-                {earlyArrivalPlacement(i, firstLegVisible) === 'stop' && renderEarlyArrival(s)}
+                {earlyArrivalPlacement(i, firstLegVisible, i > 0 && ordered[i - 1].auto === true) === 'stop' && renderEarlyArrival(s)}
                 {s.departTime && s.arrivalTime && (
                   <div className="stop-meta">Dep {formatHM(s.departTime, timeFormat)} · arr {formatHM(s.arrivalTime, timeFormat)}{s.legDistanceKm ? ` · ${s.legDistanceKm.toFixed(0)} km` : ''}</div>
                 )}

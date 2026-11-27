@@ -48,7 +48,10 @@
 .pill-nav[data-overflow='start'] { mask-image: linear-gradient(90deg, #000 calc(100% - var(--pill-edge-fade)), transparent); }
 .pill-nav[data-overflow='middle'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade), #000 calc(100% - var(--pill-edge-fade)), transparent); }
 .pill-nav[data-overflow='end'] { mask-image: linear-gradient(90deg, transparent, #000 var(--pill-edge-fade)); }
-.map-day-filter .pill-glider, .mv2-lens-tabs .pill-glider { visibility: hidden; }
+.map-day-filter .pill-glider { visibility: hidden; }
+/* The Map drive deck tabs (Meals, Sights, Breaks): the glider is the raised paper
+   pill on the sunken track, so the switch glides instead of snapping. */
+.mv2-lens-tabs.pill-nav .pill-glider { background: var(--pw-card); box-shadow: inset 0 0 0 1px var(--pw-line); }
 .pill-nav > * { position: relative; z-index: 1; }
 .pill-glider {
   position: absolute; left: 0; top: 0; width: 0; z-index: 0;

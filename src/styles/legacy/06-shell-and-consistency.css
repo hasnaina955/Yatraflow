@@ -165,7 +165,7 @@ html[data-theme='dark'] .bottom-nav[data-web='true'] { background: var(--app-bar
   pointer-events: none;
   transition: transform var(--motion-fast) var(--ease-exit), opacity var(--motion-fast) var(--ease-exit);
 }
-@media (prefers-reduced-motion: reduce) { .bottom-nav { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .bottom-nav, .bottom-nav[data-hide] { transition: none; } }
 
 /* ============ v0.48 design-system consistency pass ============ */
 /* ---------- Ordering: this design-system layer is deliberately the LAST section in the file. It is the global override layer (one kicker recipe, one set of blur tiers, the <=720px touch-target floor), so it must win the cascade over every earlier block — including the page-scoped .app-home rules above. New sections belong above it. ---------- */

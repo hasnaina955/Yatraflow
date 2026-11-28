@@ -104,7 +104,7 @@ describe('the web bar', () => {
     expect(body).toContain('pointer-events: none;')
     expect(body).not.toMatch(/display|visibility/)
     expect(body).toMatch(/var\(--motion-fast\) var\(--ease-exit\)/)
-    expect(css).toContain('@media (prefers-reduced-motion: reduce) { .bottom-nav { transition: none; } }')
+    expect(css).toContain('@media (prefers-reduced-motion: reduce) { .bottom-nav, .bottom-nav[data-hide] { transition: none; } }')
   })
 
   it('animates both skins and drops the native page offset on the full-screen Map', () => {

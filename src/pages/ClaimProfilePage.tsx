@@ -22,6 +22,8 @@ const terminalCopy = {
   revoked: 'This invitation is no longer active.',
 }
 
+const TERMINAL_REDEEM_CODES = new Set(['claim_not_found', 'claim_already_redeemed', 'claim_revoked', 'claim_expired'])
+
 function ClaimBody({ token }: { token: string }) {
   const db = useDb()
   const me = currentUser(db)
@@ -90,6 +92,9 @@ function ClaimBody({ token }: { token: string }) {
       })
       const body: unknown = await response.json()
       if (!response.ok) {
+        // A dead invitation can never succeed, so do not keep its token on this device.
+        const code = body && typeof body === 'object' ? (body as { code?: unknown }).code : undefined
+        if (typeof code === 'string' && TERMINAL_REDEEM_CODES.has(code)) clearClaimToken(() => window.localStorage)
         setError(claimError(body, 'We could not complete the claim. Check My trips before you try again.'))
         return
       }
@@ -207,6 +212,6 @@ export function ClaimProfilePage() {
   }, [])
   return <div className="container yf-page page-enter claim-page">
     {token === undefined ? <StateBlock kind="loading" titleLevel="h1" title="Loading your private invitation" /> : token ? <ClaimBody token={token} /> :
-      <StateBlock kind="empty" titleLevel="h1" title="Open your invite link again" body="Your account is ready. Tap the invite link from your message once more to see your trips." actions={<a className="btn btn-primary" {...appLink('/trips')}>My trips</a>} />}
+      <StateBlock kind="empty" titleLevel="h1" title="Open your invite link again" body="Tap the invite link from your message once more to see your trips." actions={<a className="btn btn-primary" {...appLink('/trips')}>My trips</a>} />}
   </div>
 }

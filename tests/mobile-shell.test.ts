@@ -114,7 +114,16 @@ describe('bottom navigation is the phone primary nav (shell and phone web)', () 
     // not: the signed-out shell (landing/auth keep the topnav) showed a menu
     // button whose tap toggled state that rendered nothing.
     expect(app).toContain('{mobileNav && !isNative && (')
-    expect(app).toMatch(/\{!isNative && \(\s*<button\s+className="mobile-nav-btn"/)
+    expect(app).toMatch(/\{!isNative && !trayEmpty && \(\s*<button\s+className="mobile-nav-btn"/)
+    // Row 27a: with the bottom tab bar on, the tray drops what the bar holds,
+    // and an empty tray takes its button with it.
+    expect(app).toContain('const trayEmpty = tabBar && !me?.profile.isCreator')
+    const trayAt27a = app.indexOf('<div className="mobile-menu"')
+    const tray27a = app.slice(trayAt27a, app.indexOf('<OfflineBanner', trayAt27a))
+    expect(tray27a).toContain('{me && !tabBar && <>')
+    expect(tray27a).toMatch(/\{!tabBar && <a className=\{`nav-link \$\{route === '\/explore'/)
+    expect(tray27a).toMatch(/\{me && !tabBar && <a className=\{`nav-link \$\{route === '\/profile'/)
+    expect(tray27a).toMatch(/\{me\?\.profile\.isCreator && <a className=\{`nav-link \$\{route === '\/creator-hub'/)
     // the tray keeps every destination the pill carried
     // Routes are paths now (#426 slice 2): the tray's appLink destinations.
     for (const dest of ['/trips', '/new', '/explore', '/creator-hub', '/profile']) {

@@ -798,6 +798,9 @@ export default function App() {
   // The web menu tray hides it too, as it hid the old pill.
   const webMapFullscreen = phoneWeb && !!tripScopeOf(addSnapshot, tripIdOfRoute(route))?.mapFullscreen
   const tabBar = showTabBar({ native: isNative, phoneWidth: phoneWeb, signedIn: !!me })
+  // Row 27a: with the bar on, the tray holds only Creator hub. With no hub,
+  // the tray is empty, so the menu button hides too (no dead control).
+  const trayEmpty = tabBar && !me?.profile.isCreator
   const barHide = tabBarHide({ native: isNative, mapFullscreen: webMapFullscreen, overlayOpen: bodyLocked || mobileNav, keyboardOpen: keyboardUp })
   const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen || mobileNav || webMapFullscreen} />
   function retryNotifications() { void resumeSync() }
@@ -878,7 +881,7 @@ export default function App() {
             {/* Web-only, like its tray below (`mobileNav && !isNative`): the
                 signed-out shell keeps the topnav, and an ungated button there
                 toggles state that renders nothing — a dead control. */}
-            {!isNative && (
+            {!isNative && !trayEmpty && (
               <button
                 className="mobile-nav-btn"
                 onClick={() => setMobileNav(o => !o)}
@@ -967,19 +970,22 @@ export default function App() {
               the primary CTA fits 320px, and this tray keeps Log in reachable
               (review finding 1). */}
           {!me && !sessionUserId && <a className="nav-link" {...appLink('/auth')}>Log in</a>}
-          {me && <>
+          {/* Row 27a: with the bottom tab bar on screen, the tray drops the
+              links the bar already holds (My trips, Explore, Profile, and Add
+              for Plan a trip). The tray keeps only what the bar does not. */}
+          {me && !tabBar && <>
             <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('/trips')}><InlineIcon icon={Tent} size={15} gap={6} />My trips</a>
             <a className={`nav-link ${route === CREATE_PATH ? 'active' : ''}`} {...appLink(CREATE_PATH)}><InlineIcon icon={Plus} size={15} gap={6} />Plan a trip</a>
           </>
           }
-          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>
+          {!tabBar && <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>}
           {/* The same two signed-out items as the topnav. The tray is web-only already. */}
           {showSignedOutNav && !me && !sessionUserId && <>
             <a className={`nav-link ${route === '/how-it-works' ? 'active' : ''}`} {...appLink('/how-it-works')}><InlineIcon icon={CircleHelp} size={15} gap={6} />How it works</a>
             <a className="nav-link" href="/trip-cost-calculators/"><InlineIcon icon={Calculator} size={15} gap={6} />Calculators</a>
           </>}
           {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('/creator-hub')}><InlineIcon icon={Sparkles} size={15} gap={6} />Creator hub</a>}
-          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
+          {me && !tabBar && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
         </div>
       )}
 

@@ -24,6 +24,7 @@ import { TripArt, TripArtSprite } from '../components/trips/TripArt'
 import { countdownText, heroPlace, regionFor, statusOf } from '../lib/tripsPage'
 import { dayStrip } from '../lib/tripDayStrip'
 import { DayStrip } from '../components/trips/DayStrip'
+import { JoinInviteCard } from '../components/home/JoinInviteCard'
 
 /** Exported for the pin test: the greeting is a pure read of the clock. */
 export function greeting(): string {
@@ -230,6 +231,10 @@ export function NativeHomePage({ me, onNavigate }: {
           )}
         </>
       )}
+
+      {/* 27f: a friend's invite, pasted or typed. Shown whatever the trips read
+          said: joining does not depend on the trips list. */}
+      <JoinInviteCard onNavigate={onNavigate} />
     </div>
   )
 }

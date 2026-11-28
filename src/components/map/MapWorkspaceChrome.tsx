@@ -41,7 +41,7 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
       if (!moreRef.current?.contains(event.target as Node)) setMenuOpen(false)
     }
     document.addEventListener('pointerdown', close)
-    return () => document.removeEventListener('pointerdown', close)
+    return () => { document.removeEventListener('pointerdown', close) }
   }, [menuOpen])
   return <div className="mv2-phone-day" aria-label="Map day">
     {/* W10: the board's left chevron is the way back to the trip. It is the

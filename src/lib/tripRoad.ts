@@ -17,6 +17,7 @@
 // I/O beyond the injected measure; it is all pure and node-testable.
 import { isRoundTrip, legKey, type EngineAssumptions, type LegEstimate } from './engine'
 import { routePath, type RoadLeg } from './routing'
+import type { RoutePathResult } from './routing'
 import type { Trip } from '../data/types'
 
 export interface RoadChainPoint { lat: number; lng: number }
@@ -244,10 +245,17 @@ export async function measureDayRide(
   const measure = activeMeasure(opts, signal)
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
   const retryDelayMs = opts.retryDelayMs ?? ROAD_RETRY_DELAY_MS
-  const attempt = async (): Promise<RoadLeg[] | null> => resolvedLegs(await measure(points, assumptions))
+  let transportFailed = false
+  const attempt = async (): Promise<RoadLeg[] | null> => {
+    const raw = (await measure(points, assumptions)) as RoutePathResult
+    if (raw?.transportFailed) transportFailed = true
+    return resolvedLegs(raw)
+  }
   const first = await attempt().catch(() => null)
   if (first) return { ok: true, legs: first }
-  if (signal?.aborted) return { ok: false }
+  // #959: when both Google and OSRM failed in transport, retrying after 2 s
+  // only sends the same doomed request again — skip the retry.
+  if (signal?.aborted || transportFailed) return { ok: false }
   await sleep(retryDelayMs)
   if (signal?.aborted) return { ok: false }
   const second = await attempt().catch(() => null)
@@ -284,10 +292,17 @@ export async function measureRoadChain(
   const measure = activeMeasure(opts, signal)
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
   const retryDelayMs = opts.retryDelayMs ?? ROAD_RETRY_DELAY_MS
-  const attempt = async (): Promise<RoadLeg[] | null> => resolvedLegs(await measure(points, assumptions))
+  let transportFailed = false
+  const attempt = async (): Promise<RoadLeg[] | null> => {
+    const raw = (await measure(points, assumptions)) as RoutePathResult
+    if (raw?.transportFailed) transportFailed = true
+    return resolvedLegs(raw)
+  }
   const first = await attempt().catch(() => null)
   if (first) return { ok: true, legs: first }
-  if (signal?.aborted) return { ok: false }
+  // #959: when both Google and OSRM failed in transport, retrying after 2 s
+  // only sends the same doomed request again — skip the retry.
+  if (signal?.aborted || transportFailed) return { ok: false }
   await sleep(retryDelayMs)
   if (signal?.aborted) return { ok: false }
   const second = await attempt().catch(() => null)

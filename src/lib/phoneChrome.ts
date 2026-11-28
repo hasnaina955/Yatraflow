@@ -27,16 +27,16 @@ export function showTabBar({ native, phoneWidth, signedIn }: {
  *  `keyboard`: a text field has focus. null: the bar shows. */
 export type TabBarHide = 'map' | 'overlay' | 'keyboard' | null
 
-/** The native bar never hides (the shell keeps it as fixed Android chrome).
- *  The web bar steps aside in the order the user sees: the Map first, then a
- *  sheet, then the keyboard. */
+/** Both bars (the native shell bar and the phone web bar) step aside in the
+ *  same order the user sees: the Map first, then a sheet, then the keyboard.
+ *  `native` is kept so callers do not change; it no longer alters the answer. */
 export function tabBarHide({ native, mapFullscreen, overlayOpen, keyboardOpen }: {
   native: boolean
   mapFullscreen: boolean
   overlayOpen: boolean
   keyboardOpen: boolean
 }): TabBarHide {
-  if (native) return null
+  void native
   if (mapFullscreen) return 'map'
   if (overlayOpen) return 'overlay'
   if (keyboardOpen) return 'keyboard'

@@ -56,8 +56,11 @@ describe('tabBarHide', () => {
     expect(tabBarHide({ ...base, overlayOpen: true, keyboardOpen: true })).toBe('overlay')
     expect(tabBarHide({ ...base, mapFullscreen: true, overlayOpen: true })).toBe('map')
   })
-  it('never hides the native bar', () => {
-    expect(tabBarHide({ native: true, mapFullscreen: true, overlayOpen: true, keyboardOpen: true })).toBeNull()
+  it('hides the native bar too, in the same order', () => {
+    const native = { ...base, native: true }
+    expect(tabBarHide({ ...native, keyboardOpen: true })).toBe('keyboard')
+    expect(tabBarHide({ ...native, overlayOpen: true, keyboardOpen: true })).toBe('overlay')
+    expect(tabBarHide({ ...native, mapFullscreen: true, overlayOpen: true, keyboardOpen: true })).toBe('map')
   })
 })
 
@@ -80,9 +83,11 @@ describe('the web bar', () => {
     expect(html.match(/tabindex="-1"/g)).toHaveLength(4)
   })
 
-  it('ignores hide on the native bar', () => {
+  it('hides the native bar the same way (no web skin)', () => {
     const html = render({ hide: 'map' })
-    expect(html).not.toContain('data-hide')
+    expect(html).toContain('data-hide="map"')
+    expect(html).toMatch(/<nav[^>]*aria-hidden="true"/)
+    expect(html.match(/tabindex="-1"/g)).toHaveLength(4)
     expect(html).not.toContain('data-web')
   })
 
@@ -92,13 +97,18 @@ describe('the web bar', () => {
 
   it('hides with opacity and transform, not display, and clears the page', () => {
     expect(css).toContain("html:has(.bottom-nav[data-web='true']:not([data-hide='map'])) { --shell-nav-h: 58px; }")
-    const rule = css.slice(css.indexOf(".bottom-nav[data-web='true'][data-hide] {"))
+    const rule = css.slice(css.indexOf('.bottom-nav[data-hide] {'))
     const body = rule.slice(0, rule.indexOf('}'))
     expect(body).toContain('opacity: 0;')
     expect(body).toContain('transform: translateY(100%);')
     expect(body).toContain('pointer-events: none;')
     expect(body).not.toMatch(/display|visibility/)
     expect(body).toMatch(/var\(--motion-fast\) var\(--ease-exit\)/)
-    expect(css).toContain("@media (prefers-reduced-motion: reduce) { .bottom-nav[data-web='true'] { transition: none; } }")
+    expect(css).toContain('@media (prefers-reduced-motion: reduce) { .bottom-nav { transition: none; } }')
+  })
+
+  it('animates both skins and drops the native page offset on the full-screen Map', () => {
+    expect(css).toMatch(/\.bottom-nav \{[^}]*transition: transform var\(--motion-fast\) var\(--ease-paper\)/)
+    expect(css).toContain("html.native-shell:has(.bottom-nav[data-hide='map']) { --shell-nav-h: 0px; }")
   })
 })

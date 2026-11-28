@@ -12,7 +12,7 @@
 //
 // Row 27a: App.tsx mounts it when showTabBar() says so (src/lib/phoneChrome.ts):
 // signed in, in the native shell or on the website at phone width. Desktop web
-// keeps the pill nav. The web bar steps aside (`hide`) for the full-screen Map,
+// keeps the pill nav. Both skins step aside (`hide`) for the full-screen Map,
 // a sheet or dialog, and the keyboard. It hides with opacity, transform and
 // pointer-events only, never display or inert: a dialog that focused the Add
 // button in the centre slot must be able to focus it again on close.
@@ -80,7 +80,8 @@ export function BottomNav({ route, onNavigate, unread = 0, centre, web = false, 
   centre?: ReactNode
   /** The website skin (row 27a): the bar can step aside, see `hide`. */
   web?: boolean
-  /** Why the web bar is out of the way, or null when it shows. */
+  /** Why the bar is out of the way (map, overlay or keyboard), or null when it
+   *  shows. Both skins step aside: the native shell bar too (row 27a). */
   hide?: TabBarHide
 }) {
   const current = areaOf(route)
@@ -93,8 +94,8 @@ export function BottomNav({ route, onNavigate, unread = 0, centre, web = false, 
       aria-label="Primary"
       data-centre={centre ? 'true' : undefined}
       data-web={web ? 'true' : undefined}
-      data-hide={web && hide ? hide : undefined}
-      aria-hidden={web && hide ? true : undefined}
+      data-hide={hide ? hide : undefined}
+      aria-hidden={hide ? true : undefined}
     >
       {items.map(({ to, label, title, Icon }) => {
         // areaOf() never returns null for a destination, so a null `current`
@@ -106,7 +107,7 @@ export function BottomNav({ route, onNavigate, unread = 0, centre, web = false, 
               type="button"
               className={`bottom-nav-item${active ? ' active' : ''}`}
               aria-current={active ? 'page' : undefined}
-              tabIndex={web && hide ? -1 : undefined}
+              tabIndex={hide ? -1 : undefined}
               aria-label={to === '/profile' && badge ? `${label}, ${unread} unread` : title}
               onClick={() => onNavigate(to)}
             >

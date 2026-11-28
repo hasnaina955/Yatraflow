@@ -793,16 +793,16 @@ export default function App() {
   const notifs = notificationPanel.rows
   const unread = notifs.filter(n => !n.read).length
   // #1064: the universal Add control, drawn in the native BottomNav centre slot.
-  // On phone web the full-screen Map hides the bar, so the slot hides with it
-  // (out of the tab order); the pill below draws the Map's round Add instead.
-  // The web menu tray hides it too, as it hid the old pill.
-  const webMapFullscreen = phoneWeb && !!tripScopeOf(addSnapshot, tripIdOfRoute(route))?.mapFullscreen
+  // On the full-screen Map (phone web and the native shell) the bar hides, so
+  // the slot hides with it (out of the tab order); the pill below draws the
+  // Map's round Add instead. The web menu tray hides it too, as it hid the old pill.
+  const mapFullscreen = (phoneWeb || isNative) && !!tripScopeOf(addSnapshot, tripIdOfRoute(route))?.mapFullscreen
   const tabBar = showTabBar({ native: isNative, phoneWidth: phoneWeb, signedIn: !!me })
   // Row 27a: with the bar on, the tray holds only Creator hub. With no hub,
   // the tray is empty, so the menu button hides too (no dead control).
   const trayEmpty = tabBar && !me?.profile.isCreator
-  const barHide = tabBarHide({ native: isNative, mapFullscreen: webMapFullscreen, overlayOpen: bodyLocked || mobileNav, keyboardOpen: keyboardUp })
-  const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen || mobileNav || webMapFullscreen} />
+  const barHide = tabBarHide({ native: isNative, mapFullscreen, overlayOpen: bodyLocked || mobileNav, keyboardOpen: keyboardUp })
+  const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen || mobileNav || mapFullscreen} />
   function retryNotifications() { void resumeSync() }
 
   // ---- Browser push (local Notification API, no service worker) ----
@@ -1064,10 +1064,10 @@ export default function App() {
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
       {tabBar && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} web={!isNative} hide={barHide} />}
-      {/* #1064 / row 27a: on the full-screen phone Map the web bar steps aside,
-          and the same control floats as the 56px round Add. It draws nothing
-          on any other screen (mapOnly). Signed out, nothing is drawn. */}
-      {phoneWeb && me && (
+      {/* #1064 / row 27a: on the full-screen Map (phone web and the native shell)
+          the bar steps aside, and the same control floats as the 56px round Add.
+          It draws nothing on any other screen (mapOnly). Signed out, nothing is drawn. */}
+      {(phoneWeb || isNative) && me && (
         <UniversalAdd variant="pill" mapOnly route={route} signedIn onNavigate={navigate} appOverlay={mobileNav || notifOpen || menuOpen} />
       )}
 

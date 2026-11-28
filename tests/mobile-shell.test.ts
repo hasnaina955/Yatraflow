@@ -201,12 +201,13 @@ describe('safe-area fallback chain', () => {
 
 describe('bottom chrome offset', () => {
   it('keeps the shell offset inert on the web until the web bar mounts', () => {
-    // Exactly three definitions: the :root default the website resolves, the
-    // shell's, and (row 27a) the phone web bar's, which only applies while that
-    // bar is in the DOM and not stepped aside for the Map. A fourth (or a
-    // reordering) would let a shell value leak out.
+    // Exactly four definitions: the :root default the website resolves, the
+    // shell's, the shell's own Map drop to 0px (row 27a, scoped under
+    // html.native-shell so it never reaches the web), and the phone web bar's,
+    // which only applies while that bar is in the DOM and not stepped aside for
+    // the Map. A fifth (or a reordering) would let a shell value leak out.
     const defs = [...css.matchAll(/--shell-nav-h:\s*([^;]+);/g)].map(m => m[1].trim())
-    expect(defs, 'web default 0px, shell 58px, web bar 58px').toEqual(['0px', '58px', '58px'])
+    expect(defs, 'web default 0px, shell 58px, shell Map 0px, web bar 58px').toEqual(['0px', '58px', '0px', '58px'])
     expect(rules(css, 'html.native-shell').join('\n')).toContain('--shell-nav-h: 58px;')
     expect(css).toContain("html:has(.bottom-nav[data-web='true']:not([data-hide='map'])) { --shell-nav-h: 58px; }")
     expect(css).toContain('--bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));')

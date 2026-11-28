@@ -8,6 +8,7 @@ import { beginToastExit, leaveIfNotHeld, toastIconKind } from '../lib/toastTimin
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
 import { type AvatarTone } from '../lib/avatarTone'
+import { PHONE_QUERY } from '../lib/phoneChrome'
 
 export function Avatar({ user, size = 'sm', tone }: {
   user?: { id?: string; profile: { name: string; avatarUrl?: string } }
@@ -826,6 +827,13 @@ export function useMedia(query: string, initial = false): boolean {
     return () => mq.removeEventListener?.('change', onChange)
   }, [query])
   return matches
+}
+
+/** The shared phone-width rule (row 27a, lib/phoneChrome.ts): the bottom tab
+ *  bar, the universal Add and the Chakra FAB hide all read it. The first value
+ *  is the real match, so a phone paints its chrome at once, with no jump. */
+export function usePhoneWidth(): boolean {
+  return useMedia(PHONE_QUERY, typeof window !== 'undefined' && (window.matchMedia?.(PHONE_QUERY).matches ?? false))
 }
 
 /** Stop decorative work while the document is hidden. */

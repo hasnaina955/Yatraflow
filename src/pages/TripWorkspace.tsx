@@ -17,7 +17,7 @@ import { computeImpact, type ImpactResult } from '../lib/impact'
 import { routeParts } from '../lib/pageTitle'
 import { currentQuery, currentRoute, replaceRoute } from '../lib/router'
 import { scrollBehavior } from '../lib/motion'
-import { Avatar, toast, undoToast, useMedia } from '../components/ui'
+import { Avatar, toast, undoToast, useMedia, usePhoneWidth } from '../components/ui'
 import { assignAvatarTones } from '../lib/avatarTone'
 import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
@@ -476,9 +476,6 @@ function sanitizeTab(s: string | undefined): TabKey {
   return isTabKey(s) ? s : 'overview'
 }
 
-/** #1051: the width at which the trip tab rail docks under the app bar. It must
- *  match the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`. */
-const PHONE_DOCK_QUERY = '(max-width: 720px)'
 
 export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: string; initialTab?: string; onNavigate: (route: string) => void }) {
   const db = useDb()
@@ -824,8 +821,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // and Board keep it in their slim folded bar.
   // The first value is the real match, so a phone paints the dock at once and
   // never shows the rail jump out of the cover.
-  const phoneWidth = useMedia(PHONE_DOCK_QUERY,
-    typeof window !== 'undefined' && (window.matchMedia?.(PHONE_DOCK_QUERY).matches ?? false))
+  // #1051 / row 27a: the shared phone rule (lib/phoneChrome.ts). It must match
+  // the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`.
+  const phoneWidth = usePhoneWidth()
   const tabsDocked = phoneWidth && !headerFolded
   // A tab change can move the rail between the cover and the dock, which
   // remounts it. Keep keyboard focus on the selected tab when that happens.

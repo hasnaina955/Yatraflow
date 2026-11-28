@@ -1,4 +1,4 @@
-// ============ Bottom navigation (native shell only) ============
+// ============ Bottom navigation (native shell and phone web) ============
 // The installed app's primary navigation. The website's floating pill
 // (.nav-links) is hidden in the shell — a phone app navigates from a fixed
 // bar at the thumb, not from a pill at the top of the screen — so these
@@ -10,8 +10,12 @@
 // creator reaches Creator hub from a row at the top of Profile, so the bottom
 // bar stays five columns with the universal Add slot in the centre.
 //
-// This component never mounts on the web: App.tsx renders it only when
-// isNative && me, so the website keeps the pill nav byte-for-byte.
+// Row 27a: App.tsx mounts it when showTabBar() says so (src/lib/phoneChrome.ts):
+// signed in, in the native shell or on the website at phone width. Desktop web
+// keeps the pill nav. The web bar steps aside (`hide`) for the full-screen Map,
+// a sheet or dialog, and the keyboard. It hides with opacity, transform and
+// pointer-events only, never display or inert: a dialog that focused the Add
+// button in the centre slot must be able to focus it again on close.
 //
 // #1064: the centre slot. Between My trips and Explore sits the universal Add
 // control (UniversalAdd), passed in as `centre`. It is not a destination, so it
@@ -22,6 +26,7 @@
 // a navigation bar — back should walk history, not hide the nav.
 
 import { Fragment, type ReactNode } from 'react'
+import type { TabBarHide } from '../lib/phoneChrome'
 import { Compass, House, Tent, User } from 'lucide-react'
 
 export interface NavDestination {
@@ -67,12 +72,16 @@ export function badgeText(unread: number): string | null {
   return unread > 9 ? '9+' : String(Math.floor(unread))
 }
 
-export function BottomNav({ route, onNavigate, unread = 0, centre }: {
+export function BottomNav({ route, onNavigate, unread = 0, centre, web = false, hide = null }: {
   route: string
   onNavigate: (r: string) => void
   unread?: number
   /** The universal Add slot (#1064), drawn right after My trips. */
   centre?: ReactNode
+  /** The website skin (row 27a): the bar can step aside, see `hide`. */
+  web?: boolean
+  /** Why the web bar is out of the way, or null when it shows. */
+  hide?: TabBarHide
 }) {
   const current = areaOf(route)
   const items = navDestinations()
@@ -83,6 +92,9 @@ export function BottomNav({ route, onNavigate, unread = 0, centre }: {
       role="navigation"
       aria-label="Primary"
       data-centre={centre ? 'true' : undefined}
+      data-web={web ? 'true' : undefined}
+      data-hide={web && hide ? hide : undefined}
+      aria-hidden={web && hide ? true : undefined}
     >
       {items.map(({ to, label, title, Icon }) => {
         // areaOf() never returns null for a destination, so a null `current`
@@ -94,6 +106,7 @@ export function BottomNav({ route, onNavigate, unread = 0, centre }: {
               type="button"
               className={`bottom-nav-item${active ? ' active' : ''}`}
               aria-current={active ? 'page' : undefined}
+              tabIndex={web && hide ? -1 : undefined}
               aria-label={to === '/profile' && badge ? `${label}, ${unread} unread` : title}
               onClick={() => onNavigate(to)}
             >

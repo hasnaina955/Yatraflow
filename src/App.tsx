@@ -17,7 +17,7 @@ import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublish
 import type { InvitePreviewIdentity } from './lib/inviteLookup'
 import { requestTripJoin } from './lib/joinRequests'
 import { authNext } from './lib/authNext'
-import { Avatar, BrandMark, ToastZone, useClickOutside, toast, useMedia } from './components/ui'
+import { Avatar, BrandMark, ToastZone, useClickOutside, toast, usePhoneWidth } from './components/ui'
 import { BottomNav } from './components/BottomNav'
 import { UniversalAdd } from './components/UniversalAdd'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -46,7 +46,10 @@ import { apkUpdateCheck, bootApkUpdates } from './lib/apkUpdateRuntime'
 import { feedbackHref } from './lib/feedback'
 import { setTheme, useTheme } from './lib/theme'
 import { closeOverlayLayer, hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
-import { closeOpenAddMenu } from './lib/universalAddStore'
+import { closeOpenAddMenu, tripScopeOf, useAddSnapshot } from './lib/universalAddStore'
+import { tripIdOfRoute } from './lib/universalAdd'
+import { showTabBar, tabBarHide } from './lib/phoneChrome'
+import { useBodyLocked, useKeyboardUp } from './lib/useOverlaySignals'
 import { sliceState, rowsView, type RowsView } from './lib/readState'
 import { StateBlock } from './components/page/StateBlock'
 import { PageHeader } from './components/page/PageHeader'
@@ -340,9 +343,13 @@ export default function App() {
   const [notifShowAll, setNotifShowAll] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
-  // #1064: phone web (720px or less) gets the floating Add pill. Native gets
-  // the same control in the BottomNav centre slot; desktop gets neither.
-  const phoneWeb = useMedia('(max-width: 720px)') && !isNative
+  // Row 27a: phone web (the shared 720px rule, lib/phoneChrome.ts) gets the
+  // same bottom tab bar as native, with the universal Add in its centre slot.
+  // Desktop web gets neither.
+  const phoneWeb = usePhoneWidth() && !isNative
+  const addSnapshot = useAddSnapshot()
+  const bodyLocked = useBodyLocked()
+  const keyboardUp = useKeyboardUp()
   const [notifRef, notifPopRef] = useClickOutside(() => setNotifOpen(false))
   const [menuRef, userMenuRef] = useClickOutside(() => setMenuOpen(false))
   // Both popovers portal to document.body: nested inside .topnav (which has
@@ -786,7 +793,13 @@ export default function App() {
   const notifs = notificationPanel.rows
   const unread = notifs.filter(n => !n.read).length
   // #1064: the universal Add control, drawn in the native BottomNav centre slot.
-  const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen} />
+  // On phone web the full-screen Map hides the bar, so the slot hides with it
+  // (out of the tab order); the pill below draws the Map's round Add instead.
+  // The web menu tray hides it too, as it hid the old pill.
+  const webMapFullscreen = phoneWeb && !!tripScopeOf(addSnapshot, tripIdOfRoute(route))?.mapFullscreen
+  const tabBar = showTabBar({ native: isNative, phoneWidth: phoneWeb, signedIn: !!me })
+  const barHide = tabBarHide({ native: isNative, mapFullscreen: webMapFullscreen, overlayOpen: bodyLocked || mobileNav, keyboardOpen: keyboardUp })
+  const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen || mobileNav || webMapFullscreen} />
   function retryNotifications() { void resumeSync() }
 
   // ---- Browser push (local Notification API, no service worker) ----
@@ -1037,18 +1050,19 @@ export default function App() {
         </footer>
       )}
 
-      {/* The shell's primary navigation - same platform gate as the shell home
-          above (isNative && me), so the website never renders it. It replaces
-          the floating pill (hidden in the shell via CSS); the hamburger tray
-          is web-only — its shell-side destinations are the four tabs, with
-          Creator hub and relocated controls on Profile.
+      {/* The primary navigation at the thumb: the native shell, and (row 27a)
+          the website at phone width, both signed in (showTabBar). It replaces
+          the pill nav, which CSS hides at phone width and in the shell. The
+          hamburger tray is web-only — its shell-side destinations are the four
+          tabs, with Creator hub and relocated controls on Profile.
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
-      {isNative && me && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} />}
-      {/* #1064: the phone web skin of the same control. Signed out, the landing
-          page carries its own calls to action, so the pill is not drawn. */}
+      {tabBar && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} web={!isNative} hide={barHide} />}
+      {/* #1064 / row 27a: on the full-screen phone Map the web bar steps aside,
+          and the same control floats as the 56px round Add. It draws nothing
+          on any other screen (mapOnly). Signed out, nothing is drawn. */}
       {phoneWeb && me && (
-        <UniversalAdd variant="pill" route={route} signedIn onNavigate={navigate} appOverlay={mobileNav || notifOpen || menuOpen} />
+        <UniversalAdd variant="pill" mapOnly route={route} signedIn onNavigate={navigate} appOverlay={mobileNav || notifOpen || menuOpen} />
       )}
 
       <ToastZone />

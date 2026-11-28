@@ -40,7 +40,7 @@ function rules(cssText: string, selector: string): string[] {
 
 // 1 ---------------------------------------------------------------------------
 
-describe('bottom navigation is a shell-only primary nav', () => {
+describe('bottom navigation is the phone primary nav (shell and phone web)', () => {
   const nav = source('src/components/BottomNav.tsx')
 
   it('ships the four primary destinations for everyone, Profile last', () => {
@@ -62,10 +62,14 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(nav).toContain('return null')
   })
 
-  it('mounts only behind the native gate in App.tsx', () => {
+  it('mounts behind the shared showTabBar gate in App.tsx', () => {
     expect(app).toContain("import { BottomNav } from './components/BottomNav'")
-    // #1064: the centre slot carries the universal Add control.
-    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} />}')
+    // Row 27a: signed in, native shell or phone web. #1064: the centre slot
+    // carries the universal Add control.
+    expect(app).toContain('const tabBar = showTabBar({ native: isNative, phoneWidth: phoneWeb, signedIn: !!me })')
+    expect(app).toContain('{tabBar && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} web={!isNative} hide={barHide} />}')
+    // The web pill draws only the round Add on the full-screen phone Map.
+    expect(app).toContain('<UniversalAdd variant="pill" mapOnly')
   })
 
   it('hides the website top bar for the signed-in shell', () => {
@@ -89,7 +93,7 @@ describe('bottom navigation is a shell-only primary nav', () => {
     // with the website's Plan, Help, Creators and Company groups. The
     // signed-in shell keeps the bottom bar and no website chrome.
     expect(app).toContain('(!isNative || !me) &&')
-    expect(app).toContain('{isNative && me && <BottomNav')
+    expect(app).toContain('{tabBar && <BottomNav')
     const at = app.indexOf('<footer className="footer">')
     expect(at).toBeGreaterThan(-1)
     // The gate opens directly above the element, so the footer is its first
@@ -187,12 +191,15 @@ describe('safe-area fallback chain', () => {
 // 3 ---------------------------------------------------------------------------
 
 describe('bottom chrome offset', () => {
-  it('keeps the shell offset inert on the web', () => {
-    // Exactly two definitions: the :root default the website resolves, and the
-    // shell's. A third (or a reordering) would let a shell value leak out.
+  it('keeps the shell offset inert on the web until the web bar mounts', () => {
+    // Exactly three definitions: the :root default the website resolves, the
+    // shell's, and (row 27a) the phone web bar's, which only applies while that
+    // bar is in the DOM and not stepped aside for the Map. A fourth (or a
+    // reordering) would let a shell value leak out.
     const defs = [...css.matchAll(/--shell-nav-h:\s*([^;]+);/g)].map(m => m[1].trim())
-    expect(defs, 'web default 0px, shell 58px').toEqual(['0px', '58px'])
+    expect(defs, 'web default 0px, shell 58px, web bar 58px').toEqual(['0px', '58px', '58px'])
     expect(rules(css, 'html.native-shell').join('\n')).toContain('--shell-nav-h: 58px;')
+    expect(css).toContain("html:has(.bottom-nav[data-web='true']:not([data-hide='map'])) { --shell-nav-h: 58px; }")
     expect(css).toContain('--bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));')
   })
 

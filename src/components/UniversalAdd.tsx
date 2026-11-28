@@ -6,8 +6,10 @@
 //
 //   nav   native shell: a raised round "+" in the centre slot of BottomNav,
 //         the label as a caption under it. The caption opens the menu.
-//   pill  phone web (720px or less): a floating pill at the bottom right. It
-//         shrinks to a round "+" on a scroll down and grows on a scroll up.
+//   pill  a floating pill at the bottom right. It shrinks to a round "+" on a
+//         scroll down and grows on a scroll up. Row 27a: phone web now uses the
+//         nav skin in its own bottom bar, and mounts the pill with `mapOnly`,
+//         so it draws only as the 56px round Add on the full-screen phone Map.
 //
 // Long press on the "+" opens the menu too. The menu is a real menu: arrow
 // keys, Home and End move, Escape closes, and focus returns to the button.
@@ -20,9 +22,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronUp, MapPin, MapPinPlus, Plus, Receipt, Route, Scale, UserPlus } from 'lucide-react'
-import { resolveAddContext, tripIdOfRoute, raisesKeyboard, stepCompact, mapFabBottom, type AddAction, type AddKind } from '../lib/universalAdd'
+import { resolveAddContext, tripIdOfRoute, stepCompact, mapFabBottom, type AddAction, type AddKind } from '../lib/universalAdd'
 import { registerAddMenuClose, runTripAdd, tripScopeOf, useAddSnapshot } from '../lib/universalAddStore'
 import { LONG_PRESS_MS } from '../lib/touchDnd'
+import { useBodyLocked, useKeyboardUp } from '../lib/useOverlaySignals'
 import { motionTiming } from '../lib/motion'
 import { CREATE_PATH } from '../lib/routes'
 import { Mascot } from './mascot/Mascot'
@@ -38,63 +41,6 @@ const KIND_ICON: Record<AddKind, ReactNode> = {
   'add-decision': <Scale size={18} aria-hidden />,
   invite: <UserPlus size={18} aria-hidden />,
   'ask-chakra': <Mascot pose="mark-face" size={20} />,
-}
-
-/** A modal surface is open. Modal, the Chakra drawer and the stop sheet all
- *  lock the page with an inline `overflow: hidden` on <body>: one signal. */
-function useBodyLocked(): boolean {
-  const [locked, setLocked] = useState(false)
-  useEffect(() => {
-    const read = () => { setLocked(document.body.style.overflow === 'hidden') }
-    read()
-    const mo = new MutationObserver(read)
-    mo.observe(document.body, { attributes: true, attributeFilter: ['style'] })
-    return () => { mo.disconnect() }
-  }, [])
-  return locked
-}
-
-/** A text field has focus, so the phone keyboard is up. */
-function useKeyboardUp(): boolean {
-  const [up, setUp] = useState(false)
-  useEffect(() => {
-    let current = false
-    let focused: HTMLElement | null = null
-    let mo: MutationObserver | null = null
-    const stopWatch = () => { mo?.disconnect(); mo = null; focused = null }
-    const read = () => {
-      const active = document.activeElement as (HTMLElement & { type?: string; readOnly?: boolean }) | null
-      const next = raisesKeyboard(active)
-      if (next !== current) {
-        current = next
-        setUp(next)
-      }
-      if (next && active) {
-        if (focused !== active) {
-          stopWatch()
-          focused = active
-          // A removed input skips focusout; re-read when it leaves the DOM.
-          mo = new MutationObserver(() => { if (!focused?.isConnected) read() })
-          mo.observe(document.body, { childList: true, subtree: true })
-        }
-      } else {
-        stopWatch()
-      }
-    }
-    // focusout fires before the next element takes focus; read after it lands.
-    let timer = 0
-    const onOut = () => { window.clearTimeout(timer); timer = window.setTimeout(read, 0) }
-    read()
-    document.addEventListener('focusin', read)
-    document.addEventListener('focusout', onOut)
-    return () => {
-      stopWatch()
-      window.clearTimeout(timer)
-      document.removeEventListener('focusin', read)
-      document.removeEventListener('focusout', onOut)
-    }
-  }, [])
-  return up
 }
 
 /**
@@ -136,8 +82,10 @@ function AddLabel({ text, compact, className, lines = false }: {
   )
 }
 
-export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate }: {
+export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate, mapOnly = false }: {
   variant: 'nav' | 'pill'
+  /** Pill only: draw nothing except the round Add on the full-screen phone Map. */
+  mapOnly?: boolean
   route: string
   signedIn: boolean
   /** App-level overlays: the web menu tray, notifications, the account menu. */
@@ -186,7 +134,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
 
   // ---- web pill: shrink on a scroll down, grow on a scroll up ----
   useEffect(() => {
-    if (variant !== 'pill' || mapFab) return
+    if (variant !== 'pill' || mapFab || mapOnly) return
     let target: EventTarget | null = window
     let state = { compact: false, anchorY: window.scrollY }
     let pendingTarget: EventTarget | null = null
@@ -216,7 +164,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
       window.removeEventListener('scroll', onScroll, { capture: true })
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [variant, route, mapFab])
+  }, [variant, route, mapFab, mapOnly])
 
   // ---- menu ----
   const closeMenu = useCallback((refocus: boolean) => {
@@ -338,7 +286,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
     onContextMenu: (e: ReactMouseEvent) => { if (hasMenu) e.preventDefault() },
   }
 
-  const hidden = ctx.state === 'hidden' || (variant === 'pill' && ctx.state === 'none')
+  const hidden = ctx.state === 'hidden' || (variant === 'pill' && (ctx.state === 'none' || (mapOnly && !mapFab)))
 
   // ---- phone Map FAB: sit 12 px above the peek sheet handle ----
   useLayoutEffect(() => {

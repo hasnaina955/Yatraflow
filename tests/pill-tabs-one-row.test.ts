@@ -67,7 +67,11 @@ describe('pill tab rails', () => {
   })
   it('docks the trip tab rail under the app bar on a phone (#1051)', () => {
     const workspace = read('src/pages/TripWorkspace.tsx')
-    expect(workspace).toContain("const PHONE_DOCK_QUERY = '(max-width: 720px)'")
+    // Row 27a: the dock reads the shared phone rule, not its own copy.
+    expect(workspace).toContain('const phoneWidth = usePhoneWidth()')
+    expect(workspace).not.toContain('PHONE_DOCK_QUERY')
+    expect(read('src/lib/phoneChrome.ts')).toContain("export const PHONE_QUERY = '(max-width: 720px)'")
+    expect(read('src/components/ui.tsx')).toContain('return useMedia(PHONE_QUERY,')
     expect(workspace).toContain('const tabsDocked = phoneWidth && !headerFolded')
     expect(workspace).toContain('{!tabsDocked && tabRail}')
     expect(workspace).toContain('{tabsDocked && <div className="yf-page yf-tabdock">{tabRail}</div>}')

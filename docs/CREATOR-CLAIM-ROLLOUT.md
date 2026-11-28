@@ -18,6 +18,8 @@ The private claim page must not enter the service worker cache. The claim token 
 
 Do not transfer a trip with a publication record. Use the existing publication and payment workflows for those trips.
 
+Until #1079 ships, revoke expired invitations by hand in the admin panel.
+
 ## Existing patterns
 
 - [Supabase Auth](https://github.com/supabase/auth) (MIT) supplies account sign-in, email confirmation and the admin user API. Keep account creation there.

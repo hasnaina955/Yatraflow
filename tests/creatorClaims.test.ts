@@ -4,9 +4,7 @@ import { join } from 'node:path'
 import { hashClaimToken, generateClaimToken, isValidTokenFormat } from '../api/_auth.js'
 import { normalizeSeedTrip } from '../api/_creatorClaimTrip.js'
 import admin from '../api/admin-creator-claims.js'
-import preview from '../api/creator-claim-preview.js'
-import redeem from '../api/creator-claim-redeem.js'
-import og from '../api/claim-og.js'
+import claim from '../api/creator-claim.js'
 import { authNext } from '../src/lib/authNext'
 import { parseTripImport } from '../src/lib/tripImport'
 import { tripToRow } from '../src/lib/tripRow'
@@ -217,7 +215,7 @@ describe('read-only claim preview', () => {
       trips: [{ id: tripId, name: 'Trip', destinations: ['Goa'], days: [{ index: 0, stops: [{ title: 'Fort', notes: 'Private' }] }], expenses: [] }],
     }))
     const res = makeRes()
-    await preview({ method: 'GET', query: { token } }, res)
+    await claim({ method: 'POST', body: { action: 'preview', token } }, res)
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body).trips[0].days[0].stops[0].title).toBe('Fort')
     expect(res.body).not.toContain('notes')
@@ -230,14 +228,14 @@ describe('read-only claim preview', () => {
   it.each(['claimed', 'revoked', 'expired'])('keeps %s terminal state with no profile or trips', async status => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, status, creator: { name: 'Creator' }, trips: [] }))
     const res = makeRes()
-    await preview({ method: 'GET', query: { token } }, res)
+    await claim({ method: 'POST', body: { action: 'preview', token } }, res)
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body)).toEqual({ found: true, status })
   })
   it('reports a service failure rather than an invalid link for an invalid response', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, status: 'unclaimed' }))
     const res = makeRes()
-    await preview({ method: 'GET', query: { token } }, res)
+    await claim({ method: 'POST', body: { action: 'preview', token } }, res)
     expect(res.statusCode).toBe(503)
   })
 })
@@ -245,14 +243,14 @@ describe('read-only claim preview', () => {
 describe('redeem creator claim', () => {
   it('requires a session and takes the account identity only from Auth', async () => {
     const denied = makeRes()
-    await redeem({ method: 'POST', body: { token }, headers: {} }, denied)
+    await claim({ method: 'POST', body: { action: 'redeem', token }, headers: {} }, denied)
     expect(denied.statusCode).toBe(401)
     expect(fetchMock).not.toHaveBeenCalled()
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: claimerId }))
       .mockResolvedValueOnce(jsonResponse({ claim_id: claimId, claimer_id: claimerId, shadow_profile_id: shadowId, moved_trip_ids: [tripId] }))
     const res = makeRes()
-    await redeem({ method: 'POST', body: { token }, headers: auth }, res)
+    await claim({ method: 'POST', body: { action: 'redeem', token }, headers: auth }, res)
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body)).toEqual({ ok: true, claimerId, movedTripIds: [tripId] })
     expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({
@@ -268,14 +266,14 @@ describe('redeem creator claim', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: claimerId }))
       .mockResolvedValueOnce(jsonResponse({ message, code: 'P0001' }, 400))
     const res = makeRes()
-    await redeem({ method: 'POST', body: { token }, headers: auth }, res)
+    await claim({ method: 'POST', body: { action: 'redeem', token }, headers: auth }, res)
     expect(res.statusCode).toBe(status)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
   it('reports upstream Auth failure distinctly from an invalid session', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({}, 503))
     const res = makeRes()
-    await redeem({ method: 'POST', body: { token }, headers: auth }, res)
+    await claim({ method: 'POST', body: { action: 'redeem', token }, headers: auth }, res)
     expect(res.statusCode).toBe(503)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -284,8 +282,8 @@ describe('redeem creator claim', () => {
 describe('claim OG', () => {
   it('serves the same neutral no-store card without reading the backend', () => {
     const a = makeRes(), b = makeRes()
-    og({ method: 'GET', query: { token }, headers: { host: 'preview.example.test' } }, a)
-    og({ method: 'GET', query: { token: 'b'.repeat(64) } }, b)
+    claim({ method: 'GET', query: { og: '1', token }, headers: { host: 'preview.example.test' } }, a)
+    claim({ method: 'GET', query: { og: '1', token: 'b'.repeat(64) } }, b)
     expect(a.statusCode).toBe(200)
     expect(a.body).toBe(b.body)
     expect(a.body).toContain('og:title')
@@ -294,5 +292,27 @@ describe('claim OG', () => {
     expect(a.headers['cache-control']).toContain('no-store')
     expect(a.headers['referrer-policy']).toBe('no-referrer')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('claim endpoint routing', () => {
+  it('fits the function limit', () => {
+    expect(readdirSync('api').filter(name => name.endsWith('.js') && !name.startsWith('_')).length).toBeLessThanOrEqual(12)
+  })
+  it('rejects unknown actions and non-card GET requests', async () => {
+    const unknown = makeRes(), get = makeRes()
+    await claim({ method: 'POST', body: { action: 'other' } }, unknown)
+    await claim({ method: 'GET' }, get)
+    expect(unknown.statusCode).toBe(400)
+    expect(get.statusCode).toBe(405)
+    expect(get.headers.allow).toBe('GET, HEAD, POST')
+  })
+  it('blocks admin accounts before the transfer', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(adminUser))
+    const res = makeRes()
+    await claim({ method: 'POST', headers: auth, body: { action: 'redeem', token } }, res)
+    expect(res.statusCode).toBe(403)
+    expect(JSON.parse(res.body).code).toBe('invalid_claimer')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

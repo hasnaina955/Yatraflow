@@ -97,6 +97,11 @@ declare
   v_preview jsonb;
   v_fail text;
 begin
+  begin
+    perform public.redeem_creator_claim(repeat('a',64),'11111111-1111-4111-8111-111111111101');
+  exception when others then v_fail := sqlerrm; end;
+  if v_fail is distinct from 'invalid_claimer' then raise exception 'Creating admin claim mismatch: %',v_fail; end if;
+  v_fail := null;
   v_preview := public.get_creator_claim_preview(repeat('a',64));
   if v_preview ->> 'status' <> 'unclaimed'
     or v_preview #>> '{creator,name}' <> 'Creator Seed'

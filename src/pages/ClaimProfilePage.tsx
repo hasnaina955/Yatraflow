@@ -9,7 +9,9 @@ import { claimError, readClaimPreview, readClaimTransfer, type ClaimPreview, typ
 import { PageHeader } from '../components/page/PageHeader'
 import { StateBlock } from '../components/page/StateBlock'
 import { Surface } from '../components/page/Surface'
-import { Chip } from '../components/ui'
+import { Chip, ConfirmDialog } from '../components/ui'
+
+function plural(n: number, one: string, many: string) { return `${n} ${n === 1 ? one : many}` }
 
 type PreviewRead = { kind: 'loading' | 'failed' } | { kind: 'ready'; preview: ClaimPreview }
 const terminalCopy = {
@@ -25,6 +27,7 @@ function ClaimBody({ token }: { token: string }) {
   const [read, setRead] = useState<PreviewRead>({ kind: 'loading' })
   const [retry, setRetry] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [transfer, setTransfer] = useState<ClaimTransfer | null>(null)
   const [refreshed, setRefreshed] = useState(false)
@@ -34,7 +37,8 @@ function ClaimBody({ token }: { token: string }) {
     const controller = new AbortController()
     async function load() {
       try {
-        const response = await fetch(`/api/creator-claim-preview?token=${encodeURIComponent(token)}`, {
+        const response = await fetch('/api/creator-claim', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'preview', token }),
           signal: controller.signal, cache: 'no-store', referrerPolicy: 'no-referrer',
         })
         const data: unknown = await response.json()
@@ -64,6 +68,7 @@ function ClaimBody({ token }: { token: string }) {
   }
 
   async function redeem() {
+    setConfirmOpen(false)
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
@@ -75,9 +80,9 @@ function ClaimBody({ token }: { token: string }) {
         setError('Your sign-in changed. Sign in to the account that will own these trips.')
         return
       }
-      const response = await fetch('/api/creator-claim-redeem', {
+      const response = await fetch('/api/creator-claim', {
         method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ token }), referrerPolicy: 'no-referrer',
+        body: JSON.stringify({ action: 'redeem', token }), referrerPolicy: 'no-referrer',
       })
       const body: unknown = await response.json()
       if (!response.ok) {
@@ -111,7 +116,7 @@ function ClaimBody({ token }: { token: string }) {
     const ready = refreshed && claimAccountReady(db, transfer)
     return <StateBlock kind="kept" title="Your creator profile is ready" titleLevel="h1"
       icon={<CheckCircle2 aria-hidden="true" />}
-      body={ready ? `${transfer.movedTripIds.length} trip(s) are in your account. You can edit them and publish when you want.` :
+      body={ready ? `${plural(transfer.movedTripIds.length, 'trip is', 'trips are')} in your account. You can edit them and publish when you want.` :
         busy ? 'The transfer is complete. We are loading your trips.' : 'The transfer is complete, but we could not load your account. Try again to load your trips.'}
       actions={ready ? <>
         <a className="btn btn-primary" {...appLink(`/trip/${transfer.movedTripIds[0]}/overview`)}>Open your trip</a>
@@ -150,7 +155,7 @@ function ClaimBody({ token }: { token: string }) {
         <div className="row-between"><h3>{trip.name}</h3><Chip>Preview only</Chip></div>
         <div className="claim-facts muted">
           {trip.destinations.length > 0 && <span><MapPin size={16} aria-hidden="true" />{trip.destinations.join(' · ')}</span>}
-          <span><Calendar size={16} aria-hidden="true" />{trip.days.length} day(s)</span>
+          <span><Calendar size={16} aria-hidden="true" />{plural(trip.days.length, 'day', 'days')}</span>
         </div>
         <div className="claim-days">{trip.days.map((day, index) => <div className="claim-day" key={index}>
           <h4>Day {index + 1}{day.title ? `: ${day.title}` : ''}</h4>
@@ -172,9 +177,12 @@ function ClaimBody({ token }: { token: string }) {
           }}>Try again</button>
         </> : me ? <>
         <p>Signed in as <strong>{me.email}</strong></p>
-        <button type="button" className="btn btn-primary" disabled={busy || !preview.trips.length} onClick={() => void redeem()}>
+        <button type="button" className="btn btn-primary" disabled={busy || !preview.trips.length} onClick={() => setConfirmOpen(true)}>
           {busy ? 'Claiming…' : 'Claim and take ownership'}
         </button>
+        <ConfirmDialog open={confirmOpen} title="Claim these trips?"
+          body={`The trips move to ${me.email}. You cannot undo this.`} confirmLabel="Claim trips"
+          onConfirm={() => void redeem()} onClose={() => setConfirmOpen(false)} />
       </> : <div className="claim-actions">
         <a className="btn btn-primary" {...appLink(authPath('signup'))}>Claim profile</a>
         <a className="btn btn-outline" {...appLink(authPath('signin'))}>Sign in</a>

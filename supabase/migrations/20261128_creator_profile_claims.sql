@@ -289,7 +289,7 @@ begin
   if v_claim.status = 'claimed' then raise exception 'claim_already_redeemed'; end if;
   if v_claim.status = 'revoked' then raise exception 'claim_revoked'; end if;
   if v_claim.status = 'expired' or v_claim.expires_at <= now() then raise exception 'claim_expired'; end if;
-  if p_claimer_id = v_claim.shadow_profile_id or public.is_creator_claim_shadow(p_claimer_id) then
+  if p_claimer_id = v_claim.shadow_profile_id or p_claimer_id = v_claim.created_by or public.is_creator_claim_shadow(p_claimer_id) then
     raise exception 'invalid_claimer';
   end if;
   select * into v_claimer from public.profiles where id = p_claimer_id for update;

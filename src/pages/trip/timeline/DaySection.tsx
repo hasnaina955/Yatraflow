@@ -30,7 +30,7 @@ import type { LegEstimate, ScheduleWarning, OptimizeDayResult } from '../../../l
 import { stayDaySummary } from '../../../lib/daySummary'
 import { insertionSlotBetween } from '../../../lib/stopOrder'
 import { insertionWhere } from '../../../lib/labels'
-import { isDriveDay } from '../../../lib/ridePlan'
+import { dayKindLabel, dayTypeOf, hasAirLeg as journeyHasAirLeg, isStayJourney, type DayType } from '../../../lib/dayKind'
 import { fixedRowsFor, fixedStopIdsOf, waitingMinutesFor, worstFixedTone } from '../../../lib/fixedTimes'
 import { openExternal } from '../../../lib/native'
 import { useTimeFormat, formatHM, formatHMRange } from '../../../lib/timefmt'
@@ -554,7 +554,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // arrival clock — regardless of distance. This is the single travel system.
   const sim = facts.sim
   const journey = facts.journey
-  const hasAirLeg = journey.points.some(p => p.legIn?.kind === 'air')
+  const hasAirLeg = journeyHasAirLeg(journey)
   // The body keeps rendering through the collapse animation (SmoothCollapse
   // unmounts it a beat after the class flip), while `trip` only arrives for the
   // OPEN day. Hold the last one we were given so a fading body never loses its
@@ -569,15 +569,11 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
   // destination. Intermediate days of a round trip parked at the destination.
   // The travelling card belongs to the departure day, the return day, real
   // transfers, and any day where the user adds travel manually.
-  const isStayDay = journey.points.length <= 1 && journey.distanceKm < 0.5
+  const isStayDay = isStayJourney(journey)
   // Day Planner day type (P1-D): derived from the journey, never labelled by
   // hand — a full drive day clears the planned-break floor, a short hop plus
   // local time is mixed, no wheel time at all is a stay.
-  const dayType: 'DRIVE' | 'STAY' | 'MIXED' = isStayDay
-    ? 'STAY'
-    // Same floor as the planner (#134): 90 km OR 2 h wheel — the planner gives
-    // an 80 km / 3 h ghat day a real segment, so the header must call it a drive.
-    : isDriveDay(journey.distanceKm, journey.driveMinutes) ? 'DRIVE' : 'MIXED'
+  const dayType: DayType = dayTypeOf(journey)
   const A = facts.assumptions
   const ordered = useMemo(() => [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay), [day.stops])
   // #555: this day's schedule keyed by stop id. `sim`'s arrays are aligned per
@@ -1036,7 +1032,7 @@ export const DaySection = React.memo(function DaySection({ day, trip, dayCover, 
                 labelled by hand — wheel time makes it a drive, none makes it a
                 stay, a short hop plus local time is mixed. */}
             <span className={`day-kind ${dayType.toLowerCase()}`}>
-              {hasAirLeg ? 'Flight day' : dayType === 'STAY' ? 'Stay day' : dayType === 'DRIVE' ? 'Drive day' : 'Drive + local'}
+              {dayKindLabel(journey)}
             </span>
             {fixedRows.length > 0 && (
               <span

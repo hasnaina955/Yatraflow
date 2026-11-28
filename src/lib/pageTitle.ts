@@ -23,6 +23,7 @@ const STATIC: Record<string, string> = {
   '': `${SITE}: Plan Indian trips together`,
   about: `About · ${SITE}`,
   auth: `Sign in · ${SITE}`,
+  claim: `Private creator invitation · ${SITE}`,
   trips: `Your trips · ${SITE}`,
   new: `New trip · ${SITE}`,
   explore: `Explore itineraries · ${SITE}`,
@@ -65,7 +66,7 @@ const DESCRIPTIONS: Record<string, string> = {
  *  no canonical (#1042). A public page such as /explore or /pub/<id> is not listed. */
 const PRIVATE_ROUTES: ReadonlySet<string> = new Set([
   'trip', 'trips', 'new', 'profile', 'purchases', 'creator-hub', 'admin', 'auth',
-  'created', 'share', 'join', 'invite',
+  'created', 'share', 'join', 'invite', 'claim',
 ])
 
 /** Whether a route is one of the app's own private pages. */

@@ -59,6 +59,7 @@ It must not promise room or transport choices from a spending target alone.
 
 Record fresh row events independently of whole-catalogue read verdicts. Test delayed reconciliation while the event's private refresh remains pending or fails.
 A field allowlist must not evaluate unlisted property getters.
+Private claim paths and auth return paths must not carry tokens into analytics or feedback. Keep claim documents out of the service worker cache.
 Public profile fields must join the catalog overlay and the field intent allowlist.
 Otherwise saves can lose values after rollback.
 
@@ -1205,6 +1206,8 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
 - **`dist/index.html` is the prerendered home page, and the bare shell is `dist/app.html` (learned 2026-11-27).** Vercel serves `/` from the file system before any rewrite, so the home page must take `index.html`. The SPA catch-all, the service worker and `api/join.js` read `app.html`. Code that needs the bare shell must read `app.html`, or every route gets the landing text and the home canonical.
 - **Run `npm run lint:ste` after `git add -N` on each new file (learned 2026-11-26, #1042).** The default run reads tracked changes only. Two STE faults in a new file passed unchecked and reached a commit.
 - **`vite preview` does not read `vercel.json`, so it serves no rewrite or header from that file (learned 2026-11-26, #1042).** Test a rewrite against the file's own order and matcher. Check the deployed headers on a preview deployment.
+
+- **Use an unnamed Vercel rewrite match for a private path segment.** Vercel can copy named path parameters into the destination query.
 
 ## 2. Conventions (`AGENTS.md` §4)
 

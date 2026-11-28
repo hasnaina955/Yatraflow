@@ -23,7 +23,8 @@ describe('the store reports the waiting state as a field', () => {
 
 describe('the page routes on the field, not on copy text', () => {
   it('a needsConfirmation result goes to the notice and returns', () => {
-    expect(auth).toContain('if (r.needsConfirmation) { clearTimeout(failSafe); setNotice(CONFIRM_EMAIL_COPY); setSaving(false); return }')
+    expect(auth).toMatch(/if \(r.needsConfirmation\) \{[\s\S]*?setNotice\(emailRedirectTo \?[\s\S]*?: CONFIRM_EMAIL_COPY\)[\s\S]*?setSaving\(false\)[\s\S]*?return/)
+    expect(auth).toContain('creatorClaimEmailRedirect(nextRoute(), window.location.origin)')
   })
 
   it('other signup failures still go to the error', () => {

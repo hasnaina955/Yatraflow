@@ -72,6 +72,7 @@ import {
 import {
   beginLedger, settleLedger, applyLedger, ledgerHasPending, type FieldLedger,
 } from './fieldIntents'
+import { CLAIM_TOKEN_KEY } from '../lib/claimToken'
 
 export { reviewedSocialLinks } from '../lib/publicProfile'
 import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
@@ -777,7 +778,7 @@ export async function login(email: string, password: string): Promise<{ ok: bool
 /** Email/password sign up via Supabase Auth. Profile row is created by the DB trigger.
  *  `needsConfirmation` is true when the account exists but has no session yet,
  *  because Supabase waits for the email link. That is a success, not an error. */
-export async function signup(name: string, email: string, password: string): Promise<{ ok: boolean; error?: string; needsConfirmation?: boolean }> {
+export async function signup(name: string, email: string, password: string, emailRedirectTo?: string): Promise<{ ok: boolean; error?: string; needsConfirmation?: boolean }> {
   const cleanEmail = email.trim().toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return { ok: false, error: 'Enter a valid email address.' }
   if (password.length < 8) return { ok: false, error: 'Password must be at least 8 characters.' }
@@ -785,7 +786,7 @@ export async function signup(name: string, email: string, password: string): Pro
   try {
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail, password,
-      options: { data: { name: name.trim() } },
+      options: { data: { name: name.trim() }, ...(emailRedirectTo ? { emailRedirectTo } : {}) },
     })
     if (error) return { ok: false, error: describeAuthFailure(error, { configured: true }) }
     // Supabase may need email confirmation. The account exists, but there is no session yet.
@@ -797,6 +798,7 @@ export async function signup(name: string, email: string, password: string): Pro
 }
 
 export async function logout(): Promise<void> {
+  try { if (typeof window !== 'undefined') window.localStorage.removeItem(CLAIM_TOKEN_KEY) } catch { /* Storage may be unavailable. */ }
   // #393: the sign-out INSTANT used to render the departing account's rows
   // until the async auth event's hydrate(null) landed — Account A's trips (and
   // their Trash) still on screen while signed out, for a frame or a round

@@ -33,6 +33,15 @@ export function needsSignupForCreate(ready: boolean, sessionId: string | null, h
   return ready && sessionId === null && head === CREATE_SEGMENT
 }
 
+export function claimTokenFromHash(hash: string): string | null {
+  return /^#([a-f0-9]{64})$/.exec(hash)?.[1] ?? null
+}
+
+/** Only a validated claim route may become the email confirmation destination. */
+export function creatorClaimEmailRedirect(next: string, origin: string): string | undefined {
+  return next === '/claim' ? `${origin}/claim` : undefined
+}
+
 /** Every first segment the router resolves (`App.tsx`'s pre-switch gates and
  *  `switch`, including '' for the bare route). The legacy-hash bridge maps an
  *  old `#/seg/…` bookmark onto `/{seg}/…` when — and only when — the head is
@@ -44,6 +53,7 @@ export function needsSignupForCreate(ready: boolean, sessionId: string | null, h
  *  case in the switch, so the bridge maps `#/creator/<id>` to `/creator/<id>`;
  *  the crawler-facing card lives at `/c/<id>` and stays slice 3's reconciliation. */
 export const ROUTED_SEGMENTS: readonly string[] = [
+  'claim',
   'pub',
   'trips',
   'share',

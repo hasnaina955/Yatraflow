@@ -2355,3 +2355,39 @@ p.cr-store-planning {
     transition: none;
   }
 }
+
+/* Private creator claim page and the admin invitation form. */
+.claim-page {
+  max-width: 880px;
+  display: grid;
+  gap: var(--space-8);
+  padding-block: var(--space-9) var(--space-13);
+}
+.claim-stack {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.claim-card {
+  padding: var(--space-6);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.claim-identity, .claim-facts, .claim-actions, .claim-review, .claim-list-row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.claim-card :is(h2, h3, h4, p) { margin: 0; }
+.claim-card ul { margin: 0; padding-inline-start: var(--space-7); }
+.claim-facts > span { display: inline-flex; gap: var(--space-2); align-items: center; }
+.claim-days, .claim-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.claim-day { background: var(--bg-soft); padding: var(--space-4); border-radius: var(--radius); min-width: 0; }
+.claim-day h4 { margin-block-end: var(--space-3); }
+.claim-list-row { border: 1px solid var(--line); border-radius: var(--radius); }
+.claim-list-row > div { flex: 1; }
+@media (max-width: 700px) {
+  .claim-days, .claim-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .claim-actions > .btn { flex: 1; justify-content: center; }
+}

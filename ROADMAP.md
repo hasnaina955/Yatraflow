@@ -689,6 +689,8 @@ clean-slate creator onboarding (no demo seed + badge granted). Three releases on
 one `platform_invites` entity — detailed execution guide in
 [`docs/PLAN-INVITES-ONBOARDING.md`](docs/PLAN-INVITES-ONBOARDING.md).
 
+**Private creator claim links:** The feature branch adds private trip imports and a claim page. Release and live database verification remain open. See [the release steps](docs/CREATOR-CLAIM-ROLLOUT.md).
+
 ---
 
 ### MR — "Mockup adoption" (trip-list and trip-page ideas from `C:\Users\hasna\yatraflow-mockup`)

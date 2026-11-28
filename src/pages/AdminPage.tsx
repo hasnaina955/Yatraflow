@@ -30,12 +30,13 @@ import { deriveCreateFunnel } from '../lib/createEvents'
 import { formatInr } from '../lib/engine'
 import type { Trip, CachedUser, PrivateUser } from '../data/types'
 import { appLink } from '../lib/appLink'
+import { AdminCreatorHandoffPanel } from '../components/admin/AdminCreatorHandoffPanel'
 
-type AdminTab = 'overview' | 'users' | 'trips' | 'invites' | 'content' | 'analytics' | 'audit'
+type AdminTab = 'overview' | 'users' | 'trips' | 'invites' | 'content' | 'claims' | 'analytics' | 'audit'
 
 const ADMIN_SECTIONS: [AdminTab, string][] = [
   ['overview', 'Overview'], ['users', 'Users'], ['trips', 'Trips'],
-  ['invites', 'Invites'], ['content', 'Content'],
+  ['invites', 'Invites'], ['content', 'Content'], ['claims', 'Creator claims'],
   ['analytics', 'Analytics'], ['audit', 'Audit log'],
 ]
 // Each section names its own tab and the one panel it controls, so a screen
@@ -90,6 +91,7 @@ export function AdminPage({ onNavigate }: { onNavigate: (r: string) => void }) {
         {tab === 'trips' && <TripsTab />}
         {tab === 'invites' && <InvitesTab />}
         {tab === 'content' && <ContentTab />}
+        {tab === 'claims' && <AdminCreatorHandoffPanel />}
         {tab === 'analytics' && <AnalyticsTab />}
         {tab === 'audit' && <AuditTab />}
       </div>

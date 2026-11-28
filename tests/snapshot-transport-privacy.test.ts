@@ -499,7 +499,7 @@ describe('the referrer policy is not a snapshot control', () => {
     // snapshot guarantee. A change here is a product decision about analytics
     // referrer data, not a snapshot fix (#805).
     const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
-    const policies = config.headers.flatMap((entry: { headers: { key: string; value: string }[] }) =>
+    const policies = config.headers.filter((entry: { source: string }) => entry.source === '/(.*)').flatMap((entry: { headers: { key: string; value: string }[] }) =>
       entry.headers.filter(h => h.key === 'Referrer-Policy').map(h => h.value))
     expect(policies).toEqual(['strict-origin-when-cross-origin'])
   })

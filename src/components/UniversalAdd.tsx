@@ -20,8 +20,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronUp, MapPin, MapPinPlus, Plus, Receipt, Route, Scale, UserPlus } from 'lucide-react'
-import { resolveAddContext, tripIdOfRoute, raisesKeyboard, nextCompact, type AddAction, type AddKind } from '../lib/universalAdd'
-import { readAddSnapshot, runTripAdd, tripScopeOf, useAddSnapshot } from '../lib/universalAddStore'
+import { resolveAddContext, tripIdOfRoute, raisesKeyboard, stepCompact, type AddAction, type AddKind } from '../lib/universalAdd'
+import { runTripAdd, tripScopeOf, useAddSnapshot } from '../lib/universalAddStore'
 import { LONG_PRESS_MS } from '../lib/touchDnd'
 import { motionTiming } from '../lib/motion'
 import { CREATE_PATH } from '../lib/routes'
@@ -58,7 +58,29 @@ function useBodyLocked(): boolean {
 function useKeyboardUp(): boolean {
   const [up, setUp] = useState(false)
   useEffect(() => {
-    const read = () => setUp(raisesKeyboard(document.activeElement as (HTMLElement & { type?: string; readOnly?: boolean }) | null))
+    let current = false
+    let focused: HTMLElement | null = null
+    let mo: MutationObserver | null = null
+    const stopWatch = () => { mo?.disconnect(); mo = null; focused = null }
+    const read = () => {
+      const active = document.activeElement as (HTMLElement & { type?: string; readOnly?: boolean }) | null
+      const next = raisesKeyboard(active)
+      if (next !== current) {
+        current = next
+        setUp(next)
+      }
+      if (next && active) {
+        if (focused !== active) {
+          stopWatch()
+          focused = active
+          // Unmounting a focused input skips focusout; re-read if it leaves the DOM.
+          mo = new MutationObserver(() => { if (!focused?.isConnected) read() })
+          mo.observe(document.body, { childList: true, subtree: true })
+        }
+      } else {
+        stopWatch()
+      }
+    }
     // focusout fires before the next element takes focus; read after it lands.
     let timer = 0
     const onOut = () => { window.clearTimeout(timer); timer = window.setTimeout(read, 0) }
@@ -66,6 +88,7 @@ function useKeyboardUp(): boolean {
     document.addEventListener('focusin', read)
     document.addEventListener('focusout', onOut)
     return () => {
+      stopWatch()
       window.clearTimeout(timer)
       document.removeEventListener('focusin', read)
       document.removeEventListener('focusout', onOut)
@@ -153,38 +176,53 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
 
   const run = useCallback((action: AddAction) => {
     if (action.kind === 'plan-trip') { onNavigate(CREATE_PATH); return }
-    // Re-read at press time: a registration can land between render and press.
-    if (!readAddSnapshot().workspace) return
-    runTripAdd(action.kind, action.dayIndex)
+    const tripId = tripIdOfRoute(routeRef.current)
+    if (!tripId) return
+    runTripAdd(action.kind, action.dayIndex, tripId)
   }, [onNavigate])
 
   // ---- web pill: shrink on a scroll down, grow on a scroll up ----
   useEffect(() => {
     if (variant !== 'pill') return
-    let lastY = window.scrollY
+    let target: EventTarget | null = window
+    let state = { compact: false, anchorY: window.scrollY }
+    let pendingTarget: EventTarget | null = null
     let raf = 0
-    const onScroll = () => {
+    const readY = (t: EventTarget | null) => (t instanceof HTMLElement ? t.scrollTop : window.scrollY)
+    const onScroll = (e: Event) => {
+      const t = e.target === document ? window : e.target
+      if (t instanceof HTMLElement && (t.scrollHeight <= t.clientHeight || menuRef.current?.contains(t))) return
+      pendingTarget = t
       if (raf) return
       raf = requestAnimationFrame(() => {
         raf = 0
-        const y = window.scrollY
+        const tNow = pendingTarget
+        const y = readY(tNow)
         const here = routeRef.current
-        setCompactRoute(at => (nextCompact(at === here, lastY, y) ? here : null))
-        lastY = y
+        if (tNow !== target) {
+          target = tNow
+          state = { compact: state.compact, anchorY: y }
+          return
+        }
+        state = stepCompact(state, y)
+        setCompactRoute(state.compact ? here : null)
       })
     }
-    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true })
     return () => {
-      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('scroll', onScroll, { capture: true })
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [variant])
+  }, [variant, route])
 
   // ---- menu ----
   const closeMenu = useCallback((refocus: boolean) => {
     setMenuOpen(false)
-    if (refocus) (openerRef.current ?? mainRef.current)?.focus({ preventScroll: true })
-  }, [setMenuOpen])
+    if (refocus) {
+      const target = openerRef.current === moreRef.current && compact ? mainRef.current : (openerRef.current ?? mainRef.current)
+      target?.focus({ preventScroll: true })
+    }
+  }, [compact, setMenuOpen])
   const openMenu = useCallback((opener: HTMLButtonElement | null) => {
     if (!hasMenu) return
     openerRef.current = opener
@@ -245,11 +283,12 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   // ---- long press on the "+" ----
   const press = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null)
   const suppressClick = useRef(false)
-  function cancelPress() {
+  const cancelPress = useCallback(() => {
     if (press.current) window.clearTimeout(press.current.timer)
     press.current = null
-  }
+  }, [])
   function onPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    suppressClick.current = false
     if (!hasMenu || e.button !== 0) return
     cancelPress()
     const p = { timer: 0, x: e.clientX, y: e.clientY, fired: false }
@@ -264,21 +303,49 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
     const p = press.current
     if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > MOVE_CANCEL_PX) cancelPress()
   }
-  function onMainClick() {
-    if (suppressClick.current) { suppressClick.current = false; return }
+  function onMainClick(e: ReactMouseEvent<HTMLButtonElement>) {
+    if (suppressClick.current) {
+      suppressClick.current = false
+      if (e.detail !== 0) return
+    }
+    if (menuOpen) setMenuOpen(false)
     if (primary) run(primary)
+  }
+  function onMainKey(e: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (!hasMenu) return
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+      e.preventDefault()
+      openMenu(mainRef.current)
+    }
   }
   const pressHandlers = {
     onPointerDown,
     onPointerMove,
     onPointerUp: cancelPress,
-    onPointerCancel: cancelPress,
+    onPointerCancel: () => { cancelPress(); suppressClick.current = false },
     onPointerLeave: cancelPress,
+    onKeyDown: onMainKey,
     // The browser's own long-press menu would fight ours.
     onContextMenu: (e: ReactMouseEvent) => { if (hasMenu) e.preventDefault() },
   }
 
   const hidden = ctx.state === 'hidden' || (variant === 'pill' && ctx.state === 'none')
+  useEffect(() => {
+    if (hidden || !hasMenu) {
+      cancelPress()
+      suppressClick.current = false
+    }
+    return cancelPress
+  }, [hidden, hasMenu, cancelPress])
+  // Never leave focus inside an aria-hidden control or a collapsed chevron.
+  useEffect(() => {
+    const active = document.activeElement
+    if (hidden) {
+      if (active === mainRef.current || active === moreRef.current) (active as HTMLElement).blur()
+    } else if (compact && active === moreRef.current) {
+      mainRef.current?.focus({ preventScroll: true })
+    }
+  }, [hidden, compact])
   const state = hidden ? 'hidden' : ctx.state
   const menuId = `ua-menu-${variant}`
   const menu = menuOpen && hasMenu && createPortal(
@@ -325,6 +392,9 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
       <button ref={mainRef} type="button" className="ua-pill-main"
         tabIndex={hidden ? -1 : undefined}
         aria-label={compact && primary ? primary.label : undefined}
+        aria-haspopup={compact && hasMenu ? 'menu' : undefined}
+        aria-expanded={compact && hasMenu ? menuOpen : undefined}
+        aria-controls={compact && hasMenu && menuOpen ? menuId : undefined}
         onClick={onMainClick} {...pressHandlers}>
         <Plus size={20} strokeWidth={2.4} aria-hidden />
         {primary && <AddLabel className="ua-pill-label" text={primary.label} compact={compact} />}

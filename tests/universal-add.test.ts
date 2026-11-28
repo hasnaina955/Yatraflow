@@ -1,7 +1,7 @@
 // #1064 · the Universal Add context resolver. One row of the spec per case.
 import { describe, expect, it } from 'vitest'
 import {
-  resolveAddContext, tripIdOfRoute, raisesKeyboard, nextCompact, ADD_LABELS,
+  resolveAddContext, tripIdOfRoute, raisesKeyboard, nextCompact, stepCompact, ADD_LABELS,
   type AddContextInput, type TripAddScope,
 } from '../src/lib/universalAdd'
 
@@ -163,6 +163,16 @@ describe('helpers', () => {
     expect(nextCompact(true, 140, 143)).toBe(true) // inside the dead band
     expect(nextCompact(true, 40, 10)).toBe(false) // back at the top
   })
+
+  it('accumulates small frame scroll steps across the dead band', () => {
+    let s = { compact: false, anchorY: 100 }
+    for (const y of [103, 106, 109]) s = stepCompact(s, y)
+    expect(s).toEqual({ compact: true, anchorY: 109 })
+    s = stepCompact(s, 140)
+    expect(s).toEqual({ compact: true, anchorY: 140 })
+    for (const y of [137, 134, 131]) s = stepCompact(s, y)
+    expect(s).toEqual({ compact: false, anchorY: 131 })
+  })
 })
 
 describe('the add store', async () => {
@@ -221,5 +231,22 @@ describe('the add store', async () => {
     store.publishWorkspace(ws({ tab: 'board' }))
     offA()
     expect(store.readAddSnapshot().workspace?.tab).toBe('board')
+  })
+
+  it('refuses disallowed actions, mismatched trips, and declined same-tab adds', () => {
+    store.resetAddStore()
+    const calls: string[] = []
+    store.publishWorkspace(ws({ tab: 'budget', canEdit: false, isMember: true, go: k => calls.push(`go:${k}`) }))
+    store.runTripAdd('add-expense', undefined, 't1')
+    store.runTripAdd('invite', undefined, 't2')
+    expect(calls).toEqual([])
+    store.runTripAdd('invite', undefined, 't1')
+    expect(calls).toEqual(['go:invite'])
+
+    calls.length = 0
+    store.publishWorkspace(ws({ tab: 'budget', canEdit: true, isMember: true, go: k => calls.push(`go:${k}`) }))
+    store.publishTab({ tripId: 't1', tab: 'budget', stopDay: null, timelineEditing: false, kinds: [], run: () => calls.push('tab') })
+    store.runTripAdd('add-expense', undefined, 't1')
+    expect(calls).toEqual([])
   })
 })

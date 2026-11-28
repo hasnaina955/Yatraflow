@@ -17,7 +17,7 @@
 // workspace is not keyed by trip and must not leak a request into the next trip.
 
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
-import type { AddKind, TripAddScope } from './universalAdd'
+import { isAddAllowed, TAB_PRIMARY, type AddKind, type TripAddScope } from './universalAdd'
 import type { WorkspaceTabKey } from './workspaceHeader'
 
 export interface WorkspaceAddState {
@@ -77,12 +77,19 @@ export function requestTabAdd(req: PendingRequest): void {
  * Run an action. The tab on screen runs its own flow when it has one. Anything
  * else goes through the workspace router, which opens the owning tab.
  */
-export function runTripAdd(kind: AddKind, dayIndex?: number): void {
+export function runTripAdd(kind: AddKind, dayIndex?: number, expectedTripId?: string): void {
   const { workspace, tab } = snapshot
   if (!workspace) return
-  if (tab && tab.tripId === workspace.tripId && tab.tab === workspace.tab && tab.kinds.includes(kind)) {
-    tab.run(kind, dayIndex)
-    return
+  if (expectedTripId !== undefined && workspace.tripId !== expectedTripId) return
+  const scope = tripScopeOf(snapshot, workspace.tripId)
+  if (!scope || TAB_PRIMARY[scope.tab] === null || !isAddAllowed(kind, scope)) return
+  if (tab && tab.tripId === workspace.tripId && tab.tab === workspace.tab) {
+    if (tab.kinds.includes(kind)) {
+      tab.run(kind, dayIndex)
+      return
+    }
+    // The owning tab is already on screen and declined this action.
+    if (workspace.tab !== 'overview' && TAB_PRIMARY[workspace.tab] === kind) return
   }
   workspace.go(kind, dayIndex)
 }
@@ -166,8 +173,7 @@ export function useTabAdd(input: TabAddInput): void {
   useEffect(() => {
     const req = consumeTabRequest(tripId, tab)
     if (req) handlersRef.current[req.kind]?.(req.dayIndex)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount; tripId and tab only stamp the guard
-  }, [])
+  }, [tripId, tab])
 }
 
 /**

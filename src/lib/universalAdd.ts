@@ -105,7 +105,7 @@ export const ADD_LABELS: Record<AddKind, string> = {
 const TRIP_MENU: readonly AddKind[] = ['add-stop', 'add-expense', 'add-decision', 'invite', 'ask-chakra']
 
 /** Each tab's own primary action. Trip settings has none. */
-const TAB_PRIMARY: Record<WorkspaceTabKey, AddKind | null> = {
+export const TAB_PRIMARY: Record<WorkspaceTabKey, AddKind | null> = {
   overview: 'add-stop',
   timeline: 'add-stop',
   board: 'add-stop',
@@ -124,7 +124,7 @@ function pathSegments(route: string): string[] {
 }
 
 /** True when the scope allows the kind. */
-function allowed(kind: AddKind, scope: TripAddScope): boolean {
+export function isAddAllowed(kind: AddKind, scope: TripAddScope): boolean {
   switch (kind) {
     case 'add-stop':
       // The Timeline in Review mode promises "nothing here changes the plan".
@@ -172,8 +172,8 @@ export function resolveAddContext(input: AddContextInput): AddContext {
   if (own === null) return NONE
 
   const menuKinds: AddKind[] = own === 'add-place' ? ['add-place', ...TRIP_MENU] : [...TRIP_MENU]
-  const permitted = menuKinds.filter(k => allowed(k, scope))
-  const primaryKind = allowed(own, scope) ? own : permitted[0]
+  const permitted = menuKinds.filter(k => isAddAllowed(k, scope))
+  const primaryKind = isAddAllowed(own, scope) ? own : permitted[0]
   if (!primaryKind) return NONE
 
   return {
@@ -201,15 +201,34 @@ export function raisesKeyboard(el: { tagName?: string; type?: string; isContentE
   return !el.readOnly && !NON_TEXT_INPUTS.has((el.type ?? 'text').toLowerCase())
 }
 
+const DEAD_BAND = 6
+const TOP_RESET_Y = 24
+
 /**
  * The web pill's scroll rule. It shrinks on a scroll down past the first
  * screen edge and grows again on any scroll up. A small dead band keeps a
  * jittery finger from flapping it.
  */
 export function nextCompact(compact: boolean, lastY: number, y: number): boolean {
-  const DEAD_BAND = 6
-  if (y <= 24) return false
+  if (y <= TOP_RESET_Y) return false
   if (y > lastY + DEAD_BAND) return true
   if (y < lastY - DEAD_BAND) return false
   return compact
+}
+
+export interface CompactScrollState {
+  compact: boolean
+  anchorY: number
+}
+
+/**
+ * Advance the scroll-shrink state with an anchor that moves only on a flip or
+ * further travel in the same direction, so small frame steps cross the dead band.
+ */
+export function stepCompact(state: CompactScrollState, y: number): CompactScrollState {
+  if (y <= TOP_RESET_Y) return { compact: false, anchorY: y }
+  const compact = nextCompact(state.compact, state.anchorY, y)
+  if (compact !== state.compact) return { compact, anchorY: y }
+  const anchorY = compact ? Math.max(state.anchorY, y) : Math.min(state.anchorY, y)
+  return { compact, anchorY }
 }

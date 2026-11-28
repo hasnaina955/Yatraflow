@@ -38,7 +38,8 @@ vi.mock('../src/lib/native', async importOriginal => ({
   isAndroid: true,
 }))
 
-import { registerAndroidBack } from '../src/lib/appShell'
+import { closeOverlayLayer, registerAndroidBack } from '../src/lib/appShell'
+import { closeOpenAddMenu, registerAddMenuClose, resetAddStore } from '../src/lib/universalAddStore'
 
 /** One back press, delivered to every live handler (Capacitor uses forEach). */
 function press(canGoBack = false): number {
@@ -50,6 +51,7 @@ const liveCount = () => h.registered.filter(r => r.live).length
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
 beforeEach(() => {
+  resetAddStore()
   h.registered.length = 0
   h.exitApp.mockClear()
   h.historyBack.mockClear()
@@ -153,6 +155,42 @@ describe('registerAndroidBack listener lifecycle', () => {
     press()
     off()
     vi.advanceTimersByTime(5000)
+    expect(h.exitApp).not.toHaveBeenCalled()
+  })
+})
+
+describe('closeOverlayLayer close-order rule', () => {
+  it('closes a registered menu before a shell overlay, and a second Back closes the shell overlay', () => {
+    let menuOpen = true
+    let shellOpen = true
+    const off = registerAddMenuClose(() => { menuOpen = false })
+    const closeShell = () => { shellOpen = false }
+
+    expect(closeOverlayLayer(closeOpenAddMenu, shellOpen, closeShell)).toBe(true)
+    expect(menuOpen).toBe(false)
+    expect(shellOpen).toBe(true)
+
+    expect(closeOverlayLayer(closeOpenAddMenu, shellOpen, closeShell)).toBe(true)
+    expect(shellOpen).toBe(false)
+
+    expect(closeOverlayLayer(closeOpenAddMenu, shellOpen, closeShell)).toBe(false)
+    off()
+  })
+
+  it('first Back closes the open Add menu without navigating or arming exit; second Back navigates', () => {
+    let addMenuOpen = true
+    registerAddMenuClose(() => { addMenuOpen = false })
+    registerAndroidBack({
+      closeOverlay: () => closeOverlayLayer(closeOpenAddMenu, false, () => {}),
+    })
+
+    press(true)
+    expect(addMenuOpen).toBe(false)
+    expect(h.historyBack).not.toHaveBeenCalled()
+    expect(h.exitApp).not.toHaveBeenCalled()
+
+    press(true)
+    expect(h.historyBack).toHaveBeenCalledTimes(1)
     expect(h.exitApp).not.toHaveBeenCalled()
   })
 })

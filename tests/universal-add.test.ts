@@ -258,4 +258,18 @@ describe('the add store', async () => {
     store.runTripAdd('add-expense', undefined, 't1')
     expect(calls).toEqual([])
   })
+
+  it('registers and clears the open Add menu closer once', () => {
+    store.resetAddStore()
+    let closedA = 0
+    let closedB = 0
+    const offA = store.registerAddMenuClose(() => { closedA += 1 })
+    const offB = store.registerAddMenuClose(() => { closedB += 1 })
+    offA()
+    expect(store.closeOpenAddMenu()).toBe(true)
+    expect(closedA).toBe(0)
+    expect(closedB).toBe(1)
+    expect(store.closeOpenAddMenu()).toBe(false)
+    offB()
+  })
 })

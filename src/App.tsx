@@ -45,7 +45,8 @@ import { browserLocalStorage, storedSessionHint } from './lib/storedSession'
 import { apkUpdateCheck, bootApkUpdates } from './lib/apkUpdateRuntime'
 import { feedbackHref } from './lib/feedback'
 import { setTheme, useTheme } from './lib/theme'
-import { hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
+import { closeOverlayLayer, hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
+import { closeOpenAddMenu } from './lib/universalAddStore'
 import { sliceState, rowsView, type RowsView } from './lib/readState'
 import { StateBlock } from './components/page/StateBlock'
 import { PageHeader } from './components/page/PageHeader'
@@ -426,11 +427,11 @@ export default function App() {
   }, [])
   useEffect(() => {
     const off = registerAndroidBack({
-      closeOverlay: () => {
-        const hadAny = mobileNav || notifOpen || menuOpen
-        setMobileNav(false); setNotifOpen(false); setMenuOpen(false)
-        return hadAny
-      },
+      closeOverlay: () => closeOverlayLayer(
+        closeOpenAddMenu,
+        mobileNav || notifOpen || menuOpen,
+        () => { setMobileNav(false); setNotifOpen(false); setMenuOpen(false) },
+      ),
     })
     return off
   }, [mobileNav, notifOpen, menuOpen])

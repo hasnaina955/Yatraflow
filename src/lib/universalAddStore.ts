@@ -51,7 +51,23 @@ interface PendingRequest { tripId: string; tab: WorkspaceTabKey; kind: AddKind; 
 
 let snapshot: AddSnapshot = { workspace: null, tab: null }
 let pending: PendingRequest | null = null
+let closeAddMenu: (() => void) | null = null
 const listeners = new Set<() => void>()
+
+/** Register the open Add menu close callback for Android Back. Returns its cleanup. */
+export function registerAddMenuClose(close: () => void): () => void {
+  closeAddMenu = close
+  return () => { if (closeAddMenu === close) closeAddMenu = null }
+}
+
+/** Close the open Add menu when one is registered. Returns true if it closed. */
+export function closeOpenAddMenu(): boolean {
+  const close = closeAddMenu
+  if (!close) return false
+  closeAddMenu = null
+  close()
+  return true
+}
 
 function emit(next: AddSnapshot) {
   snapshot = next
@@ -218,5 +234,6 @@ export function tripScopeOf(s: AddSnapshot, routeTripId: string | null): TripAdd
 /** Test seam: forget every registration and request. */
 export function resetAddStore(): void {
   pending = null
+  closeAddMenu = null
   emit({ workspace: null, tab: null })
 }

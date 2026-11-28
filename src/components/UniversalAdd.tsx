@@ -21,7 +21,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Keyboar
 import { createPortal } from 'react-dom'
 import { ChevronUp, MapPin, MapPinPlus, Plus, Receipt, Route, Scale, UserPlus } from 'lucide-react'
 import { resolveAddContext, tripIdOfRoute, raisesKeyboard, stepCompact, type AddAction, type AddKind } from '../lib/universalAdd'
-import { runTripAdd, tripScopeOf, useAddSnapshot } from '../lib/universalAddStore'
+import { registerAddMenuClose, runTripAdd, tripScopeOf, useAddSnapshot } from '../lib/universalAddStore'
 import { LONG_PRESS_MS } from '../lib/touchDnd'
 import { motionTiming } from '../lib/motion'
 import { CREATE_PATH } from '../lib/routes'
@@ -228,6 +228,11 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
     openerRef.current = opener
     setMenuOpen(true)
   }, [hasMenu, setMenuOpen])
+
+  useEffect(() => {
+    if (!menuOpen || !hasMenu) return
+    return registerAddMenuClose(() => { closeMenu(true) })
+  }, [menuOpen, hasMenu, closeMenu])
 
   useLayoutEffect(() => {
     if (!menuOpen) return

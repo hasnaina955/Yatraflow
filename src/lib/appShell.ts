@@ -50,6 +50,18 @@ type BackHandlerContext = {
   closeOverlay: () => boolean
 }
 
+/** Close the top open overlay for Android Back: a registered menu first, then any shell overlay. */
+export function closeOverlayLayer(
+  closeMenu: () => boolean,
+  shellOpen: boolean,
+  closeShell: () => void,
+): boolean {
+  if (closeMenu()) return true
+  if (!shellOpen) return false
+  closeShell()
+  return true
+}
+
 export function registerAndroidBack(ctx: BackHandlerContext): () => void {
   if (!isAndroid) return () => {}
   let armed = false // first press at the entry page arms, second exits

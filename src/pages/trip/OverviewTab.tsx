@@ -44,6 +44,10 @@ import { useTripElevation } from '../../hooks/useTripElevation'
 import { overviewHealthTiles } from '../../lib/overviewHealthTiles'
 import { dayStrip } from '../../lib/tripDayStrip'
 import { dayStripItems } from '../../lib/dayStrip'
+import { buildDayCards } from '../../lib/dayCards'
+import { roadStateOf } from '../../lib/roadStatLabel'
+import { daysToCheckLabel, overviewDayMetaLine, overviewDayTitle, overviewRibbonLine } from '../../lib/dayKind'
+import type { LegEstimate } from '../../lib/engine'
 
 // ================= Overview =================
 
@@ -133,7 +137,7 @@ export function overviewWarningTarget(warning: ScheduleWarning): TimelineFocusTa
     : { dayIndex: warning.dayIndex }
 }
 
-export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, onInvite, health, totals, road, corridorSegments, mapInputs, mapCache }: {
+export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, onInvite, health, totals, road, legCorrections, corridorSegments, mapInputs, mapCache }: {
   trip: Trip
   editable: boolean
   onOpenDecisions: () => void
@@ -145,6 +149,9 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
   /** The workspace's ONE road measurement, so the matrix attributes days by the
    *  same road-true km the Map rail does. */
   road?: TripRoadView | null
+  /** The workspace's measured legs, so a day card prints the same km and drive
+   *  time as the Timeline day header (one buildDayCards call, same inputs). */
+  legCorrections?: Record<string, LegEstimate>
   /** The corridor scan's segments, shared with the Map rail (from the cache). */
   corridorSegments?: SegmentHit[]
   /** Freshness pair published by the Map tab (lane A) — null when never mounted. */
@@ -208,6 +215,9 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
     formatMoney: formatInr,
   })
   const dayPlaces = dayStripItems(trip.days)
+  const dayCards = useMemo(() => buildDayCards(trip, trip.days, legCorrections), [trip, legCorrections])
+  const dayCells = dayStrip(trip, health.warnings)
+  const daysToCheck = daysToCheckLabel(dayCells)
   const elevationResult = elevation.result
   const elevationPeak = elevationResult?.stats.peak ?? null
   // A place whose tile could not be read means the peak is the highest of the
@@ -331,11 +341,31 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
         </div>
       </section>
 
+      <section className="ovw-ribbon" aria-label="Trip summary">
+        {hasPlan ? (
+          <div className="ovw-ribbon-head">
+            <span className="ovw-ribbon-line">{overviewRibbonLine(totals, road?.status === 'ok', formatInr) || 'No distance yet'}</span>
+            {daysToCheck && <span className="ovw-ribbon-check">{daysToCheck}</span>}
+          </div>
+        ) : <StateBlock kind="empty" size="compact" title="Nothing planned yet" />}
+        {dayCells.length > 0 && (
+          <div className="ovw-ribbon-days">
+            {dayCells.map(cell => {
+              const item = dayPlaces.find(entry => entry.dayIndex === cell.dayNumber - 1)
+              const chip = <><span className="ovw-ribbon-day"><i className={`is-${cell.tone}`} aria-hidden="true" />Day {cell.dayNumber}</span><b>{item?.place || 'Not planned'}</b><span className="sr-only">. {cell.label}</span></>
+              return onOpenTimeline ? (
+                <button key={cell.dayNumber} type="button" className="ovw-ribbon-chip" onClick={() => onOpenTimeline({ dayIndex: cell.dayNumber - 1 })}>{chip}</button>
+              ) : <span key={cell.dayNumber} className="ovw-ribbon-chip">{chip}</span>
+            })}
+          </div>
+        )}
+      </section>
+
       <section className="ovw-day-list" aria-labelledby="ovw-days-title">
         <h2 className="ovw-title" id="ovw-days-title">Days</h2>
         {trip.days.length === 0 ? <StateBlock kind="empty" size="compact" title="No days yet" /> : (
           <div className="ovw-day-cards">
-            {dayStrip(trip, health.warnings).map(cell => {
+            {dayCells.map(cell => {
               const day = trip.days.find(item => item.index + 1 === cell.dayNumber)
               if (!day) return null
               const stops = [...day.stops].filter(stop => stop.status !== 'rejected').sort((a, b) => a.orderInDay - b.orderInDay)
@@ -344,13 +374,18 @@ export function OverviewTab({ trip, onOpenDecisions, onOpenTimeline, onOpenMap, 
               const first = stripItem?.from || (day.index === 0 ? trip.startLocation?.trim() : undefined) || places[0]
               const last = stripItem?.place ?? places[places.length - 1]
               const route = first && last && first !== last ? `${first} to ${last}` : first || `Day ${cell.dayNumber}`
+              const facts = dayCards.byDay.get(day.index)
+              const meta = facts
+                ? overviewDayMetaLine(facts.journey, stops.length, roadStateOf(road?.status, facts.journey, legCorrections))
+                : `${stops.length} stop${stops.length === 1 ? '' : 's'}`
+              const title = overviewDayTitle(route, day.index, day.title, places as string[])
               const date = trip.startDate ? new Date(`${isoAddDays(trip.startDate, day.index)}T00:00`) : null
               const validDate = date && !Number.isNaN(date.getTime()) ? date : null
               const content = <>
-                <span className="ovw-day-date">{validDate ? <><span>{validDate.toLocaleDateString('en-IN', { weekday: 'short' })}</span><b>{validDate.getDate()}</b></> : <>Day <b>{cell.dayNumber}</b></>}</span>
+                <span className="ovw-day-date">{validDate ? <><span>{validDate.toLocaleDateString('en-IN', { weekday: 'short' })}</span><b>{validDate.getDate()}</b><small>{validDate.toLocaleDateString('en-IN', { month: 'short' })}</small></> : <>Day <b>{cell.dayNumber}</b></>}</span>
                 <span className="ovw-day-body">
-                  <strong>{route}</strong>
-                  <span>{stops.length} stop{stops.length === 1 ? '' : 's'}</span>
+                  <strong>{title}</strong>
+                  <span className="ovw-day-meta">{meta}</span>
                   <span className={`ovw-day-status is-${cell.tone}`}><i aria-hidden="true" /><b>{cell.label}</b></span>
                 </span>
               </>

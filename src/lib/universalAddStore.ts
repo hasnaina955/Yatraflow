@@ -153,6 +153,21 @@ export interface TabAddInput {
   handlers: Partial<Record<AddKind, (dayIndex?: number) => void>>
 }
 
+function handlerFor(
+  handlers: TabAddInput['handlers'],
+  kind: AddKind,
+): ((dayIndex?: number) => void) | undefined {
+  switch (kind) {
+    case 'plan-trip': return handlers['plan-trip']
+    case 'add-stop': return handlers['add-stop']
+    case 'add-place': return handlers['add-place']
+    case 'add-expense': return handlers['add-expense']
+    case 'add-decision': return handlers['add-decision']
+    case 'invite': return handlers.invite
+    case 'ask-chakra': return handlers['ask-chakra']
+  }
+}
+
 /** A tab registers its own flows and its day target while it is on screen. */
 export function useTabAdd(input: TabAddInput): void {
   const handlersRef = useRef(input.handlers)
@@ -161,18 +176,18 @@ export function useTabAdd(input: TabAddInput): void {
   const { tripId, tab } = input
   const stopDay = input.stopDay ?? null
   const timelineEditing = input.timelineEditing ?? false
-  const kindsKey = (Object.keys(input.handlers) as AddKind[]).filter(k => input.handlers[k]).sort().join(',')
+  const kindsKey = (Object.keys(input.handlers) as AddKind[]).filter(k => handlerFor(input.handlers, k)).sort().join(',')
   useEffect(() => {
     const kinds = kindsKey ? (kindsKey.split(',') as AddKind[]) : []
     return publishTab({
       tripId, tab, stopDay, timelineEditing, kinds,
-      run: (kind, dayIndex) => handlersRef.current[kind]?.(dayIndex),
+      run: (kind, dayIndex) => { handlerFor(handlersRef.current, kind)?.(dayIndex) },
     })
   }, [tripId, tab, stopDay, timelineEditing, kindsKey])
   // One-shot, on mount: the request `go` left for this tab.
   useEffect(() => {
     const req = consumeTabRequest(tripId, tab)
-    if (req) handlersRef.current[req.kind]?.(req.dayIndex)
+    if (req) handlerFor(handlersRef.current, req.kind)?.(req.dayIndex)
   }, [tripId, tab])
 }
 

@@ -45,11 +45,11 @@ const KIND_ICON: Record<AddKind, ReactNode> = {
 function useBodyLocked(): boolean {
   const [locked, setLocked] = useState(false)
   useEffect(() => {
-    const read = () => setLocked(document.body.style.overflow === 'hidden')
+    const read = () => { setLocked(document.body.style.overflow === 'hidden') }
     read()
     const mo = new MutationObserver(read)
     mo.observe(document.body, { attributes: true, attributeFilter: ['style'] })
-    return () => mo.disconnect()
+    return () => { mo.disconnect() }
   }, [])
   return locked
 }
@@ -118,8 +118,8 @@ function AddLabel({ text, compact, className, lines = false }: {
     setPrev(last.current)
     last.current = text
     // The out copy lives for one fade. Reduced motion reads 0ms: it goes at once.
-    const t = window.setTimeout(() => setPrev(null), motionTiming('--motion-fast').duration)
-    return () => window.clearTimeout(t)
+    const t = window.setTimeout(() => { setPrev(null) }, motionTiming('--motion-fast').duration)
+    return () => { window.clearTimeout(t) }
   }, [text])
   useLayoutEffect(() => {
     const box = boxRef.current
@@ -168,7 +168,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   const ctxKey = `${route}|${ctx.state}|${ctx.menu.map(a => a.label).join(',')}`
   const [menuKey, setMenuKey] = useState<string | null>(null)
   const menuOpen = menuKey === ctxKey
-  const setMenuOpen = useCallback((open: boolean) => setMenuKey(open ? ctxKey : null), [ctxKey])
+  const setMenuOpen = useCallback((open: boolean) => { setMenuKey(open ? ctxKey : null) }, [ctxKey])
   const [compactRoute, setCompactRoute] = useState<string | null>(null)
   const compact = compactRoute === route
   const routeRef = useRef(route)
@@ -353,7 +353,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
     <div ref={menuRef} id={menuId} className="ua-menu" role="menu" aria-label="Add" onKeyDown={onMenuKey} data-variant={variant}>
       {ctx.menu.map(a => (
         <button key={a.kind} type="button" role="menuitem" tabIndex={-1} className="ua-menu-item" data-kind={a.kind}
-          onClick={() => choose(a)}>
+          onClick={() => { choose(a) }}>
           <span className="ua-menu-icon">{KIND_ICON[a.kind]}</span>{a.label}
         </button>
       ))}
@@ -376,7 +376,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
             tabIndex={hidden ? -1 : undefined}
             aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuOpen ? menuId : undefined}
             aria-label="More ways to add"
-            onClick={() => (menuOpen ? closeMenu(true) : openMenu(moreRef.current))}>
+            onClick={() => { if (menuOpen) closeMenu(true); else openMenu(moreRef.current) }}>
             <AddLabel className="ua-caption-label" text={primary.label} lines />
             <ChevronUp size={12} strokeWidth={2.6} aria-hidden className="ua-caption-chev" />
           </button>
@@ -405,7 +405,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
           tabIndex={hidden || compact ? -1 : undefined}
           aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuOpen ? menuId : undefined}
           aria-label="More ways to add"
-          onClick={() => (menuOpen ? closeMenu(true) : openMenu(moreRef.current))}>
+          onClick={() => { if (menuOpen) closeMenu(true); else openMenu(moreRef.current) }}>
           <ChevronUp size={16} strokeWidth={2.6} aria-hidden />
         </button>
       )}

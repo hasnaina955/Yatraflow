@@ -51,10 +51,12 @@ export function overviewDayMetaLine(journey: KindJourney, stops: number, roadSta
 }
 
 /**
- * The day title in the mockup's form, with an em dash. A title written as
+ * The day title in the mockup's form, with a spaced dash. The mockup draws an
+ * em dash; the UI em dash guard (tests/ui-no-em-dash.test.ts) bans it, so this
+ * is an en dash. A title written as
  * "Munnar: tea estates" already names its place, so it prints as
- * "Munnar — tea estates". Any other custom title follows the route
- * ("Kochi to Munnar — waterfalls"). A default "Day N" title adds nothing, and
+ * "Munnar – tea estates". Any other custom title follows the route
+ * ("Kochi to Munnar – waterfalls"). A default "Day N" title adds nothing, and
  * a title that repeats the route or a place on it is not added.
  */
 export function overviewDayTitle(route: string, index: number, title: string | null | undefined, places: readonly string[] = []): string {
@@ -62,10 +64,10 @@ export function overviewDayTitle(route: string, index: number, title: string | n
   if (label.number === null) return route
   const custom = label.title.trim()
   const colon = custom.indexOf(': ')
-  if (colon > 0 && colon < custom.length - 2) return `${custom.slice(0, colon).trim()} — ${custom.slice(colon + 2).trim()}`
+  if (colon > 0 && colon < custom.length - 2) return `${custom.slice(0, colon).trim()} – ${custom.slice(colon + 2).trim()}`
   const same = (value: string) => value.trim().toLowerCase() === custom.toLowerCase()
   if (same(route) || places.some(same)) return route
-  return `${route} — ${custom}`
+  return `${route} – ${custom}`
 }
 
 /** The summary tile's headline: trip km, drive time and cost. A zero value is

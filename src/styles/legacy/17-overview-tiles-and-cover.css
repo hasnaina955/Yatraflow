@@ -933,6 +933,7 @@
   .ovw-ribbon {
     display: grid; gap: 10px; margin: 16px 0 0; padding: 12px;
     border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--elev-1);
+    animation: pageRise var(--motion-slow) var(--ease-paper) backwards;
   }
   .ovw-ribbon-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 0 2px; }
   .ovw-ribbon-line { color: var(--text); font-family: var(--font-display); font-size: 15px; font-weight: 700; }
@@ -1090,8 +1091,7 @@ div[role="tabpanel"]:has(> .ovw2) { animation: none; }
 .ovw-matrix .mx-compact > .mx-crow:nth-child(n+5) { animation-delay: calc(var(--stagger-step) * 20); }
 
 /* Day cards and status bars enter in sequence, with a capped stagger. The
-   summary tile rises first, with the cards. */
-.ovw-ribbon { animation: pageRise var(--motion-slow) var(--ease-paper) backwards; }
+   summary tile rises with them (its animation sits in the phone block). */
 @keyframes ovwGrowX { from { transform: scaleX(0); } }
 .ovw-day-card {
   animation: pageRise var(--motion-slow) var(--ease-paper) backwards;

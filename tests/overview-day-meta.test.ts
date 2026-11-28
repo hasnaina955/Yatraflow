@@ -42,14 +42,14 @@ describe('overview day meta line', () => {
 })
 
 describe('overview day title', () => {
-  it('adds the day title after an em dash', () => {
-    expect(overviewDayTitle('Munnar', 1, 'Tea estates & Top Station')).toBe('Munnar — Tea estates & Top Station')
-    expect(overviewDayTitle('Munnar to Thekkady', 2, 'Spice country')).toBe('Munnar to Thekkady — Spice country')
+  it('adds the day title after a dash', () => {
+    expect(overviewDayTitle('Munnar', 1, 'Tea estates & Top Station')).toBe('Munnar – Tea estates & Top Station')
+    expect(overviewDayTitle('Munnar to Thekkady', 2, 'Spice country')).toBe('Munnar to Thekkady – Spice country')
   })
-  it('turns a place: theme title into the em dash form', () => {
-    expect(overviewDayTitle('Munnar to Kundala Valley', 1, 'Munnar: tea estates & Top Station')).toBe('Munnar — tea estates & Top Station')
-    expect(overviewDayTitle('Kochi to Munnar', 0, 'Kochi to Munnar: waterfalls en route')).toBe('Kochi to Munnar — waterfalls en route')
-    expect(overviewDayTitle('Kochi', 0, 'Note:')).toBe('Kochi — Note:')
+  it('turns a place: theme title into the dash form', () => {
+    expect(overviewDayTitle('Munnar to Kundala Valley', 1, 'Munnar: tea estates & Top Station')).toBe('Munnar – tea estates & Top Station')
+    expect(overviewDayTitle('Kochi to Munnar', 0, 'Kochi to Munnar: waterfalls en route')).toBe('Kochi to Munnar – waterfalls en route')
+    expect(overviewDayTitle('Kochi', 0, 'Note:')).toBe('Kochi – Note:')
   })
   it('never adds a default or repeated title', () => {
     expect(overviewDayTitle('Kochi to Munnar', 0, undefined)).toBe('Kochi to Munnar')

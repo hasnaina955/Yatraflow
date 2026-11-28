@@ -5,10 +5,10 @@
 export function redactClaimUrl(url: string): string {
   let decoded = url
   for (let i = 0; i < 8; i++) {
-    if (/\/claim\//i.test(decoded)) return '/claim'
+    if (/\/claim(?=[#/?]|$)/i.test(decoded)) return '/claim'
     const next = decoded.replace(/%([\da-f]{2})/gi, (_, byte: string) => String.fromCharCode(parseInt(byte, 16)))
     if (next === decoded) return url
     decoded = next
   }
-  return /%[\da-f]{2}|\/claim\//i.test(decoded) ? '/' : url
+  return /%[\da-f]{2}|\/claim(?=[#/?]|$)/i.test(decoded) ? '/' : url
 }

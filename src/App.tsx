@@ -27,7 +27,7 @@ import { analyticsBeforeSend } from './lib/analyticsPrivacy'
 import { scrollBehavior } from './lib/motion'
 import { canonicalPath, isPrivateRoute, pageMeta, routeParts } from './lib/pageTitle'
 import { PUBLIC_ORIGIN } from './lib/shareUrl'
-import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath, creatorClaimToken } from './lib/routes'
+import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath } from './lib/routes'
 import { stashCalcPrefillFromSearch } from './lib/calcPrefill'
 import { normalizeInviteCode, inviteRoute } from './lib/inviteCode'
 import {
@@ -654,9 +654,8 @@ export default function App() {
   // never the website's home. That ready-gate exclusion used to be
   // unconditional, so every launch flashed the marketing landing + its
   // website chrome before NativeHome arrived.
-  if (parts[0] === 'claim') {
-    const claimToken = creatorClaimToken(route)
-    page = <Suspense fallback={lazyRouteFallback}><ClaimProfilePage key={claimToken ?? 'invalid'} token={claimToken} /></Suspense>
+  if (parts[0] === 'claim' && route.split('?')[0] === '/claim') {
+    page = <Suspense fallback={lazyRouteFallback}><ClaimProfilePage /></Suspense>
   } else if (!ready && parts[0] !== 'auth' && parts[0] !== 'share' && !STATIC_COPY_SEGMENTS.has(parts[0] ?? '') && (!bareRoute || isNative)) {
     if (isNative && bareRoute) page = <NativeHomeStartupPage />
     else page = lazyRouteFallback

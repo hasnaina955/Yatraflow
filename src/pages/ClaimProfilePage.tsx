@@ -4,6 +4,7 @@ import { Calendar, Lock, MapPin, CheckCircle2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { currentUser, getSnapshot, resumeSync, useDb } from '../store/store'
 import { appLink } from '../lib/appLink'
+import { clearClaimToken, readClaimToken } from '../lib/claimToken'
 import { browseClaimAvatar, claimAccountReady } from '../lib/creatorClaimView'
 import { claimError, readClaimPreview, readClaimTransfer, type ClaimPreview, type ClaimTransfer } from '../lib/creatorClaim'
 import { PageHeader } from '../components/page/PageHeader'
@@ -46,7 +47,10 @@ function ClaimBody({ token }: { token: string }) {
         if (!preview || (!response.ok && (response.status !== 404 || preview.status !== 'invalid'))) {
           throw new Error('Preview unavailable')
         }
-        if (!controller.signal.aborted) setRead({ kind: 'ready', preview })
+        if (!controller.signal.aborted) {
+          if (preview.status !== 'unclaimed') clearClaimToken(() => window.localStorage)
+          setRead({ kind: 'ready', preview })
+        }
       } catch {
         if (!controller.signal.aborted) setRead({ kind: 'failed' })
       }
@@ -94,6 +98,7 @@ function ClaimBody({ token }: { token: string }) {
         setError('We could not confirm the claim. Check My trips before you try again.')
         return
       }
+      clearClaimToken(() => window.localStorage)
       setTransfer(result)
       await refreshAccount(result)
     } catch {
@@ -104,7 +109,7 @@ function ClaimBody({ token }: { token: string }) {
     }
   }
 
-  const claimPath = `/claim/${token}` as const
+  const claimPath = '/claim'
   const authPath = (mode: 'signup' | 'signin') => `/auth?mode=${mode}&next=${encodeURIComponent(claimPath)}` as const
 
   if (transfer) {
@@ -191,8 +196,17 @@ function ClaimBody({ token }: { token: string }) {
   </>
 }
 
-export function ClaimProfilePage({ token }: { token: string | null }) {
+export function ClaimProfilePage() {
+  const [token, setToken] = useState<string | null | undefined>(undefined)
+  const initialized = useRef(false)
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+    // Read the browser address after mount, then remove the private fragment.
+    setToken(readClaimToken(window.location.hash, () => window.localStorage, () => window.history.replaceState(null, '', '/claim')))
+  }, [])
   return <div className="container yf-page page-enter claim-page">
-    {token ? <ClaimBody token={token} /> : <StateBlock kind="empty" titleLevel="h1" title="Invitation unavailable" body="We could not find this invitation." />}
+    {token === undefined ? <StateBlock kind="loading" titleLevel="h1" title="Loading your private invitation" /> : token ? <ClaimBody token={token} /> :
+      <StateBlock kind="empty" titleLevel="h1" title="Open your invite link again" body="Your account is ready. Tap the invite link from your message once more to see your trips." actions={<a className="btn btn-primary" {...appLink('/trips')}>My trips</a>} />}
   </div>
 }

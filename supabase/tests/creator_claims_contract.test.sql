@@ -36,6 +36,17 @@ end $$;
 select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111101', true);
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111101","role":"authenticated","app_metadata":{"role":"masteradmin"}}',true);
 set local role authenticated;
+do $$
+begin
+  begin
+    perform public.admin_create_creator_claim(
+      '11111111-1111-4111-8111-111111111102', repeat('e',64), 'Invalid Seed',
+      p_trips => '[{"name":"Invalid trip","destinations":[],"days":[null]}]');
+    raise exception 'Malformed days were accepted';
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'invalid seed trip' then raise; end if;
+  end;
+end $$;
 select * from public.admin_create_creator_claim(
   '11111111-1111-4111-8111-111111111102',repeat('a',64),'Creator Seed',
   'https://example.invalid/avatar.png','Delhi','Travel planner','{"instagram":"https://instagram.com/example"}',

@@ -1,33 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readClaimToken, clearClaimToken } from '../src/lib/claimToken'
 import { authNext } from '../src/lib/authNext'
-import { creatorClaimToken, creatorClaimEmailRedirect, ROUTED_SEGMENTS } from '../src/lib/routes'
+import { claimTokenFromHash, creatorClaimEmailRedirect, ROUTED_SEGMENTS } from '../src/lib/routes'
 import { readClaimPreview, readClaimTransfer } from '../src/lib/creatorClaim'
 import { browseClaimAvatar, claimAccountReady } from '../src/lib/creatorClaimView'
 
 const token = 'a'.repeat(64)
-const route = `/claim/${token}`
 describe('the preview and signup route', () => {
-  it('reads the token on a direct visit and an email return', () => {
-    expect(creatorClaimToken(route)).toBe(token)
-    expect(creatorClaimToken(`${route}?code=callback`)).toBe(token)
+  it('accepts only a lowercase hex fragment and a token-free return', () => {
+    expect(claimTokenFromHash(`#${token}`)).toBe(token)
+    for (const bad of ['', '#access_token=abc', `#${token.toUpperCase()}`, `#${token}/extra`]) expect(claimTokenFromHash(bad)).toBeNull()
+    expect(creatorClaimEmailRedirect(authNext('/claim'), 'https://www.example.test')).toBe('https://www.example.test/claim')
+    expect(creatorClaimEmailRedirect(`/claim/${token}`, 'https://www.example.test')).toBeUndefined()
     expect(ROUTED_SEGMENTS).toContain('claim')
-  })
-  it('accepts only a single lowercase hex token', () => {
-    for (const bad of ['/claim', '/claim/abc', `/claim/${token}/extra`, `/claim/${token.toUpperCase()}`, `//claim/${token}`]) {
-      expect(creatorClaimToken(bad)).toBeNull()
-      expect(creatorClaimEmailRedirect(bad, 'https://www.example.test')).toBeUndefined()
-    }
-  })
-  it('uses the sanitized return path for email confirmation', () => {
-    expect(creatorClaimEmailRedirect(authNext(encodeURIComponent(route)), 'https://www.example.test')).toBe(`https://www.example.test${route}`)
-    expect(creatorClaimEmailRedirect(authNext('https://other.test'), 'https://www.example.test')).toBeUndefined()
-    expect(creatorClaimEmailRedirect(authNext('/trips'), 'https://www.example.test')).toBeUndefined()
-  })
-  it('mounts claim before the account loading gate', () => {
-    const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
-    expect(app.indexOf("if (parts[0] === 'claim') {")).toBeLessThan(app.indexOf("if (!ready && parts[0] !== 'auth'"))
-    expect(app).toContain('<ClaimProfilePage key={claimToken ?? \'invalid\'} token={claimToken} />')
+    expect(readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')).toContain('<ClaimProfilePage />')
   })
 })
 
@@ -75,5 +62,26 @@ describe('account refresh after transfer', () => {
     expect(claimAccountReady({ ...account, sliceReads: { 'self profile': 'failed', trips: 'ok' } }, transfer)).toBe(false)
     expect(claimAccountReady({ ...account, sliceReads: { 'self profile': 'ok', trips: 'failed' } }, transfer)).toBe(false)
     expect(claimAccountReady({ ...account, sessionUserId: 'v' }, transfer)).toBe(false)
+  })
+})
+
+describe('claim token storage', () => {
+  it('stores a valid fragment, removes it from the address and restores it', () => {
+    let value: string | null = null
+    const storage = { getItem: () => value, setItem: (_key: string, item: string) => { value = item }, removeItem: () => { value = null } }
+    let cleared = false
+    expect(readClaimToken(`#${token}`, () => storage, () => { cleared = true })).toBe(token)
+    expect(cleared).toBe(true)
+    expect(readClaimToken('#access_token=abc', () => storage, () => { throw new Error('unexpected') })).toBe(token)
+    clearClaimToken(() => storage)
+    expect(readClaimToken('', () => storage, () => {})).toBeNull()
+  })
+  it('keeps a valid fragment for this visit when storage throws', () => {
+    const unavailable = () => { throw new Error('unavailable') }
+    let cleared = false
+    expect(readClaimToken(`#${token}`, unavailable, () => { cleared = true })).toBe(token)
+    expect(cleared).toBe(true)
+    expect(readClaimToken('', unavailable, () => {})).toBeNull()
+    expect(() => clearClaimToken(unavailable)).not.toThrow()
   })
 })

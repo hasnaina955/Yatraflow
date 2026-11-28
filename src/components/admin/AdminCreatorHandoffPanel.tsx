@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { parseTripImport, type ParsedTripImport } from '../../lib/tripImport'
 import { supabase } from '../../lib/supabase'
-import { creatorClaimToken } from '../../lib/routes'
+import { claimTokenFromHash } from '../../lib/routes'
 import { nativeCopyText } from '../../lib/native'
 import { claimError, record } from '../../lib/creatorClaim'
 import { Surface } from '../page/Surface'
@@ -35,7 +35,7 @@ function claimLink(value: unknown): string | null {
   if (!record(value) || typeof value.claimUrl !== 'string') return null
   try {
     const url = new URL(value.claimUrl)
-    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !creatorClaimToken(url.pathname)) return null
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.pathname !== '/claim' || !claimTokenFromHash(url.hash)) return null
     return url.href
   } catch { return null }
 }

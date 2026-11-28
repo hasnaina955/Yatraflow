@@ -115,6 +115,11 @@ export default async function handler(req, res) {
     const user = await getAuthUser(url, anonKey, token, AbortSignal.timeout(10000))
     if (!isMasterAdmin(user)) return claimJson(res, 403, { error: 'Master admin access is required.' })
     const headers = adminHeaders(anonKey, token)
+    const profileResponse = await claimFetch(`${url}/rest/v1/profiles?select=is_disabled&id=eq.${user.id}`, { headers })
+    if (!profileResponse.ok) return claimUnavailable(res)
+    const profiles = await profileResponse.json()
+    if (!Array.isArray(profiles)) return claimUnavailable(res)
+    if (profiles.length !== 1 || profiles[0]?.is_disabled !== false) return claimJson(res, 403, { error: 'Master admin access is required.' })
 
     if (req.method === 'GET') {
       const response = await claimFetch(
@@ -177,7 +182,7 @@ export default async function handler(req, res) {
       if (!isUuid(row?.claim_id) || !Array.isArray(row?.trip_ids)
         || row.trip_ids.length !== normalized.p_trips.length || !row.trip_ids.every(isUuid)) return uncertainCreate(res)
       // Never derive a secret-bearing address from an untrusted Host header.
-      const claimPath = `/claim/${rawToken}`
+      const claimPath = `/claim#${rawToken}`
       return claimJson(res, 201, { claimId: row.claim_id, tripIds: row.trip_ids, claimPath, claimUrl: `${resolveOrigin()}${claimPath}` })
     } catch {
       return uncertainCreate(res)

@@ -10,7 +10,7 @@ describe('claim redaction only matches claim paths', () => {
   })
 
   it('still redacts a claim path and an encoded claim return', () => {
-    expect(redactClaimUrl(`/claim/${hash}`)).toBe('/claim')
-    expect(redactClaimUrl(`/auth?next=${encodeURIComponent('/claim/' + hash)}`)).toBe('/claim')
+    expect(redactClaimUrl(`/claim#${hash}`)).toBe('/claim')
+    expect(redactClaimUrl(`/auth?next=${encodeURIComponent('/claim')}`)).toBe('/claim')
   })
 })

@@ -128,6 +128,7 @@ begin
     if jsonb_typeof(v_trip) <> 'object'
       or nullif(btrim(v_trip ->> 'name'), '') is null
       or coalesce(jsonb_typeof(v_trip -> 'days'), '') <> 'array'
+      or exists (select 1 from jsonb_array_elements(case when jsonb_typeof(v_trip -> 'days') = 'array' then v_trip -> 'days' else '[]'::jsonb end) d where jsonb_typeof(d) <> 'object')
       or coalesce(jsonb_typeof(v_trip -> 'destinations'), '') <> 'array' then
       raise exception 'invalid seed trip' using errcode = '22023';
     end if;

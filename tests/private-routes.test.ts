@@ -14,7 +14,7 @@ describe('the route helpers name the private pages and the canonical pages', () 
   it.each([
     '/trip/11111111-2222-3333-4444-555555555555', '/trip/abc/map', '/trips', '/new', '/profile', '/purchases',
     '/creator-hub', '/admin', '/auth?mode=signup', '/created/abc', '/share/payload', '/join/GOA-K7QFH3WT',
-    '/invite/11111111-2222-3333-4444-555555555555', `/claim/${'a'.repeat(64)}`,
+    '/invite/11111111-2222-3333-4444-555555555555', '/claim',
   ])('marks %s as private, so it is noindex', route => {
     expect(isPrivateRoute(routeParts(route))).toBe(true)
   })

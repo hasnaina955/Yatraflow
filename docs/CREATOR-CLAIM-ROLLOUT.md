@@ -8,7 +8,7 @@ The master admin can import one or more trip files and create a private claim li
 2. Apply `supabase/migrations/20261128_creator_profile_claims.sql` before the app release.
 3. Check that the migration is present. Use `npm run check:migrations` with the credentials of the target project.
 4. Deploy the app to the standby environment. Check the claim page with a test account.
-5. In Supabase, open Authentication, then URL Configuration. Add `https://www.yatraflow.in/claim/*` and `http://localhost:5173/claim/*` to Redirect URLs. Add the standby host if it sends confirmation emails.
+5. In Supabase, open Authentication, then URL Configuration. Add `https://www.yatraflow.in/claim` and `http://localhost:5173/claim` to Redirect URLs. Add the standby host if it sends confirmation emails.
 6. Use the server-only `SUPABASE_SERVICE_ROLE_KEY`, the public `SUPABASE_ANON_KEY` and the project URL. Set `PUBLIC_ORIGIN` if the deployment must use a different origin.
 7. Check a new account with email confirmation, an existing account, an expired link and a revoked link. Check that the new owner can open and edit each trip, and that an account cannot claim a second time.
 8. Check the generic link card in a chat preview and the claim page in a phone browser and Instagram WebView.

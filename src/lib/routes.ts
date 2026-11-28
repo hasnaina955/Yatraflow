@@ -33,16 +33,13 @@ export function needsSignupForCreate(ready: boolean, sessionId: string | null, h
   return ready && sessionId === null && head === CREATE_SEGMENT
 }
 
-/** Claim paths contain a single private invitation token. The query carries
- *  the email confirmation code on return, but is not part of the token. */
-export function creatorClaimToken(route: string): string | null {
-  return /^\/claim\/([a-f0-9]{64})$/.exec(route.split('?')[0])?.[1] ?? null
+export function claimTokenFromHash(hash: string): string | null {
+  return /^#([a-f0-9]{64})$/.exec(hash)?.[1] ?? null
 }
 
 /** Only a validated claim route may become the email confirmation destination. */
 export function creatorClaimEmailRedirect(next: string, origin: string): string | undefined {
-  const token = creatorClaimToken(next)
-  return token && next === `/claim/${token}` ? `${origin}/claim/${token}` : undefined
+  return next === '/claim' ? `${origin}/claim` : undefined
 }
 
 /** Every first segment the router resolves (`App.tsx`'s pre-switch gates and

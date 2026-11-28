@@ -75,7 +75,7 @@
       ]
     },
     {
-      "source": "/claim/:token",
+      "source": "/claim",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -216,7 +216,7 @@
       "destination": "/api/join?code=:code"
     },
     {
-      "source": "/claim/([^/]+)",
+      "source": "/claim",
       "has": [
         {
           "type": "header",

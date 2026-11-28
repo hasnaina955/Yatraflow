@@ -37,6 +37,7 @@ export interface TabAddState {
   tab: WorkspaceTabKey
   stopDay: number | null
   timelineEditing: boolean
+  mapSheetOpen?: boolean
   kinds: readonly AddKind[]
   run: (kind: AddKind, dayIndex?: number) => void
 }
@@ -149,6 +150,7 @@ export interface TabAddInput {
   tab: WorkspaceTabKey
   stopDay?: number | null
   timelineEditing?: boolean
+  mapSheetOpen?: boolean
   /** The flows this tab opens itself. A missing kind goes through the workspace. */
   handlers: Partial<Record<AddKind, (dayIndex?: number) => void>>
 }
@@ -176,14 +178,15 @@ export function useTabAdd(input: TabAddInput): void {
   const { tripId, tab } = input
   const stopDay = input.stopDay ?? null
   const timelineEditing = input.timelineEditing ?? false
+  const mapSheetOpen = input.mapSheetOpen ?? false
   const kindsKey = (Object.keys(input.handlers) as AddKind[]).filter(k => handlerFor(input.handlers, k)).sort().join(',')
   useEffect(() => {
     const kinds = kindsKey ? (kindsKey.split(',') as AddKind[]) : []
     return publishTab({
-      tripId, tab, stopDay, timelineEditing, kinds,
+      tripId, tab, stopDay, timelineEditing, mapSheetOpen, kinds,
       run: (kind, dayIndex) => { handlerFor(handlersRef.current, kind)?.(dayIndex) },
     })
-  }, [tripId, tab, stopDay, timelineEditing, kindsKey])
+  }, [tripId, tab, stopDay, timelineEditing, mapSheetOpen, kindsKey])
   // One-shot, on mount: the request `go` left for this tab.
   useEffect(() => {
     const req = consumeTabRequest(tripId, tab)
@@ -206,6 +209,7 @@ export function tripScopeOf(s: AddSnapshot, routeTripId: string | null): TripAdd
     isMember: ws.isMember,
     chakra: ws.chakra,
     mapFullscreen: ws.mapFullscreen,
+    mapSheetOpen: tab?.mapSheetOpen ?? false,
     stopDay: ws.tab === 'overview' ? ws.overviewDay : tab?.stopDay ?? null,
     timelineEditing: tab?.timelineEditing ?? false,
   }

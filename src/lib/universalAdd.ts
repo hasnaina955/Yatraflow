@@ -21,7 +21,7 @@
 //   (`change_trip_access 'invite'` checks `is_member`).
 // - The day target comes from the tab that owns the day focus. When that tab has
 //   not published one, the label carries no day: the resolver never invents one.
-// - A sheet, a dialog, the keyboard or the full-screen phone Map hides it.
+// - A sheet, a dialog or the keyboard hides it.
 
 import type { WorkspaceTabKey } from './workspaceHeader'
 
@@ -53,6 +53,8 @@ export interface TripAddScope {
   chakra: boolean
   /** W10: the phone Map tab owns the whole screen. */
   mapFullscreen: boolean
+  /** Phone Map only: a planning, detail or stop sheet is open above peek. */
+  mapSheetOpen?: boolean
   /** The day the tab on screen targets (Timeline `addTargetDay`, Board focus,
    *  Overview first day that needs work). null: not published. */
   stopDay: number | null
@@ -74,7 +76,7 @@ export interface AddContextInput {
 }
 
 /**
- * - `hidden`: draw nothing (an overlay, the keyboard, the full-screen Map, signed out).
+ * - `hidden`: draw nothing (a sheet, a dialog, the keyboard, signed out).
  * - `none`: the screen has no add. Native keeps a disabled "+" in the slot.
  * - `ready`: a primary action, and a menu of the other actions.
  */
@@ -166,7 +168,7 @@ export function resolveAddContext(input: AddContextInput): AddContext {
   // Loading or failed: the workspace has not published. Hidden, not "none",
   // so a slow read never flashes a disabled control.
   if (!scope) return HIDDEN
-  if (scope.mapFullscreen) return HIDDEN
+  if (scope.mapSheetOpen) return HIDDEN
 
   const own = TAB_PRIMARY[scope.tab]
   if (own === null) return NONE

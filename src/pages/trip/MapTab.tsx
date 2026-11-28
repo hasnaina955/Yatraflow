@@ -2048,11 +2048,12 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
     <button type="button" className="btn btn-ghost btn-sm" onClick={retryScan} disabled={loadingPois} title="Refresh suggestions"><RotateCcw size={14} aria-hidden />Refresh</button>
   </footer>
   // #1064: the universal Add control's Add place puts the cursor in the map's
-  // own search. It shows only where the map is not full screen (a wide native
-  // screen); the full-screen phone Map hides the control.
+  // own search. It hides on phones while a map sheet or the keyboard is open.
+  const mapSheetOpen = phoneSheet && ((deckOpen && (snap !== 'peek' || sheetTab === 'needs' || !!selectedHit)) || stopCardOpen)
   useTabAdd({
     tripId: trip.id,
     tab: 'map',
+    mapSheetOpen,
     handlers: editable ? {
       'add-place': () => document.querySelector<HTMLInputElement>('.map-ideas-map input[aria-label="Search the map for a place to add"]')?.focus(),
     } : {},

@@ -100,6 +100,11 @@ button.ua-caption { cursor: pointer; }
   transition: opacity var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper);
 }
 .ua-pill[data-state='hidden'] { opacity: 0; transform: translateY(8px); pointer-events: none; }
+/* On the full-screen phone Map, lift the pill above the bottom sheet handle,
+   the journey ribbon and the bottom-right attribution control. */
+@media (max-width: 760px) {
+  body:has(.yf-workspace[data-map-fullscreen='true']) .ua-pill { bottom: calc(200px + var(--bottom-ui-offset)); }
+}
 .ua-pill-main, .ua-pill-more {
   display: flex;
   align-items: center;

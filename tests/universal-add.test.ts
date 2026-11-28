@@ -67,10 +67,13 @@ describe('inside a trip, as an editor', () => {
     expect(c.menu[1]).toEqual(c.primary)
   })
 
-  it('Map adds a place when the map is not full screen (a wide native screen)', () => {
-    const c = ctx('/trip/t1/map', scope({ tab: 'map' }))
-    expect(c.primary?.label).toBe('Add place')
-    expect(labels(c)).toEqual(['Add place', 'Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
+  it('Map adds a place on both wide native screens and the full-screen phone Map', () => {
+    for (const mapFullscreen of [false, true]) {
+      const c = ctx('/trip/t1/map', scope({ tab: 'map', mapFullscreen }))
+      expect(c.state).toBe('ready')
+      expect(c.primary).toEqual({ kind: 'add-place', label: 'Add place' })
+      expect(labels(c)).toEqual(['Add place', 'Add stop', 'Add expense', 'Add decision', 'Invite people', 'Ask Chakra'])
+    }
   })
 
   it('Budget, Group input and Share map to their own add', () => {
@@ -124,8 +127,9 @@ describe('hidden cases', () => {
     expect(ctx('/trip/t1/timeline', scope({ tab: 'timeline' }), { keyboardOpen: true }).state).toBe('hidden')
   })
 
-  it('the full-screen phone Map hides it', () => {
-    expect(ctx('/trip/t1/map', scope({ tab: 'map', mapFullscreen: true })).state).toBe('hidden')
+  it('a map sheet or the keyboard hides it on the full-screen phone Map', () => {
+    expect(ctx('/trip/t1/map', scope({ tab: 'map', mapFullscreen: true, mapSheetOpen: true })).state).toBe('hidden')
+    expect(ctx('/trip/t1/map', scope({ tab: 'map', mapFullscreen: true }), { keyboardOpen: true }).state).toBe('hidden')
   })
 
   it('a trip that is loading or failed (no scope yet) hides it, never a disabled flash', () => {
@@ -224,7 +228,10 @@ describe('the add store', async () => {
     store.resetAddStore()
     store.publishWorkspace(ws({ tab: 'overview' }))
     expect(store.tripScopeOf(store.readAddSnapshot(), 't2')).toBeNull()
-    expect(store.tripScopeOf(store.readAddSnapshot(), 't1')).toMatchObject({ tab: 'overview', stopDay: 2 })
+    expect(store.tripScopeOf(store.readAddSnapshot(), 't1')).toMatchObject({ tab: 'overview', stopDay: 2, mapSheetOpen: false })
+    store.publishWorkspace(ws({ tab: 'map', mapFullscreen: true }))
+    store.publishTab({ tripId: 't1', tab: 'map', stopDay: null, timelineEditing: false, mapSheetOpen: true, kinds: ['add-place'], run: () => {} })
+    expect(store.tripScopeOf(store.readAddSnapshot(), 't1')?.mapSheetOpen).toBe(true)
   })
 
   it('an unpublish only clears its own registration', () => {

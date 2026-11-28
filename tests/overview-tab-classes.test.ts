@@ -70,7 +70,7 @@ describe('Overview panel classes', () => {
 
   it('uses compact state blocks with separate empty copy', () => {
     const routeCard = read('../src/components/trips/OverviewRouteCard.tsx')
-    expect(count(tab, 'kind="empty"')).toBe(8)
+    expect(count(tab, 'kind="empty"')).toBe(9)
     expect(count(routeCard, 'kind="empty"')).toBe(1)
     expect(tab).toContain('title={hasPlan ? \'The plan flows\' : \'Nothing to check yet\'}')
     expect(tab).toContain('title="Nothing planned yet"')

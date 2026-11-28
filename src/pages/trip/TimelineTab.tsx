@@ -46,7 +46,8 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import type { Trip, ItineraryStop } from '../../data/types'
-import { updateTrip, setStopStatus, useDb, currentUser, userById } from '../../store/store'
+import { updateTrip, setStopStatus, addActivity, useDb, currentUser, userById } from '../../store/store'
+import { stopStatusActivity } from '../../lib/stopStatusLog'
 import {
   computeTotals, minutesToHM, formatInr, hmToMinutes,
   collectWarnings, buildJourney, dayRoadPolyline, groupWarnings,
@@ -810,10 +811,18 @@ export function TimelineTab({ trip, editable, applyChange, previewOpen, legCorre
     const { applyChange, trip } = latest.current
     const day = trip.days.find(d => d.stops.some(s => s.id === stop.id))
     if (!day) { toast(`“${stop.title}” is no longer on this trip.`, 'err'); return }
+    // The activity line is written once, when Keep is acknowledged, with the
+    // same wording the direct write uses. A discarded preview leaves no line.
+    // A callback counts as the completion, so the generic saved toast stays
+    // silent and this one names the change.
+    const entry = stopStatusActivity(stop.title, status, day.index)
     applyChange(draft => {
       const target = draft.days.find(d => d.index === day.index)?.stops.find(s => s.id === stop.id)
       if (target) target.status = status
-    }, 'edit', day.index)
+    }, 'edit', day.index, () => {
+      void addActivity(trip.id, entry.verb, entry.target)
+      toast(`“${stop.title}” marked ${status === 'needs-booking' ? 'needs booking' : status}`)
+    })
   }, [])
 
   // --- Plan / Inspect (docs/TIMELINE-PLAN.md Phase 3): Inspect is the study

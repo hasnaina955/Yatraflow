@@ -2,7 +2,7 @@
 // Real slippy-map rendering via mapcn (MapLibre GL): OpenFreeMap basemaps that follow
 // light/dark theme, numbered stop markers in timeline order, and a polyline
 // connecting each day's stops. Distances/durations still come from the engine.
-import { useId, useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps } from 'react'
+import { useId, useMemo, useState, useEffect, useRef, useCallback, Fragment, type ComponentProps, type FocusEvent } from 'react'
 import { useInView, usePageVisible } from './ui'
 import { PillNav } from './PillNav'
 import type { Trip } from '../data/types'
@@ -989,6 +989,22 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
     }
     return { size, insets }
   }, [top, bottom, left, right, workspaceChrome])
+  function revealPhoneMarker(event: FocusEvent<HTMLDivElement>) {
+    const target = event.target
+    const map = mapRef.current
+    if (!map || !(target instanceof HTMLElement) || !target.matches(':focus-visible') ||
+      !target.closest('.maplibregl-marker') || !target.closest('[data-map-fullscreen="true"]')) return
+
+    const mapBox = map.getContainer().getBoundingClientRect()
+    const pin = target.getBoundingClientRect()
+    const { insets } = measureFrame()
+    const margin = 6
+    const dx = Math.max(0, pin.right + margin - mapBox.right + insets.right) -
+      Math.max(0, mapBox.left + insets.left - pin.left + margin)
+    const dy = Math.max(0, pin.bottom + margin - mapBox.bottom + insets.bottom) -
+      Math.max(0, mapBox.top + insets.top - pin.top + margin)
+    if (dx || dy) map.panBy([dx, dy], { duration: 0 })
+  }
   const cameraPadding = useCallback(() => {
     const { size, insets } = measureFrame()
     return workspaceChrome ? firstFitPadding(size, insets) : visibleMapPadding(size, insets)
@@ -2143,7 +2159,7 @@ export function TripMap({ trip, onOpenStop, nearbyPois = [], onAddNearby, focusD
         </div>
       )}
 
-      <div className="map-frame">
+      <div className="map-frame" onFocusCapture={revealPhoneMarker}>
         {!canDrawRoute ? (
           <div className="tm-state">
             <StateBlock kind="empty" size="compact" icon={<MapIcon size={38} aria-hidden />}

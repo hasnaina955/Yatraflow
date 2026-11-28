@@ -33,7 +33,7 @@ describe('focus ring values', () => {
     // The handle is a full-width strip with square corners. Its ring sits on the grip pill, so it never fights the rounded sheet.
     expect(css).toMatch(/\.mv2-workspace \.mv2-sheet-handle:focus-visible > span \{[^}]*box-shadow: 0 0 0 4px/)
     expect(css).toMatch(/\.mv2-workspace \.mv2-sheet-handle:focus-visible \{ outline: none; \}/)
-    expect(css).toMatch(/\.mv2-workspace \.mv2-peek-place:focus-visible[^{]*\{[^}]*box-shadow: var\(--ring\)/)
+    expect(css).toMatch(/\.mv2-workspace \.mv2-peek-place:focus-visible[^{]*\{[^}]*outline: 2px solid var\(--color-primary\); outline-offset: -2px;/)
   })
 })
 

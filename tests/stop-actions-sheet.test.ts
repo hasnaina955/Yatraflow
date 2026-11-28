@@ -151,7 +151,7 @@ describe('the phone stop actions sheet', () => {
     // keeps its direct group-signal write untouched.
     const preview = tab.slice(tab.indexOf('const handleStatusWithPreview'), tab.indexOf('// --- Plan / Inspect'))
     expect(preview).toContain('applyChange(draft => {')
-    expect(preview).toContain("}, 'edit', day.index)")
+    expect(preview).toContain("}, 'edit', day.index, () => {")
     expect(preview).not.toContain('setStopStatus')
     const desktop = tab.slice(tab.indexOf('const handleStatus ='), tab.indexOf('const handleStatusWithPreview'))
     expect(desktop).toContain('setStopStatus(trip.id, status, stop.id)')

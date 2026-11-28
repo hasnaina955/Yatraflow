@@ -337,6 +337,16 @@
 .nh-trips { display: flex; flex-direction: column; gap: 8px; }
 .nh-more { margin-top: 12px; }
 
+/* 27f: the invite card. The mockup's card is a flat teal tint with the same 18px
+   radius as the page cards. The field and the button stack on a phone, and the
+   button sits at its own width from 520px. The card settles in with the page
+   cascade, so it adds no motion of its own. */
+.nh-join { display: grid; gap: 6px; margin-top: 20px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--teal-soft); }
+.nh-join-title { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 800; color: var(--ink-teal); }
+.nh-join .field { margin-bottom: 0; }
+.nh-join-submit { min-height: 44px; }
+@media (min-width: 520px) { .nh-join-submit { justify-self: start; } }
+
 .nh-trip-row:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
 .nh-trip-row:nth-child(3) { animation-delay: calc(var(--stagger-step) * 3); }
 .nh-trip-row:nth-child(4) { animation-delay: calc(var(--stagger-step) * 4); }

@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronUp, MapPin, MapPinPlus, Plus, Receipt, Route, Scale, UserPlus } from 'lucide-react'
-import { resolveAddContext, tripIdOfRoute, raisesKeyboard, stepCompact, type AddAction, type AddKind } from '../lib/universalAdd'
+import { resolveAddContext, tripIdOfRoute, raisesKeyboard, stepCompact, mapFabBottom, type AddAction, type AddKind } from '../lib/universalAdd'
 import { registerAddMenuClose, runTripAdd, tripScopeOf, useAddSnapshot } from '../lib/universalAddStore'
 import { LONG_PRESS_MS } from '../lib/touchDnd'
 import { motionTiming } from '../lib/motion'
@@ -147,16 +147,19 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   const snapshot = useAddSnapshot()
   const locked = useBodyLocked()
   const keyboard = useKeyboardUp()
+  const scope = tripScopeOf(snapshot, tripIdOfRoute(route))
   const ctx = resolveAddContext({
     route,
     signedIn,
     overlayOpen: locked || appOverlay,
     keyboardOpen: keyboard,
-    trip: tripScopeOf(snapshot, tripIdOfRoute(route)),
+    trip: scope,
   })
   const primary = ctx.primary
   const hasMenu = ctx.menu.length > 1
+  const mapFab = variant === 'pill' && !!scope?.mapFullscreen
 
+  const pillRef = useRef<HTMLDivElement>(null)
   const mainRef = useRef<HTMLButtonElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -170,7 +173,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   const menuOpen = menuKey === ctxKey
   const setMenuOpen = useCallback((open: boolean) => { setMenuKey(open ? ctxKey : null) }, [ctxKey])
   const [compactRoute, setCompactRoute] = useState<string | null>(null)
-  const compact = compactRoute === route
+  const compact = !mapFab && compactRoute === route
   const routeRef = useRef(route)
   useLayoutEffect(() => { routeRef.current = route })
 
@@ -183,7 +186,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
 
   // ---- web pill: shrink on a scroll down, grow on a scroll up ----
   useEffect(() => {
-    if (variant !== 'pill') return
+    if (variant !== 'pill' || mapFab) return
     let target: EventTarget | null = window
     let state = { compact: false, anchorY: window.scrollY }
     let pendingTarget: EventTarget | null = null
@@ -213,7 +216,7 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
       window.removeEventListener('scroll', onScroll, { capture: true })
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [variant, route])
+  }, [variant, route, mapFab])
 
   // ---- menu ----
   const closeMenu = useCallback((refocus: boolean) => {
@@ -336,6 +339,77 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   }
 
   const hidden = ctx.state === 'hidden' || (variant === 'pill' && ctx.state === 'none')
+
+  // ---- phone Map FAB: sit 12 px above the peek sheet handle ----
+  useLayoutEffect(() => {
+    const pill = pillRef.current
+    if (!mapFab) {
+      pill?.style.removeProperty('--ua-map-bottom')
+      return
+    }
+    if (hidden) return
+    let ro: ResizeObserver | null = null
+    let wsMo: MutationObserver | null = null
+    let hostMo: MutationObserver | null = null
+    let observedSheet: HTMLElement | null = null
+    let observedWs: Element | null = null
+    const measure = () => {
+      const node = pillRef.current
+      if (!node) return
+      const ws = document.querySelector('.mv2-workspace')
+      if (!ws) return
+      if (ws !== observedWs) {
+        wsMo?.disconnect()
+        observedWs = ws
+        wsMo = new MutationObserver(measure)
+        wsMo.observe(ws, { attributes: true, attributeFilter: ['data-snap'], childList: true, subtree: true })
+      }
+      const sheet = [...ws.querySelectorAll<HTMLElement>('.map-ideas-grid > .poi-col, .map-ideas-grid > .mv2-detail')]
+        .find(el => !el.hasAttribute('hidden') && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none') ?? null
+      if (sheet !== observedSheet) {
+        ro?.disconnect()
+        observedSheet?.removeEventListener('transitionend', measure)
+        observedSheet = sheet
+        if (sheet) {
+          sheet.addEventListener('transitionend', measure)
+          if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(measure)
+            ro.observe(sheet)
+          }
+        }
+      }
+      if (!sheet) {
+        node.style.removeProperty('--ua-map-bottom')
+        return
+      }
+      const handle = sheet.querySelector<HTMLElement>('.mv2-sheet-handle') ?? sheet
+      const rect = handle.getBoundingClientRect()
+      if (rect.height === 0 && rect.top === 0) return
+      node.style.setProperty('--ua-map-bottom', `${mapFabBottom(window.innerHeight, rect.top)}px`)
+    }
+    measure()
+    const host = document.querySelector('.yf-workspace')
+    if (!observedWs && host) {
+      hostMo = new MutationObserver(() => {
+        measure()
+        if (observedWs) {
+          hostMo?.disconnect()
+          hostMo = null
+        }
+      })
+      hostMo.observe(host, { childList: true, subtree: true })
+    }
+    window.addEventListener('resize', measure)
+    window.visualViewport?.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      wsMo?.disconnect()
+      hostMo?.disconnect()
+      observedSheet?.removeEventListener('transitionend', measure)
+      window.removeEventListener('resize', measure)
+      window.visualViewport?.removeEventListener('resize', measure)
+    }
+  }, [mapFab, hidden])
   useEffect(() => {
     if (hidden || !hasMenu) {
       cancelPress()
@@ -394,18 +468,18 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
   }
 
   return (
-    <div className="ua-pill" data-state={state} data-compact={compact ? 'true' : undefined} aria-hidden={hidden || undefined}>
+    <div ref={pillRef} className="ua-pill" data-state={state} data-compact={compact ? 'true' : undefined} data-map-fab={mapFab ? 'true' : undefined} aria-hidden={hidden || undefined}>
       <button ref={mainRef} type="button" className="ua-pill-main"
         tabIndex={hidden ? -1 : undefined}
-        aria-label={compact && primary ? primary.label : undefined}
-        aria-haspopup={compact && hasMenu ? 'menu' : undefined}
-        aria-expanded={compact && hasMenu ? menuOpen : undefined}
-        aria-controls={compact && hasMenu && menuOpen ? menuId : undefined}
+        aria-label={(compact || mapFab) && primary ? primary.label : undefined}
+        aria-haspopup={(compact || mapFab) && hasMenu ? 'menu' : undefined}
+        aria-expanded={(compact || mapFab) && hasMenu ? menuOpen : undefined}
+        aria-controls={(compact || mapFab) && hasMenu && menuOpen ? menuId : undefined}
         onClick={onMainClick} {...pressHandlers}>
-        <Plus size={20} strokeWidth={2.4} aria-hidden />
-        {primary && <AddLabel className="ua-pill-label" text={primary.label} compact={compact} />}
+        <Plus size={mapFab ? 24 : 20} strokeWidth={2.4} aria-hidden />
+        {!mapFab && primary && <AddLabel className="ua-pill-label" text={primary.label} compact={compact} />}
       </button>
-      {hasMenu && (
+      {hasMenu && !mapFab && (
         <button ref={moreRef} type="button" className="ua-pill-more"
           tabIndex={hidden || compact ? -1 : undefined}
           aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuOpen ? menuId : undefined}

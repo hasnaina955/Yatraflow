@@ -1,7 +1,8 @@
 // #1064 · the Universal Add context resolver. One row of the spec per case.
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  resolveAddContext, tripIdOfRoute, raisesKeyboard, nextCompact, stepCompact, ADD_LABELS,
+  resolveAddContext, tripIdOfRoute, raisesKeyboard, nextCompact, stepCompact, mapFabBottom, ADD_LABELS,
   type AddContextInput, type TripAddScope,
 } from '../src/lib/universalAdd'
 
@@ -271,5 +272,23 @@ describe('the add store', async () => {
     expect(closedB).toBe(1)
     expect(store.closeOpenAddMenu()).toBe(false)
     offB()
+  })
+})
+
+describe('full-screen phone Map FAB', () => {
+  it('places the button 12 px above the peek sheet handle top', () => {
+    expect(mapFabBottom(844, 770)).toBe(86)
+    expect(mapFabBottom(844, 860)).toBe(12)
+  })
+
+  it('renders a 56px round "+" with no visible label or chevron and keeps the attribution clear', () => {
+    const comp = readFileSync(new URL('../src/components/UniversalAdd.tsx', import.meta.url), 'utf8')
+    const css = readFileSync(new URL('../src/styles/components/universal-add.css', import.meta.url), 'utf8')
+    expect(comp).toContain("const mapFab = variant === 'pill' && !!scope?.mapFullscreen")
+    expect(comp).toContain("data-map-fab={mapFab ? 'true' : undefined}")
+    expect(comp).toContain('{!mapFab && primary && <AddLabel')
+    expect(comp).toContain('{hasMenu && !mapFab && (')
+    expect(css).toMatch(/\.ua-pill\[data-map-fab='true'\]\s*\{[\s\S]*?width:\s*56px;[\s\S]*?height:\s*56px;[\s\S]*?border-radius:\s*50%;/)
+    expect(css).toContain('.mv2-workspace[data-snap=\'peek\'] .maplibregl-ctrl-bottom-right')
   })
 })

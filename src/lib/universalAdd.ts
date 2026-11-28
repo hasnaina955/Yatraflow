@@ -223,6 +223,13 @@ export interface CompactScrollState {
   anchorY: number
 }
 
+export const MAP_FAB_GAP_PX = 12
+
+/** Bottom offset (px) that seats the Map "+" button 12 px above the peek sheet handle. */
+export function mapFabBottom(viewportHeight: number, sheetTop: number): number {
+  return Math.max(MAP_FAB_GAP_PX, Math.round(viewportHeight - sheetTop + MAP_FAB_GAP_PX))
+}
+
 /**
  * Advance the scroll-shrink state with an anchor that moves only on a flip or
  * further travel in the same direction, so small frame steps cross the dead band.

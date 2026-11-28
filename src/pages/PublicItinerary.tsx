@@ -973,7 +973,7 @@ export function PublicItineraryPage({ slug, onNavigate }: { slug: string; onNavi
           kicker={`${cap(pub.travelStyle)} itinerary`}
           title={pub.title}
           subtitle={pub.tagline}
-          route={`${trip.startLocation} → ${trip.destinations.join(' → ')}${isRoundTrip(trip) ? ` → ${trip.startLocation}` : ''}`}
+          route={[trip.startLocation, ...trip.destinations, ...(isRoundTrip(trip) && trip.startLocation ? [trip.startLocation] : [])].filter(Boolean).join(' → ')}
           facts={heroFacts}
           byline={byline}
           ride={view === 'ride' ? {

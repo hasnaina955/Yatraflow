@@ -109,9 +109,8 @@ describe('Share tab: danger zone, record and marigold', () => {
 })
 
 describe('Share tab: hidden-from-public card', () => {
-  it('lists only the two items the audit proved (HIDDEN-AUDIT.md)', () => {
-    expect(tab).toContain('Crew names, and the booking reference on each flight.')
-    expect(tab).not.toMatch(/home address|phone number|private note/i)
+  it('lists the fields hidden from public copies (#1012, #1015)', () => {
+    expect(tab).toContain('Crew names, your street address and start pin, expenses, booking details, and stop notes on free previews.')
   })
 })
 

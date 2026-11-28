@@ -1268,15 +1268,24 @@ declare
   v_trip public.trips;
   v_level text;
   v_priced boolean;
+  v_keep_notes boolean;
   v_free int[];
+  v_raw_start text;
+  v_raw_start_coords jsonb;
+  v_place_segs text[];
+  v_seg text;
+  v_seg_count int;
   v_days jsonb;
   v_day jsonb;
   v_stops jsonb;
   v_stop jsonb;
+  v_open_stops jsonb;
+  v_safe_stop jsonb;
   v_locked_days jsonb;
   v_categories jsonb;
   v_category text;
   v_day_idx int;
+  v_day_open boolean;
   v_stop_count int;
   v_known_categories constant text[] := array[
     'sightseeing', 'food', 'nature', 'beach', 'temple', 'adventure',
@@ -1350,6 +1359,33 @@ begin
   end if;
 
   v_priced := public.trip_has_priced_publication(v_trip.id);
+  v_keep_notes := (v_level = 'buyer' and v_priced);
+
+  -- #1015: coarsen the owner's start location to at most city/region and drop
+  -- exact start coordinates for every non-crew reader (outsiders and buyers).
+  v_raw_start := coalesce(v_trip.start_location, '');
+  v_raw_start_coords := to_jsonb(v_trip.start_location_coords);
+  v_place_segs := '{}';
+  for v_seg in
+    select btrim(regexp_replace(s, '\m\d{6}\M', '', 'g'))
+    from unnest(string_to_array(v_raw_start, ',')) as s
+  loop
+    v_seg := btrim(regexp_replace(v_seg, '\s+', ' ', 'g'));
+    continue when v_seg = '';
+    continue when lower(v_seg) = 'india';
+    continue when v_seg ~* '^(\#|no\.?\s*\d|[0-9])';
+    continue when v_seg ~* '\m(flat|apt|apartment|house|plot|door|floor|building|bldg|tower|wing|suite|road|rd|street|st|lane|ln|avenue|ave|marg|cross|main|sector|block|phase|colony|enclave|layout|extn|pin|pincode|home)\M';
+    v_place_segs := array_append(v_place_segs, v_seg);
+  end loop;
+  v_seg_count := coalesce(array_length(v_place_segs, 1), 0);
+  if v_seg_count = 0 then
+    v_trip.start_location := '';
+  elsif v_seg_count = 1 then
+    v_trip.start_location := v_place_segs[1];
+  else
+    v_trip.start_location := v_place_segs[v_seg_count - 1] || ', ' || v_place_segs[v_seg_count];
+  end if;
+  v_trip.start_location_coords := null;
 
   -- The crew ledger never leaves. Fixed commitments keep only the fields that
   -- a buyer needs to plan the day; notes and references are dropped.
@@ -1374,13 +1410,6 @@ begin
     v_trip.fixed_commitments := '[]'::jsonb;
   end if;
 
-  -- A buyer, or a free guide, reads every day as the creator wrote it.
-  if v_level = 'buyer' or not v_priced then
-    return next v_trip;
-    return;
-  end if;
-
-  -- A priced guide, for an outsider: free days open, the other days are counted.
   v_free := '{}';
   if v_pub.premium_price_inr is not null and jsonb_typeof(v_pub.free_day_indexes) = 'array' then
     select coalesce(array_agg(value::int), '{}') into v_free
@@ -1410,9 +1439,73 @@ begin
         then (v_day ->> 'index')::int
       else null end;
 
-    -- A free day leaves as the creator wrote it.
-    if v_day_idx is not null and v_day_idx = any (v_free) then
-      v_locked_days := v_locked_days || jsonb_build_array(v_day);
+    v_day_open := (v_level = 'buyer')
+      or (not v_priced)
+      or (v_day_idx is not null and v_day_idx = any (v_free));
+
+    if v_day_open then
+      v_open_stops := '[]'::jsonb;
+      v_stops := v_day -> 'stops';
+      if jsonb_typeof(v_stops) = 'array' then
+        for v_stop_pos in 0 .. jsonb_array_length(v_stops) - 1 loop
+          v_stop := v_stops -> v_stop_pos;
+          continue when jsonb_typeof(v_stop) is distinct from 'object';
+          -- Drop any day-0 auto start anchor that carries the owner's raw home
+          -- address or home coordinates.
+          if (v_stop -> 'auto') = 'true'::jsonb
+             and coalesce(v_day_idx, v_pos) = 0
+             and (
+               (nullif(btrim(v_raw_start), '') is not null
+                and (v_stop ->> 'locationName' = v_raw_start or v_stop ->> 'title' = v_raw_start))
+               or (v_raw_start_coords is not null
+                   and jsonb_typeof(v_raw_start_coords) = 'object'
+                   and (v_stop ->> 'lat') = (v_raw_start_coords ->> 'lat')
+                   and (v_stop ->> 'lng') = (v_raw_start_coords ->> 'lng'))
+             ) then
+            continue;
+          end if;
+          v_safe_stop := jsonb_strip_nulls(jsonb_build_object(
+            'id', v_stop -> 'id',
+            'title', v_stop -> 'title',
+            'category', v_stop -> 'category',
+            'locationName', v_stop -> 'locationName',
+            'placeId', v_stop -> 'placeId',
+            'eLoc', v_stop -> 'eLoc',
+            'placeSource', v_stop -> 'placeSource',
+            'exposure', v_stop -> 'exposure',
+            'lat', v_stop -> 'lat',
+            'lng', v_stop -> 'lng',
+            'description', v_stop -> 'description',
+            'visitMinutes', v_stop -> 'visitMinutes',
+            'openTime', v_stop -> 'openTime',
+            'closeTime', v_stop -> 'closeTime',
+            'entryFeeInrPerPerson', v_stop -> 'entryFeeInrPerPerson',
+            'transportCostInrTotal', v_stop -> 'transportCostInrTotal',
+            'priority', v_stop -> 'priority',
+            'notes', case when v_keep_notes then v_stop -> 'notes' else null end,
+            'slotKey', v_stop -> 'slotKey',
+            'sourceUrl', v_stop -> 'sourceUrl',
+            'status', v_stop -> 'status',
+            'orderInDay', v_stop -> 'orderInDay',
+            'auto', v_stop -> 'auto',
+            'weatherSensitive', v_stop -> 'weatherSensitive',
+            'departTime', v_stop -> 'departTime',
+            'arrivalTime', v_stop -> 'arrivalTime',
+            'legDistanceKm', v_stop -> 'legDistanceKm',
+            'legTravelMinutes', v_stop -> 'legTravelMinutes'
+          ));
+          v_open_stops := v_open_stops || jsonb_build_array(v_safe_stop);
+        end loop;
+      end if;
+
+      v_locked_days := v_locked_days || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
+        'id', v_day -> 'id',
+        'index', v_day -> 'index',
+        'title', v_day -> 'title',
+        'startTime', v_day -> 'startTime',
+        'coverImageUrl', v_day -> 'coverImageUrl',
+        'stops', v_open_stops
+      )));
       continue;
     end if;
 

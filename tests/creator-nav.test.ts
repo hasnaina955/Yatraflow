@@ -1,14 +1,15 @@
-// ============ Creator hub in the phone bottom navigation ============
-// A creator sees five destinations; everyone else keeps four. These assert the
-// rendered navigation and the route-to-destination map, not source text: what a
-// viewer can see, which item is marked current, and where each item points.
+// ============ Creator hub in the phone bottom navigation and Profile ============
+// Everyone sees the four destinations (Home, My trips, Explore, Profile) with
+// the Add slot in the centre. A creator reaches Creator hub from the top row of
+// Profile, and /creator-hub highlights Profile in the bottom bar.
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BottomNav, areaOf, navDestinations } from '../src/components/BottomNav'
 
-const markup = (route: string, isCreator: boolean) =>
-  renderToStaticMarkup(createElement(BottomNav, { route, onNavigate: () => {}, isCreator }))
+const markup = (route: string) =>
+  renderToStaticMarkup(createElement(BottomNav, { route, onNavigate: () => {} }))
 
 /** The visible labels, in bar order. */
 function labels(html: string): string[] {
@@ -22,25 +23,18 @@ function current(html: string): string[] {
 }
 
 describe('destinations', () => {
-  it('gives a non-creator the four primary items, Profile last', () => {
-    expect(navDestinations(false).map((d) => d.label)).toEqual(['Home', 'My trips', 'Explore', 'Profile'])
-    expect(navDestinations(false).some((d) => d.to === '/creator-hub')).toBe(false)
-  })
-
-  it('gives a creator a fifth item, and Profile still last', () => {
-    const items = navDestinations(true)
-    expect(items.map((d) => d.label)).toEqual(['Home', 'My trips', 'Explore', 'Creator', 'Profile'])
-    expect(items[3].to).toBe('/creator-hub')
-    expect(items[items.length - 1].to).toBe('/profile')
+  it('gives everyone the four primary items, Profile last', () => {
+    expect(navDestinations().map((d) => d.label)).toEqual(['Home', 'My trips', 'Explore', 'Profile'])
+    expect(navDestinations().some((d) => d.to === '/creator-hub')).toBe(false)
   })
 })
 
 describe('route to destination', () => {
-  it('maps the hub, and only the hub, to the creator tab', () => {
-    expect(areaOf('/creator-hub')).toBe('creator')
+  it('maps the hub, and only the hub, to the profile tab', () => {
+    expect(areaOf('/creator-hub')).toBe('profile')
     // The public creator page is not the hub, and a stray query must not change that.
     expect(areaOf('/creator/1250e5c4-7d87-4813')).toBe(null)
-    expect(areaOf('/creator-hub?tab=links')).toBe('creator')
+    expect(areaOf('/creator-hub?tab=links')).toBe('profile')
   })
 
   it('keeps the existing mappings', () => {
@@ -54,29 +48,42 @@ describe('route to destination', () => {
 })
 
 describe('rendered navigation', () => {
-  it('shows four items to a non-creator and no creator shortcut', () => {
-    const html = markup('/profile', false)
+  it('shows four items and no creator shortcut in the bottom bar', () => {
+    const html = markup('/profile')
     expect(labels(html)).toEqual(['Home', 'My trips', 'Explore', 'Profile'])
     expect(html).not.toContain('aria-label="Creator hub"')
+    expect(html).not.toContain('data-destinations')
     expect(current(html)).toEqual(['Profile'])
   })
 
-  it('shows five items to a creator, with an accessible name on the short label', () => {
-    const html = markup('/', true)
-    expect(labels(html)).toEqual(['Home', 'My trips', 'Explore', 'Creator', 'Profile'])
-    expect(html).toContain('aria-label="Creator hub"')
-    expect(current(html)).toEqual(['Home'])
+  it('marks Profile current on the creator hub route', () => {
+    const html = markup('/creator-hub')
+    expect(current(html)).toEqual(['Profile'])
   })
 
-  it('marks the creator item current on the hub route', () => {
-    const html = markup('/creator-hub', true)
-    expect(current(html)).toEqual(['Creator'])
+  it('keeps other routes unlit or on their own tab', () => {
+    expect(current(markup('/trips'))).toEqual(['My trips'])
+    expect(current(markup('/new'))).toEqual([])
   })
 
-  it('leaves the creator item unlit on a non-hub route, and lights nothing on a hub visit by a non-creator', () => {
-    expect(current(markup('/trips', true))).toEqual(['My trips'])
-    // A non-creator who reaches the hub by typing the URL gets no lit tab: the
-    // bar has no such item, and the page guard is what stops them.
-    expect(current(markup('/creator-hub', false))).toEqual([])
+  it('removes the five-destination CSS rules', () => {
+    const legacy = readFileSync(new URL('../src/styles/legacy/13-phone-polish-and-guided-create.css', import.meta.url), 'utf8')
+    const uaCss = readFileSync(new URL('../src/styles/components/universal-add.css', import.meta.url), 'utf8')
+    expect(legacy).not.toContain('data-destinations')
+    expect(uaCss).not.toContain('data-destinations')
+  })
+
+  it('places the Creator hub row at the top of Profile for creators, with no Account duplicate', () => {
+    const profile = readFileSync(new URL('../src/pages/Profile.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+    const main = profile.slice(profile.indexOf('<div className="prof-main">'))
+    const hubRow = main.indexOf('className="yf-surface prof-hub-row"')
+    const firstSection = main.indexOf('<Section id="details"')
+    expect(hubRow).toBeGreaterThan(-1)
+    expect(hubRow).toBeLessThan(firstSection)
+    expect(main.slice(hubRow, firstSection)).toContain("onNavigate('/creator-hub')")
+    expect(main.slice(hubRow, firstSection)).toContain('<Sparkles')
+    expect(main.slice(hubRow, firstSection)).toContain('<ChevronRight')
+    const account = main.slice(main.indexOf('<Section id="account"'))
+    expect(account).not.toContain("'/creator-hub'")
   })
 })

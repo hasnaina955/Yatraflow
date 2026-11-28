@@ -6,10 +6,9 @@
 // fixed bar above the gesture bar, equal columns, icon over an 11px label,
 // 58px of tap height, the active destination tinted.
 //
-// Four destinations for everyone. A creator gets a fifth, Creator hub, placed
-// before Profile so Profile stays last. The gate is the real profile flag, and
-// it only decides whether a shortcut is drawn: the /creator-hub route keeps its
-// own guard, so hiding this item is navigation, not authorization.
+// Four destinations for everyone: Home, My trips, Explore and Profile. A
+// creator reaches Creator hub from a row at the top of Profile, so the bottom
+// bar stays five columns with the universal Add slot in the centre.
 //
 // This component never mounts on the web: App.tsx renders it only when
 // isNative && me, so the website keeps the pill nav byte-for-byte.
@@ -23,7 +22,7 @@
 // a navigation bar — back should walk history, not hide the nav.
 
 import { Fragment, type ReactNode } from 'react'
-import { Compass, House, Sparkles, Tent, User } from 'lucide-react'
+import { Compass, House, Tent, User } from 'lucide-react'
 
 export interface NavDestination {
   to: string
@@ -37,35 +36,29 @@ const HOME: NavDestination = { to: '/', label: 'Home', Icon: House }
 const TRIPS: NavDestination = { to: '/trips', label: 'My trips', Icon: Tent }
 const EXPLORE: NavDestination = { to: '/explore', label: 'Explore', Icon: Compass }
 const PROFILE: NavDestination = { to: '/profile', label: 'Profile', Icon: User }
-/** Creators only. The visible label is short because five columns are narrow;
- *  the accessible name stays "Creator hub". */
-const CREATOR: NavDestination = { to: '/creator-hub', label: 'Creator', title: 'Creator hub', Icon: Sparkles }
 
-/** The ordered destinations for this viewer: Profile always last. */
-export function navDestinations(isCreator: boolean): NavDestination[] {
-  return isCreator
-    ? [HOME, TRIPS, EXPLORE, CREATOR, PROFILE]
-    : [HOME, TRIPS, EXPLORE, PROFILE]
+/** The ordered destinations for everyone: Profile always last. */
+export function navDestinations(): NavDestination[] {
+  return [HOME, TRIPS, EXPLORE, PROFILE]
 }
 
 /** Where the user is, for active-state purposes. */
-export type Area = 'home' | 'trips' | 'explore' | 'creator' | 'profile' | null
+export type Area = 'home' | 'trips' | 'explore' | 'profile' | null
 
 /**
  * Map a hash route onto a destination. Query strings ride on the segment
  * (`/explore?style=beach`, App.tsx strips them the same way), so drop them
  * first. A trip workspace belongs to My trips — it is opened from that list
- * and back returns there; every other route (/new, /creator/:id, /admin,
- * /pub/:slug, …) lights nothing, which is honest: the nav has no such tab.
- * The public creator page is deliberately not the hub.
+ * and back returns there; `/creator-hub` is reached from Profile, so it lights
+ * Profile; every other route (/new, /creator/:id, /admin, /pub/:slug, …)
+ * lights nothing, which is honest: the nav has no such tab.
  */
 export function areaOf(route: string): Area {
   const path = route.split('?')[0]
   if (path === '/') return 'home'
   if (path === '/trips' || path.startsWith('/trip/')) return 'trips'
   if (path === '/explore') return 'explore'
-  if (path === '/creator-hub') return 'creator'
-  if (path === '/profile') return 'profile'
+  if (path === '/profile' || path === '/creator-hub') return 'profile'
   return null
 }
 
@@ -74,26 +67,21 @@ export function badgeText(unread: number): string | null {
   return unread > 9 ? '9+' : String(Math.floor(unread))
 }
 
-export function BottomNav({ route, onNavigate, isCreator = false, unread = 0, centre }: {
+export function BottomNav({ route, onNavigate, unread = 0, centre }: {
   route: string
   onNavigate: (r: string) => void
-  /** The real profile flag. Only decides whether the Creator hub item is drawn. */
-  isCreator?: boolean
   unread?: number
   /** The universal Add slot (#1064), drawn right after My trips. */
   centre?: ReactNode
 }) {
   const current = areaOf(route)
-  const items = navDestinations(isCreator)
+  const items = navDestinations()
   const badge = badgeText(unread)
   return (
-    // data-destinations lets the END of styles.css scope a five-column grid to
-    // this case, so the four-item bar keeps its own rule untouched.
     <nav
       className="bottom-nav"
       role="navigation"
       aria-label="Primary"
-      data-destinations={items.length}
       data-centre={centre ? 'true' : undefined}
     >
       {items.map(({ to, label, title, Icon }) => {

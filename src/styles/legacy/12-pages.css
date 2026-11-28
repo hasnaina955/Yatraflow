@@ -1324,6 +1324,27 @@
 .prof-head-mark { flex: none; display: flex; align-items: center; }
 .prof-sub-title { margin: 0; font: var(--pw-ui); color: var(--text); }
 
+/* Creator hub shortcut row at the top of Profile (relocated from BottomNav). */
+.prof-hub-row {
+  display: flex; align-items: center; gap: var(--space-5);
+  width: 100%; min-height: 44px; padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-lg); border-color: var(--pw-marigold-100);
+  text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-paper), border-color var(--motion-fast) var(--ease-paper), transform var(--motion-instant) var(--ease-paper);
+}
+.prof-hub-row:hover { background: var(--pw-soft); border-color: var(--pw-marigold-500); }
+.prof-hub-row:active { transform: scale(.99); }
+.prof-hub-row:focus-visible { outline: 2px solid var(--pw-lagoon-600); outline-offset: 2px; }
+.prof-hub-tile { background: var(--pw-marigold-100); color: var(--pw-marigold-ink); }
+.prof-hub-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.prof-hub-title { font: var(--pw-ui); font-weight: 700; color: var(--text); }
+.prof-hub-sub { font-size: 12.5px; line-height: 1.35; color: var(--pw-ink-3); }
+.prof-hub-chev { flex: none; color: var(--pw-ink-3); }
+@media (prefers-reduced-motion: reduce) {
+  .prof-hub-row { transition: none; }
+  .prof-hub-row:active { transform: none; }
+}
+
 /* ---------- Profile: the avatar row and the name/city pair ---------- */
 .prof-avatar-row {
   display: flex; align-items: center; gap: var(--space-7);

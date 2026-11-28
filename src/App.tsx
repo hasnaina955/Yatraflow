@@ -1039,11 +1039,11 @@ export default function App() {
       {/* The shell's primary navigation - same platform gate as the shell home
           above (isNative && me), so the website never renders it. It replaces
           the floating pill (hidden in the shell via CSS); the hamburger tray
-          is web-only — its shell-side destinations are the four tabs, plus a
-          Creator hub tab for a creator, or the relocated controls on Profile.
+          is web-only — its shell-side destinations are the four tabs, with
+          Creator hub and relocated controls on Profile.
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
-      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} centre={addSlot} />}
+      {isNative && me && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} />}
       {/* #1064: the phone web skin of the same control. Signed out, the landing
           page carries its own calls to action, so the pill is not drawn. */}
       {phoneWeb && me && (

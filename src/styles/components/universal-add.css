@@ -8,13 +8,10 @@
    that focused the button before it opened must be able to focus it again. */
 
 /* ---- the native centre slot ---- */
-/* BottomNav adds one column for the slot, third from the start. The destination
-   count keeps its own attribute, so the four- and five-item rules stay as they
-   are. The slot column is wider: its caption is the longest text in the bar
-   ("Add expense" is 70px at 11px), and a creator's six-column bar leaves a
-   plain column 65px at 390px. */
+/* BottomNav adds one column for the slot, third from the start. The slot column
+   is wider because its caption is the longest text in the bar ("Add expense"
+   is 70px at 11px). */
 .bottom-nav[data-centre='true'] { grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr; }
-.bottom-nav[data-centre='true'][data-destinations='5'] { grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr 1fr; }
 .bottom-nav[data-centre='true'] .bottom-nav-item { min-width: 0; }
 .bottom-nav[data-centre='true'] .bottom-nav-label {
   max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

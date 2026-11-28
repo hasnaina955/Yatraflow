@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { InlineIcon } from '../components/icons'
 import {
-  Bell, Bot, CreditCard, Download, Link2, LogOut, Mail, Moon, ShieldCheck,
+  Bell, Bot, ChevronRight, CreditCard, Download, Link2, LogOut, Mail, Moon, ShieldCheck,
   SlidersHorizontal, Sparkles, Sun, UserRound,
 } from 'lucide-react'
 import { TravelStyle } from '../data/types'
@@ -387,6 +387,20 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
         </nav>
 
         <div className="prof-main">
+          {me.profile.isCreator && (
+            <button
+              type="button"
+              className="yf-surface prof-hub-row"
+              onClick={() => onNavigate('/creator-hub')}
+            >
+              <span className="prof-tile prof-hub-tile" aria-hidden="true"><Sparkles size={18} /></span>
+              <span className="prof-hub-copy">
+                <strong className="prof-hub-title">Creator hub</strong>
+                <span className="prof-hub-sub">Manage your creator profile, links and itineraries</span>
+              </span>
+              <ChevronRight size={18} className="prof-hub-chev" aria-hidden="true" />
+            </button>
+          )}
           <Section id="details" label="Your details" accent="teal">
             <Surface className="prof-panel">
               <PanelHead icon={UserRound} title="Your details"
@@ -638,11 +652,6 @@ export function ProfilePage({ onNavigate }: { onNavigate: (r: string) => void })
           <Section id="account" label="Account">
             <Surface className="prof-panel">
               <PanelHead icon={LogOut} title="Account" note={`Signed in as ${me.profile.name || me.email}.`} />
-              {me.profile.isCreator && (
-                <button className="btn btn-outline btn-sm prof-btn-block" onClick={() => onNavigate('/creator-hub')}>
-                  <InlineIcon icon={Sparkles} size={14} gap={6} />Creator hub
-                </button>
-              )}
               <div>
                 <a className="btn btn-outline btn-sm prof-btn-block" href={feedbackHref()}>
                   <InlineIcon icon={Mail} size={14} gap={6} />Send feedback

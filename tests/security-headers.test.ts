@@ -12,7 +12,7 @@ const manifest = readFileSync(new URL('../android/app/src/main/AndroidManifest.x
 const auth = readFileSync(new URL('../src/pages/Auth.tsx', import.meta.url), 'utf8')
 
 const headerMap = new Map<string, string>()
-for (const group of vercel.headers ?? [])
+for (const group of (vercel.headers ?? []).filter(group => group.source === '/(.*)'))
   for (const h of group.headers) headerMap.set(h.key.toLowerCase(), h.value)
 
 describe('web security headers (vercel.json)', () => {

@@ -23,7 +23,8 @@
 // full drop (e.g. when the caching policy itself changes).
 // v6 confirms the bare app shell positively before caching SHELL and precaches
 // the shell's startup script and stylesheet assets during install.
-const SW_VERSION = 'v6'
+// v7 keeps creator claim documents out of the cache.
+const SW_VERSION = 'v7'
 const CACHE = `yatraflow-${SW_VERSION}`
 // The bare app shell. The build writes the prerendered home page to /index.html
 // and keeps the shell at /app.html, which the SPA catch-all serves for every
@@ -139,7 +140,7 @@ function isOwnDocument(pathname) {
  *  HTML at every address (#426 slice 4). The static calculator page is the
  *  same case: its navigation must not be filed under the SHELL key. */
 const NEVER = [
-  '/api/', '/i/', '/c/', '/sitemap.xml', '/mappls/',
+  '/api/', '/i/', '/c/', '/claim/', '/sitemap.xml', '/mappls/',
   // The static trip cost calculators and their hub (calculators/manifest.json).
   '/calculators/', '/trip-cost-calculators/',
   '/goa-trip-cost-calculator/', '/rajasthan-trip-cost-calculator/',

@@ -1,5 +1,6 @@
 import { currentRoute } from './router'
 import { redactSnapshotUrl } from './snapshot'
+import { redactClaimUrl } from './claimPrivacy'
 
 /** Feedback mailto: pre-fills the app version + current route so a report is
  *  reproducible without the reporter doing any work. Reuses the same support
@@ -10,7 +11,7 @@ import { redactSnapshotUrl } from './snapshot'
  *  who is looking at a snapshot needs the route far more than the trip
  *  (#805). */
 export function feedbackHref(): string {
-  const route = redactSnapshotUrl(currentRoute())
+  const route = redactClaimUrl(redactSnapshotUrl(currentRoute()))
   const subject = encodeURIComponent(`YatraFlow feedback (v${__APP_VERSION__})`)
   const body = encodeURIComponent(
     `Page: ${route}\nApp version: ${__APP_VERSION__}\n\nWhat worked, what broke, what you wish existed:\n\n`,

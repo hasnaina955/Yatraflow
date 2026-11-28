@@ -1,5 +1,6 @@
 import type { BeforeSendEvent } from '@vercel/analytics/react'
 import { redactSnapshotUrl } from './snapshot'
+import { redactClaimUrl } from './claimPrivacy'
 
 /** A snapshot payload is the whole trip, so no analytics data point may carry
  *  it (#805). A browser keeps the fragment out of a request, but the collector
@@ -7,5 +8,7 @@ import { redactSnapshotUrl } from './snapshot'
  *  strip it here instead of assuming the network did. The page view stays; only
  *  the trip goes. */
 export function analyticsBeforeSend(event: BeforeSendEvent): BeforeSendEvent | null {
-  return { ...event, url: redactSnapshotUrl(event.url) }
+  const url = redactSnapshotUrl(event.url)
+  if (redactClaimUrl(url) !== url) return null
+  return { ...event, url }
 }

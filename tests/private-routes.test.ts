@@ -14,7 +14,7 @@ describe('the route helpers name the private pages and the canonical pages', () 
   it.each([
     '/trip/11111111-2222-3333-4444-555555555555', '/trip/abc/map', '/trips', '/new', '/profile', '/purchases',
     '/creator-hub', '/admin', '/auth?mode=signup', '/created/abc', '/share/payload', '/join/GOA-K7QFH3WT',
-    '/invite/11111111-2222-3333-4444-555555555555',
+    '/invite/11111111-2222-3333-4444-555555555555', `/claim/${'a'.repeat(64)}`,
   ])('marks %s as private, so it is noindex', route => {
     expect(isPrivateRoute(routeParts(route))).toBe(true)
   })
@@ -57,7 +57,7 @@ describe('App sets each route its own canonical and robots tag after boot', () =
   })
 
   it('sets noindex on a private route and removes the tag elsewhere', () => {
-    expect(app).toContain("robots.setAttribute('content', 'noindex')")
+    expect(app).toContain("robots.setAttribute('content', routeParts(route)[0] === 'claim' ? 'noindex, nofollow, noarchive' : 'noindex')")
     expect(app).toContain('robotsTag?.remove()')
   })
 

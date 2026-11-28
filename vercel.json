@@ -73,6 +73,36 @@
           "value": "noindex"
         }
       ]
+    },
+    {
+      "source": "/claim/:token",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
+        },
+        {
+          "key": "Vary",
+          "value": "User-Agent"
+        }
+      ]
+    },
+    {
+      "source": "/auth",
+      "headers": [
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
     }
   ],
   "redirects": [
@@ -184,6 +214,17 @@
         }
       ],
       "destination": "/api/join?code=:code"
+    },
+    {
+      "source": "/claim/:token",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|facebookcatalog|meta-externalagent|meta-externalfetcher|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Slack-ImgProxy|Discordbot|TelegramBot|SkypeUriPreview|Applebot|Pinterestbot|Pinterest/0\\.|redditbot|Embedly).*"
+        }
+      ],
+      "destination": "/api/claim-og?token=:token"
     },
     {
       "source": "/((?!api/|i/|c/|sitemap.xml|calculators/|og/|trip-cost-calculators/|goa-trip-cost-calculator/|rajasthan-trip-cost-calculator/|meghalaya-trip-cost-calculator/|ladakh-trip-cost-calculator/|sw.js|manifest.webmanifest|robots.txt).*)",

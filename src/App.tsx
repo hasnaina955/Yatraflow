@@ -27,7 +27,7 @@ import { analyticsBeforeSend } from './lib/analyticsPrivacy'
 import { scrollBehavior } from './lib/motion'
 import { canonicalPath, isPrivateRoute, pageMeta, routeParts } from './lib/pageTitle'
 import { PUBLIC_ORIGIN } from './lib/shareUrl'
-import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath } from './lib/routes'
+import { CREATE_SEGMENT, CREATE_PATH, needsSignupForCreate, signupThenCreatePath, creatorClaimToken } from './lib/routes'
 import { stashCalcPrefillFromSearch } from './lib/calcPrefill'
 import { normalizeInviteCode, inviteRoute } from './lib/inviteCode'
 import {
@@ -79,6 +79,7 @@ const CreatorHubPage = lazy(() => import('./pages/CreatorHubPage').then(m => ({ 
 // Masteradmin console: JWT app_metadata role only (never linked anywhere -
 // admins type /admin; non-admins fall through to landing inside the page).
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
+const ClaimProfilePage = lazy(() => import('./pages/ClaimProfilePage').then(m => ({ default: m.ClaimProfilePage })))
 const DMCAPage = lazy(() => import('./pages/DMCAPage').then(m => ({ default: m.DMCAPage })))
 const FaqPage = lazy(() => import('./pages/FaqPage').then(m => ({ default: m.FaqPage })))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage').then(m => ({ default: m.HowItWorksPage })))
@@ -579,7 +580,7 @@ export default function App() {
     const robotsTag = document.querySelector('meta[name="robots"]')
     if (isPrivateRoute(routeParts(route))) {
       const robots = robotsTag ?? document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
-      robots.setAttribute('content', 'noindex')
+      robots.setAttribute('content', routeParts(route)[0] === 'claim' ? 'noindex, nofollow, noarchive' : 'noindex')
     } else {
       robotsTag?.remove()
     }
@@ -653,7 +654,10 @@ export default function App() {
   // never the website's home. That ready-gate exclusion used to be
   // unconditional, so every launch flashed the marketing landing + its
   // website chrome before NativeHome arrived.
-  if (!ready && parts[0] !== 'auth' && parts[0] !== 'share' && !STATIC_COPY_SEGMENTS.has(parts[0] ?? '') && (!bareRoute || isNative)) {
+  if (parts[0] === 'claim') {
+    const claimToken = creatorClaimToken(route)
+    page = <Suspense fallback={lazyRouteFallback}><ClaimProfilePage key={claimToken ?? 'invalid'} token={claimToken} /></Suspense>
+  } else if (!ready && parts[0] !== 'auth' && parts[0] !== 'share' && !STATIC_COPY_SEGMENTS.has(parts[0] ?? '') && (!bareRoute || isNative)) {
     if (isNative && bareRoute) page = <NativeHomeStartupPage />
     else page = lazyRouteFallback
   } else if (parts[0] === 'share' && parts[1]) {

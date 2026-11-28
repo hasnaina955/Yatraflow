@@ -59,6 +59,7 @@ It must not promise room or transport choices from a spending target alone.
 
 Record fresh row events independently of whole-catalogue read verdicts. Test delayed reconciliation while the event's private refresh remains pending or fails.
 A field allowlist must not evaluate unlisted property getters.
+Private claim paths and auth return paths must not carry tokens into analytics or feedback. Keep claim documents out of the service worker cache.
 Public profile fields must join the catalog overlay and the field intent allowlist.
 Otherwise saves can lose values after rollback.
 

@@ -9,6 +9,7 @@ import { isAdultSignup } from '../lib/ageGate'
 import { looksLikeEmail } from '../lib/emailShape'
 import { currentQuery } from '../lib/router'
 import { authNext, isInviteNext } from '../lib/authNext'
+import { creatorClaimEmailRedirect } from '../lib/routes'
 import { passwordMeter } from '../lib/passwordMeter'
 import { MISSING_BACKEND_MESSAGE } from '../lib/authErrors'
 import { readCalcPrefill, calcPrefillBannerText } from '../lib/calcPrefill'
@@ -161,10 +162,16 @@ export function AuthPage({ onNavigate }: { onNavigate: (r: string) => void }) {
         dobRef.current?.focus()
         return
       }
-      const r = await signup(name, email, password)
+      const emailRedirectTo = creatorClaimEmailRedirect(nextRoute(), window.location.origin)
+      const r = await signup(name, email, password, emailRedirectTo)
       if (!r.ok) { clearTimeout(failSafe); setError(r.error ?? 'Signup failed'); setSaving(false); return }
       // The account waits for its email link. That is a notice, not a failure.
-      if (r.needsConfirmation) { clearTimeout(failSafe); setNotice(CONFIRM_EMAIL_COPY); setSaving(false); return }
+      if (r.needsConfirmation) {
+        clearTimeout(failSafe)
+        setNotice(emailRedirectTo ? 'Check your email to confirm your account and return to your creator profile.' : CONFIRM_EMAIL_COPY)
+        setSaving(false)
+        return
+      }
     }
     // Deliberately do NOT navigate here. The store hydrates asynchronously on
     // the auth event; navigating before `me` is set makes the router fall

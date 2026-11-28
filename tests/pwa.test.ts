@@ -106,7 +106,7 @@ describe('the asset branch refuses rewritten answers (#575 Face A)', () => {
   const assetsBranch = () => sw.slice(sw.indexOf("startsWith('/assets/')"))
 
   it('bumps the version — the policy changed, so activate sweeps poisoned v1 caches', () => {
-    expect(sw).toContain("const SW_VERSION = 'v6'")
+    expect(sw).toContain("const SW_VERSION = 'v7'")
   })
 
   it('refuses to cache a text/html response under an asset URL', () => {
@@ -236,7 +236,7 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
     expect(await offlineTrips?.text()).toBe(html)
   })
 
-  it('precaches the startup JS and CSS during v5-to-v6 install, keeps v5 on failure, and boots offline /trips after activate', async () => {
+  it('precaches the startup JS and CSS during v5-to-current install, keeps v5 on failure, and boots offline /trips after activate', async () => {
     const origin = 'https://www.yatraflow.in'
     const v5Shell = html.replace(
       '<script type="module" src="/src/main.tsx"></script>',
@@ -346,10 +346,10 @@ describe('the prerendered copy pages never take the shell key (#1042)', () => {
       return new Response('missing', { status: 404 })
     }
     await dispatchLifecycle('install')
-    expect([...cacheStores.keys()].sort()).toEqual(['yatraflow-v5', 'yatraflow-v6'])
+    expect([...cacheStores.keys()].sort()).toEqual(['yatraflow-v5', 'yatraflow-v7'])
 
     await dispatchLifecycle('activate')
-    expect([...cacheStores.keys()]).toEqual(['yatraflow-v6'])
+    expect([...cacheStores.keys()]).toEqual(['yatraflow-v7'])
 
     // Go offline and boot /trips: shell HTML, module script, modulepreload chunk, and stylesheet all hit v6.
     fetchImpl = async () => {

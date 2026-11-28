@@ -49,6 +49,7 @@ import { normalizeInterests, myCrewPreference, upsertCrewPreference, removeCrewP
 import { crewPreferenceRowToEntry, submitCrewPreferences } from './crewPreferenceWire'
 import { MISSING_BACKEND_MESSAGE, describeAuthFailure } from '../lib/authErrors'
 import { nextOrderInDay, renumberDay } from '../lib/stopOrder'
+import { stopStatusActivity } from '../lib/stopStatusLog'
 import {
   submitCollabCommand, submitCollabTransition, suggestionRowToEntry, decisionRowToEntry,
   type AcceptanceOutcome, type DecisionResolutionOutcome, type CollabOutcome, type CollabCommand,
@@ -6455,11 +6456,12 @@ export function setStopStatus(tripId: ID, status: ItineraryStop['status'], stopI
   const dayIdx = t.days.find(d => d.stops.some(x => x.id === stopId))?.index
   if (dayIdx === undefined) { commit(); return }
   const before = t.days.find(d => d.index === dayIdx)!.stops.find(x => x.id === stopId)!
+  const entry = stopStatusActivity(before.title, status, dayIdx)
   mutateTrip(tripId, draft => {
     const day = draft.days.find(d => d.index === dayIdx)!
     const s = day.stops.find(x => x.id === stopId)!
     s.status = status
-  }, { log: `marked “${before.title}” as ${status}`, target: `Day ${dayIdx + 1}` })
+  }, { log: entry.verb, target: entry.target })
   // Persist the POST-mutation cache reference. The old pre-mutation snapshot
   // was only ever safe while the flush re-read the cache at fire time; since
   // B0 the coalescer persists the call-time snapshot verbatim, so a stale

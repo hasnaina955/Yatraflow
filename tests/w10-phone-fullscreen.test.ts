@@ -83,7 +83,9 @@ describe('W10 phone full screen', () => {
   it('hides the trip header and gives the map the viewport in the phone query', () => {
     const css = read('src', 'styles', 'components', 'map-v2-rail.css')
     expect(css).toMatch(/@media \(max-width: 760px\) \{[\s\S]*\.yf-workspace\[data-map-fullscreen='true'\] \.yf-page \{ display: none; \}/)
-    expect(css).toMatch(/\.yf-workspace\[data-map-fullscreen='true'\] \.mv2-workspace \{ height: 100dvh;/)
+    expect(css).toMatch(/\.app-shell:has\(\.yf-workspace\[data-map-fullscreen='true'\]\) \{ height: 100dvh;/)
+    expect(css).toMatch(/\.yf-workspace\[data-map-fullscreen='true'\] \.mv2-workspace \{ height: 100%;/)
+    expect(css).toMatch(/\.app-shell:has\(\.yf-workspace\[data-map-fullscreen='true'\]\) > \.footer \{ display: none; \}/)
   })
 
   it('puts source and Refresh after the deck and route advice in Fix', () => {

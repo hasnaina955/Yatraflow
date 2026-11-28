@@ -16,6 +16,12 @@ import { railOverflow, railScrollToReveal, type RailOverflow } from '../../lib/r
 export type { SheetSnap, SheetSnapSource } from '../../lib/mapSheetGesture'
 export type { RibbonPreview }
 
+function revealDayChip(strip: HTMLDivElement, chip: HTMLButtonElement) {
+  const chipBox = chip.getBoundingClientRect()
+  const left = chipBox.left - strip.getBoundingClientRect().left + strip.scrollLeft
+  strip.scrollLeft = railScrollToReveal(strip.scrollLeft, strip.scrollWidth, strip.clientWidth, left, left + chipBox.width)
+}
+
 export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDayChange, onBack, endTown, ribbonOpen, onToggleRibbon }: { trip: Trip; journey: Journey | null; activeDay: number; allDays: boolean; onShowAll: () => void; onDayChange: (index: number) => void; onBack?: (() => void) | undefined; /** The town the day ends in. Absent keeps the last stop's name. */ endTown?: string | null; ribbonOpen?: boolean; onToggleRibbon?: () => void }) {
   const days = [...trip.days].sort((a, b) => a.index - b.index)
   const at = days.findIndex(day => day.index === activeDay)
@@ -25,20 +31,17 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
   // two chevrons, so the mode moves into a small overflow beside them.
   const [menuOpen, setMenuOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement | null>(null)
+  function closeDayMenu() {
+    setMenuOpen(false)
+    moreRef.current?.querySelector('button')?.focus({ preventScroll: true })
+  }
   useEffect(() => {
     if (!menuOpen) return
-    const close = (event: Event) => {
-      if (event.type === 'keydown') {
-        if (!(event instanceof KeyboardEvent) || event.key !== 'Escape') return
-      } else if (moreRef.current?.contains(event.target as Node)) return
-      setMenuOpen(false)
+    const close = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMenuOpen(false)
     }
     document.addEventListener('pointerdown', close)
-    document.addEventListener('keydown', close)
-    return () => {
-      document.removeEventListener('pointerdown', close)
-      document.removeEventListener('keydown', close)
-    }
+    return () => document.removeEventListener('pointerdown', close)
   }, [menuOpen])
   return <div className="mv2-phone-day" aria-label="Map day">
     {/* W10: the board's left chevron is the way back to the trip. It is the
@@ -50,12 +53,19 @@ export function MapPhoneDay({ trip, journey, activeDay, allDays, onShowAll, onDa
       <strong>{title}</strong>
     </div>
     <button type="button" className="mv2-icon-btn mv2-phone-day-step" disabled={at < 0 || at >= days.length - 1} aria-label="Next map day" onClick={() => { const next = days[at + 1]; if (next) onDayChange(next.index) }}><ChevronRight size={16} /></button>
-    <div className="mv2-phone-day-more" ref={moreRef}>
+    <div className="mv2-phone-day-more" ref={moreRef}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false) }}
+      onKeyDown={event => {
+        if (menuOpen && event.key === 'Escape') {
+          event.stopPropagation()
+          closeDayMenu()
+        }
+      }}>
       <button type="button" className="mv2-phone-day-overflow" aria-label="Map day options" aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(open => !open)}><MoreHorizontal size={18} aria-hidden /></button>
       {menuOpen && <div className="mv2-phone-day-menu" role="menu" aria-label="Map days to show">
-        <button type="button" role="menuitemradio" aria-checked={!allDays} onClick={() => { onDayChange(activeDay); setMenuOpen(false) }}>{!allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}This day</button>
-        <button type="button" role="menuitemradio" aria-checked={allDays} onClick={() => { onShowAll(); setMenuOpen(false) }}>{allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}All days</button>
-        {onToggleRibbon && <button type="button" role="menuitemcheckbox" aria-checked={ribbonOpen === true} onClick={() => { onToggleRibbon(); setMenuOpen(false) }}>Journey clock</button>}
+        <button type="button" role="menuitemradio" aria-checked={!allDays} onClick={() => { onDayChange(activeDay); closeDayMenu() }}>{!allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}This day</button>
+        <button type="button" role="menuitemradio" aria-checked={allDays} onClick={() => { onShowAll(); closeDayMenu() }}>{allDays ? <Check size={14} aria-hidden /> : <span className="mv2-phone-day-menu-gap" aria-hidden />}All days</button>
+        {onToggleRibbon && <button type="button" role="menuitemcheckbox" aria-checked={ribbonOpen === true} onClick={() => { onToggleRibbon(); closeDayMenu() }}>Journey clock</button>}
       </div>}
     </div>
   </div>
@@ -221,15 +231,9 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     }
   }, [days.length, publishDayOverflow])
   useEffect(() => {
-    // Move the strip only. scrollIntoView would also scroll the page, the rail
-    // or the sheet when the footer sits below the fold.
     const strip = dayStripRef.current
     const selected = strip?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
-    if (strip == null || selected == null) return
-    const stripBox = strip.getBoundingClientRect()
-    const chipBox = selected.getBoundingClientRect()
-    const left = chipBox.left - stripBox.left + strip.scrollLeft
-    strip.scrollLeft = railScrollToReveal(strip.scrollLeft, strip.scrollWidth, strip.clientWidth, left, left + chipBox.width)
+    if (strip && selected) revealDayChip(strip, selected)
   }, [activeDay, allDays, days.length])
   const estimated = points.some((point, index) => {
     if (!point.legIn) return false
@@ -382,7 +386,9 @@ export function MapItinerary({ trip, journey, corrections, activeDay, budgetMin,
     </ol>
     {railExtras}
     <footer className="mv2-day-footer">
-      <div className="mv2-day-strip" ref={dayStripRef} data-overflow={dayOverflow} role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => { onDayChange(item.index) }}>{item.index + 1}</button>)}</div>
+      <div className="mv2-day-strip" ref={dayStripRef} data-overflow={dayOverflow} onFocus={event => {
+        if (event.target instanceof HTMLButtonElement) revealDayChip(event.currentTarget, event.target)
+      }} role="group" aria-label="Choose map day"><button type="button" aria-label="Show all map days" aria-pressed={allDays} onClick={onShowAll}>All</button>{days.map(item => <button key={item.index} type="button" className="mv2-day-pill" style={{ '--mv2-day-tone': dayColor(item.index) } as CSSProperties} aria-label={`Day ${item.index + 1}`} aria-pressed={!allDays && item.index === activeDay} onClick={() => { onDayChange(item.index) }}>{item.index + 1}</button>)}</div>
       {onOpenDay && <button type="button" className="mv2-timeline-link" aria-label="Open day in Timeline" title="Open day in Timeline" onClick={() => { onOpenDay(activeDay) }}><CalendarDays size={16} aria-hidden /></button>}
       {daysCaption && <span className="sr-only" role="status">{daysCaption}</span>}
     </footer>

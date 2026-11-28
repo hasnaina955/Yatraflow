@@ -71,6 +71,7 @@ import {
 import {
   beginLedger, settleLedger, applyLedger, ledgerHasPending, type FieldLedger,
 } from './fieldIntents'
+import { CLAIM_TOKEN_KEY } from '../lib/claimToken'
 
 export { reviewedSocialLinks } from '../lib/publicProfile'
 import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
@@ -796,6 +797,7 @@ export async function signup(name: string, email: string, password: string, emai
 }
 
 export async function logout(): Promise<void> {
+  try { if (typeof window !== 'undefined') window.localStorage.removeItem(CLAIM_TOKEN_KEY) } catch { /* Storage may be unavailable. */ }
   // #393: the sign-out INSTANT used to render the departing account's rows
   // until the async auth event's hydrate(null) landed — Account A's trips (and
   // their Trash) still on screen while signed out, for a frame or a round

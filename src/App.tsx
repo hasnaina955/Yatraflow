@@ -17,8 +17,9 @@ import { useDb, currentUser, privateUser, useUsers, useNotifications, usePublish
 import type { InvitePreviewIdentity } from './lib/inviteLookup'
 import { requestTripJoin } from './lib/joinRequests'
 import { authNext } from './lib/authNext'
-import { Avatar, BrandMark, ToastZone, useClickOutside, toast } from './components/ui'
+import { Avatar, BrandMark, ToastZone, useClickOutside, toast, usePhoneWidth } from './components/ui'
 import { BottomNav } from './components/BottomNav'
+import { UniversalAdd } from './components/UniversalAdd'
 import { OfflineBanner } from './components/OfflineBanner'
 import { UpdateNotice } from './components/UpdateNotice'
 import { PillNav } from './components/PillNav'
@@ -44,7 +45,11 @@ import { browserLocalStorage, storedSessionHint } from './lib/storedSession'
 import { apkUpdateCheck, bootApkUpdates } from './lib/apkUpdateRuntime'
 import { feedbackHref } from './lib/feedback'
 import { setTheme, useTheme } from './lib/theme'
-import { hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
+import { closeOverlayLayer, hideSplash, registerAndroidBack, setNativeTheme } from './lib/appShell'
+import { closeOpenAddMenu, tripScopeOf, useAddSnapshot } from './lib/universalAddStore'
+import { tripIdOfRoute } from './lib/universalAdd'
+import { showTabBar, tabBarHide } from './lib/phoneChrome'
+import { useBodyLocked, useKeyboardUp } from './lib/useOverlaySignals'
 import { sliceState, rowsView, type RowsView } from './lib/readState'
 import { StateBlock } from './components/page/StateBlock'
 import { PageHeader } from './components/page/PageHeader'
@@ -339,6 +344,13 @@ export default function App() {
   const [notifShowAll, setNotifShowAll] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
+  // Row 27a: phone web (the shared 720px rule, lib/phoneChrome.ts) gets the
+  // same bottom tab bar as native, with the universal Add in its centre slot.
+  // Desktop web gets neither.
+  const phoneWeb = usePhoneWidth() && !isNative
+  const addSnapshot = useAddSnapshot()
+  const bodyLocked = useBodyLocked()
+  const keyboardUp = useKeyboardUp()
   const [notifRef, notifPopRef] = useClickOutside(() => setNotifOpen(false))
   const [menuRef, userMenuRef] = useClickOutside(() => setMenuOpen(false))
   // Both popovers portal to document.body: nested inside .topnav (which has
@@ -423,11 +435,11 @@ export default function App() {
   }, [])
   useEffect(() => {
     const off = registerAndroidBack({
-      closeOverlay: () => {
-        const hadAny = mobileNav || notifOpen || menuOpen
-        setMobileNav(false); setNotifOpen(false); setMenuOpen(false)
-        return hadAny
-      },
+      closeOverlay: () => closeOverlayLayer(
+        closeOpenAddMenu,
+        mobileNav || notifOpen || menuOpen,
+        () => { setMobileNav(false); setNotifOpen(false); setMenuOpen(false) },
+      ),
     })
     return off
   }, [mobileNav, notifOpen, menuOpen])
@@ -783,6 +795,17 @@ export default function App() {
   // notifications slice so the bell stays live without a full-cache subscription.
   const notifs = notificationPanel.rows
   const unread = notifs.filter(n => !n.read).length
+  // #1064: the universal Add control, drawn in the native BottomNav centre slot.
+  // On the full-screen Map (phone web and the native shell) the bar hides, so
+  // the slot hides with it (out of the tab order); the pill below draws the
+  // Map's round Add instead. The web menu tray hides it too, as it hid the old pill.
+  const mapFullscreen = (phoneWeb || isNative) && !!tripScopeOf(addSnapshot, tripIdOfRoute(route))?.mapFullscreen
+  const tabBar = showTabBar({ native: isNative, phoneWidth: phoneWeb, signedIn: !!me })
+  // Row 27a: with the bar on, the tray holds only Creator hub. With no hub,
+  // the tray is empty, so the menu button hides too (no dead control).
+  const trayEmpty = tabBar && !me?.profile.isCreator
+  const barHide = tabBarHide({ native: isNative, mapFullscreen, overlayOpen: bodyLocked || mobileNav, keyboardOpen: keyboardUp })
+  const addSlot = <UniversalAdd variant="nav" route={route} signedIn onNavigate={navigate} appOverlay={notifOpen || menuOpen || mobileNav || mapFullscreen} />
   function retryNotifications() { void resumeSync() }
 
   // ---- Browser push (local Notification API, no service worker) ----
@@ -861,7 +884,7 @@ export default function App() {
             {/* Web-only, like its tray below (`mobileNav && !isNative`): the
                 signed-out shell keeps the topnav, and an ungated button there
                 toggles state that renders nothing — a dead control. */}
-            {!isNative && (
+            {!isNative && !trayEmpty && (
               <button
                 className="mobile-nav-btn"
                 onClick={() => setMobileNav(o => !o)}
@@ -950,19 +973,22 @@ export default function App() {
               the primary CTA fits 320px, and this tray keeps Log in reachable
               (review finding 1). */}
           {!me && !sessionUserId && <a className="nav-link" {...appLink('/auth')}>Log in</a>}
-          {me && <>
+          {/* Row 27a: with the bottom tab bar on screen, the tray drops the
+              links the bar already holds (My trips, Explore, Profile, and Add
+              for Plan a trip). The tray keeps only what the bar does not. */}
+          {me && !tabBar && <>
             <a className={`nav-link ${route === '/trips' ? 'active' : ''}`} {...appLink('/trips')}><InlineIcon icon={Tent} size={15} gap={6} />My trips</a>
             <a className={`nav-link ${route === CREATE_PATH ? 'active' : ''}`} {...appLink(CREATE_PATH)}><InlineIcon icon={Plus} size={15} gap={6} />Plan a trip</a>
           </>
           }
-          <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>
+          {!tabBar && <a className={`nav-link ${route === '/explore' ? 'active' : ''}`} {...appLink('/explore')}><InlineIcon icon={Compass} size={15} gap={6} />Explore</a>}
           {/* The same two signed-out items as the topnav. The tray is web-only already. */}
           {showSignedOutNav && !me && !sessionUserId && <>
             <a className={`nav-link ${route === '/how-it-works' ? 'active' : ''}`} {...appLink('/how-it-works')}><InlineIcon icon={CircleHelp} size={15} gap={6} />How it works</a>
             <a className="nav-link" href="/trip-cost-calculators/"><InlineIcon icon={Calculator} size={15} gap={6} />Calculators</a>
           </>}
           {me?.profile.isCreator && <a className={`nav-link ${route === '/creator-hub' ? 'active' : ''}`} {...appLink('/creator-hub')}><InlineIcon icon={Sparkles} size={15} gap={6} />Creator hub</a>}
-          {me && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
+          {me && !tabBar && <a className={`nav-link ${route === '/profile' ? 'active' : ''}`} {...appLink('/profile')}><InlineIcon icon={Settings} size={15} gap={6} />Profile & settings</a>}
         </div>
       )}
 
@@ -1033,14 +1059,20 @@ export default function App() {
         </footer>
       )}
 
-      {/* The shell's primary navigation - same platform gate as the shell home
-          above (isNative && me), so the website never renders it. It replaces
-          the floating pill (hidden in the shell via CSS); the hamburger tray
-          is web-only — its shell-side destinations are the four tabs, plus a
-          Creator hub tab for a creator, or the relocated controls on Profile.
+      {/* The primary navigation at the thumb: the native shell, and (row 27a)
+          the website at phone width, both signed in (showTabBar). It replaces
+          the pill nav, which CSS hides at phone width and in the shell. The
+          hamburger tray is web-only — its shell-side destinations are the four
+          tabs, with Creator hub and relocated controls on Profile.
           A plain bar, not an overlay: registerAndroidBack above still closes
           only the real overlays, so back walks history while this is mounted. */}
-      {isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}
+      {tabBar && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} web={!isNative} hide={barHide} />}
+      {/* #1064 / row 27a: on the full-screen Map (phone web and the native shell)
+          the bar steps aside, and the same control floats as the 56px round Add.
+          It draws nothing on any other screen (mapOnly). Signed out, nothing is drawn. */}
+      {(phoneWeb || isNative) && me && (
+        <UniversalAdd variant="pill" mapOnly route={route} signedIn onNavigate={navigate} appOverlay={mobileNav || notifOpen || menuOpen} />
+      )}
 
       <ToastZone />
       {/* Web Analytics is a web concern: the Capacitor shell has no Vercel

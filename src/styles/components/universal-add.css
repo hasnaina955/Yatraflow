@@ -1,0 +1,218 @@
+/* ============ Universal Add (#1064) ============
+   Owner of the ua-* family: src/components/UniversalAdd.tsx. One control, two
+   skins: the native centre slot of .bottom-nav, and the phone web pill.
+   Motion is tokens only, and every token reads 0ms under reduced motion
+   (tokens.css), so each change below is instant there. The reduced-motion
+   block at the end also drops the keyframes, so nothing waits on them.
+   Hidden is opacity plus pointer-events, never display or visibility: a dialog
+   that focused the button before it opened must be able to focus it again. */
+
+/* ---- the native centre slot ---- */
+/* BottomNav adds one column for the slot, third from the start. The slot column
+   is wider because its caption is the longest text in the bar ("Add expense"
+   is 70px at 11px). */
+.bottom-nav[data-centre='true'] { grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr; }
+.bottom-nav[data-centre='true'] .bottom-nav-item { min-width: 0; }
+.bottom-nav[data-centre='true'] .bottom-nav-label {
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.ua-slot {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  transition: opacity var(--motion-fast) var(--ease-paper);
+}
+/* The raised disc sits mostly above the bar: its lower 14px sit in the bar's
+   58px row, which leaves the caption under it a full 44px target. */
+.ua-fab {
+  position: absolute;
+  left: calc(50% - 26px);
+  top: -38px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 3px solid var(--app-bar, var(--pw-card));
+  border-radius: 50%;
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+  box-shadow: var(--glow-sea);
+  cursor: pointer;
+  transition: transform var(--motion-instant) var(--ease-paper), background-color var(--motion-fast) var(--ease-paper);
+}
+html[data-theme='dark'] .ua-fab { border-color: var(--app-bar-dark, var(--pw-card)); }
+.ua-fab:active:not(:disabled) { transform: scale(.96); }
+.ua-fab:disabled {
+  background: var(--pw-sunken);
+  color: var(--text-3);
+  box-shadow: none;
+  cursor: default;
+}
+.ua-fab:focus-visible, .ua-caption:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 2px; }
+.ua-caption {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--teal-deep);
+  font: 600 var(--text-xs)/1.2 var(--font-body);
+}
+button.ua-caption { cursor: pointer; }
+.ua-caption-label {
+  position: relative;
+  display: inline-block;
+  max-width: calc(100% - 14px);
+  width: var(--ua-label-w, auto);
+  overflow: hidden;
+  white-space: nowrap;
+  transition: width var(--motion-med) var(--ease-paper);
+}
+.ua-caption-chev { flex: none; }
+.ua-slot[data-state='hidden'] { opacity: 0; pointer-events: none; }
+
+/* ---- the phone web pill ---- */
+.ua-pill {
+  position: fixed;
+  right: calc(16px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+  bottom: calc(18px + var(--bottom-ui-offset));
+  z-index: var(--z-ai-fab);
+  display: flex;
+  align-items: stretch;
+  height: 52px;
+  border-radius: var(--radius-pill);
+  background: var(--pw-sea-700);
+  color: var(--pw-on-sea);
+  box-shadow: var(--glow-sea);
+  transition: opacity var(--motion-fast) var(--ease-paper), transform var(--motion-fast) var(--ease-paper);
+}
+.ua-pill[data-state='hidden'] { opacity: 0; transform: translateY(8px); pointer-events: none; }
+/* On the full-screen phone Map, show a 56px round "+" 12px above the peek sheet
+   handle and shift the attribution chip left so the two controls stay clear. */
+@media (max-width: 760px) {
+  .ua-pill[data-map-fab='true'] {
+    bottom: var(--ua-map-bottom, calc(18px + var(--bottom-ui-offset)));
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 50%;
+  }
+  .ua-pill[data-map-fab='true'] .ua-pill-main {
+    width: 100%;
+    height: 100%;
+    min-width: 56px;
+    min-height: 56px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    border-radius: 50%;
+  }
+  body:has(.ua-pill[data-map-fab='true']:not([data-state='hidden'])) .yf-workspace[data-map-fullscreen='true'] .mv2-workspace[data-snap='peek'] .maplibregl-ctrl-bottom-right {
+    right: calc(84px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+  }
+}
+.ua-pill-main, .ua-pill-more {
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform var(--motion-instant) var(--ease-paper);
+}
+.ua-pill-main {
+  min-width: 52px;
+  gap: 8px;
+  padding: 0 18px 0 16px;
+  border-radius: var(--radius-pill);
+  font: 700 15px/1 var(--font-body);
+}
+.ua-pill-more {
+  width: 44px;
+  justify-content: center;
+  padding: 0 4px 0 0;
+  border-left: 1px solid color-mix(in srgb, var(--pw-on-sea) 28%, transparent);
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  transition: transform var(--motion-instant) var(--ease-paper), width var(--motion-med) var(--ease-paper), opacity var(--motion-fast) var(--ease-paper);
+}
+.ua-pill-main:active, .ua-pill-more:active { transform: scale(.96); }
+.ua-pill-main:focus-visible, .ua-pill-more:focus-visible { outline: 2px solid var(--pw-on-sea); outline-offset: -4px; }
+.ua-pill-label {
+  position: relative;
+  display: inline-block;
+  width: var(--ua-label-w, auto);
+  overflow: hidden;
+  white-space: nowrap;
+  transition: width var(--motion-med) var(--ease-paper), opacity var(--motion-fast) var(--ease-paper);
+}
+/* Shrunk: a round "+". The chevron folds away; long press still opens the menu. */
+.ua-pill[data-compact='true'] .ua-pill-main { padding: 0; justify-content: center; gap: 0; }
+.ua-pill[data-compact='true'] .ua-pill-label { width: 0; opacity: 0; }
+.ua-pill[data-compact='true'] .ua-pill-more { width: 0; padding: 0; opacity: 0; border-left-width: 0; pointer-events: none; overflow: hidden; }
+
+/* ---- the label cross-fade ---- */
+.ua-label-text { display: inline-block; white-space: nowrap; }
+/* The nav caption breaks "Add stop · Day 3" into two centred lines. */
+.ua-label-line { display: block; text-align: center; }
+.ua-label-in { animation: ua-label-in var(--motion-fast) var(--ease-paper) both; }
+.ua-label-out { position: absolute; left: 0; top: 0; animation: ua-label-out var(--motion-fast) var(--ease-exit) both; }
+@keyframes ua-label-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ua-label-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* ---- the menu ---- */
+.ua-menu {
+  position: fixed;
+  left: var(--ua-menu-left, 8px);
+  bottom: var(--ua-menu-bottom, 80px);
+  z-index: var(--z-notif);
+  min-width: 210px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - var(--ua-menu-bottom, 80px) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - 8px);
+  max-height: calc(100dvh - var(--ua-menu-bottom, 80px) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - 8px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--pw-card);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-2);
+  animation: ua-menu-in var(--motion-med) var(--ease-paper) both;
+}
+@keyframes ua-menu-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ua-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--pw-ink);
+  font: 600 14px/1.2 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--motion-instant) var(--ease-paper);
+}
+.ua-menu-item:hover, .ua-menu-item:focus-visible { background: var(--pw-soft); }
+.ua-menu-item:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: -2px; }
+.ua-menu-icon { flex: none; display: inline-grid; place-items: center; width: 22px; color: var(--pw-sea-700); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ua-menu, .ua-label-in, .ua-label-out { animation: none; }
+  .ua-slot, .ua-fab, .ua-pill, .ua-pill-main, .ua-pill-more, .ua-pill-label, .ua-caption-label, .ua-menu-item { transition: none; }
+}

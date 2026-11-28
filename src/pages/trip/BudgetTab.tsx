@@ -39,6 +39,7 @@ import { refuseWhileStaged } from '../../lib/mutationLifecycle'
 import { Mascot } from '../../components/mascot/Mascot'
 import { BudgetChakra } from '../../components/mascot/BudgetChakra'
 import { budgetMood } from '../../lib/budgetMood'
+import { useTabAdd } from '../../lib/universalAddStore'
 
 // ================= Budget tab =================
 
@@ -362,6 +363,18 @@ export function BudgetTab({ trip, totals, editable, previewOpen, stagedRef, onOp
   // The parent's staged ref is stable across a role remount. A standalone
   // render falls back to a local copy, which is enough when nothing unmounts.
   const canWrite = !!me?.id && canEdit(roleOf(trip, me.id))
+  // #1064: the universal Add control opens this tab's own capture, the same
+  // QuickAdd the "+ Add expense" button opens, and puts the cursor in it.
+  useTabAdd({
+    tripId: trip.id,
+    tab: 'budget',
+    handlers: editable && canWrite ? {
+      'add-expense': () => {
+        setAdding(true)
+        requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.quick-add input')?.focus())
+      },
+    } : {},
+  })
   const fallbackStagedRef = useRef(!!previewOpen)
   useEffect(() => { fallbackStagedRef.current = !!previewOpen }, [previewOpen])
   const liveStagedRef = stagedRef ?? fallbackStagedRef

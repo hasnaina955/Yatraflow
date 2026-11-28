@@ -17,7 +17,7 @@ import { computeImpact, type ImpactResult } from '../lib/impact'
 import { routeParts } from '../lib/pageTitle'
 import { currentQuery, currentRoute, replaceRoute } from '../lib/router'
 import { scrollBehavior } from '../lib/motion'
-import { Avatar, toast, undoToast, useMedia } from '../components/ui'
+import { Avatar, toast, undoToast, useMedia, usePhoneWidth } from '../components/ui'
 import { assignAvatarTones } from '../lib/avatarTone'
 import { useTripPresence } from '../hooks/useTripPresence'
 import { presenceView } from '../lib/presence'
@@ -35,7 +35,11 @@ import { corridorSnapshotKey, type CorridorSnapshot } from './trip/map/corridorS
 // is lazily imported inside MapTab.
 const BoardView = React.lazy(() => import('../components/BoardView').then(m => ({ default: m.BoardView })))
 import { AiDrawer } from '../components/AiDrawer'
+import { requestTabAdd, useWorkspaceAdd } from '../lib/universalAddStore'
+import type { AddKind } from '../lib/universalAdd'
+import { nextTripStep } from '../lib/tripNextStep'
 import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
+import { isNative } from '../lib/native'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
 import { MapTabSkeleton } from './trip/MapTabSkeleton'
@@ -472,9 +476,6 @@ function sanitizeTab(s: string | undefined): TabKey {
   return isTabKey(s) ? s : 'overview'
 }
 
-/** #1051: the width at which the trip tab rail docks under the app bar. It must
- *  match the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`. */
-const PHONE_DOCK_QUERY = '(max-width: 720px)'
 
 export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: string; initialTab?: string; onNavigate: (route: string) => void }) {
   const db = useDb()
@@ -820,8 +821,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
   // and Board keep it in their slim folded bar.
   // The first value is the real match, so a phone paints the dock at once and
   // never shows the rail jump out of the cover.
-  const phoneWidth = useMedia(PHONE_DOCK_QUERY,
-    typeof window !== 'undefined' && (window.matchMedia?.(PHONE_DOCK_QUERY).matches ?? false))
+  // #1051 / row 27a: the shared phone rule (lib/phoneChrome.ts). It must match
+  // the `max-width: 720px` cover rules in `16-motion-and-cover-v2.css`.
+  const phoneWidth = usePhoneWidth()
   const tabsDocked = phoneWidth && !headerFolded
   // A tab change can move the rail between the cover and the dock, which
   // remounts it. Keep keyboard focus on the selected tab when that happens.
@@ -907,6 +909,38 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
     else setFocus(focusForDay(trip.id, null))
     setTab('map')
   }
+
+  // #1064 Universal Add. The workspace publishes this trip's scope, and `goAdd`
+  // is the one router for an action the tab on screen does not open itself: it
+  // leaves a one-shot request for the owning tab, then switches to it.
+  function goAdd(kind: AddKind, dayIndex?: number) {
+    if (!trip) return
+    const to = (t: TabKey) => requestTabAdd({ tripId: trip.id, tab: t, kind, dayIndex })
+    switch (kind) {
+      case 'add-stop':
+        to('timeline')
+        openTimeline(dayIndex != null ? { dayIndex } : undefined)
+        return
+      case 'add-expense': to('budget'); setTab('budget'); return
+      case 'add-decision': to('group'); setTab('group'); return
+      case 'invite': to('share'); setTab('share'); return
+      case 'add-place': to('map'); setTab('map'); return
+      case 'ask-chakra': setAiOpen(true); return
+      case 'plan-trip': return
+    }
+  }
+  useWorkspaceAdd(trip && me ? {
+    tripId: trip.id,
+    tab,
+    canEdit: editable,
+    isMember: role !== null,
+    chakra: AI_COMPANION_ENABLED,
+    mapFullscreen: phoneMapFullscreen,
+    // Overview adds to the first day that needs work; Day 1 is the last resort,
+    // as it is for the Timeline's own target.
+    overviewDay: nextTripStep(trip).dayIndex ?? 0,
+    go: goAdd,
+  } : null)
 
   if (!me) return <div className="container page-enter"><StateBlock kind="empty" titleLevel="h1" title="Sign in to open this trip" actions={<button className="btn btn-primary" onClick={() => onNavigate(`/auth?next=${encodeURIComponent(authNext(`/trip/${tripId}`))}`)}>Sign in</button>} /></div>
   if (!trip && readState === 'failed') {
@@ -1139,7 +1173,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {/* AI companion: locked for the premium milestone (M8) — the feature is
           complete but unmounted unless VITE_AI_COMPANION=on. See featureFlags. */}
       {AI_COMPANION_ENABLED && (
-        <AiDrawer key={trip.id} trip={trip} open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} legCorrections={legCorrections} />
+        // #1064: when UniversalAdd is on screen (native at any width, or phone web)
+        // Chakra lives in the Add menu, so the floating button goes.
+        <AiDrawer key={trip.id} trip={trip} open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} legCorrections={legCorrections} fab={!(isNative || phoneWidth)} />
       )}
     </div>
   )

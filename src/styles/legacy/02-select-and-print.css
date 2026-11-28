@@ -3253,28 +3253,10 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
 /* ---- Timeline toolbar, phone (the artboard's compact row) ----
    The artboard drops the toolbar pill on a phone: the day-scope switch and the
    edit switch become two separate rounded controls with no card behind them,
-   and Add stop leaves the toolbar for a floating button above the bottom nav.
+   and Add stop leaves the toolbar for the universal Add control (#1064).
    The scrolling pill this replaces held 942px of content in a 381px box, so
    "Add stop" began off screen — a control you have to swipe to find is not a
    control. Declared last so it wins over the desktop rules above on order. */
-.tl-add-fab {
-  display: none;
-  position: fixed;
-  right: calc(16px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
-  bottom: calc(92px + var(--bottom-ui-offset));
-  z-index: var(--z-ai-fab);
-  height: 52px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--pw-sea-700);
-  color: var(--pw-on-sea);
-  font: 700 15px/1 var(--font-body);
-  align-items: center;
-  gap: 8px;
-  box-shadow: var(--glow-sea);
-  cursor: pointer;
-}
 @media (max-width: 720px) {
   .tl-toolbar {
     overflow-x: visible;
@@ -3295,7 +3277,6 @@ a.creator-line:focus-visible { outline: 2px solid var(--teal); outline-offset: 2
   .tl-edit-knob { width: 14px; height: 14px; }
   .tl-edit-switch[aria-checked="true"] .tl-edit-knob { left: 17px; }
   .tl-toolbar-end { display: none; }
-  .tl-add-fab { display: flex; }
 }
 /* On a touch phone the two segments are the only way to switch the whole view,
    so they take the 44px target floor (WCAG 2.5.8) even though the artboard

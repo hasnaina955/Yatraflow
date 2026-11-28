@@ -49,6 +49,7 @@ import {
   type LegacyResolutionTarget,
   type SlotResolutionContext,
 } from './slotResolutionAdapter'
+import { useTabAdd } from '../../lib/universalAddStore'
 
 // ================= Group input tab =================
 
@@ -57,6 +58,8 @@ type Section = 'decisions' | 'ideas' | 'activity'
 /** The pill bar keys. "needs" opens the section that holds the first item needing my vote. */
 type View = 'needs' | Section
 /** The DOM id of each section, so the pill bar can scroll to and focus it. */
+/** The decision form, the universal Add control's target (#1064). */
+const DECISION_FORM_ID = 'gi-decision-form'
 const SECTION_DOM: Record<Section, string> = {
   decisions: 'gi-section-decisions',
   ideas: 'gi-section-ideas',
@@ -297,6 +300,26 @@ export function GroupInputTab({ trip, editable, canComment, me, previewOpen, slo
       needsMe={suggestionNeedsMe(sg)} previewOpen={previewOpen} exiting={exiting}
       selected={selectedIdeaId === sg.id} onSelect={toggleIdea} />
   )
+
+  // #1064: the universal Add control opens the decision form. It sits in the
+  // ideas column, which a phone shows on its own, so the view moves there
+  // first; the form's question field takes focus on the frame after that
+  // column renders.
+  useTabAdd({
+    tripId: trip.id,
+    tab: 'group',
+    handlers: editable ? {
+      'add-decision': () => {
+        setView('ideas')
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const field = document.getElementById(DECISION_FORM_ID)?.querySelector<HTMLInputElement>('input')
+          if (!field) return
+          field.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+          field.focus({ preventScroll: true })
+        }))
+      },
+    } : {},
+  })
 
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   useEffect(() => {
@@ -1449,7 +1472,7 @@ function DecisionComposerForm({ trip }: { trip: Trip }) {
   }
 
   return (
-    <form onSubmit={create}>
+    <form id={DECISION_FORM_ID} onSubmit={create}>
       <h3 className="gin-card-title">Raise a decision</h3>
       <p className="hint-text gin-composer-hint">Turn a group-chat debate into one clear vote.</p>
       <Field label="Question"><input className="input" value={q} onChange={e => setQ(e.target.value)} placeholder="e.g. Beach day or backwater day on Day 3?" /></Field>

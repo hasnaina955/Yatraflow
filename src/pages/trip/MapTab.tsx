@@ -109,6 +109,7 @@ import type { SegmentHit } from '../../lib/geocode'
 import { projectOntoPolyline } from '../../lib/providers/hits'
 import { fetchDailyWeather, forecastAvailable, isoAddDays, todayISO } from '../../lib/weather'
 import { useWeatherRefreshTick } from '../../hooks/useWeatherRefresh'
+import { useTabAdd } from '../../lib/universalAddStore'
 // MapLibre is heavy (~1MB) — load it only when the Map tab is actually opened.
 const TripMap = React.lazy(() => import('../../components/TripMap').then(m => ({ default: m.TripMap })))
 
@@ -2046,6 +2047,18 @@ export function MapTab({ trip, editable, applyChange, suggestionCache, onInputsH
       fixed={lens === 'fix' ? (lenses.fix.phase === 'ready' && lenses.fix.problem != null ? FIX_SOURCE_LINE : '') : null} />
     <button type="button" className="btn btn-ghost btn-sm" onClick={retryScan} disabled={loadingPois} title="Refresh suggestions"><RotateCcw size={14} aria-hidden />Refresh</button>
   </footer>
+  // #1064: the universal Add control's Add place puts the cursor in the map's
+  // own search. It hides on phones while a map sheet or the keyboard is open.
+  const mapSheetOpen = phoneSheet && ((deckOpen && (snap !== 'peek' || sheetTab === 'needs' || !!selectedHit)) || stopCardOpen)
+  useTabAdd({
+    tripId: trip.id,
+    tab: 'map',
+    mapSheetOpen,
+    handlers: editable ? {
+      'add-place': () => document.querySelector<HTMLInputElement>('.map-ideas-map input[aria-label="Search the map for a place to add"]')?.focus(),
+    } : {},
+  })
+
   // Phone floors stay 0: TripMap measures the covers from the overlay rects,
   // and the mark margin joins once. The sheet height is the only floor the
   // DOM cannot re-derive, because the sheet is the map's sibling. Desktop

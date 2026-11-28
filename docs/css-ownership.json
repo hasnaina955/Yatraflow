@@ -194,6 +194,30 @@
       "variables": []
     },
     {
+      "id": "universal-add",
+      "file": "src/styles/components/universal-add.css",
+      "owned": [
+        "ua-slot",
+        "ua-fab",
+        "ua-caption",
+        "ua-caption-label",
+        "ua-caption-chev",
+        "ua-pill",
+        "ua-pill-main",
+        "ua-pill-more",
+        "ua-pill-label",
+        "ua-label-text",
+        "ua-label-in",
+        "ua-label-out",
+        "ua-label-line",
+        "ua-menu",
+        "ua-menu-item",
+        "ua-menu-icon"
+      ],
+      "configClasses": [],
+      "variables": []
+    },
+    {
       "id": "toast",
       "file": "src/styles/components/toast.css",
       "owned": [],

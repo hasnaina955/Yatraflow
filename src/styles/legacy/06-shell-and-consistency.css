@@ -106,6 +106,9 @@ html.native-shell .nav-links { display: none; }
 html.native-shell {
   --shell-nav-h: 58px;
 }
+/* Row 27a: on the native full-screen Map the bar steps aside (data-hide='map'),
+   so the offset drops back to the safe area, as the web rule below does. */
+html.native-shell:has(.bottom-nav[data-hide='map']) { --shell-nav-h: 0px; }
 
 .bottom-nav {
   position: fixed; left: 0; right: 0; bottom: 0;
@@ -120,6 +123,9 @@ html.native-shell {
   border-top: 1px solid var(--yf-glass-border);
   -webkit-backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
   backdrop-filter: blur(var(--yf-blur-nav)) saturate(1.2);
+  /* Row 27a: both skins animate the step-aside (data-hide), so the transition
+     lives on the shared bar, not on the web skin only. */
+  transition: transform var(--motion-fast) var(--ease-paper), opacity var(--motion-fast) var(--ease-paper);
 }
 .bottom-nav-item {
   /* Icon over an 11px label, four equal columns. min-height states the
@@ -136,6 +142,30 @@ html.native-shell {
 .bottom-nav-badge { position: absolute; top: -6px; left: 100%; min-width: 19px; height: 19px; padding: 0 3px; display: grid; place-items: center; border-radius: 999px; background: var(--color-destructive); color: white; font-size: 11px; font-weight: 700; animation: bottom-nav-pop var(--motion-fast) var(--ease-settle) both; }
 @keyframes bottom-nav-pop { from { transform: scale(.7); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .bottom-nav-badge { animation: none; } }
+
+/* Row 27a: the same bar on the website at phone width (App.tsx, showTabBar).
+   data-web marks it; data-hide says why it steps aside. Its row height feeds
+   --bottom-ui-offset like the shell, so .app-shell pads every page clear of it
+   and the toast, dock and sticky bars ride above it. On the full-screen Map
+   the bar is gone and the Map owns the bottom edge, so the offset drops back
+   to the safe area. A sheet or the keyboard keeps the 58px: the page must not
+   reflow under a dialog or while the user types. */
+html:has(.bottom-nav[data-web='true']:not([data-hide='map'])) { --shell-nav-h: 58px; }
+/* Near-opaque, like the shell bar: content scrolls under it. */
+.bottom-nav[data-web='true'] {
+  background: var(--app-bar, rgba(250, 247, 242, 0.92));
+}
+html[data-theme='dark'] .bottom-nav[data-web='true'] { background: var(--app-bar-dark, rgba(12, 20, 32, 0.92)); }
+/* Hidden is opacity, transform and pointer-events, never display: the Add
+   button in the centre slot must stay focusable from script for a dialog's
+   focus return. */
+.bottom-nav[data-hide] {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+  transition: transform var(--motion-fast) var(--ease-exit), opacity var(--motion-fast) var(--ease-exit);
+}
+@media (prefers-reduced-motion: reduce) { .bottom-nav, .bottom-nav[data-hide] { transition: none; } }
 
 /* ============ v0.48 design-system consistency pass ============ */
 /* ---------- Ordering: this design-system layer is deliberately the LAST section in the file. It is the global override layer (one kicker recipe, one set of blur tiers, the <=720px touch-target floor), so it must win the cascade over every earlier block — including the page-scoped .app-home rules above. New sections belong above it. ---------- */

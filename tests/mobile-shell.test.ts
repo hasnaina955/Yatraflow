@@ -40,17 +40,13 @@ function rules(cssText: string, selector: string): string[] {
 
 // 1 ---------------------------------------------------------------------------
 
-describe('bottom navigation is a shell-only primary nav', () => {
+describe('bottom navigation is the phone primary nav (shell and phone web)', () => {
   const nav = source('src/components/BottomNav.tsx')
 
   it('ships the four primary destinations for everyone, Profile last', () => {
-    expect(navDestinations(false).map(d => d.to)).toEqual(['/', '/trips', '/explore', '/profile'])
-  })
-
-  it('adds Creator hub as a creator-only fifth, and Profile still last', () => {
-    const creator = navDestinations(true).map(d => d.to)
-    expect(creator).toEqual(['/', '/trips', '/explore', '/creator-hub', '/profile'])
-    expect(creator[creator.length - 1]).toBe('/profile')
+    const dests = navDestinations().map(d => d.to)
+    expect(dests).toEqual(['/', '/trips', '/explore', '/profile'])
+    expect(dests[dests.length - 1]).toBe('/profile')
   })
 
   it('uses real buttons and marks the current page for assistive tech', () => {
@@ -66,9 +62,14 @@ describe('bottom navigation is a shell-only primary nav', () => {
     expect(nav).toContain('return null')
   })
 
-  it('mounts only behind the native gate in App.tsx', () => {
+  it('mounts behind the shared showTabBar gate in App.tsx', () => {
     expect(app).toContain("import { BottomNav } from './components/BottomNav'")
-    expect(app).toContain('{isNative && me && <BottomNav route={route} onNavigate={navigate} isCreator={me.profile.isCreator} unread={unread} />}')
+    // Row 27a: signed in, native shell or phone web. #1064: the centre slot
+    // carries the universal Add control.
+    expect(app).toContain('const tabBar = showTabBar({ native: isNative, phoneWidth: phoneWeb, signedIn: !!me })')
+    expect(app).toContain('{tabBar && <BottomNav route={route} onNavigate={navigate} unread={unread} centre={addSlot} web={!isNative} hide={barHide} />}')
+    // The web pill draws only the round Add on the full-screen phone Map.
+    expect(app).toContain('<UniversalAdd variant="pill" mapOnly')
   })
 
   it('hides the website top bar for the signed-in shell', () => {
@@ -92,7 +93,7 @@ describe('bottom navigation is a shell-only primary nav', () => {
     // with the website's Plan, Help, Creators and Company groups. The
     // signed-in shell keeps the bottom bar and no website chrome.
     expect(app).toContain('(!isNative || !me) &&')
-    expect(app).toContain('{isNative && me && <BottomNav')
+    expect(app).toContain('{tabBar && <BottomNav')
     const at = app.indexOf('<footer className="footer">')
     expect(at).toBeGreaterThan(-1)
     // The gate opens directly above the element, so the footer is its first
@@ -113,7 +114,16 @@ describe('bottom navigation is a shell-only primary nav', () => {
     // not: the signed-out shell (landing/auth keep the topnav) showed a menu
     // button whose tap toggled state that rendered nothing.
     expect(app).toContain('{mobileNav && !isNative && (')
-    expect(app).toMatch(/\{!isNative && \(\s*<button\s+className="mobile-nav-btn"/)
+    expect(app).toMatch(/\{!isNative && !trayEmpty && \(\s*<button\s+className="mobile-nav-btn"/)
+    // Row 27a: with the bottom tab bar on, the tray drops what the bar holds,
+    // and an empty tray takes its button with it.
+    expect(app).toContain('const trayEmpty = tabBar && !me?.profile.isCreator')
+    const trayAt27a = app.indexOf('<div className="mobile-menu"')
+    const tray27a = app.slice(trayAt27a, app.indexOf('<OfflineBanner', trayAt27a))
+    expect(tray27a).toContain('{me && !tabBar && <>')
+    expect(tray27a).toMatch(/\{!tabBar && <a className=\{`nav-link \$\{route === '\/explore'/)
+    expect(tray27a).toMatch(/\{me && !tabBar && <a className=\{`nav-link \$\{route === '\/profile'/)
+    expect(tray27a).toMatch(/\{me\?\.profile\.isCreator && <a className=\{`nav-link \$\{route === '\/creator-hub'/)
     // the tray keeps every destination the pill carried
     // Routes are paths now (#426 slice 2): the tray's appLink destinations.
     for (const dest of ['/trips', '/new', '/explore', '/creator-hub', '/profile']) {
@@ -190,12 +200,16 @@ describe('safe-area fallback chain', () => {
 // 3 ---------------------------------------------------------------------------
 
 describe('bottom chrome offset', () => {
-  it('keeps the shell offset inert on the web', () => {
-    // Exactly two definitions: the :root default the website resolves, and the
-    // shell's. A third (or a reordering) would let a shell value leak out.
+  it('keeps the shell offset inert on the web until the web bar mounts', () => {
+    // Exactly four definitions: the :root default the website resolves, the
+    // shell's, the shell's own Map drop to 0px (row 27a, scoped under
+    // html.native-shell so it never reaches the web), and the phone web bar's,
+    // which only applies while that bar is in the DOM and not stepped aside for
+    // the Map. A fifth (or a reordering) would let a shell value leak out.
     const defs = [...css.matchAll(/--shell-nav-h:\s*([^;]+);/g)].map(m => m[1].trim())
-    expect(defs, 'web default 0px, shell 58px').toEqual(['0px', '58px'])
+    expect(defs, 'web default 0px, shell 58px, shell Map 0px, web bar 58px').toEqual(['0px', '58px', '0px', '58px'])
     expect(rules(css, 'html.native-shell').join('\n')).toContain('--shell-nav-h: 58px;')
+    expect(css).toContain("html:has(.bottom-nav[data-web='true']:not([data-hide='map'])) { --shell-nav-h: 58px; }")
     expect(css).toContain('--bottom-ui-offset: calc(var(--shell-nav-h) + var(--safe-bottom));')
   })
 

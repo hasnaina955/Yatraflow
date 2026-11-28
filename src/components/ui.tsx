@@ -8,6 +8,7 @@ import { beginToastExit, leaveIfNotHeld, toastIconKind } from '../lib/toastTimin
 import { haptic } from '../lib/haptics'
 import { registerTouchDnd, touchPressAbort, touchPressStart, encodeDropKey, isInteractiveTarget, consumeCarryRect } from '../lib/touchDnd'
 import { type AvatarTone } from '../lib/avatarTone'
+import { PHONE_QUERY } from '../lib/phoneChrome'
 
 export function Avatar({ user, size = 'sm', tone }: {
   user?: { id?: string; profile: { name: string; avatarUrl?: string } }
@@ -179,30 +180,30 @@ export function Field(props: {
   const controlId = useId()
   const hintId = `${controlId}-hint`
   const errId = `${controlId}-err`
-  let associated = false
+  let associated: string | undefined
   const wired = React.Children.toArray(props.children).map(child => {
-    if (associated || !React.isValidElement(child)) return child
+    if (associated !== undefined || !React.isValidElement(child)) return child
     const el = child as React.ReactElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>
     const tag = typeof el.type === 'string' ? el.type : null
     const isHostControl = tag === 'input' || tag === 'select' || tag === 'textarea'
     const isCustomControl = typeof el.type === 'function'
     if (!isHostControl && !isCustomControl) return child
-    if (el.props.id != null) { associated = true; return child }
-    associated = true
+    const id = el.props.id ?? controlId
+    associated = id
     // The hint/error live outside the control - describe them so SR users
     // tabbing back to the field hear them, and flag the failing field. Only
     // claim these two when this Field actually has something to say: assigning
     // `undefined` would still overwrite the key, because cloneElement copies it
     // either way, which silently dropped the invalid flag from controls that
     // validate themselves (the stop editor's source link, for one).
-    const extra: Partial<{ id: string; 'aria-describedby': string; 'aria-invalid': boolean }> = { id: controlId }
+    const extra: Partial<{ id: string; 'aria-describedby': string; 'aria-invalid': boolean }> = { id }
     if (props.error) { extra['aria-describedby'] = errId; extra['aria-invalid'] = true }
     else if (props.hint && !props.hideHintFromAssistiveTech) extra['aria-describedby'] = hintId
     return React.cloneElement(el, extra)
   })
   return (
     <div className="field">
-      <label className="label" htmlFor={associated ? controlId : undefined}>{props.label}</label>
+      <label className="label" htmlFor={associated}>{props.label}</label>
       {props.lead ? <span className="field-lead">{props.lead}{wired}</span> : wired}
       {props.hint && !props.error && <span className="hint-text" id={hintId} aria-hidden={props.hideHintFromAssistiveTech}>{props.hint}</span>}
       {/* Field-tied error copy is POLITE, not assertive: a form submit that fails
@@ -826,6 +827,13 @@ export function useMedia(query: string, initial = false): boolean {
     return () => mq.removeEventListener?.('change', onChange)
   }, [query])
   return matches
+}
+
+/** The shared phone-width rule (row 27a, lib/phoneChrome.ts): the bottom tab
+ *  bar, the universal Add and the Chakra FAB hide all read it. The first value
+ *  is the real match, so a phone paints its chrome at once, with no jump. */
+export function usePhoneWidth(): boolean {
+  return useMedia(PHONE_QUERY, typeof window !== 'undefined' && (window.matchMedia?.(PHONE_QUERY).matches ?? false))
 }
 
 /** Stop decorative work while the document is hidden. */

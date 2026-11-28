@@ -31,9 +31,9 @@ describe('private creator claim URL handling', () => {
 
 describe('claim card routing', () => {
   const config = JSON.parse(read('vercel.json'))
-  const claim = config.rewrites.find((r: { source: string }) => r.source === '/claim/:token')
+  const claim = config.rewrites.find((r: { destination: string }) => r.destination === '/api/creator-claim?og=1')
   it('routes crawlers to the card and keeps ordinary browsers on the SPA', () => {
-    expect(claim.destination).toBe('/api/creator-claim?og=1')
+    expect(claim.source).toBe('/claim/([^/]+)')
     const agents = new RegExp(claim.has[0].value)
     expect(agents.test('facebookexternalhit/1.1')).toBe(true)
     expect(agents.test('WhatsApp/2.24.1 N')).toBe(true)

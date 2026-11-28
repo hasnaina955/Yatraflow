@@ -1207,6 +1207,8 @@ Row policies cannot protect authors or ballots inside JSON arrays. Check stored 
 - **Run `npm run lint:ste` after `git add -N` on each new file (learned 2026-11-26, #1042).** The default run reads tracked changes only. Two STE faults in a new file passed unchecked and reached a commit.
 - **`vite preview` does not read `vercel.json`, so it serves no rewrite or header from that file (learned 2026-11-26, #1042).** Test a rewrite against the file's own order and matcher. Check the deployed headers on a preview deployment.
 
+- **Use an unnamed Vercel rewrite match for a private path segment.** Vercel can copy named path parameters into the destination query.
+
 ## 2. Conventions (`AGENTS.md` §4)
 
 - **The trip cost calculator pages are generated: rebuild them with the model.** `calculators/engine.mjs`, `client.mjs`, `template.html`, `shared.css` and every `destinations/*.json` are sources. `public/<slug>/index.html`, `public/calculators/*` and `calculators/manifest.json` are output. Run `npm run calculators:build` after any edit to a source, then commit both sides. `tests/calculators.test.ts` compares the committed bytes with a fresh render, so a missed build fails the gate. A new destination is one JSON file plus its entry in `DESTINATION_ORDER`.

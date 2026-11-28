@@ -216,7 +216,7 @@
       "destination": "/api/join?code=:code"
     },
     {
-      "source": "/claim/:token",
+      "source": "/claim/([^/]+)",
       "has": [
         {
           "type": "header",

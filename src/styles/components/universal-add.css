@@ -83,7 +83,6 @@ button.ua-caption { cursor: pointer; }
 }
 .ua-caption-chev { flex: none; }
 .ua-slot[data-state='hidden'] { opacity: 0; pointer-events: none; }
-.ua-slot[data-state='none'] .ua-caption { visibility: hidden; }
 
 /* ---- the phone web pill ---- */
 .ua-pill {
@@ -157,6 +156,10 @@ button.ua-caption { cursor: pointer; }
   z-index: var(--z-notif);
   min-width: 210px;
   max-width: calc(100vw - 16px);
+  max-height: calc(100vh - var(--ua-menu-bottom, 80px) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - 8px);
+  max-height: calc(100dvh - var(--ua-menu-bottom, 80px) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - 8px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-2);
   display: flex;
   flex-direction: column;

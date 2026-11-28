@@ -56,6 +56,8 @@ describe('inside a trip, as an editor', () => {
   it('never invents a day: no published day means no day in the label', () => {
     const c = ctx('/trip/t1/timeline', scope({ tab: 'timeline', stopDay: null }))
     expect(c.primary).toEqual({ kind: 'add-stop', label: 'Add stop' })
+    const b = ctx('/trip/t1/board', scope({ tab: 'board', stopDay: null }))
+    expect(b.primary).toEqual({ kind: 'add-stop', label: 'Add stop' })
   })
 
   it('the menu add-stop from another tab carries the day but not the day label', () => {

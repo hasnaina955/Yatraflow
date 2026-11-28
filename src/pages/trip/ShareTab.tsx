@@ -650,12 +650,14 @@ export function ShareTab({ trip, me, onNavigate, legCorrections }: {
   const [inviteAsked, setInviteAsked] = useState(false)
   useEffect(() => {
     if (!inviteAsked || tab !== 'plan') return
+    // One-shot focus ask: consume immediately even when the field is absent.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInviteAsked(false)
     const field = inviteFieldRef.current
     if (!field) return
     field.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
     const target = field.querySelector<HTMLElement>('button, a[href]') ?? field
     target.focus({ preventScroll: true })
-    setInviteAsked(false)
   }, [inviteAsked, tab])
   useTabAdd({
     tripId: trip.id,

@@ -73,7 +73,7 @@ function useKeyboardUp(): boolean {
         if (focused !== active) {
           stopWatch()
           focused = active
-          // Unmounting a focused input skips focusout; re-read if it leaves the DOM.
+          // A removed input skips focusout; re-read when it leaves the DOM.
           mo = new MutationObserver(() => { if (!focused?.isConnected) read() })
           mo.observe(document.body, { childList: true, subtree: true })
         }
@@ -260,11 +260,12 @@ export function UniversalAdd({ variant, route, signedIn, appOverlay, onNavigate 
 
   function onMenuKey(e: ReactKeyboardEvent<HTMLDivElement>) {
     const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+    if (items.length === 0) return
     const at = items.indexOf(document.activeElement as HTMLElement)
     const move = (i: number) => { e.preventDefault(); items[(i + items.length) % items.length]?.focus() }
     switch (e.key) {
       case 'ArrowDown': move(at + 1); break
-      case 'ArrowUp': move(at - 1); break
+      case 'ArrowUp': move(at < 0 ? items.length - 1 : at - 1); break
       case 'Home': move(0); break
       case 'End': move(items.length - 1); break
       case 'Escape': e.preventDefault(); e.stopPropagation(); closeMenu(true); break

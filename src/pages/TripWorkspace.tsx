@@ -39,6 +39,7 @@ import { requestTabAdd, useWorkspaceAdd } from '../lib/universalAddStore'
 import type { AddKind } from '../lib/universalAdd'
 import { nextTripStep } from '../lib/tripNextStep'
 import { AI_COMPANION_ENABLED } from '../lib/featureFlags'
+import { isNative } from '../lib/native'
 import { OverviewTab } from './trip/OverviewTab'
 import { TimelineTab } from './trip/TimelineTab'
 import { MapTabSkeleton } from './trip/MapTabSkeleton'
@@ -1174,8 +1175,9 @@ export function TripWorkspace({ tripId, initialTab, onNavigate }: { tripId: stri
       {/* AI companion: locked for the premium milestone (M8) — the feature is
           complete but unmounted unless VITE_AI_COMPANION=on. See featureFlags. */}
       {AI_COMPANION_ENABLED && (
-        // #1064: on a phone Chakra lives in the Add menu, so the floating button goes.
-        <AiDrawer key={trip.id} trip={trip} open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} legCorrections={legCorrections} fab={!phoneWidth} />
+        // #1064: when UniversalAdd is on screen (native at any width, or phone web)
+        // Chakra lives in the Add menu, so the floating button goes.
+        <AiDrawer key={trip.id} trip={trip} open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} legCorrections={legCorrections} fab={!(isNative || phoneWidth)} />
       )}
     </div>
   )

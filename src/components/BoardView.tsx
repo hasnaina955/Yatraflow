@@ -239,13 +239,14 @@ export function BoardView({ trip, editable, applyChange, health, totals, onOpenO
   const handleAdd = useCallback((dayIndex: number) => openEditorTarget({ mode: 'add', dayIndex }), [openEditorTarget])
   const handleEdit = useCallback((stopId: string) => openEditorTarget({ mode: 'edit', stopId }), [openEditorTarget])
   // #1064: the universal Add control opens this Board's own "Add a stop", for
-  // the focused day. The whole route ('all') adds to Day 1, as the header does.
-  const boardAddDay = focusedDay === 'all' ? 0 : focusedDay
+  // the focused day. On the whole route ('all'), publish no day so the label
+  // stays "Add stop", and fall back to Day 1 when clicked.
+  const boardAddDay = focusedDay === 'all' ? null : focusedDay
   useTabAdd({
     tripId: trip.id,
     tab: 'board',
     stopDay: editable ? boardAddDay : null,
-    handlers: editable ? { 'add-stop': dayIndex => handleAdd(dayIndex ?? boardAddDay) } : {},
+    handlers: editable ? { 'add-stop': dayIndex => handleAdd(dayIndex ?? boardAddDay ?? 0) } : {},
   })
   const toggleDayFocus = useCallback((dayIndex: number) => {
     setFocusedDay(focusedDay === dayIndex ? 'all' : dayIndex)
